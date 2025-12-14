@@ -1,0 +1,151 @@
+/**
+ * ApiClient.js
+ * REST API 통신 클라이언트
+ */
+
+import { debugLog } from '../utils/Config.js';
+
+export class ApiClient {
+    constructor(baseURL = 'http://localhost:8000/api') {
+        this.baseURL = baseURL;
+    }
+    
+    /**
+     * GET 요청
+     * @param {string} endpoint - API 엔드포인트
+     * @returns {Promise<any>}
+     */
+    async get(endpoint) {
+        try {
+            const response = await fetch(`${this.baseURL}${endpoint}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            debugLog(`📥 GET ${endpoint}:`, data);
+            return data;
+        } catch (error) {
+            console.error(`❌ GET ${endpoint} 실패:`, error);
+            throw error;
+        }
+    }
+    
+    /**
+     * POST 요청
+     * @param {string} endpoint - API 엔드포인트
+     * @param {Object} data - 전송할 데이터
+     * @returns {Promise<any>}
+     */
+    async post(endpoint, data) {
+        try {
+            const response = await fetch(`${this.baseURL}${endpoint}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+            debugLog(`📤 POST ${endpoint}:`, result);
+            return result;
+        } catch (error) {
+            console.error(`❌ POST ${endpoint} 실패:`, error);
+            throw error;
+        }
+    }
+    
+    /**
+     * PUT 요청
+     * @param {string} endpoint - API 엔드포인트
+     * @param {Object} data - 전송할 데이터
+     * @returns {Promise<any>}
+     */
+    async put(endpoint, data) {
+        try {
+            const response = await fetch(`${this.baseURL}${endpoint}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+            debugLog(`🔄 PUT ${endpoint}:`, result);
+            return result;
+        } catch (error) {
+            console.error(`❌ PUT ${endpoint} 실패:`, error);
+            throw error;
+        }
+    }
+    
+    /**
+     * DELETE 요청
+     * @param {string} endpoint - API 엔드포인트
+     * @returns {Promise<any>}
+     */
+    async delete(endpoint) {
+        try {
+            const response = await fetch(`${this.baseURL}${endpoint}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+            debugLog(`🗑️ DELETE ${endpoint}:`, result);
+            return result;
+        } catch (error) {
+            console.error(`❌ DELETE ${endpoint} 실패:`, error);
+            throw error;
+        }
+    }
+    
+    // ============================================
+    // 설비 관련 API
+    // ============================================
+    
+    /**
+     * 모든 설비 정보 가져오기
+     * @returns {Promise<Array>}
+     */
+    async getAllEquipment() {
+        return await this.get('/equipment');
+    }
+    
+    /**
+     * 특정 설비 정보 가져오기
+     * @param {string} equipmentId - 설비 ID
+     * @returns {Promise<Object>}
+     */
+    async getEquipment(equipmentId) {
+        return await this.get(`/equipment/${equipmentId}`);
+    }
+    
+    /**
+     * 설비 상태 업데이트
+     * @param {string} equipmentId - 설비 ID
+     * @param {Object} statusData - 상태 데이터
+     * @returns {Promise<Object>}
+     */
+    async updateEquipmentStatus(equipmentId, statusData) {
+        return await this.put(`/equipment/${equipmentId}/status`, statusData);
+    }
+    
+    /**
+     * 설비 알람 로그 가져오기
+     * @param {string} equipmentId - 설비 ID
+     * @param {Object} params - 쿼리 파라미터 (startDate, endDate 등)
+     * @returns {Promise<Array>}
+     */
+    async getAlarmLogs(equipmentId, params = {}) {
+        const queryString = new URLSearchParams(params).toString();
+        const endpoint = `/equipment/${equipmentId}/alarms${queryString ? '?' + queryString : ''}`;
+        return await this.get(endpoint);
+    }
+}

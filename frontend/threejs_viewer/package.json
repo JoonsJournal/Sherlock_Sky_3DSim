@@ -1,0 +1,25 @@
+{
+    "name": "sherlock-sky-3dsim-viewer",
+    "version": "1.0.0",
+    "description": "3D Equipment Array Visualization with Three.js",
+    "type": "module",
+    "scripts": {
+    "dev": "http-server -p 8080 -c-1",
+    "start": "http-server -p 8080"
+    },
+    "keywords": [
+    "three.js",
+    "3d",
+    "visualization",
+    "equipment",
+    "manufacturing"
+    ],
+    "author": "이동준",
+    "license": "MIT",
+    "devDependencies": {
+    "http-server": "^14.1.1"
+    },
+    "dependencies": {
+    "three": "^0.160.0"
+    }
+}

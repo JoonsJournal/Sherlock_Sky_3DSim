@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js 테스트</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #1a1a2e;
+            font-family: monospace;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+        }
+        .success { color: #2ecc71; }
+        .error { color: #e74c3c; }
+        .warning { color: #f39c12; }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>🔍 Three.js 디버그 테스트</h2>
+        <div id="status">테스트 중...</div>
+    </div>
+
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+    {
+        "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        const statusDiv = document.getElementById('status');
+        
+        function addStatus(message, type = 'success') {
+            const p = document.createElement('p');
+            p.className = type;
+            p.innerHTML = message;
+            statusDiv.appendChild(p);
+        }
+
+        // 1단계: Three.js 로드 테스트
+        try {
+            addStatus('1️⃣ Three.js import 시도 중...', 'warning');
+            
+            const THREE = await import('three');
+            addStatus('✅ Three.js 로드 성공!', 'success');
+            addStatus(`📦 Three.js 버전: ${THREE.REVISION}`, 'success');
+            
+        } catch (error) {
+            addStatus('❌ Three.js 로드 실패!', 'error');
+            addStatus(`에러: ${error.message}`, 'error');
+            console.error('Three.js import 에러:', error);
+        }
+
+        // 2단계: OrbitControls 로드 테스트
+        try {
+            addStatus('2️⃣ OrbitControls import 시도 중...', 'warning');
+            
+            const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+            addStatus('✅ OrbitControls 로드 성공!', 'success');
+            
+        } catch (error) {
+            addStatus('❌ OrbitControls 로드 실패!', 'error');
+            addStatus(`에러: ${error.message}`, 'error');
+            console.error('OrbitControls import 에러:', error);
+        }
+
+        // 3단계: 간단한 3D 씬 생성
+        try {
+            addStatus('3️⃣ 3D 씬 생성 시도 중...', 'warning');
+            
+            const THREE = await import('three');
+            const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+            
+            // 씬 생성
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            
+            // 카메라 생성
+            const camera = new THREE.PerspectiveCamera(
+                75,
+                window.innerWidth / window.innerHeight,
+                0.1,
+                1000
+            );
+            camera.position.z = 5;
+            
+            // 렌더러 생성
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            
+            // OrbitControls 생성
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            
+            // 조명 추가
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 5);
+            scene.add(directionalLight);
+            
+            // 큐브 생성
+            const geometry = new THREE.BoxGeometry(2, 2, 2);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0x3498db,
+                metalness: 0.5,
+                roughness: 0.5
+            });
+            const cube = new THREE.Mesh(geometry, material);
+            scene.add(cube);
+            
+            addStatus('✅ 3D 씬 생성 성공!', 'success');
+            addStatus('🎨 파란색 큐브가 보여야 합니다', 'success');
+            
+            // 애니메이션 루프
+            function animate() {
+                requestAnimationFrame(animate);
+                cube.rotation.x += 0.01;
+                cube.rotation.y += 0.01;
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
+            
+            addStatus('✅ 애니메이션 시작!', 'success');
+            addStatus('🖱️ 마우스로 회전해보세요', 'success');
+            
+            // 윈도우 리사이즈
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+        } catch (error) {
+            addStatus('❌ 3D 씬 생성 실패!', 'error');
+            addStatus(`에러: ${error.message}`, 'error');
+            console.error('씬 생성 에러:', error);
+        }
+
+        // 콘솔에 추가 정보 출력
+        console.log('🔍 브라우저 정보:', navigator.userAgent);
+        console.log('🔍 현재 URL:', window.location.href);
+        console.log('🔍 Import Map:', document.querySelector('script[type="importmap"]')?.textContent);
+    </script>
+</body>
+</html>

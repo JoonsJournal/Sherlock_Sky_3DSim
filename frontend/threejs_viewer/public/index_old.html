@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>설비 3D 배열 (디버그 모드)</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        
+        canvas {
+            display: block;
+            cursor: grab;
+        }
+        
+        canvas:active {
+            cursor: grabbing;
+        }
+        
+        /* 상단 정보 패널 */
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 100;
+            max-width: 300px;
+        }
+
+        #info h3 {
+            margin: 0 0 10px 0;
+            color: #3498db;
+        }
+
+        #info p {
+            margin: 5px 0;
+        }
+
+        /* 로딩 상태 표시 */
+        #loadingStatus {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: #2ecc71;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            z-index: 100;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* 설비 정보 패널 */
+        #equipmentInfo {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 320px;
+            max-height: 80vh;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            color: #333;
+            display: none;
+            z-index: 100;
+        }
+
+        #equipmentInfo.active {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        #equipmentInfo h2 {
+            margin: 0 0 15px 0;
+            color: #3498db;
+            font-size: 20px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        #equipmentInfo .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 30px;
+            text-align: center;
+            transition: background 0.3s;
+        }
+
+        #equipmentInfo .close-btn:hover {
+            background: #c0392b;
+        }
+
+        #equipmentInfo .info-row {
+            margin: 10px 0;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        #equipmentInfo .info-label {
+            font-weight: bold;
+            color: #555;
+            display: inline-block;
+            width: 100px;
+        }
+
+        #equipmentInfo .info-value {
+            color: #333;
+        }
+
+        #equipmentInfo .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        #equipmentInfo .status-running {
+            background: #2ecc71;
+            box-shadow: 0 0 8px #2ecc71;
+        }
+
+        #equipmentInfo .status-idle {
+            background: #f39c12;
+        }
+
+        #equipmentInfo .status-error {
+            background: #e74c3c;
+            box-shadow: 0 0 8px #e74c3c;
+        }
+
+        /* 디버그 컨트롤 패널 */
+        #debugControls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 100;
+            display: none; /* 기본적으로 숨김 */
+        }
+
+        #debugControls.active {
+            display: block;
+        }
+
+        #debugControls h4 {
+            margin: 0 0 10px 0;
+            color: #3498db;
+            font-size: 14px;
+        }
+
+        #debugControls button {
+            display: block;
+            width: 100%;
+            margin: 5px 0;
+            padding: 8px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #debugControls button:hover {
+            background: #2980b9;
+        }
+
+        /* 디버그 토글 버튼 */
+        #debugToggle {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(52, 152, 219, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 101;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s;
+        }
+
+        #debugToggle:hover {
+            background: rgba(41, 128, 185, 0.9);
+            transform: scale(1.1);
+        }
+
+        /* 커스텀 스크롤바 */
+        #equipmentInfo::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #equipmentInfo::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        #equipmentInfo::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        #equipmentInfo::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* 키보드 단축키 안내 */
+        .keyboard-hint {
+            font-size: 11px;
+            color: #95a5a6;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <!-- 정보 패널 -->
+    <div id="info">
+        <h3>🏭 설비 배열 뷰어</h3>
+        <p>🖱️ <strong>좌클릭 + 드래그:</strong> 회전</p>
+        <p>🖱️ <strong>휠:</strong> 줌 인/아웃</p>
+        <p>🖱️ <strong>우클릭 + 드래그:</strong> 이동</p>
+        <p>👆 <strong>설비 클릭:</strong> 정보 보기</p>
+        <div class="keyboard-hint">
+            💡 <strong>F12</strong>로 콘솔 열기<br>
+            💡 <strong>debugHelp()</strong> 입력으로 명령어 보기
+        </div>
+    </div>
+
+    <!-- 로딩 상태 -->
+    <div id="loadingStatus">
+        🔄 초기화 중...
+    </div>
+
+    <!-- 설비 정보 패널 -->
+    <div id="equipmentInfo">
+        <button class="close-btn" onclick="closeEquipmentInfo()">×</button>
+        <h2 id="equipName">설비 정보</h2>
+        <div id="equipDetails"></div>
+    </div>
+
+    <!-- 디버그 토글 버튼 -->
+    <button id="debugToggle" onclick="toggleDebugPanel()" title="디버그 패널">
+        🔧
+    </button>
+
+    <!-- 디버그 컨트롤 패널 -->
+    <div id="debugControls">
+        <h4>🔧 디버그 컨트롤</h4>
+        <button onclick="window.debugScene()">📦 씬 정보</button>
+        <button onclick="window.toggleHelpers()">👁️ 헬퍼 토글</button>
+        <button onclick="window.debugRenderer()">🎨 렌더러 정보</button>
+        <button onclick="window.measurePerformance()">⚡ 성능 측정</button>
+        <button onclick="window.moveCameraTo(0, 30, 30)">📷 카메라 리셋</button>
+        <button onclick="window.focusEquipment(1, 1)">🎯 첫 번째 설비</button>
+    </div>
+<!-- Three.js Import Map 추가 -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module" src="/src/main.js"></script>
+
+    <script>
+        // 디버그 패널 토글
+        function toggleDebugPanel() {
+            const panel = document.getElementById('debugControls');
+            panel.classList.toggle('active');
+        }
+
+        // 로딩 상태 3초 후 자동 숨김
+        setTimeout(() => {
+            const loadingStatus = document.getElementById('loadingStatus');
+            if (loadingStatus) {
+                loadingStatus.style.transition = 'opacity 0.5s';
+                loadingStatus.style.opacity = '0';
+                setTimeout(() => {
+                    loadingStatus.style.display = 'none';
+                }, 500);
+            }
+        }, 3000);
+
+        // 키보드 단축키
+        document.addEventListener('keydown', (event) => {
+            // 'H' 키: 헬퍼 토글
+            if (event.key === 'h' || event.key === 'H') {
+                if (window.toggleHelpers) {
+                    window.toggleHelpers();
+                }
+            }
+            // 'R' 키: 카메라 리셋
+            if (event.key === 'r' || event.key === 'R') {
+                if (window.moveCameraTo) {
+                    window.moveCameraTo(20, 20, 25);
+                }
+            }
+            // 'D' 키: 디버그 패널 토글
+            if (event.key === 'd' || event.key === 'D') {
+                toggleDebugPanel();
+            }
+            // ESC 키: 정보 패널 닫기
+            if (event.key === 'Escape') {
+                if (window.closeEquipmentInfo) {
+                    window.closeEquipmentInfo();
+                }
+            }
+        });
+
+        // 페이지 로드 완료 시
+        window.addEventListener('load', () => {
+            console.log('🚀 페이지 로드 완료');
+            console.log('💡 키보드 단축키:');
+            console.log('   H - 헬퍼 토글');
+            console.log('   R - 카메라 리셋');
+            console.log('   D - 디버그 패널 토글');
+            console.log('   ESC - 정보 패널 닫기');
+        });
+    </script>
+</body>
+</html>
