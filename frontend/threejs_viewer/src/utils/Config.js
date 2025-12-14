@@ -39,32 +39,81 @@ export const CONFIG = {
         }
     },
     
-    // 조명 설정
+    // 조명 설정 (공장 스타일)
     LIGHTING: {
         AMBIENT: {
             COLOR: 0xffffff,
-            INTENSITY: 0.6
+            INTENSITY: 0.9  // 밝게 조정 (공장은 밝음)
         },
         DIRECTIONAL: {
             COLOR: 0xffffff,
-            INTENSITY: 0.8,
-            POSITION: { x: 20, y: 30, z: 20 }
+            INTENSITY: 1.0,  // 더 밝게
+            POSITION: { x: 20, y: 35, z: 20 }  // 높이 증가
         },
         POINT: {
             COLOR: 0xffffff,
-            INTENSITY: 0.5,
-            POSITION: { x: -20, y: 20, z: -20 }
+            INTENSITY: 0.6,
+            POSITION: { x: -20, y: 25, z: -20 }
+        },
+        // 추가 공장 조명 (형광등 스타일)
+        FACTORY_LIGHTS: {
+            COLOR: 0xf0f0ff,  // 약간 차가운 백색
+            INTENSITY: 0.8,
+            COUNT: 12,        // 조명 개수
+            HEIGHT: 8,        // 조명 높이
+            SPACING: 10       // 조명 간격
         }
     },
     
-    // 씬 설정
+    // 씬 설정 (공장 스타일)
     SCENE: {
-        BACKGROUND_COLOR: 0x1a1a2e,
+        BACKGROUND_COLOR: 0x87CEEB,  // 하늘색 (공장 분위기)
         FLOOR_SIZE: 50,
         FLOOR_COLOR: 0x2d3436,
         GRID_DIVISIONS: 50,
         GRID_COLOR1: 0x444444,
         GRID_COLOR2: 0x222222
+    },
+    
+    // 공장 환경 설정
+    FACTORY: {
+        // 바닥
+        FLOOR: {
+            COLOR: 0xb0b0b0,           // 밝은 회색 (콘크리트)
+            ROUGHNESS: 0.9,             // 거친 표면
+            METALNESS: 0.1,             // 약간의 금속성
+            GRID_COLOR: 0x808080,       // 그리드 색상
+            GRID_COLOR_SECONDARY: 0x606060
+        },
+        // 벽면
+        WALL: {
+            COLOR: 0xe0e0e0,            // 밝은 회색/흰색
+            HEIGHT: 8,                   // 8m 높이
+            THICKNESS: 0.3               // 30cm 두께
+        },
+        // 기둥
+        PILLAR: {
+            COLOR: 0x708090,            // 회색 (철제)
+            WIDTH: 0.4,                  // 40cm x 40cm
+            HEIGHT: 8                    // 8m 높이
+        },
+        // 안전 라인
+        SAFETY_LINE: {
+            COLOR: 0xFFD700,            // 노란색 (안전색)
+            WIDTH: 0.15                  // 15cm 폭
+        },
+        // 작업 영역
+        WORK_ZONE: {
+            COLOR: 0x90EE90,            // 연한 녹색
+            OPACITY: 0.1                 // 반투명
+        },
+        // 천장 구조물
+        OVERHEAD_BEAM: {
+            COLOR: 0x4682B4,            // 강철 파란색
+            WIDTH: 0.3,
+            HEIGHT: 0.4,
+            POSITION_Y: 7.5              // 천장 높이
+        }
     },
     
     // 컨트롤 설정
