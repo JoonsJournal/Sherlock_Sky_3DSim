@@ -26,6 +26,13 @@ export class SceneManager {
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(CONFIG.SCENE.BACKGROUND_COLOR);
         
+        // 안개 효과 추가 (공장 분위기)
+        this.scene.fog = new THREE.Fog(
+            CONFIG.SCENE.BACKGROUND_COLOR, 
+            40,  // 안개 시작 거리
+            80   // 안개 끝 거리
+        );
+        
         // 카메라 생성
         this.camera = new THREE.PerspectiveCamera(
             CONFIG.CAMERA.FOV,
@@ -45,6 +52,7 @@ export class SceneManager {
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = CONFIG.RENDERER.SHADOW_MAP_ENABLED;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; // 부드러운 그림자
         document.body.appendChild(this.renderer.domElement);
         
         debugLog('✅ Three.js 초기화 완료');
@@ -55,31 +63,75 @@ export class SceneManager {
     }
     
     /**
-     * 바닥 및 그리드 추가
+     * 바닥 및 그리드 추가 - 공장 스타일
      */
     addFloor() {
+        // 콘크리트 바닥 생성
         const floorGeometry = new THREE.PlaneGeometry(
             CONFIG.SCENE.FLOOR_SIZE, 
             CONFIG.SCENE.FLOOR_SIZE
         );
+        
+        // 콘크리트 텍스처 느낌의 머티리얼
         const floorMaterial = new THREE.MeshStandardMaterial({ 
             color: CONFIG.SCENE.FLOOR_COLOR,
-            roughness: 0.8
+            roughness: CONFIG.SCENE.FLOOR_ROUGHNESS,
+            metalness: 0.1
         });
+        
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
         floor.receiveShadow = true;
         this.scene.add(floor);
         
+        // 그리드 헬퍼 - 공장 바닥 라인
         const gridHelper = new THREE.GridHelper(
             CONFIG.SCENE.FLOOR_SIZE, 
             CONFIG.SCENE.GRID_DIVISIONS, 
             CONFIG.SCENE.GRID_COLOR1, 
             CONFIG.SCENE.GRID_COLOR2
         );
+        gridHelper.position.y = 0.01; // 바닥 위에 약간 띄워서 z-fighting 방지
         this.scene.add(gridHelper);
         
-        debugLog('🏗️ 바닥 및 그리드 생성 완료');
+        // 안전선 추가 (노란색 경계선)
+        this.addSafetyLines();
+        
+        debugLog('🏗️ 공장 바닥 및 그리드 생성 완료');
+    }
+    
+    /**
+     * 안전선 추가 (공장 안전 구역 표시)
+     */
+    addSafetyLines() {
+        if (!CONFIG.FACTORY_ENVIRONMENT.SAFETY_SIGNS.ENABLED) return;
+        
+        const safetyLineGeometry = new THREE.PlaneGeometry(
+            CONFIG.SCENE.FLOOR_SIZE * 0.9, 
+            0.1
+        );
+        const safetyLineMaterial = new THREE.MeshBasicMaterial({ 
+            color: CONFIG.FACTORY_ENVIRONMENT.SAFETY_SIGNS.COLOR,
+            side: THREE.DoubleSide
+        });
+        
+        // 4방향 안전선
+        const positions = [
+            { x: 0, z: CONFIG.SCENE.FLOOR_SIZE * 0.45, rotation: 0 },
+            { x: 0, z: -CONFIG.SCENE.FLOOR_SIZE * 0.45, rotation: 0 },
+            { x: CONFIG.SCENE.FLOOR_SIZE * 0.45, z: 0, rotation: Math.PI / 2 },
+            { x: -CONFIG.SCENE.FLOOR_SIZE * 0.45, z: 0, rotation: Math.PI / 2 }
+        ];
+        
+        positions.forEach(pos => {
+            const safetyLine = new THREE.Mesh(safetyLineGeometry, safetyLineMaterial);
+            safetyLine.rotation.x = -Math.PI / 2;
+            safetyLine.rotation.z = pos.rotation;
+            safetyLine.position.set(pos.x, 0.02, pos.z);
+            this.scene.add(safetyLine);
+        });
+        
+        debugLog('⚠️ 안전선 추가 완료');
     }
     
     /**
