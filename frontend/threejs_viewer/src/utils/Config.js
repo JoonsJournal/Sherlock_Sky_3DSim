@@ -39,32 +39,79 @@ export const CONFIG = {
         }
     },
     
-    // 조명 설정
+    // 조명 설정 - 공장 스타일
     LIGHTING: {
         AMBIENT: {
             COLOR: 0xffffff,
-            INTENSITY: 0.6
+            INTENSITY: 0.7  // 더 밝게
         },
         DIRECTIONAL: {
             COLOR: 0xffffff,
-            INTENSITY: 0.8,
-            POSITION: { x: 20, y: 30, z: 20 }
+            INTENSITY: 1.0,  // 더 밝게
+            POSITION: { x: 20, y: 40, z: 20 }  // 더 높게
         },
         POINT: {
-            COLOR: 0xffffff,
-            INTENSITY: 0.5,
+            COLOR: 0xffffcc,  // 따뜻한 흰색 (공장 조명)
+            INTENSITY: 0.6,
             POSITION: { x: -20, y: 20, z: -20 }
+        },
+        // 추가 공장 조명 (HemisphereLight)
+        HEMISPHERE: {
+            SKY_COLOR: 0xffffee,     // 밝은 하늘색 톤
+            GROUND_COLOR: 0x777777,  // 지면 반사광
+            INTENSITY: 0.5
         }
     },
     
-    // 씬 설정
+    // 씬 설정 - 공장 분위기
     SCENE: {
-        BACKGROUND_COLOR: 0x1a1a2e,
-        FLOOR_SIZE: 50,
-        FLOOR_COLOR: 0x2d3436,
-        GRID_DIVISIONS: 50,
-        GRID_COLOR1: 0x444444,
-        GRID_COLOR2: 0x222222
+        BACKGROUND_COLOR: 0xb0c4de,  // 라이트 스틸 블루 (공장 창문으로 보이는 하늘)
+        FLOOR_SIZE: 60,
+        FLOOR_COLOR: 0x8c8c8c,       // 콘크리트 회색
+        FLOOR_ROUGHNESS: 0.9,        // 거친 콘크리트 표면
+        GRID_DIVISIONS: 60,
+        GRID_COLOR1: 0x666666,       // 더 명확한 그리드
+        GRID_COLOR2: 0x444444
+    },
+    
+    // 공장 환경 설정
+    FACTORY_ENVIRONMENT: {
+        // 벽 설정
+        WALLS: {
+            ENABLED: true,
+            HEIGHT: 8,
+            THICKNESS: 0.3,
+            COLOR: 0xcccccc,        // 밝은 회색 벽
+            ROUGHNESS: 0.8
+        },
+        // 기둥 설정
+        PILLARS: {
+            ENABLED: true,
+            WIDTH: 0.4,
+            HEIGHT: 8,
+            COLOR: 0x999999,        // 어두운 회색
+            SPACING: 10             // 10m 간격
+        },
+        // 천장 트러스 (공장 천장 구조물)
+        CEILING_TRUSS: {
+            ENABLED: true,
+            HEIGHT: 7.5,
+            COLOR: 0x666666,
+            BEAM_SIZE: 0.2
+        },
+        // 파이프/배관
+        PIPES: {
+            ENABLED: true,
+            COLOR: 0x4a4a4a,
+            RADIUS: 0.1,
+            HEIGHT: 6
+        },
+        // 안전 표시 (Safety Signs)
+        SAFETY_SIGNS: {
+            ENABLED: true,
+            COLOR: 0xffff00,        // 노란색
+            STRIPE_COLOR: 0x000000  // 검정 줄무늬
+        }
     },
     
     // 컨트롤 설정

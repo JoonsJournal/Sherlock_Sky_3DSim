@@ -5,6 +5,7 @@
 
 import { SceneManager } from './scene/SceneManager.js';
 import { Lighting } from './scene/Lighting.js';
+import { FactoryEnvironment } from './scene/FactoryEnvironment.js';
 import { EquipmentLoader } from './scene/EquipmentLoader.js';
 import { CameraControls } from './controls/CameraControls.js';
 import { InteractionHandler } from './controls/InteractionHandler.js';
@@ -40,22 +41,25 @@ function init() {
     // 2. 바닥 추가
     sceneManager.addFloor();
     
-    // 3. 조명 추가
+    // 3. 조명 추가 (공장 스타일)
     Lighting.addLights(scene);
     
-    // 4. 디버그 헬퍼 추가 (DEBUG_MODE일 때만)
+    // 4. 공장 환경 요소 추가 (벽, 기둥, 천장, 파이프 등)
+    FactoryEnvironment.addAllElements(scene);
+    
+    // 5. 디버그 헬퍼 추가 (DEBUG_MODE일 때만)
     if (CONFIG.DEBUG_MODE) {
         Helpers.addDebugHelpers(scene);
     }
     
-    // 5. 카메라 컨트롤 설정
+    // 6. 카메라 컨트롤 설정
     cameraControls = new CameraControls(camera, renderer);
     
-    // 6. UI 오버레이 초기화
+    // 7. UI 오버레이 초기화
     dataOverlay = new DataOverlay();
     dataOverlay.exposeGlobalFunctions();
     
-    // 7. 설비 로더 초기화 및 배열 생성
+    // 8. 설비 로더 초기화 및 배열 생성
     equipmentLoader = new EquipmentLoader(scene);
     equipmentLoader.createEquipmentArray((msg, isError) => {
         dataOverlay.updateLoadingStatus(msg, isError);
@@ -63,20 +67,20 @@ function init() {
     
     const equipmentArray = equipmentLoader.getEquipmentArray();
     
-    // 8. 상태 시각화 초기화
+    // 9. 상태 시각화 초기화
     statusVisualizer = new StatusVisualizer(equipmentArray);
     statusVisualizer.updateAllStatus();
     
-    // 9. 상호작용 핸들러 초기화
+    // 10. 상호작용 핸들러 초기화
     interactionHandler = new InteractionHandler(camera, scene, equipmentArray);
     interactionHandler.setOnEquipmentClick((equipmentData) => {
         dataOverlay.showEquipmentInfo(equipmentData);
     });
     
-    // 10. 전역 디버깅 함수 노출
+    // 11. 전역 디버깅 함수 노출
     exposeDebugFunctions();
     
-    // 11. 애니메이션 시작
+    // 12. 애니메이션 시작
     animate();
     
     debugLog('✅ 애플리케이션 초기화 완료');
@@ -84,6 +88,7 @@ function init() {
     // 초기 도움말 출력
     if (CONFIG.DEBUG_MODE) {
         console.log('');
+        console.log('🏭 FACTORY SIMULATION 모드 활성화');
         console.log('🔧 디버그 모드 활성화');
         console.log('💡 도움말을 보려면 debugHelp()를 입력하세요');
         console.log('');
