@@ -13,6 +13,18 @@ from datetime import datetime
 from typing import Dict, List, Set, Tuple
 from dataclasses import dataclass
 import json
+import sys
+from pathlib import Path
+
+# 프로젝트 루트를 sys.path에 추가
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+from utils.logging_config import get_simulator_logger
+
+# 로거 초기화
+logger = get_simulator_logger(level="INFO")
+
 
 @dataclass
 class EquipmentConfig:
@@ -25,6 +37,7 @@ class EquipmentConfig:
     cycle_time: float = 45.0  # seconds
     temperature_baseline: float = 70.0  # °C
     
+
 class Equipment:
     """개별 설비 모델"""
     
@@ -41,6 +54,8 @@ class Equipment:
         self.process = env.process(self.run())
         self.failure_process = env.process(self.failure_cycle())
         self.monitoring_process = env.process(self.monitor())
+        
+        logger.debug(f"설비 초기화: {self.config.id} (row={config.row}, col={config.col})")
         
     def run(self):
         """생산 프로세스"""
@@ -70,6 +85,12 @@ class Equipment:
                 # 데이터 발행
                 self.emit_production_data(is_defect, actual_cycle)
                 
+                if self.production_count % 100 == 0:
+                    logger.info(
+                        f"{self.config.id}: {self.production_count}개 생산 완료 "
+                        f"(온도: {self.temperature:.1f}°C)"
+                    )
+                
             else:
                 # idle 또는 down 상태에서는 대기
                 yield self.env.timeout(0.1)
@@ -83,19 +104,25 @@ class Equipment:
             
             # 고장 발생
             if self.status == "running":
-                print(f"[{self.env.now:.2f}h] {self.config.id} - FAILURE")
+                logger.warning(
+                    f"[{self.env.now:.2f}h] {self.config.id} - 고장 발생 "
+                    f"(MTBF: {self.config.mtbf:.1f}h)"
+                )
                 self.status = "down"
-                self.emit_alarm("EQUIPMENT_DOWN", "critical")
+                self.emit_alarm("EQUIPMENT_DOWN", "CRITICAL")
                 
                 # MTTR 기반 수리 시간
                 repair_time = np.random.exponential(self.config.mttr)
                 yield self.env.timeout(repair_time)
                 
                 # 수리 완료
-                print(f"[{self.env.now:.2f}h] {self.config.id} - REPAIRED")
+                logger.info(
+                    f"[{self.env.now:.2f}h] {self.config.id} - 수리 완료 "
+                    f"(수리 시간: {repair_time:.2f}h)"
+                )
                 self.status = "running"
                 self.temperature = self.config.temperature_baseline
-                self.emit_alarm("EQUIPMENT_RESTORED", "info")
+                self.emit_alarm("EQUIPMENT_RESTORED", "INFO")
                 
     def monitor(self):
         """상태 모니터링 프로세스 (1초마다)"""
@@ -114,7 +141,10 @@ class Equipment:
             
             # 온도 알람 체크
             if self.temperature > 85:
-                self.emit_alarm("TEMP_HIGH", "warning")
+                logger.warning(
+                    f"{self.config.id} - 높은 온도 감지: {self.temperature:.1f}°C"
+                )
+                self.emit_alarm("TEMP_HIGH", "WARNING")
                 
     def emit_status_data(self):
         """상태 데이터 발행"""
@@ -148,6 +178,10 @@ class Equipment:
                 "yield_rate": 0 if is_defect else 100
             }
         }
+        
+        if is_defect:
+            logger.debug(f"{self.config.id} - 불량 발생 (사이클: {cycle_time:.1f}초)")
+        
         asyncio.create_task(publish_data(data))
         
     def emit_alarm(self, code: str, severity: str):
@@ -182,35 +216,58 @@ class ProductionSimulator:
         self.env = simpy.Environment()
         self.equipment_list = []
         
+        logger.info(f"시뮬레이터 초기화 중: {len(equipment_configs)}대 설비")
+        
         # 모든 설비 생성
         for config in equipment_configs:
             equipment = Equipment(self.env, config)
             self.equipment_list.append(equipment)
-            
-        print(f"시뮬레이터 초기화 완료: {len(self.equipment_list)}대 설비")
+        
+        logger.info(f"✓ 시뮬레이터 초기화 완료: {len(self.equipment_list)}대 설비")
         
     def run(self, duration_hours: float = None):
         """시뮬레이션 실행"""
-        if duration_hours:
-            self.env.run(until=duration_hours)
-        else:
-            # 무한 실행 (실시간 모드)
-            self.env.run()
+        try:
+            if duration_hours:
+                logger.info(f"시뮬레이션 시작: {duration_hours}시간 동안")
+                self.env.run(until=duration_hours)
+                logger.info(f"시뮬레이션 완료: {duration_hours}시간 경과")
+            else:
+                logger.info("시뮬레이션 시작: 무한 실행 모드")
+                self.env.run()
+        except KeyboardInterrupt:
+            logger.info("사용자에 의해 시뮬레이션 중단됨")
+            raise
+        except Exception as e:
+            logger.error(f"시뮬레이션 실행 중 오류 발생: {e}", exc_info=True)
+            raise
 
 
+# ============================================================================
 # 데이터 발행 함수
+# ============================================================================
+
 redis_client = None
 
 async def init_redis():
     """Redis 연결"""
     global redis_client
-    redis_client = await aioredis.create_redis_pool('redis://localhost')
+    try:
+        redis_client = await aioredis.create_redis_pool('redis://localhost')
+        logger.info("✓ Redis 연결 성공")
+        return True
+    except Exception as e:
+        logger.error(f"Redis 연결 실패: {e}", exc_info=True)
+        return False
     
 async def publish_data(data: dict):
     """데이터를 Redis Pub/Sub로 발행"""
     if redis_client:
-        channel = f"simulator:{data['type']}"
-        await redis_client.publish(channel, json.dumps(data))
+        try:
+            channel = f"simulator:{data['type']}"
+            await redis_client.publish(channel, json.dumps(data))
+        except Exception as e:
+            logger.error(f"데이터 발행 실패: {e}")
 
 
 # ============================================================================
@@ -264,9 +321,9 @@ def create_equipment_layout() -> List[EquipmentConfig]:
     # 제외 위치
     excluded_positions = get_excluded_positions()
     
-    print(f"설비 배열 생성: {ROWS}행 × {COLS}열 = {ROWS * COLS}개 위치")
-    print(f"제외 위치: {len(excluded_positions)}개")
-    print(f"실제 설비: {ROWS * COLS - len(excluded_positions)}대")
+    logger.info(f"설비 배열 생성: {ROWS}행 × {COLS}열 = {ROWS * COLS}개 위치")
+    logger.info(f"제외 위치: {len(excluded_positions)}개")
+    logger.info(f"실제 설비: {ROWS * COLS - len(excluded_positions)}대")
     
     configs = []
     created_count = 0
@@ -277,7 +334,7 @@ def create_equipment_layout() -> List[EquipmentConfig]:
             # 제외 위치 체크
             if (row, col) in excluded_positions:
                 excluded_count += 1
-                print(f"  제외: row={row:02d}, col={col}")
+                logger.debug(f"제외: row={row:02d}, col={col}")
                 continue
             
             # 설비 생성
@@ -294,12 +351,17 @@ def create_equipment_layout() -> List[EquipmentConfig]:
             )
             configs.append(config)
     
-    print(f"✓ 설비 생성 완료: {created_count}대")
-    print(f"✓ 제외된 위치: {excluded_count}개")
+    logger.info(f"✓ 설비 생성 완료: {created_count}대")
+    logger.debug(f"제외된 위치: {excluded_count}개")
     
     # 검증
-    assert created_count == 117, f"설비 수 불일치: {created_count} != 117"
-    assert excluded_count == 39, f"제외 수 불일치: {excluded_count} != 39"
+    try:
+        assert created_count == 117, f"설비 수 불일치: {created_count} != 117"
+        assert excluded_count == 39, f"제외 수 불일치: {excluded_count} != 39"
+        logger.info("✓ 설비 배열 검증 완료")
+    except AssertionError as e:
+        logger.error(f"설비 배열 검증 실패: {e}")
+        raise
     
     return configs
 
@@ -308,35 +370,44 @@ def create_equipment_layout() -> List[EquipmentConfig]:
 # 메인 실행
 # ============================================================================
 
-if __name__ == "__main__":
-    print("=" * 60)
-    print("SHERLOCK_SKY_3DSIM - 생산 시스템 시뮬레이터")
-    print("=" * 60)
-    print()
+def main():
+    """메인 실행 함수"""
+    logger.info("=" * 60)
+    logger.info("SHERLOCK_SKY_3DSIM - 생산 시스템 시뮬레이터")
+    logger.info("=" * 60)
     
     # 비동기 이벤트 루프 생성
     loop = asyncio.get_event_loop()
     
-    try:
-        loop.run_until_complete(init_redis())
-        print("✓ Redis 연결 완료")
-    except Exception as e:
-        print(f"⚠ Redis 연결 실패: {e}")
-        print("  시뮬레이션은 계속 진행하지만 데이터가 발행되지 않습니다.")
+    # Redis 연결
+    redis_connected = loop.run_until_complete(init_redis())
     
-    print()
+    if not redis_connected:
+        logger.warning("Redis 연결 없이 시뮬레이션 진행 (데이터 발행 안됨)")
     
     # 시뮬레이터 생성
-    equipment_configs = create_equipment_layout()
-    simulator = ProductionSimulator(equipment_configs)
+    try:
+        equipment_configs = create_equipment_layout()
+        simulator = ProductionSimulator(equipment_configs)
+    except Exception as e:
+        logger.error(f"시뮬레이터 초기화 실패: {e}", exc_info=True)
+        return
     
-    print()
-    print("=" * 60)
-    print("시뮬레이션 시작...")
-    print("=" * 60)
-    print()
+    logger.info("=" * 60)
+    logger.info("시뮬레이션 시작...")
+    logger.info("=" * 60)
     
     try:
         simulator.run()  # 무한 실행
     except KeyboardInterrupt:
-        print("\n시뮬레이션 종료")
+        logger.info("\n시뮬레이션 종료 (사용자 중단)")
+    except Exception as e:
+        logger.error(f"시뮬레이션 오류: {e}", exc_info=True)
+    finally:
+        if redis_client:
+            loop.run_until_complete(redis_client.close())
+            logger.info("Redis 연결 종료")
+
+
+if __name__ == "__main__":
+    main()
