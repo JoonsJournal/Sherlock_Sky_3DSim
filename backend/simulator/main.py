@@ -1,7 +1,7 @@
 """
 생산 시스템 시뮬레이터
 - SimPy를 사용한 이벤트 기반 시뮬레이션
-- 77대 설비의 생산, 고장, 유지보수 시뮬레이션
+- 117대 설비의 생산, 고장, 유지보수 시뮬레이션 (26행 × 6열 - 39개 제외)
 - 실시간 데이터 생성 및 전송
 """
 
@@ -10,7 +10,7 @@ import numpy as np
 import asyncio
 import aioredis
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Set, Tuple
 from dataclasses import dataclass
 import json
 
@@ -213,32 +213,130 @@ async def publish_data(data: dict):
         await redis_client.publish(channel, json.dumps(data))
 
 
-# 메인 실행
+# ============================================================================
+# 설비 배열 생성 함수 (Config.js와 동일한 로직)
+# ============================================================================
+
+def get_excluded_positions() -> Set[Tuple[int, int]]:
+    """
+    제외 위치 생성 (Config.js와 동일)
+    
+    Returns:
+        Set of (row, col) tuples representing excluded positions
+    """
+    excluded = set()
+    
+    # col:4, row 4~13 (10개)
+    for row in range(4, 14):
+        excluded.add((row, 4))
+    
+    # col:5, row 1~13 (13개)
+    for row in range(1, 14):
+        excluded.add((row, 5))
+    
+    # col:6, row 1~13 (13개)
+    for row in range(1, 14):
+        excluded.add((row, 6))
+    
+    # col:5, row 15~16 (2개)
+    excluded.add((15, 5))
+    excluded.add((16, 5))
+    
+    # col:5, row 22 (1개)
+    excluded.add((22, 5))
+    
+    return excluded
+
+
 def create_equipment_layout() -> List[EquipmentConfig]:
-    """7x11 설비 배열 생성"""
+    """
+    26행 × 6열 설비 배열 생성 (Config.js와 동일)
+    
+    총 156개 위치 중 39개 제외 → 실제 117대 설비
+    
+    Returns:
+        List of EquipmentConfig for 117 equipment units
+    """
+    # 설정 상수
+    ROWS = 26
+    COLS = 6
+    
+    # 제외 위치
+    excluded_positions = get_excluded_positions()
+    
+    print(f"설비 배열 생성: {ROWS}행 × {COLS}열 = {ROWS * COLS}개 위치")
+    print(f"제외 위치: {len(excluded_positions)}개")
+    print(f"실제 설비: {ROWS * COLS - len(excluded_positions)}대")
+    
     configs = []
-    for row in range(1, 12):  # 1-11
-        for col in range(1, 8):  # 1-7
+    created_count = 0
+    excluded_count = 0
+    
+    for row in range(1, ROWS + 1):
+        for col in range(1, COLS + 1):
+            # 제외 위치 체크
+            if (row, col) in excluded_positions:
+                excluded_count += 1
+                print(f"  제외: row={row:02d}, col={col}")
+                continue
+            
+            # 설비 생성
+            created_count += 1
             config = EquipmentConfig(
                 id=f"EQ-{row:02d}-{col:02d}",
                 row=row,
                 col=col,
-                mtbf=np.random.uniform(120, 180),  # 개별 차이
+                # 개별 설비마다 약간의 변동
+                mtbf=np.random.uniform(120, 180),
                 mttr=np.random.uniform(1.5, 2.5),
-                cycle_time=np.random.uniform(40, 50)
+                cycle_time=np.random.uniform(40, 50),
+                temperature_baseline=np.random.uniform(68, 72)
             )
             configs.append(config)
+    
+    print(f"✓ 설비 생성 완료: {created_count}대")
+    print(f"✓ 제외된 위치: {excluded_count}개")
+    
+    # 검증
+    assert created_count == 117, f"설비 수 불일치: {created_count} != 117"
+    assert excluded_count == 39, f"제외 수 불일치: {excluded_count} != 39"
+    
     return configs
 
 
+# ============================================================================
+# 메인 실행
+# ============================================================================
+
 if __name__ == "__main__":
+    print("=" * 60)
+    print("SHERLOCK_SKY_3DSIM - 생산 시스템 시뮬레이터")
+    print("=" * 60)
+    print()
+    
     # 비동기 이벤트 루프 생성
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(init_redis())
     
-    # 시뮬레이터 생성 및 실행
+    try:
+        loop.run_until_complete(init_redis())
+        print("✓ Redis 연결 완료")
+    except Exception as e:
+        print(f"⚠ Redis 연결 실패: {e}")
+        print("  시뮬레이션은 계속 진행하지만 데이터가 발행되지 않습니다.")
+    
+    print()
+    
+    # 시뮬레이터 생성
     equipment_configs = create_equipment_layout()
     simulator = ProductionSimulator(equipment_configs)
     
+    print()
+    print("=" * 60)
     print("시뮬레이션 시작...")
-    simulator.run()  # 무한 실행
+    print("=" * 60)
+    print()
+    
+    try:
+        simulator.run()  # 무한 실행
+    except KeyboardInterrupt:
+        print("\n시뮬레이션 종료")

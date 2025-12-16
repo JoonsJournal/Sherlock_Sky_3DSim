@@ -247,3 +247,81 @@ async def get_grid_layout():
     finally:
         if conn:
             return_db_connection(conn)
+
+@router.get("/grid/layout")
+@handle_errors
+async def get_grid_layout():
+    """설비 배열 그리드 레이아웃 조회 (26행 × 6열)"""
+    logger.info("그리드 레이아웃 조회 요청")
+    
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, row_position, col_position, status
+            FROM equipment
+            ORDER BY row_position, col_position
+        """)
+        
+        # Config.js와 동일한 그리드 크기
+        ROWS = 26
+        COLS = 6
+        
+        # 그리드 초기화 (None으로)
+        grid = [[None for _ in range(COLS)] for _ in range(ROWS)]
+        
+        equipment_count = 0
+        for row in cursor.fetchall():
+            eq_id, row_pos, col_pos, status = row
+            
+            # 1-based index를 0-based로 변환
+            grid_row = row_pos - 1
+            grid_col = col_pos - 1
+            
+            # 인덱스 범위 검증
+            if 0 <= grid_row < ROWS and 0 <= grid_col < COLS:
+                grid[grid_row][grid_col] = {
+                    "id": eq_id,
+                    "status": status,
+                    "position": {
+                        "row": row_pos,
+                        "col": col_pos
+                    }
+                }
+                equipment_count += 1
+            else:
+                logger.warning(
+                    f"유효하지 않은 위치: {eq_id} at ({row_pos}, {col_pos})"
+                )
+        
+        cursor.close()
+        
+        # 제외 위치 계산
+        total_positions = ROWS * COLS
+        excluded_count = total_positions - equipment_count
+        
+        logger.info(
+            f"그리드 레이아웃 조회 완료: {equipment_count}개 설비 "
+            f"({ROWS}행 × {COLS}열 - {excluded_count}개 제외)"
+        )
+        
+        return {
+            "grid": grid,
+            "layout": {
+                "rows": ROWS,
+                "cols": COLS,
+                "total_positions": total_positions,
+                "equipment_count": equipment_count,
+                "excluded_count": excluded_count
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        handle_db_error(e, "그리드 레이아웃 조회")
+    
+    finally:
+        if conn:
+            return_db_connection(conn)
