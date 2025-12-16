@@ -47,3 +47,20 @@ package-lock.json
 # Temporary files
 *.tmp
 *.temp
+
+# Environment Variables (추가)
+.env
+.env.local
+.env.*.local
+
+# Logs (추가)
+logs/
+*.log
+
+# Database backups (추가)
+*.sql
+*.dump
+
+# Logs
+logs/
+*.log

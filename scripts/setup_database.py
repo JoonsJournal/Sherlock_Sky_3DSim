@@ -6,25 +6,52 @@ Prerequisites:
 1. PostgreSQL 16 installed
 2. TimescaleDB extension installed
 3. Redis/Memurai installed
+4. .env 파일 설정 완료
 
 Usage:
-    python scripts/setup_database_native.py
+    python scripts/setup_database.py
 """
 
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import sys
+import os
+from dotenv import load_dotenv
 
-# Database configuration
+# 프로젝트 루트의 .env 파일 로드
+# scripts 폴더에서 실행되므로 상위 디렉토리의 .env를 찾음
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+dotenv_path = os.path.join(project_root, '.env')
+
+if not os.path.exists(dotenv_path):
+    print("❌ .env 파일을 찾을 수 없습니다!")
+    print(f"   예상 위치: {dotenv_path}")
+    print("   .env.example 파일을 복사하여 .env 파일을 생성하세요.")
+    sys.exit(1)
+
+load_dotenv(dotenv_path)
+
+# 환경 변수에서 데이터베이스 설정 읽기
 DB_CONFIG = {
-    'host': 'localhost',
-    'port': 5432,
-    'user': 'postgres',  # Change if needed
-    'password': 'password',  # Change to your password
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'port': int(os.getenv('DB_PORT', '5432')),
+    'user': os.getenv('DB_USER', 'postgres'),
+    'password': os.getenv('DB_PASSWORD'),
     'database': 'postgres'  # Initial connection
 }
 
-TARGET_DB = 'sherlock_sky'
+TARGET_DB = os.getenv('DB_NAME', 'sherlock_sky')
+
+# 비밀번호 검증
+if not DB_CONFIG['password']:
+    print("❌ DB_PASSWORD 환경 변수가 설정되지 않았습니다!")
+    print("   .env 파일에서 DB_PASSWORD를 설정하세요.")
+    sys.exit(1)
+
+print(f"📁 .env 파일 로드 완료: {dotenv_path}")
+print(f"🔌 연결 대상: {DB_CONFIG['host']}:{DB_CONFIG['port']}")
+print(f"👤 사용자: {DB_CONFIG['user']}")
+print(f"🗄️  데이터베이스: {TARGET_DB}\n")
 
 
 def create_database():
@@ -337,19 +364,24 @@ def print_summary():
     print("  Database Setup Complete!")
     print("="*60)
     print("\nConnection Information:")
-    print(f"  Database: postgresql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{TARGET_DB}")
-    print(f"  Redis: redis://{DB_CONFIG['host']}:6379")
+    # 비밀번호를 마스킹하여 표시
+    masked_password = "***"
+    print(f"  Database: postgresql://{DB_CONFIG['user']}:{masked_password}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{TARGET_DB}")
+    print(f"  Redis: redis://{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', '6379')}")
+    print("\n⚠️  중요: .env 파일은 절대 Git에 커밋하지 마세요!")
     print("\nNext Steps:")
     print("  1. Activate conda environment:")
     print("     conda activate sherlockSky3DSimBackend")
     print("\n  2. Start FastAPI server:")
+    print("     cd backend")
     print("     uvicorn api.main:app --reload")
     print("\n  3. Start simulator (new terminal):")
+    print("     cd backend")
     print("     python -m simulator.main")
     print("\nTroubleshooting:")
     print("  - PostgreSQL: sc query postgresql-x64-16")
     print("  - Redis/Memurai: sc query Memurai")
-    print("  - Test connection: python -c \"import psycopg2; print('OK')\"")
+    print("  - .env 파일 확인: 프로젝트 루트에 .env 파일이 있는지 확인")
     print("="*60)
 
 

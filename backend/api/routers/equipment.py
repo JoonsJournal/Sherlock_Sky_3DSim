@@ -5,25 +5,41 @@
 - 장비 상태 업데이트
 """
 
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Dict
+from fastapi import APIRouter, HTTPException, Depends, Query
+from typing import List, Dict, Optional
 from datetime import datetime
+import logging
+
 from ..database.connection import get_db_connection, return_db_connection
+from ..utils.errors import (
+    DatabaseError,
+    NotFoundError,
+    ValidationError,
+    handle_errors,
+    handle_db_error,
+    validate_equipment_id
+)
+
+# 로거 설정
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
 @router.get("/")
+@handle_errors
 async def get_all_equipment():
-    """전체 장비 목록 조회 (77개)"""
+    """전체 장비 목록 조회"""
+    logger.info("전체 장비 목록 조회 요청")
     conn = None
+    
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT equipment_id, name, type, row_position, col_position, 
-                   current_status, created_at
+            SELECT id, row_position, col_position, 
+                   equipment_type, status, created_at
             FROM equipment
             ORDER BY row_position, col_position
         """)
@@ -31,18 +47,19 @@ async def get_all_equipment():
         equipment_list = []
         for row in cursor.fetchall():
             equipment_list.append({
-                "equipment_id": row[0],
-                "name": row[1],
-                "type": row[2],
+                "id": row[0],
                 "position": {
-                    "row": row[3],
-                    "col": row[4]
+                    "row": row[1],
+                    "col": row[2]
                 },
-                "status": row[5],
-                "created_at": row[6].isoformat() if row[6] else None
+                "type": row[3],
+                "status": row[4],
+                "created_at": row[5].isoformat() if row[5] else None
             })
         
         cursor.close()
+        
+        logger.info(f"장비 목록 조회 성공: {len(equipment_list)}개")
         
         return {
             "equipment": equipment_list,
@@ -51,7 +68,7 @@ async def get_all_equipment():
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"장비 목록 조회 실패: {str(e)}")
+        handle_db_error(e, "장비 목록 조회")
     
     finally:
         if conn:
@@ -59,46 +76,52 @@ async def get_all_equipment():
 
 
 @router.get("/{equipment_id}")
+@handle_errors
 async def get_equipment_detail(equipment_id: str):
     """특정 장비 상세 정보"""
+    logger.info(f"장비 상세 조회 요청: {equipment_id}")
+    
+    # ID 형식 검증
+    validate_equipment_id(equipment_id)
+    
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT equipment_id, name, type, row_position, col_position,
-                   current_status, total_runtime_hours, last_maintenance_date,
-                   created_at
+            SELECT id, row_position, col_position, equipment_type,
+                   status, created_at, updated_at
             FROM equipment
-            WHERE equipment_id = %s
+            WHERE id = %s
         """, (equipment_id,))
         
         row = cursor.fetchone()
+        cursor.close()
+        
         if not row:
-            raise HTTPException(status_code=404, detail="장비를 찾을 수 없습니다")
+            logger.warning(f"장비를 찾을 수 없음: {equipment_id}")
+            raise NotFoundError("장비", equipment_id)
         
         equipment = {
-            "equipment_id": row[0],
-            "name": row[1],
-            "type": row[2],
+            "id": row[0],
             "position": {
-                "row": row[3],
-                "col": row[4]
+                "row": row[1],
+                "col": row[2]
             },
-            "status": row[5],
-            "runtime_hours": float(row[6]) if row[6] else 0,
-            "last_maintenance": row[7].isoformat() if row[7] else None,
-            "created_at": row[8].isoformat() if row[8] else None
+            "type": row[3],
+            "status": row[4],
+            "created_at": row[5].isoformat() if row[5] else None,
+            "updated_at": row[6].isoformat() if row[6] else None
         }
         
-        cursor.close()
+        logger.info(f"장비 상세 조회 성공: {equipment_id}")
         return equipment
         
-    except HTTPException:
+    except (NotFoundError, ValidationError):
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"장비 조회 실패: {str(e)}")
+        handle_db_error(e, f"장비 상세 조회: {equipment_id}")
     
     finally:
         if conn:
@@ -106,18 +129,33 @@ async def get_equipment_detail(equipment_id: str):
 
 
 @router.get("/{equipment_id}/status")
-async def get_equipment_status(equipment_id: str, limit: int = 100):
+@handle_errors
+async def get_equipment_status(
+    equipment_id: str, 
+    limit: int = Query(default=100, ge=1, le=1000)
+):
     """장비 상태 이력 조회"""
+    logger.info(f"장비 상태 이력 조회: {equipment_id}, limit={limit}")
+    
+    # ID 형식 검증
+    validate_equipment_id(equipment_id)
+    
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # 장비 존재 여부 먼저 확인
+        cursor.execute("SELECT 1 FROM equipment WHERE id = %s", (equipment_id,))
+        if not cursor.fetchone():
+            raise NotFoundError("장비", equipment_id)
+        
         cursor.execute("""
-            SELECT timestamp, status, temperature, pressure, vibration
+            SELECT time, status, temperature, vibration, 
+                   current, voltage
             FROM equipment_status_ts
             WHERE equipment_id = %s
-            ORDER BY timestamp DESC
+            ORDER BY time DESC
             LIMIT %s
         """, (equipment_id, limit))
         
@@ -127,11 +165,14 @@ async def get_equipment_status(equipment_id: str, limit: int = 100):
                 "timestamp": row[0].isoformat(),
                 "status": row[1],
                 "temperature": float(row[2]) if row[2] else None,
-                "pressure": float(row[3]) if row[3] else None,
-                "vibration": float(row[4]) if row[4] else None
+                "vibration": float(row[3]) if row[3] else None,
+                "current": float(row[4]) if row[4] else None,
+                "voltage": float(row[5]) if row[5] else None
             })
         
         cursor.close()
+        
+        logger.info(f"상태 이력 조회 성공: {equipment_id}, {len(status_history)}건")
         
         return {
             "equipment_id": equipment_id,
@@ -139,8 +180,10 @@ async def get_equipment_status(equipment_id: str, limit: int = 100):
             "count": len(status_history)
         }
         
+    except (NotFoundError, ValidationError):
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"상태 이력 조회 실패: {str(e)}")
+        handle_db_error(e, f"상태 이력 조회: {equipment_id}")
     
     finally:
         if conn:
@@ -148,41 +191,58 @@ async def get_equipment_status(equipment_id: str, limit: int = 100):
 
 
 @router.get("/grid/layout")
+@handle_errors
 async def get_grid_layout():
-    """7x11 그리드 레이아웃 조회"""
+    """설비 배열 그리드 레이아웃 조회"""
+    logger.info("그리드 레이아웃 조회 요청")
+    
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
         cursor.execute("""
-            SELECT equipment_id, name, row_position, col_position, current_status
+            SELECT id, row_position, col_position, status
             FROM equipment
             ORDER BY row_position, col_position
         """)
         
-        # 7x11 그리드 초기화
-        grid = [[None for _ in range(11)] for _ in range(7)]
+        # 그리드 초기화 (실제 설비 배열 크기로 조정 필요)
+        # Config.js의 ROWS, COLS 값과 일치시켜야 함
+        ROWS = 26
+        COLS = 6
+        grid = [[None for _ in range(COLS)] for _ in range(ROWS)]
         
+        equipment_count = 0
         for row in cursor.fetchall():
-            equipment_id, name, row_pos, col_pos, status = row
-            grid[row_pos][col_pos] = {
-                "equipment_id": equipment_id,
-                "name": name,
-                "status": status
-            }
+            eq_id, row_pos, col_pos, status = row
+            
+            # 인덱스 범위 검증
+            if 0 <= row_pos < ROWS and 0 <= col_pos < COLS:
+                grid[row_pos][col_pos] = {
+                    "id": eq_id,
+                    "status": status
+                }
+                equipment_count += 1
+            else:
+                logger.warning(
+                    f"유효하지 않은 위치: {eq_id} at ({row_pos}, {col_pos})"
+                )
         
         cursor.close()
         
+        logger.info(f"그리드 레이아웃 조회 성공: {equipment_count}개 설비")
+        
         return {
             "grid": grid,
-            "rows": 7,
-            "cols": 11,
-            "total_equipment": 77
+            "rows": ROWS,
+            "cols": COLS,
+            "equipment_count": equipment_count,
+            "timestamp": datetime.now().isoformat()
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"그리드 레이아웃 조회 실패: {str(e)}")
+        handle_db_error(e, "그리드 레이아웃 조회")
     
     finally:
         if conn:

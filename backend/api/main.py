@@ -12,6 +12,28 @@ import asyncio
 from typing import List
 import json
 from datetime import datetime
+import os
+from dotenv import load_dotenv
+
+# ✨ 새로 추가
+from .utils.errors import (
+    api_exception_handler,
+    generic_exception_handler,
+    BaseAPIException
+)
+from .utils.logging_config import setup_logging
+import logging
+
+# 환경 변수 로드
+load_dotenv()
+
+# ✨ 로깅 설정
+setup_logging(
+    log_level=os.getenv('LOG_LEVEL', 'INFO'),
+    log_dir='logs',
+    app_name='sherlock_sky_api'
+)
+logger = logging.getLogger(__name__)
 
 from .routers import equipment, production, monitoring, playback, analytics
 from .websocket.connection_manager import ConnectionManager
@@ -26,17 +48,27 @@ stream_handler = StreamHandler()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 시작 시
-    await init_db()
-    await connection_manager.start_redis_listener()
-    print("✓ 데이터베이스 연결 완료")
-    print("✓ Redis 리스너 시작")
+    try:
+        await init_db()
+        await connection_manager.start_redis_listener()
+        logger.info("✓ 데이터베이스 연결 완료")
+        logger.info("✓ Redis 리스너 시작")
+        print("✓ 데이터베이스 연결 완료")
+        print("✓ Redis 리스너 시작")
+    except Exception as e:
+        logger.error(f"✗ 시작 중 오류: {e}", exc_info=True)
+        raise
     
     yield
     
     # 종료 시
-    await connection_manager.stop_redis_listener()
-    await close_db()
-    print("✓ 리소스 정리 완료")
+    try:
+        await connection_manager.stop_redis_listener()
+        await close_db()
+        logger.info("✓ 리소스 정리 완료")
+        print("✓ 리소스 정리 완료")
+    except Exception as e:
+        logger.error(f"✗ 종료 중 오류: {e}", exc_info=True)
 
 # FastAPI 앱 생성
 app = FastAPI(
@@ -46,14 +78,24 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# ✨ 에러 핸들러 등록
+app.add_exception_handler(BaseAPIException, api_exception_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
+
 # CORS 설정
+ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:8080,http://127.0.0.1:8080')
+origins_list = [origin.strip() for origin in ALLOWED_ORIGINS.split(',')]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080"],
+    allow_origins=origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+logger.info(f"✓ CORS 허용 출처: {origins_list}")
+print(f"✓ CORS 허용 출처: {origins_list}")
 
 # 라우터 등록
 app.include_router(equipment.router, prefix="/api/equipment", tags=["Equipment"])
@@ -68,6 +110,8 @@ app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"]
 async def websocket_endpoint(websocket: WebSocket):
     """실시간 데이터 스트리밍"""
     await connection_manager.connect(websocket)
+    client_id = id(websocket)
+    logger.info(f"WebSocket 클라이언트 연결: {client_id}")
     
     try:
         while True:
@@ -80,25 +124,33 @@ async def websocket_endpoint(websocket: WebSocket):
                 # 특정 설비 구독
                 equipment_ids = message.get("equipment_ids", [])
                 await connection_manager.subscribe(websocket, equipment_ids)
+                logger.debug(f"클라이언트 {client_id} 구독: {equipment_ids}")
                 
             elif message["type"] == "unsubscribe":
                 equipment_ids = message.get("equipment_ids", [])
                 await connection_manager.unsubscribe(websocket, equipment_ids)
+                logger.debug(f"클라이언트 {client_id} 구독 해제: {equipment_ids}")
                 
     except WebSocketDisconnect:
         connection_manager.disconnect(websocket)
-        print(f"클라이언트 연결 종료")
+        logger.info(f"WebSocket 클라이언트 연결 종료: {client_id}")
+    except Exception as e:
+        logger.error(f"WebSocket 오류 (클라이언트 {client_id}): {e}", exc_info=True)
+        connection_manager.disconnect(websocket)
 
 
 # 헬스체크
 @app.get("/health")
 async def health_check():
     """서버 상태 확인"""
-    return {
+    health_status = {
         "status": "healthy",
         "active_connections": len(connection_manager.active_connections),
         "timestamp": datetime.now().isoformat()
     }
+    
+    logger.debug(f"Health check: {health_status}")
+    return health_status
 
 
 # 루트
