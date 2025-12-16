@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.egg-info/
+dist/
+build/
+*.log
+
+# Node.js
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# IDE
+.vscode/
+.DS_Store
+.idea/
+*.swp
+*.swo
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+.env.local
+
+# Backup and Old files
+*_backup*
+*_old*
+*_backup[0-9]*
+*_backup[0-9][0-9]*
+*.bak
+*.backup
+*.old
+*~
+
+# Temporary files
+*.tmp
+*.temp

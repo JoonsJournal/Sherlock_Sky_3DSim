@@ -19,14 +19,16 @@ export function createEquipmentModel() {
 
     // 공통 재질
     const bodyMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x808080, 
-        roughness: 0.4, 
-        metalness: 0.3 
-    }); // 회색 금속
+        color: 0xF0EAD6,      // 밝은 아이보리 (따뜻한 베이지톤)
+        roughness: 0.65,      // 분체도장의 약간 거친 표면감
+        metalness: 0.1        // 금속성 최소화 (분체도장 특성)
+    }); // 아이보리 분체도장
     
     const darkMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x222222 
-    }); // 검은색 플라스틱
+        color: 0x3A3A3A,      // 다크 그레이 (완전한 검정보다 부드러움)
+        roughness: 0.6,
+        metalness: 0.1
+    }); // 다크 그레이 플라스틱
 
     // A. 메인 캐비닛 (몸통)
     const cabinetGeo = new THREE.BoxGeometry(1.0, 1.6, 0.6); // 너비, 높이, 깊이

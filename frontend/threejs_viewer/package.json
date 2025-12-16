@@ -4,8 +4,8 @@
     "description": "3D Equipment Array Visualization with Three.js",
     "type": "module",
     "scripts": {
-    "dev": "http-server -p 8080 -c-1",
-    "start": "http-server -p 8080"
+    "dev": "http-server . -p 8080 -c-1",
+    "start": "http-server . -p 8080"
     },
     "keywords": [
     "three.js",

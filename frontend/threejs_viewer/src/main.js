@@ -1,6 +1,6 @@
 /**
  * main.js
- * 메인 진입점 - 모든 모듈 통합 및 초기화
+ * 메인 진입점 - 모든 모듈 통합 및 초기화 (다중 선택 지원)
  */
 
 import { SceneManager } from './scene/SceneManager.js';
@@ -69,8 +69,11 @@ function init() {
     
     // 9. 상호작용 핸들러 초기화
     interactionHandler = new InteractionHandler(camera, scene, equipmentArray);
-    interactionHandler.setOnEquipmentClick((equipmentData) => {
-        dataOverlay.showEquipmentInfo(equipmentData);
+    
+    // 설비 클릭 콜백 설정 - 이제 배열 형태로 데이터를 받음
+    interactionHandler.setOnEquipmentClick((equipmentDataArray) => {
+        // 배열 형태로 전달 (단일 선택이어도 배열)
+        dataOverlay.showEquipmentInfo(equipmentDataArray);
     });
     
     // 10. 전역 디버깅 함수 노출
@@ -88,6 +91,13 @@ function init() {
         console.log('💡 도움말을 보려면 debugHelp()를 입력하세요');
         console.log('');
     }
+    
+    // 다중 선택 안내 메시지
+    console.log('');
+    console.log('✨ 다중 선택 기능 활성화');
+    console.log('   Ctrl+클릭: 설비를 여러 대 선택/해제');
+    console.log('   평균값: 여러 설비 선택 시 자동 계산');
+    console.log('');
 }
 
 // ============================================
@@ -150,6 +160,22 @@ function exposeDebugFunctions() {
     // 도움말
     window.debugHelp = () => {
         Helpers.debugHelp();
+    };
+    
+    // 다중 선택 디버깅
+    window.getSelectedEquipments = () => {
+        const selected = interactionHandler.getSelectedEquipments();
+        console.log(`선택된 설비: ${selected.length}대`);
+        selected.forEach(eq => {
+            console.log(`  - ${eq.userData.id}: ${eq.userData.status}`);
+        });
+        return selected;
+    };
+    
+    window.clearSelections = () => {
+        interactionHandler.clearAllSelections();
+        dataOverlay.hideEquipmentInfo();
+        console.log('✅ 모든 선택 해제됨');
     };
 }
 

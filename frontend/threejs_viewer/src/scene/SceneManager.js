@@ -1,6 +1,7 @@
 /**
  * SceneManager.js
  * Three.js 씬, 카메라, 렌더러 초기화 및 관리
+ * 클린룸 스타일 적용
  */
 
 import * as THREE from 'three';
@@ -24,7 +25,7 @@ export class SceneManager {
     init() {
         // 씬 생성
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(CONFIG.SCENE.BACKGROUND_COLOR);
+        this.scene.background = new THREE.Color(CONFIG.SCENE.BACKGROUND_COLOR);  // CONFIG에서 배경 색상 가져오기
         
         // 카메라 생성
         this.camera = new THREE.PerspectiveCamera(
@@ -45,9 +46,12 @@ export class SceneManager {
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = CONFIG.RENDERER.SHADOW_MAP_ENABLED;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;  // 부드러운 그림자
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;  // 현실적인 톤매핑
+        this.renderer.toneMappingExposure = 1.2;  // 밝기 조정
         document.body.appendChild(this.renderer.domElement);
         
-        debugLog('✅ Three.js 초기화 완료');
+        debugLog('✅ Three.js 초기화 완료 (클린룸 모드)');
         debugLog('📷 초기 카메라 위치:', this.camera.position);
         
         // 창 크기 변경 이벤트 리스너
@@ -55,7 +59,7 @@ export class SceneManager {
     }
     
     /**
-     * 바닥 및 그리드 추가
+     * 바닥 및 그리드 추가 (클린룸 스타일)
      */
     addFloor() {
         const floorGeometry = new THREE.PlaneGeometry(
@@ -63,23 +67,28 @@ export class SceneManager {
             CONFIG.SCENE.FLOOR_SIZE
         );
         const floorMaterial = new THREE.MeshStandardMaterial({ 
-            color: CONFIG.SCENE.FLOOR_COLOR,
-            roughness: 0.8
+            color: CONFIG.SCENE.FLOOR_COLOR,  // CONFIG에서 색상 가져오기
+            roughness: 0.3,   // 약간의 반사감
+            metalness: 0.1
         });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
         floor.receiveShadow = true;
         this.scene.add(floor);
         
+        // 클린룸 스타일: 미세한 그리드만 표시
         const gridHelper = new THREE.GridHelper(
             CONFIG.SCENE.FLOOR_SIZE, 
-            CONFIG.SCENE.GRID_DIVISIONS, 
-            CONFIG.SCENE.GRID_COLOR1, 
-            CONFIG.SCENE.GRID_COLOR2
+            CONFIG.SCENE.GRID_DIVISIONS,  // CONFIG에서 분할 수 가져오기
+            CONFIG.SCENE.GRID_COLOR1,     // CONFIG에서 색상1 가져오기
+            CONFIG.SCENE.GRID_COLOR2      // CONFIG에서 색상2 가져오기
         );
+        gridHelper.material.opacity = 0.3;
+        gridHelper.material.transparent = true;
         this.scene.add(gridHelper);
         
-        debugLog('🏗️ 바닥 및 그리드 생성 완료');
+        debugLog('🏗️ 클린룸 스타일 바닥 생성 완료');
+        debugLog(`📐 바닥 크기: ${CONFIG.SCENE.FLOOR_SIZE}m × ${CONFIG.SCENE.FLOOR_SIZE}m`);
     }
     
     /**

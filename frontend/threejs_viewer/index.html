@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>설비 3D 배열 (디버그 모드)</title>
+    <title>설비 3D 배열 (다중 선택 지원)</title>
     <style>
         body {
             margin: 0;
@@ -70,8 +70,8 @@
             position: absolute;
             top: 10px;
             right: 10px;
-            width: 320px;
-            max-height: 80vh;
+            width: 350px;
+            max-height: 85vh;
             overflow-y: auto;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 12px;
@@ -138,7 +138,7 @@
             font-weight: bold;
             color: #555;
             display: inline-block;
-            width: 100px;
+            width: 120px;
         }
 
         #equipmentInfo .info-value {
@@ -167,6 +167,15 @@
             box-shadow: 0 0 8px #e74c3c;
         }
 
+        /* 다중 선택 헤더 스타일 */
+        #equipmentInfo .multi-select-header {
+            background: #e3f2fd !important;
+            border-left: 4px solid #2196F3 !important;
+            margin-bottom: 15px !important;
+            font-weight: bold;
+            color: #1976D2;
+        }
+
         /* 디버그 컨트롤 패널 */
         #debugControls {
             position: absolute;
@@ -178,7 +187,7 @@
             border-radius: 8px;
             font-size: 12px;
             z-index: 100;
-            display: none; /* 기본적으로 숨김 */
+            display: none;
         }
 
         #debugControls.active {
@@ -258,6 +267,17 @@
             padding-top: 10px;
             border-top: 1px solid rgba(255, 255, 255, 0.2);
         }
+
+        /* 다중 선택 강조 */
+        .multi-select-tip {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #2e7d32;
+        }
     </style>
 </head>
 <body>
@@ -268,6 +288,13 @@
         <p>🖱️ <strong>휠:</strong> 줌 인/아웃</p>
         <p>🖱️ <strong>우클릭 + 드래그:</strong> 이동</p>
         <p>👆 <strong>설비 클릭:</strong> 정보 보기</p>
+        
+        <div class="multi-select-tip">
+            <strong>✨ 다중 선택:</strong><br>
+            Ctrl+클릭으로 여러 설비 선택<br>
+            선택 시 평균값 자동 계산
+        </div>
+        
         <div class="keyboard-hint">
             💡 <strong>F12</strong>로 콘솔 열기<br>
             💡 <strong>debugHelp()</strong> 입력으로 명령어 보기
@@ -300,6 +327,8 @@
         <button onclick="window.measurePerformance()">⚡ 성능 측정</button>
         <button onclick="window.moveCameraTo(20, 20, 25)">📷 카메라 리셋</button>
         <button onclick="window.focusEquipment(1, 1)">🎯 첫 번째 설비</button>
+        <button onclick="window.getSelectedEquipments()">📊 선택된 설비 확인</button>
+        <button onclick="window.clearSelections()">❌ 선택 모두 해제</button>
     </div>
 
     <!-- Three.js Import Map -->
@@ -358,6 +387,12 @@
                     window.closeEquipmentInfo();
                 }
             }
+            // 'C' 키: 선택 모두 해제
+            if (event.key === 'c' || event.key === 'C') {
+                if (window.clearSelections) {
+                    window.clearSelections();
+                }
+            }
         });
 
         // 페이지 로드 완료 시
@@ -367,7 +402,12 @@
             console.log('   H - 헬퍼 토글');
             console.log('   R - 카메라 리셋');
             console.log('   D - 디버그 패널 토글');
+            console.log('   C - 선택 모두 해제');
             console.log('   ESC - 정보 패널 닫기');
+            console.log('');
+            console.log('✨ 다중 선택:');
+            console.log('   Ctrl+클릭 - 설비 추가 선택/해제');
+            console.log('   평균값 - 자동 계산 및 표시');
         });
     </script>
 </body>
