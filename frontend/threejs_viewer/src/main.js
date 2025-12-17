@@ -1,7 +1,7 @@
 /**
  * main.js
  * 메인 애플리케이션 진입점
- * SceneManager, EquipmentLoader, CameraControls, InteractionHandler, DataOverlay, StatusVisualizer 통합
+ * SceneManager, EquipmentLoader, CameraControls, InteractionHandler, DataOverlay, StatusVisualizer, PerformanceMonitor 통합
  */
 
 import { SceneManager } from './scene/SceneManager.js';
@@ -12,6 +12,7 @@ import { InteractionHandler } from './controls/InteractionHandler.js';
 import { DataOverlay } from './visualization/DataOverlay.js';
 import { StatusVisualizer } from './visualization/StatusVisualizer.js';
 import { memoryManager } from './utils/MemoryManager.js';
+import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
 import { CONFIG, debugLog } from './utils/Config.js';
 
 // 전역 객체
@@ -21,11 +22,8 @@ let cameraControls;
 let interactionHandler;
 let dataOverlay;
 let statusVisualizer;
+let performanceMonitor;
 let animationFrameId;
-
-// 성능 모니터링
-let lastFpsUpdate = 0;
-const fpsUpdateInterval = 1000; // 1초마다
 
 /**
  * 초기화
@@ -88,7 +86,15 @@ function init() {
         statusVisualizer.updateAllStatus(); // 초기 상태 업데이트
         console.log('✅ StatusVisualizer 초기화 완료');
         
-        // 7. Interaction Handler
+        // 7. PerformanceMonitor 초기화
+        performanceMonitor = new PerformanceMonitor(sceneManager.renderer);
+        console.log('✅ PerformanceMonitor 초기화 완료');
+        console.log('💡 성능 모니터링 명령어:');
+        console.log('   - startMonitoring() : 실시간 모니터링 시작 (1초마다 콘솔 출력)');
+        console.log('   - stopMonitoring() : 모니터링 중지');
+        console.log('   - getPerformanceReport() : 상세 분석 리포트 출력');
+        
+        // 8. Interaction Handler
         interactionHandler = new InteractionHandler(
             sceneManager.camera,
             sceneManager.scene,
@@ -195,28 +201,14 @@ function animate() {
         statusVisualizer.animateErrorStatus();
     }
     
+    // ⭐ 성능 모니터 업데이트 (프레임마다)
+    if (performanceMonitor) {
+        performanceMonitor.update();
+    }
+    
     // 렌더링
     if (sceneManager) {
         sceneManager.render();
-    }
-    
-    // 성능 모니터링 (1초마다)
-    const now = performance.now();
-    if (now - lastFpsUpdate >= fpsUpdateInterval) {
-        if (sceneManager && sceneManager.getStats) {
-            const stats = sceneManager.getStats();
-            
-            // 성능 경고
-            if (stats.fps < 30) {
-                console.warn(`⚠️ 낮은 FPS: ${stats.fps}`);
-            }
-            
-            if (stats.drawCalls > 1000) {
-                console.warn(`⚠️ 높은 Draw Calls: ${stats.drawCalls}`);
-            }
-        }
-        
-        lastFpsUpdate = now;
     }
 }
 
@@ -227,14 +219,106 @@ function setupGlobalDebugFunctions() {
     // 도움말
     window.debugHelp = () => {
         console.group('🔧 사용 가능한 디버그 명령어');
-        console.log('getPerformanceStats() - 성능 통계 확인');
-        console.log('getMemoryInfo() - 메모리 정보 확인');
-        console.log('debugScene() - 씬 정보 출력');
-        console.log('debugRenderer() - 렌더러 정보 출력');
-        console.log('getEquipmentInfo(id) - 특정 설비 정보 조회');
-        console.log('updateEquipmentStatus(id, status) - 설비 상태 변경');
-        console.log('getSelectedEquipments() - 선택된 설비 목록');
+        console.log('');
+        console.log('📊 성능 모니터링:');
+        console.log('  startMonitoring() - 실시간 모니터링 시작 (1초마다)');
+        console.log('  stopMonitoring() - 모니터링 중지');
+        console.log('  getPerformanceReport() - 상세 분석 리포트');
+        console.log('');
+        console.log('⚡ 기본 정보:');
+        console.log('  getPerformanceStats() - 현재 성능 통계');
+        console.log('  getMemoryInfo() - 메모리 정보');
+        console.log('  getSystemInfo() - 시스템 및 하드웨어 정보');
+        console.log('  getNetworkInfo() - 네트워크 상태');
+        console.log('');
+        console.log('🎨 씬 정보:');
+        console.log('  debugScene() - 씬 정보 출력');
+        console.log('  debugRenderer() - 렌더러 정보 출력');
+        console.log('');
+        console.log('🏭 설비 관련:');
+        console.log('  getEquipmentInfo(id) - 특정 설비 정보 조회');
+        console.log('  updateEquipmentStatus(id, status) - 설비 상태 변경');
+        console.log('  getSelectedEquipments() - 선택된 설비 목록');
+        console.log('');
         console.groupEnd();
+    };
+    
+    // ⭐ 실시간 모니터링 시작
+    window.startMonitoring = () => {
+        if (!performanceMonitor) {
+            console.error('❌ PerformanceMonitor가 초기화되지 않았습니다');
+            return;
+        }
+        performanceMonitor.start();
+        console.log('✅ 실시간 성능 모니터링 시작');
+        console.log('💡 중지하려면 stopMonitoring() 입력');
+    };
+    
+    // ⭐ 모니터링 중지
+    window.stopMonitoring = () => {
+        if (!performanceMonitor) {
+            console.error('❌ PerformanceMonitor가 초기화되지 않았습니다');
+            return;
+        }
+        performanceMonitor.stop();
+    };
+    
+    // ⭐ 성능 리포트 생성
+    window.getPerformanceReport = () => {
+        if (!performanceMonitor) {
+            console.error('❌ PerformanceMonitor가 초기화되지 않았습니다');
+            return null;
+        }
+        return performanceMonitor.printReport();
+    };
+    
+    // ⭐ 시스템 정보
+    window.getSystemInfo = () => {
+        if (!performanceMonitor) {
+            console.error('❌ PerformanceMonitor가 초기화되지 않았습니다');
+            return null;
+        }
+        
+        const info = performanceMonitor.systemInfo;
+        console.group('💻 시스템 정보');
+        console.log('Platform:', info.platform);
+        console.log('User Agent:', info.userAgent);
+        console.log('CPU Cores:', info.hardwareConcurrency);
+        console.log('Device Memory:', info.deviceMemory, 'GB');
+        console.log('Screen:', `${info.screen.width}x${info.screen.height}`);
+        console.log('Pixel Ratio:', info.screen.pixelRatio);
+        console.log('Color Depth:', info.screen.colorDepth);
+        
+        if (info.gpu) {
+            console.log('GPU Vendor:', info.gpu.vendor);
+            console.log('GPU Renderer:', info.gpu.renderer);
+        }
+        
+        if (info.webgl) {
+            console.log('WebGL Version:', info.webgl.version);
+            console.log('Max Texture Size:', info.webgl.maxTextureSize);
+        }
+        console.groupEnd();
+        
+        return info;
+    };
+    
+    // ⭐ 네트워크 정보
+    window.getNetworkInfo = () => {
+        if (!performanceMonitor) {
+            console.error('❌ PerformanceMonitor가 초기화되지 않았습니다');
+            return null;
+        }
+        
+        const network = performanceMonitor.networkStats;
+        console.group('🌐 네트워크 정보');
+        console.log('상태:', network.online ? '✅ 온라인' : '❌ 오프라인');
+        console.log('타입:', network.effectiveType || 'Unknown');
+        console.log('다운링크:', network.downlink ? `${network.downlink} Mbps` : 'N/A');
+        console.log('RTT (레이턴시):', network.rtt ? `${network.rtt} ms` : 'N/A');
+        console.groupEnd();
+        
+        return network;
     };
     
     // 성능 통계
@@ -373,6 +457,12 @@ function cleanup() {
     if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
         console.log('  - 애니메이션 루프 중지');
+    }
+    
+    // 성능 모니터 정리
+    if (performanceMonitor) {
+        performanceMonitor.dispose();
+        console.log('  - PerformanceMonitor 정리');
     }
     
     // 씬 정리
