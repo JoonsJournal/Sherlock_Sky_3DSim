@@ -1,191 +1,410 @@
 /**
  * main.js
- * 메인 진입점 - 모든 모듈 통합 및 초기화 (다중 선택 지원)
+ * 메인 애플리케이션 진입점
+ * SceneManager, EquipmentLoader, CameraControls, InteractionHandler, DataOverlay, StatusVisualizer 통합
  */
 
 import { SceneManager } from './scene/SceneManager.js';
-import { Lighting } from './scene/Lighting.js';
 import { EquipmentLoader } from './scene/EquipmentLoader.js';
+import { Lighting } from './scene/Lighting.js';
 import { CameraControls } from './controls/CameraControls.js';
 import { InteractionHandler } from './controls/InteractionHandler.js';
-import { StatusVisualizer } from './visualization/StatusVisualizer.js';
 import { DataOverlay } from './visualization/DataOverlay.js';
-import * as Helpers from './utils/Helpers.js';
+import { StatusVisualizer } from './visualization/StatusVisualizer.js';
+import { memoryManager } from './utils/MemoryManager.js';
 import { CONFIG, debugLog } from './utils/Config.js';
 
-// ============================================
-// 전역 변수
-// ============================================
-
+// 전역 객체
 let sceneManager;
-let cameraControls;
 let equipmentLoader;
+let cameraControls;
 let interactionHandler;
-let statusVisualizer;
 let dataOverlay;
+let statusVisualizer;
+let animationFrameId;
 
-// ============================================
-// 초기화
-// ============================================
+// 성능 모니터링
+let lastFpsUpdate = 0;
+const fpsUpdateInterval = 1000; // 1초마다
 
+/**
+ * 초기화
+ */
 function init() {
-    debugLog('🚀 애플리케이션 초기화 시작...');
+    console.log('🚀 Sherlock Sky 3DSim 초기화...');
     
-    // 1. 씬 관리자 생성
-    sceneManager = new SceneManager();
-    const scene = sceneManager.getScene();
-    const camera = sceneManager.getCamera();
-    const renderer = sceneManager.getRenderer();
-    
-    // 2. 바닥 추가
-    sceneManager.addFloor();
-    
-    // 3. 조명 추가
-    Lighting.addLights(scene);
-    
-    // 4. 디버그 헬퍼 추가 (DEBUG_MODE일 때만)
-    if (CONFIG.DEBUG_MODE) {
-        Helpers.addDebugHelpers(scene);
+    try {
+        // 1. Scene Manager 생성 및 초기화
+        sceneManager = new SceneManager();
+        const initSuccess = sceneManager.init();
+        
+        if (!initSuccess) {
+            throw new Error('SceneManager 초기화 실패');
+        }
+        
+        if (!sceneManager.renderer || !sceneManager.renderer.domElement) {
+            console.error('❌ Renderer 또는 domElement가 없습니다!');
+            throw new Error('Renderer 초기화 실패');
+        }
+        
+        console.log('✅ SceneManager 초기화 완료');
+        
+        // 2. 조명 추가
+        Lighting.addLights(sceneManager.scene);
+        console.log('✅ Lighting 초기화 완료');
+        
+        // 3. Equipment Loader
+        equipmentLoader = new EquipmentLoader(sceneManager.scene);
+        
+        // 로딩 상태 콜백 함수
+        const updateLoadingStatus = (message, isError) => {
+            const statusDiv = document.getElementById('loadingStatus');
+            if (statusDiv) {
+                statusDiv.textContent = message;
+                statusDiv.style.color = isError ? '#e74c3c' : '#2ecc71';
+            }
+            debugLog(isError ? '❌' : '✅', message);
+        };
+        
+        // 설비 배열 로드
+        equipmentLoader.loadEquipmentArray(updateLoadingStatus);
+        console.log('✅ EquipmentLoader 초기화 완료');
+        
+        // 4. Camera Controls
+        console.log('🎮 CameraControls 생성 중...');
+        cameraControls = new CameraControls(
+            sceneManager.camera,
+            sceneManager.renderer.domElement
+        );
+        console.log('✅ CameraControls 초기화 완료');
+        
+        // 5. DataOverlay 초기화
+        dataOverlay = new DataOverlay();
+        dataOverlay.exposeGlobalFunctions(); // 전역 함수 등록 (closeEquipmentInfo 등)
+        console.log('✅ DataOverlay 초기화 완료');
+        
+        // 6. StatusVisualizer 초기화
+        statusVisualizer = new StatusVisualizer(equipmentLoader.getEquipmentArray());
+        statusVisualizer.updateAllStatus(); // 초기 상태 업데이트
+        console.log('✅ StatusVisualizer 초기화 완료');
+        
+        // 7. Interaction Handler
+        interactionHandler = new InteractionHandler(
+            sceneManager.camera,
+            sceneManager.scene,
+            sceneManager.renderer.domElement
+        );
+        
+        // 설비 배열 설정
+        interactionHandler.setEquipmentArray(equipmentLoader.getEquipmentArray());
+        
+        // DataOverlay 연결
+        interactionHandler.setDataOverlay(dataOverlay);
+        
+        // StatusVisualizer 연결
+        interactionHandler.setStatusVisualizer(statusVisualizer);
+        
+        // 설비 클릭 콜백 설정
+        interactionHandler.setOnEquipmentClick((selectedData) => {
+            debugLog('📊 설비 선택됨:', selectedData.map(d => d.id));
+        });
+        
+        // 설비 선택 해제 콜백 설정
+        interactionHandler.setOnEquipmentDeselect(() => {
+            debugLog('📊 설비 선택 해제됨');
+        });
+        
+        console.log('✅ InteractionHandler 초기화 완료');
+        
+        // 애니메이션 시작
+        animate();
+        
+        // 전역 디버그 함수
+        setupGlobalDebugFunctions();
+        
+        console.log('✅ 모든 초기화 완료!');
+        console.log('💡 콘솔에서 debugHelp() 입력으로 사용 가능한 명령어 확인');
+        
+        // 초기 메모리 정보
+        if (CONFIG.DEBUG_MODE) {
+            setTimeout(() => {
+                memoryManager.logMemoryInfo(sceneManager.renderer);
+            }, 1000);
+        }
+        
+        // 로딩 상태 숨김 (3초 후)
+        setTimeout(() => {
+            const loadingStatus = document.getElementById('loadingStatus');
+            if (loadingStatus) {
+                loadingStatus.style.transition = 'opacity 0.5s';
+                loadingStatus.style.opacity = '0';
+                setTimeout(() => {
+                    loadingStatus.style.display = 'none';
+                }, 500);
+            }
+        }, 3000);
+        
+    } catch (error) {
+        console.error('❌ 초기화 중 오류 발생:', error);
+        console.error('스택:', error.stack);
+        
+        // 오류 정보 화면에 표시
+        const errorDiv = document.createElement('div');
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(231, 76, 60, 0.95);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            z-index: 10000;
+            max-width: 80%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        `;
+        errorDiv.innerHTML = `
+            <h2 style="margin: 0 0 10px 0;">❌ 초기화 실패</h2>
+            <p><strong>오류:</strong> ${error.message}</p>
+            <p><strong>해결 방법:</strong></p>
+            <ul>
+                <li>브라우저 콘솔(F12)에서 자세한 오류 확인</li>
+                <li>페이지 새로고침 (Ctrl+F5)</li>
+                <li>브라우저 캐시 삭제</li>
+            </ul>
+        `;
+        document.body.appendChild(errorDiv);
     }
-    
-    // 5. 카메라 컨트롤 설정
-    cameraControls = new CameraControls(camera, renderer);
-    
-    // 6. UI 오버레이 초기화
-    dataOverlay = new DataOverlay();
-    dataOverlay.exposeGlobalFunctions();
-    
-    // 7. 설비 로더 초기화 및 배열 생성
-    equipmentLoader = new EquipmentLoader(scene);
-    equipmentLoader.createEquipmentArray((msg, isError) => {
-        dataOverlay.updateLoadingStatus(msg, isError);
-    });
-    
-    const equipmentArray = equipmentLoader.getEquipmentArray();
-    
-    // 8. 상태 시각화 초기화
-    statusVisualizer = new StatusVisualizer(equipmentArray);
-    statusVisualizer.updateAllStatus();
-    
-    // 9. 상호작용 핸들러 초기화
-    interactionHandler = new InteractionHandler(camera, scene, equipmentArray);
-    
-    // 설비 클릭 콜백 설정 - 이제 배열 형태로 데이터를 받음
-    interactionHandler.setOnEquipmentClick((equipmentDataArray) => {
-        // 배열 형태로 전달 (단일 선택이어도 배열)
-        dataOverlay.showEquipmentInfo(equipmentDataArray);
-    });
-    
-    // 10. 전역 디버깅 함수 노출
-    exposeDebugFunctions();
-    
-    // 11. 애니메이션 시작
-    animate();
-    
-    debugLog('✅ 애플리케이션 초기화 완료');
-    
-    // 초기 도움말 출력
-    if (CONFIG.DEBUG_MODE) {
-        console.log('');
-        console.log('🔧 디버그 모드 활성화');
-        console.log('💡 도움말을 보려면 debugHelp()를 입력하세요');
-        console.log('');
-    }
-    
-    // 다중 선택 안내 메시지
-    console.log('');
-    console.log('✨ 다중 선택 기능 활성화');
-    console.log('   Ctrl+클릭: 설비를 여러 대 선택/해제');
-    console.log('   평균값: 여러 설비 선택 시 자동 계산');
-    console.log('');
 }
 
-// ============================================
-// 애니메이션 루프
-// ============================================
-
+/**
+ * 애니메이션 루프
+ */
 function animate() {
-    requestAnimationFrame(animate);
+    animationFrameId = requestAnimationFrame(animate);
     
-    // 씬 렌더링
-    sceneManager.render(cameraControls.getControls());
+    // 카메라 컨트롤 업데이트
+    if (cameraControls) {
+        cameraControls.update();
+    }
     
-    // 에러 상태 애니메이션
+    // 상태 시각화 애니메이션 (에러 상태 깜빡임)
     if (statusVisualizer) {
         statusVisualizer.animateErrorStatus();
     }
+    
+    // 렌더링
+    if (sceneManager) {
+        sceneManager.render();
+    }
+    
+    // 성능 모니터링 (1초마다)
+    const now = performance.now();
+    if (now - lastFpsUpdate >= fpsUpdateInterval) {
+        if (sceneManager && sceneManager.getStats) {
+            const stats = sceneManager.getStats();
+            
+            // 성능 경고
+            if (stats.fps < 30) {
+                console.warn(`⚠️ 낮은 FPS: ${stats.fps}`);
+            }
+            
+            if (stats.drawCalls > 1000) {
+                console.warn(`⚠️ 높은 Draw Calls: ${stats.drawCalls}`);
+            }
+        }
+        
+        lastFpsUpdate = now;
+    }
 }
 
-// ============================================
-// 전역 디버깅 함수 노출
-// ============================================
-
-function exposeDebugFunctions() {
-    const scene = sceneManager.getScene();
-    const camera = sceneManager.getCamera();
-    const renderer = sceneManager.getRenderer();
-    const controls = cameraControls.getControls();
-    const equipmentArray = equipmentLoader.getEquipmentArray();
-    
-    // 씬 정보
-    window.debugScene = () => {
-        Helpers.debugScene(scene, camera, controls, equipmentArray);
-    };
-    
-    // 카메라 이동
-    window.moveCameraTo = (x, y, z) => {
-        Helpers.moveCameraTo(camera, controls, x, y, z);
-    };
-    
-    // 설비 포커스
-    window.focusEquipment = (row, col) => {
-        Helpers.focusEquipment(camera, controls, equipmentArray, row, col);
-    };
-    
-    // 헬퍼 토글
-    window.toggleHelpers = () => {
-        Helpers.toggleHelpers(scene);
-    };
-    
-    // 렌더러 정보
-    window.debugRenderer = () => {
-        Helpers.debugRenderer(renderer);
-    };
-    
-    // 성능 측정
-    window.measurePerformance = (duration) => {
-        Helpers.measurePerformance(duration);
-    };
-    
+/**
+ * 전역 디버그 함수
+ */
+function setupGlobalDebugFunctions() {
     // 도움말
     window.debugHelp = () => {
-        Helpers.debugHelp();
+        console.group('🔧 사용 가능한 디버그 명령어');
+        console.log('getPerformanceStats() - 성능 통계 확인');
+        console.log('getMemoryInfo() - 메모리 정보 확인');
+        console.log('debugScene() - 씬 정보 출력');
+        console.log('debugRenderer() - 렌더러 정보 출력');
+        console.log('getEquipmentInfo(id) - 특정 설비 정보 조회');
+        console.log('updateEquipmentStatus(id, status) - 설비 상태 변경');
+        console.log('getSelectedEquipments() - 선택된 설비 목록');
+        console.groupEnd();
     };
     
-    // 다중 선택 디버깅
+    // 성능 통계
+    window.getPerformanceStats = () => {
+        if (!sceneManager || !sceneManager.getStats) {
+            console.error('❌ SceneManager가 초기화되지 않았습니다');
+            return null;
+        }
+        
+        const stats = sceneManager.getStats();
+        console.group('📊 성능 통계');
+        console.log('FPS:', stats.fps);
+        console.log('Frame Time:', stats.frameTime.toFixed(2), 'ms');
+        console.log('Draw Calls:', stats.drawCalls);
+        console.log('Triangles:', stats.triangles.toLocaleString());
+        console.log('Geometries:', stats.geometries);
+        console.log('Textures:', stats.textures);
+        console.groupEnd();
+        return stats;
+    };
+    
+    // 메모리 정보
+    window.getMemoryInfo = () => {
+        if (!sceneManager || !sceneManager.renderer) {
+            console.error('❌ Renderer가 초기화되지 않았습니다');
+            return;
+        }
+        memoryManager.logMemoryInfo(sceneManager.renderer);
+    };
+    
+    // 씬 디버그 정보
+    window.debugScene = () => {
+        if (!sceneManager) {
+            console.error('❌ SceneManager가 초기화되지 않았습니다');
+            return;
+        }
+        
+        console.group('🎬 Scene 정보');
+        console.log('Children:', sceneManager.scene.children.length);
+        console.log('Background:', sceneManager.scene.background);
+        console.log('Camera Position:', sceneManager.camera.position);
+        console.log('Camera Rotation:', sceneManager.camera.rotation);
+        console.log('Total Equipment:', equipmentLoader ? equipmentLoader.getEquipmentArray().length : 0);
+        console.groupEnd();
+    };
+    
+    // 렌더러 디버그 정보
+    window.debugRenderer = () => {
+        if (!sceneManager || !sceneManager.renderer) {
+            console.error('❌ Renderer가 초기화되지 않았습니다');
+            return;
+        }
+        
+        const info = sceneManager.renderer.info;
+        console.group('🎨 Renderer 정보');
+        console.log('Renderer:', sceneManager.renderer);
+        console.log('Size:', sceneManager.renderer.domElement.width, 'x', sceneManager.renderer.domElement.height);
+        console.log('Pixel Ratio:', sceneManager.renderer.getPixelRatio());
+        console.log('Memory:', info.memory);
+        console.log('Render:', info.render);
+        console.groupEnd();
+    };
+    
+    // 특정 설비 정보 조회
+    window.getEquipmentInfo = (equipmentId) => {
+        if (!equipmentLoader) {
+            console.error('❌ EquipmentLoader가 초기화되지 않았습니다');
+            return null;
+        }
+        
+        const equipment = equipmentLoader.getEquipment(equipmentId);
+        if (equipment) {
+            console.group(`📦 설비 정보: ${equipmentId}`);
+            console.log('Position:', equipment.position);
+            console.log('Rotation:', equipment.rotation);
+            console.log('UserData:', equipment.userData);
+            console.groupEnd();
+            return equipment.userData;
+        } else {
+            console.error(`❌ 설비를 찾을 수 없습니다: ${equipmentId}`);
+            return null;
+        }
+    };
+    
+    // 설비 상태 변경
+    window.updateEquipmentStatus = (equipmentId, status) => {
+        if (!equipmentLoader) {
+            console.error('❌ EquipmentLoader가 초기화되지 않았습니다');
+            return;
+        }
+        
+        if (!['running', 'idle', 'error'].includes(status)) {
+            console.error('❌ 유효하지 않은 상태입니다. (running, idle, error 중 하나)');
+            return;
+        }
+        
+        equipmentLoader.updateEquipmentStatus(equipmentId, status);
+        
+        // StatusVisualizer 업데이트
+        if (statusVisualizer) {
+            const equipment = equipmentLoader.getEquipment(equipmentId);
+            if (equipment) {
+                statusVisualizer.updateEquipmentStatus(equipment);
+                console.log(`✅ 설비 상태 업데이트: ${equipmentId} -> ${status}`);
+            }
+        }
+    };
+    
+    // 선택된 설비 목록
     window.getSelectedEquipments = () => {
+        if (!interactionHandler) {
+            console.error('❌ InteractionHandler가 초기화되지 않았습니다');
+            return [];
+        }
+        
         const selected = interactionHandler.getSelectedEquipments();
-        console.log(`선택된 설비: ${selected.length}대`);
+        console.group(`📋 선택된 설비: ${selected.length}개`);
         selected.forEach(eq => {
             console.log(`  - ${eq.userData.id}: ${eq.userData.status}`);
         });
-        return selected;
+        console.groupEnd();
+        
+        return selected.map(eq => eq.userData);
     };
     
-    window.clearSelections = () => {
-        interactionHandler.clearAllSelections();
-        dataOverlay.hideEquipmentInfo();
-        console.log('✅ 모든 선택 해제됨');
-    };
+    console.log('✅ 전역 디버그 함수 등록 완료');
 }
 
-// ============================================
-// 애플리케이션 시작
-// ============================================
-
-// DOM 로드 완료 후 초기화
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    init();
+/**
+ * 정리
+ */
+function cleanup() {
+    console.log('🗑️ 정리 시작...');
+    
+    // 애니메이션 중지
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        console.log('  - 애니메이션 루프 중지');
+    }
+    
+    // 씬 정리
+    if (sceneManager) {
+        memoryManager.disposeScene(sceneManager.scene);
+        sceneManager.dispose();
+        console.log('  - SceneManager 정리');
+    }
+    
+    // 설비 정리
+    if (equipmentLoader) {
+        equipmentLoader.dispose();
+        console.log('  - EquipmentLoader 정리');
+    }
+    
+    // 컨트롤 정리
+    if (cameraControls) {
+        cameraControls.dispose();
+        console.log('  - CameraControls 정리');
+    }
+    
+    // InteractionHandler 정리
+    if (interactionHandler) {
+        interactionHandler.dispose();
+        console.log('  - InteractionHandler 정리');
+    }
+    
+    console.log('✅ 정리 완료');
 }
+
+// 페이지 언로드 시 정리
+window.addEventListener('beforeunload', cleanup);
+
+// 초기화 실행
+init();

@@ -1,25 +1,21 @@
 {
-    "name": "sherlock-sky-3dsim-viewer",
-    "version": "1.0.0",
-    "description": "3D Equipment Array Visualization with Three.js",
-    "type": "module",
-    "scripts": {
+  "name": "sherlock-sky-3dsim-viewer",
+  "version": "1.0.0",
+  "description": "3D Equipment Viewer",
+  "scripts": {
     "dev": "http-server . -p 8080 -c-1",
-    "start": "http-server . -p 8080"
-    },
-    "keywords": [
-    "three.js",
-    "3d",
-    "visualization",
-    "equipment",
-    "manufacturing"
-    ],
-    "author": "이동준",
-    "license": "MIT",
-    "devDependencies": {
-    "http-server": "^14.1.1"
-    },
-    "dependencies": {
-    "three": "^0.160.0"
-    }
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest --testPathPattern=unit",
+    "test:integration": "jest --testPathPattern=integration"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@babel/core": "^7.23.6",
+    "@babel/preset-env": "^7.23.6",
+    "babel-jest": "^29.7.0"
+  }
 }

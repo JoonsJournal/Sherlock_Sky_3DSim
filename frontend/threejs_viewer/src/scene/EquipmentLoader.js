@@ -1,6 +1,6 @@
 /**
  * EquipmentLoader.js
- * 설비 모델 로딩 및 배열 생성
+ * 설비 모델 로딩 및 배열 생성 (equipment1.js 직접 사용, LOD 제거)
  */
 
 import * as THREE from 'three';
@@ -11,40 +11,41 @@ export class EquipmentLoader {
     constructor(scene) {
         this.scene = scene;
         this.equipmentArray = [];
+        this.equipmentMap = new Map();
     }
-
+    
     /**
-     * 설비 배열 생성
-     * @param {Function} updateStatusCallback - 상태 업데이트 콜백
+     * 설비 배열 로드
+     * @param {Function} updateStatusCallback - 상태 업데이트 콜백 (선택)
      */
-    createEquipmentArray(updateStatusCallback) {
+    loadEquipmentArray(updateStatusCallback = null) {
         debugLog('🏭 설비 배열 생성 시작...');
-        updateStatusCallback('설비 배치 중...', false);
         
-        const rows = CONFIG.EQUIPMENT.ROWS;
-        const cols = CONFIG.EQUIPMENT.COLS;
-        const equipWidth = CONFIG.EQUIPMENT.SIZE.WIDTH;
-        const equipDepth = CONFIG.EQUIPMENT.SIZE.DEPTH;
-        const spacing = CONFIG.EQUIPMENT.SPACING.DEFAULT;
-        const corridorCols = CONFIG.EQUIPMENT.SPACING.CORRIDOR_COLS;
-        const corridorColWidth = CONFIG.EQUIPMENT.SPACING.CORRIDOR_COL_WIDTH;
-        const corridorRows = CONFIG.EQUIPMENT.SPACING.CORRIDOR_ROWS;
-        const corridorRowWidth = CONFIG.EQUIPMENT.SPACING.CORRIDOR_ROW_WIDTH;
+        if (updateStatusCallback) {
+            updateStatusCallback('설비 배치 중...', false);
+        }
         
-        debugLog(`📐 설비 크기: ${equipWidth}m × ${equipDepth}m`);
-        debugLog(`📏 기본 간격: ${spacing}m`);
-        debugLog(`🚶 열 방향 복도 위치:`, corridorCols, `(폭 ${corridorColWidth}m)`);
-        debugLog(`🚶 행 방향 복도 위치:`, corridorRows, `(폭 ${corridorRowWidth}m)`);
-        debugLog(`🔄 회전 설정: 홀수 열 +90°, 짝수 열 -90°`);
-        debugLog(`❌ 제외 위치 개수: ${CONFIG.EQUIPMENT.EXCLUDED_POSITIONS.length}개`);
-        
+        const startTime = performance.now();
         let totalCreated = 0;
         let totalSkipped = 0;
         let totalFailed = 0;
         
+        const rows = CONFIG.EQUIPMENT.ROWS;
+        const cols = CONFIG.EQUIPMENT.COLS;
+        
+        debugLog(`📐 설비 크기: ${CONFIG.EQUIPMENT.SIZE.WIDTH}m × ${CONFIG.EQUIPMENT.SIZE.DEPTH}m`);
+        debugLog(`📏 기본 간격: ${CONFIG.EQUIPMENT.SPACING.DEFAULT}m`);
+        debugLog(`🚶 열 방향 복도 위치:`, CONFIG.EQUIPMENT.SPACING.CORRIDOR_COLS, 
+                 `(폭 ${CONFIG.EQUIPMENT.SPACING.CORRIDOR_COL_WIDTH}m)`);
+        debugLog(`🚶 행 방향 복도 위치:`, CONFIG.EQUIPMENT.SPACING.CORRIDOR_ROWS, 
+                 `(폭 ${CONFIG.EQUIPMENT.SPACING.CORRIDOR_ROW_WIDTH}m)`);
+        debugLog(`🔄 회전 설정: 홀수 열 +90°, 짝수 열 -90°`);
+        debugLog(`❌ 제외 위치 개수: ${CONFIG.EQUIPMENT.EXCLUDED_POSITIONS.length}개`);
+        
+        // 26행 × 6열
         for (let row = 1; row <= rows; row++) {
             for (let col = 1; col <= cols; col++) {
-                // 제외 위치인지 확인
+                // 제외 위치 체크
                 if (isExcludedPosition(row, col)) {
                     debugLog(`⏭️ 제외 위치 건너뜀: Row ${row}, Col ${col}`);
                     totalSkipped++;
@@ -52,82 +53,31 @@ export class EquipmentLoader {
                 }
                 
                 try {
-                    // 모델 생성
+                    // equipment1.js의 모델 직접 생성
                     const equipment = createEquipmentModel();
                     
-                    // X 위치 계산 (열 방향 복도 고려)
-                    let xPos = 0;
-                    for (let c = 1; c < col; c++) {
-                        xPos += equipWidth;
-                        if (corridorCols.includes(c)) {
-                            xPos += corridorColWidth;
-                        } else {
-                            xPos += spacing;
-                        }
-                    }
-                    
-                    // Z 위치 계산 (행 방향 복도 고려)
-                    let zPos = 0;
-                    for (let r = 1; r < row; r++) {
-                        zPos += equipDepth;
-                        if (corridorRows.includes(r)) {
-                            zPos += corridorRowWidth;
-                        } else {
-                            zPos += spacing;
-                        }
-                    }
-                    
-                    // 중심점 조정
-                    // X축 중심점 계산
-                    let totalXSize = 0;
-                    for (let c = 1; c <= cols; c++) {
-                        if (c > 1) {
-                            if (corridorCols.includes(c - 1)) {
-                                totalXSize += corridorColWidth;
-                            } else {
-                                totalXSize += spacing;
-                            }
-                        }
-                        totalXSize += equipWidth;
-                    }
-                    const centerX = totalXSize / 2;
-                    
-                    // Z축 중심점 계산
-                    let totalZSize = 0;
-                    for (let r = 1; r <= rows; r++) {
-                        if (r > 1) {
-                            if (corridorRows.includes(r - 1)) {
-                                totalZSize += corridorRowWidth;
-                            } else {
-                                totalZSize += spacing;
-                            }
-                        }
-                        totalZSize += equipDepth;
-                    }
-                    const centerZ = totalZSize / 2;
-                    
-                    xPos -= centerX;
-                    zPos -= centerZ;
-                    
-                    equipment.position.set(xPos, 0, zPos);
+                    // 위치 계산
+                    const position = this.calculatePosition(row, col);
+                    equipment.position.copy(position);
                     
                     // 🔄 열 번호에 따른 회전 적용
                     // 홀수 열(1, 3, 5): +90도 회전
                     // 짝수 열(2, 4, 6): -90도 회전
                     if (col % 2 === 1) {
-                        // 홀수 열: +90도 (시계 반대 방향)
                         equipment.rotation.y = Math.PI / 2;
                     } else {
-                        // 짝수 열: -90도 (시계 방향)
                         equipment.rotation.y = -Math.PI / 2;
                     }
                     
-                    // 설비 데이터 추가
-                    const equipmentId = `EQ-${String(row).padStart(2, '0')}-${String(col).padStart(2, '0')}`;
+                    // 설비 ID 생성
+                    const equipmentId = `EQ-${row.toString().padStart(2, '0')}-${col.toString().padStart(2, '0')}`;
+                    
+                    // 메타데이터 설정
                     equipment.userData = {
                         id: equipmentId,
                         position: { row, col },
-                        rotation: col % 2 === 1 ? 90 : -90,  // 회전 각도 저장
+                        rotation: col % 2 === 1 ? 90 : -90,
+                        type: 'equipment',
                         status: this.getRandomStatus(),
                         temperature: `${(20 + Math.random() * 30).toFixed(1)}°C`,
                         runtime: `${(100 + Math.random() * 1000).toFixed(0)}h`,
@@ -137,8 +87,17 @@ export class EquipmentLoader {
                         lastMaintenance: this.getRandomDate()
                     };
                     
+                    // 그림자 설정
+                    equipment.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+                    
                     this.scene.add(equipment);
                     this.equipmentArray.push(equipment);
+                    this.equipmentMap.set(equipmentId, equipment);
                     totalCreated++;
                     
                 } catch (error) {
@@ -148,6 +107,9 @@ export class EquipmentLoader {
             }
         }
         
+        const elapsed = performance.now() - startTime;
+        
+        // 최종 통계
         debugLog('═══════════════════════════════════════');
         debugLog(`✅ 설비 배치 완료: ${totalCreated}개 생성`);
         debugLog(`⏭️ 제외 위치: ${totalSkipped}개`);
@@ -156,9 +118,10 @@ export class EquipmentLoader {
         }
         debugLog(`📊 전체 그리드: ${rows} × ${cols} = ${rows * cols}개`);
         debugLog(`📊 실제 설비: ${totalCreated}개 (제외: ${totalSkipped}개)`);
+        debugLog(`⏱️ 로딩 시간: ${elapsed.toFixed(2)}ms`);
         debugLog('═══════════════════════════════════════');
         
-        // 첫 번째 설비 위치 및 회전 확인
+        // 첫 번째 설비 정보
         if (this.equipmentArray.length > 0) {
             const firstEquip = this.equipmentArray[0];
             debugLog('📍 첫 번째 설비 위치:', firstEquip.position);
@@ -176,23 +139,86 @@ export class EquipmentLoader {
         debugLog('   ───────────────────────────────────');
         
         // 제외 위치 요약
-        const excludedByCol = {};
-        CONFIG.EQUIPMENT.EXCLUDED_POSITIONS.forEach(pos => {
-            if (!excludedByCol[pos.col]) {
-                excludedByCol[pos.col] = [];
-            }
-            excludedByCol[pos.col].push(pos.row);
-        });
+        this.logExcludedPositions();
         
-        debugLog('❌ 제외된 설비 위치 요약:');
-        Object.keys(excludedByCol).sort().forEach(col => {
-            const rows = excludedByCol[col].sort((a, b) => a - b);
-            debugLog(`   Col ${col}: Row ${rows.join(', ')}`);
-        });
+        if (updateStatusCallback) {
+            updateStatusCallback(`✅ ${totalCreated}개 설비 배치 완료 (${totalSkipped}개 제외)`, false);
+        }
         
-        updateStatusCallback(`✅ ${totalCreated}개 설비 배치 완료 (${totalSkipped}개 제외)`, false);
+        return this.equipmentArray;
     }
-
+    
+    /**
+     * 위치 계산 (복도 고려)
+     */
+    calculatePosition(row, col) {
+        const equipWidth = CONFIG.EQUIPMENT.SIZE.WIDTH;
+        const equipDepth = CONFIG.EQUIPMENT.SIZE.DEPTH;
+        const spacing = CONFIG.EQUIPMENT.SPACING.DEFAULT;
+        const corridorCols = CONFIG.EQUIPMENT.SPACING.CORRIDOR_COLS;
+        const corridorColWidth = CONFIG.EQUIPMENT.SPACING.CORRIDOR_COL_WIDTH;
+        const corridorRows = CONFIG.EQUIPMENT.SPACING.CORRIDOR_ROWS;
+        const corridorRowWidth = CONFIG.EQUIPMENT.SPACING.CORRIDOR_ROW_WIDTH;
+        const rows = CONFIG.EQUIPMENT.ROWS;
+        const cols = CONFIG.EQUIPMENT.COLS;
+        
+        // X 위치 계산 (열 방향 복도 고려)
+        let xPos = 0;
+        for (let c = 1; c < col; c++) {
+            xPos += equipWidth;
+            if (corridorCols.includes(c)) {
+                xPos += corridorColWidth;
+            } else {
+                xPos += spacing;
+            }
+        }
+        
+        // Z 위치 계산 (행 방향 복도 고려)
+        let zPos = 0;
+        for (let r = 1; r < row; r++) {
+            zPos += equipDepth;
+            if (corridorRows.includes(r)) {
+                zPos += corridorRowWidth;
+            } else {
+                zPos += spacing;
+            }
+        }
+        
+        // 중심점 조정
+        // X축 중심점 계산
+        let totalXSize = 0;
+        for (let c = 1; c <= cols; c++) {
+            if (c > 1) {
+                if (corridorCols.includes(c - 1)) {
+                    totalXSize += corridorColWidth;
+                } else {
+                    totalXSize += spacing;
+                }
+            }
+            totalXSize += equipWidth;
+        }
+        const centerX = totalXSize / 2;
+        
+        // Z축 중심점 계산
+        let totalZSize = 0;
+        for (let r = 1; r <= rows; r++) {
+            if (r > 1) {
+                if (corridorRows.includes(r - 1)) {
+                    totalZSize += corridorRowWidth;
+                } else {
+                    totalZSize += spacing;
+                }
+            }
+            totalZSize += equipDepth;
+        }
+        const centerZ = totalZSize / 2;
+        
+        xPos -= centerX;
+        zPos -= centerZ;
+        
+        return new THREE.Vector3(xPos, 0, zPos);
+    }
+    
     /**
      * 랜덤 상태 생성
      * @returns {string} 상태 ('running', 'idle', 'error')
@@ -203,7 +229,7 @@ export class EquipmentLoader {
         if (rand < 0.9) return 'idle';
         return 'error';
     }
-
+    
     /**
      * 랜덤 날짜 생성
      * @returns {string} 날짜 문자열
@@ -214,7 +240,40 @@ export class EquipmentLoader {
         date.setDate(date.getDate() - daysAgo);
         return date.toLocaleDateString('ko-KR');
     }
-
+    
+    /**
+     * 제외 위치 로그
+     */
+    logExcludedPositions() {
+        const excludedByCol = {};
+        CONFIG.EQUIPMENT.EXCLUDED_POSITIONS.forEach(pos => {
+            if (!excludedByCol[pos.col]) {
+                excludedByCol[pos.col] = [];
+            }
+            excludedByCol[pos.col].push(pos.row);
+        });
+        
+        debugLog('❌ 제외된 설비 위치 요약:');
+        Object.keys(excludedByCol).sort((a, b) => a - b).forEach(col => {
+            const rows = excludedByCol[col].sort((a, b) => a - b);
+            debugLog(`   Col ${col}: Row ${rows.join(', ')}`);
+        });
+    }
+    
+    /**
+     * 설비 가져오기 (ID로)
+     */
+    getEquipment(equipmentId) {
+        return this.equipmentMap.get(equipmentId);
+    }
+    
+    /**
+     * 모든 설비 가져오기
+     */
+    getAllEquipment() {
+        return [...this.equipmentArray];
+    }
+    
     /**
      * 설비 배열 반환
      * @returns {Array<THREE.Group>}
@@ -222,7 +281,7 @@ export class EquipmentLoader {
     getEquipmentArray() {
         return this.equipmentArray;
     }
-
+    
     /**
      * 특정 위치의 설비 찾기
      * @param {number} row - 행 번호
@@ -250,5 +309,68 @@ export class EquipmentLoader {
             created,
             missing: totalGrid - excluded - created
         };
+    }
+    
+    /**
+     * 설비 상태 업데이트
+     * @param {string} equipmentId - 설비 ID
+     * @param {string} status - 상태 ('running', 'idle', 'error')
+     */
+    updateEquipmentStatus(equipmentId, status) {
+        const equipment = this.equipmentMap.get(equipmentId);
+        
+        if (equipment) {
+            equipment.userData.status = status;
+            debugLog(`설비 상태 업데이트: ${equipmentId} -> ${status}`);
+        }
+    }
+    
+    /**
+     * 모든 설비 상태 일괄 업데이트
+     * @param {Object} statusMap - {equipmentId: status} 맵
+     */
+    updateAllEquipmentStatus(statusMap) {
+        let updateCount = 0;
+        
+        Object.entries(statusMap).forEach(([equipmentId, status]) => {
+            const equipment = this.equipmentMap.get(equipmentId);
+            if (equipment) {
+                equipment.userData.status = status;
+                updateCount++;
+            }
+        });
+        
+        debugLog(`일괄 상태 업데이트 완료: ${updateCount}개 설비`);
+    }
+    
+    /**
+     * 설비 메모리 정리
+     */
+    dispose() {
+        debugLog('EquipmentLoader 메모리 정리 시작...');
+        
+        this.equipmentArray.forEach(equipment => {
+            // Geometry 정리
+            equipment.traverse(object => {
+                if (object.geometry) {
+                    object.geometry.dispose();
+                }
+                if (object.material) {
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(mat => mat.dispose());
+                    } else {
+                        object.material.dispose();
+                    }
+                }
+            });
+            
+            // 씬에서 제거
+            this.scene.remove(equipment);
+        });
+        
+        this.equipmentArray = [];
+        this.equipmentMap.clear();
+        
+        debugLog('✓ EquipmentLoader 메모리 정리 완료');
     }
 }

@@ -11,7 +11,6 @@ ENV/
 *.egg-info/
 dist/
 build/
-*.log
 
 # Node.js
 node_modules/
@@ -48,19 +47,29 @@ package-lock.json
 *.tmp
 *.temp
 
-# Environment Variables (추가)
+# Environment Variables 
 .env
 .env.local
 .env.*.local
 
-# Logs (추가)
+# Logs 
 logs/
 *.log
 
-# Database backups (추가)
+# Database backups
 *.sql
 *.dump
 
 # Logs
 logs/
 *.log
+
+# 
+.env.development
+.env.production
+.env.local
+.env
+
+# Build
+dist/
+build/

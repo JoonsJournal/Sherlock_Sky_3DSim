@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>설비 3D 배열 (다중 선택 지원)</title>
+    <title>Sherlock Sky 3DSim - 설비 3D 시뮬레이션</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
             font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f5f5f5;
         }
         
         canvas {
@@ -283,7 +284,7 @@
 <body>
     <!-- 정보 패널 -->
     <div id="info">
-        <h3>🏭 설비 배열 뷰어</h3>
+        <h3>🏭 Sherlock Sky 3DSim</h3>
         <p>🖱️ <strong>좌클릭 + 드래그:</strong> 회전</p>
         <p>🖱️ <strong>휠:</strong> 줌 인/아웃</p>
         <p>🖱️ <strong>우클릭 + 드래그:</strong> 이동</p>
@@ -322,27 +323,33 @@
     <div id="debugControls">
         <h4>🔧 디버그 컨트롤</h4>
         <button onclick="window.debugScene()">📦 씬 정보</button>
-        <button onclick="window.toggleHelpers()">👁️ 헬퍼 토글</button>
         <button onclick="window.debugRenderer()">🎨 렌더러 정보</button>
-        <button onclick="window.measurePerformance()">⚡ 성능 측정</button>
-        <button onclick="window.moveCameraTo(20, 20, 25)">📷 카메라 리셋</button>
-        <button onclick="window.focusEquipment(1, 1)">🎯 첫 번째 설비</button>
-        <button onclick="window.getSelectedEquipments()">📊 선택된 설비 확인</button>
-        <button onclick="window.clearSelections()">❌ 선택 모두 해제</button>
+        <button onclick="window.getPerformanceStats()">⚡ 성능 측정</button>
+        <button onclick="window.getMemoryInfo()">💾 메모리 정보</button>
+        <button onclick="window.debugHelp()">❓ 도움말</button>
+        <button onclick="window.getSelectedEquipments()">📊 선택된 설비</button>
+        <button onclick="window.clearSelections()">❌ 선택 해제</button>
     </div>
 
     <!-- Three.js Import Map -->
     <script type="importmap">
     {
         "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
         }
     }
     </script>
 
-    <!-- 메인 스크립트 로드 -->
-    <script type="module" src="/src/main.js"></script>
+    <!-- ⭐ 메인 스크립트 로드 - 경로를 프로젝트 구조에 맞게 수정 -->
+    <!-- 옵션 1: src 폴더가 루트에 있는 경우 -->
+    <script type="module" src="./src/main.js"></script>
+    
+    <!-- 옵션 2: src 폴더가 없고 main.js가 루트에 있는 경우 -->
+    <!-- <script type="module" src="./main.js"></script> -->
+    
+    <!-- 옵션 3: 절대 경로 사용 (http-server 사용 시) -->
+    <!-- <script type="module" src="/src/main.js"></script> -->
 
     <script>
         // 디버그 패널 토글
@@ -350,7 +357,20 @@
             const panel = document.getElementById('debugControls');
             panel.classList.toggle('active');
         }
-
+        
+        // 설비 정보 패널 닫기
+        function closeEquipmentInfo() {
+            const panel = document.getElementById('equipmentInfo');
+            if (panel) {
+                panel.classList.remove('active');
+            }
+            
+            // 선택 해제
+            if (window.clearSelections) {
+                window.clearSelections();
+            }
+        }
+        
         // 로딩 상태 3초 후 자동 숨김
         setTimeout(() => {
             const loadingStatus = document.getElementById('loadingStatus');
@@ -365,29 +385,15 @@
 
         // 키보드 단축키
         document.addEventListener('keydown', (event) => {
-            // 'H' 키: 헬퍼 토글
-            if (event.key === 'h' || event.key === 'H') {
-                if (window.toggleHelpers) {
-                    window.toggleHelpers();
-                }
-            }
-            // 'R' 키: 카메라 리셋
-            if (event.key === 'r' || event.key === 'R') {
-                if (window.moveCameraTo) {
-                    window.moveCameraTo(20, 20, 25);
-                }
-            }
             // 'D' 키: 디버그 패널 토글
             if (event.key === 'd' || event.key === 'D') {
                 toggleDebugPanel();
             }
             // ESC 키: 정보 패널 닫기
             if (event.key === 'Escape') {
-                if (window.closeEquipmentInfo) {
-                    window.closeEquipmentInfo();
-                }
+                closeEquipmentInfo();
             }
-            // 'C' 키: 선택 모두 해제
+            // 'C' 키: 선택 해제
             if (event.key === 'c' || event.key === 'C') {
                 if (window.clearSelections) {
                     window.clearSelections();
@@ -399,15 +405,26 @@
         window.addEventListener('load', () => {
             console.log('🚀 페이지 로드 완료');
             console.log('💡 키보드 단축키:');
-            console.log('   H - 헬퍼 토글');
-            console.log('   R - 카메라 리셋');
             console.log('   D - 디버그 패널 토글');
-            console.log('   C - 선택 모두 해제');
+            console.log('   C - 선택 해제');
             console.log('   ESC - 정보 패널 닫기');
             console.log('');
-            console.log('✨ 다중 선택:');
-            console.log('   Ctrl+클릭 - 설비 추가 선택/해제');
-            console.log('   평균값 - 자동 계산 및 표시');
+            console.log('📝 디버그 명령어:');
+            console.log('   debugHelp() - 사용 가능한 명령어 확인');
+        });
+        
+        // 에러 핸들링
+        window.addEventListener('error', (event) => {
+            console.error('전역 에러 발생:', event.error);
+            
+            // 스크립트 로드 실패 시 경로 힌트
+            if (event.message && event.message.includes('Failed to load module')) {
+                console.error('❌ 모듈 로드 실패!');
+                console.error('💡 해결 방법:');
+                console.error('   1. index.html의 script src 경로 확인');
+                console.error('   2. 프로젝트 폴더 구조 확인');
+                console.error('   3. http-server로 실행 중인지 확인 (file:// 프로토콜 사용 불가)');
+            }
         });
     </script>
 </body>

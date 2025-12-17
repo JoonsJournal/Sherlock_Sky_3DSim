@@ -15,8 +15,9 @@ export class SceneManager {
         this.frameCount = 0;
         this.fpsLastTime = performance.now();
         this.fpsFrameCount = 0;
+        this.currentFps = 60;
         
-        this.init();
+        // ⭐ constructor에서 init() 호출 제거 - 외부에서 명시적으로 호출하도록
     }
     
     /**
@@ -25,7 +26,7 @@ export class SceneManager {
     init() {
         // 씬 생성
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(CONFIG.SCENE.BACKGROUND_COLOR);  // CONFIG에서 배경 색상 가져오기
+        this.scene.background = new THREE.Color(CONFIG.SCENE.BACKGROUND_COLOR);
         
         // 카메라 생성
         this.camera = new THREE.PerspectiveCamera(
@@ -46,16 +47,24 @@ export class SceneManager {
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = CONFIG.RENDERER.SHADOW_MAP_ENABLED;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;  // 부드러운 그림자
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;  // 현실적인 톤매핑
-        this.renderer.toneMappingExposure = 1.2;  // 밝기 조정
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.2;
+        
+        // ⭐ DOM에 추가
         document.body.appendChild(this.renderer.domElement);
         
         debugLog('✅ Three.js 초기화 완료 (클린룸 모드)');
         debugLog('📷 초기 카메라 위치:', this.camera.position);
+        debugLog('🎨 Renderer domElement:', this.renderer.domElement);
+        
+        // 바닥 추가
+        this.addFloor();
         
         // 창 크기 변경 이벤트 리스너
         window.addEventListener('resize', () => this.onWindowResize());
+        
+        return true;
     }
     
     /**
@@ -67,8 +76,8 @@ export class SceneManager {
             CONFIG.SCENE.FLOOR_SIZE
         );
         const floorMaterial = new THREE.MeshStandardMaterial({ 
-            color: CONFIG.SCENE.FLOOR_COLOR,  // CONFIG에서 색상 가져오기
-            roughness: 0.3,   // 약간의 반사감
+            color: CONFIG.SCENE.FLOOR_COLOR,
+            roughness: 0.3,
             metalness: 0.1
         });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
@@ -79,9 +88,9 @@ export class SceneManager {
         // 클린룸 스타일: 미세한 그리드만 표시
         const gridHelper = new THREE.GridHelper(
             CONFIG.SCENE.FLOOR_SIZE, 
-            CONFIG.SCENE.GRID_DIVISIONS,  // CONFIG에서 분할 수 가져오기
-            CONFIG.SCENE.GRID_COLOR1,     // CONFIG에서 색상1 가져오기
-            CONFIG.SCENE.GRID_COLOR2      // CONFIG에서 색상2 가져오기
+            CONFIG.SCENE.GRID_DIVISIONS,
+            CONFIG.SCENE.GRID_COLOR1,
+            CONFIG.SCENE.GRID_COLOR2
         );
         gridHelper.material.opacity = 0.3;
         gridHelper.material.transparent = true;
@@ -102,10 +111,10 @@ export class SceneManager {
     }
     
     /**
-     * 렌더링 루프 (controls와 함께 호출)
-     * @param {OrbitControls} controls - 카메라 컨트롤
+     * 렌더링 (애니메이션 루프에서 호출)
+     * ⭐ controls 파라미터 제거 - CameraControls가 자체적으로 update 호출
      */
-    render(controls) {
+    render() {
         this.frameCount++;
         this.fpsFrameCount++;
         
@@ -119,16 +128,33 @@ export class SceneManager {
         // FPS 계산 (1초마다)
         const currentTime = performance.now();
         if (currentTime >= this.fpsLastTime + 1000) {
-            const fps = Math.round((this.fpsFrameCount * 1000) / (currentTime - this.fpsLastTime));
+            this.currentFps = Math.round((this.fpsFrameCount * 1000) / (currentTime - this.fpsLastTime));
+            
             if (CONFIG.DEBUG_MODE && this.frameCount % CONFIG.UI.FPS_LOG_INTERVAL === 0) {
-                debugLog('⚡ FPS:', fps);
+                debugLog('⚡ FPS:', this.currentFps);
             }
+            
             this.fpsFrameCount = 0;
             this.fpsLastTime = currentTime;
         }
         
-        controls.update();
         this.renderer.render(this.scene, this.camera);
+    }
+    
+    /**
+     * ⭐ 성능 통계 반환
+     */
+    getStats() {
+        const info = this.renderer.info;
+        
+        return {
+            fps: this.currentFps,
+            frameTime: this.currentFps > 0 ? 1000 / this.currentFps : 0,
+            drawCalls: info.render.calls,
+            triangles: info.render.triangles,
+            geometries: info.memory.geometries,
+            textures: info.memory.textures
+        };
     }
     
     /**
@@ -153,5 +179,18 @@ export class SceneManager {
      */
     getRenderer() {
         return this.renderer;
+    }
+    
+    /**
+     * ⭐ 리소스 정리
+     */
+    dispose() {
+        if (this.renderer) {
+            this.renderer.dispose();
+        }
+        
+        window.removeEventListener('resize', () => this.onWindowResize());
+        
+        debugLog('🗑️ SceneManager 정리 완료');
     }
 }

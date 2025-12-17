@@ -92,10 +92,36 @@ measurePerformance(5000)
 
 ## 📊 설비 배열 구성
 
-- **배열 크기**: 11행 × 7열 (총 77대)
+- **배열 크기**: 26행 × 6열 (총 156개 위치)
+- **실제 설비**: 117대 (제외 위치 39개)
 - **설비 크기**: 1.5m × 2.2m × 2.0m (W × H × D)
-- **기본 간격**: 30cm
-- **복도 위치**: 2열, 4열 뒤 (폭 1.2m)
+- **기본 간격**: 0.1m (10cm)
+- **복도 위치**: 
+  - 열 방향: 1열, 3열, 5열 뒤 (폭 1.2m)
+  - 행 방향: 13행 뒤 (폭 2.0m)
+
+### 제외 위치 상세
+```javascript
+// col:4, row 4~13 (10개) - 중앙 통로
+// col:5, row 1~13 (13개) - 우측 영역
+// col:6, row 1~13 (13개) - 우측 영역
+// col:5, row 15~16 (2개) - 우측 영역
+// col:5, row 22 (1개) - 우측 영역
+// 총 39개 제외 → 실제 설비 117대
+```
+
+### 배치 구조
+```
+     열 1    열 2    복도    열 3    열 4    복도    열 5    열 6
+행 1  [설비] [설비]  1.2m   [설비]  [설비]  1.2m   [제외]  [제외]
+행 2  [설비] [설비]         [설비]  [설비]         [제외]  [제외]
+...
+행 13 [설비] [설비]         [설비]  [설비]         [제외]  [제외]
+      ────────────────── 2.0m 복도 ──────────────────
+행 14 [설비] [설비]         [설비]  [설비]         [설비]  [설비]
+...
+행 26 [설비] [설비]         [설비]  [설비]         [설비]  [설비]
+```
 
 ## 🎨 모델 관리
 
@@ -148,6 +174,113 @@ ws.onEquipmentStatusUpdate((data) => {
     console.log('설비 상태 업데이트:', data);
 });
 ```
+
+## ⚙️ 환경 설정
+
+### 개발 환경
+
+1. `.env.example`을 `.env.development`로 복사:
+```bash
+cp .env.example .env.development
+```
+
+2. 필요에 따라 값 수정:
+```env
+VITE_API_BASE_URL=http://localhost:8000/api
+VITE_WS_URL=ws://localhost:8000/ws
+VITE_DEBUG_MODE=true
+```
+
+3. 개발 서버 실행:
+```bash
+npm run dev
+```
+
+### 프로덕션 배포
+
+#### 방법 1: 환경 변수 파일 사용
+
+1. `.env.production` 파일 생성:
+```env
+VITE_API_BASE_URL=https://api.your-domain.com/api
+VITE_WS_URL=wss://api.your-domain.com/ws
+VITE_DEBUG_MODE=false
+MODE=production
+```
+
+2. 빌드:
+```bash
+npm run build
+```
+
+#### 방법 2: 런타임 환경 변수 (Docker/Kubernetes)
+
+`public/env-config.js` 파일의 템플릿 변수를 실제 값으로 치환:
+```bash
+# 환경 변수 설정
+export API_BASE_URL="https://api.production.com/api"
+export WS_URL="wss://api.production.com/ws"
+export DEBUG_MODE="false"
+export ENVIRONMENT="production"
+
+# env-config.js 파일 생성
+envsubst < public/env-config.js.template > public/env-config.js
+
+# 빌드
+npm run build
+```
+
+#### Docker 예제
+```dockerfile
+FROM node:18-alpine as build
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+
+# 환경 변수로 빌드 (빌드 시점)
+ARG VITE_API_BASE_URL
+ARG VITE_WS_URL
+ARG VITE_DEBUG_MODE=false
+
+RUN npm run build
+
+# Nginx로 서빙
+FROM nginx:alpine
+
+# 빌드된 파일 복사
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# env-config.js 템플릿 복사
+COPY public/env-config.js /usr/share/nginx/html/public/
+
+# 런타임에 환경 변수 주입
+CMD ["/bin/sh", "-c", "envsubst < /usr/share/nginx/html/public/env-config.js > /usr/share/nginx/html/public/env-config.js.tmp && mv /usr/share/nginx/html/public/env-config.js.tmp /usr/share/nginx/html/public/env-config.js && nginx -g 'daemon off;'"]
+```
+
+### 환경별 설정 확인
+
+브라우저 콘솔에서:
+```javascript
+// 현재 환경 설정 확인
+window.getEnvironment()
+
+// 환경 정보 출력
+window.printEnvironmentInfo()
+```
+
+### 환경 변수 목록
+
+| 변수 | 설명 | 기본값 |
+|------|------|--------|
+| `VITE_API_BASE_URL` | API 서버 주소 | `http://localhost:8000/api` |
+| `VITE_WS_URL` | WebSocket 서버 주소 | `ws://localhost:8000/ws` |
+| `VITE_DEBUG_MODE` | 디버그 모드 활성화 | `true` (개발), `false` (프로덕션) |
+| `MODE` | 환경 이름 | `development` |
+| `VITE_MAX_RECONNECT_ATTEMPTS` | 최대 재연결 시도 | `10` |
+| `VITE_RECONNECT_INTERVAL` | 재연결 간격 (ms) | `5000` |
 
 ## 📝 개발 가이드
 

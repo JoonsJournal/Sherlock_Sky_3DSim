@@ -4,10 +4,16 @@
  */
 
 import { debugLog } from '../utils/Config.js';
+import { ENV, buildApiUrl, isDevelopment } from '../config/environment.js';
 
 export class ApiClient {
-    constructor(baseURL = 'http://localhost:8000/api') {
-        this.baseURL = baseURL;
+    constructor(baseURL = null) {
+        // 환경 설정에서 baseURL 로드
+        this.baseURL = baseURL || ENV.API_BASE_URL;
+        
+        if (isDevelopment()) {
+            console.log('🔌 ApiClient 초기화:', this.baseURL);
+        }
     }
     
     /**
@@ -16,8 +22,10 @@ export class ApiClient {
      * @returns {Promise<any>}
      */
     async get(endpoint) {
+        const url = buildApiUrl(endpoint);
+        
         try {
-            const response = await fetch(`${this.baseURL}${endpoint}`);
+            const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -37,8 +45,10 @@ export class ApiClient {
      * @returns {Promise<any>}
      */
     async post(endpoint, data) {
+        const url = buildApiUrl(endpoint);
+        
         try {
-            const response = await fetch(`${this.baseURL}${endpoint}`, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -64,8 +74,10 @@ export class ApiClient {
      * @returns {Promise<any>}
      */
     async put(endpoint, data) {
+        const url = buildApiUrl(endpoint);
+        
         try {
-            const response = await fetch(`${this.baseURL}${endpoint}`, {
+            const response = await fetch(url, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -90,8 +102,10 @@ export class ApiClient {
      * @returns {Promise<any>}
      */
     async delete(endpoint) {
+        const url = buildApiUrl(endpoint);
+        
         try {
-            const response = await fetch(`${this.baseURL}${endpoint}`, {
+            const response = await fetch(url, {
                 method: 'DELETE',
             });
             if (!response.ok) {
@@ -147,5 +161,20 @@ export class ApiClient {
         const queryString = new URLSearchParams(params).toString();
         const endpoint = `/equipment/${equipmentId}/alarms${queryString ? '?' + queryString : ''}`;
         return await this.get(endpoint);
+    }
+    
+    /**
+     * API 연결 테스트
+     * @returns {Promise<boolean>}
+     */
+    async testConnection() {
+        try {
+            await this.get('/equipment');
+            console.log('✓ API 연결 성공');
+            return true;
+        } catch (error) {
+            console.error('✗ API 연결 실패:', error);
+            return false;
+        }
     }
 }

@@ -4,16 +4,27 @@
  */
 
 import { debugLog } from '../utils/Config.js';
+import { ENV, buildWsUrl, isDevelopment } from '../config/environment.js';
 
 export class WebSocketClient {
-    constructor(url = 'ws://localhost:8000/ws') {
-        this.url = url;
+    constructor(url = null) {
+        // 환경 설정에서 WebSocket URL 로드
+        this.url = url || buildWsUrl();
         this.ws = null;
-        this.reconnectInterval = 5000; // 5초
-        this.maxReconnectAttempts = 10;
+        
+        // 환경 설정에서 재연결 설정 로드
+        this.reconnectInterval = ENV.RECONNECT_INTERVAL || 5000;
+        this.maxReconnectAttempts = ENV.MAX_RECONNECT_ATTEMPTS || 10;
         this.reconnectAttempts = 0;
+        
         this.listeners = new Map();
         this.isConnecting = false;
+        
+        if (isDevelopment()) {
+            console.log('🔌 WebSocketClient 초기화:', this.url);
+            console.log('  재연결 간격:', this.reconnectInterval + 'ms');
+            console.log('  최대 재연결 시도:', this.maxReconnectAttempts + '회');
+        }
     }
     
     /**
@@ -68,10 +79,14 @@ export class WebSocketClient {
                 // 자동 재연결
                 if (this.reconnectAttempts < this.maxReconnectAttempts) {
                     this.reconnectAttempts++;
-                    debugLog(`🔄 ${this.reconnectInterval/1000}초 후 재연결 시도 (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+                    debugLog(
+                        `🔄 ${this.reconnectInterval/1000}초 후 재연결 시도 ` +
+                        `(${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+                    );
                     setTimeout(() => this.connect(), this.reconnectInterval);
                 } else {
                     console.error('❌ 최대 재연결 시도 횟수 초과');
+                    this.emit('max_reconnect_failed');
                 }
             };
         } catch (error) {
@@ -102,6 +117,14 @@ export class WebSocketClient {
         } else {
             console.error('❌ WebSocket이 연결되어 있지 않습니다.');
         }
+    }
+    
+    /**
+     * 연결 상태 확인
+     * @returns {boolean}
+     */
+    isConnected() {
+        return this.ws && this.ws.readyState === WebSocket.OPEN;
     }
     
     /**
