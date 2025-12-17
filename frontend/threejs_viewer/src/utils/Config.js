@@ -96,12 +96,12 @@ export const CONFIG = {
     
     // 씬 설정
     SCENE: {
-        BACKGROUND_COLOR: 0xf5f5f5,  // 밝은 회색-흰색 배경 (클린룸)
-        FLOOR_SIZE: 70,              // 바닥 크기를 더 크게 (26행 × 6열에 맞춤)
-        FLOOR_COLOR: 0xf0f0f0,
-        GRID_DIVISIONS: 100,         // 더 촘촘한 그리드
-        GRID_COLOR1: 0xdcdcdc,
-        GRID_COLOR2: 0xe8e8e8
+        BACKGROUND_COLOR: 0xf8f8f8,  // ⭐ 매우 밝은 아이보리 (클린룸)
+        FLOOR_SIZE: 70,
+        FLOOR_COLOR: 0xf5f5f5,       // ⭐ 매우 밝은 회색 (반사 바닥)
+        GRID_DIVISIONS: 100,
+        GRID_COLOR1: 0xe5e5e5,       // ⭐ 밝은 회색
+        GRID_COLOR2: 0xf0f0f0        // ⭐ 매우 밝은 회색
     },
     
     // 컨트롤 설정
