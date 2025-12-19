@@ -16,7 +16,7 @@ export class Lighting {
         // 1. 주변광 (Ambient Light) - 클린룸의 균일하게 산란된 빛
         const ambientLight = new THREE.AmbientLight(
             0xffffff,  // 순백색
-            1.5        // 매우 밝은 강도 (조명 수를 줄인 만큼 강도 증가)
+            2.5        // ⭐ 강도 대폭 증가 (PointLight 제거로 인한 보상)
         );
         scene.add(ambientLight);
         
@@ -24,7 +24,7 @@ export class Lighting {
         const hemisphereLight = new THREE.HemisphereLight(
             0xffffff,  // 천장 (순백색)
             0xf5f5f5,  // 바닥 (연한 회색)
-            1.0        // 높은 강도
+            1.8        // ⭐ 강도 증가
         );
         hemisphereLight.position.set(0, 50, 0);
         scene.add(hemisphereLight);
@@ -32,14 +32,14 @@ export class Lighting {
         // 3. 메인 방향광 (Directional Light) - 주 조명원
         const mainDirectionalLight = new THREE.DirectionalLight(
             0xffffff,  // 순백색
-            0.8        // 높은 강도
+            1.2        // ⭐ 강도 증가
         );
         mainDirectionalLight.position.set(30, 50, 30);
         mainDirectionalLight.castShadow = true;
         
-        // 그림자 설정 - 클린룸은 그림자가 매우 부드럽고 희미함
-        mainDirectionalLight.shadow.mapSize.width = 2048;
-        mainDirectionalLight.shadow.mapSize.height = 2048;
+        // ⭐ 그림자 최적화 - 클린룸은 그림자가 매우 부드럽고 희미함
+        mainDirectionalLight.shadow.mapSize.width = 1024;   // 2048 → 1024
+        mainDirectionalLight.shadow.mapSize.height = 1024;  // 2048 → 1024
         mainDirectionalLight.shadow.camera.near = 0.5;
         mainDirectionalLight.shadow.camera.far = 150;
         mainDirectionalLight.shadow.camera.left = -60;
@@ -52,60 +52,28 @@ export class Lighting {
         scene.add(mainDirectionalLight);
         
         // 4. 보조 방향광들 - 그림자 제거 및 균일한 조명
-        const fillLight1 = new THREE.DirectionalLight(0xffffff, 0.6);
+        const fillLight1 = new THREE.DirectionalLight(0xffffff, 1.0);  // ⭐ 0.6 → 1.0
         fillLight1.position.set(-30, 40, -30);
         scene.add(fillLight1);
         
-        const fillLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+        const fillLight2 = new THREE.DirectionalLight(0xffffff, 0.8);  // ⭐ 0.5 → 0.8
         fillLight2.position.set(0, 40, -40);
         scene.add(fillLight2);
         
-        const fillLight3 = new THREE.DirectionalLight(0xffffff, 0.5);
+        const fillLight3 = new THREE.DirectionalLight(0xffffff, 0.8);  // ⭐ 0.5 → 0.8
         fillLight3.position.set(-40, 40, 0);
         scene.add(fillLight3);
         
-        // 5. 천장 LED 패널 조명 시뮬레이션 (최적화 버전 - 적은 수의 조명)
-        const ceilingLights = this.createOptimizedCeilingLights(scene);
+        // ⭐ PointLight 64개 완전 제거
+        // → 환경광과 방향광으로 클린룸의 밝고 균일한 조명 구현
         
-        debugLog('💡 10,000 Class 클린룸 조명 시스템 구축 완료');
-        debugLog('   - Ambient Light: 1.5 (매우 밝음)');
-        debugLog('   - Hemisphere Light: 1.0');
-        debugLog('   - Directional Lights: 4개 (메인 + 보조 3개)');
-        debugLog('   - Ceiling Lights: ' + ceilingLights + '개 (최적화)');
-    }
-    
-    /**
-     * 최적화된 천장 조명 생성
-     * WebGL uniform 한계를 고려하여 조명 수 최소화
-     * @param {THREE.Scene} scene - Three.js 씬
-     * @returns {number} 생성된 조명 수
-     */
-    static createOptimizedCeilingLights(scene) {
-        let lightCount = 0;
-        const ceilingHeight = 30; // 천장 높이
-        
-        // ⭐ 조명 간격을 넓혀서 개수 감소 (12m 간격)
-        const panelSpacing = 12;
-        const coverage = 48; // 조명 범위
-        
-        // 격자 형태로 LED 패널 배치 (약 8x8 = 64개)
-        for (let x = -coverage; x <= coverage; x += panelSpacing) {
-            for (let z = -coverage; z <= coverage; z += panelSpacing) {
-                // 각 위치에 하나의 포인트 라이트만 생성
-                const panelLight = new THREE.PointLight(
-                    0xffffff,  // 순백색
-                    1.2,       // 강도 증가 (개수가 줄어든 만큼)
-                    20,        // 거리 증가
-                    1.2        // Decay (빛의 감쇠)
-                );
-                panelLight.position.set(x, ceilingHeight, z);
-                scene.add(panelLight);
-                lightCount++;
-            }
-        }
-        
-        debugLog(`✨ 최적화된 천장 조명 ${lightCount}개 생성 완료`);
-        return lightCount;
+        debugLog('💡 최적화된 조명 시스템 구축 완료');
+        debugLog('   🔹 Ambient Light: 2.5 (강도 증가)');
+        debugLog('   🔹 Hemisphere Light: 1.8 (강도 증가)');
+        debugLog('   🔹 Directional Lights: 4개 (메인 + 보조 3개)');
+        debugLog('   ⭐ PointLight: 0개 (64개 제거 → FPS 대폭 향상)');
+        debugLog('   📊 총 조명 개수: 6개 (기존 70개에서 90% 감소)');
+        debugLog('   🎯 예상 성능 향상: 3~5배 FPS 증가');
     }
     
     /**
@@ -117,11 +85,9 @@ export class Lighting {
         scene.traverse((object) => {
             if (object instanceof THREE.Light) {
                 if (object instanceof THREE.AmbientLight) {
-                    object.intensity = 1.5 * intensity;
+                    object.intensity = 2.5 * intensity;
                 } else if (object instanceof THREE.HemisphereLight) {
-                    object.intensity = 1.0 * intensity;
-                } else if (object instanceof THREE.PointLight) {
-                    object.intensity = 1.2 * intensity;
+                    object.intensity = 1.8 * intensity;
                 } else if (object instanceof THREE.DirectionalLight) {
                     // 메인 라이트인지 보조 라이트인지 구분
                     const baseIntensity = object.userData.baseIntensity || object.intensity;

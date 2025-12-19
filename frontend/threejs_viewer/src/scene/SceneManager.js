@@ -1,17 +1,19 @@
 /**
  * SceneManager.js
  * Three.js 씬, 카메라, 렌더러 초기화 및 관리
- * 10,000 Class 클린룸 스타일 적용
+ * 10,000 Class 클린룸 스타일 적용 - 최적화 버전
  */
 
 import * as THREE from 'three';
 import { CONFIG, debugLog } from '../utils/Config.js';
+import { RoomEnvironment } from './RoomEnvironment.js';  // ⭐ 추가
 
 export class SceneManager {
     constructor() {
         this.scene = null;
         this.camera = null;
         this.renderer = null;
+        this.roomEnvironment = null;  // ⭐ 추가
         this.frameCount = 0;
         this.fpsLastTime = performance.now();
         this.fpsFrameCount = 0;
@@ -43,14 +45,19 @@ export class SceneManager {
             CONFIG.CAMERA.INITIAL_POSITION.z
         );
         
-        // 렌더러 생성
+        // ⭐ 최적화된 렌더러 생성
         this.renderer = new THREE.WebGLRenderer({ 
             antialias: CONFIG.RENDERER.ANTIALIAS,
-            // 물리 기반 조명 활성화 (더 현실적인 조명)
-            physicallyCorrectLights: true
+            powerPreference: 'high-performance',  // ⭐ 고성능 모드
+            stencil: false,  // ⭐ Stencil 버퍼 비활성화 (사용하지 않음)
+            depth: true
         });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        
+        // ⭐ PixelRatio 최적화 (고해상도 디스플레이에서 성능 향상)
+        const pixelRatio = Math.min(window.devicePixelRatio, 2);  // 최대 2로 제한
+        this.renderer.setPixelRatio(pixelRatio);
+        debugLog(`🖥️ Pixel Ratio: ${pixelRatio} (디바이스: ${window.devicePixelRatio})`);
         
         // 그림자 설정 - 부드러운 그림자
         this.renderer.shadowMap.enabled = CONFIG.RENDERER.SHADOW_MAP_ENABLED;
@@ -66,12 +73,16 @@ export class SceneManager {
         // DOM에 추가
         document.body.appendChild(this.renderer.domElement);
         
-        debugLog('✅ Three.js 초기화 완료 (10,000 Class 클린룸 모드)');
+        debugLog('✅ Three.js 초기화 완료 (10,000 Class 클린룸 모드 - 최적화)');
         debugLog('📷 초기 카메라 위치:', this.camera.position);
         debugLog('🎨 Renderer domElement:', this.renderer.domElement);
         
         // 바닥 추가
         this.addCleanRoomFloor();
+        
+        // ⭐ 클린룸 환경 구축
+        this.roomEnvironment = new RoomEnvironment(this.scene);
+        this.roomEnvironment.buildEnvironment();
         
         // 창 크기 변경 이벤트 리스너
         window.addEventListener('resize', () => this.onWindowResize());
@@ -117,10 +128,6 @@ export class SceneManager {
         gridHelper.material.transparent = true;
         gridHelper.name = 'cleanroom-grid';
         this.scene.add(gridHelper);
-        
-        // 추가: 바닥 반사를 위한 가상의 거울 효과 (선택사항)
-        // 실제 반사는 환경 맵이나 Reflector를 사용하지만, 
-        // 성능을 위해 간단한 방법 사용
         
         debugLog('🏗️ 클린룸 스타일 바닥 생성 완료');
         debugLog(`📐 바닥 크기: ${CONFIG.SCENE.FLOOR_SIZE}m × ${CONFIG.SCENE.FLOOR_SIZE}m`);
@@ -205,11 +212,23 @@ export class SceneManager {
     }
     
     /**
+     * ⭐ RoomEnvironment 반환
+     */
+    getRoomEnvironment() {
+        return this.roomEnvironment;
+    }
+    
+    /**
      * 리소스 정리
      */
     dispose() {
         if (this.renderer) {
             this.renderer.dispose();
+        }
+        
+        // ⭐ RoomEnvironment 정리
+        if (this.roomEnvironment) {
+            this.roomEnvironment.dispose();
         }
         
         window.removeEventListener('resize', () => this.onWindowResize());

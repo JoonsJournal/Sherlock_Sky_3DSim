@@ -178,4 +178,8 @@ export function debugHelp() {
     console.log('measurePerformance(ms)       - 성능 측정');
     console.log('debugHelp()                  - 이 도움말');
     console.log('═══════════════════════════════════════');
+    console.log('📷 카메라 네비게이션:');
+    console.log('  setCameraView(0~7) - 특정 방향으로 카메라 이동');
+    console.log('  rotateCameraView() - 90도 시계방향 회전');
+    console.log('  toggleCameraNavigator() - 네비게이터 표시/숨김');
 }

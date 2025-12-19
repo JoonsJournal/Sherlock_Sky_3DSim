@@ -4,10 +4,14 @@
  * SceneManager, EquipmentLoader, CameraControls, InteractionHandler, DataOverlay, StatusVisualizer, PerformanceMonitor 통합
  */
 
+// ⭐⭐⭐ 1. THREE import (가장 먼저!)
+import * as THREE from 'three';
+
 import { SceneManager } from './scene/SceneManager.js';
 import { EquipmentLoader } from './scene/EquipmentLoader.js';
 import { Lighting } from './scene/Lighting.js';
 import { CameraControls } from './controls/CameraControls.js';
+import { CameraNavigator } from './controls/CameraNavigator.js';
 import { InteractionHandler } from './controls/InteractionHandler.js';
 import { DataOverlay } from './visualization/DataOverlay.js';
 import { StatusVisualizer } from './visualization/StatusVisualizer.js';
@@ -19,6 +23,7 @@ import { CONFIG, debugLog } from './utils/Config.js';
 let sceneManager;
 let equipmentLoader;
 let cameraControls;
+let cameraNavigator;
 let interactionHandler;
 let dataOverlay;
 let statusVisualizer;
@@ -75,6 +80,15 @@ function init() {
             sceneManager.renderer.domElement
         );
         console.log('✅ CameraControls 초기화 완료');
+
+        // ⭐ 4-1. Camera Navigator 추가
+        cameraNavigator = new CameraNavigator(
+            sceneManager.camera,
+            cameraControls.controls,
+            new THREE.Vector3(0, 0, 0)  // 클린룸 중심
+        );
+        console.log('✅ CameraNavigator 초기화 완료');
+
         
         // 5. DataOverlay 초기화
         dataOverlay = new DataOverlay();
@@ -234,6 +248,7 @@ function setupGlobalDebugFunctions() {
         console.log('🎨 씬 정보:');
         console.log('  debugScene() - 씬 정보 출력');
         console.log('  debugRenderer() - 렌더러 정보 출력');
+        console.log('  debugLights() - 조명 정보 출력');
         console.log('');
         console.log('🏭 설비 관련:');
         console.log('  getEquipmentInfo(id) - 특정 설비 정보 조회');
@@ -382,6 +397,101 @@ function setupGlobalDebugFunctions() {
         console.groupEnd();
     };
     
+    // ⭐ 카메라 네비게이터 제어
+    window.setCameraView = (direction) => {
+        if (!cameraNavigator) {
+            console.error('❌ CameraNavigator가 초기화되지 않았습니다');
+            return;
+        }
+        
+        if (typeof direction === 'number') {
+            cameraNavigator.moveToDirection(direction);
+            console.log(`📷 카메라 뷰 변경: ${direction} (${direction * 45}도)`);
+        } else {
+            console.log('사용법: setCameraView(0~7)');
+            console.log('  0: 북(0°), 1: 북동(45°), 2: 동(90°), 3: 남동(135°)');
+            console.log('  4: 남(180°), 5: 남서(225°), 6: 서(270°), 7: 북서(315°)');
+        }
+    };
+
+    window.rotateCameraView = () => {
+        if (!cameraNavigator) {
+            console.error('❌ CameraNavigator가 초기화되지 않았습니다');
+            return;
+        }
+        cameraNavigator.rotateClockwise90();
+        console.log('🔄 카메라 90도 회전');
+    };
+
+    window.toggleCameraNavigator = (visible) => {
+        if (!cameraNavigator) {
+            console.error('❌ CameraNavigator가 초기화되지 않았습니다');
+            return;
+        }
+        
+        if (visible === undefined) {
+            const currentVisible = cameraNavigator.navContainer.style.display !== 'none';
+            cameraNavigator.setVisible(!currentVisible);
+        } else {
+            cameraNavigator.setVisible(visible);
+        }
+    };
+
+
+    // ⭐ 조명 디버그 정보 (새로 추가)
+    window.debugLights = () => {
+        if (!sceneManager) {
+            console.error('❌ SceneManager가 초기화되지 않았습니다');
+            return;
+        }
+        
+        let totalLights = 0;
+        let pointLights = 0;
+        let directionalLights = 0;
+        let ambientLights = 0;
+        let hemisphereLights = 0;
+        let spotLights = 0;
+        
+        sceneManager.scene.traverse((obj) => {
+            if (obj.isLight) {
+                totalLights++;
+                
+                if (obj.isPointLight) pointLights++;
+                else if (obj.isDirectionalLight) directionalLights++;
+                else if (obj.isAmbientLight) ambientLights++;
+                else if (obj.isHemisphereLight) hemisphereLights++;
+                else if (obj.isSpotLight) spotLights++;
+            }
+        });
+        
+        console.group('💡 조명 분석');
+        console.log('총 조명 개수:', totalLights);
+        console.log('  - PointLight:', pointLights, pointLights > 0 ? '⚠️' : '✅');
+        console.log('  - DirectionalLight:', directionalLights);
+        console.log('  - AmbientLight:', ambientLights);
+        console.log('  - HemisphereLight:', hemisphereLights);
+        console.log('  - SpotLight:', spotLights);
+        console.groupEnd();
+        
+        // 최적화 상태 판단
+        if (pointLights === 0 && totalLights <= 10) {
+            console.log('✅ 조명 최적화 적용됨');
+        } else if (pointLights > 50) {
+            console.log('⚠️ PointLight가 많습니다! 조명 최적화 미적용');
+        } else {
+            console.log('⚡ 조명 최적화 부분 적용');
+        }
+        
+        return {
+            totalLights,
+            pointLights,
+            directionalLights,
+            ambientLights,
+            hemisphereLights,
+            spotLights
+        };
+    };
+    
     // 특정 설비 정보 조회
     window.getEquipmentInfo = (equipmentId) => {
         if (!equipmentLoader) {
@@ -490,6 +600,12 @@ function cleanup() {
         console.log('  - InteractionHandler 정리');
     }
     
+    // CameraNavigator 정리
+    if (cameraNavigator) {
+        cameraNavigator.dispose();
+        console.log('  - CameraNavigator 정리');
+}
+
     console.log('✅ 정리 완료');
 }
 
