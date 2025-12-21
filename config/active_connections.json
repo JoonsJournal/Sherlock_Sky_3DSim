@@ -1,0 +1,29 @@
+    {
+    "active_profile": "production_all",
+    "enabled_connections": {
+    "korea_site1": {
+        "enabled": true,
+        "databases": {
+        "line1": true,
+        "line2": true,
+        "quality": true
+        }
+    },
+    "vietnam_site": {
+        "enabled": true,
+        "databases": {
+        "production": true,
+        "maintenance": false
+        }
+    },
+    "usa_site": {
+        "enabled": false,
+        "databases": {
+        "plant": false,
+        "analytics": false
+        }
+    }
+    },
+    "last_updated": "2024-01-15T10:30:00Z",
+    "updated_by": "admin"
+    }

@@ -1,0 +1,45 @@
+    {
+    "profiles": {
+    "all": {
+        "name": "모든 사이트 전체 연결",
+        "description": "모든 사이트의 모든 데이터베이스에 연결",
+        "connections": {
+        "korea_site1": ["line1", "line2", "quality"],
+        "vietnam_site": ["production", "maintenance"],
+        "usa_site": ["plant", "analytics"]
+        }
+    },
+    "korea_only": {
+        "name": "한국 사이트만",
+        "description": "한국 공장만 연결",
+        "connections": {
+        "korea_site1": ["line1", "line2", "quality"]
+        }
+    },
+    "production_only": {
+        "name": "생산 DB만",
+        "description": "각 사이트의 생산 관련 DB만",
+        "connections": {
+        "korea_site1": ["line1", "line2"],
+        "vietnam_site": ["production"],
+        "usa_site": ["plant"]
+        }
+    },
+    "analytics": {
+        "name": "분석용",
+        "description": "분석 및 품질 DB만",
+        "connections": {
+        "korea_site1": ["quality"],
+        "usa_site": ["analytics"]
+        }
+    },
+    "single_korea_line1": {
+        "name": "한국 라인1만",
+        "description": "테스트용 단일 연결",
+        "connections": {
+        "korea_site1": ["line1"]
+        }
+    }
+    },
+    "default_profile": "korea_only"
+}
