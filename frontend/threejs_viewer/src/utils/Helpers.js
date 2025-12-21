@@ -182,4 +182,10 @@ export function debugHelp() {
     console.log('  setCameraView(0~7) - 특정 방향으로 카메라 이동');
     console.log('  rotateCameraView() - 90도 시계방향 회전');
     console.log('  toggleCameraNavigator() - 네비게이터 표시/숨김');
+    console.log('🎯 View 모드:');
+    console.log('  getViewMode() - 현재 View 모드 확인');
+    console.log('  setViewMode("top"|"isometric") - View 모드 설정');
+    console.log('  setTopViewHeight(100) - Top View 높이 조정');
+    console.log('🔧 View 설정:');
+    console.log('  setTopViewOffset(0.5) - Top View 회전 오프셋 조정');
 }

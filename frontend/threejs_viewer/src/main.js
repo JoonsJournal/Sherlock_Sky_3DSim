@@ -553,7 +553,60 @@ function setupGlobalDebugFunctions() {
         
         return selected.map(eq => eq.userData);
     };
+
+    // ⭐ View 모드 확인
+    window.getViewMode = () => {
+        if (!cameraNavigator) {
+            console.error('❌ CameraNavigator가 초기화되지 않았습니다');
+            return;
+        }
+        
+        const mode = cameraNavigator.getViewMode();
+        console.log(`🎯 현재 View 모드: ${mode.toUpperCase()}`);
+        console.log('   - TOP: 수직 위에서 내려다보기');
+        console.log('   - ISO: 경사진 각도에서 보기');
+        return mode;
+    };
+
+    // ⭐ View 모드 설정
+    window.setViewMode = (mode) => {
+        if (!cameraNavigator) {
+            console.error('❌ CameraNavigator가 초기화되지 않았습니다');
+            return;
+        }
+        
+        if (mode !== 'top' && mode !== 'isometric') {
+            console.error('❌ 사용법: setViewMode("top") 또는 setViewMode("isometric")');
+            return;
+        }
+        
+        cameraNavigator.setViewMode(mode);
+    };
+
+    // ⭐ Top View 높이 조정
+    window.setTopViewHeight = (height) => {
+        if (!cameraNavigator) {
+            console.error('❌ CameraNavigator가 초기화되지 않았습니다');
+            return;
+        }
+        
+        cameraNavigator.setTopViewHeight(height);
+        console.log(`📐 Top View 높이 설정: ${height}m`);
+    };
     
+    // Top View 오프셋 조정
+    window.setTopViewOffset = (offset) => {
+        if (!cameraNavigator) {
+            console.error('❌ CameraNavigator가 초기화되지 않았습니다');
+            return;
+        }
+        
+        cameraNavigator.topViewOffset = offset;
+        console.log(`🔧 Top View 오프셋: ${offset}`);
+        console.log('💡 값이 클수록 방향성이 명확해지고, 작을수록 수직에 가까워집니다');
+    };
+
+
     console.log('✅ 전역 디버그 함수 등록 완료');
 }
 
