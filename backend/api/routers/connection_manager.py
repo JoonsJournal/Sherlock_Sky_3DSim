@@ -1,198 +1,194 @@
-# backend/api/routers/connection_manager.py
 """
-연결 관리 API
+연결 관리 API Router
+- databases.json 기반 연결 테스트
+- connection_profiles.json 기반 프로필 관리
 """
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Dict, List, Optional
+from typing import List
+import logging
 
-from ...config.connection_selector import get_connection_selector
-from ..database.multi_connection_manager import connection_manager
+from ..database.connection_test import get_connection_manager
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
-class EnableConnectionRequest(BaseModel):
-    site_id: str
-    databases: Optional[List[str]] = None  # None이면 전체
+class TestConnectionRequest(BaseModel):
+    """단일 연결 테스트 요청"""
+    site_name: str
+    db_name: str
 
 
-class LoadProfileRequest(BaseModel):
+class TestProfileRequest(BaseModel):
+    """프로필 테스트 요청"""
     profile_name: str
 
+# 기존 import 유지하고 다음 엔드포인트 추가
 
-@router.get("/status")
-async def get_connection_status():
-    """
-    현재 연결 상태 조회
-    
-    Returns:
-        활성 프로필, 연결 목록, 통계
-    """
-    selector = get_connection_selector()
-    summary = selector.get_connection_summary()
-    
-    # 실제 연결 상태 추가
-    connection_status = connection_manager.get_connection_status()
-    
-    return {
-        **summary,
-        'connection_details': connection_status['connections']
-    }
+class GetTablesRequest(BaseModel):
+    """테이블 목록 조회 요청"""
+    site_name: str
+    db_name: str
 
 
-@router.get("/profiles")
-async def get_profiles():
+@router.post("/get-tables")
+async def get_table_list(request: GetTablesRequest):
     """
-    프로필 목록 조회
-    
-    Returns:
-        사용 가능한 프로필 목록
-    """
-    selector = get_connection_selector()
-    return {
-        'profiles': selector.get_profile_list()
-    }
-
-
-@router.post("/profile/load")
-async def load_profile(request: LoadProfileRequest):
-    """
-    프로필 로드
-    
-    Body:
-        {"profile_name": "korea_only"}
-    """
-    selector = get_connection_selector()
-    
-    try:
-        selector.load_profile(request.profile_name)
-        selector.save_active_config(updated_by="api")
-        connection_manager.reload_connections()
-        
-        return {
-            'message': f'프로필 로드 완료: {request.profile_name}',
-            'active_connections': selector.get_all_enabled_connections()
-        }
-    
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/enable")
-async def enable_connections(request: EnableConnectionRequest):
-    """
-    특정 사이트/데이터베이스 활성화
+    특정 데이터베이스의 테이블 목록 조회
     
     Body:
         {
-            "site_id": "korea_site1",
-            "databases": ["line1", "line2"]  # null이면 전체
+            "site_name": "korea_site1",
+            "db_name": "line1"
         }
-    """
-    selector = get_connection_selector()
-    settings = get_multi_site_settings()
-    
-    try:
-        # 사이트 활성화
-        selector.enable_site(request.site_id, True)
-        
-        # 데이터베이스 활성화
-        if request.databases is None:
-            # 전체 활성화
-            all_dbs = settings.get_site_databases(request.site_id)
-            for db_name in all_dbs:
-                selector.enable_database(request.site_id, db_name, True)
-        else:
-            # 지정된 것만 활성화
-            for db_name in request.databases:
-                selector.enable_database(request.site_id, db_name, True)
-        
-        selector.save_active_config(updated_by="api")
-        connection_manager.reload_connections()
-        
-        return {
-            'message': '연결 활성화 완료',
-            'site_id': request.site_id,
-            'databases': request.databases or '전체'
-        }
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/disable")
-async def disable_connections(request: EnableConnectionRequest):
-    """특정 사이트/데이터베이스 비활성화"""
-    selector = get_connection_selector()
-    
-    try:
-        if request.databases is None:
-            # 사이트 전체 비활성화
-            selector.enable_site(request.site_id, False)
-        else:
-            # 지정된 데이터베이스만 비활성화
-            for db_name in request.databases:
-                selector.enable_database(request.site_id, db_name, False)
-        
-        selector.save_active_config(updated_by="api")
-        connection_manager.reload_connections()
-        
-        return {
-            'message': '연결 비활성화 완료',
-            'site_id': request.site_id,
-            'databases': request.databases or '전체'
-        }
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/test")
-async def test_connections():
-    """
-    모든 활성 연결 테스트
     
     Returns:
-        {site_id: {db_name: bool}}
-    """
-    results = connection_manager.test_all_active_connections()
-    
-    # 통계 계산
-    total = sum(len(dbs) for dbs in results.values())
-    success = sum(
-        sum(1 for status in dbs.values() if status)
-        for dbs in results.values()
-    )
-    
-    return {
-        'results': results,
-        'statistics': {
-            'total': total,
-            'success': success,
-            'failed': total - success,
-            'success_rate': (success / total * 100) if total > 0 else 0
+        {
+            "success": true,
+            "message": "15개 테이블 조회 성공",
+            "total_tables": 15,
+            "tables": [
+                {
+                    "schema": "dbo",
+                    "name": "Equipment",
+                    "type": "BASE TABLE",
+                    "full_name": "dbo.Equipment"
+                },
+                ...
+            ],
+            "site_name": "korea_site1",
+            "db_name": "line1",
+            "db_type": "mssql"
         }
-    }
-
-
-@router.post("/reload")
-async def reload_connections():
-    """
-    연결 설정 리로드
-    
-    활성 연결 설정 파일이 외부에서 변경된 경우 사용
     """
     try:
-        connection_manager.reload_connections()
+        manager = get_connection_manager()
+        result = manager.get_table_list(
+            request.site_name,
+            request.db_name
+        )
+        return result
+    except Exception as e:
+        logger.error(f"테이블 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+	
+	
+
+@router.get("/sites")
+async def get_all_sites():
+    """
+    모든 사이트 조회
+    
+    Returns:
+        {
+            "sites": [
+                {
+                    "name": "korea_site1",
+                    "host": "192.168.1.100",
+                    "databases": ["line1", "line2", "quality"]
+                }
+            ]
+        }
+    """
+    try:
+        manager = get_connection_manager()
+        return manager.get_all_sites()
+    except Exception as e:
+        logger.error(f"사이트 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/profiles")
+async def get_all_profiles():
+    """
+    모든 프로필 조회
+    
+    Returns:
+        {
+            "profiles": [...],
+            "default_profile": "korea_only"
+        }
+    """
+    try:
+        manager = get_connection_manager()
+        return manager.get_all_profiles()
+    except Exception as e:
+        logger.error(f"프로필 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/test-connection")
+async def test_connection(request: TestConnectionRequest):
+    """
+    단일 연결 테스트
+    
+    Body:
+        {
+            "site_name": "korea_site1",
+            "db_name": "line1"
+        }
+    """
+    try:
+        manager = get_connection_manager()
+        result = manager.test_single_connection(
+            request.site_name,
+            request.db_name
+        )
+        return result
+    except Exception as e:
+        logger.error(f"연결 테스트 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/test-profile")
+async def test_profile(request: TestProfileRequest):
+    """
+    프로필의 모든 연결 테스트
+    
+    Body:
+        {
+            "profile_name": "korea_only"
+        }
+    """
+    try:
+        manager = get_connection_manager()
+        result = manager.test_profile(request.profile_name)
+        return result
+    except Exception as e:
+        logger.error(f"프로필 테스트 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/test-all")
+async def test_all_connections():
+    """
+    모든 사이트의 모든 데이터베이스 테스트
+    """
+    try:
+        manager = get_connection_manager()
+        result = manager.test_all_sites()
+        return result
+    except Exception as e:
+        logger.error(f"전체 테스트 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/status")
+async def get_status():
+    """현재 상태 조회"""
+    try:
+        manager = get_connection_manager()
+        sites = manager.get_all_sites()
+        profiles = manager.get_all_profiles()
         
         return {
-            'message': '연결 리로드 완료',
-            'active_connections': get_connection_selector().get_all_enabled_connections()
+            'total_sites': len(sites['sites']),
+            'total_profiles': len(profiles['profiles']),
+            'default_profile': profiles.get('default_profile', ''),
+            'status': 'ready'
         }
-    
     except Exception as e:
+        logger.error(f"상태 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))

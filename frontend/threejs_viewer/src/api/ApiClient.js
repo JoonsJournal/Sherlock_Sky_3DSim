@@ -120,6 +120,23 @@ export class ApiClient {
         }
     }
     
+	// 기존 연결 관리 API 섹션에 추가
+
+    /**
+     * 데이터베이스 테이블 목록 조회
+     * @param {string} siteName - 사이트 이름
+     * @param {string} dbName - 데이터베이스 이름
+     * @returns {Promise<Object>} { success: bool, tables: Array, total_tables: number }
+     */
+    async getDatabaseTables(siteName, dbName) {
+        return await this.post('/connections/get-tables', {
+            site_name: siteName,
+            db_name: dbName
+        });
+    }
+	
+	
+	
     // ============================================
     // 설비 관련 API
     // ============================================
@@ -161,6 +178,79 @@ export class ApiClient {
         const queryString = new URLSearchParams(params).toString();
         const endpoint = `/equipment/${equipmentId}/alarms${queryString ? '?' + queryString : ''}`;
         return await this.get(endpoint);
+    }
+    
+    // ============================================
+    // 연결 관리 API (NEW)
+    // ============================================
+    
+    /**
+     * 연결 프로필 목록 가져오기
+     * @returns {Promise<Object>} { profiles: Array }
+     */
+    async getConnectionProfiles() {
+        return await this.get('/connections/profiles');
+    }
+    
+    /**
+     * 선택된 프로필들 연결 시도
+     * @param {Array<string>} profileNames - 연결할 프로필 이름 배열
+     * @returns {Promise<Object>} { results: Object, summary: Object }
+     */
+    async connectToProfiles(profileNames) {
+        return await this.post('/connections/connect', {
+            profile_names: profileNames
+        });
+    }
+    
+    /**
+     * 현재 연결 상태 조회
+     * @returns {Promise<Object>} 연결 상태 정보
+     */
+    async getConnectionStatus() {
+        return await this.get('/connections/status');
+    }
+    
+    /**
+     * 특정 사이트/데이터베이스 활성화
+     * @param {string} siteId - 사이트 ID
+     * @param {Array<string>} databases - 데이터베이스 목록 (null이면 전체)
+     * @returns {Promise<Object>}
+     */
+    async enableConnections(siteId, databases = null) {
+        return await this.post('/connections/enable', {
+            site_id: siteId,
+            databases: databases
+        });
+    }
+    
+    /**
+     * 특정 사이트/데이터베이스 비활성화
+     * @param {string} siteId - 사이트 ID
+     * @param {Array<string>} databases - 데이터베이스 목록 (null이면 전체)
+     * @returns {Promise<Object>}
+     */
+    async disableConnections(siteId, databases = null) {
+        return await this.post('/connections/disable', {
+            site_id: siteId,
+            databases: databases
+        });
+    }
+    
+    /**
+     * 모든 활성 연결 테스트
+     * @returns {Promise<Object>} { results: Object, statistics: Object }
+     */
+    async testConnections() {
+        return await this.post('/connections/test');
+    }
+    
+    /**
+     * 연결 설정 리로드
+     * @returns {Promise<Object>}
+     */
+    async reloadConnections() {
+        return await this.post('/connections/reload');
     }
     
     /**

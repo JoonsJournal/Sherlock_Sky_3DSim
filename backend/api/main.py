@@ -1,33 +1,21 @@
 """
-FastAPI 메인 애플리케이션
-- REST API 엔드포인트
-- WebSocket 서버
-- 데이터베이스 연결
+FastAPI 메인 애플리케이션 (Connection Test 전용)
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import asyncio
-from typing import List
-import json
-from datetime import datetime
 import os
 from dotenv import load_dotenv
-
-# ✨ 새로 추가
-from .utils.errors import (
-    api_exception_handler,
-    generic_exception_handler,
-    BaseAPIException
-)
-from .utils.logging_config import setup_logging
-import logging
+from datetime import datetime
 
 # 환경 변수 로드
 load_dotenv()
 
-# ✨ 로깅 설정
+# 로깅 설정
+from .utils.logging_config import setup_logging
+import logging
+
 setup_logging(
     log_level=os.getenv('LOG_LEVEL', 'INFO'),
     log_dir='logs',
@@ -35,52 +23,31 @@ setup_logging(
 )
 logger = logging.getLogger(__name__)
 
-from .routers import equipment, production, monitoring, playback, analytics
-from .websocket.connection_manager import ConnectionManager
-from .websocket.stream_handler import StreamHandler
-from .database.connection import init_db, close_db
-
-# WebSocket 연결 관리자 (전역)
-connection_manager = ConnectionManager()
-stream_handler = StreamHandler()
+# Connection Manager Router만 import
+from .routers.connection_manager import router as connection_router
 
 # 라이프사이클 관리
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 시작 시
-    try:
-        await init_db()
-        await connection_manager.start_redis_listener()
-        logger.info("✓ 데이터베이스 연결 완료")
-        logger.info("✓ Redis 리스너 시작")
-        print("✓ 데이터베이스 연결 완료")
-        print("✓ Redis 리스너 시작")
-    except Exception as e:
-        logger.error(f"✗ 시작 중 오류: {e}", exc_info=True)
-        raise
+    logger.info("🚀 애플리케이션 시작")
+    print("="*60)
+    print("🚀 SHERLOCK_SKY_3DSIM API 시작")
+    print("="*60)
     
     yield
     
     # 종료 시
-    try:
-        await connection_manager.stop_redis_listener()
-        await close_db()
-        logger.info("✓ 리소스 정리 완료")
-        print("✓ 리소스 정리 완료")
-    except Exception as e:
-        logger.error(f"✗ 종료 중 오류: {e}", exc_info=True)
+    logger.info("🛑 애플리케이션 종료")
+    print("🛑 애플리케이션 종료")
 
 # FastAPI 앱 생성
 app = FastAPI(
-    title="SHERLOCK_SKY_3DSIM API",
-    description="생산 시스템 모니터링 및 시뮬레이션 API",
+    title="SHERLOCK_SKY_3DSIM Connection Test API",
+    description="데이터베이스 연결 테스트 전용 API",
     version="1.0.0",
     lifespan=lifespan
 )
-
-# ✨ 에러 핸들러 등록
-app.add_exception_handler(BaseAPIException, api_exception_handler)
-app.add_exception_handler(Exception, generic_exception_handler)
 
 # CORS 설정
 ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:8080,http://127.0.0.1:8080')
@@ -94,72 +61,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logger.info(f"✓ CORS 허용 출처: {origins_list}")
-print(f"✓ CORS 허용 출처: {origins_list}")
+logger.info(f"✓ CORS 설정: {origins_list}")
 
-# 라우터 등록
-app.include_router(equipment.router, prefix="/api/equipment", tags=["Equipment"])
-app.include_router(production.router, prefix="/api/production", tags=["Production"])
-app.include_router(monitoring.router, prefix="/api/monitoring", tags=["Monitoring"])
-app.include_router(playback.router, prefix="/api/playback", tags=["Playback"])
-app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
+# Connection Manager Router 등록
+app.include_router(
+    connection_router,
+    prefix="/api/connections",
+    tags=["Database Connections"]
+)
 
-
-# WebSocket 엔드포인트
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """실시간 데이터 스트리밍"""
-    await connection_manager.connect(websocket)
-    client_id = id(websocket)
-    logger.info(f"WebSocket 클라이언트 연결: {client_id}")
-    
-    try:
-        while True:
-            # 클라이언트로부터 메시지 수신
-            data = await websocket.receive_text()
-            message = json.loads(data)
-            
-            # 메시지 타입에 따라 처리
-            if message["type"] == "subscribe":
-                # 특정 설비 구독
-                equipment_ids = message.get("equipment_ids", [])
-                await connection_manager.subscribe(websocket, equipment_ids)
-                logger.debug(f"클라이언트 {client_id} 구독: {equipment_ids}")
-                
-            elif message["type"] == "unsubscribe":
-                equipment_ids = message.get("equipment_ids", [])
-                await connection_manager.unsubscribe(websocket, equipment_ids)
-                logger.debug(f"클라이언트 {client_id} 구독 해제: {equipment_ids}")
-                
-    except WebSocketDisconnect:
-        connection_manager.disconnect(websocket)
-        logger.info(f"WebSocket 클라이언트 연결 종료: {client_id}")
-    except Exception as e:
-        logger.error(f"WebSocket 오류 (클라이언트 {client_id}): {e}", exc_info=True)
-        connection_manager.disconnect(websocket)
+logger.info("✓ Connection Manager Router 등록 완료")
 
 
-# 헬스체크
-@app.get("/health")
-async def health_check():
-    """서버 상태 확인"""
-    health_status = {
-        "status": "healthy",
-        "active_connections": len(connection_manager.active_connections),
-        "timestamp": datetime.now().isoformat()
-    }
-    
-    logger.debug(f"Health check: {health_status}")
-    return health_status
-
-
-# 루트
 @app.get("/")
 async def root():
-    """API 정보"""
+    """API 루트"""
     return {
-        "name": "SHERLOCK_SKY_3DSIM API",
+        "name": "SHERLOCK_SKY_3DSIM Connection Test API",
         "version": "1.0.0",
+        "description": "데이터베이스 연결 테스트 전용",
         "docs": "/docs",
-        "health": "/health"
+        "endpoints": {
+            "sites": "/api/connections/sites",
+            "profiles": "/api/connections/profiles",
+            "test_connection": "/api/connections/test-connection",
+            "test_profile": "/api/connections/test-profile",
+            "test_all": "/api/connections/test-all",
+            "status": "/api/connections/status"
+        }
     }
+
+
+@app.get("/health")
+async def health():
+    """헬스 체크"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    uvicorn.run(
+        "backend.api.main:app",
+        host="0.0.0.0",
+        port=int(os.getenv('APP_PORT', 8000)),
+        reload=True
+    )

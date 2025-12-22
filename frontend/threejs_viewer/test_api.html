@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection API 테스트</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.danger {
+            background: #f44336;
+        }
+        button.danger:hover {
+            background: #da190b;
+        }
+        #results {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        h1 { color: #333; }
+        h2 { color: #555; margin-top: 0; }
+        .status-indicator {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .status-connected {
+            background: #4CAF50;
+            color: white;
+        }
+        .status-disconnected {
+            background: #f44336;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔌 Connection API 테스트 페이지</h1>
+    <div id="api-status"></div>
+
+    <div class="test-section">
+        <h2>1. 사이트 목록 조회</h2>
+        <button onclick="testGetSites()">GET /sites</button>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 프로필 목록 조회</h2>
+        <button onclick="testGetProfiles()">GET /profiles</button>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 단일 연결 테스트</h2>
+        <button onclick="testSingleConnection('korea_site1', 'line1')">Test: korea_site1.line1</button>
+        <button onclick="testSingleConnection('vietnam_site', 'production')">Test: vietnam_site.production</button>
+    </div>
+
+    <div class="test-section">
+        <h2>4. 프로필 테스트</h2>
+        <button onclick="testProfile('korea_only')">Test Profile: korea_only</button>
+        <button onclick="testProfile('production_only')">Test Profile: production_only</button>
+        <button onclick="testProfile('all')">Test Profile: all</button>
+    </div>
+
+    <div class="test-section">
+        <h2>5. 전체 테스트</h2>
+        <button onclick="testAllConnections()">POST /test-all</button>
+    </div>
+
+    <div class="test-section">
+        <h2>6. 상태 조회</h2>
+        <button onclick="testGetStatus()">GET /status</button>
+    </div>
+
+    <div class="test-section">
+        <h2>7. 결과</h2>
+        <button onclick="clearResults()" class="danger">Clear</button>
+        <div id="results"></div>
+    </div>
+
+    <script type="module">
+        import { ApiClient } from './src/api/ApiClient.js';
+
+        // 전역 변수로 ApiClient 인스턴스 생성
+        window.apiClient = new ApiClient();
+
+        // API 연결 상태 확인
+        async function checkApiStatus() {
+            try {
+                const response = await fetch('http://localhost:8000/health');
+                const statusDiv = document.getElementById('api-status');
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = '<span class="status-indicator status-connected">✓ Backend API 연결됨</span>';
+                } else {
+                    statusDiv.innerHTML = '<span class="status-indicator status-disconnected">✗ Backend API 응답 없음</span>';
+                }
+            } catch (error) {
+                const statusDiv = document.getElementById('api-status');
+                statusDiv.innerHTML = '<span class="status-indicator status-disconnected">✗ Backend API 연결 실패</span>';
+            }
+        }
+
+        // 페이지 로드 시 API 상태 확인
+        checkApiStatus();
+        setInterval(checkApiStatus, 5000); // 5초마다 체크
+
+        // ===== 테스트 함수들 =====
+
+        window.testGetSites = async function() {
+            logTest('GET /connections/sites');
+            try {
+                const result = await apiClient.get('/connections/sites');
+                logResult('SUCCESS', result);
+            } catch (error) {
+                logResult('ERROR', error);
+            }
+        };
+
+        window.testGetProfiles = async function() {
+            logTest('GET /connections/profiles');
+            try {
+                const result = await apiClient.get('/connections/profiles');
+                logResult('SUCCESS', result);
+            } catch (error) {
+                logResult('ERROR', error);
+            }
+        };
+
+        window.testSingleConnection = async function(siteName, dbName) {
+            logTest(`POST /connections/test-connection - ${siteName}.${dbName}`);
+            try {
+                const result = await apiClient.post('/connections/test-connection', {
+                    site_name: siteName,
+                    db_name: dbName
+                });
+                logResult('SUCCESS', result);
+            } catch (error) {
+                logResult('ERROR', error);
+            }
+        };
+
+        window.testProfile = async function(profileName) {
+            logTest(`POST /connections/test-profile - ${profileName}`);
+            try {
+                const result = await apiClient.post('/connections/test-profile', {
+                    profile_name: profileName
+                });
+                logResult('SUCCESS', result);
+            } catch (error) {
+                logResult('ERROR', error);
+            }
+        };
+
+        window.testAllConnections = async function() {
+            logTest('POST /connections/test-all');
+            try {
+                const result = await apiClient.post('/connections/test-all');
+                logResult('SUCCESS', result);
+            } catch (error) {
+                logResult('ERROR', error);
+            }
+        };
+
+        window.testGetStatus = async function() {
+            logTest('GET /connections/status');
+            try {
+                const result = await apiClient.get('/connections/status');
+                logResult('SUCCESS', result);
+            } catch (error) {
+                logResult('ERROR', error);
+            }
+        };
+
+        window.clearResults = function() {
+            document.getElementById('results').innerHTML = '';
+        };
+
+        function logTest(message) {
+            const results = document.getElementById('results');
+            results.innerHTML += `\n${'='.repeat(60)}\n`;
+            results.innerHTML += `🧪 ${message}\n`;
+            results.innerHTML += `${'='.repeat(60)}\n`;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function logResult(status, data) {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+
+            if (status === 'SUCCESS') {
+                results.innerHTML += `✅ [${timestamp}] SUCCESS\n`;
+                results.innerHTML += JSON.stringify(data, null, 2) + '\n';
+            } else {
+                results.innerHTML += `❌ [${timestamp}] ERROR\n`;
+                results.innerHTML += (data.message || data.toString()) + '\n';
+            }
+
+            results.scrollTop = results.scrollHeight;
+        }
+
+        console.log('✅ API 테스트 페이지 준비 완료');
+        console.log('💡 window.apiClient를 사용하여 콘솔에서 직접 테스트 가능');
+        
+        // 테스트 예시 출력
+        console.log('\n===== 콘솔 테스트 예시 =====');
+        console.log('await apiClient.get("/connections/sites")');
+        console.log('await apiClient.get("/connections/profiles")');
+        console.log('await apiClient.post("/connections/test-connection", {site_name: "korea_site1", db_name: "line1"})');
+    </script>
+</body>
+</html>

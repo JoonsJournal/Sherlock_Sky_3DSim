@@ -1,0 +1,12 @@
+{
+	"korea_site":{
+		"host": "",
+		"port": 1433,
+		"type":"mysql",
+		"user":"",
+		"password": "",
+		"databases": {
+			"": ""
+		}
+	}
+}
