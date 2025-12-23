@@ -7,7 +7,7 @@
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 50px auto;
             padding: 20px;
             background: #f5f5f5;
@@ -23,14 +23,21 @@
             background: #4CAF50;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             margin: 5px;
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
+            transition: background 0.3s;
         }
         button:hover {
             background: #45a049;
+        }
+        button.info {
+            background: #2196F3;
+        }
+        button.info:hover {
+            background: #0b7dda;
         }
         button.danger {
             background: #f44336;
@@ -39,25 +46,33 @@
             background: #da190b;
         }
         #results {
-            background: #263238;
-            color: #aed581;
-            padding: 15px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            max-height: 500px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 600px;
+            min-height: 300px;
             overflow-y: auto;
             white-space: pre-wrap;
             word-wrap: break-word;
+            border: 2px solid #333;
         }
         h1 { color: #333; }
-        h2 { color: #555; margin-top: 0; }
+        h2 { 
+            color: #555; 
+            margin-top: 0;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
         .status-indicator {
             display: inline-block;
-            padding: 5px 10px;
-            border-radius: 3px;
-            font-size: 12px;
-            margin-left: 10px;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 10px 0;
         }
         .status-connected {
             background: #4CAF50;
@@ -87,6 +102,14 @@
         <h2>3. 단일 연결 테스트</h2>
         <button onclick="testSingleConnection('korea_site1', 'line1')">Test: korea_site1.line1</button>
         <button onclick="testSingleConnection('vietnam_site', 'production')">Test: vietnam_site.production</button>
+        <button onclick="testSingleConnection('usa_site', 'plant')">Test: usa_site.plant</button>
+    </div>
+
+    <div class="test-section">
+        <h2>3-1. 테이블 목록 조회</h2>
+        <button class="info" onclick="testGetTables('korea_site1', 'line1')">📋 Tables: korea_site1.line1</button>
+        <button class="info" onclick="testGetTables('vietnam_site', 'production')">📋 Tables: vietnam_site.production</button>
+        <button class="info" onclick="testGetTables('usa_site', 'plant')">📋 Tables: usa_site.plant</button>
     </div>
 
     <div class="test-section">
@@ -108,15 +131,37 @@
 
     <div class="test-section">
         <h2>7. 결과</h2>
-        <button onclick="clearResults()" class="danger">Clear</button>
-        <div id="results"></div>
+        <button onclick="clearResults()" class="danger">🗑️ Clear</button>
+        <button onclick="testAllQuick()" class="info">⚡ Quick Test</button>
+        <div id="results">대기 중... 버튼을 클릭하세요.</div>
     </div>
 
     <script type="module">
         import { ApiClient } from './src/api/ApiClient.js';
 
+        // ============================================
+        // 디버깅 로그
+        // ============================================
+        
+        function debugLog(category, message, data = null) {
+            const timestamp = new Date().toISOString().substr(11, 12);
+            const prefix = `[${timestamp}] [${category}]`;
+            
+            if (data) {
+                console.log(prefix, message, data);
+            } else {
+                console.log(prefix, message);
+            }
+        }
+
+        console.clear();
+        debugLog('INIT', '='.repeat(60));
+        debugLog('INIT', '🚀 API 테스트 페이지 시작');
+        debugLog('INIT', '='.repeat(60));
+
         // 전역 변수로 ApiClient 인스턴스 생성
         window.apiClient = new ApiClient();
+        debugLog('INIT', 'ApiClient 인스턴스 생성 완료');
 
         // API 연결 상태 확인
         async function checkApiStatus() {
@@ -125,88 +170,168 @@
                 const statusDiv = document.getElementById('api-status');
                 
                 if (response.ok) {
-                    statusDiv.innerHTML = '<span class="status-indicator status-connected">✓ Backend API 연결됨</span>';
+                    const data = await response.json();
+                    statusDiv.innerHTML = '<span class="status-indicator status-connected">✅ Backend API 연결됨</span>';
+                    debugLog('STATUS', 'API 정상', data);
                 } else {
-                    statusDiv.innerHTML = '<span class="status-indicator status-disconnected">✗ Backend API 응답 없음</span>';
+                    statusDiv.innerHTML = '<span class="status-indicator status-disconnected">❌ Backend API 응답 없음</span>';
+                    debugLog('STATUS', 'API 응답 없음', { status: response.status });
                 }
             } catch (error) {
                 const statusDiv = document.getElementById('api-status');
-                statusDiv.innerHTML = '<span class="status-indicator status-disconnected">✗ Backend API 연결 실패</span>';
+                statusDiv.innerHTML = '<span class="status-indicator status-disconnected">❌ Backend API 연결 실패</span>';
+                debugLog('STATUS', 'API 연결 실패', { error: error.message });
             }
         }
 
-        // 페이지 로드 시 API 상태 확인
         checkApiStatus();
-        setInterval(checkApiStatus, 5000); // 5초마다 체크
+        setInterval(checkApiStatus, 5000);
 
         // ===== 테스트 함수들 =====
 
         window.testGetSites = async function() {
+            debugLog('TEST', '▶ testGetSites 시작');
             logTest('GET /connections/sites');
             try {
                 const result = await apiClient.get('/connections/sites');
+                debugLog('TEST', '✓ testGetSites 성공', result);
                 logResult('SUCCESS', result);
             } catch (error) {
+                debugLog('TEST', '✗ testGetSites 실패', error);
                 logResult('ERROR', error);
             }
         };
 
         window.testGetProfiles = async function() {
+            debugLog('TEST', '▶ testGetProfiles 시작');
             logTest('GET /connections/profiles');
             try {
                 const result = await apiClient.get('/connections/profiles');
+                debugLog('TEST', '✓ testGetProfiles 성공', result);
                 logResult('SUCCESS', result);
             } catch (error) {
+                debugLog('TEST', '✗ testGetProfiles 실패', error);
                 logResult('ERROR', error);
             }
         };
 
         window.testSingleConnection = async function(siteName, dbName) {
+            debugLog('TEST', '▶ testSingleConnection 시작', { siteName, dbName });
             logTest(`POST /connections/test-connection - ${siteName}.${dbName}`);
             try {
                 const result = await apiClient.post('/connections/test-connection', {
                     site_name: siteName,
                     db_name: dbName
                 });
+                debugLog('TEST', '✓ testSingleConnection 성공', result);
                 logResult('SUCCESS', result);
             } catch (error) {
+                debugLog('TEST', '✗ testSingleConnection 실패', error);
+                logResult('ERROR', error);
+            }
+        };
+
+        window.testGetTables = async function(siteName, dbName) {
+            debugLog('TEST', '▶ testGetTables 시작', { siteName, dbName });
+            logTest(`POST /connections/get-tables - ${siteName}.${dbName}`);
+            try {
+                const result = await apiClient.getDatabaseTables(siteName, dbName);
+                debugLog('TEST', '✓ testGetTables 성공', result);
+                
+                if (result.success) {
+                    logResult('SUCCESS', {
+                        message: result.message,
+                        total_tables: result.total_tables,
+                        site_name: result.site_name,
+                        db_name: result.db_name,
+                        db_type: result.db_type,
+                        database: result.database
+                    });
+                    
+                    // 테이블 목록 표시
+                    const results = document.getElementById('results');
+                    results.innerHTML += '\n📋 테이블 목록:\n';
+                    results.innerHTML += '━'.repeat(60) + '\n';
+                    
+                    if (result.tables && result.tables.length > 0) {
+                        result.tables.forEach((table, index) => {
+                            results.innerHTML += `  ${(index + 1).toString().padStart(3, ' ')}. ${table.full_name}\n`;
+                        });
+                        debugLog('TEST', `테이블 ${result.tables.length}개 표시 완료`);
+                    } else {
+                        results.innerHTML += '  (테이블 없음)\n';
+                    }
+                    results.innerHTML += '━'.repeat(60) + '\n';
+                    results.scrollTop = results.scrollHeight;
+                } else {
+                    logResult('ERROR', result);
+                }
+            } catch (error) {
+                debugLog('TEST', '✗ testGetTables 실패', error);
                 logResult('ERROR', error);
             }
         };
 
         window.testProfile = async function(profileName) {
+            debugLog('TEST', '▶ testProfile 시작', { profileName });
             logTest(`POST /connections/test-profile - ${profileName}`);
             try {
                 const result = await apiClient.post('/connections/test-profile', {
                     profile_name: profileName
                 });
+                debugLog('TEST', '✓ testProfile 성공', result);
                 logResult('SUCCESS', result);
             } catch (error) {
+                debugLog('TEST', '✗ testProfile 실패', error);
                 logResult('ERROR', error);
             }
         };
 
         window.testAllConnections = async function() {
+            debugLog('TEST', '▶ testAllConnections 시작');
             logTest('POST /connections/test-all');
             try {
                 const result = await apiClient.post('/connections/test-all');
+                debugLog('TEST', '✓ testAllConnections 성공', result);
                 logResult('SUCCESS', result);
             } catch (error) {
+                debugLog('TEST', '✗ testAllConnections 실패', error);
                 logResult('ERROR', error);
             }
         };
 
         window.testGetStatus = async function() {
+            debugLog('TEST', '▶ testGetStatus 시작');
             logTest('GET /connections/status');
             try {
                 const result = await apiClient.get('/connections/status');
+                debugLog('TEST', '✓ testGetStatus 성공', result);
                 logResult('SUCCESS', result);
             } catch (error) {
+                debugLog('TEST', '✗ testGetStatus 실패', error);
                 logResult('ERROR', error);
             }
         };
 
+        window.testAllQuick = async function() {
+            debugLog('TEST', '▶ Quick Test 시작');
+            clearResults();
+            logInfo('⚡ Quick Test 시작...\n');
+            
+            await testGetSites();
+            await new Promise(r => setTimeout(r, 500));
+            
+            await testGetProfiles();
+            await new Promise(r => setTimeout(r, 500));
+            
+            await testGetStatus();
+            
+            logInfo('\n✅ Quick Test 완료!');
+            debugLog('TEST', '✓ Quick Test 완료');
+        };
+
         window.clearResults = function() {
+            debugLog('UI', 'clearResults 호출');
             document.getElementById('results').innerHTML = '';
         };
 
@@ -227,20 +352,30 @@
                 results.innerHTML += JSON.stringify(data, null, 2) + '\n';
             } else {
                 results.innerHTML += `❌ [${timestamp}] ERROR\n`;
-                results.innerHTML += (data.message || data.toString()) + '\n';
+                if (data instanceof Error) {
+                    results.innerHTML += `${data.message}\n`;
+                } else {
+                    results.innerHTML += (data.message || JSON.stringify(data)) + '\n';
+                }
             }
-
             results.scrollTop = results.scrollHeight;
         }
 
-        console.log('✅ API 테스트 페이지 준비 완료');
-        console.log('💡 window.apiClient를 사용하여 콘솔에서 직접 테스트 가능');
+        function logInfo(message) {
+            const results = document.getElementById('results');
+            results.innerHTML += `ℹ️  ${message}\n`;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        debugLog('INIT', '='.repeat(60));
+        debugLog('INIT', '✅ 페이지 초기화 완료');
+        debugLog('INIT', '='.repeat(60));
         
-        // 테스트 예시 출력
-        console.log('\n===== 콘솔 테스트 예시 =====');
-        console.log('await apiClient.get("/connections/sites")');
-        console.log('await apiClient.get("/connections/profiles")');
-        console.log('await apiClient.post("/connections/test-connection", {site_name: "korea_site1", db_name: "line1"})');
+        console.log('\n💡 사용 방법:');
+        console.log('  - 버튼 클릭하여 테스트');
+        console.log('  - F12 콘솔에서 진행 상황 확인');
+        console.log('  - 직접 실행: await apiClient.getDatabaseTables("korea_site1", "line1")');
+        console.log('');
     </script>
 </body>
 </html>

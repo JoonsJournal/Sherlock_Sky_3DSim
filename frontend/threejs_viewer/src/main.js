@@ -2,7 +2,8 @@
  * main.js
  * 메인 애플리케이션 진입점
  * SceneManager, EquipmentLoader, CameraControls, InteractionHandler, DataOverlay, StatusVisualizer, PerformanceMonitor 통합
- */
+ * ⭐ Phase 2 추가: ConnectionModal 통합
+*/
 
 // ⭐⭐⭐ 1. THREE import (가장 먼저!)
 import * as THREE from 'three';
@@ -19,6 +20,11 @@ import { memoryManager } from './utils/MemoryManager.js';
 import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
 import { CONFIG, debugLog } from './utils/Config.js';
 
+// ============================================
+// ⭐ 새로 추가: ConnectionModal import
+// ============================================
+import { ConnectionModal } from './ui/ConnectionModal.js';
+
 // 전역 객체
 let sceneManager;
 let equipmentLoader;
@@ -29,6 +35,12 @@ let dataOverlay;
 let statusVisualizer;
 let performanceMonitor;
 let animationFrameId;
+
+// ============================================
+// ⭐ 새로 추가: ConnectionModal 전역 객체
+// ============================================
+let connectionModal;
+
 
 /**
  * 초기화
@@ -112,9 +124,40 @@ function init() {
         interactionHandler = new InteractionHandler(
             sceneManager.camera,
             sceneManager.scene,
-            sceneManager.renderer.domElement
+            sceneManager.renderer.domElement,
+            equipmentLoader.getEquipmentArray(),
+            dataOverlay
         );
+        console.log('✅ InteractionHandler 초기화 완료');
         
+       // ============================================
+        // ⭐ 새로 추가: ConnectionModal 초기화
+        // ============================================
+        connectionModal = new ConnectionModal();
+        console.log('✅ ConnectionModal 초기화 완료');
+        
+        // ============================================
+        // ⭐ 새로 추가: Connection Button 이벤트 리스너
+        // ============================================
+        const connectionBtn = document.getElementById('connectionBtn');
+        if (connectionBtn) {
+            connectionBtn.addEventListener('click', () => {
+                console.log('🔌 Opening Connection Modal...');
+                connectionModal.open();
+            });
+        }
+        
+        // ============================================
+        // ⭐ 새로 추가: Ctrl+K 단축키 등록
+        // ============================================
+        document.addEventListener('keydown', (event) => {
+            // Ctrl+K 또는 Cmd+K: Connection Modal 토글
+            if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+                event.preventDefault();
+                connectionModal.toggle();
+            }
+        });
+
         // 설비 배열 설정
         interactionHandler.setEquipmentArray(equipmentLoader.getEquipmentArray());
         
@@ -667,3 +710,18 @@ window.addEventListener('beforeunload', cleanup);
 
 // 초기화 실행
 init();
+
+// ============================================
+// ⭐ 전역 객체 노출 (ConnectionModal 추가)
+// ============================================
+window.sceneManager = sceneManager;
+window.equipmentLoader = equipmentLoader;
+window.cameraControls = cameraControls;
+window.cameraNavigator = cameraNavigator;
+window.interactionHandler = interactionHandler;
+window.dataOverlay = dataOverlay;
+window.statusVisualizer = statusVisualizer;
+window.performanceMonitor = performanceMonitor;
+window.connectionModal = connectionModal;  // ⭐ 새로 추가
+
+console.log('🌐 전역 객체 노출 완료 (window.connectionModal 추가)');
