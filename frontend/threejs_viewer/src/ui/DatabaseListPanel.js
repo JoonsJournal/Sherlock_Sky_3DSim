@@ -56,6 +56,11 @@ export class DatabaseListPanel {
     async loadDatabaseInfo(siteId) {
         try {
             const dbInfo = await this.connectionService.getDatabaseInfo(siteId);
+            
+            // ✅ 백엔드 응답 형식에 맞게 수정
+            // 백엔드가 반환하는 형식:
+            // { site_id, site_name, db_name, tables: [], total_tables, db_type }
+            
             this.connectedSites = [dbInfo]; // Single site
             this.renderDatabases();
         } catch (error) {
@@ -82,33 +87,34 @@ export class DatabaseListPanel {
         }
 
         dbList.innerHTML = this.connectedSites.map(dbInfo => {
+            // ✅ 백엔드 응답 형식에 맞게 수정
+            const displayName = `${dbInfo.site_name} - ${dbInfo.db_name}`;
+            const totalTables = dbInfo.total_tables || dbInfo.tables?.length || 0;
+            const dbType = dbInfo.db_type || 'unknown';
+            
             return `
                 <div class="database-item">
                     <div class="database-header">
-                        <h4>🗄️ ${dbInfo.site_name}</h4>
+                        <h4>🗄️ ${displayName}</h4>
                         <div class="database-stats">
                             <span class="stat-item">
                                 <span class="stat-label">Tables:</span>
-                                <span class="stat-value">${dbInfo.tables.length}</span>
+                                <span class="stat-value">${totalTables}</span>
                             </span>
                             <span class="stat-item">
-                                <span class="stat-label">Size:</span>
-                                <span class="stat-value">${dbInfo.total_size_mb?.toFixed(2) || '0.00'} MB</span>
+                                <span class="stat-label">Type:</span>
+                                <span class="stat-value">${dbType.toUpperCase()}</span>
                             </span>
                         </div>
                     </div>
                     
-                    <div class="connection-pool-info">
-                        <span class="pool-label">Connection Pool:</span>
-                        <div class="pool-stats">
-                            <span class="pool-item active">Active: ${dbInfo.connection_pool.active}</span>
-                            <span class="pool-item idle">Idle: ${dbInfo.connection_pool.idle}</span>
-                            <span class="pool-item max">Max: ${dbInfo.connection_pool.max}</span>
-                        </div>
+                    <div class="connection-info">
+                        <span class="info-label">Site ID:</span>
+                        <span class="info-value">${dbInfo.site_id}</span>
                     </div>
 
                     <div class="table-list">
-                        ${this.renderTables(dbInfo.tables, dbInfo.site_id)}
+                        ${this.renderTables(dbInfo.tables || [], dbInfo.site_id)}
                     </div>
                 </div>
             `;
@@ -122,26 +128,34 @@ export class DatabaseListPanel {
      * 테이블 목록 렌더링
      */
     renderTables(tables, siteId) {
-        if (tables.length === 0) {
+        if (!tables || tables.length === 0) {
             return '<div class="no-tables">No tables found</div>';
         }
 
         return tables.map(table => {
             const isExpanded = this.expandedTables.has(`${siteId}-${table.name}`);
             
+            // ✅ 백엔드 TableInfo 형식에 맞게 수정
+            // { name, schema, type, row_count, size_mb }
+            
             return `
-                <div class="table-item ${isExpanded ? 'expanded' : ''}" data-site-id="${siteId}" data-table-name="${table.name}">
+                <div class="table-item ${isExpanded ? 'expanded' : ''}" 
+                     data-site-id="${siteId}" 
+                     data-table-name="${table.name}">
                     <div class="table-header">
                         <div class="table-info-main">
                             <span class="expand-icon">${isExpanded ? '▼' : '▶'}</span>
                             <span class="table-name">${table.name}</span>
-                            ${table.row_count !== null ? `
+                            ${table.row_count !== null && table.row_count !== undefined ? `
                                 <span class="table-rows">${this.formatNumber(table.row_count)} rows</span>
                             ` : ''}
                         </div>
                         <div class="table-actions">
-                            ${table.size_mb !== null ? `
+                            ${table.size_mb !== null && table.size_mb !== undefined ? `
                                 <span class="table-size">${table.size_mb.toFixed(2)} MB</span>
+                            ` : ''}
+                            ${table.schema ? `
+                                <span class="table-schema">${table.schema}</span>
                             ` : ''}
                         </div>
                     </div>
@@ -150,16 +164,20 @@ export class DatabaseListPanel {
                         <div class="table-details">
                             <div class="table-detail-grid">
                                 <div class="detail-item">
+                                    <span class="detail-label">Schema:</span>
+                                    <span class="detail-value">${table.schema || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">Type:</span>
+                                    <span class="detail-value">${table.type || 'N/A'}</span>
+                                </div>
+                                <div class="detail-item">
                                     <span class="detail-label">Row Count:</span>
-                                    <span class="detail-value">${table.row_count !== null ? this.formatNumber(table.row_count) : 'N/A'}</span>
+                                    <span class="detail-value">${table.row_count !== null && table.row_count !== undefined ? this.formatNumber(table.row_count) : 'N/A'}</span>
                                 </div>
                                 <div class="detail-item">
                                     <span class="detail-label">Size:</span>
-                                    <span class="detail-value">${table.size_mb !== null ? `${table.size_mb.toFixed(2)} MB` : 'N/A'}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Last Updated:</span>
-                                    <span class="detail-value">${table.last_updated ? new Date(table.last_updated).toLocaleString() : 'N/A'}</span>
+                                    <span class="detail-value">${table.size_mb !== null && table.size_mb !== undefined ? `${table.size_mb.toFixed(2)} MB` : 'N/A'}</span>
                                 </div>
                             </div>
                         </div>
@@ -204,6 +222,7 @@ export class DatabaseListPanel {
      * 숫자 포맷팅 (천단위 콤마)
      */
     formatNumber(num) {
+        if (num === null || num === undefined) return 'N/A';
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
     }
 

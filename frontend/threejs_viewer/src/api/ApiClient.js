@@ -120,8 +120,6 @@ export class ApiClient {
         }
     }
     
-	// 기존 연결 관리 API 섹션에 추가
-
     /**
      * 데이터베이스 테이블 목록 조회
      * @param {string} siteName - 사이트 이름
@@ -134,9 +132,9 @@ export class ApiClient {
             db_name: dbName
         });
     }
-	
-	
-	
+    
+    
+    
     // ============================================
     // 설비 관련 API
     // ============================================
@@ -181,19 +179,175 @@ export class ApiClient {
     }
     
     // ============================================
-    // 연결 관리 API (NEW)
+    // ⭐ 새로 추가: Equipment Mapping API
     // ============================================
     
     /**
-     * 연결 프로필 목록 가져오기
-     * @returns {Promise<Object>} { profiles: Array }
+     * DB 장비 이름 목록 조회 (Equipment Edit Modal용)
+     * @returns {Promise<Array>} [{ equipment_id, equipment_name, equipment_code, line_name }, ...]
+     */
+    async getEquipmentNames() {
+        try {
+            const equipments = await this.get('/equipment/names');
+            return Array.isArray(equipments) ? equipments : [];
+        } catch (error) {
+            console.error('Get equipment names error:', error);
+            return [];
+        }
+    }
+    
+    /**
+     * 설비 매핑 데이터 저장
+     * @param {Array} mappings - [{ frontend_id, equipment_id, equipment_name }, ...]
+     * @returns {Promise<Object>}
+     */
+    async saveEquipmentMappings(mappings) {
+        return await this.post('/equipment/mapping', mappings);
+    }
+    
+    /**
+     * 설비 매핑 데이터 조회
+     * @returns {Promise<Object>} { 'EQ-01-01': { equipment_id, equipment_name }, ... }
+     */
+    async getEquipmentMappings() {
+        try {
+            const mappings = await this.get('/equipment/mapping');
+            return mappings || {};
+        } catch (error) {
+            console.error('Get equipment mappings error:', error);
+            return {};
+        }
+    }
+    
+    /**
+     * 특정 Frontend ID의 매핑 삭제
+     * @param {string} frontendId - Frontend 설비 ID (예: 'EQ-01-01')
+     * @returns {Promise<Object>}
+     */
+    async deleteEquipmentMapping(frontendId) {
+        return await this.delete(`/equipment/mapping/${frontendId}`);
+    }
+    
+    // ============================================
+    // 연결 관리 API - Frontend UI용 (✅ 수정됨)
+    // ============================================
+    
+    /**
+     * API 헬스체크 (Frontend UI용)
+     * @returns {Promise<Object>}
+     */
+    async checkHealth() {
+        try {
+            const result = await this.get('/connections/health');
+            return result;
+        } catch (error) {
+            console.error('Health check error:', error);
+            return {
+                status: 'unhealthy',
+                api_url: this.baseURL,
+                response_time_ms: 0,
+                last_check: new Date().toISOString(),
+                version: 'unknown'
+            };
+        }
+    }
+    
+    /**
+     * 사이트 프로필 목록 가져오기 (Frontend UI용)
+     * ✅ 수정: /connections/profiles → /connections/site-profiles
+     * @returns {Promise<Array>} 프로필 배열
+     */
+    async getSiteProfiles() {
+        try {
+            const profiles = await this.get('/connections/site-profiles');
+            // 방어 코드: 배열 확인
+            return Array.isArray(profiles) ? profiles : [];
+        } catch (error) {
+            console.error('Get site profiles error:', error);
+            return [];
+        }
+    }
+    
+    /**
+     * 연결 상태 목록 조회 (Frontend UI용)
+     * ✅ 수정: /connections/status → /connections/connection-status
+     * @returns {Promise<Array>} 연결 상태 배열
+     */
+    async getConnectionStatusList() {
+        try {
+            const status = await this.get('/connections/connection-status');
+            // 방어 코드: 배열 확인
+            return Array.isArray(status) ? status : [];
+        } catch (error) {
+            console.error('Get connection status error:', error);
+            return [];
+        }
+    }
+    
+    /**
+     * 단일 사이트 연결 (Frontend UI용)
+     * @param {string} siteId - 사이트 ID (예: korea_site1_line1)
+     * @param {number} timeoutSeconds - 타임아웃 (기본 30초)
+     * @returns {Promise<Object>}
+     */
+    async connectToSite(siteId, timeoutSeconds = 30) {
+        return await this.post('/connections/connect', {
+            site_id: siteId,  // 단일 사이트
+            timeout_seconds: timeoutSeconds
+        });
+    }
+    
+    /**
+     * 사이트 연결 해제 (Frontend UI용)
+     * @param {string} siteId - 사이트 ID
+     * @returns {Promise<Object>}
+     */
+    async disconnectFromSite(siteId) {
+        // DELETE 대신 POST 사용 (백엔드 엔드포인트에 맞춤)
+        return await this.post(`/connections/disconnect/${siteId}`);
+    }
+    
+    /**
+     * 데이터베이스 정보 조회 (Frontend UI용)
+     * ✅ 수정: /connections/databases/{id} → /connections/database-info/{id}
+     * @param {string} siteId - 사이트 ID
+     * @returns {Promise<Object>}
+     */
+    async getDatabaseInfo(siteId) {
+        try {
+            const info = await this.get(`/connections/database-info/${siteId}`);
+            // 방어 코드: tables 배열 확인
+            if (info && !Array.isArray(info.tables)) {
+                info.tables = [];
+            }
+            return info;
+        } catch (error) {
+            console.error('Get database info error:', error);
+            return {
+                site_id: siteId,
+                site_name: 'Unknown',
+                db_name: 'Unknown',
+                tables: [],
+                total_tables: 0,
+                db_type: 'unknown'
+            };
+        }
+    }
+    
+    // ============================================
+    // Legacy 연결 관리 API (CLI/테스트용 - 기존 호환성 유지)
+    // ============================================
+    
+    /**
+     * 연결 프로필 목록 가져오기 (Legacy)
+     * @returns {Promise<Object>} { profiles: Array, default_profile: string }
      */
     async getConnectionProfiles() {
         return await this.get('/connections/profiles');
     }
     
     /**
-     * 선택된 프로필들 연결 시도
+     * 선택된 프로필들 연결 시도 (Legacy)
      * @param {Array<string>} profileNames - 연결할 프로필 이름 배열
      * @returns {Promise<Object>} { results: Object, summary: Object }
      */
@@ -204,15 +358,15 @@ export class ApiClient {
     }
     
     /**
-     * 현재 연결 상태 조회
-     * @returns {Promise<Object>} 연결 상태 정보
+     * 시스템 전체 상태 조회 (Legacy)
+     * @returns {Promise<Object>} { total_sites, total_profiles, default_profile, status }
      */
     async getConnectionStatus() {
         return await this.get('/connections/status');
     }
     
     /**
-     * 특정 사이트/데이터베이스 활성화
+     * 특정 사이트/데이터베이스 활성화 (Legacy)
      * @param {string} siteId - 사이트 ID
      * @param {Array<string>} databases - 데이터베이스 목록 (null이면 전체)
      * @returns {Promise<Object>}
@@ -225,7 +379,7 @@ export class ApiClient {
     }
     
     /**
-     * 특정 사이트/데이터베이스 비활성화
+     * 특정 사이트/데이터베이스 비활성화 (Legacy)
      * @param {string} siteId - 사이트 ID
      * @param {Array<string>} databases - 데이터베이스 목록 (null이면 전체)
      * @returns {Promise<Object>}
@@ -238,7 +392,7 @@ export class ApiClient {
     }
     
     /**
-     * 모든 활성 연결 테스트
+     * 모든 활성 연결 테스트 (Legacy)
      * @returns {Promise<Object>} { results: Object, statistics: Object }
      */
     async testConnections() {
@@ -246,7 +400,7 @@ export class ApiClient {
     }
     
     /**
-     * 연결 설정 리로드
+     * 연결 설정 리로드 (Legacy)
      * @returns {Promise<Object>}
      */
     async reloadConnections() {

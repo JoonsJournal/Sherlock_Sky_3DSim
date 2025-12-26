@@ -25,6 +25,10 @@ import { CONFIG, debugLog } from './utils/Config.js';
 // ============================================
 import { ConnectionModal } from './ui/ConnectionModal.js';
 
+import { EquipmentEditState } from './services/EquipmentEditState.js';
+import { EquipmentEditModal } from './ui/EquipmentEditModal.js';
+import { ApiClient } from './api/ApiClient.js';
+
 // 전역 객체
 let sceneManager;
 let equipmentLoader;
@@ -40,6 +44,10 @@ let animationFrameId;
 // ⭐ 새로 추가: ConnectionModal 전역 객체
 // ============================================
 let connectionModal;
+
+let equipmentEditState;
+let equipmentEditModal;
+let apiClient;
 
 
 /**
@@ -137,6 +145,93 @@ function init() {
         console.log('✅ ConnectionModal 초기화 완료');
         
         // ============================================
+        // ⭐ Phase 3: Equipment Edit 시스템 초기화
+        // ============================================
+        
+        // API Client 초기화
+        apiClient = new ApiClient();
+        console.log('✅ ApiClient 초기화 완료');
+        
+        // Equipment Edit State 초기화
+        equipmentEditState = new EquipmentEditState();
+        console.log('✅ EquipmentEditState 초기화 완료');
+        
+        // Equipment Edit Modal 초기화
+        equipmentEditModal = new EquipmentEditModal(equipmentEditState, apiClient);
+        console.log('✅ EquipmentEditModal 초기화 완료');
+        
+        // ============================================
+        // ⭐ Edit Button 이벤트 리스너
+        // ============================================
+        const editBtn = document.getElementById('editBtn');
+        if (editBtn) {
+            editBtn.addEventListener('click', () => {
+                const isActive = equipmentEditState.toggleEditMode();
+                editBtn.classList.toggle('active', isActive);
+                
+                // Body에 편집 모드 클래스 추가/제거
+                document.body.classList.toggle('edit-mode-active', isActive);
+                
+                console.log(isActive ? '✏️ Equipment Edit Mode: ON' : '✏️ Equipment Edit Mode: OFF');
+            });
+        }
+        
+        // ============================================
+        // ⭐ Edit 모드 이벤트 리스너 등록
+        // ============================================
+        
+        // Edit 모드 변경 시 시각 업데이트
+        window.addEventListener('edit-mode-changed', (e) => {
+            const { enabled } = e.detail;
+            debugLog(`✏️ Edit Mode Changed: ${enabled}`);
+            
+            // 편집 모드에서는 기존 선택 해제
+            if (enabled && interactionHandler) {
+                interactionHandler.clearAllSelections();
+            }
+        });
+        
+        // 매핑 변경 시 시각 업데이트
+        window.addEventListener('mapping-changed', (e) => {
+            const { frontendId } = e.detail;
+            
+            if (equipmentLoader) {
+                equipmentLoader.highlightMappingStatus(frontendId, true);
+            }
+            
+            debugLog(`✅ 매핑 완료: ${frontendId}`);
+        });
+        
+        // 매핑 삭제 시 시각 업데이트
+        window.addEventListener('mapping-removed', (e) => {
+            const { frontendId } = e.detail;
+            
+            if (equipmentLoader) {
+                equipmentLoader.highlightMappingStatus(frontendId, false);
+            }
+            
+            debugLog(`🗑️ 매핑 제거: ${frontendId}`);
+        });
+        
+        // 매핑 리셋 시 모든 강조 제거
+        window.addEventListener('mappings-reset', () => {
+            if (equipmentLoader) {
+                equipmentLoader.updateAllMappingStatus({});
+            }
+            debugLog('🗑️ 모든 매핑 초기화됨');
+        });
+        
+        // 서버에서 매핑 로드 시 시각 업데이트
+        window.addEventListener('mappings-loaded', (e) => {
+            if (equipmentLoader && equipmentEditState) {
+                const mappings = equipmentEditState.getAllMappings();
+                equipmentLoader.updateAllMappingStatus(mappings);
+            }
+            debugLog('📥 서버 매핑 데이터 로드됨');
+        });
+
+
+        // ============================================
         // ⭐ 새로 추가: Connection Button 이벤트 리스너
         // ============================================
         const connectionBtn = document.getElementById('connectionBtn');
@@ -177,6 +272,10 @@ function init() {
             debugLog('📊 설비 선택 해제됨');
         });
         
+        // ⭐ InteractionHandler에 Edit 모드 연결
+        interactionHandler.setEditMode(equipmentEditState);
+        interactionHandler.setEditModal(equipmentEditModal);
+
         console.log('✅ InteractionHandler 초기화 완료');
         
         // 애니메이션 시작
@@ -649,6 +748,61 @@ function setupGlobalDebugFunctions() {
         console.log('💡 값이 클수록 방향성이 명확해지고, 작을수록 수직에 가까워집니다');
     };
 
+        // ⭐ Equipment Edit 관련 전역 함수
+    window.toggleEditMode = () => {
+        if (!equipmentEditState) {
+            console.error('❌ EquipmentEditState가 초기화되지 않았습니다');
+            return;
+        }
+        
+        const isActive = equipmentEditState.toggleEditMode();
+        const editBtn = document.getElementById('editBtn');
+        if (editBtn) {
+            editBtn.classList.toggle('active', isActive);
+        }
+        document.body.classList.toggle('edit-mode-active', isActive);
+        
+        console.log(isActive ? '✏️ Edit Mode: ON' : '✏️ Edit Mode: OFF');
+        return isActive;
+    };
+    
+    window.getMappingStatus = () => {
+        if (!equipmentEditState || !equipmentLoader) {
+            console.error('❌ EquipmentEditState 또는 EquipmentLoader가 초기화되지 않았습니다');
+            return;
+        }
+        
+        const mappings = equipmentEditState.getAllMappings();
+        const rate = equipmentLoader.getMappingCompletionRate(mappings);
+        
+        console.group('📊 Equipment Mapping Status');
+        console.log(`완료율: ${rate}%`);
+        console.log(`매핑 완료: ${Object.keys(mappings).length}개`);
+        console.log(`전체 설비: ${equipmentLoader.getEquipmentArray().length}개`);
+        console.table(Object.values(mappings).slice(0, 10)); // 처음 10개만 표시
+        console.groupEnd();
+        
+        return { rate, mappings };
+    };
+    
+    window.clearAllMappings = () => {
+        if (!equipmentEditState) {
+            console.error('❌ EquipmentEditState가 초기화되지 않았습니다');
+            return;
+        }
+        
+        equipmentEditState.reset();
+    };
+    
+    window.exportMappings = () => {
+        if (!equipmentEditState) {
+            console.error('❌ EquipmentEditState가 초기화되지 않았습니다');
+            return;
+        }
+        
+        equipmentEditState.exportToFile();
+        console.log('📁 매핑 데이터가 파일로 내보내졌습니다');
+    };
 
     console.log('✅ 전역 디버그 함수 등록 완료');
 }
@@ -700,7 +854,13 @@ function cleanup() {
     if (cameraNavigator) {
         cameraNavigator.dispose();
         console.log('  - CameraNavigator 정리');
-}
+    }
+
+        // Equipment Edit 정리
+    if (equipmentEditState) {
+        equipmentEditState.destroy();
+        console.log('  - EquipmentEditState 정리');
+    }
 
     console.log('✅ 정리 완료');
 }
@@ -723,5 +883,9 @@ window.dataOverlay = dataOverlay;
 window.statusVisualizer = statusVisualizer;
 window.performanceMonitor = performanceMonitor;
 window.connectionModal = connectionModal;  // ⭐ 새로 추가
+window.equipmentEditState = equipmentEditState;
+window.equipmentEditModal = equipmentEditModal;
+window.apiClient = apiClient;
+
 
 console.log('🌐 전역 객체 노출 완료 (window.connectionModal 추가)');

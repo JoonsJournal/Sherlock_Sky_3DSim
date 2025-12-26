@@ -66,29 +66,51 @@ export class ConnectionService {
 
     /**
      * 연결 프로필 목록 가져오기
+     * ✅ 수정: /profiles → /site-profiles
      */
     async getProfiles() {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/connections/profiles`);
+            // ✅ 올바른 엔드포인트 사용
+            const response = await fetch(`${this.apiBaseUrl}/api/connections/site-profiles`);
             if (!response.ok) throw new Error('Failed to fetch profiles');
-            return await response.json();
+            
+            const data = await response.json();
+            
+            // 방어 코드: 배열 확인
+            if (!Array.isArray(data)) {
+                console.warn('Profiles response is not an array:', data);
+                return [];
+            }
+            
+            return data;
         } catch (error) {
             console.error('Get profiles error:', error);
-            throw error;
+            return []; // 에러 시 빈 배열 반환
         }
     }
 
     /**
      * 연결 상태 조회
+     * ✅ 수정: /status → /connection-status
      */
     async getStatus() {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/connections/status`);
+            // ✅ 올바른 엔드포인트 사용
+            const response = await fetch(`${this.apiBaseUrl}/api/connections/connection-status`);
             if (!response.ok) throw new Error('Failed to fetch status');
-            return await response.json();
+            
+            const data = await response.json();
+            
+            // 방어 코드: 배열 확인
+            if (!Array.isArray(data)) {
+                console.warn('Status response is not an array:', data);
+                return [];
+            }
+            
+            return data;
         } catch (error) {
             console.error('Get status error:', error);
-            throw error;
+            return []; // 에러 시 빈 배열 반환
         }
     }
 
@@ -103,7 +125,7 @@ export class ConnectionService {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    site_ids: [siteId],
+                    site_id: siteId,  // ✅ site_ids → site_id (단일)
                     timeout_seconds: timeoutSeconds
                 })
             });
@@ -139,26 +161,52 @@ export class ConnectionService {
 
     /**
      * 데이터베이스 정보 조회
+     * ✅ 수정: /databases/{siteId} → /database-info/{siteId}
      */
     async getDatabaseInfo(siteId) {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/connections/databases/${siteId}`);
+            // ✅ 올바른 엔드포인트 사용
+            const response = await fetch(`${this.apiBaseUrl}/api/connections/database-info/${siteId}`);
             if (!response.ok) throw new Error('Failed to fetch database info');
-            return await response.json();
+            
+            const data = await response.json();
+            
+            // 방어 코드: tables가 배열인지 확인
+            if (data && !Array.isArray(data.tables)) {
+                console.warn('Database tables is not an array:', data);
+                data.tables = [];
+            }
+            
+            return data;
         } catch (error) {
             console.error('Get database info error:', error);
-            throw error;
+            // 기본 구조 반환
+            return {
+                site_id: siteId,
+                site_name: 'Unknown',
+                db_name: 'Unknown',
+                tables: [],
+                total_tables: 0,
+                db_type: 'unknown'
+            };
         }
     }
 
     /**
      * 특정 사이트 상태 조회
+     * ✅ 새로 추가: 단일 사이트 상태
      */
     async getSiteStatus(siteId) {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/connections/status/${siteId}`);
-            if (!response.ok) throw new Error('Failed to fetch site status');
-            return await response.json();
+            // 전체 상태를 가져와서 해당 사이트만 필터링
+            const allStatus = await this.getStatus();
+            const siteStatus = allStatus.find(s => s.site_id === siteId);
+            
+            if (!siteStatus) {
+                throw new Error(`Site ${siteId} not found`);
+            }
+            
+            return siteStatus;
         } catch (error) {
             console.error('Get site status error:', error);
             throw error;

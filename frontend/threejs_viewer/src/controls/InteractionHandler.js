@@ -2,6 +2,7 @@
  * InteractionHandler.js
  * 마우스 및 키보드 상호작용 처리 (다중 선택 기능 포함)
  * DataOverlay 및 StatusVisualizer 연동
+ * ⭐ Phase 3: Equipment Edit Mode 추가
  */
 
 import * as THREE from 'three';
@@ -26,6 +27,10 @@ export class InteractionHandler {
         // DataOverlay와 StatusVisualizer 참조
         this.dataOverlay = null;
         this.statusVisualizer = null;
+        
+        // ⭐ 새로 추가: Edit 모드 관련
+        this.editState = null;
+        this.editModal = null;
         
         this.init();
     }
@@ -67,6 +72,28 @@ export class InteractionHandler {
         debugLog(`📦 설비 배열 설정됨: ${equipmentArray.length}개`);
     }
     
+    // ============================================
+    // ⭐ 새로 추가: Edit Mode 설정
+    // ============================================
+    
+    /**
+     * Edit State 설정
+     * @param {EquipmentEditState} editState - EquipmentEditState 인스턴스
+     */
+    setEditMode(editState) {
+        this.editState = editState;
+        debugLog('✏️ EquipmentEditState 연결됨');
+    }
+    
+    /**
+     * Edit Modal 설정
+     * @param {EquipmentEditModal} editModal - EquipmentEditModal 인스턴스
+     */
+    setEditModal(editModal) {
+        this.editModal = editModal;
+        debugLog('📝 EquipmentEditModal 연결됨');
+    }
+    
     /**
      * 마우스 클릭 핸들러
      * @param {MouseEvent} event - 마우스 이벤트
@@ -88,6 +115,21 @@ export class InteractionHandler {
             while (targetEquipment.parent && !this.equipmentArray.includes(targetEquipment)) {
                 targetEquipment = targetEquipment.parent;
             }
+            
+            // ============================================
+            // ⭐ Edit Mode 활성화 시 모달 열기
+            // ============================================
+            if (this.editState && this.editState.editModeEnabled) {
+                if (this.editModal) {
+                    this.editModal.open(targetEquipment);
+                    debugLog(`✏️ Edit Modal 열림: ${targetEquipment.userData.id}`);
+                }
+                return; // Edit 모드에서는 다른 동작 차단
+            }
+            
+            // ============================================
+            // 일반 모드: 기존 다중 선택 로직
+            // ============================================
             
             // Ctrl 키가 눌렸는지 확인 (Mac의 경우 Cmd 키도 지원)
             const isMultiSelectMode = event.ctrlKey || event.metaKey;

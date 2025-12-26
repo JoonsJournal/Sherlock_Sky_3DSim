@@ -5,9 +5,11 @@
 """
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, Field  # ✅ Field 추가
+from typing import List, Dict, Any, Optional  # ✅ Dict, Any, Optional 추가
 import logging
+from datetime import datetime, timezone  # ✅ 추가
+import time  # ✅ 추가 (response time 측정용)
 
 from ..database.connection_test import get_connection_manager
 
@@ -31,6 +33,84 @@ class GetTablesRequest(BaseModel):
     """테이블 목록 조회 요청"""
     site_name: str
     db_name: str
+
+# ========================================
+# 새로운 모델 (Frontend UI용)
+# ========================================
+
+class HealthCheckResponse(BaseModel):
+    """API 헬스체크 응답"""
+    status: str = Field(..., description="healthy|unhealthy")
+    api_url: str
+    response_time_ms: int
+    last_check: str
+    version: str = "1.0.0"
+
+
+class SiteProfile(BaseModel):
+    """사이트 프로필 정보 (Frontend용)"""
+    id: str = Field(..., description="Site ID (예: korea_site1_line1)")
+    display_name: str = Field(..., description="표시 이름")
+    site_name: str
+    db_name: str
+    region: str = "Korea"
+    is_active: bool = True
+    priority: int = 1
+
+
+class ConnectionStatusDetail(BaseModel):
+    """개별 연결 상태 (Frontend용)"""
+    site_id: str
+    display_name: str
+    site_name: str
+    db_name: str
+    status: str = Field(..., description="disconnected|connecting|connected|failed")
+    last_connected: Optional[str] = None
+    error_message: Optional[str] = None
+    response_time_ms: Optional[int] = None
+
+
+class SingleConnectionRequest(BaseModel):
+    """단일 연결 요청 (Frontend용)"""
+    site_id: str
+    timeout_seconds: int = Field(default=30, ge=5, le=120)
+
+
+class ConnectionResponse(BaseModel):
+    """연결 응답"""
+    success: bool
+    message: str
+    site_id: str
+    site_name: str
+    db_name: str
+    connected_at: Optional[str] = None
+    error: Optional[str] = None
+
+
+class TableInfo(BaseModel):
+    """테이블 정보"""
+    name: str
+    schema: Optional[str] = None
+    type: Optional[str] = None
+    row_count: Optional[int] = None
+    size_mb: Optional[float] = None
+
+
+class DatabaseInfo(BaseModel):
+    """데이터베이스 상세 정보"""
+    site_id: str
+    site_name: str
+    db_name: str
+    tables: List[TableInfo]
+    total_tables: int
+    db_type: str
+
+
+# ========================================
+# 전역 상태 (연결된 사이트 추적)
+# ========================================
+_connected_sites: Dict[str, Dict[str, Any]] = {}
+
 
 
 @router.post("/get-tables")
@@ -192,3 +272,355 @@ async def get_status():
     except Exception as e:
         logger.error(f"상태 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+		
+# ========================================
+# 새로운 엔드포인트 (Frontend UI용)
+# 명확히 구분되는 이름 사용!
+# ========================================
+
+@router.get("/health", response_model=HealthCheckResponse)
+async def health_check():
+    """API 헬스체크"""
+    import time
+    start_time = time.time()
+    
+    try:
+        manager = get_connection_manager()
+        # Manager 타입에 관계없이 동작
+        sites = manager.get_all_sites()
+        status = "healthy" if sites else "unhealthy"
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        status = "unhealthy"
+    
+    end_time = time.time()
+    response_time = int((end_time - start_time) * 1000)
+    
+    return HealthCheckResponse(
+        status=status,
+        api_url="http://localhost:8000",
+        response_time_ms=response_time,
+        last_check=datetime.now(timezone.utc).isoformat(),
+        version="1.0.0"
+    )
+
+
+@router.get("/site-profiles", response_model=List[SiteProfile])
+async def get_site_profiles():
+    """
+    사이트 기반 프로필 목록 (Frontend용)
+    각 site의 각 database를 개별 프로필로 반환
+    
+    ⚠️ 주의: 기존 /profiles와 다름!
+    - /profiles: connection_profiles.json 기반
+    - /site-profiles: databases.json의 sites 기반
+    
+    Returns:
+        [
+            {
+                "id": "korea_site1_line1",
+                "display_name": "🇰🇷 Korea Site1 - LINE1",
+                "site_name": "korea_site1",
+                "db_name": "line1",
+                "region": "Korea",
+                "is_active": true,
+                "priority": 1
+            },
+            ...
+        ]
+    """
+    try:
+        manager = get_connection_manager()
+        sites_data = manager.get_all_sites()
+        
+        profiles = []
+        for site in sites_data.get('sites', []):
+            site_name = site['name']
+            region = "Korea" if "korea" in site_name.lower() else "Unknown"
+            emoji = "🇰🇷" if "korea" in site_name.lower() else "🌍"
+            
+            for db_name in site.get('databases', []):
+                profile = SiteProfile(
+                    id=f"{site_name}_{db_name}",
+                    display_name=f"{emoji} {site_name.replace('_', ' ').title()} - {db_name.upper()}",
+                    site_name=site_name,
+                    db_name=db_name,
+                    region=region,
+                    is_active=True,
+                    priority=1
+                )
+                profiles.append(profile)
+        
+        return profiles
+    
+    except Exception as e:
+        logger.error(f"사이트 프로필 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/connection-status", response_model=List[ConnectionStatusDetail])
+async def get_connection_status():
+    """
+    현재 모든 연결의 상태 조회 (Frontend용)
+    
+    ⚠️ 주의: 기존 /status와 다름!
+    - /status: 전체 시스템 상태 (총 사이트 수, 프로필 수 등)
+    - /connection-status: 각 사이트/DB의 연결 상태 상세 정보
+    
+    Returns:
+        [
+            {
+                "site_id": "korea_site1_line1",
+                "display_name": "🇰🇷 Korea Site1 - LINE1",
+                "site_name": "korea_site1",
+                "db_name": "line1",
+                "status": "connected",
+                "last_connected": "2024-12-23T...",
+                "error_message": null,
+                "response_time_ms": 45
+            },
+            ...
+        ]
+    """
+    try:
+        manager = get_connection_manager()
+        sites_data = manager.get_all_sites()
+        
+        status_list = []
+        for site in sites_data.get('sites', []):
+            site_name = site['name']
+            emoji = "🇰🇷" if "korea" in site_name.lower() else "🌍"
+            
+            for db_name in site.get('databases', []):
+                site_id = f"{site_name}_{db_name}"
+                
+                # 연결된 사이트인지 확인
+                is_connected = site_id in _connected_sites
+                
+                status_detail = ConnectionStatusDetail(
+                    site_id=site_id,
+                    display_name=f"{emoji} {site_name.replace('_', ' ').title()} - {db_name.upper()}",
+                    site_name=site_name,
+                    db_name=db_name,
+                    status="connected" if is_connected else "disconnected",
+                    last_connected=_connected_sites.get(site_id, {}).get('connected_at'),
+                    error_message=None,
+                    response_time_ms=_connected_sites.get(site_id, {}).get('response_time_ms')
+                )
+                
+                status_list.append(status_detail)
+        
+        return status_list
+    
+    except Exception as e:
+        logger.error(f"연결 상태 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/connect", response_model=ConnectionResponse)
+async def connect_to_site(request: SingleConnectionRequest):
+    """
+    단일 사이트/데이터베이스 연결 (Frontend용)
+    Single Site만 지원
+    
+    Body:
+        {
+            "site_id": "korea_site1_line1",
+            "timeout_seconds": 30
+        }
+    
+    Returns:
+        {
+            "success": true,
+            "message": "Connected to korea_site1 - line1",
+            "site_id": "korea_site1_line1",
+            "site_name": "korea_site1",
+            "db_name": "line1",
+            "connected_at": "2024-12-23T...",
+            "error": null
+        }
+    """
+    import time
+    start_time = time.time()
+    
+    try:
+        # site_id에서 site_name과 db_name 추출
+        parts = request.site_id.split('_')
+        if len(parts) < 3:  # korea_site1_line1 형태
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid site_id format. Expected: {site_name}_{db_name}"
+            )
+        
+        # 마지막 부분이 db_name
+        db_name = parts[-1]
+        # 나머지가 site_name
+        site_name = '_'.join(parts[:-1])
+        
+        logger.info(f"연결 시도: site={site_name}, db={db_name}")
+        
+        # ConnectionManager를 통해 연결 테스트
+        manager = get_connection_manager()
+        result = manager.test_single_connection(site_name, db_name)
+        
+        end_time = time.time()
+        response_time = int((end_time - start_time) * 1000)
+        
+        if result.get('success'):
+            # 연결 성공 - 전역 상태에 저장
+            connected_at = datetime.now(timezone.utc).isoformat()
+            _connected_sites[request.site_id] = {
+                'site_name': site_name,
+                'db_name': db_name,
+                'connected_at': connected_at,
+                'response_time_ms': response_time
+            }
+            
+            logger.info(f"✅ 연결 성공: {request.site_id}")
+            
+            return ConnectionResponse(
+                success=True,
+                message=f"Connected to {site_name} - {db_name}",
+                site_id=request.site_id,
+                site_name=site_name,
+                db_name=db_name,
+                connected_at=connected_at,
+                error=None
+            )
+        else:
+            # 연결 실패
+            error_msg = result.get('error', 'Connection failed')
+            logger.error(f"❌ 연결 실패: {request.site_id} - {error_msg}")
+            
+            return ConnectionResponse(
+                success=False,
+                message=f"Failed to connect to {site_name} - {db_name}",
+                site_id=request.site_id,
+                site_name=site_name,
+                db_name=db_name,
+                connected_at=None,
+                error=error_msg
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"연결 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/disconnect/{site_id}")
+async def disconnect_from_site(site_id: str):
+    """
+    특정 사이트 연결 해제 (Frontend용)
+    
+    Path Parameter:
+        site_id: 연결 해제할 사이트 ID (예: korea_site1_line1)
+    
+    Returns:
+        {
+            "success": true,
+            "message": "Disconnected from korea_site1 - line1",
+            "site_id": "korea_site1_line1"
+        }
+    """
+    try:
+        if site_id in _connected_sites:
+            site_info = _connected_sites[site_id]
+            del _connected_sites[site_id]
+            logger.info(f"🔌 연결 해제: {site_id}")
+            
+            return {
+                "success": True,
+                "message": f"Disconnected from {site_info['site_name']} - {site_info['db_name']}",
+                "site_id": site_id
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Site {site_id} is not connected"
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"연결 해제 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/database-info/{site_id}", response_model=DatabaseInfo)
+async def get_database_info(site_id: str):
+    """
+    연결된 데이터베이스의 상세 정보 조회 (Frontend용)
+    
+    Path Parameter:
+        site_id: 조회할 사이트 ID (예: korea_site1_line1)
+    
+    Returns:
+        {
+            "site_id": "korea_site1_line1",
+            "site_name": "korea_site1",
+            "db_name": "line1",
+            "tables": [
+                {
+                    "name": "Equipment",
+                    "schema": "dbo",
+                    "type": "BASE TABLE",
+                    "row_count": null,
+                    "size_mb": null
+                },
+                ...
+            ],
+            "total_tables": 15,
+            "db_type": "mssql"
+        }
+    """
+    try:
+        # 연결되어 있는지 확인
+        if site_id not in _connected_sites:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Site {site_id} is not connected. Please connect first."
+            )
+        
+        site_info = _connected_sites[site_id]
+        site_name = site_info['site_name']
+        db_name = site_info['db_name']
+        
+        # 테이블 목록 가져오기
+        manager = get_connection_manager()
+        tables_result = manager.get_table_list(site_name, db_name)
+        
+        if not tables_result.get('success'):
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to get table list: {tables_result.get('message')}"
+            )
+        
+        # TableInfo 형식으로 변환
+        tables = []
+        for table in tables_result.get('tables', []):
+            table_info = TableInfo(
+                name=table.get('name', ''),
+                schema=table.get('schema'),
+                type=table.get('type'),
+                row_count=None,  # TODO: 향후 구현
+                size_mb=None     # TODO: 향후 구현
+            )
+            tables.append(table_info)
+        
+        return DatabaseInfo(
+            site_id=site_id,
+            site_name=site_name,
+            db_name=db_name,
+            tables=tables,
+            total_tables=tables_result.get('total_tables', len(tables)),
+            db_type=tables_result.get('db_type', 'unknown')
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"데이터베이스 정보 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+		

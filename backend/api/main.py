@@ -23,8 +23,11 @@ setup_logging(
 )
 logger = logging.getLogger(__name__)
 
-# Connection Manager Router만 import
+# ============================================
+# ⭐ Router Import (수정됨)
+# ============================================
 from .routers.connection_manager import router as connection_router
+from .routers import equipment_mapping  # ⭐ 추가
 
 # 라이프사이클 관리
 @asynccontextmanager
@@ -63,14 +66,25 @@ app.add_middleware(
 
 logger.info(f"✓ CORS 설정: {origins_list}")
 
-# Connection Manager Router 등록
+# ============================================
+# ⭐ Router 등록 (수정됨)
+# ============================================
+
+# Connection Manager Router
 app.include_router(
     connection_router,
     prefix="/api/connections",
     tags=["Database Connections"]
 )
-
 logger.info("✓ Connection Manager Router 등록 완료")
+
+# ⭐ Equipment Mapping Router (새로 추가)
+app.include_router(
+    equipment_mapping.router,
+    prefix="/api",
+    tags=["Equipment Mapping"]
+)
+logger.info("✓ Equipment Mapping Router 등록 완료")
 
 
 @app.get("/")
@@ -82,12 +96,17 @@ async def root():
         "description": "데이터베이스 연결 테스트 전용",
         "docs": "/docs",
         "endpoints": {
+            # Connection endpoints
             "sites": "/api/connections/sites",
             "profiles": "/api/connections/profiles",
             "test_connection": "/api/connections/test-connection",
             "test_profile": "/api/connections/test-profile",
             "test_all": "/api/connections/test-all",
-            "status": "/api/connections/status"
+            "status": "/api/connections/status",
+            # ⭐ Equipment Mapping endpoints (새로 추가)
+            "equipment_names": "/api/equipment/names",
+            "equipment_mapping": "/api/equipment/mapping",
+            "equipment_mapping_validate": "/api/equipment/mapping/validate"
         }
     }
 

@@ -342,7 +342,87 @@ export class EquipmentLoader {
         
         debugLog(`일괄 상태 업데이트 완료: ${updateCount}개 설비`);
     }
+
+    // ============================================
+    // ⭐ Equipment Mapping 시각적 강조
+    // ============================================
     
+    /**
+     * 설비 매핑 상태에 따라 시각적 강조
+     * @param {string} equipmentId - Frontend ID (예: 'EQ-01-01')
+     * @param {boolean} isComplete - 매핑 완료 여부
+     */
+    highlightMappingStatus(equipmentId, isComplete) {
+        const equipment = this.equipmentMap.get(equipmentId);
+        if (!equipment) {
+            debugLog(`⚠️ Equipment not found: ${equipmentId}`);
+            return;
+        }
+        
+        equipment.traverse((child) => {
+            if (child.isMesh && child.material) {
+                if (isComplete) {
+                    // 완료: 파란색 emissive
+                    if (child.material.emissive) {
+                        child.material.emissive.setHex(0x1e88e5); // 파란색
+                        child.material.emissiveIntensity = 0.3;
+                    }
+                } else {
+                    // 미완료: 기본 상태 (emissive 제거)
+                    if (child.material.emissive) {
+                        child.material.emissive.setHex(0x000000);
+                        child.material.emissiveIntensity = 0;
+                    }
+                }
+            }
+        });
+        
+        debugLog(`${isComplete ? '✅' : '⭕'} Mapping status highlighted: ${equipmentId}`);
+    }
+    
+    /**
+     * 모든 설비 매핑 상태 업데이트
+     * @param {Object} mappings - EquipmentEditState.mappings { 'EQ-01-01': {...}, ... }
+     */
+    updateAllMappingStatus(mappings) {
+        let completedCount = 0;
+        let incompleteCount = 0;
+        
+        this.equipmentArray.forEach(equipment => {
+            const id = equipment.userData.id;
+            const isComplete = id in mappings;
+            
+            this.highlightMappingStatus(id, isComplete);
+            
+            if (isComplete) {
+                completedCount++;
+            } else {
+                incompleteCount++;
+            }
+        });
+        
+        debugLog(`📊 Mapping status updated: ${completedCount} complete, ${incompleteCount} incomplete`);
+    }
+    
+    /**
+     * 매핑 완료율 계산 및 표시
+     * @param {Object} mappings - EquipmentEditState.mappings
+     * @returns {number} 완료율 (0-100)
+     */
+    getMappingCompletionRate(mappings) {
+        const totalEquipment = this.equipmentArray.length;
+        const mappedCount = Object.keys(mappings).length;
+        const rate = Math.round((mappedCount / totalEquipment) * 100);
+        
+        debugLog(`📈 Mapping completion rate: ${rate}% (${mappedCount}/${totalEquipment})`);
+        
+        return rate;
+    }
+
+
+
+
+
     /**
      * 설비 메모리 정리
      */

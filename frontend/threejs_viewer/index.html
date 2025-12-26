@@ -7,12 +7,13 @@
 	<title>Sherlock Sky 3DSim - 설비 3D 시뮬레이션</title>
 
 	<!-- ============================================
-		⭐ 새로 추가: Connection Modal CSS
-		기존 스타일은 그대로 유지!
+		⭐ CSS Import
 		============================================ -->
 	<link rel="stylesheet" href="src/styles/modal.css">
 	<link rel="stylesheet" href="src/styles/connection-panel.css">
 	<link rel="stylesheet" href="src/styles/toast.css">
+	<!-- ⭐ 새로 추가: Equipment Edit CSS -->
+	<link rel="stylesheet" href="src/styles/equipment-edit.css">
 	
 
 	<style>
@@ -21,6 +22,15 @@
 			overflow: hidden;
 			font-family: 'Segoe UI', Arial, sans-serif;
 			background: #f5f5f5;
+		}
+
+		/* ⭐ 편집 모드 활성화 시 커서 변경 */
+		body.edit-mode-active {
+			cursor: crosshair !important;
+		}
+
+		body.edit-mode-active canvas {
+			cursor: crosshair !important;
 		}
 
 		canvas {
@@ -73,12 +83,9 @@
 		}
 
 		@keyframes pulse {
-
-			0%,
-			100% {
+			0%, 100% {
 				opacity: 1;
 			}
-
 			50% {
 				opacity: 0.7;
 			}
@@ -111,7 +118,6 @@
 				transform: translateX(100%);
 				opacity: 0;
 			}
-
 			to {
 				transform: translateX(0);
 				opacity: 1;
@@ -300,7 +306,7 @@
 		}
 
 		/* ============================================
-			⭐ 새로 추가: Connection Button 스타일
+			Connection Button 스타일
 		   ============================================ */
 		#connectionBtn {
 			position: absolute;
@@ -344,6 +350,9 @@
 		#connectionBtn:hover::after {
 			opacity: 1;
 		}
+
+		/* ⭐ 새로 추가: Edit Button 스타일 (equipment-edit.css에도 있지만 inline으로 추가) */
+		/* Note: equipment-edit.css의 스타일을 사용하므로 여기서는 제거 가능 */
 	</style>
 </head>
 
@@ -381,10 +390,17 @@
 	</div>
 
 	<!-- ============================================
-		⭐ 새로 추가: Connection Button
+		Connection Button
 		============================================ -->
 	<button id="connectionBtn" title="Database Connection (Ctrl+K)">
 		🔌
+	</button>
+
+	<!-- ============================================
+		⭐ 새로 추가: Equipment Edit Button
+		============================================ -->
+	<button id="editBtn" title="Equipment Edit Mode (E)">
+		✏️
 	</button>
 
 	<!-- 디버그 토글 버튼 -->
@@ -404,10 +420,9 @@
 		<button onclick="window.clearSelections()">❌ 선택 해제</button>
 	</div>
 
-<!-- ============================================
-	⭐ 새로 추가: Connection Modal HTML
-	(CSS는 이미 작성됨 - modal.css, connection-panel.css)
-	============================================ -->
+	<!-- ============================================
+		Connection Modal HTML
+		============================================ -->
 	<div id="connection-modal" class="modal">
 		<div class="modal-overlay"></div>
 		<div class="modal-content">
@@ -429,7 +444,7 @@
 	</div>
 
 	<!-- ============================================
-		⭐ 새로 추가: Toast Container
+		Toast Container
 		============================================ -->
 	<div id="toast-container"></div>
 
@@ -444,15 +459,8 @@
     }
     </script>
 
-	<!-- ⭐ 메인 스크립트 로드 - 경로를 프로젝트 구조에 맞게 수정 -->
-	<!-- 옵션 1: src 폴더가 루트에 있는 경우 -->
+	<!-- 메인 스크립트 로드 -->
 	<script type="module" src="./src/main.js"></script>
-
-	<!-- 옵션 2: src 폴더가 없고 main.js가 루트에 있는 경우 -->
-	<!-- <script type="module" src="./main.js"></script> -->
-
-	<!-- 옵션 3: 절대 경로 사용 (http-server 사용 시) -->
-	<!-- <script type="module" src="/src/main.js"></script> -->
 
 	<script>
 		// 디버그 패널 토글
@@ -502,6 +510,12 @@
 					window.clearSelections();
 				}
 			}
+			// ⭐ 새로 추가: 'E' 키: Equipment Edit 모드 토글
+			if (event.key === 'e' || event.key === 'E') {
+				if (window.toggleEditMode) {
+					window.toggleEditMode();
+				}
+			}
 		});
 
 		// 페이지 로드 완료 시
@@ -510,9 +524,10 @@
 			console.log('💡 키보드 단축키:');
 			console.log('   D - 디버그 패널 토글');
 			console.log('   C - 선택 해제');
+			console.log('   E - Equipment Edit 모드 토글');  // ⭐ 추가
 			console.log('   ESC - 정보 패널 닫기');
 			console.log('');
-			console.log('📝 디버그 명령어:');
+			console.log('🔧 디버그 명령어:');
 			console.log('   debugHelp() - 사용 가능한 명령어 확인');
 		});
 

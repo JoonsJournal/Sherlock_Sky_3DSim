@@ -188,4 +188,8 @@ export function debugHelp() {
     console.log('  setTopViewHeight(100) - Top View 높이 조정');
     console.log('🔧 View 설정:');
     console.log('  setTopViewOffset(0.5) - Top View 회전 오프셋 조정');
+    console.log('   - toggleEditMode() : Equipment Edit 모드 토글');
+    console.log('   - getMappingStatus() : 매핑 상태 확인');
+    console.log('   - clearAllMappings() : 모든 매핑 초기화');
+    console.log('   - exportMappings() : 매핑 데이터 파일로 내보내기');
 }
