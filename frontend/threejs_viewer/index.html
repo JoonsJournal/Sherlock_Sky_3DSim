@@ -42,11 +42,13 @@
 			cursor: grabbing;
 		}
 
-		/* 상단 정보 패널 */
+		/* ============================================
+			⭐ 마우스 사용법 정보 패널 - 오른쪽 상단으로 이동
+		   ============================================ */
 		#info {
 			position: absolute;
 			top: 10px;
-			left: 10px;
+			right: 10px;  /* left에서 right로 변경 */
 			color: white;
 			background: rgba(0, 0, 0, 0.8);
 			padding: 15px;
@@ -202,11 +204,13 @@
 			color: #1976D2;
 		}
 
-		/* 디버그 컨트롤 패널 */
+		/* ============================================
+			⭐ 디버그 컨트롤 - 왼쪽 아래로 이동
+		   ============================================ */
 		#debugControls {
 			position: absolute;
 			bottom: 20px;
-			right: 20px;
+			left: 80px;  /* debugToggle 오른쪽에 나타나도록 */
 			background: rgba(0, 0, 0, 0.8);
 			color: white;
 			padding: 15px;
@@ -243,12 +247,14 @@
 			background: #2980b9;
 		}
 
-		/* 디버그 토글 버튼 */
+		/* ============================================
+			⭐ 디버그 토글 버튼 - 왼쪽 아래로 이동
+		   ============================================ */
 		#debugToggle {
 			position: absolute;
 			bottom: 20px;
-			right: 20px;
-			background: rgba(52, 152, 219, 0.9);
+			left: 20px;  /* right에서 left로 변경 */
+			background: rgba(52, 152, 219, 0.9);  /* 기본: 파란색 */
 			color: white;
 			border: none;
 			border-radius: 50%;
@@ -264,6 +270,11 @@
 		#debugToggle:hover {
 			background: rgba(41, 128, 185, 0.9);
 			transform: scale(1.1);
+		}
+
+		#debugToggle.active {
+			background: rgba(255, 152, 0, 0.9);  /* 활성화: 주황색 */
+			box-shadow: 0 0 20px rgba(255, 152, 0, 0.5);
 		}
 
 		/* 커스텀 스크롤바 */
@@ -306,13 +317,13 @@
 		}
 
 		/* ============================================
-			Connection Button 스타일
+			⭐ Connection Button - 왼쪽 상단 최상위
 		   ============================================ */
 		#connectionBtn {
 			position: absolute;
-			top: 80px;  /* info 패널 아래 */
+			top: 10px;  /* 최상단 */
 			left: 10px;
-			background: rgba(52, 152, 219, 0.9);
+			background: rgba(52, 152, 219, 0.9);  /* 기본: 파란색 */
 			color: white;
 			border: none;
 			border-radius: 50%;
@@ -328,6 +339,11 @@
 		#connectionBtn:hover {
 			background: rgba(41, 128, 185, 0.9);
 			transform: scale(1.1);
+		}
+
+		#connectionBtn.active {
+			background: rgba(255, 152, 0, 0.9);  /* 활성화: 주황색 */
+			box-shadow: 0 0 20px rgba(255, 152, 0, 0.5);
 		}
 
 		#connectionBtn::after {
@@ -351,13 +367,63 @@
 			opacity: 1;
 		}
 
-		/* ⭐ 새로 추가: Edit Button 스타일 (equipment-edit.css에도 있지만 inline으로 추가) */
-		/* Note: equipment-edit.css의 스타일을 사용하므로 여기서는 제거 가능 */
+		/* ============================================
+			⭐ Edit Button - connectionBtn 바로 아래
+		   ============================================ */
+		#editBtn {
+			position: absolute;
+			top: 70px;  /* connectionBtn 아래 */
+			left: 10px;
+			background: rgba(52, 152, 219, 0.9);  /* 기본: 파란색 */
+			color: white;
+			border: none;
+			border-radius: 50%;
+			width: 50px;
+			height: 50px;
+			font-size: 24px;
+			cursor: pointer;
+			z-index: 101;
+			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+			transition: all 0.3s;
+		}
+
+		#editBtn:hover {
+			background: rgba(41, 128, 185, 0.9);
+			transform: scale(1.1);
+		}
+
+		#editBtn.active {
+			background: rgba(255, 152, 0, 0.9);  /* 활성화: 주황색 */
+			box-shadow: 0 0 20px rgba(255, 152, 0, 0.5);
+		}
+
+		#editBtn::after {
+			content: 'Equipment Edit Mode (E)';
+			position: absolute;
+			left: 60px;
+			top: 50%;
+			transform: translateY(-50%);
+			background: rgba(0, 0, 0, 0.8);
+			color: white;
+			padding: 8px 12px;
+			border-radius: 6px;
+			font-size: 12px;
+			white-space: nowrap;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.2s ease;
+		}
+
+		#editBtn:hover::after {
+			opacity: 1;
+		}
 	</style>
 </head>
 
 <body>
-	<!-- 정보 패널 -->
+	<!-- ============================================
+		⭐ 마우스 사용법 정보 패널 - 오른쪽 상단
+	   ============================================ -->
 	<div id="info">
 		<h3>🏭 Sherlock Sky 3DSim</h3>
 		<p>🖱️ <strong>좌클릭 + 드래그:</strong> 회전</p>
@@ -390,25 +456,29 @@
 	</div>
 
 	<!-- ============================================
-		Connection Button
+		⭐ Connection Button - 왼쪽 상단 최상위
 		============================================ -->
 	<button id="connectionBtn" title="Database Connection (Ctrl+K)">
 		🔌
 	</button>
 
 	<!-- ============================================
-		⭐ 새로 추가: Equipment Edit Button
+		⭐ Equipment Edit Button - Connection 버튼 아래
 		============================================ -->
 	<button id="editBtn" title="Equipment Edit Mode (E)">
 		✏️
 	</button>
 
-	<!-- 디버그 토글 버튼 -->
+	<!-- ============================================
+		⭐ 디버그 토글 버튼 - 왼쪽 아래
+		============================================ -->
 	<button id="debugToggle" onclick="toggleDebugPanel()" title="디버그 패널">
 		🔧
 	</button>
 
-	<!-- 디버그 컨트롤 패널 -->
+	<!-- ============================================
+		⭐ 디버그 컨트롤 패널 - 디버그 버튼 오른쪽
+		============================================ -->
 	<div id="debugControls">
 		<h4>🔧 디버그 컨트롤</h4>
 		<button onclick="window.debugScene()">📦 씬 정보</button>
@@ -466,7 +536,9 @@
 		// 디버그 패널 토글
 		function toggleDebugPanel() {
 			const panel = document.getElementById('debugControls');
+			const button = document.getElementById('debugToggle');
 			panel.classList.toggle('active');
+			button.classList.toggle('active');  /* 버튼 활성화 상태 토글 */
 		}
 
 		// 설비 정보 패널 닫기
@@ -524,7 +596,7 @@
 			console.log('💡 키보드 단축키:');
 			console.log('   D - 디버그 패널 토글');
 			console.log('   C - 선택 해제');
-			console.log('   E - Equipment Edit 모드 토글');  // ⭐ 추가
+			console.log('   E - Equipment Edit 모드 토글');
 			console.log('   ESC - 정보 패널 닫기');
 			console.log('');
 			console.log('🔧 디버그 명령어:');
