@@ -232,24 +232,42 @@ function init() {
 
 
         // ============================================
-        // ⭐ 새로 추가: Connection Button 이벤트 리스너
+        // ⭐ Connection Button 이벤트 리스너 (활성화 상태 토글 추가)
         // ============================================
         const connectionBtn = document.getElementById('connectionBtn');
         if (connectionBtn) {
             connectionBtn.addEventListener('click', () => {
-                console.log('🔌 Opening Connection Modal...');
-                connectionModal.open();
+                console.log('🔌 Toggling Connection Modal...');
+                
+                // 모달이 열릴 때와 닫힐 때 버튼 상태 토글
+                const wasOpen = connectionModal.isOpen;
+                connectionModal.toggle();
+                
+                // 상태에 따라 active 클래스 토글
+                setTimeout(() => {
+                    connectionBtn.classList.toggle('active', !wasOpen);
+                }, 50);
             });
         }
         
         // ============================================
-        // ⭐ 새로 추가: Ctrl+K 단축키 등록
+        // ⭐ Ctrl+K 단축키 등록 (버튼 상태 동기화 추가)
         // ============================================
         document.addEventListener('keydown', (event) => {
             // Ctrl+K 또는 Cmd+K: Connection Modal 토글
             if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
                 event.preventDefault();
+                
+                const wasOpen = connectionModal.isOpen;
                 connectionModal.toggle();
+                
+                // 버튼 상태 업데이트
+                const connectionBtn = document.getElementById('connectionBtn');
+                if (connectionBtn) {
+                    setTimeout(() => {
+                        connectionBtn.classList.toggle('active', !wasOpen);
+                    }, 50);
+                }
             }
         });
 
