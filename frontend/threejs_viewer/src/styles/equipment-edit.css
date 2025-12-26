@@ -230,51 +230,8 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* Edit Button (in index.html) */
-#editBtn {
-    position: absolute;
-    top: 150px;  /* Connection 버튼 아래 */
-    left: 10px;
-    background: rgba(46, 204, 113, 0.9);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
-    font-size: 24px;
-    cursor: pointer;
-    z-index: 101;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s;
-}
-
-#editBtn:hover {
-    background: rgba(39, 174, 96, 0.9);
-    transform: scale(1.1);
-}
-
-#editBtn.active {
-    background: rgba(52, 152, 219, 0.9);
-    box-shadow: 0 0 20px rgba(52, 152, 219, 0.5);
-}
-
-#editBtn::after {
-    content: 'Equipment Edit Mode (E)';
-    position: absolute;
-    left: 60px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease;
-}
-
-#editBtn:hover::after {
-    opacity: 1;
-}
+/* ============================================
+   ⭐ Edit Button Styles (Updated)
+   ============================================ */
+/* Note: index.html에서 inline style로 재정의되므로, 
+   여기서는 호버 효과 등 추가 스타일만 유지 */
