@@ -1,0 +1,211 @@
+{
+  "version": "1.0",
+  "template_name": "Korea Site 1 Line 1",
+  "description": "Korea Factory Site 1 Line 1 Layout",
+  "site_id": "korea_site1_line1",
+  "created_at": "2025-12-27T08:20:00Z",
+  "last_modified": "2025-12-27T08:20:00Z",
+  "canvas": {
+    "width": 1200,
+    "height": 800,
+    "scale": 10,
+    "gridSize": 10,
+    "unit": "meters"
+  },
+  "room": {
+    "width": 60,
+    "depth": 40,
+    "wallHeight": 3.0,
+    "wallThickness": 0.2,
+    "floorColor": "#f0f0f0",
+    "wallColor": "#e0e0e0"
+  },
+  "walls": [
+    {
+      "id": "wall_north",
+      "type": "wall",
+      "start": { "x": -30, "z": -20 },
+      "end": { "x": 30, "z": -20 },
+      "thickness": 0.2,
+      "height": 3.0,
+      "color": "#e0e0e0"
+    },
+    {
+      "id": "wall_south",
+      "type": "wall",
+      "start": { "x": -30, "z": 20 },
+      "end": { "x": 30, "z": 20 },
+      "thickness": 0.2,
+      "height": 3.0,
+      "color": "#e0e0e0"
+    },
+    {
+      "id": "wall_west",
+      "type": "wall",
+      "start": { "x": -30, "z": -20 },
+      "end": { "x": -30, "z": 20 },
+      "thickness": 0.2,
+      "height": 3.0,
+      "color": "#e0e0e0"
+    },
+    {
+      "id": "wall_east",
+      "type": "wall",
+      "start": { "x": 30, "z": -20 },
+      "end": { "x": 30, "z": 20 },
+      "thickness": 0.2,
+      "height": 3.0,
+      "color": "#e0e0e0"
+    }
+  ],
+  "office": {
+    "enabled": true,
+    "position": { "x": 18, "z": -10 },
+    "width": 12,
+    "depth": 20,
+    "height": 3.0,
+    "wallThickness": 0.15,
+    "wallColor": "#d0d0d0",
+    "floorColor": "#e8e8e8"
+  },
+  "partitions": [
+    {
+      "id": "partition_corridor_1",
+      "type": "partition",
+      "start": { "x": -20, "z": -8 },
+      "end": { "x": -20, "z": 8 },
+      "height": 2.0,
+      "thickness": 0.1,
+      "color": "#c0c0c0",
+      "description": "Corridor partition - West"
+    },
+    {
+      "id": "partition_corridor_2",
+      "type": "partition",
+      "start": { "x": -10, "z": -8 },
+      "end": { "x": -10, "z": 8 },
+      "height": 2.0,
+      "thickness": 0.1,
+      "color": "#c0c0c0",
+      "description": "Corridor partition - Center"
+    }
+  ],
+  "corridors": [
+    {
+      "id": "main_corridor_horizontal",
+      "type": "horizontal",
+      "position": { "z": 0 },
+      "width": 2.0,
+      "description": "Horizontal main corridor (Row 13)"
+    },
+    {
+      "id": "main_corridor_vertical_1",
+      "type": "vertical",
+      "position": { "x": -15 },
+      "width": 1.2,
+      "description": "Vertical corridor 1 (Col 2-3)"
+    },
+    {
+      "id": "main_corridor_vertical_2",
+      "type": "vertical",
+      "position": { "x": -5 },
+      "width": 1.2,
+      "description": "Vertical corridor 2 (Col 4-5)"
+    }
+  ],
+  "equipmentArrays": [
+    {
+      "id": "array_main",
+      "name": "Main Equipment Array",
+      "rows": 26,
+      "cols": 6,
+      "equipmentWidth": 1.5,
+      "equipmentDepth": 1.0,
+      "equipmentHeight": 2.0,
+      "spacingX": 1.0,
+      "spacingZ": 0.5,
+      "startPosition": {
+        "x": -27,
+        "z": -17
+      },
+      "idPattern": "EQ-{row:02d}-{col:02d}",
+      "orientation": "front",
+      "excludedPositions": [
+        { "row": 13, "col": 1, "reason": "corridor" },
+        { "row": 13, "col": 2, "reason": "corridor" },
+        { "row": 13, "col": 3, "reason": "corridor" },
+        { "row": 13, "col": 4, "reason": "corridor" },
+        { "row": 13, "col": 5, "reason": "corridor" },
+        { "row": 13, "col": 6, "reason": "corridor" }
+      ],
+      "defaultColor": "#808080",
+      "metadata": {
+        "type": "production",
+        "line": "line1",
+        "site": "korea_site1",
+        "capacity": 150,
+        "actual_count": 150
+      }
+    }
+  ],
+  "lighting": {
+    "ambient": {
+      "color": "#ffffff",
+      "intensity": 0.6
+    },
+    "directional": [
+      {
+        "color": "#ffffff",
+        "intensity": 0.8,
+        "position": { "x": 10, "y": 20, "z": 10 }
+      }
+    ],
+    "point": {
+      "count": 64,
+      "color": "#ffffff",
+      "intensity": 0.3,
+      "distance": 8,
+      "decay": 2,
+      "arrangement": "grid"
+    }
+  },
+  "camera": {
+    "initial": {
+      "position": { "x": 0, "y": 50, "z": 50 },
+      "target": { "x": 0, "y": 0, "z": 0 },
+      "fov": 60
+    },
+    "limits": {
+      "minDistance": 10,
+      "maxDistance": 100,
+      "minPolarAngle": 0.1,
+      "maxPolarAngle": 1.5
+    }
+  },
+  "metadata": {
+    "factory": "Korea Factory",
+    "site": "Site 1",
+    "line": "Line 1",
+    "manager": "Lee Dong-jun",
+    "production_type": "CVDF",
+    "shift_hours": "24/7",
+    "equipment_total": 150,
+    "equipment_mapped": 0,
+    "last_inspection": "2025-12-27",
+    "status": "operational"
+  },
+  "notes": [
+    "Korea Site 1 Line 1 Layout",
+    "26 rows x 6 cols = 156 positions, excluding 6 corridor positions = 150 equipment",
+    "Corridor positions: Row 13 (horizontal), Col 2-3, Col 4-5 (vertical)",
+    "Office space: East corner, 12m x 20m",
+    "Active production line"
+  ],
+  "validation": {
+    "minRoomWidth": 10,
+    "minRoomDepth": 10,
+    "minEquipmentCount": 1,
+    "minWallCount": 4,
+    "minCorridorWidth": 0.8
+  }
+}

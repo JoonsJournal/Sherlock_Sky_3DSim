@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LayoutEditorState 테스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .panel h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 18px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-info {
+            background: #06b6d4;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .state-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .state-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .state-item:last-child {
+            border-bottom: none;
+        }
+
+        .state-key {
+            color: #495057;
+            font-weight: bold;
+        }
+
+        .state-value {
+            color: #667eea;
+        }
+
+        .log-container {
+            background: #1e293b;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-left: 3px solid #667eea;
+            padding-left: 10px;
+        }
+
+        .log-entry.info {
+            border-left-color: #06b6d4;
+        }
+
+        .log-entry.success {
+            border-left-color: #10b981;
+        }
+
+        .log-entry.warning {
+            border-left-color: #f59e0b;
+        }
+
+        .log-entry.error {
+            border-left-color: #ef4444;
+            color: #ef4444;
+        }
+
+        .timestamp {
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #495057;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .input-group input[type="text"],
+        .input-group input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 LayoutEditorState 테스트</h1>
+            <p class="subtitle">Proxy 기반 반응형 상태 관리 시스템 - 실시간 테스트 환경</p>
+        </div>
+
+        <div class="content">
+            <!-- 왼쪽 패널: 상태 제어 -->
+            <div class="panel">
+                <h2>🎮 상태 제어</h2>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="testEnterEditorMode()">
+                        📝 Editor 모드 진입
+                    </button>
+                    <button class="btn-success" onclick="testEnterViewerMode()">
+                        👁️ Viewer 모드 진입
+                    </button>
+                    <button class="btn-danger" onclick="testReset()">
+                        🔄 상태 초기화
+                    </button>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-info" onclick="testMarkAsSaved()">
+                        💾 저장 완료 표시
+                    </button>
+                    <button class="btn-warning" onclick="testMarkAsDirty()">
+                        ✏️ Dirty 표시
+                    </button>
+                </div>
+
+                <h3 style="margin: 20px 0 10px 0; color: #495057;">히스토리 관리</h3>
+                <div class="button-group">
+                    <button class="btn-info" onclick="testAddToHistory()">
+                        ➕ 히스토리 추가
+                    </button>
+                    <button class="btn-secondary" onclick="testUndo()">
+                        ⬅️ Undo
+                    </button>
+                    <button class="btn-secondary" onclick="testRedo()">
+                        ➡️ Redo
+                    </button>
+                </div>
+
+                <h3 style="margin: 20px 0 10px 0; color: #495057;">선택 관리</h3>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="testAddSelection()">
+                        ➕ 객체 선택
+                    </button>
+                    <button class="btn-danger" onclick="testClearSelection()">
+                        ❌ 선택 해제
+                    </button>
+                </div>
+
+                <h3 style="margin: 20px 0 10px 0; color: #495057;">설정</h3>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="toggleGrid" checked onchange="toggleGrid()">
+                    <label for="toggleGrid">그리드 표시</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="toggleSnap" checked onchange="toggleSnap()">
+                    <label for="toggleSnap">Snap to Grid</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="toggleAutoSave" checked onchange="toggleAutoSave()">
+                    <label for="toggleAutoSave">자동 저장</label>
+                </div>
+
+                <div class="input-group">
+                    <label for="gridSize">그리드 크기 (픽셀)</label>
+                    <input type="number" id="gridSize" value="10" min="1" onchange="updateGridSize()">
+                </div>
+            </div>
+
+            <!-- 오른쪽 패널: 현재 상태 -->
+            <div class="panel">
+                <h2>📊 현재 상태</h2>
+                <div class="state-display" id="stateDisplay">
+                    <!-- 동적으로 업데이트됨 -->
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-info" onclick="exportState()">
+                        📤 상태 내보내기
+                    </button>
+                    <button class="btn-warning" onclick="debugState()">
+                        🐛 디버그 정보
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 로그 패널 -->
+        <div class="panel">
+            <h2>📝 이벤트 로그</h2>
+            <div class="log-container" id="logContainer">
+                <!-- 동적으로 업데이트됨 -->
+            </div>
+            <div style="margin-top: 15px;">
+                <button class="btn-secondary" onclick="clearLogs()">
+                    🗑️ 로그 지우기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // LayoutEditorState 임포트
+        // 경로: tests/ → src/stores/
+        import layoutEditorState from '../src/stores/LayoutEditorState.js';
+
+        // 전역 변수로 설정 (테스트 편의성)
+        window.layoutEditorState = layoutEditorState;
+
+        // 로그 함수
+        let logCounter = 0;
+        window.addLog = function(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `
+                <span class="timestamp">[${timestamp}]</span> ${message}
+            `;
+            logContainer.insertBefore(entry, logContainer.firstChild);
+            logCounter++;
+
+            // 로그 개수 제한 (최대 50개)
+            if (logCounter > 50) {
+                logContainer.removeChild(logContainer.lastChild);
+                logCounter--;
+            }
+        };
+
+        window.clearLogs = function() {
+            document.getElementById('logContainer').innerHTML = '';
+            logCounter = 0;
+            addLog('로그가 초기화되었습니다.', 'info');
+        };
+
+        // 상태 업데이트 함수
+        window.updateStateDisplay = function() {
+            const state = layoutEditorState.state;
+            const display = document.getElementById('stateDisplay');
+            
+            display.innerHTML = `
+                <div class="state-item">
+                    <span class="state-key">Mode:</span>
+                    <span class="state-value">
+                        ${state.mode}
+                        ${state.mode === 'editor' ? '<span class="badge badge-warning">EDIT</span>' : '<span class="badge badge-success">VIEW</span>'}
+                    </span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">Current Site ID:</span>
+                    <span class="state-value">${state.currentSiteId || 'null'}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">Has Layout:</span>
+                    <span class="state-value">${state.currentLayout ? 'Yes ✓' : 'No ✗'}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">Selected Objects:</span>
+                    <span class="state-value">${state.selectedObjects.length}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">History Size:</span>
+                    <span class="state-value">${state.editHistory.length}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">History Index:</span>
+                    <span class="state-value">${state.historyIndex}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">Is Dirty:</span>
+                    <span class="state-value">
+                        ${state.isDirty ? '<span class="badge badge-danger">YES</span>' : '<span class="badge badge-success">NO</span>'}
+                    </span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">Last Saved:</span>
+                    <span class="state-value">${state.lastSaved ? state.lastSaved.toLocaleString() : 'Never'}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">Auto-Save:</span>
+                    <span class="state-value">${state.autoSaveEnabled ? 'Enabled ✓' : 'Disabled ✗'}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">Show Grid:</span>
+                    <span class="state-value">${state.showGrid ? 'Yes ✓' : 'No ✗'}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">Snap to Grid:</span>
+                    <span class="state-value">${state.snapToGrid ? 'Yes ✓' : 'No ✗'}</span>
+                </div>
+                <div class="state-item">
+                    <span class="state-key">Grid Size:</span>
+                    <span class="state-value">${state.gridSize}px</span>
+                </div>
+            `;
+        };
+
+        // 전역 리스너 등록
+        layoutEditorState.subscribeGlobal((property, newValue, oldValue) => {
+            addLog(`<strong>${property}</strong> 변경: <em>${JSON.stringify(oldValue)}</em> → <em>${JSON.stringify(newValue)}</em>`, 'success');
+            updateStateDisplay();
+        });
+
+        // 테스트 함수들
+        window.testEnterEditorMode = function() {
+            layoutEditorState.enterEditorMode('korea_site1_line1', { name: 'Test Layout' });
+            addLog('Editor 모드로 전환되었습니다.', 'info');
+        };
+
+        window.testEnterViewerMode = function() {
+            layoutEditorState.enterViewerMode('korea_site1_line1', { name: 'Test Layout' });
+            addLog('Viewer 모드로 전환되었습니다.', 'info');
+        };
+
+        window.testReset = function() {
+            layoutEditorState.reset();
+            addLog('상태가 초기화되었습니다.', 'warning');
+        };
+
+        window.testMarkAsSaved = function() {
+            layoutEditorState.markAsSaved();
+            addLog('저장 완료로 표시되었습니다.', 'success');
+        };
+
+        window.testMarkAsDirty = function() {
+            layoutEditorState.markAsDirty();
+            addLog('Dirty 상태로 표시되었습니다.', 'warning');
+        };
+
+        window.testAddToHistory = function() {
+            const snapshot = {
+                timestamp: new Date(),
+                data: { x: Math.random() * 100, y: Math.random() * 100 }
+            };
+            layoutEditorState.addToHistory(snapshot);
+            addLog('히스토리에 항목이 추가되었습니다.', 'info');
+        };
+
+        window.testUndo = function() {
+            const snapshot = layoutEditorState.undo();
+            if (snapshot) {
+                addLog('Undo가 실행되었습니다.', 'info');
+            } else {
+                addLog('Undo할 항목이 없습니다.', 'warning');
+            }
+        };
+
+        window.testRedo = function() {
+            const snapshot = layoutEditorState.redo();
+            if (snapshot) {
+                addLog('Redo가 실행되었습니다.', 'info');
+            } else {
+                addLog('Redo할 항목이 없습니다.', 'warning');
+            }
+        };
+
+        window.testAddSelection = function() {
+            const obj = { id: `obj_${Date.now()}`, type: 'equipment' };
+            layoutEditorState.addSelectedObject(obj);
+            addLog(`객체가 선택되었습니다: ${obj.id}`, 'info');
+        };
+
+        window.testClearSelection = function() {
+            layoutEditorState.clearSelection();
+            addLog('모든 선택이 해제되었습니다.', 'info');
+        };
+
+        window.toggleGrid = function() {
+            const checked = document.getElementById('toggleGrid').checked;
+            layoutEditorState.state.showGrid = checked;
+        };
+
+        window.toggleSnap = function() {
+            const checked = document.getElementById('toggleSnap').checked;
+            layoutEditorState.state.snapToGrid = checked;
+        };
+
+        window.toggleAutoSave = function() {
+            const checked = document.getElementById('toggleAutoSave').checked;
+            layoutEditorState.state.autoSaveEnabled = checked;
+        };
+
+        window.updateGridSize = function() {
+            const value = parseInt(document.getElementById('gridSize').value);
+            layoutEditorState.state.gridSize = value;
+        };
+
+        window.exportState = function() {
+            const exported = layoutEditorState.exportState();
+            console.log('Exported State:', exported);
+            addLog('상태가 콘솔에 내보내졌습니다. (F12 확인)', 'success');
+            alert(JSON.stringify(exported, null, 2));
+        };
+
+        window.debugState = function() {
+            layoutEditorState.debug();
+            addLog('디버그 정보가 콘솔에 출력되었습니다. (F12 확인)', 'info');
+        };
+
+        // 초기 로그
+        addLog('LayoutEditorState 테스트 페이지가 로드되었습니다.', 'success');
+        addLog('모든 기능을 테스트해보세요!', 'info');
+        
+        // 초기 상태 표시
+        updateStateDisplay();
+
+        // 테스트 구독 예제
+        const unsubMode = layoutEditorState.subscribe('mode', (newVal, oldVal) => {
+            console.log(`[Custom Listener] Mode: ${oldVal} → ${newVal}`);
+        });
+
+        // 콘솔에 테스트 가이드 출력
+        console.log('%c🎯 LayoutEditorState 테스트 가이드', 'font-size: 20px; font-weight: bold; color: #667eea;');
+        console.log('%c콘솔에서 다음 명령어를 실행해보세요:', 'font-size: 14px; color: #666;');
+        console.log(`
+1. 모드 전환 테스트:
+   layoutEditorState.enterEditorMode('korea_site1_line1', {});
+   layoutEditorState.enterViewerMode('korea_site1_line1', {});
+
+2. 구독 테스트:
+   const unsub = layoutEditorState.subscribe('mode', (newVal) => {
+       console.log('Mode changed:', newVal);
+   });
+   layoutEditorState.enterEditorMode('test_site', {});
+   unsub(); // 구독 해제
+
+3. 상태 확인:
+   layoutEditorState.debug();
+   layoutEditorState.exportState();
+
+4. 히스토리 테스트:
+   layoutEditorState.addToHistory({ data: 'test' });
+   layoutEditorState.undo();
+   layoutEditorState.redo();
+        `);
+    </script>
+</body>
+</html>

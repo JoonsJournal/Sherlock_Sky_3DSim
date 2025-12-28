@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LayoutFileManager 간단 테스트</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        .output {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .output.success {
+            background: #e8f5e9;
+            border-color: #4CAF50;
+        }
+        
+        .output.error {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .status.ok {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .status.fail {
+            background: #f44336;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 LayoutFileManager 간단 테스트</h1>
+    
+    <div class="test-section">
+        <h3>📊 초기화 상태</h3>
+        <div id="initStatus"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>1️⃣ checkLayout() 테스트</h3>
+        <p>파일 존재 여부 확인</p>
+        <button onclick="runTest1()">테스트 실행</button>
+        <div id="test1" class="output"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2️⃣ loadTemplate() 테스트</h3>
+        <p>Template 파일 로드</p>
+        <button onclick="runTest2()">테스트 실행</button>
+        <div id="test2" class="output"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3️⃣ listTemplates() 테스트</h3>
+        <p>사용 가능한 Templates 목록</p>
+        <button onclick="runTest3()">테스트 실행</button>
+        <div id="test3" class="output"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>📝 브라우저 콘솔 명령어</h3>
+        <div style="background: #263238; color: #aed581; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px;">
+// 직접 테스트해보기
+const manager = new LayoutFileManager();
+
+// 파일 확인
+await manager.checkLayout('korea_site1_line1');
+
+// Template 로드
+const template = await manager.loadTemplate('standard_26x6');
+console.log(template);
+
+// Templates 목록
+await manager.listTemplates();
+        </div>
+    </div>
+
+    <!-- LayoutFileManager 인라인 포함 -->
+    <script>
+        (function() {
+            'use strict';
+            
+            class LayoutFileManager {
+                constructor() {
+                    this.basePath = '/layouts/';
+                    this.templatePath = '/layouts/templates/';
+                    this.backupSuffix = '.backup';
+                    this.autoSaveSuffix = '.autosave';
+                    
+                    console.log('[LayoutFileManager] Instance created');
+                }
+
+                async checkLayout(siteId) {
+                    try {
+                        console.log(`[LayoutFileManager] Checking: ${siteId}`);
+                        const filePath = `${this.basePath}${siteId}.json`;
+                        const response = await fetch(filePath);
+                        
+                        if (response.ok) {
+                            console.log(`✅ File exists: ${filePath}`);
+                            return true;
+                        } else {
+                            console.log(`❌ File not found: ${filePath}`);
+                            return false;
+                        }
+                    } catch (error) {
+                        console.error(`Error checking layout:`, error);
+                        return false;
+                    }
+                }
+
+                async loadLayout(siteId) {
+                    try {
+                        console.log(`[LayoutFileManager] Loading: ${siteId}`);
+                        
+                        const mainPath = `${this.basePath}${siteId}.json`;
+                        let response = await fetch(mainPath);
+                        
+                        if (response.ok) {
+                            const layoutData = await response.json();
+                            console.log(`✅ Layout loaded from: ${mainPath}`);
+                            return layoutData;
+                        }
+                        
+                        const backupPath = `${this.basePath}${siteId}${this.backupSuffix}.json`;
+                        response = await fetch(backupPath);
+                        
+                        if (response.ok) {
+                            const layoutData = await response.json();
+                            console.log(`⚠️ Loaded from backup: ${backupPath}`);
+                            return layoutData;
+                        }
+                        
+                        console.error(`❌ Failed to load: ${siteId}`);
+                        return null;
+                        
+                    } catch (error) {
+                        console.error(`Error loading layout:`, error);
+                        return null;
+                    }
+                }
+
+                async saveLayout(siteId, layoutData) {
+                    try {
+                        console.log(`[LayoutFileManager] Saving: ${siteId}`);
+                        
+                        const dataToSave = {
+                            ...layoutData,
+                            site_id: siteId,
+                            last_modified: new Date().toISOString(),
+                            version: (layoutData.version || 0) + 1
+                        };
+                        
+                        const jsonString = JSON.stringify(dataToSave, null, 2);
+                        const blob = new Blob([jsonString], { type: 'application/json' });
+                        
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${siteId}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        
+                        console.log(`✅ Download triggered: ${siteId}.json`);
+                        return true;
+                        
+                    } catch (error) {
+                        console.error(`Error saving layout:`, error);
+                        return false;
+                    }
+                }
+
+                async loadTemplate(templateName) {
+                    try {
+                        console.log(`[LayoutFileManager] Loading template: ${templateName}`);
+                        
+                        const filePath = `${this.templatePath}${templateName}.json`;
+                        const response = await fetch(filePath);
+                        
+                        if (!response.ok) {
+                            console.error(`❌ Template not found: ${filePath}`);
+                            return null;
+                        }
+                        
+                        const templateData = await response.json();
+                        console.log(`✅ Template loaded: ${templateName}`);
+                        return templateData;
+                        
+                    } catch (error) {
+                        console.error(`Error loading template:`, error);
+                        return null;
+                    }
+                }
+
+                async checkAutoSave(siteId) {
+                    try {
+                        const filePath = `${this.basePath}${siteId}${this.autoSaveSuffix}.json`;
+                        const response = await fetch(filePath);
+                        return response.ok;
+                    } catch (error) {
+                        return false;
+                    }
+                }
+
+                async loadAutoSave(siteId) {
+                    try {
+                        const filePath = `${this.basePath}${siteId}${this.autoSaveSuffix}.json`;
+                        const response = await fetch(filePath);
+                        
+                        if (!response.ok) {
+                            return null;
+                        }
+                        
+                        const layoutData = await response.json();
+                        console.log(`✅ Auto-save loaded: ${filePath}`);
+                        return layoutData;
+                        
+                    } catch (error) {
+                        console.error(`Error loading auto-save:`, error);
+                        return null;
+                    }
+                }
+
+                async listTemplates() {
+                    const knownTemplates = [
+                        'standard_26x6',
+                        'compact_13x4',
+                        'default_template'
+                    ];
+                    
+                    console.log(`Available templates:`, knownTemplates);
+                    return knownTemplates;
+                }
+
+                validateLayout(layoutData) {
+                    try {
+                        const requiredFields = ['version', 'site_id', 'room', 'equipmentArrays'];
+                        
+                        for (const field of requiredFields) {
+                            if (!(field in layoutData)) {
+                                console.error(`❌ Missing required field: ${field}`);
+                                return false;
+                            }
+                        }
+                        
+                        if (!layoutData.room.width || !layoutData.room.depth) {
+                            console.error(`❌ Invalid room dimensions`);
+                            return false;
+                        }
+                        
+                        if (!Array.isArray(layoutData.equipmentArrays)) {
+                            console.error(`❌ equipmentArrays is not an array`);
+                            return false;
+                        }
+                        
+                        console.log(`✅ Layout validation passed`);
+                        return true;
+                        
+                    } catch (error) {
+                        console.error(`❌ Validation error:`, error);
+                        return false;
+                    }
+                }
+            }
+
+            // Global export
+            window.LayoutFileManager = LayoutFileManager;
+            console.log('✅ LayoutFileManager loaded');
+            
+        })();
+    </script>
+    
+    <!-- 테스트 스크립트 -->
+    <script>
+        // 초기화 확인
+        window.addEventListener('DOMContentLoaded', function() {
+            const initDiv = document.getElementById('initStatus');
+            
+            if (typeof LayoutFileManager !== 'undefined') {
+                try {
+                    window.testManager = new LayoutFileManager();
+                    initDiv.innerHTML = '<span class="status ok">✅ 초기화 성공</span><br>LayoutFileManager 사용 가능';
+                } catch (error) {
+                    initDiv.innerHTML = '<span class="status fail">❌ 초기화 실패</span><br>' + error.message;
+                }
+            } else {
+                initDiv.innerHTML = '<span class="status fail">❌ 로드 실패</span><br>LayoutFileManager 클래스를 찾을 수 없습니다.';
+            }
+        });
+        
+        // Test 1: checkLayout()
+        async function runTest1() {
+            const outputDiv = document.getElementById('test1');
+            outputDiv.innerHTML = '🔄 테스트 실행 중...';
+            
+            try {
+                const exists = await testManager.checkLayout('korea_site1_line1');
+                
+                if (exists) {
+                    outputDiv.className = 'output success';
+                    outputDiv.textContent = '✅ 파일이 존재합니다!\nSite ID: korea_site1_line1\n파일 경로: /layouts/korea_site1_line1.json';
+                } else {
+                    outputDiv.className = 'output error';
+                    outputDiv.textContent = '❌ 파일이 존재하지 않습니다.\nSite ID: korea_site1_line1\n파일 경로: /layouts/korea_site1_line1.json\n\n→ 파일을 생성하거나 Template을 사용하세요.';
+                }
+            } catch (error) {
+                outputDiv.className = 'output error';
+                outputDiv.textContent = '❌ 에러 발생:\n' + error.message;
+            }
+        }
+        
+        // Test 2: loadTemplate()
+        async function runTest2() {
+            const outputDiv = document.getElementById('test2');
+            outputDiv.innerHTML = '🔄 테스트 실행 중...';
+            
+            try {
+                const template = await testManager.loadTemplate('standard_26x6');
+                
+                if (template) {
+                    outputDiv.className = 'output success';
+                    outputDiv.textContent = `✅ Template 로드 성공!\n\n` +
+                        `Template: ${template.template_name}\n` +
+                        `Room 크기: ${template.room.width}m × ${template.room.depth}m\n` +
+                        `설비 배열: ${template.equipmentArrays.length}개\n` +
+                        `Version: ${template.version}`;
+                } else {
+                    outputDiv.className = 'output error';
+                    outputDiv.textContent = '❌ Template 로드 실패\n\n파일을 찾을 수 없습니다: /layouts/templates/standard_26x6.json';
+                }
+            } catch (error) {
+                outputDiv.className = 'output error';
+                outputDiv.textContent = '❌ 에러 발생:\n' + error.message;
+            }
+        }
+        
+        // Test 3: listTemplates()
+        async function runTest3() {
+            const outputDiv = document.getElementById('test3');
+            outputDiv.innerHTML = '🔄 테스트 실행 중...';
+            
+            try {
+                const templates = await testManager.listTemplates();
+                
+                outputDiv.className = 'output success';
+                outputDiv.textContent = `✅ 사용 가능한 Templates:\n\n` +
+                    templates.map((t, i) => `${i + 1}. ${t}`).join('\n') +
+                    `\n\n총 ${templates.length}개 Template`;
+            } catch (error) {
+                outputDiv.className = 'output error';
+                outputDiv.textContent = '❌ 에러 발생:\n' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

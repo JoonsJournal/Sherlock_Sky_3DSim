@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LayoutFileManager 테스트</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .section h2 {
+            color: #4CAF50;
+            margin-top: 0;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        .output {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .output.success {
+            background-color: #e8f5e9;
+            border-color: #4CAF50;
+        }
+        
+        .output.error {
+            background-color: #ffebee;
+            border-color: #f44336;
+        }
+        
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .status.error {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        .status.info {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        .code-block {
+            background-color: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin: 10px 0;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 2px;
+        }
+        
+        .badge.check {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .badge.load {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        .badge.save {
+            background-color: #FF9800;
+            color: white;
+        }
+        
+        .badge.template {
+            background-color: #9C27B0;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 LayoutFileManager 테스트</h1>
+    
+    <div class="section">
+        <h2>📋 테스트 개요</h2>
+        <p>이 페이지는 <strong>LayoutFileManager</strong> 클래스의 4가지 핵심 기능을 테스트합니다:</p>
+        <ul>
+            <li><span class="badge check">CHECK</span> checkLayout(siteId): 파일 존재 여부 확인</li>
+            <li><span class="badge load">LOAD</span> loadLayout(siteId): Layout 파일 로드</li>
+            <li><span class="badge save">SAVE</span> saveLayout(siteId, layoutData): Layout 파일 저장</li>
+            <li><span class="badge template">TEMPLATE</span> loadTemplate(templateName): Template 로드</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>1️⃣ checkLayout() 테스트</h2>
+        <p>Site ID를 입력하여 Layout 파일의 존재 여부를 확인합니다.</p>
+        <input type="text" id="checkSiteId" placeholder="예: korea_site1_line1" value="korea_site1_line1">
+        <button onclick="testCheckLayout()">파일 확인</button>
+        <div id="checkOutput" class="output"></div>
+    </div>
+
+    <div class="section">
+        <h2>2️⃣ loadLayout() 테스트</h2>
+        <p>Site ID를 입력하여 Layout 파일을 로드합니다.</p>
+        <input type="text" id="loadSiteId" placeholder="예: korea_site1_line1" value="korea_site1_line1">
+        <button onclick="testLoadLayout()">Layout 로드</button>
+        <div id="loadOutput" class="output"></div>
+    </div>
+
+    <div class="section">
+        <h2>3️⃣ loadTemplate() 테스트</h2>
+        <p>사용 가능한 Template 중 하나를 선택하여 로드합니다.</p>
+        <select id="templateSelect">
+            <option value="standard_26x6">Standard 26×6 Layout</option>
+            <option value="compact_13x4">Compact 13×4 Layout</option>
+            <option value="default_template">Default Template</option>
+        </select>
+        <button onclick="testLoadTemplate()">Template 로드</button>
+        <div id="templateOutput" class="output"></div>
+    </div>
+
+    <div class="section">
+        <h2>4️⃣ saveLayout() 테스트</h2>
+        <p>Template을 로드하여 새로운 Layout으로 저장합니다.</p>
+        <input type="text" id="saveSiteId" placeholder="새 Site ID (예: test_site1)" value="test_site1">
+        <select id="saveTemplateSelect">
+            <option value="standard_26x6">Standard 26×6 기반</option>
+            <option value="compact_13x4">Compact 13×4 기반</option>
+            <option value="default_template">Default 기반</option>
+        </select>
+        <button onclick="testSaveLayout()">Layout 저장</button>
+        <div id="saveOutput" class="output"></div>
+        <div id="saveInstructions" style="display: none; margin-top: 10px;">
+            <div class="status info">
+                📁 다운로드된 파일을 다음 위치로 이동하세요:<br>
+                <code>/frontend/threejs_viewer/public/layouts/</code>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>5️⃣ 브라우저 콘솔 명령어</h2>
+        <p>브라우저 개발자 도구(F12)의 콘솔에서 직접 명령어를 실행할 수 있습니다:</p>
+        
+        <div class="code-block">
+// LayoutFileManager 인스턴스 생성
+const manager = new LayoutFileManager();
+
+// 1. 파일 확인
+await manager.checkLayout('korea_site1_line1');
+
+// 2. Layout 로드
+const layout = await manager.loadLayout('korea_site1_line1');
+console.log(layout);
+
+// 3. Template 로드
+const template = await manager.loadTemplate('standard_26x6');
+console.log(template);
+
+// 4. Layout 저장
+await manager.saveLayout('my_new_site', template);
+
+// 5. 사용 가능한 Templates 목록
+await manager.listTemplates();
+
+// 6. Layout 검증
+manager.validateLayout(layout);
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📊 테스트 결과 요약</h2>
+        <div id="summary" class="output">
+            테스트를 실행하면 여기에 결과가 표시됩니다.
+        </div>
+    </div>
+
+    <!-- LayoutFileManager 스크립트 로드 -->
+    <script src="LayoutFileManager.js"></script>
+    
+    <script>
+        // LayoutFileManager 인스턴스 생성
+        const layoutManager = new LayoutFileManager();
+        
+        // 테스트 결과 저장
+        const testResults = {
+            check: null,
+            load: null,
+            template: null,
+            save: null
+        };
+
+        // 1. checkLayout() 테스트
+        async function testCheckLayout() {
+            const siteId = document.getElementById('checkSiteId').value;
+            const outputDiv = document.getElementById('checkOutput');
+            
+            outputDiv.innerHTML = '🔄 파일 확인 중...';
+            
+            try {
+                const exists = await layoutManager.checkLayout(siteId);
+                
+                if (exists) {
+                    outputDiv.className = 'output success';
+                    outputDiv.innerHTML = `
+                        ✅ <strong>파일이 존재합니다!</strong><br>
+                        Site ID: ${siteId}<br>
+                        파일 경로: /layouts/${siteId}.json
+                    `;
+                    testResults.check = true;
+                } else {
+                    outputDiv.className = 'output error';
+                    outputDiv.innerHTML = `
+                        ❌ <strong>파일이 존재하지 않습니다.</strong><br>
+                        Site ID: ${siteId}<br>
+                        파일 경로: /layouts/${siteId}.json<br>
+                        <br>
+                        → Template을 선택하여 새 Layout을 생성할 수 있습니다.
+                    `;
+                    testResults.check = false;
+                }
+                
+                updateSummary();
+            } catch (error) {
+                outputDiv.className = 'output error';
+                outputDiv.innerHTML = `❌ 에러 발생: ${error.message}`;
+                testResults.check = false;
+                updateSummary();
+            }
+        }
+
+        // 2. loadLayout() 테스트
+        async function testLoadLayout() {
+            const siteId = document.getElementById('loadSiteId').value;
+            const outputDiv = document.getElementById('loadOutput');
+            
+            outputDiv.innerHTML = '🔄 Layout 로드 중...';
+            
+            try {
+                const layout = await layoutManager.loadLayout(siteId);
+                
+                if (layout) {
+                    outputDiv.className = 'output success';
+                    outputDiv.innerHTML = `
+                        ✅ <strong>Layout 로드 성공!</strong><br>
+                        <br>
+                        <strong>기본 정보:</strong><br>
+                        • Site ID: ${layout.site_id || 'N/A'}<br>
+                        • Version: ${layout.version || 'N/A'}<br>
+                        • Template Name: ${layout.template_name || 'N/A'}<br>
+                        <br>
+                        <strong>Room 정보:</strong><br>
+                        • 크기: ${layout.room?.width || '?'}m × ${layout.room?.depth || '?'}m<br>
+                        • 벽 높이: ${layout.room?.wallHeight || '?'}m<br>
+                        <br>
+                        <strong>설비 정보:</strong><br>
+                        • Equipment Arrays: ${layout.equipmentArrays?.length || 0}개<br>
+                        • 총 설비 위치: ${calculateTotalEquipment(layout)}개<br>
+                        <br>
+                        <strong>구조 요소:</strong><br>
+                        • 벽: ${layout.walls?.length || 0}개<br>
+                        • 파티션: ${layout.partitions?.length || 0}개<br>
+                        • Office: ${layout.office?.enabled ? '있음' : '없음'}<br>
+                        <br>
+                        <button onclick="showFullLayout()">전체 JSON 보기</button>
+                    `;
+                    
+                    // 전체 Layout 객체를 전역 변수에 저장
+                    window.currentLayout = layout;
+                    testResults.load = true;
+                } else {
+                    outputDiv.className = 'output error';
+                    outputDiv.innerHTML = `
+                        ❌ <strong>Layout 로드 실패</strong><br>
+                        Site ID: ${siteId}<br>
+                        <br>
+                        파일이 존재하지 않거나 손상되었을 수 있습니다.
+                    `;
+                    testResults.load = false;
+                }
+                
+                updateSummary();
+            } catch (error) {
+                outputDiv.className = 'output error';
+                outputDiv.innerHTML = `❌ 에러 발생: ${error.message}`;
+                testResults.load = false;
+                updateSummary();
+            }
+        }
+
+        // 3. loadTemplate() 테스트
+        async function testLoadTemplate() {
+            const templateName = document.getElementById('templateSelect').value;
+            const outputDiv = document.getElementById('templateOutput');
+            
+            outputDiv.innerHTML = '🔄 Template 로드 중...';
+            
+            try {
+                const template = await layoutManager.loadTemplate(templateName);
+                
+                if (template) {
+                    outputDiv.className = 'output success';
+                    outputDiv.innerHTML = `
+                        ✅ <strong>Template 로드 성공!</strong><br>
+                        <br>
+                        <strong>Template 정보:</strong><br>
+                        • 이름: ${template.template_name}<br>
+                        • 설명: ${template.description}<br>
+                        • Version: ${template.version}<br>
+                        <br>
+                        <strong>Room 정보:</strong><br>
+                        • 크기: ${template.room.width}m × ${template.room.depth}m<br>
+                        • 벽 높이: ${template.room.wallHeight}m<br>
+                        <br>
+                        <strong>설비 배열:</strong><br>
+                        ${template.equipmentArrays.map(arr => `
+                            • ${arr.name}: ${arr.rows}행 × ${arr.cols}열 = ${arr.rows * arr.cols}개 위치<br>
+                            • 제외 위치: ${arr.excludedPositions?.length || 0}개<br>
+                            • 실제 설비: ${arr.rows * arr.cols - (arr.excludedPositions?.length || 0)}개
+                        `).join('<br>')}
+                        <br>
+                        <br>
+                        <strong>추가 정보:</strong><br>
+                        • Office: ${template.office?.enabled ? '있음 (' + template.office.width + 'm × ' + template.office.depth + 'm)' : '없음'}<br>
+                        • 벽: ${template.walls?.length || 0}개<br>
+                        • 파티션: ${template.partitions?.length || 0}개<br>
+                        • 복도: ${template.corridors?.length || 0}개<br>
+                        <br>
+                        <button onclick="showFullTemplate()">전체 JSON 보기</button>
+                    `;
+                    
+                    window.currentTemplate = template;
+                    testResults.template = true;
+                } else {
+                    outputDiv.className = 'output error';
+                    outputDiv.innerHTML = `❌ Template 로드 실패: ${templateName}`;
+                    testResults.template = false;
+                }
+                
+                updateSummary();
+            } catch (error) {
+                outputDiv.className = 'output error';
+                outputDiv.innerHTML = `❌ 에러 발생: ${error.message}`;
+                testResults.template = false;
+                updateSummary();
+            }
+        }
+
+        // 4. saveLayout() 테스트
+        async function testSaveLayout() {
+            const siteId = document.getElementById('saveSiteId').value;
+            const templateName = document.getElementById('saveTemplateSelect').value;
+            const outputDiv = document.getElementById('saveOutput');
+            const instructionsDiv = document.getElementById('saveInstructions');
+            
+            outputDiv.innerHTML = '🔄 Template 로드 및 저장 준비 중...';
+            
+            try {
+                // 먼저 Template 로드
+                const template = await layoutManager.loadTemplate(templateName);
+                
+                if (!template) {
+                    throw new Error('Template 로드 실패');
+                }
+                
+                // Site ID 교체
+                template.site_id = siteId;
+                template.created_at = new Date().toISOString();
+                
+                // Layout 저장
+                const success = await layoutManager.saveLayout(siteId, template);
+                
+                if (success) {
+                    outputDiv.className = 'output success';
+                    outputDiv.innerHTML = `
+                        ✅ <strong>Layout 저장 성공!</strong><br>
+                        <br>
+                        <strong>저장 정보:</strong><br>
+                        • Site ID: ${siteId}<br>
+                        • 기반 Template: ${templateName}<br>
+                        • 파일명: ${siteId}.json<br>
+                        • Version: ${template.version}<br>
+                        <br>
+                        <strong>다운로드된 파일을 다음 경로로 이동하세요:</strong><br>
+                        <code>/frontend/threejs_viewer/public/layouts/${siteId}.json</code>
+                    `;
+                    
+                    instructionsDiv.style.display = 'block';
+                    testResults.save = true;
+                } else {
+                    outputDiv.className = 'output error';
+                    outputDiv.innerHTML = `❌ Layout 저장 실패`;
+                    testResults.save = false;
+                }
+                
+                updateSummary();
+            } catch (error) {
+                outputDiv.className = 'output error';
+                outputDiv.innerHTML = `❌ 에러 발생: ${error.message}`;
+                testResults.save = false;
+                updateSummary();
+            }
+        }
+
+        // 헬퍼 함수: 총 설비 개수 계산
+        function calculateTotalEquipment(layout) {
+            if (!layout.equipmentArrays) return 0;
+            
+            return layout.equipmentArrays.reduce((total, arr) => {
+                const totalPositions = arr.rows * arr.cols;
+                const excludedCount = arr.excludedPositions?.length || 0;
+                return total + (totalPositions - excludedCount);
+            }, 0);
+        }
+
+        // 전체 Layout JSON 보기
+        function showFullLayout() {
+            if (!window.currentLayout) {
+                alert('먼저 Layout을 로드하세요.');
+                return;
+            }
+            
+            const newWindow = window.open('', '_blank');
+            newWindow.document.write('<html><head><title>Layout JSON</title></head><body>');
+            newWindow.document.write('<pre>' + JSON.stringify(window.currentLayout, null, 2) + '</pre>');
+            newWindow.document.write('</body></html>');
+        }
+
+        // 전체 Template JSON 보기
+        function showFullTemplate() {
+            if (!window.currentTemplate) {
+                alert('먼저 Template을 로드하세요.');
+                return;
+            }
+            
+            const newWindow = window.open('', '_blank');
+            newWindow.document.write('<html><head><title>Template JSON</title></head><body>');
+            newWindow.document.write('<pre>' + JSON.stringify(window.currentTemplate, null, 2) + '</pre>');
+            newWindow.document.write('</body></html>');
+        }
+
+        // 테스트 결과 요약 업데이트
+        function updateSummary() {
+            const summaryDiv = document.getElementById('summary');
+            
+            const checkStatus = testResults.check === null ? '⏸️ 미실행' : testResults.check ? '✅ 통과' : '❌ 실패';
+            const loadStatus = testResults.load === null ? '⏸️ 미실행' : testResults.load ? '✅ 통과' : '❌ 실패';
+            const templateStatus = testResults.template === null ? '⏸️ 미실행' : testResults.template ? '✅ 통과' : '❌ 실패';
+            const saveStatus = testResults.save === null ? '⏸️ 미실행' : testResults.save ? '✅ 통과' : '❌ 실패';
+            
+            const totalTests = 4;
+            const passedTests = Object.values(testResults).filter(r => r === true).length;
+            
+            summaryDiv.innerHTML = `
+                <strong>테스트 결과:</strong><br>
+                <br>
+                • checkLayout() 테스트: ${checkStatus}<br>
+                • loadLayout() 테스트: ${loadStatus}<br>
+                • loadTemplate() 테스트: ${templateStatus}<br>
+                • saveLayout() 테스트: ${saveStatus}<br>
+                <br>
+                <strong>통과율: ${passedTests}/${totalTests} (${Math.round(passedTests/totalTests*100)}%)</strong>
+            `;
+            
+            if (passedTests === totalTests) {
+                summaryDiv.className = 'output success';
+            } else if (passedTests > 0) {
+                summaryDiv.className = 'output';
+            }
+        }
+
+        // 페이지 로드 시 초기화
+        window.onload = function() {
+            console.log('%c🚀 LayoutFileManager 테스트 페이지 로드 완료', 'color: #4CAF50; font-size: 16px; font-weight: bold;');
+            console.log('%c브라우저 콘솔에서 직접 명령어를 실행할 수 있습니다!', 'color: #2196F3; font-size: 14px;');
+            console.log('%c예: await layoutManager.checkLayout("korea_site1_line1")', 'color: #666; font-size: 12px; font-family: monospace;');
+            
+            // LayoutFileManager 전역 노출
+            window.layoutManager = layoutManager;
+        };
+    </script>
+</body>
+</html>
