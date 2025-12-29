@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>키보드 이벤트 디버깅</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        
+        h2 {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        #log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 5px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+        }
+        
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid transparent;
+        }
+        
+        .log-keydown {
+            border-left-color: #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .log-delete {
+            border-left-color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
+        }
+        
+        .log-escape {
+            border-left-color: #ff9800;
+            background: rgba(255, 152, 0, 0.1);
+        }
+        
+        .log-info {
+            border-left-color: #2196F3;
+            background: rgba(33, 150, 243, 0.1);
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        .key-box {
+            display: inline-block;
+            background: #f0f0f0;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            padding: 10px 15px;
+            margin: 5px;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        
+        .instructions {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎹 키보드 이벤트 디버깅 도구</h1>
+        
+        <div id="status" class="status warning">
+            ⏳ 대기 중... 아무 키나 눌러보세요
+        </div>
+        
+        <div class="instructions">
+            <h3>📋 테스트 방법:</h3>
+            <ol>
+                <li>이 페이지에 <strong>포커스</strong>가 있는지 확인 (페이지 아무 곳이나 클릭)</li>
+                <li>아래 키들을 눌러보세요:
+                    <div>
+                        <span class="key-box">Delete</span>
+                        <span class="key-box">Backspace</span>
+                        <span class="key-box">Escape</span>
+                        <span class="key-box">Shift</span>
+                        <span class="key-box">Ctrl</span>
+                    </div>
+                </li>
+                <li>로그 창에서 이벤트가 감지되는지 확인</li>
+            </ol>
+        </div>
+        
+        <h2>📊 통계</h2>
+        <div style="display: flex; gap: 20px;">
+            <div>총 이벤트: <strong id="totalCount">0</strong></div>
+            <div>Delete: <strong id="deleteCount">0</strong></div>
+            <div>Backspace: <strong id="backspaceCount">0</strong></div>
+            <div>Escape: <strong id="escapeCount">0</strong></div>
+            <div>Shift: <strong id="shiftCount">0</strong></div>
+            <div>Ctrl: <strong id="ctrlCount">0</strong></div>
+        </div>
+        
+        <h2>🔍 실시간 로그</h2>
+        <button onclick="clearLog()">로그 지우기</button>
+        <button onclick="testProgrammatic()">프로그래밍 방식으로 Delete 이벤트 발생</button>
+        
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+        
+        let totalCount = 0;
+        let deleteCount = 0;
+        let backspaceCount = 0;
+        let escapeCount = 0;
+        let shiftCount = 0;
+        let ctrlCount = 0;
+        
+        function updateStats() {
+            document.getElementById('totalCount').textContent = totalCount;
+            document.getElementById('deleteCount').textContent = deleteCount;
+            document.getElementById('backspaceCount').textContent = backspaceCount;
+            document.getElementById('escapeCount').textContent = escapeCount;
+            document.getElementById('shiftCount').textContent = shiftCount;
+            document.getElementById('ctrlCount').textContent = ctrlCount;
+        }
+        
+        function addLog(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = 'log-entry log-' + type;
+            const timestamp = new Date().toLocaleTimeString('ko-KR', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit',
+                fractionalSecondDigits: 3
+            });
+            div.textContent = `[${timestamp}] ${msg}`;
+            log.appendChild(div);
+            log.scrollTop = log.scrollHeight;
+            
+            totalCount++;
+            updateStats();
+        }
+        
+        function clearLog() {
+            log.innerHTML = '';
+            totalCount = 0;
+            deleteCount = 0;
+            backspaceCount = 0;
+            escapeCount = 0;
+            shiftCount = 0;
+            ctrlCount = 0;
+            updateStats();
+            addLog('✅ 로그 초기화됨', 'info');
+        }
+        
+        function testProgrammatic() {
+            addLog('🤖 프로그래밍 방식으로 Delete 이벤트 발생', 'info');
+            const event = new KeyboardEvent('keydown', { 
+                key: 'Delete',
+                code: 'Delete',
+                bubbles: true 
+            });
+            window.dispatchEvent(event);
+        }
+        
+        // Window 레벨 이벤트 (가장 바깥)
+        window.addEventListener('keydown', (e) => {
+            const msg = `🟢 window.keydown - key="${e.key}", code="${e.code}", target="${e.target.tagName}"`;
+            
+            if (e.key === 'Delete') {
+                addLog(msg, 'delete');
+                deleteCount++;
+                status.className = 'status success';
+                status.textContent = '✅ Delete 키 감지됨!';
+            } else if (e.key === 'Backspace') {
+                addLog(msg, 'delete');
+                backspaceCount++;
+                status.className = 'status success';
+                status.textContent = '✅ Backspace 키 감지됨! (Delete와 동일하게 작동)';
+            } else if (e.key === 'Escape') {
+                addLog(msg, 'escape');
+                escapeCount++;
+                status.className = 'status success';
+                status.textContent = '✅ Escape 키 감지됨!';
+            } else if (e.key === 'Shift') {
+                addLog(msg, 'keydown');
+                shiftCount++;
+                status.className = 'status success';
+                status.textContent = '✅ Shift 키 감지됨!';
+            } else if (e.key === 'Control' || e.key === 'Meta') {
+                addLog(msg, 'keydown');
+                ctrlCount++;
+                status.className = 'status success';
+                status.textContent = '✅ Ctrl 키 감지됨!';
+            } else {
+                addLog(msg, 'keydown');
+                status.className = 'status success';
+                status.textContent = `✅ "${e.key}" 키 감지됨!`;
+            }
+            
+            updateStats();
+        });
+        
+        // Document 레벨 이벤트
+        document.addEventListener('keydown', (e) => {
+            const msg = `🔵 document.keydown - key="${e.key}", code="${e.code}"`;
+            addLog(msg, 'info');
+        });
+        
+        // 초기 로그
+        addLog('✅ 키보드 이벤트 리스너 등록 완료', 'info');
+        addLog('📌 window.addEventListener 사용 (ObjectSelectionTool과 동일)', 'info');
+        addLog('⌨️ 이제 Delete, Backspace, Escape, Shift, Ctrl 키를 눌러보세요', 'info');
+        addLog('💡 노트북 사용자: Delete 키 대신 Backspace를 사용하세요!', 'info');
+        
+        // 포커스 감지
+        window.addEventListener('focus', () => {
+            addLog('👁️ 페이지가 포커스를 받았습니다', 'info');
+        });
+        
+        window.addEventListener('blur', () => {
+            addLog('⚠️ 페이지가 포커스를 잃었습니다 (다른 창/탭으로 이동)', 'info');
+            status.className = 'status warning';
+            status.textContent = '⚠️ 포커스를 잃었습니다. 페이지를 클릭하세요.';
+        });
+        
+        // 클릭 감지
+        document.addEventListener('click', () => {
+            addLog('🖱️ 페이지 클릭됨 (포커스 복원)', 'info');
+        });
+    </script>
+</body>
+</html>

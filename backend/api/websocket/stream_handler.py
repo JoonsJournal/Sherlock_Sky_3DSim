@@ -16,15 +16,47 @@ class StreamHandler:
         self.batch_buffer: Dict[str, List] = {}
     
     def format_equipment_status(self, data: dict) -> dict:
-        """장비 상태 데이터 포맷"""
-        return {
+        """
+        장비 상태 데이터 포맷 (Phase 1: Monitoring용 확장)
+        
+        기존 기능 유지 + Monitoring 필드 추가
+        
+        Args:
+            data: 원본 상태 데이터
+                - equipment_id: int
+                - frontend_id: str (optional, Phase 1 추가)
+                - status: str (RUN/IDLE/STOP)
+                - previous_status: str (optional, Phase 1 추가)
+                - temperature: float (optional)
+                - pressure: float (optional)
+                - timestamp: str (optional)
+        
+        Returns:
+            dict: 포맷된 상태 데이터
+        """
+        # 기본 필드 (기존 기능)
+        formatted = {
             "type": "equipment_status",
             "equipment_id": data.get("equipment_id"),
             "status": data.get("status"),
-            "temperature": data.get("temperature"),
-            "pressure": data.get("pressure"),
             "timestamp": data.get("timestamp", datetime.now().isoformat())
         }
+        
+        # ⭐ Phase 1: Monitoring용 추가 필드
+        if "frontend_id" in data:
+            formatted["frontend_id"] = data.get("frontend_id")
+        
+        if "previous_status" in data:
+            formatted["previous_status"] = data.get("previous_status")
+        
+        # 센서 데이터 (기존 기능)
+        if "temperature" in data:
+            formatted["temperature"] = data.get("temperature")
+        
+        if "pressure" in data:
+            formatted["pressure"] = data.get("pressure")
+        
+        return formatted
     
     def format_production_data(self, data: dict) -> dict:
         """생산 데이터 포맷"""

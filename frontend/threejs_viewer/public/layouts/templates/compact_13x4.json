@@ -1,177 +1,98 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "template_name": "Compact 13×4 Layout",
-  "description": "소형 공장 레이아웃 - 13행×4열, 간소화된 구조",
+  "template_id": "compact_13x4",
   "site_id": "template",
-  "created_at": "2025-01-01T00:00:00Z",
+  "description": "소형 공장용 레이아웃 (13행 × 4열, 52개 설비)",
+  "created_at": "2025-01-20T00:00:00Z",
+  
   "canvas": {
-    "width": 1000,
-    "height": 650,
+    "width": 1200,
+    "height": 800,
     "scale": 10,
+    "backgroundColor": "#f5f5f5",
     "gridSize": 10,
-    "unit": "meters"
+    "gridColor": "#e0e0e0"
   },
+  
   "room": {
-    "width": 40,
-    "depth": 25,
+    "width": 25,
+    "depth": 40,
     "wallHeight": 3.0,
-    "wallThickness": 0.2,
-    "floorColor": "#f5f5f5",
-    "wallColor": "#e5e5e5"
+    "wallThickness": 0.3,
+    "floorColor": "#ffffff",
+    "wallColor": "#cccccc"
   },
+  
   "walls": [
     {
       "id": "wall_north",
-      "type": "wall",
-      "start": { "x": -20, "z": -12.5 },
-      "end": { "x": 20, "z": -12.5 },
-      "thickness": 0.2,
+      "start": { "x": -12.5, "z": -20 },
+      "end": { "x": 12.5, "z": -20 },
       "height": 3.0,
-      "color": "#e5e5e5"
+      "thickness": 0.3,
+      "color": "#888888"
     },
     {
       "id": "wall_south",
-      "type": "wall",
-      "start": { "x": -20, "z": 12.5 },
-      "end": { "x": 20, "z": 12.5 },
-      "thickness": 0.2,
+      "start": { "x": -12.5, "z": 20 },
+      "end": { "x": 12.5, "z": 20 },
       "height": 3.0,
-      "color": "#e5e5e5"
-    },
-    {
-      "id": "wall_west",
-      "type": "wall",
-      "start": { "x": -20, "z": -12.5 },
-      "end": { "x": -20, "z": 12.5 },
-      "thickness": 0.2,
-      "height": 3.0,
-      "color": "#e5e5e5"
+      "thickness": 0.3,
+      "color": "#888888"
     },
     {
       "id": "wall_east",
-      "type": "wall",
-      "start": { "x": 20, "z": -12.5 },
-      "end": { "x": 20, "z": 12.5 },
-      "thickness": 0.2,
+      "start": { "x": 12.5, "z": -20 },
+      "end": { "x": 12.5, "z": 20 },
       "height": 3.0,
-      "color": "#e5e5e5"
+      "thickness": 0.3,
+      "color": "#888888"
+    },
+    {
+      "id": "wall_west",
+      "start": { "x": -12.5, "z": -20 },
+      "end": { "x": -12.5, "z": 20 },
+      "height": 3.0,
+      "thickness": 0.3,
+      "color": "#888888"
     }
   ],
+  
   "office": {
     "enabled": true,
-    "position": { "x": 12, "z": -6 },
     "width": 8,
     "depth": 12,
-    "height": 3.0,
+    "position": { "x": 4.5, "z": -8 },
+    "wallHeight": 2.5,
     "wallThickness": 0.15,
-    "wallColor": "#d5d5d5",
-    "floorColor": "#ececec"
+    "wallColor": "#d3d3d3",
+    "floorColor": "#e3f2fd"
   },
-  "partitions": [
-    {
-      "id": "partition_central",
-      "type": "partition",
-      "start": { "x": -12, "z": -5 },
-      "end": { "x": -12, "z": 5 },
-      "height": 2.0,
-      "thickness": 0.1,
-      "color": "#c5c5c5",
-      "description": "중앙 구분 파티션"
-    }
-  ],
-  "corridors": [
-    {
-      "id": "main_corridor_horizontal",
-      "type": "horizontal",
-      "position": { "z": 0 },
-      "width": 1.5,
-      "description": "수평 메인 복도 (Row 7 사이)"
-    },
-    {
-      "id": "main_corridor_vertical",
-      "type": "vertical",
-      "position": { "x": -8 },
-      "width": 1.0,
-      "description": "수직 복도 (Col 2-3 사이)"
-    }
-  ],
+  
+  "partitions": [],
+  
   "equipmentArrays": [
     {
-      "id": "array_compact",
-      "name": "Compact Equipment Array",
+      "id": "array_main",
       "rows": 13,
       "cols": 4,
-      "equipmentWidth": 1.5,
-      "equipmentDepth": 1.0,
-      "equipmentHeight": 2.0,
-      "spacingX": 1.0,
-      "spacingZ": 0.5,
-      "startPosition": {
-        "x": -17,
-        "z": -10
-      },
-      "idPattern": "EQ-{row:02d}-{col:02d}",
-      "orientation": "front",
-      "excludedPositions": [
-        { "row": 7, "col": 1, "reason": "corridor" },
-        { "row": 7, "col": 2, "reason": "corridor" },
-        { "row": 7, "col": 3, "reason": "corridor" },
-        { "row": 7, "col": 4, "reason": "corridor" }
-      ],
-      "defaultColor": "#808080",
-      "metadata": {
-        "type": "production",
-        "line": "compact_line",
-        "capacity": 48
-      }
+      "startPosition": { "x": -10, "z": -18 },
+      "equipmentWidth": 1.2,
+      "equipmentDepth": 1.8,
+      "spacingX": 1.5,
+      "spacingZ": 2.2,
+      "excludedPositions": [],
+      "description": "13×4 컴팩트 설비 배열 (52개)"
     }
   ],
-  "lighting": {
-    "ambient": {
-      "color": "#ffffff",
-      "intensity": 0.6
-    },
-    "directional": [
-      {
-        "color": "#ffffff",
-        "intensity": 0.8,
-        "position": { "x": 8, "y": 15, "z": 8 }
-      }
-    ],
-    "point": {
-      "count": 36,
-      "color": "#ffffff",
-      "intensity": 0.3,
-      "distance": 6,
-      "decay": 2,
-      "arrangement": "grid"
-    }
-  },
-  "camera": {
-    "initial": {
-      "position": { "x": 0, "y": 35, "z": 35 },
-      "target": { "x": 0, "y": 0, "z": 0 },
-      "fov": 60
-    },
-    "limits": {
-      "minDistance": 8,
-      "maxDistance": 70,
-      "minPolarAngle": 0.1,
-      "maxPolarAngle": 1.5
-    }
-  },
-  "notes": [
-    "이 Template은 소형 공장용 컴팩트 레이아웃을 제공합니다.",
-    "13행 × 4열 = 52개 위치, 복도로 인한 제외 4개 = 48개",
-    "Room 크기: 40m × 25m",
-    "복도 위치: Row 7 (수평), Col 2-3 사이 (수직)",
-    "Office 공간: 동쪽 코너, 8m × 12m"
-  ],
-  "validation": {
-    "minRoomWidth": 10,
-    "minRoomDepth": 10,
-    "minEquipmentCount": 1,
-    "minWallCount": 4,
-    "minCorridorWidth": 0.8
+  
+  "metadata": {
+    "author": "SHERLOCK_SKY_3DSIM",
+    "target_use": "Small scale manufacturing",
+    "totalEquipment": 52,
+    "cleanroomClass": "ISO 8",
+    "application": "Small Scale Manufacturing",
+    "notes": "소형 공장용 컴팩트 레이아웃"
   }
 }

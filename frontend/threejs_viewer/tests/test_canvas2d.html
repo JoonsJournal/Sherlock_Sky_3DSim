@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas2D Editor Test - SHERLOCK_SKY_3DSIM</title>
+    
+    <!-- Konva.js CDN -->
+    <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .header p {
+            margin: 10px 0 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .controls {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .control-group select,
+        .control-group button {
+            padding: 10px 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .control-group select {
+            background: white;
+            min-width: 250px;
+        }
+
+        .control-group button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+
+        .control-group button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .control-group button:active {
+            transform: translateY(0);
+        }
+
+        .control-group button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .canvas-wrapper {
+            padding: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 600px;
+        }
+
+        #canvas2d-container {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            background: white;
+        }
+
+        .info-panel {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-item span:first-child {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .info-item span:last-child {
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .footer {
+            background: #2c3e50;
+            color: white;
+            padding: 15px 30px;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .log-console {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            margin: 20px 30px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-console .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .log-console .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-console .log-time {
+            color: #808080;
+            margin-right: 10px;
+        }
+
+        .log-console .log-level {
+            margin-right: 10px;
+            font-weight: 600;
+        }
+
+        .log-console .log-level.info {
+            color: #4fc3f7;
+        }
+
+        .log-console .log-level.success {
+            color: #81c784;
+        }
+
+        .log-console .log-level.error {
+            color: #e57373;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎨 SHERLOCK_SKY_3DSIM - Canvas2D Editor Test</h1>
+            <p>Phase 2.1: Konva.js 설치 및 초기화 테스트</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="control-group">
+                <label for="template-select">📋 Template 선택:</label>
+                <select id="template-select">
+                    <option value="">-- Template을 선택하세요 --</option>
+                    <option value="standard_26x6">Standard 26×6 Layout (117개 설비)</option>
+                    <option value="compact_13x4">Compact 13×4 Layout (52개 설비)</option>
+                    <option value="default_template">Default Template (빈 Canvas)</option>
+                </select>
+                
+                <button id="load-btn" disabled>🚀 Load Template</button>
+                <button id="clear-btn">🗑️ Clear Canvas</button>
+                <button id="test-grid-btn">📐 Test Grid Only</button>
+            </div>
+        </div>
+
+        <!-- Canvas Wrapper -->
+        <div class="canvas-wrapper">
+            <div id="canvas2d-container"></div>
+        </div>
+
+        <!-- Info Panel -->
+        <div class="info-panel">
+            <div class="info-item">
+                <span>Canvas Status:</span>
+                <span id="canvas-status"><span class="status loading">Initializing...</span></span>
+            </div>
+            <div class="info-item">
+                <span>Current Template:</span>
+                <span id="current-template">None</span>
+            </div>
+            <div class="info-item">
+                <span>Equipment Count:</span>
+                <span id="equipment-count">0</span>
+            </div>
+            <div class="info-item">
+                <span>Canvas Size:</span>
+                <span id="canvas-size">1200 x 800 px</span>
+            </div>
+            <div class="info-item">
+                <span>Scale:</span>
+                <span id="canvas-scale">1m = 10px</span>
+            </div>
+        </div>
+
+        <!-- Log Console -->
+        <div class="log-console" id="log-console">
+            <div class="log-entry">
+                <span class="log-time">[00:00:00]</span>
+                <span class="log-level info">[INFO]</span>
+                <span>Canvas2D Editor Test 시작...</span>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            SHERLOCK_SKY_3DSIM © 2025 | Phase 2.1 Test Suite
+        </div>
+    </div>
+
+    <!-- Canvas2DEditor Script -->
+    <!-- 경로 수정: tests 폴더 또는 src 폴더에서 로드 -->
+    <script src="../src/layout_editor/components/Canvas2DEditor.js"></script>
+    <!-- 만약 tests 폴더에 있다면: -->
+    <!-- <script src="Canvas2DEditor.js"></script> -->
+
+    <!-- Test Script -->
+    <script>
+        // Global variables
+        let editor = null;
+        const templateSelect = document.getElementById('template-select');
+        const loadBtn = document.getElementById('load-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const testGridBtn = document.getElementById('test-grid-btn');
+        const logConsole = document.getElementById('log-console');
+
+        // Logger
+        function log(message, level = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `
+                <span class="log-time">[${timestamp}]</span>
+                <span class="log-level ${level}">[${level.toUpperCase()}]</span>
+                <span>${message}</span>
+            `;
+            logConsole.appendChild(logEntry);
+            logConsole.scrollTop = logConsole.scrollHeight;
+            
+            // Console에도 출력
+            console.log(`[${level.toUpperCase()}] ${message}`);
+        }
+
+        // Update UI
+        function updateUI(status, template, equipmentCount) {
+            document.getElementById('canvas-status').innerHTML = status;
+            document.getElementById('current-template').textContent = template || 'None';
+            document.getElementById('equipment-count').textContent = equipmentCount || 0;
+        }
+
+        // Initialize Canvas2D Editor
+        function initEditor() {
+            try {
+                log('Canvas2DEditor 초기화 중...', 'info');
+                
+                editor = new Canvas2DEditor('canvas2d-container', {
+                    width: 1200,
+                    height: 800,
+                    scale: 10,
+                    gridSize: 10,
+                    gridMajorInterval: 10
+                });
+                
+                log('Canvas2DEditor 초기화 성공!', 'success');
+                updateUI('<span class="status success">Ready</span>', null, 0);
+            } catch (error) {
+                log(`Canvas2DEditor 초기화 실패: ${error.message}`, 'error');
+                updateUI('<span class="status error">Error</span>', null, 0);
+            }
+        }
+
+        // Load Template
+        async function loadTemplate(templateName) {
+            try {
+                log(`Template 로드 시작: ${templateName}`, 'info');
+                updateUI('<span class="status loading">Loading...</span>', null, 0);
+                
+                // ✅ 경로 수정: public/layouts/templates/ 폴더에서 로드
+                const templatePath = `../public/layouts/templates/${templateName}.json`;
+                
+                log(`Template 경로: ${templatePath}`, 'info');
+                
+                // Fetch template JSON
+                const response = await fetch(templatePath);
+                
+                if (!response.ok) {
+                    throw new Error(`Template 파일을 찾을 수 없습니다: ${templatePath}\n\n파일이 다음 위치에 있는지 확인하세요:\n- public/layouts/templates/${templateName}.json\n\n또는 tests 폴더에 파일을 복사하세요.`);
+                }
+                
+                const layoutData = await response.json();
+                log(`Template JSON 파싱 성공`, 'success');
+                
+                // Load into editor
+                editor.loadLayout(layoutData);
+                
+                // Update UI
+                const equipmentCount = layoutData.metadata?.totalEquipment || 0;
+                updateUI(
+                    '<span class="status success">Loaded</span>',
+                    layoutData.template_name,
+                    equipmentCount
+                );
+                
+                log(`Template 로드 완료! (설비 ${equipmentCount}개)`, 'success');
+            } catch (error) {
+                log(`Template 로드 실패: ${error.message}`, 'error');
+                updateUI('<span class="status error">Load Failed</span>', null, 0);
+                alert(`Template 로드 실패:\n\n${error.message}\n\n해결 방법:\n1. public/layouts/templates/ 폴더에 Template 파일이 있는지 확인\n2. 또는 Template 파일들을 tests/ 폴더에 복사\n3. HTTP 서버가 올바른 위치에서 실행 중인지 확인`);
+            }
+        }
+
+        // Event Listeners
+        templateSelect.addEventListener('change', function() {
+            loadBtn.disabled = !this.value;
+        });
+
+        loadBtn.addEventListener('click', function() {
+            const templateName = templateSelect.value;
+            if (templateName) {
+                loadTemplate(templateName);
+            }
+        });
+
+        clearBtn.addEventListener('click', function() {
+            if (editor) {
+                editor.clear();
+                log('Canvas 클리어 완료', 'info');
+                updateUI('<span class="status success">Ready</span>', null, 0);
+                templateSelect.value = '';
+                loadBtn.disabled = true;
+            }
+        });
+
+        testGridBtn.addEventListener('click', function() {
+            if (editor) {
+                editor.clear();
+                log('그리드만 표시 (테스트 모드)', 'info');
+                updateUI('<span class="status success">Grid Only</span>', 'None', 0);
+            }
+        });
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            log('페이지 로드 완료', 'success');
+            
+            // Check Konva.js
+            if (typeof Konva === 'undefined') {
+                log('Konva.js가 로드되지 않았습니다!', 'error');
+                alert('Konva.js 라이브러리가 로드되지 않았습니다. CDN 연결을 확인하세요.');
+                return;
+            }
+            
+            log('Konva.js 로드 확인 완료', 'success');
+            
+            // Initialize editor
+            initEditor();
+        });
+
+        // Resize handling
+        window.addEventListener('resize', function() {
+            // Optional: Auto-resize canvas (나중에 구현 가능)
+        });
+    </script>
+</body>
+</html>

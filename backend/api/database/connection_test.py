@@ -1006,6 +1006,113 @@ class DatabaseConnectionManager:
         
         # active_connections.json 업데이트
         self._save_active_connections()
+
+    
+    def get_equipment_state(self, site_name: str, db_name: str = None, equipment_id: int = None) -> Dict[str, Any]:
+        """
+        설비 상태 조회 (log.EquipmentState 테이블)
+        
+        Phase 1: 신규 추가 메서드
+        기존 기능에 영향 없음
+        
+        Args:
+            site_name: 사이트 이름
+            db_name: 데이터베이스 이름 (None이면 활성 연결의 DB)
+            equipment_id: 특정 설비 ID (None이면 전체 조회)
+        
+        Returns:
+            dict: {
+                'equipment_states': [
+                    {
+                        'equipment_id': 1,
+                        'status': 'RUN',
+                        'occurred_at': '2025-12-29T12:00:00'
+                    },
+                    ...
+                ],
+                'total': 117
+            }
+        """
+        try:
+            # DB 이름이 없으면 활성 연결에서 가져오기
+            if db_name is None:
+                conn_info = self.get_active_connection_info(site_name)
+                if not conn_info:
+                    raise ValueError(f"No active connection for site: {site_name}")
+                db_name = conn_info['db_name']
+            
+            # 연결 가져오기
+            conn = self.get_connection(site_name, db_name)
+            if not conn:
+                raise ConnectionError(f"Failed to get connection: {site_name}/{db_name}")
+            
+            cursor = conn.cursor()
+            
+            # 쿼리 생성
+            if equipment_id:
+                # 특정 설비만 조회
+                query = """
+                    SELECT 
+                        es.EquipmentID,
+                        es.Status,
+                        es.OccurredAtUtc
+                    FROM log.EquipmentState es
+                    WHERE es.EquipmentID = ?
+                        AND es.OccurredAtUtc = (
+                            SELECT MAX(OccurredAtUtc)
+                            FROM log.EquipmentState
+                            WHERE EquipmentID = es.EquipmentID
+                        )
+                    ORDER BY es.EquipmentID
+                """
+                cursor.execute(query, (equipment_id,))
+            else:
+                # 전체 설비 조회
+                query = """
+                    SELECT 
+                        es.EquipmentID,
+                        es.Status,
+                        es.OccurredAtUtc
+                    FROM log.EquipmentState es
+                    WHERE es.OccurredAtUtc = (
+                        SELECT MAX(OccurredAtUtc)
+                        FROM log.EquipmentState
+                        WHERE EquipmentID = es.EquipmentID
+                    )
+                    ORDER BY es.EquipmentID
+                """
+                cursor.execute(query)
+            
+            rows = cursor.fetchall()
+            cursor.close()
+            
+            # 결과 변환
+            equipment_states = [
+                {
+                    'equipment_id': row[0],
+                    'status': row[1],
+                    'occurred_at': row[2].isoformat() if row[2] else None
+                }
+                for row in rows
+            ]
+            
+            logger.info(f"✅ Equipment state queried: {len(equipment_states)} records from {site_name}/{db_name}")
+            
+            return {
+                'equipment_states': equipment_states,
+                'total': len(equipment_states),
+                'site_name': site_name,
+                'db_name': db_name,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to get equipment state: {e}", exc_info=True)
+            return {
+                'equipment_states': [],
+                'total': 0,
+                'error': str(e)
+            }
     
     def _save_active_connections(self):
         """active_connections.json 파일 저장"""

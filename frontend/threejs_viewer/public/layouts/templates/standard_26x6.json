@@ -1,9 +1,11 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "template_name": "Standard 26×6 Layout",
   "template_id": "standard_26x6",
   "site_id": "template",
   "description": "표준 클린룸 레이아웃 (26행 × 6열, 복도 포함, Office 공간)",
+  "created_at": "2025-01-20T00:00:00Z",
+  
   "canvas": {
     "width": 1200,
     "height": 800,
@@ -12,6 +14,7 @@
     "gridSize": 10,
     "gridColor": "#e0e0e0"
   },
+  
   "room": {
     "width": 40,
     "depth": 60,
@@ -20,22 +23,23 @@
     "floorColor": "#ffffff",
     "wallColor": "#cccccc"
   },
+  
   "walls": [
     {
       "id": "wall_north",
-      "start": { "x": -20, "z": 30 },
-      "end": { "x": 20, "z": 30 },
-      "height": 4.0,
-      "thickness": 0.3,
-      "color": "#cccccc"
-    },
-    {
-      "id": "wall_south",
       "start": { "x": -20, "z": -30 },
       "end": { "x": 20, "z": -30 },
       "height": 4.0,
       "thickness": 0.3,
-      "color": "#cccccc"
+      "color": "#888888"
+    },
+    {
+      "id": "wall_south",
+      "start": { "x": -20, "z": 30 },
+      "end": { "x": 20, "z": 30 },
+      "height": 4.0,
+      "thickness": 0.3,
+      "color": "#888888"
     },
     {
       "id": "wall_east",
@@ -43,7 +47,7 @@
       "end": { "x": 20, "z": 30 },
       "height": 4.0,
       "thickness": 0.3,
-      "color": "#cccccc"
+      "color": "#888888"
     },
     {
       "id": "wall_west",
@@ -51,9 +55,10 @@
       "end": { "x": -20, "z": 30 },
       "height": 4.0,
       "thickness": 0.3,
-      "color": "#cccccc"
+      "color": "#888888"
     }
   ],
+  
   "office": {
     "enabled": true,
     "width": 12,
@@ -62,72 +67,43 @@
     "wallHeight": 3.0,
     "wallThickness": 0.2,
     "wallColor": "#d3d3d3",
-    "floorColor": "#f0f0f0"
+    "floorColor": "#e3f2fd"
   },
+  
   "partitions": [
     {
-      "id": "partition_1",
+      "id": "partition_central",
       "start": { "x": -15, "z": 0 },
       "end": { "x": 15, "z": 0 },
       "height": 2.5,
       "thickness": 0.1,
-      "color": "#e0e0e0",
+      "color": "#cccccc",
+      "opacity": 0.6,
       "description": "중앙 파티션 (Row 13 경계)"
     }
   ],
-  "aisles": [
-    {
-      "id": "aisle_col_2_3",
-      "orientation": "vertical",
-      "position": { "col": 2 },
-      "width": 1.2,
-      "description": "복도: Col 2와 3 사이"
-    },
-    {
-      "id": "aisle_col_4_5",
-      "orientation": "vertical",
-      "position": { "col": 4 },
-      "width": 1.2,
-      "description": "복도: Col 4와 5 사이"
-    },
-    {
-      "id": "aisle_row_13",
-      "orientation": "horizontal",
-      "position": { "row": 13 },
-      "width": 2.0,
-      "description": "복도: Row 13 경계"
-    }
-  ],
+  
   "equipmentArrays": [
     {
       "id": "array_main",
       "rows": 26,
       "cols": 6,
-      "startPosition": { "x": -18, "z": 28 },
+      "startPosition": { "x": -18, "z": -28 },
       "equipmentWidth": 1.2,
       "equipmentDepth": 1.8,
       "spacingX": 1.5,
       "spacingZ": 2.2,
-      "excludedPositions": [
-        { "row": 0, "col": 2, "reason": "복도" },
-        { "row": 0, "col": 4, "reason": "복도" },
-        { "row": 13, "col": 0, "reason": "복도" },
-        { "row": 13, "col": 1, "reason": "복도" },
-        { "row": 13, "col": 2, "reason": "복도" },
-        { "row": 13, "col": 3, "reason": "복도" },
-        { "row": 13, "col": 4, "reason": "복도" },
-        { "row": 13, "col": 5, "reason": "복도" }
-      ],
-      "description": "26×6 메인 설비 배열"
+      "excludedPositions": [],
+      "description": "26×6 메인 설비 배열 (156개 슬롯)"
     }
   ],
+  
   "metadata": {
-    "created_at": "2025-01-20T00:00:00Z",
     "author": "SHERLOCK_SKY_3DSIM",
     "target_use": "Standard cleanroom facility",
-    "total_equipment_slots": 156,
-    "excluded_slots": 10,
-    "active_slots": 146,
-    "notes": "표준 클린룸 레이아웃, 복도 3개 포함, Office 공간 있음"
+    "totalEquipment": 156,
+    "cleanroomClass": "ISO 7",
+    "application": "Semiconductor Manufacturing",
+    "notes": "표준 클린룸 레이아웃, Office 포함"
   }
 }

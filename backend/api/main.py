@@ -24,10 +24,20 @@ setup_logging(
 logger = logging.getLogger(__name__)
 
 # ============================================
-# ⭐ Router Import (수정됨)
+# ⭐ Router Import
 # ============================================
 from .routers.connection_manager import router as connection_router
-from .routers import equipment_mapping  # ⭐ 추가
+from .routers import equipment_mapping
+
+# ⭐ Phase 1: Monitoring Router 추가
+try:
+    from .monitoring import status_router, stream_router
+    MONITORING_ENABLED = True
+    logger.info("✅ Monitoring 모듈 로드 성공")
+except ImportError as e:
+    MONITORING_ENABLED = False
+    logger.warning(f"⚠️ Monitoring 모듈 로드 실패: {e}")
+    logger.info("   → Monitoring 기능 없이 실행됩니다")
 
 # 라이프사이클 관리
 @asynccontextmanager
@@ -67,10 +77,10 @@ app.add_middleware(
 logger.info(f"✓ CORS 설정: {origins_list}")
 
 # ============================================
-# ⭐ Router 등록 (수정됨)
+# ⭐ Router 등록
 # ============================================
 
-# Connection Manager Router
+# Connection Manager Router (기존)
 app.include_router(
     connection_router,
     prefix="/api/connections",
@@ -78,7 +88,7 @@ app.include_router(
 )
 logger.info("✓ Connection Manager Router 등록 완료")
 
-# ⭐ Equipment Mapping Router (새로 추가)
+# Equipment Mapping Router (기존)
 app.include_router(
     equipment_mapping.router,
     prefix="/api",
@@ -86,28 +96,54 @@ app.include_router(
 )
 logger.info("✓ Equipment Mapping Router 등록 완료")
 
+# ⭐ Phase 1: Monitoring Router 등록 (신규)
+if MONITORING_ENABLED:
+    app.include_router(
+        status_router,
+        tags=["Monitoring"]
+    )
+    app.include_router(
+        stream_router,
+        tags=["Monitoring WebSocket"]
+    )
+    logger.info("✅ Monitoring Router 등록 완료")
+else:
+    logger.warning("⚠️ Monitoring Router 미등록 (모듈 로드 실패)")
+
 
 @app.get("/")
 async def root():
     """API 루트"""
+    endpoints = {
+        # Connection endpoints (기존)
+        "sites": "/api/connections/sites",
+        "profiles": "/api/connections/profiles",
+        "test_connection": "/api/connections/test-connection",
+        "test_profile": "/api/connections/test-profile",
+        "test_all": "/api/connections/test-all",
+        "status": "/api/connections/status",
+        # Equipment Mapping endpoints (기존)
+        "equipment_names": "/api/equipment/names",
+        "equipment_mapping": "/api/equipment/mapping",
+        "equipment_mapping_validate": "/api/equipment/mapping/validate"
+    }
+    
+    # ⭐ Phase 1: Monitoring endpoints 추가 (조건부)
+    if MONITORING_ENABLED:
+        endpoints.update({
+            "monitoring_health": "/api/monitoring/health",
+            "monitoring_status": "/api/monitoring/status",
+            "monitoring_status_by_id": "/api/monitoring/status/{equipment_id}",
+            "monitoring_stream": "ws://localhost:8000/api/monitoring/stream"
+        })
+    
     return {
         "name": "SHERLOCK_SKY_3DSIM Connection Test API",
         "version": "1.0.0",
         "description": "데이터베이스 연결 테스트 전용",
         "docs": "/docs",
-        "endpoints": {
-            # Connection endpoints
-            "sites": "/api/connections/sites",
-            "profiles": "/api/connections/profiles",
-            "test_connection": "/api/connections/test-connection",
-            "test_profile": "/api/connections/test-profile",
-            "test_all": "/api/connections/test-all",
-            "status": "/api/connections/status",
-            # ⭐ Equipment Mapping endpoints (새로 추가)
-            "equipment_names": "/api/equipment/names",
-            "equipment_mapping": "/api/equipment/mapping",
-            "equipment_mapping_validate": "/api/equipment/mapping/validate"
-        }
+        "monitoring_enabled": MONITORING_ENABLED,
+        "endpoints": endpoints
     }
 
 
@@ -116,7 +152,8 @@ async def health():
     """헬스 체크"""
     return {
         "status": "healthy",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
+        "monitoring_enabled": MONITORING_ENABLED
     }
 
 

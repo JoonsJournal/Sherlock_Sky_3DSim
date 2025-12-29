@@ -1,0 +1,445 @@
+/**
+ * canvas-editor.css
+ * ==================
+ * Canvas2DEditor 전용 스타일
+ * 
+ * 기존 CSS 파일들과 색상 팔레트 통일:
+ * - modal.css
+ * - connection-panel.css
+ * - toast.css
+ * - equipment-edit.css
+ * 
+ * 위치: frontend/threejs_viewer/src/styles/canvas-editor.css
+ */
+
+/* ============================================
+   CSS 변수 정의 (기존 스타일 통합)
+   ============================================ */
+
+:root {
+    /* Primary Colors (modal.css, connection-panel.css와 동일) */
+    --canvas-primary-start: #667eea;
+    --canvas-primary-end: #764ba2;
+    --canvas-primary: #667eea;
+    
+    /* Equipment Colors */
+    --canvas-equipment-default: #4a90e2;      /* 기본 설비 색상 */
+    --canvas-equipment-selected: #FFD700;     /* 선택된 설비 (노란색) */
+    --canvas-equipment-hover: #3498db;        /* 호버 상태 */
+    --canvas-equipment-stroke: #2c3e50;       /* 테두리 */
+    
+    /* State Colors (toast.css, equipment-edit.css와 동일) */
+    --canvas-success: #2ecc71;                /* 성공/녹색 */
+    --canvas-danger: #e74c3c;                 /* 위험/빨간색 */
+    --canvas-warning: #f39c12;                /* 경고/주황색 */
+    --canvas-info: #3498db;                   /* 정보/파란색 */
+    
+    /* Transformer Colors */
+    --canvas-transformer-border: #667eea;     /* Primary 색상 사용 */
+    --canvas-transformer-anchor-stroke: #667eea;
+    --canvas-transformer-anchor-fill: #ffffff;
+    --canvas-transformer-anchor-size: 10px;
+    
+    /* Grid Colors */
+    --canvas-bg: #f5f5f5;
+    --canvas-grid-minor: #d0d0d0;
+    --canvas-grid-major: #a0a0a0;
+    --canvas-grid-label: #999999;
+    
+    /* Selection Box (드래그 박스) */
+    --canvas-selection-stroke: #667eea;       /* Primary 색상 */
+    --canvas-selection-fill: rgba(102, 126, 234, 0.1);
+    --canvas-selection-dash: 5;
+    
+    /* Coordinate Label */
+    --canvas-coord-bg: #667eea;               /* Primary 색상 */
+    --canvas-coord-text: #ffffff;
+    --canvas-coord-shadow: rgba(0, 0, 0, 0.3);
+    
+    /* Room & Structure */
+    --canvas-room-stroke: #666666;
+    --canvas-wall-default: #888888;
+    --canvas-office-fill: #d4e6f1;
+    --canvas-office-stroke: #3498db;
+    --canvas-partition: #aaaaaa;
+    
+    /* Text Colors */
+    --canvas-text-primary: #212529;
+    --canvas-text-secondary: #6c757d;
+    --canvas-text-light: #ffffff;
+}
+
+/* ============================================
+   Canvas Wrapper Styles
+   ============================================ */
+
+.canvas-wrapper {
+    position: relative;
+    display: inline-block;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: var(--canvas-bg);
+}
+
+.canvas-wrapper.active {
+    border-color: var(--canvas-primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+/* ============================================
+   Equipment State Classes (Konva에서 사용)
+   ============================================ */
+
+/* 이 클래스들은 직접 적용되지 않지만,
+   JavaScript에서 getComputedStyle()로 색상 값을 읽어옵니다 */
+
+.equipment-default {
+    fill: var(--canvas-equipment-default);
+    stroke: var(--canvas-equipment-stroke);
+}
+
+.equipment-selected {
+    fill: var(--canvas-equipment-selected);
+    stroke: var(--canvas-equipment-stroke);
+    stroke-width: 3;
+}
+
+.equipment-hover {
+    fill: var(--canvas-equipment-hover);
+    stroke: var(--canvas-equipment-stroke);
+}
+
+/* ============================================
+   Selection Box Classes
+   ============================================ */
+
+.selection-box {
+    stroke: var(--canvas-selection-stroke);
+    fill: var(--canvas-selection-fill);
+}
+
+/* ============================================
+   Transformer Classes
+   ============================================ */
+
+.transformer-border {
+    stroke: var(--canvas-transformer-border);
+}
+
+.transformer-anchor {
+    stroke: var(--canvas-transformer-anchor-stroke);
+    fill: var(--canvas-transformer-anchor-fill);
+}
+
+/* ============================================
+   Coordinate Label Classes
+   ============================================ */
+
+.coord-label-bg {
+    fill: var(--canvas-coord-bg);
+}
+
+.coord-label-text {
+    fill: var(--canvas-coord-text);
+}
+
+/* ============================================
+   UI Controls (버튼, 토글 등)
+   ============================================ */
+
+.canvas-toolbar {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    background: #fafafa;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.canvas-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.canvas-btn-primary {
+    background: linear-gradient(90deg, var(--canvas-primary-start) 0%, var(--canvas-primary-end) 100%);
+    color: white;
+}
+
+.canvas-btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.canvas-btn-success {
+    background: var(--canvas-success);
+    color: white;
+}
+
+.canvas-btn-success:hover:not(:disabled) {
+    background: #27ae60;
+    transform: translateY(-2px);
+}
+
+.canvas-btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.canvas-btn-secondary:hover:not(:disabled) {
+    background: #5a6268;
+}
+
+.canvas-btn-danger {
+    background: var(--canvas-danger);
+    color: white;
+}
+
+.canvas-btn-danger:hover:not(:disabled) {
+    background: #c0392b;
+}
+
+.canvas-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Toggle Buttons
+   ============================================ */
+
+.canvas-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: #e9ecef;
+    border: 2px solid #dee2e6;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--canvas-text-secondary);
+}
+
+.canvas-toggle:hover {
+    border-color: var(--canvas-primary);
+    background: #f8f9ff;
+}
+
+.canvas-toggle.active {
+    background: var(--canvas-primary);
+    border-color: var(--canvas-primary);
+    color: white;
+}
+
+.canvas-toggle-icon {
+    font-size: 16px;
+}
+
+/* ============================================
+   Status Bar
+   ============================================ */
+
+.canvas-status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    font-size: 13px;
+    color: var(--canvas-text-secondary);
+}
+
+.canvas-status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.canvas-status-badge {
+    background: var(--canvas-success);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    min-width: 20px;
+    text-align: center;
+}
+
+.canvas-status-badge.warning {
+    background: var(--canvas-warning);
+}
+
+.canvas-status-badge.danger {
+    background: var(--canvas-danger);
+}
+
+/* ============================================
+   Test Checklist (test_object_selection.html용)
+   ============================================ */
+
+.canvas-test-item {
+    padding: 10px;
+    margin-bottom: 8px;
+    background: white;
+    border-left: 4px solid #9E9E9E;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.canvas-test-item.pass {
+    border-left-color: var(--canvas-success);
+    background: #e8f5e9;
+}
+
+.canvas-test-item.fail {
+    border-left-color: var(--canvas-danger);
+    background: #ffebee;
+}
+
+/* ============================================
+   Info Boxes
+   ============================================ */
+
+.canvas-info-box {
+    padding: 15px;
+    background: #f0f8ff;
+    border-left: 4px solid var(--canvas-info);
+    border-radius: 6px;
+    margin: 16px 0;
+}
+
+.canvas-info-box.success {
+    background: #e8f5e9;
+    border-left-color: var(--canvas-success);
+}
+
+.canvas-info-box.warning {
+    background: #fff3cd;
+    border-left-color: var(--canvas-warning);
+}
+
+.canvas-info-box.danger {
+    background: #ffebee;
+    border-left-color: var(--canvas-danger);
+}
+
+.canvas-info-box h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--canvas-text-primary);
+}
+
+.canvas-info-box p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--canvas-text-secondary);
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+
+@media (max-width: 768px) {
+    .canvas-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .canvas-status-bar {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
+
+    .canvas-wrapper {
+        width: 100% !important;
+        max-width: 100%;
+    }
+}
+
+/* ============================================
+   Animation Utilities
+   ============================================ */
+
+@keyframes canvas-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes canvas-shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-5px);
+    }
+    75% {
+        transform: translateX(5px);
+    }
+}
+
+.canvas-pulse {
+    animation: canvas-pulse 1.5s ease-in-out infinite;
+}
+
+.canvas-shake {
+    animation: canvas-shake 0.5s ease-in-out;
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+
+.canvas-hidden {
+    display: none !important;
+}
+
+.canvas-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+.canvas-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.canvas-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 40px;
+    margin: -20px 0 0 -20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid var(--canvas-primary);
+    border-radius: 50%;
+    animation: canvas-spin 1s linear infinite;
+}
+
+@keyframes canvas-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
