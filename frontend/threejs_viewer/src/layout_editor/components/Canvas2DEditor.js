@@ -61,6 +61,7 @@ class Canvas2DEditor {
 
         this.equipmentShapes = new Map();
         this.wallShapes = new Map();
+        this.componentShapes = new Map();  // ✨ Phase 2.6: ComponentPalette 객체용
         
         this.selectedObjects = [];
         this.transformer = null;
@@ -347,6 +348,7 @@ class Canvas2DEditor {
         
         this.equipmentShapes.clear();
         this.wallShapes.clear();
+        this.componentShapes.clear();  // ✨ Phase 2.6
         this.selectedObjects = [];
 
         if (layoutData.room) {
@@ -990,10 +992,14 @@ class Canvas2DEditor {
         this.selectedObjects.forEach(shape => {
             const id = shape.id();
             
+            // ✨ Phase 2.6: 각 Map에서 삭제 시도
             if (shape.name() === 'equipment') {
                 this.equipmentShapes.delete(id);
             } else if (shape.name() === 'wall') {
                 this.wallShapes.delete(id);
+            } else {
+                // ComponentPalette로 생성된 객체들
+                this.componentShapes.delete(id);
             }
             
             shape.destroy();
@@ -1015,6 +1021,7 @@ class Canvas2DEditor {
         
         this.equipmentShapes.clear();
         this.wallShapes.clear();
+        this.componentShapes.clear();  // ✨ Phase 2.6
         this.selectedObjects = [];
         
         this.currentLayout = null;
@@ -1125,7 +1132,8 @@ class Canvas2DEditor {
         return {
             walls: this.wallShapes.size,
             equipments: this.equipmentShapes.size,
-            total: this.wallShapes.size + this.equipmentShapes.size
+            components: this.componentShapes.size,  // ✨ Phase 2.6
+            total: this.wallShapes.size + this.equipmentShapes.size + this.componentShapes.size
         };
     }
 
@@ -1174,8 +1182,465 @@ class Canvas2DEditor {
     selectShape(shape) {
         this.selectObject(shape, false);
     }
+
+    // =====================================================
+    // ✨ v1.1.0: EquipmentArrayTool 통합 메서드들
+    // =====================================================
+
+    /**
+     * ✨ v1.1.0: EquipmentArrayTool 초기화
+     * @param {EquipmentArrayTool} equipmentArrayTool - EquipmentArrayTool 인스턴스
+     */
+    initEquipmentArrayTool(equipmentArrayTool) {
+        this.equipmentArrayTool = equipmentArrayTool;
+        console.log('[Canvas2DEditor] EquipmentArrayTool 초기화 완료');
+    }
+
+    /**
+     * ✨ v1.1.0: EquipmentArrayTool 활성화
+     * @param {Object} config - 배열 설정
+     */
+    activateEquipmentArrayTool(config) {
+        if (!this.equipmentArrayTool) {
+            console.error('[Canvas2DEditor] EquipmentArrayTool이 초기화되지 않았습니다');
+            return;
+        }
+
+        // 다른 도구 비활성화
+        this.deactivateAllTools();
+
+        // EquipmentArrayTool 활성화
+        this.equipmentArrayTool.activate(config);
+        
+        console.log('[Canvas2DEditor] EquipmentArrayTool 활성화');
+    }
+
+    /**
+     * ✨ v1.1.0: 모든 도구 비활성화 (기존 메서드 확장)
+     */
+    deactivateAllTools() {
+        // EquipmentArrayTool 비활성화
+        if (this.equipmentArrayTool && this.equipmentArrayTool.isToolActive()) {
+            this.equipmentArrayTool.deactivate();
+        }
+
+        // 기존 도구 비활성화 로직 (WallDrawTool 등)
+        // 이 부분은 기존 코드에 있다면 유지, 없다면 추가
+        
+        console.log('[Canvas2DEditor] 모든 도구 비활성화');
+    }
+
+    /**
+     * ✨ v1.1.0: Equipment Array 데이터 가져오기
+     * @returns {Array} Equipment Array 목록
+     */
+    getEquipmentArrays() {
+        const arrays = [];
+        const arrayGroups = this.layers.equipment.find('.equipmentArray');
+        
+        arrayGroups.forEach(group => {
+            const config = group.getAttr('arrayConfig');
+            const position = group.position();
+            
+            arrays.push({
+                id: group._id,
+                position: position,
+                config: config,
+                equipmentCount: group.children.length
+            });
+        });
+
+        return arrays;
+    }
+
+    /**
+     * ✨ v1.1.0: 전체 Equipment 개수 가져오기 (배열 + 개별)
+     * @returns {number}
+     */
+    getTotalEquipmentCount() {
+        const allEquipment = this.layers.equipment.find('.equipment');
+        return allEquipment.length;
+    }
+
+    // =====================================================
+    // ✨ Phase 2.6: ComponentPalette 통합 메서드들
+    // =====================================================
+
+    /**
+     * ✨ Phase 2.6: Canvas를 Drop Zone으로 설정
+     */
+    enableDropZone() {
+        const container = this.stage.container();
+        
+        // dragover 이벤트: Drop을 허용하기 위해 preventDefault
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            container.classList.add('drag-over');
+        });
+        
+        // dragleave 이벤트: 시각적 피드백 제거
+        container.addEventListener('dragleave', (e) => {
+            container.classList.remove('drag-over');
+        });
+        
+        // drop 이벤트: 실제 객체 생성
+        container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            container.classList.remove('drag-over');
+            this.handleDrop(e);
+        });
+        
+        // Drop Zone 클래스 추가 (CSS용)
+        container.classList.add('canvas-drop-zone');
+        
+        console.log('[Canvas2DEditor] Drop Zone 활성화');
+    }
+
+    /**
+     * ✨ Phase 2.6: Drop 이벤트 처리
+     * @param {DragEvent} event - Drop 이벤트
+     */
+    handleDrop(event) {
+        try {
+            // 드래그 데이터 가져오기
+            const data = event.dataTransfer.getData('text/plain');
+            if (!data) {
+                console.warn('[Canvas2DEditor] Drop 데이터가 없습니다');
+                return;
+            }
+            
+            const component = JSON.parse(data);
+            console.log('[Canvas2DEditor] Drop 감지:', component.name);
+            
+            // Canvas 좌표 계산
+            const rect = this.stage.container().getBoundingClientRect();
+            const stagePos = this.stage.position();
+            const scale = this.stage.scaleX();
+            
+            const x = (event.clientX - rect.left - stagePos.x) / scale;
+            const y = (event.clientY - rect.top - stagePos.y) / scale;
+            
+            console.log('[Canvas2DEditor] Drop 위치:', { x, y });
+            
+            // 컴포넌트 타입에 따라 객체 생성
+            this.createComponentFromType(component.id, x, y, component);
+            
+        } catch (error) {
+            console.error('[Canvas2DEditor] Drop 처리 중 오류:', error);
+        }
+    }
+
+    /**
+     * ✨ Phase 2.6: 타입별 컴포넌트 생성
+     * @param {string} type - 컴포넌트 타입
+     * @param {number} x - X 좌표
+     * @param {number} y - Y 좌표
+     * @param {Object} componentData - 컴포넌트 데이터
+     */
+    createComponentFromType(type, x, y, componentData) {
+        let shape = null;
+        
+        switch (type) {
+            case 'partition':
+                shape = this.createPartition(x, y, componentData);
+                break;
+            case 'desk':
+                shape = this.createDesk(x, y, componentData);
+                break;
+            case 'pillar':
+                shape = this.createPillar(x, y, componentData);
+                break;
+            case 'office':
+                shape = this.createOffice(x, y, componentData);
+                break;
+            case 'equipment':
+                shape = this.createEquipment(x, y, componentData);
+                break;
+            default:
+                console.warn('[Canvas2DEditor] 알 수 없는 컴포넌트 타입:', type);
+                return;
+        }
+        
+        if (shape) {
+            // 자동 선택
+            this.selectObject(shape, false);
+            console.log('[Canvas2DEditor] 컴포넌트 생성 완료:', type);
+        }
+    }
+
+    /**
+     * ✨ Phase 2.6: Partition 생성 (3×2.5m)
+     * @param {number} x - X 좌표
+     * @param {number} y - Y 좌표
+     * @param {Object} data - 컴포넌트 데이터
+     * @returns {Konva.Rect}
+     */
+    createPartition(x, y, data) {
+        const scale = this.config.scale;
+        const width = data.width * scale;   // 30px
+        const height = data.depth * scale;  // 25px
+        
+        // 고유 ID 생성
+        const id = `partition-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        const partition = new Konva.Rect({
+            id: id,
+            x: x - width / 2,
+            y: y - height / 2,
+            width: width,
+            height: height,
+            fill: data.color || '#888888',
+            stroke: '#666666',
+            strokeWidth: 2,
+            draggable: true,
+            name: 'partition'
+        });
+        
+        partition.setAttr('componentType', 'partition');
+        partition.setAttr('componentData', data);
+        
+        // ✅ 클릭 이벤트 추가
+        partition.on('click tap', () => {
+            this.selectObject(partition, false);
+        });
+        
+        // Snap to Grid
+        if (this.config.snapToGrid) {
+            this.snapShapeToGrid(partition);
+        }
+        
+        // ✅ Map에 추가 (카운트를 위해)
+        this.componentShapes.set(id, partition);
+        
+        this.layers.room.add(partition);
+        this.layers.room.batchDraw();
+        
+        return partition;
+    }
+
+    /**
+     * ✨ Phase 2.6: Desk 생성 (1.6×0.8m)
+     * @param {number} x - X 좌표
+     * @param {number} y - Y 좌표
+     * @param {Object} data - 컴포넌트 데이터
+     * @returns {Konva.Rect}
+     */
+    createDesk(x, y, data) {
+        const scale = this.config.scale;
+        const width = data.width * scale;   // 16px
+        const height = data.depth * scale;  // 8px
+        
+        // 고유 ID 생성
+        const id = `desk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        const desk = new Konva.Rect({
+            id: id,
+            x: x - width / 2,
+            y: y - height / 2,
+            width: width,
+            height: height,
+            fill: data.color || '#8B4513',
+            stroke: '#654321',
+            strokeWidth: 2,
+            draggable: true,
+            name: 'desk'
+        });
+        
+        desk.setAttr('componentType', 'desk');
+        desk.setAttr('componentData', data);
+        
+        // ✅ 클릭 이벤트 추가
+        desk.on('click tap', () => {
+            this.selectObject(desk, false);
+        });
+        
+        // Snap to Grid
+        if (this.config.snapToGrid) {
+            this.snapShapeToGrid(desk);
+        }
+        
+        // ✅ Map에 추가 (카운트를 위해)
+        this.componentShapes.set(id, desk);
+        
+        this.layers.room.add(desk);
+        this.layers.room.batchDraw();
+        
+        return desk;
+    }
+
+    /**
+     * ✨ Phase 2.6: Pillar 생성 (0.3×0.3m)
+     * @param {number} x - X 좌표
+     * @param {number} y - Y 좌표
+     * @param {Object} data - 컴포넌트 데이터
+     * @returns {Konva.Rect}
+     */
+    createPillar(x, y, data) {
+        const scale = this.config.scale;
+        const width = data.width * scale;   // 3px
+        const height = data.depth * scale;  // 3px
+        
+        // 고유 ID 생성
+        const id = `pillar-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        const pillar = new Konva.Rect({
+            id: id,
+            x: x - width / 2,
+            y: y - height / 2,
+            width: width,
+            height: height,
+            fill: data.color || '#333333',
+            stroke: '#000000',
+            strokeWidth: 2,
+            draggable: true,
+            name: 'pillar'
+        });
+        
+        pillar.setAttr('componentType', 'pillar');
+        pillar.setAttr('componentData', data);
+        
+        // ✅ 클릭 이벤트 추가
+        pillar.on('click tap', () => {
+            this.selectObject(pillar, false);
+        });
+        
+        // Snap to Grid
+        if (this.config.snapToGrid) {
+            this.snapShapeToGrid(pillar);
+        }
+        
+        // ✅ Map에 추가 (카운트를 위해)
+        this.componentShapes.set(id, pillar);
+        
+        this.layers.room.add(pillar);
+        this.layers.room.batchDraw();
+        
+        return pillar;
+    }
+
+    /**
+     * ✨ Phase 2.6: Office 생성 (12×20m)
+     * @param {number} x - X 좌표
+     * @param {number} y - Y 좌표
+     * @param {Object} data - 컴포넌트 데이터
+     * @returns {Konva.Rect}
+     */
+    createOffice(x, y, data) {
+        const scale = this.config.scale;
+        const width = data.width * scale;   // 120px
+        const height = data.depth * scale;  // 200px
+        
+        // 고유 ID 생성
+        const id = `office-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        const office = new Konva.Rect({
+            id: id,
+            x: x - width / 2,
+            y: y - height / 2,
+            width: width,
+            height: height,
+            fill: data.color || '#87CEEB',
+            opacity: 0.5,
+            stroke: '#3498db',
+            strokeWidth: 3,
+            draggable: true,
+            name: 'office officeRect'
+        });
+        
+        office.setAttr('componentType', 'office');
+        office.setAttr('componentData', data);
+        
+        // ✅ 클릭 이벤트 추가
+        office.on('click tap', () => {
+            this.selectObject(office, false);
+        });
+        
+        // Snap to Grid
+        if (this.config.snapToGrid) {
+            this.snapShapeToGrid(office);
+        }
+        
+        // ✅ Map에 추가 (카운트를 위해)
+        this.componentShapes.set(id, office);
+        
+        this.layers.room.add(office);
+        this.layers.room.batchDraw();
+        
+        return office;
+    }
+
+    /**
+     * ✨ Phase 2.6: Equipment 생성 (1.5×3.0m)
+     * @param {number} x - X 좌표
+     * @param {number} y - Y 좌표
+     * @param {Object} data - 컴포넌트 데이터
+     * @returns {Konva.Rect}
+     */
+    createEquipment(x, y, data) {
+        const scale = this.config.scale;
+        const width = data.width * scale;   // 15px
+        const height = data.depth * scale;  // 30px
+        
+        // Equipment ID 생성
+        const equipmentId = `EQ-CUSTOM-${Date.now()}`;
+        
+        const equipment = new Konva.Rect({
+            id: equipmentId,
+            x: x - width / 2,
+            y: y - height / 2,
+            width: width,
+            height: height,
+            fill: data.color || '#FF8C00',
+            stroke: '#CC6600',
+            strokeWidth: 2,
+            draggable: true,
+            name: 'equipment equipmentRect'
+        });
+        
+        equipment.setAttr('componentType', 'equipment');
+        equipment.setAttr('componentData', data);
+        
+        // ✅ 클릭 이벤트 추가
+        equipment.on('click tap', () => {
+            this.selectObject(equipment, false);
+        });
+        
+        // Snap to Grid
+        if (this.config.snapToGrid) {
+            this.snapShapeToGrid(equipment);
+        }
+        
+        // ✅ Map에 추가
+        this.equipmentShapes.set(equipmentId, equipment);
+        
+        this.layers.equipment.add(equipment);
+        this.layers.equipment.batchDraw();
+        
+        return equipment;
+    }
+
+    /**
+     * ✨ Phase 2.6: Shape를 Grid에 정렬
+     * @param {Konva.Shape} shape - 정렬할 Shape
+     */
+    snapShapeToGrid(shape) {
+        const gridSize = this.config.gridSize;
+        const pos = shape.position();
+        
+        const snappedX = Math.round(pos.x / gridSize) * gridSize;
+        const snappedY = Math.round(pos.y / gridSize) * gridSize;
+        
+        shape.position({ x: snappedX, y: snappedY });
+    }
 }
 
+// ✅ ES6 모듈 export (브라우저 환경)
+if (typeof module === 'undefined') {
+    window.Canvas2DEditor = Canvas2DEditor;
+}
+
+// CommonJS export (Node.js 환경)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = Canvas2DEditor;
 }

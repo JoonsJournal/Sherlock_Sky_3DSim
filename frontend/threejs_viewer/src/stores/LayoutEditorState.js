@@ -5,7 +5,10 @@
  * Layout Editor의 전역 상태를 관리하고 상태 변경을 감시합니다.
  * 
  * @module LayoutEditorState
- * @version 1.0.0
+ * @version 1.1.0
+ * 
+ * ✨ v1.1.0 신규 기능:
+ * - ✅ equipmentArrayConfig 상태 추가 (EquipmentArrayTool 지원)
  */
 
 class LayoutEditorState {
@@ -23,7 +26,23 @@ class LayoutEditorState {
             autoSaveEnabled: true,       // 자동 저장 활성화 여부
             showGrid: true,              // 그리드 표시 여부
             snapToGrid: true,            // Snap to Grid 활성화 여부
-            gridSize: 10                 // 그리드 크기 (픽셀)
+            gridSize: 10,                // 그리드 크기 (픽셀)
+            
+            // ✨ v1.1.0: Equipment Array 설정
+            equipmentArrayConfig: {
+                rows: 26,
+                cols: 6,
+                equipmentSize: {
+                    width: 1.5,          // m
+                    depth: 3.0           // m
+                },
+                spacing: 0.5,            // m
+                corridorCols: [2, 4],    // 복도 위치 (열)
+                corridorColWidth: 1.2,   // 복도 폭 (열 방향)
+                corridorRows: [13],      // 복도 위치 (행)
+                corridorRowWidth: 2.0,   // 복도 폭 (행 방향)
+                excludedPositions: []    // 제외 위치 [{row, col}, ...]
+            }
         };
 
         // 이벤트 리스너 맵: { key: Set([callback1, callback2, ...]) }
@@ -342,6 +361,29 @@ class LayoutEditorState {
     }
 
     /**
+     * ✨ v1.1.0: Equipment Array 설정 업데이트
+     * 
+     * @param {Object} config - 배열 설정 객체
+     */
+    updateEquipmentArrayConfig(config) {
+        this.state.equipmentArrayConfig = {
+            ...this.state.equipmentArrayConfig,
+            ...config
+        };
+        
+        console.log('[LayoutEditorState] Equipment Array Config updated:', this.state.equipmentArrayConfig);
+    }
+
+    /**
+     * ✨ v1.1.0: Equipment Array 설정 가져오기
+     * 
+     * @returns {Object} 현재 배열 설정
+     */
+    getEquipmentArrayConfig() {
+        return { ...this.state.equipmentArrayConfig };
+    }
+
+    /**
      * 현재 상태를 JSON 형태로 내보냅니다.
      * 
      * @returns {Object} 상태 스냅샷
@@ -356,7 +398,8 @@ class LayoutEditorState {
             autoSaveEnabled: this.state.autoSaveEnabled,
             showGrid: this.state.showGrid,
             snapToGrid: this.state.snapToGrid,
-            gridSize: this.state.gridSize
+            gridSize: this.state.gridSize,
+            equipmentArrayConfig: this.state.equipmentArrayConfig
         };
     }
 
@@ -392,7 +435,8 @@ class LayoutEditorState {
             autoSaveEnabled: this.state.autoSaveEnabled,
             showGrid: this.state.showGrid,
             snapToGrid: this.state.snapToGrid,
-            gridSize: this.state.gridSize
+            gridSize: this.state.gridSize,
+            equipmentArrayConfig: this.state.equipmentArrayConfig
         });
 
         console.log('[LayoutEditorState] Active Listeners:', {

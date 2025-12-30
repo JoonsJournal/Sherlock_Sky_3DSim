@@ -1,25 +1,33 @@
 /**
  * LayoutEditorMain.js
  * Phase 1.5: Layout Editor 시스템의 진입점이자 메인 컨트롤러
+ * Phase 2.6: ComponentPalette 통합
  * 
  * 주요 역할:
  * 1. Site 선택 시 Layout 파일 존재 여부 확인
  * 2. 기존 Layout 로드 또는 Template 선택 분기
  * 3. Editor/Viewer 모드 전환 제어
  * 4. UI 컴포넌트 표시/숨김 관리
+ * 5. ComponentPalette 초기화 및 관리 (✨ Phase 2.6)
  * 
  * 의존성:
  * - LayoutFileManager (Phase 1.2)
  * - LayoutEditorState (Phase 1.4)
+ * - ComponentPalette (Phase 2.6)
  */
 
 import { LayoutFileManager } from '../services/layout/LayoutFileManager.js';
 import { layoutEditorState } from '../stores/LayoutEditorState.js';
+import { ComponentPalette } from './components/ComponentPalette.js';
 
 export class LayoutEditorMain {
     constructor() {
         this.fileManager = new LayoutFileManager();
         this.state = layoutEditorState;
+        
+        // ✨ Phase 2.6: ComponentPalette 참조
+        this.componentPalette = null;
+        this.canvas2DEditor = null;
         
         // UI 요소 참조
         this.elements = {
@@ -359,6 +367,73 @@ export class LayoutEditorMain {
             isDirty: this.state.state.isDirty,
             availableTemplates: this.availableTemplates.length
         };
+    }
+    
+    // =====================================================
+    // ✨ Phase 2.6: ComponentPalette 통합 메서드들
+    // =====================================================
+    
+    /**
+     * ✨ Phase 2.6: Canvas2DEditor 설정 (Editor 모드 진입 시 호출)
+     * @param {Canvas2DEditor} canvas2DEditor - Canvas2DEditor 인스턴스
+     */
+    setCanvas2DEditor(canvas2DEditor) {
+        if (!canvas2DEditor) {
+            console.error('[LayoutEditorMain] Canvas2DEditor 인스턴스가 필요합니다');
+            return;
+        }
+        
+        this.canvas2DEditor = canvas2DEditor;
+        console.log('[LayoutEditorMain] Canvas2DEditor 설정 완료');
+        
+        // ComponentPalette 초기화
+        this.initComponentPalette();
+    }
+    
+    /**
+     * ✨ Phase 2.6: ComponentPalette 초기화
+     */
+    initComponentPalette() {
+        if (!this.canvas2DEditor) {
+            console.error('[LayoutEditorMain] Canvas2DEditor가 설정되지 않았습니다');
+            return;
+        }
+        
+        try {
+            // ComponentPalette 인스턴스 생성
+            this.componentPalette = new ComponentPalette(
+                'component-palette',
+                this.canvas2DEditor
+            );
+            
+            // Canvas2DEditor Drop Zone 활성화
+            this.canvas2DEditor.enableDropZone();
+            
+            console.log('[LayoutEditorMain] ComponentPalette 초기화 완료');
+            
+        } catch (error) {
+            console.error('[LayoutEditorMain] ComponentPalette 초기화 실패:', error);
+        }
+    }
+    
+    /**
+     * ✨ Phase 2.6: ComponentPalette 표시
+     */
+    showComponentPalette() {
+        if (this.componentPalette) {
+            this.componentPalette.show();
+            console.log('[LayoutEditorMain] ComponentPalette 표시');
+        }
+    }
+    
+    /**
+     * ✨ Phase 2.6: ComponentPalette 숨김
+     */
+    hideComponentPalette() {
+        if (this.componentPalette) {
+            this.componentPalette.hide();
+            console.log('[LayoutEditorMain] ComponentPalette 숨김');
+        }
     }
 }
 

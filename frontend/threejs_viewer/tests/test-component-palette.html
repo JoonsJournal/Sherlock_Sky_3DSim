@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComponentPalette Test - Phase 2.6</title>
+    
+    <!-- Konva.js CDN -->
+    <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+    
+    <!-- ✅ Canvas2DEditor 먼저 로드 (전역 객체로) -->
+    <script src="../src/layout_editor/components/Canvas2DEditor.js"></script>
+    
+    <!-- ComponentPalette CSS -->
+    <link rel="stylesheet" href="../src/styles/component-palette.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f5f5f5;
+            overflow: hidden;
+        }
+        
+        /* 상단 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: white;
+            border-bottom: 2px solid #3498db;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 200;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #3498db;
+            font-size: 20px;
+        }
+        
+        .header-buttons button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 8px;
+            font-size: 13px;
+        }
+        
+        .header-buttons button:hover {
+            background: #2980b9;
+        }
+        
+        /* 메인 레이아웃 */
+        .main-layout {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+        }
+        
+        /* ComponentPalette 영역 */
+        #component-palette {
+            width: 220px;
+            flex-shrink: 0;
+            overflow-y: auto;
+            background: white;
+            border-right: 2px solid #e0e0e0;
+        }
+        
+        /* Canvas 영역 */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            position: relative;
+        }
+        
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Drop 가이드 */
+        .drop-guide {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(52, 152, 219, 0.95);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .drop-guide.visible {
+            display: block;
+        }
+        
+        /* 정보 패널 (하단) */
+        .info-panel {
+            height: 200px;
+            background: #2c3e50;
+            color: #2ecc71;
+            overflow-y: auto;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border-top: 2px solid #34495e;
+        }
+        
+        .info-panel .log-line {
+            margin: 2px 0;
+        }
+        
+        .info-panel .log-error {
+            color: #e74c3c;
+        }
+        
+        .info-panel .log-warn {
+            color: #f39c12;
+        }
+        
+        .info-panel .log-success {
+            color: #2ecc71;
+        }
+        
+        /* 상태 표시 */
+        .status-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: rgba(255,255,255,0.9);
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            font-size: 12px;
+            color: #555;
+            gap: 20px;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #2ecc71;
+        }
+        
+        /* 스크롤바 */
+        #component-palette::-webkit-scrollbar,
+        .info-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #component-palette::-webkit-scrollbar-track,
+        .info-panel::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        #component-palette::-webkit-scrollbar-thumb,
+        .info-panel::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 헤더 -->
+    <div class="header">
+        <h1>🧪 ComponentPalette 테스트 - Phase 2.6</h1>
+        <div class="header-buttons">
+            <button onclick="runTest()">🚀 테스트 실행</button>
+            <button onclick="clearCanvas()">🗑️ 초기화</button>
+            <button onclick="showDebugInfo()">🔍 디버그</button>
+        </div>
+    </div>
+    
+    <!-- 메인 레이아웃 -->
+    <div class="main-layout">
+        <!-- ComponentPalette (왼쪽) -->
+        <div id="component-palette">
+            <!-- ComponentPalette.js가 동적으로 채움 -->
+        </div>
+        
+        <!-- Canvas 영역 (중앙) -->
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <!-- Canvas2DEditor가 여기에 생성됨 -->
+            </div>
+            
+            <!-- Drop 가이드 -->
+            <div class="drop-guide" id="drop-guide">
+                📦 Drop here to create!
+            </div>
+            
+            <!-- 상태 표시 -->
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-dot" id="status-dot"></span>
+                    <span id="status-text">Ready</span>
+                </div>
+                <div class="status-item">
+                    <span>Objects: <strong id="object-count">0</strong></span>
+                </div>
+                <div class="status-item">
+                    <span>💡 왼쪽 Palette에서 컴포넌트를 드래그하여 Canvas에 Drop하세요</span>
+                </div>
+            </div>
+            
+            <!-- 로그 패널 (하단) -->
+            <div class="info-panel" id="log-panel">
+                <div class="log-line log-success">=== ComponentPalette 테스트 준비 ===</div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        // ✅ ComponentPalette만 ES6 모듈로 import
+        import { ComponentPalette } from '../src/layout_editor/components/ComponentPalette.js';
+        
+        // 로그 출력 함수
+        const logPanel = document.getElementById('log-panel');
+        
+        function addLog(message, type = 'info') {
+            const line = document.createElement('div');
+            line.className = `log-line log-${type}`;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logPanel.appendChild(line);
+            logPanel.scrollTop = logPanel.scrollHeight;
+        }
+        
+        // 콘솔 출력 캡처
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const msg = args.join(' ');
+            if (msg.includes('✅') || msg.includes('성공')) {
+                addLog(msg, 'success');
+            } else {
+                addLog(msg, 'info');
+            }
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addLog(args.join(' '), 'error');
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addLog(args.join(' '), 'warn');
+        };
+        
+        // Canvas2DEditor 초기화
+        console.log('=== 테스트 시작 ===');
+        
+        if (!window.Canvas2DEditor) {
+            console.error('❌ Canvas2DEditor를 찾을 수 없습니다');
+            throw new Error('Canvas2DEditor not found');
+        }
+        
+        // Canvas 크기를 컨테이너에 맞게 설정
+        const container = document.getElementById('canvas-container');
+        const width = container.clientWidth;
+        const height = container.clientHeight - 30; // 상태바 높이 제외
+        
+        const canvas = new window.Canvas2DEditor('canvas-container', {
+            width: width,
+            height: height,
+            showGrid: true,
+            snapToGrid: true,
+            gridSize: 10
+        });
+        
+        console.log('✅ Canvas2DEditor 초기화 완료');
+        console.log(`   크기: ${width}×${height}px`);
+        
+        // ✅ Drop Zone 활성화 (중요!)
+        canvas.enableDropZone();
+        console.log('✅ Drop Zone 활성화 완료');
+        
+        // ComponentPalette 초기화
+        const palette = new ComponentPalette('component-palette', canvas);
+        palette.show();
+        
+        console.log('✅ ComponentPalette 초기화 완료');
+        
+        // Drop 가이드 표시/숨김
+        const dropGuide = document.getElementById('drop-guide');
+        const canvasContainer = document.getElementById('canvas-container');
+        
+        canvasContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropGuide.classList.add('visible');
+        });
+        
+        canvasContainer.addEventListener('dragleave', (e) => {
+            dropGuide.classList.remove('visible');
+        });
+        
+        canvasContainer.addEventListener('drop', (e) => {
+            dropGuide.classList.remove('visible');
+            updateObjectCount();
+        });
+        
+        // 객체 개수 업데이트
+        function updateObjectCount() {
+            setTimeout(() => {
+                const count = canvas.getObjectCount();
+                const total = count.total;
+                document.getElementById('object-count').textContent = total;
+                console.log(`📊 객체 개수: ${total}개 (Walls: ${count.walls}, Equipment: ${count.equipments}, Components: ${count.components || 0})`);
+            }, 100);
+        }
+        
+        // 전역 함수 등록
+        window.canvas = canvas;
+        window.palette = palette;
+        
+        window.clearCanvas = function() {
+            canvas.clear();
+            updateObjectCount();
+            console.log('🗑️ Canvas 초기화 완료');
+        };
+        
+        window.showDebugInfo = function() {
+            const count = canvas.getObjectCount();
+            console.log('🔍 디버그 정보:');
+            console.log(`   - Walls: ${count.walls}`);
+            console.log(`   - Equipments: ${count.equipments}`);
+            console.log(`   - Components: ${count.components || 0}`);
+            console.log(`   - Total: ${count.total}`);
+            console.log(`   - Canvas 크기: ${canvas.config.width}×${canvas.config.height}px`);
+            console.log(`   - Grid 크기: ${canvas.config.gridSize}px`);
+            console.log(`   - Snap to Grid: ${canvas.config.snapToGrid}`);
+        };
+        
+        window.runTest = function() {
+            console.log('🚀 자동 테스트 시작...');
+            
+            const tests = [
+                { name: 'ComponentPalette UI', check: () => document.querySelectorAll('.palette-item').length === 5 },
+                { name: 'Canvas 초기화', check: () => canvas.stage !== null },
+                { name: 'Drop Zone 활성화', check: () => canvas.stage.container().classList.contains('canvas-drop-zone') }
+            ];
+            
+            tests.forEach((test, index) => {
+                const result = test.check();
+                if (result) {
+                    console.log(`✅ Test ${index + 1}: ${test.name} - Pass`);
+                } else {
+                    console.error(`❌ Test ${index + 1}: ${test.name} - Fail`);
+                }
+            });
+            
+            console.log('💡 이제 수동으로 드래그앤드롭 테스트를 진행하세요!');
+        };
+        
+        // 상태 업데이트
+        document.getElementById('status-text').textContent = 'Ready';
+        document.getElementById('status-dot').style.background = '#2ecc71';
+        
+        console.log('=== 테스트 환경 준비 완료 ===');
+        console.log('💡 왼쪽 Palette에서 컴포넌트를 드래그하여 Canvas에 Drop하세요!');
+    </script>
+</body>
+</html>

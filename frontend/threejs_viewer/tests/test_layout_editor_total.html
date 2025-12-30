@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layout Editor - Complete (Phase 2.6 - All Features)</title>
+    
+    <!-- Konva.js CDN -->
+    <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+    
+    <!-- ✅ Canvas2DEditor 먼저 로드 (전역 객체) -->
+    <script src="../src/layout_editor/components/Canvas2DEditor.js"></script>
+    
+    <!-- ✅ ZoomController 로드 (전역 객체) -->
+    <script src="../src/layout_editor/controllers/ZoomController.js"></script>
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="../src/styles/layout_editor.css">
+    <link rel="stylesheet" href="../src/styles/component-palette.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f5f5f5;
+            overflow: hidden;
+        }
+        
+        /* 헤더 */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 200;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            margin: 0;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .header-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #229954;
+        }
+        
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        /* 메인 레이아웃 */
+        .layout-container {
+            display: flex;
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            bottom: 30px; /* Status bar 공간 */
+        }
+        
+        /* 왼쪽 Toolbar */
+        .toolbar {
+            width: 80px;
+            background: #2c3e50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            z-index: 10;
+            overflow-y: auto;
+        }
+        
+        .toolbar-btn {
+            width: 60px;
+            height: 60px;
+            margin: 10px 0;
+            background: #34495e;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .toolbar-btn:hover {
+            background: #667eea;
+            transform: scale(1.1);
+        }
+        
+        .toolbar-btn.active {
+            background: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+        }
+        
+        .toolbar-btn.zoom {
+            background: #27ae60;
+            font-size: 20px;
+        }
+        
+        .toolbar-btn.zoom:hover {
+            background: #229954;
+        }
+        
+        .toolbar-btn.zoom.reset {
+            background: #3498db;
+        }
+        
+        .toolbar-btn.zoom.reset:hover {
+            background: #2980b9;
+        }
+        
+        .toolbar-btn::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: 70px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .toolbar-btn:hover::after {
+            opacity: 1;
+        }
+        
+        .toolbar-divider {
+            width: 40px;
+            height: 2px;
+            background: #34495e;
+            margin: 10px 0;
+        }
+        
+        /* ComponentPalette 영역 */
+        #component-palette {
+            width: 220px;
+            flex-shrink: 0;
+            overflow-y: auto;
+            background: white;
+            border-right: 2px solid #e0e0e0;
+            display: none;
+        }
+        
+        /* Canvas 영역 */
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            position: relative;
+        }
+        
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Drop 가이드 */
+        .drop-guide {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(52, 152, 219, 0.95);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            font-size: 20px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .drop-guide.visible {
+            display: block;
+        }
+        
+        /* PropertyPanel 영역 */
+        .property-panel {
+            width: 300px;
+            flex-shrink: 0;
+            background: white;
+            border-left: 2px solid #e0e0e0;
+            overflow-y: auto;
+        }
+        
+        /* Status Bar */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: #34495e;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            font-size: 12px;
+            gap: 20px;
+            z-index: 100;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-item.zoom-display {
+            background: #27ae60;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            min-width: 400px;
+        }
+        
+        .modal-content h2 {
+            margin: 0 0 20px 0;
+            color: #2c3e50;
+        }
+        
+        .form-group {
+            margin: 15px 0;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 600;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .modal-actions button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 50px;
+            right: 20px;
+            background: #2c3e50;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 2000;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .toast.success {
+            background: #27ae60;
+        }
+        
+        .toast.error {
+            background: #e74c3c;
+        }
+        
+        .toast.info {
+            background: #3498db;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        /* 스크롤바 */
+        .toolbar::-webkit-scrollbar,
+        #component-palette::-webkit-scrollbar,
+        .property-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .toolbar::-webkit-scrollbar-track,
+        #component-palette::-webkit-scrollbar-track,
+        .property-panel::-webkit-scrollbar-track {
+            background: #34495e;
+        }
+        
+        .toolbar::-webkit-scrollbar-thumb,
+        #component-palette::-webkit-scrollbar-thumb,
+        .property-panel::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 헤더 -->
+    <div class="header">
+        <h1>🏗️ Layout Editor - Complete (All Features)</h1>
+        <div class="header-actions">
+            <button class="header-btn btn-secondary" onclick="editorApp.undo()">
+                ↶ Undo (Ctrl+Z)
+            </button>
+            <button class="header-btn btn-secondary" onclick="editorApp.redo()">
+                ↷ Redo (Ctrl+Y)
+            </button>
+            <button class="header-btn btn-primary" onclick="editorApp.saveLayout()">
+                💾 Save Layout
+            </button>
+        </div>
+    </div>
+
+    <div class="layout-container">
+        <!-- 왼쪽 Toolbar -->
+        <div class="toolbar">
+            <button class="toolbar-btn active" data-tooltip="선택 도구 (V)" onclick="editorApp.activateTool('select')">
+                👆
+            </button>
+            
+            <button class="toolbar-btn" data-tooltip="Room Size 설정" onclick="editorApp.showRoomSizeModal()">
+                📐
+            </button>
+            
+            <button class="toolbar-btn" data-tooltip="벽 그리기 (W)" onclick="editorApp.activateTool('wall')">
+                🧱
+            </button>
+            
+            <button class="toolbar-btn" data-tooltip="ComponentPalette (C)" onclick="editorApp.toggleComponentPalette()">
+                🎨
+            </button>
+            
+            <div class="toolbar-divider"></div>
+            
+            <button class="toolbar-btn" data-tooltip="Grid 토글 (G)" onclick="editorApp.toggleGrid()">
+                🔲
+            </button>
+            
+            <button class="toolbar-btn" data-tooltip="Snap to Grid (S)" onclick="editorApp.toggleSnap()">
+                🧲
+            </button>
+            
+            <div class="toolbar-divider"></div>
+            
+            <button class="toolbar-btn zoom" data-tooltip="Zoom In (+)" onclick="editorApp.zoomIn()">
+                🔍+
+            </button>
+            
+            <button class="toolbar-btn zoom" data-tooltip="Zoom Out (-)" onclick="editorApp.zoomOut()">
+                🔍-
+            </button>
+            
+            <button class="toolbar-btn zoom reset" data-tooltip="Reset Zoom (R)" onclick="editorApp.resetZoom()">
+                🎯
+            </button>
+            
+            <div class="toolbar-divider"></div>
+            
+            <button class="toolbar-btn" data-tooltip="삭제 (Del)" onclick="editorApp.deleteSelected()">
+                🗑️
+            </button>
+            
+            <button class="toolbar-btn" data-tooltip="전체 선택 해제 (Esc)" onclick="editorApp.deselectAll()">
+                ❌
+            </button>
+        </div>
+
+        <!-- ComponentPalette -->
+        <div id="component-palette"></div>
+
+        <!-- Canvas 영역 -->
+        <div class="canvas-area">
+            <div id="canvas-container"></div>
+            
+            <!-- Drop 가이드 -->
+            <div class="drop-guide" id="drop-guide">
+                📦 Drop here to create!
+            </div>
+        </div>
+        
+        <!-- PropertyPanel -->
+        <div class="property-panel" id="property-panel">
+            <!-- PropertyPanel.js가 동적으로 생성 -->
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <span class="status-item">도구: <span id="status-tool">선택</span></span>
+        <span class="status-item zoom-display">Zoom: <span id="status-zoom">100%</span></span>
+        <span class="status-item">Grid: <span id="status-grid">ON</span></span>
+        <span class="status-item">Snap: <span id="status-snap">ON</span></span>
+        <span class="status-item">객체: <span id="status-objects">0</span></span>
+    </div>
+
+    <!-- Room Size Modal -->
+    <div class="modal" id="room-size-modal">
+        <div class="modal-content">
+            <h2>📐 Room Size 설정</h2>
+            <div class="form-group">
+                <label>Width (m)</label>
+                <input type="number" id="room-width" value="130" min="10" step="1">
+            </div>
+            <div class="form-group">
+                <label>Depth (m)</label>
+                <input type="number" id="room-depth" value="90" min="10" step="1">
+            </div>
+            <div class="form-group">
+                <label>Wall Height (m)</label>
+                <input type="number" id="room-height" value="3" min="2" step="0.1">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="editorApp.closeRoomSizeModal()">취소</button>
+                <button class="btn-primary" onclick="editorApp.applyRoomSize()">적용</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // ✅ 모든 필수 모듈 import
+        import { ComponentPalette } from '../src/layout_editor/components/ComponentPalette.js';
+        import { RoomSizeManager } from '../src/layout_editor/managers/RoomSizeManager.js';
+        import { WallDrawTool } from '../src/layout_editor/tools/WallDrawTool.js';
+        import { PropertyPanel } from '../src/layout_editor/components/PropertyPanel.js';
+        
+        // ============================================
+        // 완전한 Layout Editor Application
+        // ============================================
+        class LayoutEditorApp {
+            constructor() {
+                console.log('=== Layout Editor 초기화 시작 ===');
+                
+                // Canvas2DEditor 확인
+                if (typeof Canvas2DEditor === 'undefined') {
+                    console.error('❌ Canvas2DEditor를 찾을 수 없습니다');
+                    throw new Error('Canvas2DEditor not found');
+                }
+                
+                // ZoomController 확인
+                if (typeof ZoomController === 'undefined') {
+                    console.error('❌ ZoomController를 찾을 수 없습니다');
+                    throw new Error('ZoomController not found');
+                }
+                
+                // Canvas 크기 계산 (PropertyPanel 공간 포함)
+                const width = window.innerWidth - 80 - 220 - 300; // toolbar, palette(숨김), property panel
+                const height = window.innerHeight - 60 - 30; // header, status bar
+                
+                // ✅ Canvas2DEditor 초기화
+                this.canvas = new Canvas2DEditor('canvas-container', {
+                    width: width,
+                    height: height,
+                    showGrid: true,
+                    snapToGrid: true,
+                    gridSize: 10
+                });
+                
+                console.log('✅ Canvas2DEditor 초기화 완료');
+                console.log(`   크기: ${width}×${height}px`);
+                
+                // ✅ ZoomController 초기화
+                this.zoomController = new ZoomController(this.canvas, {
+                    minZoom: 0.2,
+                    maxZoom: 5.0,
+                    zoomStep: 0.1,
+                    wheelSensitivity: 0.001
+                });
+                
+                // Canvas에 ZoomController 연결
+                this.canvas.setZoomController(this.zoomController);
+                
+                // ZoomController 활성화 (마우스 휠 줌)
+                this.zoomController.activate();
+                
+                console.log('✅ ZoomController 초기화 및 활성화 완료');
+                
+                // ✅ Drop Zone 활성화
+                this.canvas.enableDropZone();
+                console.log('✅ Drop Zone 활성화 완료');
+                
+                // ✅ 매니저 및 도구 초기화
+                this.roomSizeManager = new RoomSizeManager(this.canvas);
+                this.wallDrawTool = new WallDrawTool(this.canvas);
+                this.propertyPanel = new PropertyPanel('property-panel', this.canvas);
+                
+                console.log('✅ RoomSizeManager, WallDrawTool, PropertyPanel 초기화 완료');
+                
+                // PropertyPanel 연결
+                this.canvas.setPropertyPanel(this.propertyPanel);
+                
+                // 전역 참조 (PropertyPanel에서 사용)
+                window.propertyPanel = this.propertyPanel;
+                
+                // ✅ ComponentPalette 초기화 (기본 숨김)
+                this.componentPalette = new ComponentPalette('component-palette', this.canvas);
+                this.componentPaletteVisible = false;
+                
+                console.log('✅ ComponentPalette 초기화 완료');
+                
+                // 현재 Tool
+                this.currentTool = 'select';
+                
+                // 이벤트 리스너 설정
+                this.setupEventListeners();
+                
+                // 초기 템플릿 로드 (옵션)
+                this.loadDefaultTemplate();
+                
+                console.log('=== Layout Editor 초기화 완료 ===');
+                this.showToast('Layout Editor 준비 완료!', 'success');
+            }
+            
+            setupEventListeners() {
+                // Drop 가이드
+                const dropGuide = document.getElementById('drop-guide');
+                const canvasContainer = document.getElementById('canvas-container');
+                
+                canvasContainer.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropGuide.classList.add('visible');
+                });
+                
+                canvasContainer.addEventListener('dragleave', (e) => {
+                    dropGuide.classList.remove('visible');
+                });
+                
+                canvasContainer.addEventListener('drop', (e) => {
+                    dropGuide.classList.remove('visible');
+                    this.updateObjectCount();
+                });
+                
+                // 키보드 단축키
+                document.addEventListener('keydown', (e) => {
+                    // Ctrl+Z: Undo
+                    if (e.ctrlKey && e.key === 'z') {
+                        e.preventDefault();
+                        this.undo();
+                    }
+                    // Ctrl+Y: Redo
+                    else if (e.ctrlKey && e.key === 'y') {
+                        e.preventDefault();
+                        this.redo();
+                    }
+                    // V: 선택 도구
+                    else if (e.key === 'v' || e.key === 'V') {
+                        this.activateTool('select');
+                    }
+                    // W: 벽 그리기
+                    else if (e.key === 'w' || e.key === 'W') {
+                        this.activateTool('wall');
+                    }
+                    // C: ComponentPalette
+                    else if (e.key === 'c' || e.key === 'C') {
+                        this.toggleComponentPalette();
+                    }
+                    // G: Grid 토글
+                    else if (e.key === 'g' || e.key === 'G') {
+                        this.toggleGrid();
+                    }
+                    // S: Snap 토글
+                    else if (e.key === 's' || e.key === 'S') {
+                        this.toggleSnap();
+                    }
+                    // +: Zoom In
+                    else if (e.key === '+' || e.key === '=') {
+                        this.zoomIn();
+                    }
+                    // -: Zoom Out
+                    else if (e.key === '-' || e.key === '_') {
+                        this.zoomOut();
+                    }
+                    // R: Reset Zoom
+                    else if (e.key === 'r' || e.key === 'R') {
+                        this.resetZoom();
+                    }
+                    // Delete: 삭제
+                    else if (e.key === 'Delete') {
+                        this.deleteSelected();
+                    }
+                    // Escape: 선택 해제
+                    else if (e.key === 'Escape') {
+                        this.deselectAll();
+                    }
+                });
+                
+                // Canvas 클릭 이벤트
+                this.canvas.stage.on('click', () => {
+                    this.updateObjectCount();
+                });
+            }
+            
+            // ============================================
+            // Tool 관리
+            // ============================================
+            activateTool(toolName) {
+                this.currentTool = toolName;
+                
+                // 이전 Tool 비활성화
+                if (toolName === 'select') {
+                    this.wallDrawTool.deactivate();
+                } else if (toolName === 'wall') {
+                    this.wallDrawTool.activate();
+                }
+                
+                // UI 업데이트
+                document.querySelectorAll('.toolbar-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // 활성 버튼 표시
+                const toolButtons = {
+                    'select': 0,
+                    'wall': 2
+                };
+                const buttons = document.querySelectorAll('.toolbar-btn');
+                if (toolButtons[toolName] !== undefined) {
+                    buttons[toolButtons[toolName]].classList.add('active');
+                }
+                
+                // Status 업데이트
+                document.getElementById('status-tool').textContent = 
+                    toolName === 'select' ? '선택' : 
+                    toolName === 'wall' ? '벽 그리기' : toolName;
+                
+                // Toast 메시지
+                if (toolName === 'wall') {
+                    this.showToast('벽 그리기 모드: 드래그하여 벽을 그리세요', 'info');
+                }
+                    
+                console.log(`Tool 변경: ${toolName}`);
+            }
+            
+            // ============================================
+            // ComponentPalette
+            // ============================================
+            toggleComponentPalette() {
+                this.componentPaletteVisible = !this.componentPaletteVisible;
+                const palette = document.getElementById('component-palette');
+                
+                if (this.componentPaletteVisible) {
+                    palette.style.display = 'block';
+                    this.componentPalette.show();
+                    this.showToast('ComponentPalette 활성화', 'success');
+                } else {
+                    palette.style.display = 'none';
+                    this.componentPalette.hide();
+                    this.showToast('ComponentPalette 비활성화', 'success');
+                }
+            }
+            
+            // ============================================
+            // Room Size
+            // ============================================
+            showRoomSizeModal() {
+                document.getElementById('room-size-modal').classList.add('active');
+            }
+            
+            closeRoomSizeModal() {
+                document.getElementById('room-size-modal').classList.remove('active');
+            }
+            
+            applyRoomSize() {
+                const width = parseFloat(document.getElementById('room-width').value);
+                const depth = parseFloat(document.getElementById('room-depth').value);
+                const height = parseFloat(document.getElementById('room-height').value);
+                
+                if (width < 10 || depth < 10) {
+                    this.showToast('Room 크기는 최소 10m 이상이어야 합니다', 'error');
+                    return;
+                }
+                
+                this.roomSizeManager.updateRoomSize(width, depth, height);
+                this.closeRoomSizeModal();
+                this.showToast(`Room 크기 설정: ${width}m × ${depth}m`, 'success');
+            }
+            
+            // ============================================
+            // Grid & Snap
+            // ============================================
+            toggleGrid() {
+                this.canvas.toggleGrid();
+                const isOn = this.canvas.config.showGrid;
+                document.getElementById('status-grid').textContent = isOn ? 'ON' : 'OFF';
+                this.showToast(`Grid: ${isOn ? 'ON' : 'OFF'}`);
+            }
+            
+            toggleSnap() {
+                const isOn = this.canvas.toggleSnapToGrid();
+                document.getElementById('status-snap').textContent = isOn ? 'ON' : 'OFF';
+                this.showToast(`Snap to Grid: ${isOn ? 'ON' : 'OFF'}`);
+            }
+            
+            // ============================================
+            // Zoom
+            // ============================================
+            zoomIn() {
+                this.zoomController.zoomIn();
+                this.updateZoomDisplay();
+                const zoomPercent = (this.zoomController.getZoom() * 100).toFixed(0);
+                this.showToast(`Zoom: ${zoomPercent}%`);
+            }
+            
+            zoomOut() {
+                this.zoomController.zoomOut();
+                this.updateZoomDisplay();
+                const zoomPercent = (this.zoomController.getZoom() * 100).toFixed(0);
+                this.showToast(`Zoom: ${zoomPercent}%`);
+            }
+            
+            resetZoom() {
+                this.zoomController.resetZoom();
+                this.updateZoomDisplay();
+                this.showToast('Zoom 리셋: 100%', 'success');
+            }
+            
+            updateZoomDisplay() {
+                const zoomPercent = (this.zoomController.getZoom() * 100).toFixed(0);
+                document.getElementById('status-zoom').textContent = zoomPercent + '%';
+            }
+            
+            // ============================================
+            // Object 관리
+            // ============================================
+            deleteSelected() {
+                this.canvas.deleteSelected();
+                this.updateObjectCount();
+                this.showToast('선택된 객체 삭제됨');
+            }
+            
+            deselectAll() {
+                this.canvas.deselectAll();
+                this.propertyPanel.hide();
+            }
+            
+            updateObjectCount() {
+                setTimeout(() => {
+                    const count = this.canvas.getObjectCount();
+                    document.getElementById('status-objects').textContent = count.total;
+                }, 100);
+            }
+            
+            // ============================================
+            // Undo/Redo
+            // ============================================
+            undo() {
+                console.log('[App] Undo - 준비 중');
+                this.showToast('Undo 기능 준비 중');
+            }
+            
+            redo() {
+                console.log('[App] Redo - 준비 중');
+                this.showToast('Redo 기능 준비 중');
+            }
+            
+            // ============================================
+            // Save/Load
+            // ============================================
+            saveLayout() {
+                const layout = this.canvas.getCurrentLayout();
+                console.log('[App] Layout 저장:', layout);
+                
+                // JSON 다운로드
+                const dataStr = JSON.stringify(layout, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'layout_' + Date.now() + '.json';
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                this.showToast('Layout 저장 완료!', 'success');
+            }
+            
+            loadDefaultTemplate() {
+                // 기본 템플릿 로드 (옵션)
+                // this.roomSizeManager.updateRoomSize(130, 90, 3);
+            }
+            
+            // ============================================
+            // Toast 알림
+            // ============================================
+            showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                }, 2500);
+            }
+        }
+        
+        // ============================================
+        // Application 시작
+        // ============================================
+        window.editorApp = new LayoutEditorApp();
+        
+        console.log('💡 단축키:');
+        console.log('   V - 선택 도구');
+        console.log('   W - 벽 그리기');
+        console.log('   C - ComponentPalette 토글');
+        console.log('   G - Grid 토글');
+        console.log('   S - Snap 토글');
+        console.log('   +/- - Zoom In/Out (마우스 휠도 가능)');
+        console.log('   R - Zoom Reset');
+        console.log('   Del - 삭제');
+        console.log('   Esc - 선택 해제');
+        console.log('   Ctrl+Z - Undo');
+        console.log('   Ctrl+Y - Redo');
+    </script>
+</body>
+</html>
