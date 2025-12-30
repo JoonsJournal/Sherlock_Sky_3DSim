@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layout Editor Test - SHERLOCK_SKY_3DSIM</title>
+    
+    <!-- Konva.js CDN -->
+    <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+    
+    <!-- ✨ Layout Editor CSS - tests 폴더에서 상위로 올라가는 경로 -->
+    <link rel="stylesheet" href="../src/styles/layout_editor.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f5f5f5;
+            overflow: hidden;
+        }
+        
+        /* 메인 레이아웃 */
+        .layout-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* 왼쪽 Toolbar */
+        .toolbar {
+            width: 80px;
+            background: #2c3e50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        
+        .toolbar-btn {
+            width: 60px;
+            height: 60px;
+            margin: 10px 0;
+            background: #34495e;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .toolbar-btn:hover {
+            background: #667eea;
+            transform: scale(1.1);
+        }
+        
+        .toolbar-btn.active {
+            background: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+        }
+        
+        /* ✨ Zoom 버튼 전용 스타일 */
+        .toolbar-btn.zoom {
+            background: #27ae60;
+            font-size: 20px;
+        }
+        
+        .toolbar-btn.zoom:hover {
+            background: #229954;
+        }
+        
+        .toolbar-btn.zoom.reset {
+            background: #3498db;
+        }
+        
+        .toolbar-btn.zoom.reset:hover {
+            background: #2980b9;
+        }
+        
+        .toolbar-btn::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: 70px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        
+        .toolbar-btn:hover::after {
+            opacity: 1;
+        }
+        
+        .toolbar-divider {
+            width: 40px;
+            height: 2px;
+            background: #34495e;
+            margin: 10px 0;
+        }
+        
+        /* Canvas 영역 */
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            background: #ecf0f1;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        /* 오른쪽 Property Panel */
+        .property-panel {
+            width: 300px;
+            background: white;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            z-index: 10;
+        }
+        
+        /* 상단 헤더 */
+        .header {
+            position: absolute;
+            top: 0;
+            left: 80px;
+            right: 0;
+            height: 60px;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 5;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .header-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .header-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        /* Canvas를 헤더 아래로 이동 */
+        .canvas-area {
+            margin-top: 60px;
+        }
+        
+        /* Room Size 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            min-width: 400px;
+        }
+        
+        .modal-content h2 {
+            margin: 0 0 20px 0;
+            color: #2c3e50;
+        }
+        
+        .form-group {
+            margin: 15px 0;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 600;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .modal-actions button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        /* Status Bar */
+        .status-bar {
+            position: absolute;
+            bottom: 0;
+            left: 80px;
+            right: 0;
+            height: 30px;
+            background: #34495e;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 12px;
+            z-index: 5;
+        }
+        
+        .status-item {
+            margin-right: 20px;
+        }
+        
+        /* ✨ Zoom Level 강조 */
+        .status-item.zoom-display {
+            background: #27ae60;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        /* Toast 알림 */
+        .toast {
+            position: fixed;
+            bottom: 50px;
+            right: 20px;
+            background: #2c3e50;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 2000;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .toast.success {
+            background: #27ae60;
+        }
+        
+        .toast.error {
+            background: #e74c3c;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 헤더 -->
+    <div class="header">
+        <h1>🏗️ Layout Editor - SHERLOCK_SKY_3DSIM</h1>
+        <div class="header-actions">
+            <button class="header-btn btn-secondary" onclick="editorApp.undo()">
+                ↶ Undo (Ctrl+Z)
+            </button>
+            <button class="header-btn btn-secondary" onclick="editorApp.redo()">
+                ↷ Redo (Ctrl+Y)
+            </button>
+            <button class="header-btn btn-primary" onclick="editorApp.saveLayout()">
+                💾 Save Layout
+            </button>
+        </div>
+    </div>
+
+    <div class="layout-container">
+        <!-- 왼쪽 Toolbar -->
+        <div class="toolbar">
+            <button class="toolbar-btn active" data-tooltip="선택 도구 (V)" onclick="editorApp.activateTool('select')">
+                👆
+            </button>
+            
+            <button class="toolbar-btn" data-tooltip="Room Size 설정" onclick="editorApp.showRoomSizeModal()">
+                🏗️
+            </button>
+            
+            <button class="toolbar-btn" data-tooltip="벽 그리기 (W)" onclick="editorApp.activateTool('wall')">
+                🧱
+            </button>
+            
+            <div class="toolbar-divider"></div>
+            
+            <button class="toolbar-btn" data-tooltip="Grid 토글 (G)" onclick="editorApp.toggleGrid()">
+                ⊞
+            </button>
+            
+            <button class="toolbar-btn" data-tooltip="Snap to Grid (S)" onclick="editorApp.toggleSnap()">
+                🧲
+            </button>
+            
+            <div class="toolbar-divider"></div>
+            
+            <!-- ✨ Zoom 버튼 추가 -->
+            <button class="toolbar-btn zoom" data-tooltip="Zoom In (+)" onclick="editorApp.zoomIn()">
+                ➕
+            </button>
+            
+            <button class="toolbar-btn zoom" data-tooltip="Zoom Out (-)" onclick="editorApp.zoomOut()">
+                ➖
+            </button>
+            
+            <button class="toolbar-btn zoom reset" data-tooltip="Reset Zoom (R)" onclick="editorApp.resetZoom()">
+                🔄
+            </button>
+            
+            <div class="toolbar-divider"></div>
+            
+            <button class="toolbar-btn" data-tooltip="삭제 (Del)" onclick="editorApp.deleteSelected()">
+                🗑️
+            </button>
+            
+            <button class="toolbar-btn" data-tooltip="전체 선택 해제 (Esc)" onclick="editorApp.deselectAll()">
+                ❌
+            </button>
+        </div>
+
+        <!-- Canvas 영역 -->
+        <div class="canvas-area">
+            <div id="canvas-container"></div>
+        </div>
+
+        <!-- 오른쪽 Property Panel -->
+        <div class="property-panel" id="property-panel">
+            <!-- PropertyPanel.js가 동적으로 생성 -->
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <span class="status-item">도구: <span id="status-tool">선택</span></span>
+        <span class="status-item">Grid: <span id="status-grid">ON</span></span>
+        <span class="status-item">Snap: <span id="status-snap">ON</span></span>
+        <!-- ✨ Zoom Level 표시 추가 -->
+        <span class="status-item zoom-display">Zoom: <span id="status-zoom">100%</span></span>
+        <span class="status-item">객체: <span id="status-objects">0</span></span>
+    </div>
+
+    <!-- Room Size 모달 -->
+    <div class="modal" id="room-size-modal">
+        <div class="modal-content">
+            <h2>🏗️ Room Size 설정</h2>
+            <div class="form-group">
+                <label>Width (m)</label>
+                <input type="number" id="room-width" value="130" min="10" step="1">
+            </div>
+            <div class="form-group">
+                <label>Depth (m)</label>
+                <input type="number" id="room-depth" value="90" min="10" step="1">
+            </div>
+            <div class="form-group">
+                <label>Wall Height (m)</label>
+                <input type="number" id="room-height" value="3" min="2" step="0.1">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="editorApp.closeRoomSizeModal()">취소</button>
+                <button class="btn-primary" onclick="editorApp.applyRoomSize()">적용</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✨ Canvas2DEditor 로드 (비-모듈) -->
+    <script src="../src/layout_editor/components/Canvas2DEditor.js"></script>
+    
+    <!-- ✨ ZoomController 로드 (비-모듈) -->
+    <script src="../src/layout_editor/controllers/ZoomController.js"></script>
+    
+    <script type="module">
+        // ✨ 새로운 모듈들 로드
+        import { RoomSizeManager } from '../src/layout_editor/managers/RoomSizeManager.js';
+        import { WallDrawTool } from '../src/layout_editor/tools/WallDrawTool.js';
+        import { PropertyPanel } from '../src/layout_editor/components/PropertyPanel.js';
+        
+        // 전역 앱 객체
+        class LayoutEditorApp {
+            constructor() {
+                console.log('[LayoutEditorApp] 초기화 시작...');
+                
+                // Canvas2DEditor 초기화
+                this.canvas = new Canvas2DEditor('canvas-container', {
+                    width: window.innerWidth - 80 - 300, // toolbar, property panel 제외
+                    height: window.innerHeight - 60 - 30, // header, status bar 제외
+                    showGrid: true,
+                    snapToGrid: true
+                });
+                
+                // ✨ ZoomController 초기화
+                this.zoomController = new ZoomController(this.canvas, {
+                    minZoom: 0.2,    // 최소 20%
+                    maxZoom: 5.0,    // 최대 500%
+                    zoomStep: 0.1,   // 10% 단위
+                    wheelSensitivity: 0.001
+                });
+                
+                // Canvas에 ZoomController 연결
+                this.canvas.setZoomController(this.zoomController);
+                
+                // ZoomController 활성화 (마우스 휠 줌 활성화)
+                this.zoomController.activate();
+                
+                // 매니저 초기화
+                this.roomSizeManager = new RoomSizeManager(this.canvas);
+                this.wallDrawTool = new WallDrawTool(this.canvas);
+                this.propertyPanel = new PropertyPanel('property-panel', this.canvas);
+                
+                // PropertyPanel 연결
+                this.canvas.setPropertyPanel(this.propertyPanel);
+                
+                // 전역 참조 (PropertyPanel에서 사용)
+                window.propertyPanel = this.propertyPanel;
+                
+                // 현재 활성 도구
+                this.currentTool = 'select';
+                
+                // 이벤트 리스너 설정
+                this.setupEventListeners();
+                
+                // 초기 템플릿 로드 (옵션)
+                this.loadDefaultTemplate();
+                
+                console.log('[LayoutEditorApp] 초기화 완료!');
+                console.log('✅ ZoomController 활성화됨 (마우스 휠로 줌 가능)');
+            }
+            
+            setupEventListeners() {
+                // 키보드 단축키
+                document.addEventListener('keydown', (e) => {
+                    // Ctrl+Z: Undo
+                    if (e.ctrlKey && e.key === 'z') {
+                        e.preventDefault();
+                        this.undo();
+                    }
+                    // Ctrl+Y: Redo
+                    else if (e.ctrlKey && e.key === 'y') {
+                        e.preventDefault();
+                        this.redo();
+                    }
+                    // V: 선택 도구
+                    else if (e.key === 'v' || e.key === 'V') {
+                        this.activateTool('select');
+                    }
+                    // W: 벽 그리기 도구
+                    else if (e.key === 'w' || e.key === 'W') {
+                        this.activateTool('wall');
+                    }
+                    // G: Grid 토글
+                    else if (e.key === 'g' || e.key === 'G') {
+                        this.toggleGrid();
+                    }
+                    // S: Snap 토글
+                    else if (e.key === 's' || e.key === 'S') {
+                        this.toggleSnap();
+                    }
+                    // ✨ +: Zoom In
+                    else if (e.key === '+' || e.key === '=') {
+                        this.zoomIn();
+                    }
+                    // ✨ -: Zoom Out
+                    else if (e.key === '-' || e.key === '_') {
+                        this.zoomOut();
+                    }
+                    // ✨ R: Reset Zoom
+                    else if (e.key === 'r' || e.key === 'R') {
+                        this.resetZoom();
+                    }
+                    // Delete: 삭제
+                    else if (e.key === 'Delete') {
+                        this.deleteSelected();
+                    }
+                    // Escape: 선택 해제
+                    else if (e.key === 'Escape') {
+                        this.deselectAll();
+                    }
+                });
+                
+                // 윈도우 리사이즈
+                window.addEventListener('resize', () => {
+                    const width = window.innerWidth - 80 - 300;
+                    const height = window.innerHeight - 60 - 30;
+                    this.canvas.resize(width, height);
+                });
+            }
+            
+            loadDefaultTemplate() {
+                // 기본 템플릿 데이터 (예시)
+                const defaultLayout = {
+                    site_id: 'test_site',
+                    canvas: {
+                        width: 1200,
+                        height: 800,
+                        scale: 10
+                    },
+                    room: {
+                        width: 130,
+                        depth: 90,
+                        wallHeight: 3,
+                        wallThickness: 0.2
+                    },
+                    walls: [],
+                    partitions: [],
+                    equipmentArrays: []
+                };
+                
+                // Room 초기화
+                this.roomSizeManager.updateRoomSize(
+                    defaultLayout.room.width,
+                    defaultLayout.room.depth,
+                    defaultLayout.room.wallHeight
+                );
+                
+                this.showToast('기본 템플릿 로드 완료', 'success');
+            }
+            
+            // 도구 활성화
+            activateTool(toolName) {
+                console.log(`[App] 도구 전환: ${toolName}`);
+                
+                // 이전 도구 비활성화
+                if (this.currentTool === 'wall') {
+                    this.wallDrawTool.deactivate();
+                }
+                
+                // 새 도구 활성화
+                this.currentTool = toolName;
+                
+                if (toolName === 'wall') {
+                    this.wallDrawTool.activate();
+                } else if (toolName === 'select') {
+                    // 선택 모드는 Canvas2DEditor의 기본 모드
+                }
+                
+                // UI 업데이트
+                document.querySelectorAll('.toolbar-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // 활성 버튼 표시
+                const toolButtons = {
+                    'select': 0,
+                    'wall': 2
+                };
+                const buttons = document.querySelectorAll('.toolbar-btn');
+                if (toolButtons[toolName] !== undefined) {
+                    buttons[toolButtons[toolName]].classList.add('active');
+                }
+                
+                // Status 업데이트
+                document.getElementById('status-tool').textContent = 
+                    toolName === 'select' ? '선택' : 
+                    toolName === 'wall' ? '벽 그리기' : toolName;
+            }
+            
+            // Room Size 모달
+            showRoomSizeModal() {
+                const modal = document.getElementById('room-size-modal');
+                modal.classList.add('active');
+            }
+            
+            closeRoomSizeModal() {
+                const modal = document.getElementById('room-size-modal');
+                modal.classList.remove('active');
+            }
+            
+            applyRoomSize() {
+                const width = parseFloat(document.getElementById('room-width').value);
+                const depth = parseFloat(document.getElementById('room-depth').value);
+                const height = parseFloat(document.getElementById('room-height').value);
+                
+                if (width < 10 || depth < 10) {
+                    this.showToast('Room 크기는 최소 10m 이상이어야 합니다', 'error');
+                    return;
+                }
+                
+                this.roomSizeManager.updateRoomSize(width, depth, height);
+                this.closeRoomSizeModal();
+                this.showToast(`Room 크기 설정: ${width}m × ${depth}m`, 'success');
+            }
+            
+            // Grid 토글
+            toggleGrid() {
+                this.canvas.toggleGrid();
+                const isOn = this.canvas.config.showGrid;
+                document.getElementById('status-grid').textContent = isOn ? 'ON' : 'OFF';
+                this.showToast(`Grid: ${isOn ? 'ON' : 'OFF'}`);
+            }
+            
+            // Snap 토글
+            toggleSnap() {
+                const isOn = this.canvas.toggleSnapToGrid();
+                document.getElementById('status-snap').textContent = isOn ? 'ON' : 'OFF';
+                this.showToast(`Snap to Grid: ${isOn ? 'ON' : 'OFF'}`);
+            }
+            
+            // ✨ Zoom In
+            zoomIn() {
+                this.zoomController.zoomIn();
+                this.updateZoomDisplay();
+                this.showToast(`Zoom: ${(this.zoomController.getZoom() * 100).toFixed(0)}%`);
+            }
+            
+            // ✨ Zoom Out
+            zoomOut() {
+                this.zoomController.zoomOut();
+                this.updateZoomDisplay();
+                this.showToast(`Zoom: ${(this.zoomController.getZoom() * 100).toFixed(0)}%`);
+            }
+            
+            // ✨ Reset Zoom
+            resetZoom() {
+                this.zoomController.resetZoom();
+                this.updateZoomDisplay();
+                this.showToast('Zoom 리셋: 100%', 'success');
+            }
+            
+            // ✨ Zoom Level 표시 업데이트
+            updateZoomDisplay() {
+                const zoomPercent = (this.zoomController.getZoom() * 100).toFixed(0);
+                document.getElementById('status-zoom').textContent = zoomPercent + '%';
+            }
+            
+            // 삭제
+            deleteSelected() {
+                this.canvas.deleteSelected();
+                this.showToast('선택된 객체 삭제됨');
+            }
+            
+            // 선택 해제
+            deselectAll() {
+                this.canvas.deselectAll();
+                this.propertyPanel.hide();
+            }
+            
+            // Undo/Redo (TODO: History 매니저 구현)
+            undo() {
+                console.log('[App] Undo - 준비 중');
+                this.showToast('Undo 기능 준비 중');
+            }
+            
+            redo() {
+                console.log('[App] Redo - 준비 중');
+                this.showToast('Redo 기능 준비 중');
+            }
+            
+            // Layout 저장
+            saveLayout() {
+                const layout = this.canvas.getCurrentLayout();
+                console.log('[App] Layout 저장:', layout);
+                
+                // JSON 다운로드
+                const dataStr = JSON.stringify(layout, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'layout_' + Date.now() + '.json';
+                link.click();
+                URL.revokeObjectURL(url);
+                
+                this.showToast('Layout 저장 완료!', 'success');
+            }
+            
+            // Toast 알림
+            showToast(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.style.animation = 'slideIn 0.3s ease-out reverse';
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                }, 2000);
+            }
+        }
+        
+        // 전역 인스턴스 생성
+        window.editorApp = new LayoutEditorApp();
+        
+        console.log('✅ Layout Editor Test 페이지 준비 완료!');
+        console.log('💡 사용 가능한 단축키:');
+        console.log('   V - 선택 도구');
+        console.log('   W - 벽 그리기 도구');
+        console.log('   G - Grid 토글');
+        console.log('   S - Snap to Grid 토글');
+        console.log('   + - Zoom In');
+        console.log('   - - Zoom Out');
+        console.log('   R - Reset Zoom');
+        console.log('   Delete - 삭제');
+        console.log('   Escape - 선택 해제');
+        console.log('   Ctrl+Z - Undo');
+        console.log('   Ctrl+Y - Redo');
+        console.log('   마우스 휠 - Zoom In/Out');
+    </script>
+</body>
+</html>

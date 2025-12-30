@@ -68,6 +68,9 @@ class Canvas2DEditor {
         // ✨ v4.0.2: ZoomController 참조
         this.zoomController = null;
 
+        // ✨ Layout Editor: PropertyPanel 참조
+        this.propertyPanel = null;
+
         this.init();
     }
 
@@ -789,6 +792,9 @@ class Canvas2DEditor {
         this.updateTransformer();
         console.log('  └─ updateTransformer 완료');
 
+        // ✨ Layout Editor: PropertyPanel 업데이트
+        this.updatePropertyPanel();
+
         console.log('✅ Selected:', shape.id(), 'Total:', this.selectedObjects.length);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     }
@@ -900,6 +906,9 @@ class Canvas2DEditor {
         console.log('  ├─ layers.ui.batchDraw() 호출...');
         this.layers.ui.batchDraw();
         console.log('  └─ batchDraw 완료');
+        
+        // ✨ Layout Editor: PropertyPanel 업데이트
+        this.updatePropertyPanel();
         
         console.log('✅ Deselected all - 완료!');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -1047,6 +1056,123 @@ class Canvas2DEditor {
         if (this.currentLayout) {
             this.loadLayout(this.currentLayout);
         }
+    }
+
+    // =====================================================
+    // ✨ Layout Editor 확장 메서드들
+    // =====================================================
+
+    /**
+     * PropertyPanel 설정
+     * @param {PropertyPanel} propertyPanel - PropertyPanel 인스턴스
+     */
+    setPropertyPanel(propertyPanel) {
+        this.propertyPanel = propertyPanel;
+        console.log('[Canvas2DEditor] PropertyPanel 설정 완료');
+    }
+
+    /**
+     * PropertyPanel 업데이트
+     */
+    updatePropertyPanel() {
+        if (this.propertyPanel && this.selectedObjects.length > 0) {
+            this.propertyPanel.show(this.selectedObjects);
+        } else if (this.propertyPanel) {
+            this.propertyPanel.hide();
+        }
+    }
+
+    /**
+     * Room 데이터 업데이트 (RoomSizeManager 통합용)
+     * @param {Object} roomData - Room 데이터 {width, depth, wallHeight}
+     */
+    updateRoom(roomData) {
+        if (!this.currentLayout) {
+            this.currentLayout = {};
+        }
+        
+        this.currentLayout.room = {
+            ...this.currentLayout.room,
+            ...roomData
+        };
+        
+        console.log('[Canvas2DEditor] Room 업데이트:', roomData);
+    }
+
+    /**
+     * Wall 추가 (WallDrawTool 통합용)
+     * @param {Konva.Line} wall - 생성된 벽 객체
+     */
+    addWall(wall) {
+        const wallId = wall.id();
+        this.wallShapes.set(wallId, wall);
+        
+        if (!this.currentLayout) {
+            this.currentLayout = { walls: [] };
+        }
+        if (!this.currentLayout.walls) {
+            this.currentLayout.walls = [];
+        }
+        
+        console.log('[Canvas2DEditor] Wall 추가:', wallId);
+    }
+
+    /**
+     * 객체 개수 가져오기
+     * @returns {Object} {walls, equipments, total}
+     */
+    getObjectCount() {
+        return {
+            walls: this.wallShapes.size,
+            equipments: this.equipmentShapes.size,
+            total: this.wallShapes.size + this.equipmentShapes.size
+        };
+    }
+
+    /**
+     * 다중 선택 (Ctrl+Click 지원)
+     * @param {Konva.Shape} shape - 추가 선택할 객체
+     */
+    selectMultiple(shape) {
+        if (!this.selectedObjects.includes(shape)) {
+            console.log('[Canvas2DEditor] 다중 선택 추가:', shape.id());
+            
+            this.selectedObjects.push(shape);
+            
+            // 선택 표시 (Line 객체)
+            if (shape.className === 'Line') {
+                const currentStroke = shape.stroke();
+                const currentStrokeWidth = shape.strokeWidth();
+                
+                shape.setAttr('originalStroke', currentStroke);
+                shape.setAttr('originalStrokeWidth', currentStrokeWidth);
+                
+                shape.stroke(this.cssColors.equipmentSelected);
+                shape.strokeWidth((currentStrokeWidth || 3) + 2);
+                shape.dash([8, 4]);
+            } 
+            // 선택 표시 (Group/Rect 객체)
+            else {
+                const rect = (shape.findOne && shape.findOne('.equipmentRect, .officeRect')) || shape;
+                
+                if (rect.fill) {
+                    rect.setAttr('originalFill', rect.fill());
+                    rect.fill(this.cssColors.equipmentSelected);
+                    rect.strokeWidth(3);
+                }
+            }
+            
+            this.updateTransformer();
+            this.updatePropertyPanel();
+        }
+    }
+
+    /**
+     * selectShape 별칭 (하위 호환성)
+     * WallDrawTool과 RoomSizeManager에서 호출
+     */
+    selectShape(shape) {
+        this.selectObject(shape, false);
     }
 }
 

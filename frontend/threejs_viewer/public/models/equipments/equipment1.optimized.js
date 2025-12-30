@@ -126,11 +126,20 @@ export function createEquipmentModel() {
     signalTower.add(pole);
     
     // 램프들 (그림자 비활성화로 성능 향상)
+    // ⭐ Phase 2: userData 추가 (모니터링 기능용)
     const lightGreen = new THREE.Mesh(
         sharedGeometries.light, 
         sharedMaterials.lightGreen
     );
     lightGreen.position.y = 0.24;
+    lightGreen.userData = {
+        isSignalLight: true,
+        lightType: 'green',
+        baseColor: 0x00ff00,
+        baseEmissive: 0x00ff00,
+        baseIntensity: 0.5,
+        isActive: false
+    };
     signalTower.add(lightGreen);
     
     const lightYellow = new THREE.Mesh(
@@ -138,6 +147,14 @@ export function createEquipmentModel() {
         sharedMaterials.lightYellow
     );
     lightYellow.position.y = 0.32;
+    lightYellow.userData = {
+        isSignalLight: true,
+        lightType: 'yellow',
+        baseColor: 0xffff00,
+        baseEmissive: 0xffff00,
+        baseIntensity: 0.5,
+        isActive: false
+    };
     signalTower.add(lightYellow);
     
     const lightRed = new THREE.Mesh(
@@ -145,6 +162,14 @@ export function createEquipmentModel() {
         sharedMaterials.lightRed
     );
     lightRed.position.y = 0.40;
+    lightRed.userData = {
+        isSignalLight: true,
+        lightType: 'red',
+        baseColor: 0xff0000,
+        baseEmissive: 0xff0000,
+        baseIntensity: 0.5,
+        isActive: false
+    };
     signalTower.add(lightRed);
     
     signalTower.position.set(0.35, 1.7, 0);

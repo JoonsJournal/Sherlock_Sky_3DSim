@@ -417,6 +417,63 @@
 		#editBtn:hover::after {
 			opacity: 1;
 		}
+
+		/* ============================================
+		   ⭐ Phase 2: Monitoring Button 스타일
+		   ============================================ */
+		#monitoringBtn {
+			position: absolute;
+			top: 130px;  /* editBtn 아래 */
+			left: 10px;
+			background: rgba(52, 152, 219, 0.9);  /* 파란색 기본 */
+			border: none;
+			border-radius: 50%;
+			width: 50px;
+			height: 50px;
+			font-size: 24px;
+			cursor: pointer;
+			z-index: 101;
+			transition: all 0.3s ease;
+		}
+
+		#monitoringBtn:hover {
+			transform: scale(1.1);
+		}
+
+		#monitoringBtn.active {
+			background: rgba(46, 204, 113, 0.9);  /* 초록색 활성화 */
+			animation: pulse-monitoring 2s infinite;
+		}
+
+		@keyframes pulse-monitoring {
+			0%, 100% {
+				box-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
+			}
+			50% {
+				box-shadow: 0 0 30px rgba(46, 204, 113, 0.8);
+			}
+		}
+
+		#monitoringBtn::after {
+			content: 'Monitoring Mode (M)';
+			position: absolute;
+			left: 60px;
+			top: 50%;
+			transform: translateY(-50%);
+			background: rgba(0, 0, 0, 0.8);
+			color: white;
+			padding: 8px 12px;
+			border-radius: 6px;
+			font-size: 12px;
+			white-space: nowrap;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.2s ease;
+		}
+
+		#monitoringBtn:hover::after {
+			opacity: 1;
+		}
 	</style>
 </head>
 
@@ -467,6 +524,13 @@
 		============================================ -->
 	<button id="editBtn" title="Equipment Edit Mode (E)">
 		✏️
+	</button>
+
+	<!-- ============================================
+		⭐ Phase 2: Monitoring Button
+		============================================ -->
+	<button id="monitoringBtn" title="Monitoring Mode (M)">
+		🚨
 	</button>
 
 	<!-- ============================================
@@ -588,6 +652,12 @@
 					window.toggleEditMode();
 				}
 			}
+			// ⭐ Phase 2: 'M' 키: Monitoring 모드 토글
+			if (event.key === 'm' || event.key === 'M') {
+				if (window.toggleMonitoringMode) {
+					window.toggleMonitoringMode();
+				}
+			}
 		});
 
 		// 페이지 로드 완료 시
@@ -597,6 +667,7 @@
 			console.log('   D - 디버그 패널 토글');
 			console.log('   C - 선택 해제');
 			console.log('   E - Equipment Edit 모드 토글');
+			console.log('   M - Monitoring 모드 토글');
 			console.log('   ESC - 정보 패널 닫기');
 			console.log('');
 			console.log('🔧 디버그 명령어:');

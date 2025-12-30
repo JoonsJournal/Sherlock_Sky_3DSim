@@ -1,0 +1,401 @@
+/**
+ * layout_editor.css
+ * =================
+ * 
+ * Layout Editor 전용 스타일
+ * Canvas2DEditor와 통합되는 색상 변수 포함
+ * 
+ * 위치: frontend/threejs_viewer/layout_editor.css
+ */
+
+/* ============================================
+   Canvas2DEditor CSS 변수 (통합)
+   ============================================ */
+:root {
+    /* Equipment 색상 */
+    --canvas-equipment-default: #4a90e2;
+    --canvas-equipment-selected: #FFD700;
+    --canvas-equipment-hover: #3498db;
+    --canvas-equipment-stroke: #2c3e50;
+    
+    /* Transformer 색상 */
+    --canvas-transformer-border: #667eea;
+    --canvas-transformer-anchor-stroke: #667eea;
+    --canvas-transformer-anchor-fill: #ffffff;
+    
+    /* Canvas 배경 및 Grid */
+    --canvas-bg: #f5f5f5;
+    --canvas-grid-minor: #d0d0d0;
+    --canvas-grid-major: #a0a0a0;
+    --canvas-grid-label: #999999;
+    
+    /* Selection Box */
+    --canvas-selection-stroke: #667eea;
+    --canvas-selection-fill: rgba(102, 126, 234, 0.1);
+    
+    /* Coordinate Display */
+    --canvas-coord-bg: #667eea;
+    --canvas-coord-text: #ffffff;
+    
+    /* Room & Wall */
+    --canvas-room-stroke: #666666;
+    --canvas-wall-default: #888888;
+    --canvas-office-fill: #d4e6f1;
+    --canvas-office-stroke: #3498db;
+    --canvas-partition: #aaaaaa;
+    
+    /* Text */
+    --canvas-text-primary: #212529;
+    --canvas-text-secondary: #6c757d;
+    
+    /* Layout Editor 전용 색상 */
+    --primary-color: #667eea;
+    --primary-hover: #5568d3;
+    --danger-color: #e74c3c;
+    --danger-hover: #c0392b;
+    --success-color: #27ae60;
+    --success-hover: #229954;
+    --secondary-color: #95a5a6;
+    --secondary-hover: #7f8c8d;
+}
+
+/* ============================================
+   기본 스크롤바 스타일
+   ============================================ */
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* ============================================
+   애니메이션
+   ============================================ */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+/* ============================================
+   유틸리티 클래스
+   ============================================ */
+.hidden {
+    display: none !important;
+}
+
+.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-muted {
+    color: #95a5a6;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.mt-20 {
+    margin-top: 20px;
+}
+
+.mb-10 {
+    margin-bottom: 10px;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+/* ============================================
+   버튼 기본 스타일
+   ============================================ */
+button {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    outline: none;
+}
+
+button:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* ============================================
+   Canvas 커서 스타일
+   ============================================ */
+.canvas-cursor-crosshair {
+    cursor: crosshair !important;
+}
+
+.canvas-cursor-move {
+    cursor: move !important;
+}
+
+.canvas-cursor-pointer {
+    cursor: pointer !important;
+}
+
+.canvas-cursor-default {
+    cursor: default !important;
+}
+
+/* ============================================
+   키보드 단축키 힌트
+   ============================================ */
+.keyboard-hint {
+    font-size: 11px;
+    color: #95a5a6;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.keyboard-shortcut {
+    display: inline-block;
+    padding: 2px 6px;
+    background: #ecf0f1;
+    border: 1px solid #bdc3c7;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 11px;
+    margin: 0 2px;
+}
+
+/* ============================================
+   로딩 스피너
+   ============================================ */
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ============================================
+   Badge 스타일
+   ============================================ */
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.badge-danger {
+    background: var(--danger-color);
+    color: white;
+}
+
+.badge-warning {
+    background: #f39c12;
+    color: white;
+}
+
+.badge-info {
+    background: var(--primary-color);
+    color: white;
+}
+
+.badge-secondary {
+    background: var(--secondary-color);
+    color: white;
+}
+
+/* ============================================
+   Card 스타일
+   ============================================ */
+.card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+.card-footer {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+}
+
+/* ============================================
+   Divider
+   ============================================ */
+.divider {
+    height: 1px;
+    background: #dee2e6;
+    margin: 15px 0;
+}
+
+.divider-vertical {
+    width: 1px;
+    background: #dee2e6;
+    height: 100%;
+}
+
+/* ============================================
+   Info Box
+   ============================================ */
+.info-box {
+    padding: 15px;
+    border-radius: 6px;
+    margin: 10px 0;
+}
+
+.info-box-success {
+    background: #d4edda;
+    border-left: 4px solid var(--success-color);
+    color: #155724;
+}
+
+.info-box-error {
+    background: #f8d7da;
+    border-left: 4px solid var(--danger-color);
+    color: #721c24;
+}
+
+.info-box-warning {
+    background: #fff3cd;
+    border-left: 4px solid #f39c12;
+    color: #856404;
+}
+
+.info-box-info {
+    background: #d1ecf1;
+    border-left: 4px solid var(--primary-color);
+    color: #0c5460;
+}
+
+/* ============================================
+   반응형 디자인
+   ============================================ */
+@media (max-width: 1024px) {
+    .toolbar {
+        width: 60px !important;
+    }
+    
+    .property-panel {
+        width: 250px !important;
+    }
+    
+    .toolbar-btn {
+        width: 45px !important;
+        height: 45px !important;
+        font-size: 20px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .property-panel {
+        position: absolute !important;
+        right: 0;
+        top: 60px;
+        bottom: 30px;
+        transform: translateX(100%);
+        transition: transform 0.3s;
+        z-index: 1000;
+    }
+    
+    .property-panel.active {
+        transform: translateX(0);
+    }
+    
+    .header h1 {
+        font-size: 16px !important;
+    }
+    
+    .header-btn {
+        padding: 6px 12px !important;
+        font-size: 12px !important;
+    }
+}
+
+/* ============================================
+   Print 스타일
+   ============================================ */
+@media print {
+    .toolbar,
+    .property-panel,
+    .header,
+    .status-bar,
+    .modal {
+        display: none !important;
+    }
+    
+    .canvas-area {
+        margin-top: 0 !important;
+    }
+    
+    body {
+        background: white !important;
+    }
+}

@@ -62,7 +62,8 @@ export function createEquipmentModel() {
     machineGroup.add(pole);
 
     // 경광등 램프 생성 함수
-    function createLight(color, yPos) {
+    // ⭐ Phase 2: lightType 파라미터 추가 (모니터링 기능용)
+    function createLight(color, yPos, lightType) {
         const lightGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.08, 16);
         const lightMat = new THREE.MeshStandardMaterial({ 
             color: color, 
@@ -74,13 +75,25 @@ export function createEquipmentModel() {
         const light = new THREE.Mesh(lightGeo, lightMat);
         light.position.set(0.35, yPos, 0);
         light.castShadow = true;
+        
+        // ⭐ Phase 2: 모니터링용 식별자 추가
+        light.userData = {
+            isSignalLight: true,     // 경광등 램프임을 표시
+            lightType: lightType,    // 'green', 'yellow', 'red'
+            baseColor: color,        // 원래 색상 저장
+            baseEmissive: color,     // 원래 발광 색상
+            baseIntensity: 0.5,      // 원래 발광 강도
+            isActive: false          // 초기 비활성 상태
+        };
+        
         return light;
     }
 
     // 녹색, 황색, 적색 램프 쌓기
-    machineGroup.add(createLight(0x00ff00, 1.84)); // Green
-    machineGroup.add(createLight(0xffff00, 1.92)); // Yellow
-    machineGroup.add(createLight(0xff0000, 2.00)); // Red
+    // ⭐ Phase 2: lightType 파라미터 전달
+    machineGroup.add(createLight(0x00ff00, 1.84, 'green'));   // Green
+    machineGroup.add(createLight(0xffff00, 1.92, 'yellow'));  // Yellow
+    machineGroup.add(createLight(0xff0000, 2.00, 'red'));     // Red
 
     // D. 도어 핸들 (디테일)
     const handleGeo = new THREE.BoxGeometry(0.02, 0.15, 0.02);

@@ -29,6 +29,12 @@ import { EquipmentEditState } from './services/EquipmentEditState.js';
 import { EquipmentEditModal } from './ui/EquipmentEditModal.js';
 import { ApiClient } from './api/ApiClient.js';
 
+// ============================================
+// ⭐ Phase 2: Monitoring Service import
+// ============================================
+import { MonitoringService } from './services/MonitoringService.js';
+import { SignalTowerManager } from './services/SignalTowerManager.js';
+
 // 전역 객체
 let sceneManager;
 let equipmentLoader;
@@ -48,6 +54,12 @@ let connectionModal;
 let equipmentEditState;
 let equipmentEditModal;
 let apiClient;
+
+// ============================================
+// ⭐ Phase 2: Monitoring Service 전역 객체
+// ============================================
+let monitoringService;
+let signalTowerManager;
 
 
 /**
@@ -161,6 +173,25 @@ function init() {
         console.log('✅ EquipmentEditModal 초기화 완료');
         
         // ============================================
+        // ⭐ Phase 2: Monitoring Service 초기화
+        // ============================================
+        
+        // Signal Tower Manager 초기화
+        signalTowerManager = new SignalTowerManager(sceneManager.scene, equipmentLoader);
+        
+        // ⭐ 기존 equipment1.js의 경광등 램프들을 찾아서 초기화
+        const lightCount = signalTowerManager.initializeAllLights();
+        console.log(`✅ SignalTowerManager 초기화 완료: ${lightCount}개 설비의 경광등 연결`);
+        
+        // Monitoring Service 초기화
+        monitoringService = new MonitoringService(signalTowerManager);
+        console.log('✅ MonitoringService 초기화 완료');
+        
+        // 전역 객체로 노출 (테스트용)
+        window.monitoringService = monitoringService;
+        window.signalTowerManager = signalTowerManager;
+        
+        // ============================================
         // ⭐ Edit Button 이벤트 리스너
         // ============================================
         const editBtn = document.getElementById('editBtn');
@@ -175,6 +206,31 @@ function init() {
                 console.log(isActive ? '✏️ Equipment Edit Mode: ON' : '✏️ Equipment Edit Mode: OFF');
             });
         }
+        
+        // ============================================
+        // ⭐ Phase 2: Monitoring Button 이벤트 리스너
+        // ============================================
+        const monitoringBtn = document.getElementById('monitoringBtn');
+        if (monitoringBtn) {
+            monitoringBtn.addEventListener('click', () => {
+                if (monitoringService.isActive) {
+                    monitoringService.stop();
+                    monitoringBtn.classList.remove('active');
+                    console.log('🔴 Monitoring Mode: OFF');
+                } else {
+                    monitoringService.start();
+                    monitoringBtn.classList.add('active');
+                    console.log('🟢 Monitoring Mode: ON');
+                }
+            });
+        }
+        
+        // 전역 토글 함수 (키보드 단축키용)
+        window.toggleMonitoringMode = () => {
+            if (monitoringBtn) {
+                monitoringBtn.click();
+            }
+        };
         
         // ============================================
         // ⭐ Edit 모드 이벤트 리스너 등록
@@ -373,6 +429,12 @@ function animate() {
     // 상태 시각화 애니메이션 (에러 상태 깜빡임)
     if (statusVisualizer) {
         statusVisualizer.animateErrorStatus();
+    }
+    
+    // ⭐ Phase 2: Signal Tower 애니메이션 (경광등 깜빡임)
+    if (signalTowerManager) {
+        const deltaTime = 0.016; // 약 60 FPS 기준
+        signalTowerManager.animate(deltaTime);
     }
     
     // ⭐ 성능 모니터 업데이트 (프레임마다)
