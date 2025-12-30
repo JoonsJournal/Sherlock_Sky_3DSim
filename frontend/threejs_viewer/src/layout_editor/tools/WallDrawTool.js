@@ -231,8 +231,8 @@ export class WallDrawTool {
             lineCap: 'round',
             lineJoin: 'round',
             
-            // ✅ 중요: 벽은 드래그 불가 (잔상 문제 방지)
-            draggable: false,
+            // ✅ 수정: 벽 드래그 가능하도록 변경
+            draggable: true,
             
             // ✅ 선택은 가능 (PropertyPanel에서 편집)
             listening: true,

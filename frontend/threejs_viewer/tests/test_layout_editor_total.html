@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Layout Editor - Complete (Phase 2.6 - All Features)</title>
+    <title>Layout Editor - SHERLOCK_SKY_3DSIM</title>
     
     <!-- Konva.js CDN -->
     <script src="https://unpkg.com/konva@9/konva.min.js"></script>
@@ -14,11 +14,46 @@
     <!-- ✅ ZoomController 로드 (전역 객체) -->
     <script src="../src/layout_editor/controllers/ZoomController.js"></script>
     
+    <!-- ✅ ObjectSelectionTool 로드 (전역 객체) -->
+    <script src="../src/layout_editor/tools/ObjectSelectionTool.js"></script>
+    
     <!-- CSS -->
     <link rel="stylesheet" href="../src/styles/layout_editor.css">
     <link rel="stylesheet" href="../src/styles/component-palette.css">
     
     <style>
+        :root {
+            --toolbar-width: 70px;
+            --toolbar-expanded-width: 280px;
+            --submenu-width: 210px;
+            --property-panel-width: 280px;
+            --header-height: 50px;
+            --status-height: 32px;
+            
+            --canvas-equipment-default: #4a90e2;
+            --canvas-equipment-selected: #FFD700;
+            --canvas-equipment-hover: #3498db;
+            --canvas-equipment-stroke: #2c3e50;
+            --canvas-transformer-border: #667eea;
+            --canvas-transformer-anchor-stroke: #667eea;
+            --canvas-transformer-anchor-fill: #ffffff;
+            --canvas-bg: #f5f5f5;
+            --canvas-grid-minor: #d0d0d0;
+            --canvas-grid-major: #a0a0a0;
+            --canvas-grid-label: #999999;
+            --canvas-selection-stroke: #667eea;
+            --canvas-selection-fill: rgba(102, 126, 234, 0.1);
+            --canvas-coord-bg: #667eea;
+            --canvas-coord-text: #ffffff;
+            --canvas-room-stroke: #666666;
+            --canvas-wall-default: #888888;
+            --canvas-office-fill: #d4e6f1;
+            --canvas-office-stroke: #3498db;
+            --canvas-partition: #aaaaaa;
+            --canvas-text-primary: #212529;
+            --canvas-text-secondary: #6c757d;
+        }
+        
         * {
             margin: 0;
             padding: 0;
@@ -37,7 +72,7 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 60px;
+            height: var(--header-height);
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             display: flex;
@@ -49,13 +84,13 @@
         }
         
         .header h1 {
-            font-size: 20px;
+            font-size: 18px;
             margin: 0;
         }
         
         .header-actions {
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
         
         .header-btn {
@@ -63,7 +98,7 @@
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
             transition: all 0.3s;
         }
@@ -90,47 +125,67 @@
         .layout-container {
             display: flex;
             position: fixed;
-            top: 60px;
+            top: var(--header-height);
             left: 0;
             right: 0;
-            bottom: 30px; /* Status bar 공간 */
+            bottom: var(--status-height);
         }
         
-        /* 왼쪽 Toolbar */
+        /* ✨ 툴바 컨테이너 - 서브메뉴 포함 */
+        .toolbar-container {
+            width: var(--toolbar-width);
+            display: flex;
+            flex-shrink: 0;
+            transition: width 0.3s ease;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .toolbar-container.expanded {
+            width: var(--toolbar-expanded-width);
+        }
+        
+        /* 툴바 */
         .toolbar {
-            width: 80px;
+            width: var(--toolbar-width);
+            min-width: var(--toolbar-width);
             background: #2c3e50;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px 0;
+            padding: 10px 0;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            z-index: 10;
             overflow-y: auto;
+            overflow-x: hidden;
         }
         
+        /* 툴바 버튼 */
         .toolbar-btn {
-            width: 60px;
-            height: 60px;
-            margin: 10px 0;
+            width: 52px;
+            height: 52px;
+            margin: 4px 0;
             background: #34495e;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             color: white;
             font-size: 24px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
         
         .toolbar-btn:hover {
             background: #667eea;
-            transform: scale(1.1);
+            transform: scale(1.05);
         }
         
         .toolbar-btn.active {
             background: #667eea;
-            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+            box-shadow: 0 0 12px rgba(102, 126, 234, 0.6);
         }
         
         .toolbar-btn.zoom {
@@ -150,13 +205,22 @@
             background: #2980b9;
         }
         
+        .toolbar-btn.danger {
+            background: #c0392b;
+        }
+        
+        .toolbar-btn.danger:hover {
+            background: #e74c3c;
+        }
+        
+        /* 툴팁 - 서브메뉴가 열렸을 때는 숨김 */
         .toolbar-btn::after {
             content: attr(data-tooltip);
             position: absolute;
-            left: 70px;
+            left: 60px;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.9);
             color: white;
             padding: 8px 12px;
             border-radius: 6px;
@@ -164,28 +228,101 @@
             white-space: nowrap;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.3s;
+            transition: opacity 0.2s;
+            z-index: 1000;
         }
         
         .toolbar-btn:hover::after {
             opacity: 1;
         }
         
+        /* 서브메뉴 열렸을 때 툴팁 숨김 */
+        .toolbar-container.expanded .toolbar-btn::after {
+            display: none;
+        }
+        
         .toolbar-divider {
             width: 40px;
             height: 2px;
-            background: #34495e;
-            margin: 10px 0;
+            background: #4a5c6a;
+            margin: 6px 0;
+            flex-shrink: 0;
         }
         
-        /* ComponentPalette 영역 */
-        #component-palette {
-            width: 220px;
-            flex-shrink: 0;
-            overflow-y: auto;
+        /* ✨ Component 서브메뉴 - 툴바 옆에 붙음 */
+        .component-submenu {
+            width: 0;
             background: white;
-            border-right: 2px solid #e0e0e0;
-            display: none;
+            overflow: hidden;
+            transition: width 0.3s ease;
+            box-shadow: 2px 0 15px rgba(0,0,0,0.15);
+        }
+        
+        .toolbar-container.expanded .component-submenu {
+            width: var(--submenu-width);
+        }
+        
+        .submenu-content {
+            width: var(--submenu-width);
+            min-width: var(--submenu-width);
+        }
+        
+        .submenu-header {
+            padding: 14px 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        
+        .submenu-item {
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+        
+        .submenu-item:hover {
+            background: #f0f4ff;
+        }
+        
+        .submenu-item:active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .submenu-item-icon {
+            font-size: 20px;
+            width: 30px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        
+        .submenu-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .submenu-item-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: #2c3e50;
+        }
+        
+        .submenu-item-size {
+            font-size: 11px;
+            color: #999;
+            margin-top: 2px;
+        }
+        
+        .submenu-item:active .submenu-item-name,
+        .submenu-item:active .submenu-item-size {
+            color: white;
         }
         
         /* Canvas 영역 */
@@ -195,6 +332,7 @@
             flex-direction: column;
             background: white;
             position: relative;
+            min-width: 0;
         }
         
         #canvas-container {
@@ -212,8 +350,8 @@
             background: rgba(52, 152, 219, 0.95);
             color: white;
             padding: 20px 40px;
-            border-radius: 10px;
-            font-size: 20px;
+            border-radius: 12px;
+            font-size: 18px;
             font-weight: bold;
             pointer-events: none;
             z-index: 1000;
@@ -232,7 +370,7 @@
         
         /* PropertyPanel 영역 */
         .property-panel {
-            width: 300px;
+            width: var(--property-panel-width);
             flex-shrink: 0;
             background: white;
             border-left: 2px solid #e0e0e0;
@@ -245,13 +383,13 @@
             bottom: 0;
             left: 0;
             right: 0;
-            height: 30px;
+            height: var(--status-height);
             background: #34495e;
             color: white;
             display: flex;
             align-items: center;
-            padding: 0 15px;
-            font-size: 12px;
+            padding: 0 20px;
+            font-size: 13px;
             gap: 20px;
             z-index: 100;
         }
@@ -289,26 +427,28 @@
         
         .modal-content {
             background: white;
-            padding: 30px;
+            padding: 28px;
             border-radius: 12px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            min-width: 400px;
+            min-width: 360px;
         }
         
         .modal-content h2 {
             margin: 0 0 20px 0;
             color: #2c3e50;
+            font-size: 18px;
         }
         
         .form-group {
-            margin: 15px 0;
+            margin: 14px 0;
         }
         
         .form-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
             color: #555;
             font-weight: 600;
+            font-size: 14px;
         }
         
         .form-group input {
@@ -316,7 +456,7 @@
             padding: 10px;
             border: 2px solid #ddd;
             border-radius: 6px;
-            font-size: 16px;
+            font-size: 14px;
         }
         
         .form-group input:focus {
@@ -335,7 +475,7 @@
             padding: 12px;
             border: none;
             border-radius: 6px;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
             transition: all 0.3s;
         }
@@ -347,54 +487,56 @@
             right: 20px;
             background: #2c3e50;
             color: white;
-            padding: 15px 25px;
+            padding: 12px 20px;
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             z-index: 2000;
             animation: slideIn 0.3s ease-out;
+            font-size: 13px;
         }
         
-        .toast.success {
-            background: #27ae60;
-        }
-        
-        .toast.error {
-            background: #e74c3c;
-        }
-        
-        .toast.info {
-            background: #3498db;
-        }
+        .toast.success { background: #27ae60; }
+        .toast.error { background: #e74c3c; }
+        .toast.info { background: #3498db; }
         
         @keyframes slideIn {
-            from {
-                transform: translateX(400px);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
         
         /* 스크롤바 */
-        .toolbar::-webkit-scrollbar,
-        #component-palette::-webkit-scrollbar,
-        .property-panel::-webkit-scrollbar {
-            width: 8px;
-        }
+        .toolbar::-webkit-scrollbar { width: 4px; }
+        .toolbar::-webkit-scrollbar-track { background: #34495e; }
+        .toolbar::-webkit-scrollbar-thumb { background: #667eea; border-radius: 2px; }
         
-        .toolbar::-webkit-scrollbar-track,
-        #component-palette::-webkit-scrollbar-track,
-        .property-panel::-webkit-scrollbar-track {
-            background: #34495e;
-        }
+        .property-panel::-webkit-scrollbar,
+        .component-submenu::-webkit-scrollbar { width: 6px; }
+        .property-panel::-webkit-scrollbar-track,
+        .component-submenu::-webkit-scrollbar-track { background: #f0f0f0; }
+        .property-panel::-webkit-scrollbar-thumb,
+        .component-submenu::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
         
-        .toolbar::-webkit-scrollbar-thumb,
-        #component-palette::-webkit-scrollbar-thumb,
-        .property-panel::-webkit-scrollbar-thumb {
-            background: #667eea;
-            border-radius: 4px;
+        /* Property Panel 기본 스타일 */
+        .property-panel-content { padding: 16px; }
+        .property-panel-header {
+            font-size: 15px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #667eea;
+        }
+        .property-panel-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 150px;
+            color: #999;
+        }
+        .property-panel-empty-icon {
+            font-size: 40px;
+            margin-bottom: 8px;
         }
     </style>
 </head>
@@ -402,90 +544,105 @@
 <body>
     <!-- 헤더 -->
     <div class="header">
-        <h1>🏗️ Layout Editor - Complete (All Features)</h1>
+        <h1>🏗️ Layout Editor - SHERLOCK_SKY_3DSIM</h1>
         <div class="header-actions">
-            <button class="header-btn btn-secondary" onclick="editorApp.undo()">
-                ↶ Undo (Ctrl+Z)
-            </button>
-            <button class="header-btn btn-secondary" onclick="editorApp.redo()">
-                ↷ Redo (Ctrl+Y)
-            </button>
-            <button class="header-btn btn-primary" onclick="editorApp.saveLayout()">
-                💾 Save Layout
-            </button>
+            <button class="header-btn btn-secondary" onclick="editorApp.undo()">↶ Undo</button>
+            <button class="header-btn btn-secondary" onclick="editorApp.redo()">↷ Redo</button>
+            <button class="header-btn btn-primary" onclick="editorApp.saveLayout()">💾 Save</button>
         </div>
     </div>
 
     <div class="layout-container">
-        <!-- 왼쪽 Toolbar -->
-        <div class="toolbar">
-            <button class="toolbar-btn active" data-tooltip="선택 도구 (V)" onclick="editorApp.activateTool('select')">
-                👆
-            </button>
+        <!-- ✨ 툴바 컨테이너 (툴바 + 서브메뉴) -->
+        <div class="toolbar-container" id="toolbar-container">
+            <!-- 툴바 -->
+            <div class="toolbar">
+                <button class="toolbar-btn active" data-tooltip="선택 도구 (V)" onclick="editorApp.activateTool('select')">👆</button>
+                <button class="toolbar-btn" data-tooltip="Room Size 설정" onclick="editorApp.showRoomSizeModal()">📐</button>
+                <button class="toolbar-btn" data-tooltip="벽 그리기 (W)" onclick="editorApp.activateTool('wall')">🧱</button>
+                <button class="toolbar-btn" id="component-btn" data-tooltip="컴포넌트 삽입 (C)" onclick="editorApp.toggleComponentSubmenu()">🎨</button>
+                
+                <div class="toolbar-divider"></div>
+                
+                <button class="toolbar-btn" data-tooltip="Grid 토글 (G)" onclick="editorApp.toggleGrid()">🔲</button>
+                <button class="toolbar-btn" data-tooltip="Snap to Grid (S)" onclick="editorApp.toggleSnap()">🧲</button>
+                
+                <div class="toolbar-divider"></div>
+                
+                <button class="toolbar-btn zoom" data-tooltip="Zoom In (+)" onclick="editorApp.zoomIn()">➕</button>
+                <button class="toolbar-btn zoom" data-tooltip="Zoom Out (-)" onclick="editorApp.zoomOut()">➖</button>
+                <button class="toolbar-btn zoom reset" data-tooltip="Reset Zoom (R)" onclick="editorApp.resetZoom()">🎯</button>
+                
+                <div class="toolbar-divider"></div>
+                
+                <button class="toolbar-btn" data-tooltip="전체 선택 (Ctrl+A)" onclick="editorApp.selectAll()">✅</button>
+                <button class="toolbar-btn danger" data-tooltip="삭제 (Del)" onclick="editorApp.deleteSelected()">🗑️</button>
+                <button class="toolbar-btn" data-tooltip="선택 해제 (Esc)" onclick="editorApp.deselectAll()">❌</button>
+                
+                <div class="toolbar-divider"></div>
+                
+                <button class="toolbar-btn" data-tooltip="샘플 레이아웃" onclick="editorApp.loadSampleLayout()">📁</button>
+            </div>
             
-            <button class="toolbar-btn" data-tooltip="Room Size 설정" onclick="editorApp.showRoomSizeModal()">
-                📐
-            </button>
-            
-            <button class="toolbar-btn" data-tooltip="벽 그리기 (W)" onclick="editorApp.activateTool('wall')">
-                🧱
-            </button>
-            
-            <button class="toolbar-btn" data-tooltip="ComponentPalette (C)" onclick="editorApp.toggleComponentPalette()">
-                🎨
-            </button>
-            
-            <div class="toolbar-divider"></div>
-            
-            <button class="toolbar-btn" data-tooltip="Grid 토글 (G)" onclick="editorApp.toggleGrid()">
-                🔲
-            </button>
-            
-            <button class="toolbar-btn" data-tooltip="Snap to Grid (S)" onclick="editorApp.toggleSnap()">
-                🧲
-            </button>
-            
-            <div class="toolbar-divider"></div>
-            
-            <button class="toolbar-btn zoom" data-tooltip="Zoom In (+)" onclick="editorApp.zoomIn()">
-                🔍+
-            </button>
-            
-            <button class="toolbar-btn zoom" data-tooltip="Zoom Out (-)" onclick="editorApp.zoomOut()">
-                🔍-
-            </button>
-            
-            <button class="toolbar-btn zoom reset" data-tooltip="Reset Zoom (R)" onclick="editorApp.resetZoom()">
-                🎯
-            </button>
-            
-            <div class="toolbar-divider"></div>
-            
-            <button class="toolbar-btn" data-tooltip="삭제 (Del)" onclick="editorApp.deleteSelected()">
-                🗑️
-            </button>
-            
-            <button class="toolbar-btn" data-tooltip="전체 선택 해제 (Esc)" onclick="editorApp.deselectAll()">
-                ❌
-            </button>
+            <!-- ✨ Component 서브메뉴 -->
+            <div class="component-submenu" id="component-submenu">
+                <div class="submenu-content">
+                    <div class="submenu-header">🎨 Components</div>
+                    <div class="submenu-item" draggable="true" data-component="partition">
+                        <span class="submenu-item-icon">🚪</span>
+                        <div class="submenu-item-info">
+                            <div class="submenu-item-name">Partition</div>
+                            <div class="submenu-item-size">3.0 × 2.5m</div>
+                        </div>
+                    </div>
+                    <div class="submenu-item" draggable="true" data-component="desk">
+                        <span class="submenu-item-icon">🪑</span>
+                        <div class="submenu-item-info">
+                            <div class="submenu-item-name">Desk</div>
+                            <div class="submenu-item-size">1.6 × 0.8m</div>
+                        </div>
+                    </div>
+                    <div class="submenu-item" draggable="true" data-component="pillar">
+                        <span class="submenu-item-icon">🏛️</span>
+                        <div class="submenu-item-info">
+                            <div class="submenu-item-name">Pillar</div>
+                            <div class="submenu-item-size">0.3 × 0.3m</div>
+                        </div>
+                    </div>
+                    <div class="submenu-item" draggable="true" data-component="office">
+                        <span class="submenu-item-icon">🏢</span>
+                        <div class="submenu-item-info">
+                            <div class="submenu-item-name">Office</div>
+                            <div class="submenu-item-size">12 × 20m</div>
+                        </div>
+                    </div>
+                    <div class="submenu-item" draggable="true" data-component="equipment">
+                        <span class="submenu-item-icon">⚙️</span>
+                        <div class="submenu-item-info">
+                            <div class="submenu-item-name">Equipment</div>
+                            <div class="submenu-item-size">1.5 × 3.0m</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <!-- ComponentPalette -->
-        <div id="component-palette"></div>
 
         <!-- Canvas 영역 -->
         <div class="canvas-area">
             <div id="canvas-container"></div>
-            
-            <!-- Drop 가이드 -->
-            <div class="drop-guide" id="drop-guide">
-                📦 Drop here to create!
-            </div>
+            <div class="drop-guide" id="drop-guide">📦 Drop here to create!</div>
         </div>
         
         <!-- PropertyPanel -->
         <div class="property-panel" id="property-panel">
-            <!-- PropertyPanel.js가 동적으로 생성 -->
+            <div class="property-panel-content">
+                <div class="property-panel-header">속성</div>
+                <div class="property-panel-empty">
+                    <div class="property-panel-empty-icon">👆</div>
+                    <div>객체를 선택하세요</div>
+                    <div style="font-size: 11px; margin-top: 5px;">💡 Canvas에서 객체를 클릭</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -496,6 +653,7 @@
         <span class="status-item">Grid: <span id="status-grid">ON</span></span>
         <span class="status-item">Snap: <span id="status-snap">ON</span></span>
         <span class="status-item">객체: <span id="status-objects">0</span></span>
+        <span class="status-item">선택됨: <span id="status-selected">0</span></span>
     </div>
 
     <!-- Room Size Modal -->
@@ -522,401 +680,490 @@
     </div>
 
     <script type="module">
-        // ✅ 모든 필수 모듈 import
-        import { ComponentPalette } from '../src/layout_editor/components/ComponentPalette.js';
         import { RoomSizeManager } from '../src/layout_editor/managers/RoomSizeManager.js';
         import { WallDrawTool } from '../src/layout_editor/tools/WallDrawTool.js';
         import { PropertyPanel } from '../src/layout_editor/components/PropertyPanel.js';
         
-        // ============================================
-        // 완전한 Layout Editor Application
-        // ============================================
+        const COMPONENTS = {
+            partition: { id: 'partition', name: 'Partition', icon: '🚪', width: 3.0, depth: 2.5, color: '#888888' },
+            desk: { id: 'desk', name: 'Desk', icon: '🪑', width: 1.6, depth: 0.8, color: '#8B4513' },
+            pillar: { id: 'pillar', name: 'Pillar', icon: '🏛️', width: 0.3, depth: 0.3, color: '#333333' },
+            office: { id: 'office', name: 'Office', icon: '🏢', width: 12.0, depth: 20.0, color: '#87CEEB' },
+            equipment: { id: 'equipment', name: 'Equipment', icon: '⚙️', width: 1.5, depth: 3.0, color: '#FF8C00' }
+        };
+        
+        // CSS 변수에서 값 가져오기
+        const rootStyles = getComputedStyle(document.documentElement);
+        const TOOLBAR_WIDTH = parseInt(rootStyles.getPropertyValue('--toolbar-width')) || 70;
+        const TOOLBAR_EXPANDED_WIDTH = parseInt(rootStyles.getPropertyValue('--toolbar-expanded-width')) || 280;
+        const PROPERTY_PANEL_WIDTH = parseInt(rootStyles.getPropertyValue('--property-panel-width')) || 280;
+        const HEADER_HEIGHT = parseInt(rootStyles.getPropertyValue('--header-height')) || 50;
+        const STATUS_HEIGHT = parseInt(rootStyles.getPropertyValue('--status-height')) || 32;
+        
+        class ZoomControllerExtended extends ZoomController {
+            constructor(canvas2DEditor, options = {}) {
+                super(canvas2DEditor, options);
+            }
+            
+            updateGrid() {
+                this.editor.layers.background.destroyChildren();
+                
+                const stage = this.editor.stage;
+                const stagePos = stage.position();
+                const zoom = this.currentZoom;
+                
+                const padding = 1000;
+                const visibleWidth = (this.editor.config.width / zoom) + (padding * 2);
+                const visibleHeight = (this.editor.config.height / zoom) + (padding * 2);
+                const startX = (-stagePos.x / zoom) - padding;
+                const startY = (-stagePos.y / zoom) - padding;
+                
+                const gridSize = this.getCurrentGridSize();
+                const majorInterval = this.gridConfig.majorInterval;
+                
+                const background = new Konva.Rect({
+                    x: startX, y: startY,
+                    width: visibleWidth, height: visibleHeight,
+                    fill: this.editor.config.backgroundColor
+                });
+                this.editor.layers.background.add(background);
+                
+                if (gridSize < 2) {
+                    this.editor.layers.background.batchDraw();
+                    return;
+                }
+                
+                const gridStartX = Math.floor(startX / gridSize) * gridSize;
+                const gridStartY = Math.floor(startY / gridSize) * gridSize;
+                const gridEndX = startX + visibleWidth;
+                const gridEndY = startY + visibleHeight;
+                
+                for (let i = gridStartX; i <= gridEndX; i += gridSize) {
+                    const gridIndex = Math.round(i / gridSize);
+                    const isMajor = (gridIndex % majorInterval) === 0;
+                    this.editor.layers.background.add(new Konva.Line({
+                        points: [i, gridStartY, i, gridEndY],
+                        stroke: isMajor ? this.editor.config.gridMajorColor : this.editor.config.gridColor,
+                        strokeWidth: isMajor ? 1 / zoom : 0.5 / zoom
+                    }));
+                    if (isMajor && i !== 0) {
+                        const meters = Math.round((i / this.baseScale) * 10) / 10;
+                        this.editor.layers.background.add(new Konva.Text({
+                            x: i + 3 / zoom, y: gridStartY + 5 / zoom,
+                            text: `${meters}m`, fontSize: 10 / zoom,
+                            fill: this.editor.cssColors.gridLabel
+                        }));
+                    }
+                }
+                
+                for (let i = gridStartY; i <= gridEndY; i += gridSize) {
+                    const gridIndex = Math.round(i / gridSize);
+                    const isMajor = (gridIndex % majorInterval) === 0;
+                    this.editor.layers.background.add(new Konva.Line({
+                        points: [gridStartX, i, gridEndX, i],
+                        stroke: isMajor ? this.editor.config.gridMajorColor : this.editor.config.gridColor,
+                        strokeWidth: isMajor ? 1 / zoom : 0.5 / zoom
+                    }));
+                    if (isMajor && i !== 0) {
+                        const meters = Math.round((i / this.baseScale) * 10) / 10;
+                        this.editor.layers.background.add(new Konva.Text({
+                            x: gridStartX + 5 / zoom, y: i + 3 / zoom,
+                            text: `${meters}m`, fontSize: 10 / zoom,
+                            fill: this.editor.cssColors.gridLabel
+                        }));
+                    }
+                }
+                
+                this.editor.layers.background.batchDraw();
+            }
+            
+            onWheel(e) {
+                e.preventDefault();
+                const oldZoom = this.currentZoom;
+                const delta = -e.deltaY * this.config.wheelSensitivity;
+                let newZoom = Math.max(this.config.minZoom, Math.min(this.config.maxZoom, oldZoom + delta));
+                if (newZoom === oldZoom) return;
+                
+                const pointer = this.editor.stage.getPointerPosition();
+                const mousePointTo = {
+                    x: pointer.x / oldZoom - this.editor.stage.x() / oldZoom,
+                    y: pointer.y / oldZoom - this.editor.stage.y() / oldZoom
+                };
+                this.setZoom(newZoom);
+                this.editor.stage.position({
+                    x: -(mousePointTo.x - pointer.x / newZoom) * newZoom,
+                    y: -(mousePointTo.y - pointer.y / newZoom) * newZoom
+                });
+                this.updateGrid();
+                this.editor.stage.batchDraw();
+            }
+        }
+        
+        class WallDrawToolFixed extends WallDrawTool {
+            constructor(canvas2DEditor) { super(canvas2DEditor); }
+            
+            // ✅ Shift 키가 눌렸을 때 벽 그리기 시작하지 않음 (박스 선택과 충돌 방지)
+            onMouseDown(e) {
+                if (!this.isActive) return;
+                
+                // ✅ Shift 키가 눌렸으면 벽 그리기 시작하지 않음 (박스 선택과 충돌 방지)
+                if (e.evt && e.evt.shiftKey) {
+                    console.log('[WallDrawToolFixed] Shift 키 감지 - 벽 그리기 건너뜀 (박스 선택 모드)');
+                    return;
+                }
+                
+                // Stage 클릭인지 확인 (객체 클릭 제외)
+                if (e.target !== this.canvas.stage) {
+                    return;
+                }
+                
+                // 시작점 기록
+                const pos = this.getMousePos(e);
+                this.startPoint = pos;
+                this.isDrawing = true;
+                
+                console.log('[WallDrawToolFixed] 그리기 시작:', pos);
+                
+                // 임시 라인 생성 (점선)
+                this.tempLine = new Konva.Line({
+                    points: [pos.x, pos.y, pos.x, pos.y],
+                    stroke: '#667eea',
+                    strokeWidth: 3,
+                    dash: [10, 5],
+                    lineCap: 'round',
+                    listening: false
+                });
+                
+                this.canvas.layers.ui.add(this.tempLine);
+                this.canvas.layers.ui.batchDraw();
+            }
+            
+            getMousePos(e) {
+                const stage = this.canvas.stage;
+                const pointer = stage.getPointerPosition();
+                if (!pointer) return { x: 0, y: 0 };
+                const transform = stage.getAbsoluteTransform().copy();
+                transform.invert();
+                return transform.point(pointer);
+            }
+        }
+        
+        class ObjectSelectionToolExtended extends ObjectSelectionTool {
+            constructor(canvas2DEditor) { super(canvas2DEditor); }
+            
+            attachEventListeners() {
+                const layers = [this.editor.layers.equipment, this.editor.layers.room];
+                layers.forEach(layer => {
+                    if (!layer) return;
+                    layer.find('.equipment, .wall, .office, .partition, .desk, .pillar, .component').forEach(shape => {
+                        if (shape.draggable()) this.attachShapeEvents(shape);
+                    });
+                });
+            }
+            
+            onMouseUp(e) {
+                if (!this.isSelecting) return;
+                this.isSelecting = false;
+                const box = this.selectionBox.getClientRect();
+                if (!this.ctrlKeyPressed) this.editor.deselectAll();
+                
+                [this.editor.layers.equipment, this.editor.layers.room].forEach(layer => {
+                    if (!layer) return;
+                    layer.getChildren().forEach(shape => {
+                        const name = shape.name();
+                        if (['equipment', 'wall', 'office', 'partition', 'desk', 'pillar', 'component'].some(t => name?.includes(t))) {
+                            if (this.haveIntersection(box, shape.getClientRect())) {
+                                this.editor.selectObject(shape, true);
+                            }
+                        }
+                    });
+                });
+                
+                if (this.selectionBox) { this.selectionBox.destroy(); this.selectionBox = null; }
+                if (this.selectionCountLabel) { this.selectionCountLabel.destroy(); this.selectionCountLabel = null; }
+                this.editor.layers.ui.batchDraw();
+                this.justFinishedBoxSelect = true;
+                setTimeout(() => { this.editor._isBoxSelecting = false; this.justFinishedBoxSelect = false; }, 100);
+            }
+        }
+        
         class LayoutEditorApp {
             constructor() {
-                console.log('=== Layout Editor 초기화 시작 ===');
+                this.componentSubmenuVisible = false;
                 
-                // Canvas2DEditor 확인
-                if (typeof Canvas2DEditor === 'undefined') {
-                    console.error('❌ Canvas2DEditor를 찾을 수 없습니다');
-                    throw new Error('Canvas2DEditor not found');
-                }
+                // 초기 캔버스 크기 계산
+                const canvasSize = this.calculateCanvasSize();
                 
-                // ZoomController 확인
-                if (typeof ZoomController === 'undefined') {
-                    console.error('❌ ZoomController를 찾을 수 없습니다');
-                    throw new Error('ZoomController not found');
-                }
-                
-                // Canvas 크기 계산 (PropertyPanel 공간 포함)
-                const width = window.innerWidth - 80 - 220 - 300; // toolbar, palette(숨김), property panel
-                const height = window.innerHeight - 60 - 30; // header, status bar
-                
-                // ✅ Canvas2DEditor 초기화
                 this.canvas = new Canvas2DEditor('canvas-container', {
-                    width: width,
-                    height: height,
+                    width: canvasSize.width,
+                    height: canvasSize.height,
                     showGrid: true,
                     snapToGrid: true,
                     gridSize: 10
                 });
                 
-                console.log('✅ Canvas2DEditor 초기화 완료');
-                console.log(`   크기: ${width}×${height}px`);
-                
-                // ✅ ZoomController 초기화
-                this.zoomController = new ZoomController(this.canvas, {
-                    minZoom: 0.2,
-                    maxZoom: 5.0,
-                    zoomStep: 0.1,
-                    wheelSensitivity: 0.001
+                this.zoomController = new ZoomControllerExtended(this.canvas, {
+                    minZoom: 0.2, maxZoom: 5.0, zoomStep: 0.1, wheelSensitivity: 0.001
                 });
-                
-                // Canvas에 ZoomController 연결
                 this.canvas.setZoomController(this.zoomController);
-                
-                // ZoomController 활성화 (마우스 휠 줌)
                 this.zoomController.activate();
                 
-                console.log('✅ ZoomController 초기화 및 활성화 완료');
+                this.selectionTool = new ObjectSelectionToolExtended(this.canvas);
+                this.selectionTool.activate();
                 
-                // ✅ Drop Zone 활성화
-                this.canvas.enableDropZone();
-                console.log('✅ Drop Zone 활성화 완료');
+                this.enableDropZone();
                 
-                // ✅ 매니저 및 도구 초기화
                 this.roomSizeManager = new RoomSizeManager(this.canvas);
-                this.wallDrawTool = new WallDrawTool(this.canvas);
+                this.wallDrawTool = new WallDrawToolFixed(this.canvas);
                 this.propertyPanel = new PropertyPanel('property-panel', this.canvas);
-                
-                console.log('✅ RoomSizeManager, WallDrawTool, PropertyPanel 초기화 완료');
-                
-                // PropertyPanel 연결
                 this.canvas.setPropertyPanel(this.propertyPanel);
                 
-                // 전역 참조 (PropertyPanel에서 사용)
-                window.propertyPanel = this.propertyPanel;
-                
-                // ✅ ComponentPalette 초기화 (기본 숨김)
-                this.componentPalette = new ComponentPalette('component-palette', this.canvas);
-                this.componentPaletteVisible = false;
-                
-                console.log('✅ ComponentPalette 초기화 완료');
-                
-                // 현재 Tool
+                this.setupComponentSubmenu();
                 this.currentTool = 'select';
-                
-                // 이벤트 리스너 설정
                 this.setupEventListeners();
-                
-                // 초기 템플릿 로드 (옵션)
-                this.loadDefaultTemplate();
-                
-                console.log('=== Layout Editor 초기화 완료 ===');
+                setInterval(() => this.updateStatus(), 500);
                 this.showToast('Layout Editor 준비 완료!', 'success');
             }
             
-            setupEventListeners() {
-                // Drop 가이드
+            // ✨ 캔버스 크기 계산 (서브메뉴 상태 고려)
+            calculateCanvasSize() {
+                const toolbarWidth = this.componentSubmenuVisible ? TOOLBAR_EXPANDED_WIDTH : TOOLBAR_WIDTH;
+                return {
+                    width: window.innerWidth - toolbarWidth - PROPERTY_PANEL_WIDTH,
+                    height: window.innerHeight - HEADER_HEIGHT - STATUS_HEIGHT
+                };
+            }
+            
+            // ✨ 캔버스 크기 업데이트
+            updateCanvasSize() {
+                const size = this.calculateCanvasSize();
+                this.canvas.resize(size.width, size.height);
+                this.zoomController?.updateGrid();
+            }
+            
+            enableDropZone() {
+                const container = this.canvas.stage.container();
                 const dropGuide = document.getElementById('drop-guide');
-                const canvasContainer = document.getElementById('canvas-container');
+                container.addEventListener('dragover', e => { e.preventDefault(); dropGuide.classList.add('visible'); });
+                container.addEventListener('dragleave', () => dropGuide.classList.remove('visible'));
+                container.addEventListener('drop', e => { e.preventDefault(); dropGuide.classList.remove('visible'); this.handleDrop(e); });
+            }
+            
+            handleDrop(event) {
+                const componentType = event.dataTransfer.getData('text/plain');
+                const component = COMPONENTS[componentType];
+                if (!component) return;
                 
-                canvasContainer.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    dropGuide.classList.add('visible');
-                });
+                const stage = this.canvas.stage;
+                const rect = stage.container().getBoundingClientRect();
+                const transform = stage.getAbsoluteTransform().copy();
+                transform.invert();
+                const pos = transform.point({ x: event.clientX - rect.left, y: event.clientY - rect.top });
                 
-                canvasContainer.addEventListener('dragleave', (e) => {
-                    dropGuide.classList.remove('visible');
-                });
-                
-                canvasContainer.addEventListener('drop', (e) => {
-                    dropGuide.classList.remove('visible');
+                const shape = this.createComponent(component, pos.x, pos.y);
+                if (shape) {
+                    this.canvas.selectObject(shape, false);
+                    this.selectionTool.attachShapeEvents(shape);
                     this.updateObjectCount();
+                    this.showToast(`${component.name} 생성됨`, 'success');
+                }
+            }
+            
+            createComponent(component, x, y) {
+                const scale = this.canvas.config.scale;
+                const width = component.width * scale;
+                const height = component.depth * scale;
+                
+                if (this.canvas.config.snapToGrid) {
+                    const gridSize = this.canvas.config.gridSize;
+                    x = Math.round(x / gridSize) * gridSize;
+                    y = Math.round(y / gridSize) * gridSize;
+                }
+                
+                const id = `${component.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                const rect = new Konva.Rect({
+                    id, x: x - width / 2, y: y - height / 2,
+                    width, height, fill: component.color,
+                    stroke: '#333', strokeWidth: 2, draggable: true,
+                    name: component.id + ' component'
                 });
                 
-                // 키보드 단축키
-                document.addEventListener('keydown', (e) => {
-                    // Ctrl+Z: Undo
-                    if (e.ctrlKey && e.key === 'z') {
-                        e.preventDefault();
-                        this.undo();
-                    }
-                    // Ctrl+Y: Redo
-                    else if (e.ctrlKey && e.key === 'y') {
-                        e.preventDefault();
-                        this.redo();
-                    }
-                    // V: 선택 도구
-                    else if (e.key === 'v' || e.key === 'V') {
-                        this.activateTool('select');
-                    }
-                    // W: 벽 그리기
-                    else if (e.key === 'w' || e.key === 'W') {
-                        this.activateTool('wall');
-                    }
-                    // C: ComponentPalette
-                    else if (e.key === 'c' || e.key === 'C') {
-                        this.toggleComponentPalette();
-                    }
-                    // G: Grid 토글
-                    else if (e.key === 'g' || e.key === 'G') {
-                        this.toggleGrid();
-                    }
-                    // S: Snap 토글
-                    else if (e.key === 's' || e.key === 'S') {
-                        this.toggleSnap();
-                    }
-                    // +: Zoom In
-                    else if (e.key === '+' || e.key === '=') {
-                        this.zoomIn();
-                    }
-                    // -: Zoom Out
-                    else if (e.key === '-' || e.key === '_') {
-                        this.zoomOut();
-                    }
-                    // R: Reset Zoom
-                    else if (e.key === 'r' || e.key === 'R') {
-                        this.resetZoom();
-                    }
-                    // Delete: 삭제
-                    else if (e.key === 'Delete') {
-                        this.deleteSelected();
-                    }
-                    // Escape: 선택 해제
-                    else if (e.key === 'Escape') {
-                        this.deselectAll();
-                    }
-                });
+                rect.setAttr('componentType', component.id);
+                rect.setAttr('componentData', component);
+                rect.on('dragend', () => { if (this.canvas.config.snapToGrid) this.canvas.snapToGrid(rect); });
+                rect.on('click tap', e => { e.cancelBubble = true; this.canvas.selectObject(rect, e.evt.ctrlKey || e.evt.metaKey); });
                 
-                // Canvas 클릭 이벤트
-                this.canvas.stage.on('click', () => {
-                    this.updateObjectCount();
+                const layer = component.id === 'equipment' ? this.canvas.layers.equipment : this.canvas.layers.room;
+                layer.add(rect);
+                layer.batchDraw();
+                this.canvas.componentShapes.set(id, rect);
+                return rect;
+            }
+            
+            setupComponentSubmenu() {
+                document.querySelectorAll('.submenu-item').forEach(item => {
+                    const componentType = item.dataset.component;
+                    item.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', componentType); item.style.opacity = '0.5'; });
+                    item.addEventListener('dragend', () => item.style.opacity = '1');
+                    item.addEventListener('click', () => {
+                        const component = COMPONENTS[componentType];
+                        if (component) {
+                            const stage = this.canvas.stage;
+                            const centerX = (this.canvas.config.width / 2 - stage.x()) / stage.scaleX();
+                            const centerY = (this.canvas.config.height / 2 - stage.y()) / stage.scaleY();
+                            const shape = this.createComponent(component, centerX, centerY);
+                            if (shape) {
+                                this.canvas.selectObject(shape, false);
+                                this.selectionTool.attachShapeEvents(shape);
+                                this.updateObjectCount();
+                                this.showToast(`${component.name} 생성됨`, 'success');
+                            }
+                        }
+                    });
                 });
             }
             
-            // ============================================
-            // Tool 관리
-            // ============================================
+            // ✨ 서브메뉴 토글 (툴바 컨테이너 확장/축소)
+            toggleComponentSubmenu() {
+                this.componentSubmenuVisible = !this.componentSubmenuVisible;
+                const toolbarContainer = document.getElementById('toolbar-container');
+                const btn = document.getElementById('component-btn');
+                
+                toolbarContainer.classList.toggle('expanded', this.componentSubmenuVisible);
+                btn.classList.toggle('active', this.componentSubmenuVisible);
+                
+                // 캔버스 크기 업데이트 (transition 후)
+                setTimeout(() => this.updateCanvasSize(), 350);
+            }
+            
+            setupEventListeners() {
+                document.addEventListener('keydown', e => {
+                    if (e.ctrlKey && e.key === 'z') { e.preventDefault(); this.undo(); }
+                    else if (e.ctrlKey && e.key === 'y') { e.preventDefault(); this.redo(); }
+                    else if (e.ctrlKey && e.key === 'a') { e.preventDefault(); this.selectAll(); }
+                    else if ((e.key === 'v' || e.key === 'V') && !e.ctrlKey) this.activateTool('select');
+                    else if (e.key === 'w' || e.key === 'W') this.activateTool('wall');
+                    else if ((e.key === 'c' || e.key === 'C') && !e.ctrlKey) this.toggleComponentSubmenu();
+                    else if (e.key === 'g' || e.key === 'G') this.toggleGrid();
+                    else if ((e.key === 's' || e.key === 'S') && !e.ctrlKey) this.toggleSnap();
+                    else if (e.key === '+' || e.key === '=') this.zoomIn();
+                    else if (e.key === '-' || e.key === '_') this.zoomOut();
+                    else if (e.key === 'r' || e.key === 'R') this.resetZoom();
+                    else if (e.key === 'Delete' || e.key === 'Backspace') this.deleteSelected();
+                    else if (e.key === 'Escape') { this.deselectAll(); if (this.componentSubmenuVisible) this.toggleComponentSubmenu(); }
+                });
+                
+                window.addEventListener('resize', () => this.updateCanvasSize());
+                
+                // 외부 클릭 시 서브메뉴 닫기
+                document.addEventListener('click', e => {
+                    const toolbarContainer = document.getElementById('toolbar-container');
+                    const btn = document.getElementById('component-btn');
+                    if (this.componentSubmenuVisible && !toolbarContainer.contains(e.target)) {
+                        this.toggleComponentSubmenu();
+                    }
+                });
+            }
+            
             activateTool(toolName) {
                 this.currentTool = toolName;
+                if (toolName === 'select') this.wallDrawTool.deactivate();
+                else if (toolName === 'wall') this.wallDrawTool.activate();
                 
-                // 이전 Tool 비활성화
-                if (toolName === 'select') {
-                    this.wallDrawTool.deactivate();
-                } else if (toolName === 'wall') {
-                    this.wallDrawTool.activate();
-                }
-                
-                // UI 업데이트
-                document.querySelectorAll('.toolbar-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                
-                // 활성 버튼 표시
-                const toolButtons = {
-                    'select': 0,
-                    'wall': 2
-                };
-                const buttons = document.querySelectorAll('.toolbar-btn');
+                document.querySelectorAll('.toolbar-btn').forEach(btn => btn.classList.remove('active'));
+                const toolButtons = { 'select': 0, 'wall': 2 };
                 if (toolButtons[toolName] !== undefined) {
-                    buttons[toolButtons[toolName]].classList.add('active');
+                    document.querySelectorAll('.toolbar-btn')[toolButtons[toolName]].classList.add('active');
                 }
-                
-                // Status 업데이트
-                document.getElementById('status-tool').textContent = 
-                    toolName === 'select' ? '선택' : 
-                    toolName === 'wall' ? '벽 그리기' : toolName;
-                
-                // Toast 메시지
-                if (toolName === 'wall') {
-                    this.showToast('벽 그리기 모드: 드래그하여 벽을 그리세요', 'info');
-                }
-                    
-                console.log(`Tool 변경: ${toolName}`);
+                document.getElementById('status-tool').textContent = toolName === 'select' ? '선택' : toolName === 'wall' ? '벽 그리기' : toolName;
+                if (toolName === 'wall') this.showToast('벽 그리기 모드', 'info');
             }
             
-            // ============================================
-            // ComponentPalette
-            // ============================================
-            toggleComponentPalette() {
-                this.componentPaletteVisible = !this.componentPaletteVisible;
-                const palette = document.getElementById('component-palette');
-                
-                if (this.componentPaletteVisible) {
-                    palette.style.display = 'block';
-                    this.componentPalette.show();
-                    this.showToast('ComponentPalette 활성화', 'success');
-                } else {
-                    palette.style.display = 'none';
-                    this.componentPalette.hide();
-                    this.showToast('ComponentPalette 비활성화', 'success');
-                }
-            }
-            
-            // ============================================
-            // Room Size
-            // ============================================
-            showRoomSizeModal() {
-                document.getElementById('room-size-modal').classList.add('active');
-            }
-            
-            closeRoomSizeModal() {
-                document.getElementById('room-size-modal').classList.remove('active');
-            }
-            
+            showRoomSizeModal() { document.getElementById('room-size-modal').classList.add('active'); }
+            closeRoomSizeModal() { document.getElementById('room-size-modal').classList.remove('active'); }
             applyRoomSize() {
                 const width = parseFloat(document.getElementById('room-width').value);
                 const depth = parseFloat(document.getElementById('room-depth').value);
                 const height = parseFloat(document.getElementById('room-height').value);
-                
-                if (width < 10 || depth < 10) {
-                    this.showToast('Room 크기는 최소 10m 이상이어야 합니다', 'error');
-                    return;
-                }
-                
+                if (width < 10 || depth < 10) { this.showToast('최소 10m 이상', 'error'); return; }
                 this.roomSizeManager.updateRoomSize(width, depth, height);
                 this.closeRoomSizeModal();
-                this.showToast(`Room 크기 설정: ${width}m × ${depth}m`, 'success');
+                this.showToast(`Room: ${width}m × ${depth}m`, 'success');
             }
             
-            // ============================================
-            // Grid & Snap
-            // ============================================
             toggleGrid() {
                 this.canvas.toggleGrid();
-                const isOn = this.canvas.config.showGrid;
-                document.getElementById('status-grid').textContent = isOn ? 'ON' : 'OFF';
-                this.showToast(`Grid: ${isOn ? 'ON' : 'OFF'}`);
+                document.getElementById('status-grid').textContent = this.canvas.config.showGrid ? 'ON' : 'OFF';
             }
-            
             toggleSnap() {
                 const isOn = this.canvas.toggleSnapToGrid();
                 document.getElementById('status-snap').textContent = isOn ? 'ON' : 'OFF';
-                this.showToast(`Snap to Grid: ${isOn ? 'ON' : 'OFF'}`);
             }
             
-            // ============================================
-            // Zoom
-            // ============================================
-            zoomIn() {
-                this.zoomController.zoomIn();
-                this.updateZoomDisplay();
-                const zoomPercent = (this.zoomController.getZoom() * 100).toFixed(0);
-                this.showToast(`Zoom: ${zoomPercent}%`);
-            }
+            zoomIn() { this.zoomController.zoomIn(); this.updateZoomDisplay(); }
+            zoomOut() { this.zoomController.zoomOut(); this.updateZoomDisplay(); }
+            resetZoom() { this.zoomController.resetZoom(); this.updateZoomDisplay(); }
+            updateZoomDisplay() { document.getElementById('status-zoom').textContent = (this.zoomController.getZoom() * 100).toFixed(0) + '%'; }
             
-            zoomOut() {
-                this.zoomController.zoomOut();
-                this.updateZoomDisplay();
-                const zoomPercent = (this.zoomController.getZoom() * 100).toFixed(0);
-                this.showToast(`Zoom: ${zoomPercent}%`);
-            }
-            
-            resetZoom() {
-                this.zoomController.resetZoom();
-                this.updateZoomDisplay();
-                this.showToast('Zoom 리셋: 100%', 'success');
-            }
-            
-            updateZoomDisplay() {
-                const zoomPercent = (this.zoomController.getZoom() * 100).toFixed(0);
-                document.getElementById('status-zoom').textContent = zoomPercent + '%';
-            }
-            
-            // ============================================
-            // Object 관리
-            // ============================================
             deleteSelected() {
+                if (this.canvas.selectedObjects.length === 0) { this.showToast('선택된 객체 없음', 'info'); return; }
+                const count = this.canvas.selectedObjects.length;
                 this.canvas.deleteSelected();
                 this.updateObjectCount();
-                this.showToast('선택된 객체 삭제됨');
+                this.showToast(`${count}개 삭제됨`);
             }
             
-            deselectAll() {
-                this.canvas.deselectAll();
-                this.propertyPanel.hide();
+            deselectAll() { this.canvas.deselectAll(); this.propertyPanel.hide(); this.updateStatus(); }
+            selectAll() { this.selectionTool?.selectAll(); this.updateStatus(); this.showToast(`${this.canvas.selectedObjects.length}개 선택됨`, 'success'); }
+            updateObjectCount() { setTimeout(() => document.getElementById('status-objects').textContent = this.canvas.getObjectCount().total, 100); }
+            updateStatus() {
+                document.getElementById('status-objects').textContent = this.canvas.getObjectCount().total;
+                document.getElementById('status-selected').textContent = this.canvas.selectedObjects.length;
+                this.updateZoomDisplay();
+                document.getElementById('status-grid').textContent = this.canvas.config.showGrid ? 'ON' : 'OFF';
+                document.getElementById('status-snap').textContent = this.canvas.config.snapToGrid ? 'ON' : 'OFF';
             }
             
-            updateObjectCount() {
-                setTimeout(() => {
-                    const count = this.canvas.getObjectCount();
-                    document.getElementById('status-objects').textContent = count.total;
-                }, 100);
-            }
+            undo() { this.showToast('Undo 준비 중'); }
+            redo() { this.showToast('Redo 준비 중'); }
             
-            // ============================================
-            // Undo/Redo
-            // ============================================
-            undo() {
-                console.log('[App] Undo - 준비 중');
-                this.showToast('Undo 기능 준비 중');
-            }
-            
-            redo() {
-                console.log('[App] Redo - 준비 중');
-                this.showToast('Redo 기능 준비 중');
-            }
-            
-            // ============================================
-            // Save/Load
-            // ============================================
             saveLayout() {
                 const layout = this.canvas.getCurrentLayout();
-                console.log('[App] Layout 저장:', layout);
-                
-                // JSON 다운로드
-                const dataStr = JSON.stringify(layout, null, 2);
-                const dataBlob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(dataBlob);
+                const blob = new Blob([JSON.stringify(layout, null, 2)], { type: 'application/json' });
                 const link = document.createElement('a');
-                link.href = url;
+                link.href = URL.createObjectURL(blob);
                 link.download = 'layout_' + Date.now() + '.json';
                 link.click();
-                URL.revokeObjectURL(url);
-                
-                this.showToast('Layout 저장 완료!', 'success');
+                this.showToast('저장 완료!', 'success');
             }
             
-            loadDefaultTemplate() {
-                // 기본 템플릿 로드 (옵션)
-                // this.roomSizeManager.updateRoomSize(130, 90, 3);
+            loadSampleLayout() {
+                this.canvas.loadLayout({
+                    room: { width: 30, height: 20, walls: [], offices: [] },
+                    equipment: [
+                        { id: 'eq_1', x: 2, y: 5, width: 2, depth: 1.5, name: 'Equipment 1', rotation: 0 },
+                        { id: 'eq_2', x: 5, y: 5, width: 2, depth: 1.5, name: 'Equipment 2', rotation: 0 },
+                        { id: 'eq_3', x: 8, y: 5, width: 2, depth: 1.5, name: 'Equipment 3', rotation: 0 },
+                        { id: 'eq_4', x: 2, y: 8, width: 2, depth: 1.5, name: 'Equipment 4', rotation: 0 },
+                        { id: 'eq_5', x: 5, y: 8, width: 2, depth: 1.5, name: 'Equipment 5', rotation: 0 },
+                        { id: 'eq_6', x: 8, y: 8, width: 2, depth: 1.5, name: 'Equipment 6', rotation: 0 }
+                    ]
+                });
+                this.selectionTool?.attachEventListeners();
+                this.updateObjectCount();
+                this.showToast('샘플 로드 완료!', 'success');
             }
             
-            // ============================================
-            // Toast 알림
-            // ============================================
             showToast(message, type = 'info') {
                 const toast = document.createElement('div');
                 toast.className = `toast ${type}`;
                 toast.textContent = message;
                 document.body.appendChild(toast);
-                
-                setTimeout(() => {
-                    toast.style.animation = 'slideIn 0.3s ease-out reverse';
-                    setTimeout(() => {
-                        toast.remove();
-                    }, 300);
-                }, 2500);
+                setTimeout(() => { toast.style.animation = 'slideIn 0.3s reverse'; setTimeout(() => toast.remove(), 300); }, 2500);
             }
         }
         
-        // ============================================
-        // Application 시작
-        // ============================================
         window.editorApp = new LayoutEditorApp();
-        
-        console.log('💡 단축키:');
-        console.log('   V - 선택 도구');
-        console.log('   W - 벽 그리기');
-        console.log('   C - ComponentPalette 토글');
-        console.log('   G - Grid 토글');
-        console.log('   S - Snap 토글');
-        console.log('   +/- - Zoom In/Out (마우스 휠도 가능)');
-        console.log('   R - Zoom Reset');
-        console.log('   Del - 삭제');
-        console.log('   Esc - 선택 해제');
-        console.log('   Ctrl+Z - Undo');
-        console.log('   Ctrl+Y - Redo');
     </script>
 </body>
 </html>
