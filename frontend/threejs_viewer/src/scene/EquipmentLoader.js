@@ -419,9 +419,67 @@ export class EquipmentLoader {
         return rate;
     }
 
-
-
-
+// =========================================================
+    // ✨ Phase 4: 동적 CONFIG 적용
+    // =========================================================
+    
+    /**
+     * ✨ Phase 4: 동적 Equipment CONFIG 적용 및 재로드
+     * Layout2DTo3DConverter에서 변환된 CONFIG 적용
+     * 
+     * @param {Object} newConfig - 새로운 Equipment CONFIG
+     * @param {Function} updateStatusCallback - 상태 업데이트 콜백
+     * @returns {Array} 새로 생성된 설비 배열
+     */
+    applyDynamicConfig(newConfig, updateStatusCallback = null) {
+        if (!newConfig) {
+            console.error('[EquipmentLoader] applyDynamicConfig: newConfig가 없습니다');
+            return this.equipmentArray;
+        }
+        
+        console.log('[EquipmentLoader] 동적 CONFIG 적용 시작...');
+        
+        // 1. 기존 설비 정리
+        this.dispose();
+        
+        // 2. CONFIG 업데이트
+        if (window.updateEquipmentConfig) {
+            window.updateEquipmentConfig(newConfig);
+        } else {
+            // 직접 업데이트 (fallback)
+            const { CONFIG } = require('../utils/Config.js');
+            Object.assign(CONFIG.EQUIPMENT, newConfig);
+        }
+        
+        // 3. 새 설비 로드
+        this.loadEquipmentArray(updateStatusCallback);
+        
+        console.log('[EquipmentLoader] ✅ 동적 CONFIG 적용 완료');
+        console.log(`   새 설비 수: ${this.equipmentArray.length}개`);
+        
+        // 적용 완료 이벤트 발생
+        window.dispatchEvent(new CustomEvent('equipment-config-applied', {
+            detail: { 
+                config: newConfig, 
+                equipmentCount: this.equipmentArray.length 
+            }
+        }));
+        
+        return this.equipmentArray;
+    }
+    
+    /**
+     * ✨ Phase 4: 설비만 재로드 (CONFIG 변경 없이)
+     */
+    reloadEquipment(updateStatusCallback = null) {
+        console.log('[EquipmentLoader] 설비 재로드...');
+        
+        // 기존 설비 정리
+        this.dispose();
+        
+        // 새로 로드
+        return this.loadEquipmentArray(updateStatusCallback);
+    }
 
     /**
      * 설비 메모리 정리

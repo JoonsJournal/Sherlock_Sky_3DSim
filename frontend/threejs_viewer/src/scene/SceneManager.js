@@ -2,18 +2,22 @@
  * SceneManager.js
  * Three.js 씬, 카메라, 렌더러 초기화 및 관리
  * 10,000 Class 클린룸 스타일 적용 - 최적화 버전
+ * 
+ * @version 1.1.0 - Phase 4 applyLayout 지원
  */
 
 import * as THREE from 'three';
-import { CONFIG, debugLog } from '../utils/Config.js';
-import { RoomEnvironment } from './RoomEnvironment.js';  // ⭐ 추가
+import { CONFIG, debugLog, updateSceneConfig } from '../utils/Config.js';
+import { RoomEnvironment } from './RoomEnvironment.js';
 
 export class SceneManager {
     constructor() {
         this.scene = null;
         this.camera = null;
         this.renderer = null;
-        this.roomEnvironment = null;  // ⭐ 추가
+        this.roomEnvironment = null;
+        this.floor = null;  // ✨ Phase 4: Floor 참조 저장
+        this.grid = null;   // ✨ Phase 4: Grid 참조 저장
         this.frameCount = 0;
         this.fpsLastTime = performance.now();
         this.fpsFrameCount = 0;
@@ -116,6 +120,7 @@ export class SceneManager {
         floor.receiveShadow = true;
         floor.name = 'cleanroom-floor';
         this.scene.add(floor);
+        this.floor = floor;  // ✨ Phase 4: 참조 저장
         
         // 매우 미세한 그리드 (클린룸 타일 효과)
         const gridHelper = new THREE.GridHelper(
@@ -128,10 +133,121 @@ export class SceneManager {
         gridHelper.material.transparent = true;
         gridHelper.name = 'cleanroom-grid';
         this.scene.add(gridHelper);
+        this.grid = gridHelper;  // ✨ Phase 4: 참조 저장
         
         debugLog('🏗️ 클린룸 스타일 바닥 생성 완료');
         debugLog(`📐 바닥 크기: ${CONFIG.SCENE.FLOOR_SIZE}m × ${CONFIG.SCENE.FLOOR_SIZE}m`);
         debugLog(`✨ 바닥 재질: 광택 (roughness: 0.15, metalness: 0.05)`);
+    }
+    
+    // =========================================================
+    // ✨ Phase 4: Layout 적용 메서드
+    // =========================================================
+    
+    /**
+     * ✨ Phase 4: 변환된 Layout 적용
+     * Layout2DTo3DConverter의 출력을 받아 Scene 업데이트
+     * 
+     * @param {Object} convertedLayout - Layout2DTo3DConverter.convert() 결과
+     * @param {Object} options - 적용 옵션
+     * @returns {boolean} 성공 여부
+     */
+    applyLayout(convertedLayout, options = {}) {
+        if (!convertedLayout) {
+            console.error('[SceneManager] applyLayout: convertedLayout이 없습니다');
+            return false;
+        }
+        
+        console.log('[SceneManager] Layout 적용 시작...');
+        
+        try {
+            const { roomParams, equipmentConfig, officeParams } = convertedLayout;
+            
+            // 1. Scene CONFIG 업데이트 (Floor Size)
+            if (roomParams) {
+                const newFloorSize = Math.max(roomParams.roomWidth, roomParams.roomDepth) + 20;
+                updateSceneConfig({ FLOOR_SIZE: newFloorSize });
+            }
+            
+            // 2. Floor/Grid 업데이트
+            if (options.updateFloor !== false) {
+                this.updateFloor(roomParams);
+            }
+            
+            // 3. RoomEnvironment 업데이트
+            if (options.updateRoom !== false && this.roomEnvironment) {
+                this.roomEnvironment.updateDimensions(roomParams);
+                
+                if (officeParams) {
+                    this.roomEnvironment.updateOfficeParams(officeParams);
+                }
+                
+                // 재구축
+                if (options.rebuildRoom !== false) {
+                    this.roomEnvironment.rebuild();
+                }
+            }
+            
+            console.log('[SceneManager] ✅ Layout 적용 완료');
+            
+            // 적용 완료 이벤트 발생
+            window.dispatchEvent(new CustomEvent('layout-applied', {
+                detail: { convertedLayout, options }
+            }));
+            
+            return true;
+            
+        } catch (error) {
+            console.error('[SceneManager] Layout 적용 실패:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * ✨ Phase 4: Floor 업데이트
+     */
+    updateFloor(roomParams) {
+        if (!roomParams) return;
+        
+        const newSize = Math.max(roomParams.roomWidth, roomParams.roomDepth) + 20;
+        
+        // 기존 Floor 제거
+        if (this.floor) {
+            this.floor.geometry.dispose();
+            this.scene.remove(this.floor);
+        }
+        
+        // 기존 Grid 제거
+        if (this.grid) {
+            this.grid.geometry.dispose();
+            this.grid.material.dispose();
+            this.scene.remove(this.grid);
+        }
+        
+        // 새 Floor 생성
+        const floorGeometry = new THREE.PlaneGeometry(newSize, newSize);
+        const floorMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xf5f5f5,
+            roughness: 0.15,
+            metalness: 0.05,
+            envMapIntensity: 0.3,
+            side: THREE.DoubleSide
+        });
+        
+        this.floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        this.floor.rotation.x = -Math.PI / 2;
+        this.floor.receiveShadow = true;
+        this.floor.name = 'cleanroom-floor';
+        this.scene.add(this.floor);
+        
+        // 새 Grid 생성
+        this.grid = new THREE.GridHelper(newSize, CONFIG.SCENE.GRID_DIVISIONS, 0xe5e5e5, 0xf0f0f0);
+        this.grid.material.opacity = 0.2;
+        this.grid.material.transparent = true;
+        this.grid.name = 'cleanroom-grid';
+        this.scene.add(this.grid);
+        
+        debugLog(`[SceneManager] Floor 업데이트 완료: ${newSize}m × ${newSize}m`);
     }
     
     /**
@@ -218,12 +334,42 @@ export class SceneManager {
         return this.roomEnvironment;
     }
     
+    // =========================================================
+    // ✨ Phase 4: 추가 유틸리티
+    // =========================================================
+    
+    /**
+     * ✨ Phase 4: 디버그 정보 출력
+     */
+    debug() {
+        console.group('[SceneManager] Debug Info');
+        console.log('Scene children:', this.scene.children.length);
+        console.log('Floor size:', this.floor?.geometry?.parameters?.width);
+        console.log('FPS:', this.currentFps);
+        console.log('Draw calls:', this.renderer.info.render.calls);
+        
+        if (this.roomEnvironment) {
+            this.roomEnvironment.debug();
+        }
+        console.groupEnd();
+    }
+    
     /**
      * 리소스 정리
      */
     dispose() {
         if (this.renderer) {
             this.renderer.dispose();
+        }
+        
+        // Floor/Grid 정리
+        if (this.floor) {
+            this.floor.geometry.dispose();
+            this.floor.material.dispose();
+        }
+        if (this.grid) {
+            this.grid.geometry.dispose();
+            this.grid.material.dispose();
         }
         
         // ⭐ RoomEnvironment 정리

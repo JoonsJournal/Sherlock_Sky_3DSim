@@ -1,6 +1,8 @@
 /**
  * RoomEnvironment.js
  * 클린룸 환경 구축 - 벽, Office, 파티션, 책상
+ * 
+ * @version 1.1.0 - Phase 4 동적 치수 업데이트 지원
  */
 
 import * as THREE from 'three';
@@ -24,6 +26,9 @@ export class RoomEnvironment {
         this.officeDepth = 20;
         this.officeX = 15;      // Office X 위치 (오른쪽 상단)
         this.officeZ = -20;     // Office Z 위치
+        
+        // ✨ Phase 4: 동적 업데이트 플래그
+        this._isBuilt = false;
         
         // 재질
         this.materials = this.createMaterials();
@@ -78,6 +83,84 @@ export class RoomEnvironment {
         };
     }
     
+    // =========================================================
+    // ✨ Phase 4: 동적 치수 업데이트
+    // =========================================================
+    
+    /**
+     * ✨ Phase 4: Room 치수 동적 업데이트
+     * @param {Object} roomParams - 새로운 Room 파라미터
+     */
+    updateDimensions(roomParams) {
+        if (!roomParams) {
+            console.warn('[RoomEnvironment] updateDimensions: roomParams가 없습니다');
+            return;
+        }
+        
+        console.log('[RoomEnvironment] 치수 업데이트 시작...');
+        
+        // 이전 값 저장
+        const previous = {
+            roomWidth: this.roomWidth,
+            roomDepth: this.roomDepth,
+            wallHeight: this.wallHeight
+        };
+        
+        // 새 값 적용
+        if (roomParams.roomWidth !== undefined) this.roomWidth = roomParams.roomWidth;
+        if (roomParams.roomDepth !== undefined) this.roomDepth = roomParams.roomDepth;
+        if (roomParams.wallHeight !== undefined) this.wallHeight = roomParams.wallHeight;
+        if (roomParams.wallThickness !== undefined) this.wallThickness = roomParams.wallThickness;
+        
+        console.log('[RoomEnvironment] 치수 업데이트 완료:', {
+            before: `${previous.roomWidth}m × ${previous.roomDepth}m`,
+            after: `${this.roomWidth}m × ${this.roomDepth}m`
+        });
+        
+        return this;
+    }
+    
+    /**
+     * ✨ Phase 4: Office 치수 동적 업데이트
+     * @param {Object} officeParams - 새로운 Office 파라미터
+     */
+    updateOfficeParams(officeParams) {
+        if (!officeParams) return this;
+        
+        if (officeParams.size) {
+            if (officeParams.size.width !== undefined) this.officeWidth = officeParams.size.width;
+            if (officeParams.size.depth !== undefined) this.officeDepth = officeParams.size.depth;
+        }
+        
+        if (officeParams.position) {
+            if (officeParams.position.x !== undefined) this.officeX = officeParams.position.x;
+            if (officeParams.position.z !== undefined) this.officeZ = officeParams.position.z;
+        }
+        
+        console.log('[RoomEnvironment] Office 파라미터 업데이트 완료');
+        return this;
+    }
+    
+    /**
+     * ✨ Phase 4: 환경 재구축 (기존 제거 후 새로 생성)
+     */
+    rebuild() {
+        console.log('[RoomEnvironment] 환경 재구축 시작...');
+        
+        // 기존 객체 제거
+        this.dispose();
+        
+        // 배열 초기화
+        this.walls = [];
+        this.partitions = [];
+        this.furniture = [];
+        
+        // 재구축
+        this.buildEnvironment();
+        
+        console.log('[RoomEnvironment] ✅ 환경 재구축 완료');
+    }
+    
     /**
      * 전체 환경 구축
      */
@@ -98,6 +181,8 @@ export class RoomEnvironment {
         
         // 5. 기둥 (선택사항)
         // this.createPillars();
+        
+        this._isBuilt = true;
         
         debugLog('✅ 클린룸 환경 구축 완료');
         debugLog(`   - 벽: ${this.walls.length}개`);
@@ -349,6 +434,41 @@ export class RoomEnvironment {
         debugLog(`🔄 클린룸 환경 ${visible ? '표시' : '숨김'}`);
     }
     
+    // =========================================================
+    // ✨ Phase 4: 추가 유틸리티
+    // =========================================================
+    
+    /**
+     * ✨ Phase 4: 현재 치수 반환
+     */
+    getDimensions() {
+        return {
+            roomWidth: this.roomWidth,
+            roomDepth: this.roomDepth,
+            wallHeight: this.wallHeight,
+            wallThickness: this.wallThickness,
+            officeWidth: this.officeWidth,
+            officeDepth: this.officeDepth,
+            officeX: this.officeX,
+            officeZ: this.officeZ
+        };
+    }
+    
+    /**
+     * ✨ Phase 4: 디버그 정보 출력
+     */
+    debug() {
+        console.group('[RoomEnvironment] Debug Info');
+        console.log('Room 치수:', `${this.roomWidth}m × ${this.roomDepth}m × ${this.wallHeight}m`);
+        console.log('Office 치수:', `${this.officeWidth}m × ${this.officeDepth}m`);
+        console.log('Office 위치:', `(${this.officeX}, ${this.officeZ})`);
+        console.log('벽 개수:', this.walls.length);
+        console.log('파티션 개수:', this.partitions.length);
+        console.log('가구 개수:', this.furniture.length);
+        console.log('구축 완료:', this._isBuilt);
+        console.groupEnd();
+    }
+    
     /**
      * 리소스 정리
      */
@@ -368,6 +488,7 @@ export class RoomEnvironment {
         this.walls = [];
         this.partitions = [];
         this.furniture = [];
+        this._isBuilt = false;
         
         debugLog('🗑️ RoomEnvironment 정리 완료');
     }

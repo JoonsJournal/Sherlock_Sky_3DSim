@@ -1,6 +1,8 @@
 /**
  * Config.js
  * 전역 설정 및 상수 관리
+ * 
+ * @version 1.1.0 - Phase 4 동적 CONFIG 지원 추가
  */
 
 /**
@@ -168,3 +170,151 @@ export function getExcludedStatistics() {
  * 제외 위치 범위 생성 (외부에서도 사용 가능하도록 export)
  */
 export { createExcludedRange };
+
+
+// =========================================================
+// ✨ Phase 4: 동적 CONFIG 업데이트 기능
+// =========================================================
+
+/**
+ * ✨ Phase 4: Equipment CONFIG 동적 업데이트
+ * Layout2DTo3DConverter에서 변환된 CONFIG를 적용
+ * 
+ * @param {Object} newEquipmentConfig - 새로운 Equipment 설정
+ * @returns {Object} 업데이트된 CONFIG.EQUIPMENT
+ */
+export function updateEquipmentConfig(newEquipmentConfig) {
+    if (!newEquipmentConfig) {
+        console.warn('[Config] updateEquipmentConfig: 새 설정이 없습니다');
+        return CONFIG.EQUIPMENT;
+    }
+    
+    console.log('[Config] Equipment CONFIG 업데이트 시작...');
+    
+    // 이전 값 백업
+    const previousConfig = { ...CONFIG.EQUIPMENT };
+    
+    // ROWS, COLS 업데이트
+    if (newEquipmentConfig.ROWS !== undefined) {
+        CONFIG.EQUIPMENT.ROWS = newEquipmentConfig.ROWS;
+    }
+    if (newEquipmentConfig.COLS !== undefined) {
+        CONFIG.EQUIPMENT.COLS = newEquipmentConfig.COLS;
+    }
+    
+    // SIZE 업데이트
+    if (newEquipmentConfig.SIZE) {
+        CONFIG.EQUIPMENT.SIZE = {
+            ...CONFIG.EQUIPMENT.SIZE,
+            ...newEquipmentConfig.SIZE
+        };
+    }
+    
+    // SPACING 업데이트
+    if (newEquipmentConfig.SPACING) {
+        CONFIG.EQUIPMENT.SPACING = {
+            ...CONFIG.EQUIPMENT.SPACING,
+            ...newEquipmentConfig.SPACING
+        };
+    }
+    
+    // EXCLUDED_POSITIONS 업데이트
+    if (newEquipmentConfig.EXCLUDED_POSITIONS) {
+        CONFIG.EQUIPMENT.EXCLUDED_POSITIONS = newEquipmentConfig.EXCLUDED_POSITIONS;
+    }
+    
+    console.log('[Config] Equipment CONFIG 업데이트 완료:', {
+        before: `${previousConfig.ROWS}×${previousConfig.COLS}`,
+        after: `${CONFIG.EQUIPMENT.ROWS}×${CONFIG.EQUIPMENT.COLS}`
+    });
+    
+    return CONFIG.EQUIPMENT;
+}
+
+/**
+ * ✨ Phase 4: Scene CONFIG 동적 업데이트
+ * 
+ * @param {Object} newSceneConfig - 새로운 Scene 설정
+ * @returns {Object} 업데이트된 CONFIG.SCENE
+ */
+export function updateSceneConfig(newSceneConfig) {
+    if (!newSceneConfig) {
+        console.warn('[Config] updateSceneConfig: 새 설정이 없습니다');
+        return CONFIG.SCENE;
+    }
+    
+    console.log('[Config] Scene CONFIG 업데이트 시작...');
+    
+    // FLOOR_SIZE 업데이트
+    if (newSceneConfig.FLOOR_SIZE !== undefined) {
+        CONFIG.SCENE.FLOOR_SIZE = newSceneConfig.FLOOR_SIZE;
+    }
+    
+    // 기타 설정 업데이트
+    Object.keys(newSceneConfig).forEach(key => {
+        if (key in CONFIG.SCENE) {
+            CONFIG.SCENE[key] = newSceneConfig[key];
+        }
+    });
+    
+    console.log('[Config] Scene CONFIG 업데이트 완료');
+    
+    return CONFIG.SCENE;
+}
+
+/**
+ * ✨ Phase 4: CONFIG 초기화 (기본값 복원)
+ */
+export function resetConfig() {
+    console.log('[Config] CONFIG 초기화...');
+    
+    // Equipment 기본값 복원
+    CONFIG.EQUIPMENT.ROWS = 26;
+    CONFIG.EQUIPMENT.COLS = 6;
+    CONFIG.EQUIPMENT.SIZE = {
+        WIDTH: 1.5,
+        HEIGHT: 2.2,
+        DEPTH: 2.0
+    };
+    CONFIG.EQUIPMENT.SPACING = {
+        DEFAULT: 0.1,
+        CORRIDOR_COLS: [1, 3, 5],
+        CORRIDOR_COL_WIDTH: 1.2,
+        CORRIDOR_ROWS: [13],
+        CORRIDOR_ROW_WIDTH: 2.0
+    };
+    CONFIG.EQUIPMENT.EXCLUDED_POSITIONS = [
+        ...createExcludedRange(4, 4, 13),
+        ...createExcludedRange(5, 1, 13),
+        ...createExcludedRange(6, 1, 13),
+        ...createExcludedRange(5, 15, 16),
+        { col: 5, row: 22 }
+    ];
+    
+    // Scene 기본값 복원
+    CONFIG.SCENE.FLOOR_SIZE = 70;
+    
+    console.log('[Config] CONFIG 초기화 완료');
+}
+
+/**
+ * ✨ Phase 4: 현재 CONFIG 상태 출력
+ */
+export function debugConfig() {
+    console.group('[Config] 현재 CONFIG 상태');
+    console.log('EQUIPMENT.ROWS:', CONFIG.EQUIPMENT.ROWS);
+    console.log('EQUIPMENT.COLS:', CONFIG.EQUIPMENT.COLS);
+    console.log('EQUIPMENT.SIZE:', CONFIG.EQUIPMENT.SIZE);
+    console.log('EQUIPMENT.SPACING:', CONFIG.EQUIPMENT.SPACING);
+    console.log('EQUIPMENT.EXCLUDED_POSITIONS 개수:', CONFIG.EQUIPMENT.EXCLUDED_POSITIONS.length);
+    console.log('SCENE.FLOOR_SIZE:', CONFIG.SCENE.FLOOR_SIZE);
+    console.groupEnd();
+}
+
+// 전역 함수 노출 (브라우저 환경)
+if (typeof window !== 'undefined') {
+    window.updateEquipmentConfig = updateEquipmentConfig;
+    window.updateSceneConfig = updateSceneConfig;
+    window.resetConfig = resetConfig;
+    window.debugConfig = debugConfig;
+}
