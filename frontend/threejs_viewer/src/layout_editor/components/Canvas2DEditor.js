@@ -1,8 +1,18 @@
 /**
- * Canvas2DEditor.js v4.1.0 (v4.0.2 기반)
+ * Canvas2DEditor.js v4.2.0 (v4.1.0 기반)
  * ==============================================
  * 
- * ✨ v4.1.0 신규 기능 (Phase 3.2):
+ * ✨ v4.2.0 신규 기능 (Phase 4.5):
+ * - ✅ exportLayoutData() - Layout 데이터 Export
+ * - ✅ getCurrentLayoutData() - 현재 Layout 데이터 반환
+ * - ✅ extractRoomData() - Room 데이터 추출
+ * - ✅ extractEquipmentArrays() - Equipment 배열 추출
+ * - ✅ extractEquipments() - 개별 Equipment 추출
+ * - ✅ extractWalls() - Wall 데이터 추출
+ * - ✅ extractOffice() - Office 데이터 추출
+ * - ✅ extractComponents() - Component 데이터 추출
+ * 
+ * ✨ v4.1.0 기능 (Phase 3.2):
  * - ✅ highlightValidationErrors() - 검증 에러 하이라이트
  * - ✅ clearValidationHighlights() - 하이라이트 제거
  * - ✅ scrollToError() - 에러 위치로 스크롤
@@ -172,7 +182,7 @@ class Canvas2DEditor {
     }
 
     init() {
-        console.log('[Canvas2DEditor] Initializing v4.1.0...');
+        console.log('[Canvas2DEditor] Initializing v4.2.0...');
         
         this.stage = new Konva.Stage({
             container: this.containerId,
@@ -197,7 +207,7 @@ class Canvas2DEditor {
 
         this.setupEventListeners();
 
-        console.log('[Canvas2DEditor] Initialized successfully v4.1.0');
+        console.log('[Canvas2DEditor] Initialized successfully v4.2.0');
     }
 
     /**
@@ -1962,6 +1972,272 @@ class Canvas2DEditor {
             this.selectObject(shape, false);
             console.log('[Canvas2DEditor] Error shape selected:', shape.id());
         }
+    }
+
+    // =====================================================
+    // ✨ v4.2.0 Phase 4.5: Layout Export 메서드들 (NEW)
+    // =====================================================
+
+    /**
+     * ✨ v4.2.0: Layout 데이터 Export
+     * Preview 및 저장에 사용할 수 있는 전체 Layout 데이터 반환
+     * 
+     * @returns {Object} Layout JSON 데이터
+     */
+    exportLayoutData() {
+        console.log('[Canvas2DEditor] Exporting layout data...');
+        
+        // 기존 currentLayout이 있으면 기반으로 사용
+        const baseLayout = this.currentLayout || {};
+        
+        // Canvas 설정
+        const canvas = {
+            width: this.config.width,
+            height: this.config.height,
+            scale: this.config.scale,
+            gridSize: this.config.gridSize
+        };
+        
+        // Room 정보 추출
+        const room = this.extractRoomData();
+        
+        // Equipment 배열 추출
+        const equipmentArrays = this.extractEquipmentArrays();
+        
+        // 개별 Equipment 추출
+        const equipments = this.extractEquipments();
+        
+        // Walls 추출
+        const walls = this.extractWalls();
+        
+        // Office 추출
+        const office = this.extractOffice();
+        
+        // Components 추출 (Partition, Desk, Pillar 등)
+        const components = this.extractComponents();
+        
+        const layoutData = {
+            ...baseLayout,
+            version: baseLayout.version || '1.0',
+            site_id: baseLayout.site_id || 'unknown',
+            template_name: baseLayout.template_name || 'custom',
+            canvas: canvas,
+            room: room,
+            equipmentArrays: equipmentArrays,
+            equipments: equipments,
+            walls: walls,
+            office: office,
+            components: components,
+            exported_at: new Date().toISOString()
+        };
+        
+        console.log('[Canvas2DEditor] Layout exported:', {
+            equipmentCount: equipments.length + equipmentArrays.reduce((sum, arr) => sum + (arr.equipments?.length || 0), 0),
+            wallCount: walls.length,
+            componentCount: components.length
+        });
+        
+        return layoutData;
+    }
+
+    /**
+     * ✨ v4.2.0: getCurrentLayoutData 별칭 (호환성)
+     * @returns {Object} Layout JSON 데이터
+     */
+    getCurrentLayoutData() {
+        return this.exportLayoutData();
+    }
+
+    /**
+     * ✨ v4.2.0: Room 데이터 추출
+     * @returns {Object} Room 데이터
+     */
+    extractRoomData() {
+        if (this.currentLayout && this.currentLayout.room) {
+            return { ...this.currentLayout.room };
+        }
+        
+        // 기본값
+        return {
+            width: this.config.width / this.config.scale,
+            depth: this.config.height / this.config.scale,
+            wallHeight: 4,
+            wallThickness: 0.2
+        };
+    }
+
+    /**
+     * ✨ v4.2.0: Equipment 배열 추출
+     * @returns {Array} EquipmentArrays 배열
+     */
+    extractEquipmentArrays() {
+        if (this.currentLayout && this.currentLayout.equipmentArrays) {
+            // 현재 Shape 위치로 업데이트
+            return this.currentLayout.equipmentArrays.map(array => {
+                const updatedEquipments = (array.equipments || []).map(eq => {
+                    const shape = this.equipmentShapes.get(eq.id);
+                    if (shape) {
+                        // Group인 경우
+                        if (shape.findOne) {
+                            return {
+                                ...eq,
+                                x: shape.x(),
+                                y: shape.y(),
+                                rotation: shape.rotation() || 0
+                            };
+                        }
+                        // 단일 Shape인 경우
+                        return {
+                            ...eq,
+                            x: shape.x() + shape.width() / 2,
+                            y: shape.y() + shape.height() / 2,
+                            rotation: shape.rotation() || 0
+                        };
+                    }
+                    return eq;
+                });
+                
+                return {
+                    ...array,
+                    equipments: updatedEquipments
+                };
+            });
+        }
+        
+        return [];
+    }
+
+    /**
+     * ✨ v4.2.0: 개별 Equipment 추출
+     * @returns {Array} Equipment 배열
+     */
+    extractEquipments() {
+        const equipments = [];
+        
+        this.equipmentShapes.forEach((shape, id) => {
+            // 이미 equipmentArrays에 포함된 것은 제외
+            if (this.currentLayout?.equipmentArrays?.some(arr => 
+                arr.equipments?.some(eq => eq.id === id)
+            )) {
+                return;
+            }
+            
+            let x, y, width, height, rotation;
+            
+            if (shape.findOne) {
+                // Group인 경우
+                x = shape.x();
+                y = shape.y();
+                const rect = shape.findOne('.equipmentRect');
+                if (rect) {
+                    width = rect.width();
+                    height = rect.height();
+                }
+                rotation = shape.rotation() || 0;
+            } else {
+                // 단일 Rect인 경우
+                x = shape.x() + shape.width() / 2;
+                y = shape.y() + shape.height() / 2;
+                width = shape.width();
+                height = shape.height();
+                rotation = shape.rotation() || 0;
+            }
+            
+            equipments.push({
+                id: id,
+                x: x,
+                y: y,
+                width: width,
+                height: height,
+                rotation: rotation,
+                type: shape.getAttr('equipmentType') || 'default'
+            });
+        });
+        
+        return equipments;
+    }
+
+    /**
+     * ✨ v4.2.0: Walls 추출
+     * @returns {Array} Wall 배열
+     */
+    extractWalls() {
+        const walls = [];
+        
+        this.wallShapes.forEach((shape, id) => {
+            const points = shape.points();
+            if (points && points.length >= 4) {
+                walls.push({
+                    id: id,
+                    x1: points[0],
+                    y1: points[1],
+                    x2: points[2],
+                    y2: points[3],
+                    thickness: shape.strokeWidth() || 4,
+                    color: shape.stroke() || '#666666'
+                });
+            }
+        });
+        
+        return walls;
+    }
+
+    /**
+     * ✨ v4.2.0: Office 추출
+     * @returns {Object|null} Office 데이터
+     */
+    extractOffice() {
+        // componentShapes에서 office 타입 찾기
+        let officeData = null;
+        
+        this.componentShapes.forEach((shape, id) => {
+            if (shape.getAttr('componentType') === 'office') {
+                officeData = {
+                    id: id,
+                    x: shape.x(),
+                    y: shape.y(),
+                    width: shape.width(),
+                    height: shape.height(),
+                    enabled: true
+                };
+            }
+        });
+        
+        // 기존 currentLayout의 office도 확인
+        if (!officeData && this.currentLayout?.office) {
+            return this.currentLayout.office;
+        }
+        
+        return officeData;
+    }
+
+    /**
+     * ✨ v4.2.0: Components 추출 (Partition, Desk, Pillar 등)
+     * @returns {Array} Component 배열
+     */
+    extractComponents() {
+        const components = [];
+        
+        this.componentShapes.forEach((shape, id) => {
+            const componentType = shape.getAttr('componentType');
+            
+            // Office는 별도 처리
+            if (componentType === 'office') return;
+            
+            components.push({
+                id: id,
+                type: componentType || 'unknown',
+                x: shape.x(),
+                y: shape.y(),
+                width: shape.width(),
+                height: shape.height(),
+                rotation: shape.rotation() || 0,
+                color: shape.fill(),
+                data: shape.getAttr('componentData') || {}
+            });
+        });
+        
+        return components;
     }
 }
 

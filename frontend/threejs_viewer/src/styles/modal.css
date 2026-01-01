@@ -1,6 +1,8 @@
 /**
  * Modal Styles
  * 연결 관리 모달 스타일
+ * 
+ * ✨ v1.1.0: Preview Modal 스타일 추가 (Phase 4.5)
  */
 
 /* ========================================
@@ -267,4 +269,259 @@
     .modal-footer {
         padding: 16px 20px;
     }
+}
+
+/* ========================================
+   ✨ Phase 4.5: Preview Modal 스타일
+   ======================================== */
+
+.preview-modal-content {
+    max-width: 950px;
+    width: 95%;
+    max-height: 90vh;
+}
+
+.preview-header {
+    background: linear-gradient(90deg, #9b59b6 0%, #8e44ad 100%);
+}
+
+.preview-header h2 {
+    font-size: 20px;
+}
+
+.preview-body {
+    padding: 16px 24px;
+    gap: 16px;
+}
+
+/* Preview Controls */
+.preview-controls {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.preview-view-btn {
+    padding: 8px 16px;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #495057;
+}
+
+.preview-view-btn:hover {
+    background: #e0e0e0;
+    border-color: #9b59b6;
+    color: #9b59b6;
+}
+
+.preview-view-btn:active {
+    background: #9b59b6;
+    color: white;
+    border-color: #9b59b6;
+}
+
+/* Preview Canvas Container */
+.preview-canvas-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #1a1a2e;
+    border-radius: 8px;
+    overflow: hidden;
+    min-height: 400px;
+    max-height: 500px;
+}
+
+.preview-canvas-container canvas {
+    display: block;
+    max-width: 100%;
+    border-radius: 8px;
+}
+
+/* Preview Info Panel */
+.preview-info-panel {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid #e0e0e0;
+}
+
+.preview-info-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #9b59b6;
+}
+
+/* Summary Rows */
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.summary-row:last-child {
+    border-bottom: none;
+}
+
+.summary-label {
+    font-weight: 500;
+    color: #666;
+    font-size: 13px;
+}
+
+.summary-value {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 13px;
+}
+
+/* Preview Notice */
+.preview-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #856404;
+}
+
+.notice-icon {
+    font-size: 16px;
+}
+
+/* Preview Footer */
+.preview-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 24px;
+}
+
+.preview-footer .btn-primary {
+    background: linear-gradient(90deg, #27ae60 0%, #2ecc71 100%);
+}
+
+.preview-footer .btn-primary:hover:not(:disabled) {
+    box-shadow: 0 4px 12px rgba(46, 204, 113, 0.4);
+}
+
+.preview-footer .btn-secondary {
+    background: #6c757d;
+}
+
+/* Preview Modal 반응형 */
+@media (max-width: 900px) {
+    .preview-modal-content {
+        width: 98%;
+        max-height: 95vh;
+    }
+    
+    .preview-canvas-container {
+        min-height: 300px;
+        max-height: 400px;
+    }
+    
+    .preview-controls {
+        flex-wrap: wrap;
+    }
+    
+    .preview-view-btn {
+        flex: 1;
+        min-width: 70px;
+        text-align: center;
+    }
+    
+    .preview-footer {
+        flex-direction: column-reverse;
+    }
+    
+    .preview-footer .btn-primary,
+    .preview-footer .btn-secondary {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 600px) {
+    .preview-header h2 {
+        font-size: 16px;
+    }
+    
+    .preview-body {
+        padding: 12px 16px;
+    }
+    
+    .preview-canvas-container {
+        min-height: 250px;
+        max-height: 350px;
+    }
+    
+    .preview-info-title {
+        font-size: 14px;
+    }
+    
+    .summary-label,
+    .summary-value {
+        font-size: 12px;
+    }
+}
+
+/* ========================================
+   Preview Loading State
+   ======================================== */
+
+.preview-canvas-container.loading {
+    position: relative;
+}
+
+.preview-canvas-container.loading::after {
+    content: '🔄 Loading Preview...';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 500;
+    text-align: center;
+}
+
+/* ========================================
+   Preview Error State
+   ======================================== */
+
+.preview-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px;
+    color: #e74c3c;
+    text-align: center;
+}
+
+.preview-error-icon {
+    font-size: 48px;
+}
+
+.preview-error-message {
+    font-size: 14px;
+    max-width: 300px;
 }

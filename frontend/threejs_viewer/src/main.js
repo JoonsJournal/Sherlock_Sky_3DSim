@@ -5,6 +5,7 @@
  * ⭐ Phase 2 추가: ConnectionModal 통합
  * ⭐ Phase 4.2 추가: RoomParamsAdapter 및 Layout 적용 연동
  * ⭐ Phase 4.4 추가: SceneManager-EquipmentLoader 연결, LayoutEditorMain 연동
+ * ⭐ Phase 4.5 추가: PreviewGenerator 통합
 */
 
 // ⭐⭐⭐ 1. THREE import (가장 먼저!)
@@ -43,6 +44,12 @@ import { SignalTowerManager } from './services/SignalTowerManager.js';
 import { Layout2DTo3DConverter, layout2DTo3DConverter } from './services/converter/Layout2DTo3DConverter.js';
 import { RoomParamsAdapter, roomParamsAdapter } from './services/converter/RoomParamsAdapter.js';
 
+// ============================================
+// ⭐ Phase 4.5: PreviewGenerator import (선택적)
+// ============================================
+// PreviewGenerator는 전역 스크립트로 로드되거나 동적으로 로드됨
+// import { PreviewGenerator } from './layout_editor/services/PreviewGenerator.js';
+
 // 전역 객체
 let sceneManager;
 let equipmentLoader;
@@ -68,6 +75,11 @@ let apiClient;
 // ============================================
 let monitoringService;
 let signalTowerManager;
+
+// ============================================
+// ⭐ Phase 4.5: PreviewGenerator 전역 객체
+// ============================================
+let previewGenerator;
 
 
 /**
@@ -218,6 +230,12 @@ function init() {
         // ============================================
         setupLayoutEditorMainConnection();
         console.log('✅ LayoutEditorMain 연결 설정 완료');
+        
+        // ============================================
+        // ⭐ Phase 4.5: PreviewGenerator 초기화
+        // ============================================
+        initPreviewGenerator();
+        console.log('✅ PreviewGenerator 연결 설정 완료');
         
         // ============================================
         // ⭐ Edit Button 이벤트 리스너
@@ -441,6 +459,53 @@ function init() {
         `;
         document.body.appendChild(errorDiv);
     }
+}
+
+// ============================================
+// ⭐ Phase 4.5: PreviewGenerator 초기화
+// ============================================
+
+/**
+ * PreviewGenerator 초기화 (지연 로드)
+ */
+function initPreviewGenerator() {
+    // PreviewGenerator가 전역으로 로드되어 있는지 확인
+    const connectPreviewGenerator = () => {
+        if (window.PreviewGenerator && !previewGenerator) {
+            try {
+                // Preview용 Canvas 요소 찾기
+                const previewCanvas = document.getElementById('preview-canvas');
+                
+                if (previewCanvas) {
+                    previewGenerator = new window.PreviewGenerator({
+                        container: previewCanvas,
+                        width: previewCanvas.clientWidth || 600,
+                        height: previewCanvas.clientHeight || 400
+                    });
+                    
+                    window.previewGenerator = previewGenerator;
+                    console.log('[main.js] ✅ PreviewGenerator 초기화 완료');
+                } else {
+                    console.log('[main.js] Preview canvas not found yet, will try later');
+                }
+            } catch (error) {
+                console.warn('[main.js] PreviewGenerator 초기화 실패:', error);
+            }
+        }
+    };
+    
+    // 즉시 시도
+    connectPreviewGenerator();
+    
+    // 지연 시도 (DOM이 늦게 로드될 경우)
+    setTimeout(connectPreviewGenerator, 500);
+    setTimeout(connectPreviewGenerator, 1000);
+    setTimeout(connectPreviewGenerator, 2000);
+    
+    // Preview Modal이 열릴 때 초기화
+    window.addEventListener('preview-modal-opened', () => {
+        connectPreviewGenerator();
+    });
 }
 
 // ============================================
@@ -703,6 +768,11 @@ function setupGlobalDebugFunctions() {
         console.log('  sceneManager.debug() - SceneManager 전체 정보');
         console.log('  sceneManager.clearScene() - Scene 정리');
         console.log('  sceneManager.rebuildScene(params) - Scene 재구축');
+        console.log('');
+        // ✨ Phase 4.5 추가
+        console.log('🖼️ Preview (Phase 4.5):');
+        console.log('  previewGenerator - PreviewGenerator 인스턴스');
+        console.log('  showPreview3D() - 3D Preview 표시 (LayoutEditorMain)');
         console.log('');
         console.groupEnd();
     };
@@ -1212,6 +1282,12 @@ function cleanup() {
         console.log('  - PerformanceMonitor 정리');
     }
     
+    // ✨ Phase 4.5: PreviewGenerator 정리
+    if (previewGenerator && previewGenerator.dispose) {
+        previewGenerator.dispose();
+        console.log('  - PreviewGenerator 정리');
+    }
+    
     // 씬 정리
     if (sceneManager) {
         memoryManager.disposeScene(sceneManager.scene);
@@ -1280,5 +1356,10 @@ window.apiClient = apiClient;
 window.layout2DTo3DConverter = layout2DTo3DConverter;
 window.roomParamsAdapter = roomParamsAdapter;
 
+// ============================================
+// ⭐ Phase 4.5: Preview 관련 전역 객체 노출
+// ============================================
+window.previewGenerator = previewGenerator;
 
-console.log('🌐 전역 객체 노출 완료 (window.connectionModal, layout2DTo3DConverter, roomParamsAdapter 추가)');
+
+console.log('🌐 전역 객체 노출 완료 (window.connectionModal, layout2DTo3DConverter, roomParamsAdapter, previewGenerator 추가)');

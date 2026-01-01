@@ -2,7 +2,7 @@
  * LayoutEditorMain.js
  * Layout Editor 시스템의 진입점이자 메인 컨트롤러
  * 
- * @version 1.5.0 - Phase 4.4: SceneManager 통합
+ * @version 1.6.0 - Phase 4.5: 3D Preview 기능
  * 
  * 주요 역할:
  * 1. Site 선택 시 Layout 파일 존재 여부 확인
@@ -13,13 +13,19 @@
  * 6. Layout 저장 전 검증 (Phase 3.2)
  * 7. 저장 프로세스 통합 (Phase 3.3)
  * 8. Template 저장 기능 (Phase 3.4)
- * 9. ✨ SceneManager 연동 및 3D Viewer 전환 (Phase 4.4) - NEW
+ * 9. SceneManager 연동 및 3D Viewer 전환 (Phase 4.4)
+ * 10. ✨ 3D Preview 기능 (Phase 4.5) - NEW
  * 
- * ✨ v1.5.0 신규 기능:
- * - goTo3DViewer() SceneManager 연동 완성
- * - setSceneManager() 메서드
- * - tryConnectSceneManager() 자동 연결
- * - 3D Viewer 전환 시 Layout 자동 적용
+ * ✨ v1.6.0 신규 기능:
+ * - PreviewGenerator 연동
+ * - showPreview() 메서드
+ * - closePreview() 메서드
+ * - handleSaveAndApply() 메서드
+ * - handleBackToEdit() 메서드
+ * - getLayoutSummary() 메서드
+ * - updatePreviewSummary() 메서드
+ * - showPreviewButton() 메서드
+ * - Preview Modal 이벤트 핸들링
  */
 
 // ES Module imports (환경에 따라 조정 필요)
@@ -49,6 +55,9 @@ class LayoutEditorMain {
         // ✨ v1.5.0: SceneManager 참조
         this.sceneManager = window.sceneManager || null;
         
+        // ✨ v1.6.0: PreviewGenerator 참조
+        this.previewGenerator = null;
+        
         // UI 컴포넌트
         this.componentPalette = null;
         this.canvas2DEditor = null;
@@ -69,7 +78,11 @@ class LayoutEditorMain {
             templateModal: null,
             recoveryModal: null,
             saveButton: null,
-            saveTemplateButton: null  // ✨ v1.4.0: NEW
+            saveTemplateButton: null,  // ✨ v1.4.0: NEW
+            previewButton: null,       // ✨ v1.6.0: NEW
+            previewModal: null,        // ✨ v1.6.0: NEW
+            previewCanvas: null,       // ✨ v1.6.0: NEW
+            previewSummary: null       // ✨ v1.6.0: NEW
         };
         
         // Template 목록 (기본)
@@ -97,7 +110,7 @@ class LayoutEditorMain {
             }
         ];
         
-        console.log('[LayoutEditorMain] ✅ 초기화 완료 (v1.5.0 - SceneManager 통합)');
+        console.log('[LayoutEditorMain] ✅ 초기화 완료 (v1.6.0 - 3D Preview)');
     }
     
     /**
@@ -112,6 +125,12 @@ class LayoutEditorMain {
         this.elements.viewerContainer = document.getElementById('viewer-container');
         this.elements.saveButton = document.getElementById('btn-save-layout');
         this.elements.saveTemplateButton = document.getElementById('btn-save-template');  // ✨ v1.4.0
+        
+        // ✨ v1.6.0: Preview 관련 요소
+        this.elements.previewButton = document.getElementById('previewBtn');
+        this.elements.previewModal = document.getElementById('preview-modal');
+        this.elements.previewCanvas = document.getElementById('preview-canvas');
+        this.elements.previewSummary = document.getElementById('preview-summary');
         
         // Site 선택 이벤트 리스너
         if (this.elements.siteSelector) {
@@ -137,6 +156,13 @@ class LayoutEditorMain {
             });
         }
         
+        // ✨ v1.6.0: Preview 버튼 이벤트 리스너
+        if (this.elements.previewButton) {
+            this.elements.previewButton.addEventListener('click', () => {
+                this.showPreview();
+            });
+        }
+        
         // 상태 변화 구독
         if (this.state) {
             this.state.subscribe('mode', (newMode) => {
@@ -155,6 +181,12 @@ class LayoutEditorMain {
         
         // ✨ v1.5.0: SceneManager 자동 연결 시도
         this.tryConnectSceneManager();
+        
+        // ✨ v1.6.0: PreviewGenerator 초기화
+        this.initPreviewGenerator();
+        
+        // ✨ v1.6.0: Preview Modal 이벤트 설정
+        this.initPreviewModalEvents();
         
         console.log('[LayoutEditorMain] 초기화 완료');
     }
@@ -181,6 +213,82 @@ class LayoutEditorMain {
         
         this.sceneManager = sceneManager;
         console.log('[LayoutEditorMain] ✅ SceneManager 설정 완료');
+    }
+    
+    /**
+     * ✨ v1.6.0: PreviewGenerator 초기화
+     */
+    initPreviewGenerator() {
+        try {
+            if (window.PreviewGenerator) {
+                this.previewGenerator = new window.PreviewGenerator({
+                    canvasWidth: 800,
+                    canvasHeight: 500
+                });
+                console.log('[LayoutEditorMain] PreviewGenerator 초기화 완료');
+            } else {
+                console.warn('[LayoutEditorMain] PreviewGenerator 클래스를 찾을 수 없습니다');
+            }
+        } catch (error) {
+            console.error('[LayoutEditorMain] PreviewGenerator 초기화 실패:', error);
+        }
+    }
+    
+    /**
+     * ✨ v1.6.0: Preview Modal 이벤트 설정
+     */
+    initPreviewModalEvents() {
+        // Close 버튼
+        const closeBtn = document.getElementById('preview-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                this.closePreview();
+            });
+        }
+        
+        // Overlay 클릭으로 닫기
+        const modal = this.elements.previewModal;
+        if (modal) {
+            const overlay = modal.querySelector('.modal-overlay');
+            if (overlay) {
+                overlay.addEventListener('click', () => {
+                    this.closePreview();
+                });
+            }
+        }
+        
+        // Save & Apply 버튼
+        const saveApplyBtn = document.getElementById('preview-save-apply');
+        if (saveApplyBtn) {
+            saveApplyBtn.addEventListener('click', () => {
+                this.handleSaveAndApply();
+            });
+        }
+        
+        // Back to Edit 버튼
+        const backEditBtn = document.getElementById('preview-back-edit');
+        if (backEditBtn) {
+            backEditBtn.addEventListener('click', () => {
+                this.handleBackToEdit();
+            });
+        }
+        
+        // View 버튼들
+        const viewBtns = document.querySelectorAll('.preview-view-btn');
+        viewBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const viewType = e.target.dataset.view;
+                if (this.previewGenerator && viewType) {
+                    this.previewGenerator.setView(viewType);
+                }
+            });
+        });
+        
+        // 전역 함수 등록 (ESC 키 등에서 사용)
+        window.closePreviewModal = () => this.closePreview();
+        window.showPreview3D = () => this.showPreview();
+        
+        console.log('[LayoutEditorMain] Preview Modal 이벤트 설정 완료');
     }
     
     /**
@@ -260,6 +368,243 @@ class LayoutEditorMain {
             console.log(`[LayoutEditorMain] Template list refreshed: ${this.availableTemplates.length} templates`);
         }
     }
+
+    // =====================================================
+    // ✨ v1.6.0: Preview 관련 메서드들 (NEW)
+    // =====================================================
+    
+    /**
+     * ✨ v1.6.0: 3D Preview 표시
+     */
+    showPreview() {
+        console.log('[LayoutEditorMain] Showing 3D Preview...');
+        
+        // Canvas2DEditor에서 현재 Layout 데이터 가져오기
+        let layoutData = null;
+        
+        if (this.canvas2DEditor && typeof this.canvas2DEditor.exportLayoutData === 'function') {
+            layoutData = this.canvas2DEditor.exportLayoutData();
+        } else if (window.layoutSerializer && this.canvas2DEditor) {
+            const siteId = this.state?.state?.currentSiteId || 'preview';
+            layoutData = window.layoutSerializer.serialize(this.canvas2DEditor, siteId, {});
+        } else if (this.state && this.state.state.currentLayout) {
+            layoutData = this.state.state.currentLayout;
+        }
+        
+        if (!layoutData) {
+            console.error('[LayoutEditorMain] Layout 데이터가 없습니다');
+            this.showError('Preview할 Layout 데이터가 없습니다');
+            return;
+        }
+        
+        // PreviewGenerator 확인
+        if (!this.previewGenerator) {
+            this.initPreviewGenerator();
+        }
+        
+        if (!this.previewGenerator) {
+            console.error('[LayoutEditorMain] PreviewGenerator를 초기화할 수 없습니다');
+            this.showError('Preview 기능을 사용할 수 없습니다');
+            return;
+        }
+        
+        try {
+            // 1. Modal 표시
+            if (this.elements.previewModal) {
+                this.elements.previewModal.classList.add('modal-show');
+            }
+            
+            // 2. Preview 생성
+            const success = this.previewGenerator.createPreview(layoutData, 'preview-canvas');
+            
+            if (!success) {
+                throw new Error('Preview 생성 실패');
+            }
+            
+            // 3. 요약 정보 표시
+            this.updatePreviewSummary(layoutData);
+            
+            // 4. Preview 버튼 활성화 표시
+            if (this.elements.previewButton) {
+                this.elements.previewButton.classList.add('active');
+            }
+            
+            console.log('[LayoutEditorMain] ✅ Preview 표시 완료');
+            
+        } catch (error) {
+            console.error('[LayoutEditorMain] Preview 표시 실패:', error);
+            this.closePreview();
+            this.showError(`Preview 표시 실패: ${error.message}`);
+        }
+    }
+    
+    /**
+     * ✨ v1.6.0: Preview 닫기
+     */
+    closePreview() {
+        console.log('[LayoutEditorMain] Closing Preview...');
+        
+        // 1. Modal 숨기기
+        if (this.elements.previewModal) {
+            this.elements.previewModal.classList.remove('modal-show');
+        }
+        
+        // 2. PreviewGenerator 정리
+        if (this.previewGenerator) {
+            this.previewGenerator.dispose();
+        }
+        
+        // 3. Preview 버튼 비활성화 표시
+        if (this.elements.previewButton) {
+            this.elements.previewButton.classList.remove('active');
+        }
+        
+        console.log('[LayoutEditorMain] Preview 닫기 완료');
+    }
+    
+    /**
+     * ✨ v1.6.0: Preview 요약 정보 업데이트
+     * @param {Object} layoutData - Layout 데이터
+     */
+    updatePreviewSummary(layoutData) {
+        const summaryContainer = this.elements.previewSummary;
+        if (!summaryContainer) return;
+        
+        const summary = this.getLayoutSummary(layoutData);
+        
+        summaryContainer.innerHTML = `
+            <div class="summary-row">
+                <span class="summary-label">Site ID:</span>
+                <span class="summary-value">${summary.siteId}</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Template:</span>
+                <span class="summary-value">${summary.templateName}</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Room 크기:</span>
+                <span class="summary-value">${summary.roomWidth} × ${summary.roomDepth} m</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">벽 높이:</span>
+                <span class="summary-value">${summary.wallHeight} m</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">설비 개수:</span>
+                <span class="summary-value">${summary.equipmentCount}개</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">벽:</span>
+                <span class="summary-value">${summary.wallCount}개</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Office:</span>
+                <span class="summary-value">${summary.hasOffice ? '있음' : '없음'}</span>
+            </div>
+        `;
+    }
+    
+    /**
+     * ✨ v1.6.0: Layout 요약 정보 생성
+     * @param {Object} layoutData - Layout 데이터
+     * @returns {Object} 요약 정보
+     */
+    getLayoutSummary(layoutData) {
+        if (!layoutData) {
+            return {
+                siteId: 'Unknown',
+                templateName: 'Unknown',
+                roomWidth: 0,
+                roomDepth: 0,
+                wallHeight: 0,
+                equipmentCount: 0,
+                wallCount: 0,
+                hasOffice: false
+            };
+        }
+        
+        let equipmentCount = 0;
+        
+        // equipmentArrays 카운트
+        const arrays = layoutData.equipmentArrays || [];
+        arrays.forEach(arr => {
+            equipmentCount += (arr.equipments || []).length;
+        });
+        
+        // 개별 equipments 카운트
+        equipmentCount += (layoutData.equipments || []).length;
+        
+        // statistics에서 가져오기 (있는 경우)
+        if (layoutData.statistics && layoutData.statistics.totalEquipment) {
+            equipmentCount = layoutData.statistics.totalEquipment;
+        }
+        
+        // 벽 카운트
+        const wallCount = (layoutData.walls || []).length;
+        
+        return {
+            siteId: layoutData.site_id || 'Unknown',
+            templateName: layoutData.template_name || layoutData.template_source || 'Custom',
+            roomWidth: layoutData.room?.width || 40,
+            roomDepth: layoutData.room?.depth || 60,
+            wallHeight: layoutData.room?.wallHeight || 4,
+            equipmentCount: equipmentCount,
+            wallCount: wallCount,
+            hasOffice: !!layoutData.office,
+            version: layoutData.layout_version || layoutData.version || '1.0'
+        };
+    }
+    
+    /**
+     * ✨ v1.6.0: Save & Apply 처리
+     */
+    async handleSaveAndApply() {
+        console.log('[LayoutEditorMain] Save & Apply...');
+        
+        try {
+            // 1. Preview 닫기
+            this.closePreview();
+            
+            // 2. Layout 저장
+            const saved = await this.saveLayout();
+            
+            if (saved) {
+                // 3. 3D Viewer로 전환
+                this.goTo3DViewer();
+            }
+            
+        } catch (error) {
+            console.error('[LayoutEditorMain] Save & Apply 실패:', error);
+            this.showError(`저장 실패: ${error.message}`);
+        }
+    }
+    
+    /**
+     * ✨ v1.6.0: Back to Edit 처리
+     */
+    handleBackToEdit() {
+        console.log('[LayoutEditorMain] Back to Edit...');
+        
+        // 1. Preview 닫기
+        this.closePreview();
+        
+        // 2. 계속 편집 (별도 처리 없음, Editor 상태 유지)
+        this.continueEditing();
+    }
+    
+    /**
+     * ✨ v1.6.0: Preview 버튼 표시/숨김
+     * @param {boolean} show - 표시 여부
+     */
+    showPreviewButton(show = true) {
+        if (this.elements.previewButton) {
+            this.elements.previewButton.style.display = show ? 'block' : 'none';
+        }
+    }
+
+    // =====================================================
+    // Site 선택 및 Layout 로딩
+    // =====================================================
     
     /**
      * Site 선택 시 메인 처리 로직
@@ -419,6 +764,8 @@ class LayoutEditorMain {
             layoutData = window.layoutSerializer.serialize(this.canvas2DEditor, siteId, {
                 layoutVersion: this.state?.state?.layoutVersion || 1
             });
+        } else if (this.canvas2DEditor.exportLayoutData) {
+            layoutData = this.canvas2DEditor.exportLayoutData();
         } else if (this.state?.state?.currentLayout) {
             layoutData = this.state.state.currentLayout;
         }
@@ -480,6 +827,8 @@ class LayoutEditorMain {
                 layoutData = window.layoutSerializer.serialize(this.canvas2DEditor, siteId, {
                     layoutVersion: 1  // Template은 항상 버전 1로 시작
                 });
+            } else if (this.canvas2DEditor && this.canvas2DEditor.exportLayoutData) {
+                layoutData = this.canvas2DEditor.exportLayoutData();
             } else if (this.state?.state?.currentLayout) {
                 layoutData = { ...this.state.state.currentLayout };
             }
@@ -544,7 +893,9 @@ class LayoutEditorMain {
             }
             
             // 저장 시작 표시
-            this.state.startSaving();
+            if (this.state.startSaving) {
+                this.state.startSaving();
+            }
             
             // =====================================================
             // Step 1: 검증 (Validation)
@@ -559,7 +910,9 @@ class LayoutEditorMain {
                 if (!validationResult.valid) {
                     console.log('[LayoutEditorMain] ❌ Validation failed');
                     this.showValidationErrors(validationResult);
-                    this.state.finishSaving({ success: false, reason: 'validation_failed' });
+                    if (this.state.finishSaving) {
+                        this.state.finishSaving({ success: false, reason: 'validation_failed' });
+                    }
                     return false;
                 }
                 
@@ -623,17 +976,25 @@ class LayoutEditorMain {
             // =====================================================
             console.log('[LayoutEditorMain] 📄 Step 5: Serializing layout...');
             
+            let layoutData;
             const serializer = window.layoutSerializer;
-            if (!serializer) {
+            
+            if (serializer) {
+                layoutData = serializer.serialize(this.canvas2DEditor, siteId, {
+                    layoutVersion: newVersion,
+                    changeLog: existingChangeLog,
+                    changeDescription: changeDescription,
+                    createdAt: this.state.state.currentLayout?.created_at
+                });
+            } else if (this.canvas2DEditor.exportLayoutData) {
+                // Fallback: exportLayoutData 사용
+                layoutData = this.canvas2DEditor.exportLayoutData();
+                layoutData.site_id = siteId;
+                layoutData.layout_version = newVersion;
+                layoutData.updated_at = new Date().toISOString();
+            } else {
                 throw new Error('LayoutSerializer not available');
             }
-            
-            const layoutData = serializer.serialize(this.canvas2DEditor, siteId, {
-                layoutVersion: newVersion,
-                changeLog: existingChangeLog,
-                changeDescription: changeDescription,
-                createdAt: this.state.state.currentLayout?.created_at
-            });
             
             console.log('[LayoutEditorMain] ✅ Layout serialized');
             console.log(`[LayoutEditorMain] Equipment count: ${layoutData.statistics?.totalEquipment || '?'}`);
@@ -672,7 +1033,9 @@ class LayoutEditorMain {
             // =====================================================
             console.log('[LayoutEditorMain] 🎉 Step 8: Showing success dialog...');
             
-            this.state.finishSaving({ success: true });
+            if (this.state.finishSaving) {
+                this.state.finishSaving({ success: true });
+            }
             
             // 검증 하이라이트 제거
             this.clearValidationHighlights();
@@ -701,7 +1064,7 @@ class LayoutEditorMain {
         } catch (error) {
             console.error('[LayoutEditorMain] ❌ Error saving layout:', error);
             
-            if (this.state) {
+            if (this.state && this.state.finishSaving) {
                 this.state.finishSaving({ success: false, error: error.message });
             }
             
@@ -722,6 +1085,11 @@ class LayoutEditorMain {
         if (this.canvas2DEditor.layers && this.canvas2DEditor.layers.equipment) {
             const equipments = this.canvas2DEditor.layers.equipment.find('.equipment');
             totalEquipment = equipments ? equipments.length : 0;
+        }
+        
+        // equipmentShapes Map에서 계산 (fallback)
+        if (totalEquipment === 0 && this.canvas2DEditor.equipmentShapes) {
+            totalEquipment = this.canvas2DEditor.equipmentShapes.size;
         }
         
         return {
@@ -926,7 +1294,10 @@ class LayoutEditorMain {
             // 2. UI 전환
             this.showViewerUI();
             
-            // 3. SceneManager에 Layout 적용 (연결된 경우)
+            // 3. Preview 버튼 숨기기
+            this.showPreviewButton(false);
+            
+            // 4. SceneManager에 Layout 적용 (연결된 경우)
             if (this.sceneManager) {
                 console.log('[LayoutEditorMain] SceneManager에 Layout 적용 중...');
                 
@@ -972,7 +1343,7 @@ class LayoutEditorMain {
                 }));
             }
             
-            // 4. 3D Viewer 전환 완료 이벤트
+            // 5. 3D Viewer 전환 완료 이벤트
             window.dispatchEvent(new CustomEvent('viewer-mode-entered', {
                 detail: { siteId, layout }
             }));
@@ -1020,9 +1391,11 @@ class LayoutEditorMain {
         if (newMode === 'editor') {
             this.showEditorUI();
             this.showComponentPalette();
+            this.showPreviewButton(true);  // ✨ v1.6.0: Preview 버튼 표시
         } else {
             this.showViewerUI();
             this.hideComponentPalette();
+            this.showPreviewButton(false);  // ✨ v1.6.0: Preview 버튼 숨김
         }
     }
     
@@ -1186,17 +1559,18 @@ class LayoutEditorMain {
     }
 
     /**
-     * ✨ v1.5.0: 디버그 정보 출력
+     * ✨ v1.6.0: 디버그 정보 출력
      */
     debug() {
         console.log('[LayoutEditorMain] Debug Info:', {
-            version: '1.5.0',
+            version: '1.6.0',
             hasFileManager: !!this.fileManager,
             hasState: !!this.state,
             hasValidator: !!this.validator,
             hasBackupManager: !!this.backupManager,
             hasTemplateManager: !!this.templateManager,
             hasSceneManager: !!this.sceneManager,
+            hasPreviewGenerator: !!this.previewGenerator,
             hasCanvas2DEditor: !!this.canvas2DEditor,
             hasPropertyPanel: !!this.propertyPanel,
             hasValidationErrorDialog: !!this.validationErrorDialog,

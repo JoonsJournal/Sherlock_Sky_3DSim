@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 4.5 - 3D Preview 기능 테스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        
+        .test-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .test-section {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+        
+        .test-section h2 {
+            color: #764ba2;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .test-card {
+            background: #1a1a2e;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #444;
+        }
+        
+        .test-card h3 {
+            color: #4ecdc4;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .test-card p {
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button.success {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        }
+        
+        button.warning {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+        
+        button.danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        
+        .result-box {
+            background: #0f0f1a;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border: 1px solid #333;
+        }
+        
+        .result-box.success {
+            border-color: #2ecc71;
+        }
+        
+        .result-box.error {
+            border-color: #e74c3c;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 400px;
+            background: #0a0a15;
+            border-radius: 8px;
+            border: 1px solid #333;
+            position: relative;
+        }
+        
+        #preview-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .status-badge.pending {
+            background: #f39c12;
+            color: #000;
+        }
+        
+        .status-badge.pass {
+            background: #2ecc71;
+            color: #fff;
+        }
+        
+        .status-badge.fail {
+            background: #e74c3c;
+            color: #fff;
+        }
+        
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .checklist li {
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+        }
+        
+        .checklist li:last-child {
+            border-bottom: none;
+        }
+        
+        .check-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+        
+        .check-icon.pending {
+            background: #444;
+            color: #888;
+        }
+        
+        .check-icon.pass {
+            background: #2ecc71;
+            color: #fff;
+        }
+        
+        .check-icon.fail {
+            background: #e74c3c;
+            color: #fff;
+        }
+        
+        /* Preview Modal Styles */
+        .preview-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .preview-modal.show {
+            display: flex;
+        }
+        
+        .preview-modal-content {
+            background: #1a1a2e;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        
+        .preview-modal-header {
+            padding: 15px 20px;
+            background: #16213e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+        
+        .preview-modal-body {
+            padding: 20px;
+        }
+        
+        .preview-modal-footer {
+            padding: 15px 20px;
+            background: #16213e;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            border-top: 1px solid #333;
+        }
+        
+        #modal-preview-canvas {
+            width: 100%;
+            height: 400px;
+            background: #0a0a15;
+            border-radius: 8px;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .close-btn:hover {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Phase 4.5 - 3D Preview 기능 테스트</h1>
+        
+        <!-- 테스트 상태 요약 -->
+        <div class="test-section">
+            <h2>📊 테스트 상태 요약</h2>
+            <ul class="checklist" id="test-checklist">
+                <li>
+                    <span class="check-icon pending" id="check-1">?</span>
+                    <span>Canvas2DEditor.exportLayoutData() 테스트</span>
+                </li>
+                <li>
+                    <span class="check-icon pending" id="check-2">?</span>
+                    <span>PreviewGenerator 초기화 테스트</span>
+                </li>
+                <li>
+                    <span class="check-icon pending" id="check-3">?</span>
+                    <span>3D Preview 렌더링 테스트</span>
+                </li>
+                <li>
+                    <span class="check-icon pending" id="check-4">?</span>
+                    <span>LayoutEditorMain 통합 테스트</span>
+                </li>
+                <li>
+                    <span class="check-icon pending" id="check-5">?</span>
+                    <span>키보드 단축키 테스트 (P키)</span>
+                </li>
+            </ul>
+        </div>
+        
+        <!-- 테스트 1: Canvas2DEditor.exportLayoutData -->
+        <div class="test-section">
+            <h2>1️⃣ Canvas2DEditor.exportLayoutData() 테스트</h2>
+            <div class="test-grid">
+                <div class="test-card">
+                    <h3>Layout 데이터 Export</h3>
+                    <p>Canvas2DEditor에서 현재 Layout 데이터를 JSON으로 추출합니다.</p>
+                    <button onclick="testExportLayoutData()">Export 테스트</button>
+                    <button onclick="testExtractMethods()" class="warning">개별 Extract 테스트</button>
+                </div>
+                <div class="test-card">
+                    <h3>테스트 결과</h3>
+                    <div class="result-box" id="export-result">테스트를 실행하세요...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 테스트 2: PreviewGenerator -->
+        <div class="test-section">
+            <h2>2️⃣ PreviewGenerator 초기화 테스트</h2>
+            <div class="test-grid">
+                <div class="test-card">
+                    <h3>Preview Generator</h3>
+                    <p>Three.js 기반 3D Preview 생성기를 초기화합니다.</p>
+                    <button onclick="testPreviewGeneratorInit()">초기화 테스트</button>
+                    <button onclick="testPreviewGeneratorDispose()" class="danger">Dispose 테스트</button>
+                </div>
+                <div class="test-card">
+                    <h3>테스트 결과</h3>
+                    <div class="result-box" id="preview-init-result">테스트를 실행하세요...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 테스트 3: 3D Preview 렌더링 -->
+        <div class="test-section">
+            <h2>3️⃣ 3D Preview 렌더링 테스트</h2>
+            <div id="canvas-container">
+                <canvas id="preview-canvas"></canvas>
+            </div>
+            <div style="margin-top: 15px;">
+                <button onclick="testRenderPreview()">Preview 렌더링</button>
+                <button onclick="testRenderWithSampleData()" class="success">샘플 데이터로 렌더링</button>
+                <button onclick="clearPreview()" class="danger">Clear</button>
+            </div>
+            <div class="result-box" id="render-result" style="margin-top: 15px;">테스트를 실행하세요...</div>
+        </div>
+        
+        <!-- 테스트 4: LayoutEditorMain 통합 -->
+        <div class="test-section">
+            <h2>4️⃣ LayoutEditorMain 통합 테스트</h2>
+            <div class="test-grid">
+                <div class="test-card">
+                    <h3>Modal 통합</h3>
+                    <p>Preview Modal 열기/닫기 및 버튼 기능을 테스트합니다.</p>
+                    <button onclick="testShowPreviewModal()">Preview Modal 열기</button>
+                    <button onclick="testSaveAndApply()" class="success">Save & Apply</button>
+                    <button onclick="testBackToEdit()" class="warning">Back to Edit</button>
+                </div>
+                <div class="test-card">
+                    <h3>테스트 결과</h3>
+                    <div class="result-box" id="integration-result">테스트를 실행하세요...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 테스트 5: 키보드 단축키 -->
+        <div class="test-section">
+            <h2>5️⃣ 키보드 단축키 테스트</h2>
+            <div class="test-card">
+                <h3>단축키 목록</h3>
+                <p>아래 키를 눌러 테스트하세요:</p>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li><strong>P</strong> - 3D Preview 열기</li>
+                    <li><strong>ESC</strong> - Preview Modal 닫기</li>
+                </ul>
+                <button onclick="simulateKeyPress('p')">P키 시뮬레이션</button>
+                <button onclick="simulateKeyPress('Escape')" class="warning">ESC키 시뮬레이션</button>
+            </div>
+            <div class="result-box" id="keyboard-result">키보드를 눌러 테스트하세요...</div>
+        </div>
+        
+        <!-- 콘솔 로그 -->
+        <div class="test-section">
+            <h2>📝 콘솔 로그</h2>
+            <div class="result-box" id="console-log" style="height: 200px;"></div>
+            <button onclick="clearConsoleLog()" class="danger" style="margin-top: 10px;">로그 지우기</button>
+        </div>
+    </div>
+    
+    <!-- Preview Modal -->
+    <div class="preview-modal" id="preview-modal">
+        <div class="preview-modal-content">
+            <div class="preview-modal-header">
+                <h3>🖼️ 3D Layout Preview</h3>
+                <button class="close-btn" onclick="closePreviewModal()">&times;</button>
+            </div>
+            <div class="preview-modal-body">
+                <canvas id="modal-preview-canvas"></canvas>
+                <div id="preview-summary" style="margin-top: 15px; padding: 10px; background: #0a0a15; border-radius: 6px;">
+                    <p>Equipment: <span id="summary-equipment">0</span>개</p>
+                    <p>Walls: <span id="summary-walls">0</span>개</p>
+                    <p>Room: <span id="summary-room">-</span></p>
+                </div>
+            </div>
+            <div class="preview-modal-footer">
+                <button onclick="closePreviewModal()" class="warning">← Back to Edit</button>
+                <button onclick="handleSaveAndApply()" class="success">Save & Apply to 3D →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js 로드 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        // ============================================
+        // Mock 클래스들 (실제 파일 없이 테스트용)
+        // ============================================
+        
+        // 콘솔 로그 캡처
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        function logToUI(type, ...args) {
+            const logDiv = document.getElementById('console-log');
+            const time = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : '✅';
+            logDiv.innerHTML += `[${time}] ${prefix} ${args.join(' ')}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        console.log = (...args) => {
+            originalLog.apply(console, args);
+            logToUI('log', ...args);
+        };
+        
+        console.error = (...args) => {
+            originalError.apply(console, args);
+            logToUI('error', ...args);
+        };
+        
+        console.warn = (...args) => {
+            originalWarn.apply(console, args);
+            logToUI('warn', ...args);
+        };
+        
+        // Mock Canvas2DEditor
+        class MockCanvas2DEditor {
+            constructor() {
+                this.config = { width: 1200, height: 800, scale: 10, gridSize: 10 };
+                this.currentLayout = null;
+                this.equipmentShapes = new Map();
+                this.wallShapes = new Map();
+                this.componentShapes = new Map();
+                
+                // 샘플 데이터 추가
+                for (let i = 0; i < 10; i++) {
+                    this.equipmentShapes.set(`EQ-${i}`, { 
+                        x: () => 100 + i * 50, 
+                        y: () => 100,
+                        width: () => 40,
+                        height: () => 30,
+                        rotation: () => 0,
+                        findOne: () => null
+                    });
+                }
+            }
+            
+            exportLayoutData() {
+                console.log('[Canvas2DEditor] Exporting layout data...');
+                
+                const layoutData = {
+                    version: '1.0',
+                    site_id: 'test_site',
+                    template_name: 'test_template',
+                    canvas: this.config,
+                    room: this.extractRoomData(),
+                    equipmentArrays: this.extractEquipmentArrays(),
+                    equipments: this.extractEquipments(),
+                    walls: this.extractWalls(),
+                    office: this.extractOffice(),
+                    components: this.extractComponents(),
+                    exported_at: new Date().toISOString()
+                };
+                
+                console.log('[Canvas2DEditor] Layout exported:', {
+                    equipmentCount: layoutData.equipments.length,
+                    wallCount: layoutData.walls.length
+                });
+                
+                return layoutData;
+            }
+            
+            getCurrentLayoutData() {
+                return this.exportLayoutData();
+            }
+            
+            extractRoomData() {
+                return {
+                    width: this.config.width / this.config.scale,
+                    depth: this.config.height / this.config.scale,
+                    wallHeight: 4,
+                    wallThickness: 0.2
+                };
+            }
+            
+            extractEquipmentArrays() {
+                return [{
+                    rows: 26,
+                    cols: 6,
+                    equipmentWidth: 1.5,
+                    equipmentDepth: 3.0,
+                    spacingX: 0.5,
+                    spacingZ: 0.5
+                }];
+            }
+            
+            extractEquipments() {
+                const equipments = [];
+                this.equipmentShapes.forEach((shape, id) => {
+                    equipments.push({
+                        id: id,
+                        x: shape.x(),
+                        y: shape.y(),
+                        width: shape.width(),
+                        height: shape.height(),
+                        rotation: shape.rotation()
+                    });
+                });
+                return equipments;
+            }
+            
+            extractWalls() {
+                return [
+                    { id: 'wall-1', start: { x: 0, z: 0 }, end: { x: 100, z: 0 } },
+                    { id: 'wall-2', start: { x: 100, z: 0 }, end: { x: 100, z: 80 } }
+                ];
+            }
+            
+            extractOffice() {
+                return {
+                    enabled: true,
+                    x: 80,
+                    z: -30,
+                    width: 15,
+                    depth: 25
+                };
+            }
+            
+            extractComponents() {
+                return [];
+            }
+        }
+        
+        // Mock PreviewGenerator
+        class MockPreviewGenerator {
+            constructor(options = {}) {
+                this.container = options.container;
+                this.width = options.width || 600;
+                this.height = options.height || 400;
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                this.isInitialized = false;
+                
+                console.log('[PreviewGenerator] Creating instance...');
+            }
+            
+            init() {
+                if (this.isInitialized) return true;
+                
+                try {
+                    // Scene
+                    this.scene = new THREE.Scene();
+                    this.scene.background = new THREE.Color(0x1a1a2e);
+                    
+                    // Camera
+                    this.camera = new THREE.PerspectiveCamera(60, this.width / this.height, 0.1, 1000);
+                    this.camera.position.set(50, 50, 50);
+                    this.camera.lookAt(0, 0, 0);
+                    
+                    // Renderer
+                    this.renderer = new THREE.WebGLRenderer({ 
+                        canvas: this.container,
+                        antialias: true 
+                    });
+                    this.renderer.setSize(this.width, this.height);
+                    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                    
+                    // Controls
+                    if (THREE.OrbitControls) {
+                        this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                        this.controls.enableDamping = true;
+                    }
+                    
+                    // Lights
+                    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                    this.scene.add(ambientLight);
+                    
+                    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                    directionalLight.position.set(50, 100, 50);
+                    this.scene.add(directionalLight);
+                    
+                    // Grid
+                    const gridHelper = new THREE.GridHelper(100, 20, 0x444444, 0x333333);
+                    this.scene.add(gridHelper);
+                    
+                    this.isInitialized = true;
+                    console.log('[PreviewGenerator] ✅ Initialized successfully');
+                    
+                    return true;
+                } catch (error) {
+                    console.error('[PreviewGenerator] ❌ Initialization failed:', error);
+                    return false;
+                }
+            }
+            
+            generatePreview(layoutData) {
+                if (!this.isInitialized) {
+                    this.init();
+                }
+                
+                console.log('[PreviewGenerator] Generating preview...');
+                
+                // Clear existing objects
+                this.clearScene();
+                
+                // Create room
+                if (layoutData.room) {
+                    this.createRoom(layoutData.room);
+                }
+                
+                // Create equipment
+                if (layoutData.equipments) {
+                    layoutData.equipments.forEach(eq => {
+                        this.createEquipment(eq);
+                    });
+                }
+                
+                // Create walls
+                if (layoutData.walls) {
+                    layoutData.walls.forEach(wall => {
+                        this.createWall(wall);
+                    });
+                }
+                
+                // Render
+                this.render();
+                
+                console.log('[PreviewGenerator] ✅ Preview generated');
+                
+                return {
+                    equipmentCount: layoutData.equipments?.length || 0,
+                    wallCount: layoutData.walls?.length || 0,
+                    room: layoutData.room
+                };
+            }
+            
+            clearScene() {
+                const objectsToRemove = [];
+                this.scene.traverse((child) => {
+                    if (child.isMesh && child.name !== 'grid') {
+                        objectsToRemove.push(child);
+                    }
+                });
+                objectsToRemove.forEach(obj => {
+                    this.scene.remove(obj);
+                });
+            }
+            
+            createRoom(room) {
+                const width = room.width || 40;
+                const depth = room.depth || 60;
+                
+                // Floor
+                const floorGeometry = new THREE.PlaneGeometry(width, depth);
+                const floorMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x2a2a4a,
+                    side: THREE.DoubleSide
+                });
+                const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+                floor.rotation.x = -Math.PI / 2;
+                floor.name = 'floor';
+                this.scene.add(floor);
+            }
+            
+            createEquipment(eq) {
+                const geometry = new THREE.BoxGeometry(1.5, 2, 3);
+                const material = new THREE.MeshStandardMaterial({ color: 0x4a90e2 });
+                const mesh = new THREE.Mesh(geometry, material);
+                
+                mesh.position.set(
+                    (eq.x - 600) / 10,  // Canvas 좌표를 3D 좌표로 변환
+                    1,
+                    (eq.y - 400) / 10
+                );
+                mesh.name = eq.id;
+                
+                this.scene.add(mesh);
+            }
+            
+            createWall(wall) {
+                const start = wall.start;
+                const end = wall.end;
+                
+                const length = Math.sqrt(
+                    Math.pow(end.x - start.x, 2) + 
+                    Math.pow(end.z - start.z, 2)
+                );
+                
+                const geometry = new THREE.BoxGeometry(length, 4, 0.2);
+                const material = new THREE.MeshStandardMaterial({ color: 0x888888 });
+                const mesh = new THREE.Mesh(geometry, material);
+                
+                mesh.position.set(
+                    (start.x + end.x) / 2,
+                    2,
+                    (start.z + end.z) / 2
+                );
+                
+                this.scene.add(mesh);
+            }
+            
+            render() {
+                if (this.controls) {
+                    this.controls.update();
+                }
+                this.renderer.render(this.scene, this.camera);
+            }
+            
+            animate() {
+                if (!this.isInitialized) return;
+                
+                requestAnimationFrame(() => this.animate());
+                this.render();
+            }
+            
+            dispose() {
+                console.log('[PreviewGenerator] Disposing...');
+                
+                if (this.renderer) {
+                    this.renderer.dispose();
+                }
+                if (this.controls) {
+                    this.controls.dispose();
+                }
+                
+                this.isInitialized = false;
+                console.log('[PreviewGenerator] ✅ Disposed');
+            }
+        }
+        
+        // ============================================
+        // 전역 인스턴스
+        // ============================================
+        let canvas2DEditor = null;
+        let previewGenerator = null;
+        let modalPreviewGenerator = null;
+        
+        // ============================================
+        // 테스트 함수들
+        // ============================================
+        
+        // 테스트 1: exportLayoutData
+        function testExportLayoutData() {
+            const resultDiv = document.getElementById('export-result');
+            
+            try {
+                if (!canvas2DEditor) {
+                    canvas2DEditor = new MockCanvas2DEditor();
+                }
+                
+                const layoutData = canvas2DEditor.exportLayoutData();
+                
+                resultDiv.className = 'result-box success';
+                resultDiv.textContent = JSON.stringify(layoutData, null, 2);
+                
+                updateCheckStatus(1, 'pass');
+                console.log('✅ exportLayoutData() 테스트 통과');
+                
+            } catch (error) {
+                resultDiv.className = 'result-box error';
+                resultDiv.textContent = `❌ 오류: ${error.message}`;
+                updateCheckStatus(1, 'fail');
+            }
+        }
+        
+        function testExtractMethods() {
+            const resultDiv = document.getElementById('export-result');
+            
+            try {
+                if (!canvas2DEditor) {
+                    canvas2DEditor = new MockCanvas2DEditor();
+                }
+                
+                const results = {
+                    room: canvas2DEditor.extractRoomData(),
+                    equipmentArrays: canvas2DEditor.extractEquipmentArrays(),
+                    equipments: canvas2DEditor.extractEquipments().length + ' items',
+                    walls: canvas2DEditor.extractWalls().length + ' items',
+                    office: canvas2DEditor.extractOffice(),
+                    components: canvas2DEditor.extractComponents().length + ' items'
+                };
+                
+                resultDiv.className = 'result-box success';
+                resultDiv.textContent = JSON.stringify(results, null, 2);
+                
+            } catch (error) {
+                resultDiv.className = 'result-box error';
+                resultDiv.textContent = `❌ 오류: ${error.message}`;
+            }
+        }
+        
+        // 테스트 2: PreviewGenerator 초기화
+        function testPreviewGeneratorInit() {
+            const resultDiv = document.getElementById('preview-init-result');
+            
+            try {
+                const canvas = document.getElementById('preview-canvas');
+                
+                previewGenerator = new MockPreviewGenerator({
+                    container: canvas,
+                    width: canvas.clientWidth || 600,
+                    height: canvas.clientHeight || 400
+                });
+                
+                const success = previewGenerator.init();
+                
+                if (success) {
+                    resultDiv.className = 'result-box success';
+                    resultDiv.textContent = `✅ PreviewGenerator 초기화 성공
+                    
+Scene: ${previewGenerator.scene ? '생성됨' : '없음'}
+Camera: ${previewGenerator.camera ? '생성됨' : '없음'}
+Renderer: ${previewGenerator.renderer ? '생성됨' : '없음'}
+Controls: ${previewGenerator.controls ? '생성됨' : '없음'}`;
+                    
+                    updateCheckStatus(2, 'pass');
+                    
+                    // 애니메이션 시작
+                    previewGenerator.animate();
+                } else {
+                    throw new Error('초기화 실패');
+                }
+                
+            } catch (error) {
+                resultDiv.className = 'result-box error';
+                resultDiv.textContent = `❌ 오류: ${error.message}`;
+                updateCheckStatus(2, 'fail');
+            }
+        }
+        
+        function testPreviewGeneratorDispose() {
+            const resultDiv = document.getElementById('preview-init-result');
+            
+            if (previewGenerator) {
+                previewGenerator.dispose();
+                previewGenerator = null;
+                
+                resultDiv.className = 'result-box success';
+                resultDiv.textContent = '✅ PreviewGenerator disposed successfully';
+            } else {
+                resultDiv.textContent = '⚠️ PreviewGenerator가 없습니다';
+            }
+        }
+        
+        // 테스트 3: 3D Preview 렌더링
+        function testRenderPreview() {
+            const resultDiv = document.getElementById('render-result');
+            
+            try {
+                if (!previewGenerator || !previewGenerator.isInitialized) {
+                    testPreviewGeneratorInit();
+                }
+                
+                if (!canvas2DEditor) {
+                    canvas2DEditor = new MockCanvas2DEditor();
+                }
+                
+                const layoutData = canvas2DEditor.exportLayoutData();
+                const result = previewGenerator.generatePreview(layoutData);
+                
+                resultDiv.className = 'result-box success';
+                resultDiv.textContent = `✅ Preview 렌더링 완료
+
+Equipment: ${result.equipmentCount}개
+Walls: ${result.wallCount}개
+Room: ${result.room?.width}m x ${result.room?.depth}m`;
+                
+                updateCheckStatus(3, 'pass');
+                
+            } catch (error) {
+                resultDiv.className = 'result-box error';
+                resultDiv.textContent = `❌ 오류: ${error.message}`;
+                updateCheckStatus(3, 'fail');
+            }
+        }
+        
+        function testRenderWithSampleData() {
+            const resultDiv = document.getElementById('render-result');
+            
+            try {
+                if (!previewGenerator || !previewGenerator.isInitialized) {
+                    testPreviewGeneratorInit();
+                }
+                
+                // 샘플 Layout 데이터
+                const sampleData = {
+                    room: { width: 50, depth: 70, wallHeight: 4 },
+                    equipments: [
+                        { id: 'EQ-01', x: 300, y: 200 },
+                        { id: 'EQ-02', x: 400, y: 200 },
+                        { id: 'EQ-03', x: 500, y: 200 },
+                        { id: 'EQ-04', x: 300, y: 300 },
+                        { id: 'EQ-05', x: 400, y: 300 },
+                        { id: 'EQ-06', x: 500, y: 300 }
+                    ],
+                    walls: [
+                        { id: 'wall-1', start: { x: -25, z: -35 }, end: { x: 25, z: -35 } },
+                        { id: 'wall-2', start: { x: 25, z: -35 }, end: { x: 25, z: 35 } }
+                    ]
+                };
+                
+                const result = previewGenerator.generatePreview(sampleData);
+                
+                resultDiv.className = 'result-box success';
+                resultDiv.textContent = `✅ 샘플 데이터로 렌더링 완료
+
+Equipment: ${result.equipmentCount}개
+Walls: ${result.wallCount}개
+Room: ${result.room?.width}m x ${result.room?.depth}m`;
+                
+                updateCheckStatus(3, 'pass');
+                
+            } catch (error) {
+                resultDiv.className = 'result-box error';
+                resultDiv.textContent = `❌ 오류: ${error.message}`;
+            }
+        }
+        
+        function clearPreview() {
+            if (previewGenerator) {
+                previewGenerator.clearScene();
+                previewGenerator.render();
+            }
+            document.getElementById('render-result').textContent = 'Preview cleared';
+        }
+        
+        // 테스트 4: LayoutEditorMain 통합
+        function testShowPreviewModal() {
+            const resultDiv = document.getElementById('integration-result');
+            const modal = document.getElementById('preview-modal');
+            
+            try {
+                modal.classList.add('show');
+                
+                // Modal용 PreviewGenerator 초기화
+                const modalCanvas = document.getElementById('modal-preview-canvas');
+                if (!modalPreviewGenerator) {
+                    modalPreviewGenerator = new MockPreviewGenerator({
+                        container: modalCanvas,
+                        width: modalCanvas.clientWidth || 800,
+                        height: 400
+                    });
+                    modalPreviewGenerator.init();
+                    modalPreviewGenerator.animate();
+                }
+                
+                // 샘플 데이터로 렌더링
+                if (!canvas2DEditor) {
+                    canvas2DEditor = new MockCanvas2DEditor();
+                }
+                
+                const layoutData = canvas2DEditor.exportLayoutData();
+                const result = modalPreviewGenerator.generatePreview(layoutData);
+                
+                // Summary 업데이트
+                document.getElementById('summary-equipment').textContent = result.equipmentCount;
+                document.getElementById('summary-walls').textContent = result.wallCount;
+                document.getElementById('summary-room').textContent = 
+                    `${result.room?.width}m × ${result.room?.depth}m`;
+                
+                resultDiv.className = 'result-box success';
+                resultDiv.textContent = '✅ Preview Modal 열기 성공';
+                
+                updateCheckStatus(4, 'pass');
+                
+                // preview-modal-opened 이벤트 발생
+                window.dispatchEvent(new CustomEvent('preview-modal-opened'));
+                
+            } catch (error) {
+                resultDiv.className = 'result-box error';
+                resultDiv.textContent = `❌ 오류: ${error.message}`;
+                updateCheckStatus(4, 'fail');
+            }
+        }
+        
+        function closePreviewModal() {
+            document.getElementById('preview-modal').classList.remove('show');
+            console.log('[Test] Preview Modal 닫힘');
+        }
+        
+        function testSaveAndApply() {
+            const resultDiv = document.getElementById('integration-result');
+            
+            console.log('[Test] Save & Apply 클릭됨');
+            resultDiv.textContent = '✅ Save & Apply 실행됨 - 3D Viewer로 전환 (시뮬레이션)';
+            
+            closePreviewModal();
+        }
+        
+        function testBackToEdit() {
+            const resultDiv = document.getElementById('integration-result');
+            
+            console.log('[Test] Back to Edit 클릭됨');
+            resultDiv.textContent = '✅ Back to Edit 실행됨 - 편집 모드로 복귀 (시뮬레이션)';
+            
+            closePreviewModal();
+        }
+        
+        function handleSaveAndApply() {
+            testSaveAndApply();
+        }
+        
+        // 테스트 5: 키보드 단축키
+        function simulateKeyPress(key) {
+            const resultDiv = document.getElementById('keyboard-result');
+            
+            const event = new KeyboardEvent('keydown', {
+                key: key,
+                code: key === 'Escape' ? 'Escape' : `Key${key.toUpperCase()}`,
+                bubbles: true
+            });
+            
+            document.dispatchEvent(event);
+            
+            resultDiv.textContent = `✅ '${key}' 키 시뮬레이션 완료`;
+            
+            if (key.toLowerCase() === 'p') {
+                testShowPreviewModal();
+                updateCheckStatus(5, 'pass');
+            } else if (key === 'Escape') {
+                closePreviewModal();
+            }
+        }
+        
+        // 키보드 이벤트 리스너
+        document.addEventListener('keydown', (e) => {
+            const resultDiv = document.getElementById('keyboard-result');
+            
+            if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey) {
+                resultDiv.textContent = `✅ P키 감지됨 - Preview Modal 열기`;
+                testShowPreviewModal();
+                updateCheckStatus(5, 'pass');
+            } else if (e.key === 'Escape') {
+                resultDiv.textContent = `✅ ESC키 감지됨 - Modal 닫기`;
+                closePreviewModal();
+            }
+        });
+        
+        // 유틸리티 함수
+        function updateCheckStatus(num, status) {
+            const checkIcon = document.getElementById(`check-${num}`);
+            checkIcon.className = `check-icon ${status}`;
+            checkIcon.textContent = status === 'pass' ? '✓' : status === 'fail' ? '✗' : '?';
+        }
+        
+        function clearConsoleLog() {
+            document.getElementById('console-log').innerHTML = '';
+        }
+        
+        // 초기화
+        console.log('🧪 Phase 4.5 테스트 페이지 로드됨');
+        console.log('💡 각 테스트 버튼을 클릭하여 기능을 테스트하세요');
+    </script>
+</body>
+</html>

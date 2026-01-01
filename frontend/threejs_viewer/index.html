@@ -476,6 +476,58 @@
 		#monitoringBtn:hover::after {
 			opacity: 1;
 		}
+
+		/* ============================================
+		   ✨ Phase 4.5: Preview Button 스타일 (NEW)
+		   ============================================ */
+		#previewBtn {
+			position: absolute;
+			top: 190px;  /* monitoringBtn 아래 */
+			left: 10px;
+			background: rgba(155, 89, 182, 0.9);  /* 보라색 기본 */
+			color: white;
+			border: none;
+			border-radius: 50%;
+			width: 50px;
+			height: 50px;
+			font-size: 24px;
+			cursor: pointer;
+			z-index: 101;
+			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+			transition: all 0.3s ease;
+			display: none;  /* 기본 숨김 - Editor 모드에서만 표시 */
+		}
+
+		#previewBtn:hover {
+			background: rgba(142, 68, 173, 0.9);
+			transform: scale(1.1);
+		}
+
+		#previewBtn.active {
+			background: rgba(46, 204, 113, 0.9);
+			box-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
+		}
+
+		#previewBtn::after {
+			content: '3D Preview (P)';
+			position: absolute;
+			left: 60px;
+			top: 50%;
+			transform: translateY(-50%);
+			background: rgba(0, 0, 0, 0.8);
+			color: white;
+			padding: 8px 12px;
+			border-radius: 6px;
+			font-size: 12px;
+			white-space: nowrap;
+			opacity: 0;
+			pointer-events: none;
+			transition: opacity 0.2s ease;
+		}
+
+		#previewBtn:hover::after {
+			opacity: 1;
+		}
 	</style>
 </head>
 
@@ -536,10 +588,59 @@
 	</button>
 
 	<!-- ============================================
+		✨ Phase 4.5: Preview Button (NEW - Editor 모드에서만 표시)
+		============================================ -->
+	<button id="previewBtn" title="3D Preview (P)">
+		🔍
+	</button>
+
+	<!-- ============================================
 		✨ Phase 2.6: Component Palette
 		============================================ -->
 	<div id="component-palette" class="hidden">
 		<!-- ComponentPalette.js가 동적으로 채움 -->
+	</div>
+
+	<!-- ============================================
+		✨ Phase 4.5: 3D Preview Modal (NEW)
+		============================================ -->
+	<div id="preview-modal" class="modal">
+		<div class="modal-overlay"></div>
+		<div class="modal-content preview-modal-content">
+			<div class="modal-header preview-header">
+				<h2>🔍 3D Preview - 저장 전 미리보기</h2>
+				<button class="modal-close" id="preview-close">&times;</button>
+			</div>
+			<div class="modal-body preview-body">
+				<div class="preview-controls">
+					<button class="preview-view-btn" data-view="perspective" title="원근 뷰">↻ 원근</button>
+					<button class="preview-view-btn" data-view="top" title="위에서 보기">⬆️ Top</button>
+					<button class="preview-view-btn" data-view="front" title="앞에서 보기">➡️ Front</button>
+					<button class="preview-view-btn" data-view="side" title="옆에서 보기">⬇️ Side</button>
+				</div>
+				<div class="preview-canvas-container">
+					<canvas id="preview-canvas"></canvas>
+				</div>
+				<div class="preview-info-panel">
+					<div class="preview-info-title">📋 변경사항 요약</div>
+					<div id="preview-summary">
+						<!-- 동적으로 채워짐 -->
+					</div>
+					<div class="preview-notice">
+						<span class="notice-icon">ℹ️</span>
+						<span>미리보기입니다. 저장 후 실제 3D Viewer에 적용됩니다.</span>
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer preview-footer">
+				<button class="btn-secondary" id="preview-back-edit">
+					✏️ Back to Edit
+				</button>
+				<button class="btn-primary" id="preview-save-apply">
+					💾 Save & Apply
+				</button>
+			</div>
+		</div>
 	</div>
 
 	<!-- ============================================
@@ -645,9 +746,13 @@
 			if (event.key === 'd' || event.key === 'D') {
 				toggleDebugPanel();
 			}
-			// ESC 키: 정보 패널 닫기
+			// ESC 키: 정보 패널 닫기 및 Preview Modal 닫기
 			if (event.key === 'Escape') {
 				closeEquipmentInfo();
+				// ✨ Phase 4.5: Preview Modal 닫기 추가
+				if (window.closePreviewModal) {
+					window.closePreviewModal();
+				}
 			}
 			// 'C' 키: 선택 해제
 			if (event.key === 'c' || event.key === 'C') {
@@ -667,6 +772,12 @@
 					window.toggleMonitoringMode();
 				}
 			}
+			// ✨ Phase 4.5: 'P' 키: Preview 모드 토글 (NEW)
+			if (event.key === 'p' || event.key === 'P') {
+				if (window.showPreview3D) {
+					window.showPreview3D();
+				}
+			}
 		});
 
 		// 페이지 로드 완료 시
@@ -677,7 +788,8 @@
 			console.log('   C - 선택 해제');
 			console.log('   E - Equipment Edit 모드 토글');
 			console.log('   M - Monitoring 모드 토글');
-			console.log('   ESC - 정보 패널 닫기');
+			console.log('   P - 3D Preview (Editor 모드에서)');  // ✨ Phase 4.5 추가
+			console.log('   ESC - 정보 패널/모달 닫기');
 			console.log('');
 			console.log('🔧 디버그 명령어:');
 			console.log('   debugHelp() - 사용 가능한 명령어 확인');
