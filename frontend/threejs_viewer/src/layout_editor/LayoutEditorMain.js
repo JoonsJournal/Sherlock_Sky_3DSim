@@ -2,7 +2,7 @@
  * LayoutEditorMain.js
  * Layout Editor 시스템의 진입점이자 메인 컨트롤러
  * 
- * @version 1.3.0 - Phase 3.3: 저장 프로세스 통합
+ * @version 1.4.0 - Phase 3.4: Template Manager 통합
  * 
  * 주요 역할:
  * 1. Site 선택 시 Layout 파일 존재 여부 확인
@@ -11,14 +11,14 @@
  * 4. UI 컴포넌트 표시/숨김 관리
  * 5. ComponentPalette 초기화 및 관리 (Phase 2.6)
  * 6. Layout 저장 전 검증 (Phase 3.2)
- * 7. ✨ 저장 프로세스 통합 (Phase 3.3) - NEW
+ * 7. 저장 프로세스 통합 (Phase 3.3)
+ * 8. ✨ Template 저장 기능 (Phase 3.4) - NEW
  * 
- * ✨ v1.3.0 신규 기능:
- * - 버전 관리 통합
- * - 백업 자동 생성
- * - ValidationErrorDialog 연동
- * - SaveSuccessDialog 연동
- * - Change Log 자동 생성
+ * ✨ v1.4.0 신규 기능:
+ * - TemplateDialog 통합
+ * - saveAsTemplate() 메서드
+ * - showSaveTemplateDialog() 메서드
+ * - Template 목록 갱신 (커스텀 포함)
  */
 
 // ES Module imports (환경에 따라 조정 필요)
@@ -29,6 +29,8 @@
 // import { ValidationErrorDialog } from '../components/dialogs/ValidationErrorDialog.js';
 // import { SaveSuccessDialog } from '../components/dialogs/SaveSuccessDialog.js';
 // import { BackupManager } from '../services/layout/BackupManager.js';
+// import { TemplateDialog } from './components/TemplateDialog.js';
+// import { templateManager } from '../services/layout/TemplateManager.js';
 
 class LayoutEditorMain {
     constructor() {
@@ -40,6 +42,9 @@ class LayoutEditorMain {
         // ✨ v1.3.0: 백업 매니저
         this.backupManager = window.backupManager || null;
         
+        // ✨ v1.4.0: Template 매니저
+        this.templateManager = window.templateManager || null;
+        
         // UI 컴포넌트
         this.componentPalette = null;
         this.canvas2DEditor = null;
@@ -49,6 +54,9 @@ class LayoutEditorMain {
         this.validationErrorDialog = null;
         this.saveSuccessDialog = null;
         
+        // ✨ v1.4.0: Template Dialog
+        this.templateDialog = null;
+        
         // UI 요소 참조
         this.elements = {
             siteSelector: null,
@@ -56,32 +64,36 @@ class LayoutEditorMain {
             viewerContainer: null,
             templateModal: null,
             recoveryModal: null,
-            saveButton: null
+            saveButton: null,
+            saveTemplateButton: null  // ✨ v1.4.0: NEW
         };
         
-        // Template 목록
+        // Template 목록 (기본)
         this.availableTemplates = [
             {
                 id: 'standard_26x6',
                 name: 'Standard 26×6 Layout (권장)',
                 description: '26 rows × 6 cols, 복도 포함, Office 공간',
-                filename: 'standard_26x6.json'
+                filename: 'standard_26x6.json',
+                isDefault: true
             },
             {
                 id: 'compact_13x4',
                 name: 'Compact 13×4 Layout',
                 description: '13 rows × 4 cols, 소형 공장용',
-                filename: 'compact_13x4.json'
+                filename: 'compact_13x4.json',
+                isDefault: true
             },
             {
                 id: 'default',
                 name: '기본 Template',
                 description: '최소 구성',
-                filename: 'default_template.json'
+                filename: 'default_template.json',
+                isDefault: true
             }
         ];
         
-        console.log('[LayoutEditorMain] ✅ 초기화 완료 (v1.3.0 - 저장 프로세스 통합)');
+        console.log('[LayoutEditorMain] ✅ 초기화 완료 (v1.4.0 - Template Manager 통합)');
     }
     
     /**
@@ -95,6 +107,7 @@ class LayoutEditorMain {
         this.elements.editorContainer = document.getElementById('layout-editor-container');
         this.elements.viewerContainer = document.getElementById('viewer-container');
         this.elements.saveButton = document.getElementById('btn-save-layout');
+        this.elements.saveTemplateButton = document.getElementById('btn-save-template');  // ✨ v1.4.0
         
         // Site 선택 이벤트 리스너
         if (this.elements.siteSelector) {
@@ -113,6 +126,13 @@ class LayoutEditorMain {
             });
         }
         
+        // ✨ v1.4.0: Save as Template 버튼 이벤트 리스너
+        if (this.elements.saveTemplateButton) {
+            this.elements.saveTemplateButton.addEventListener('click', () => {
+                this.showSaveTemplateDialog();
+            });
+        }
+        
         // 상태 변화 구독
         if (this.state) {
             this.state.subscribe('mode', (newMode) => {
@@ -122,6 +142,12 @@ class LayoutEditorMain {
         
         // ✨ v1.3.0: Dialogs 초기화
         this.initDialogs();
+        
+        // ✨ v1.4.0: Template Dialog 초기화
+        this.initTemplateDialog();
+        
+        // ✨ v1.4.0: Template 목록 갱신
+        this.refreshTemplateList();
         
         console.log('[LayoutEditorMain] 초기화 완료');
     }
@@ -153,6 +179,54 @@ class LayoutEditorMain {
             });
             this.saveSuccessDialog.init();
             console.log('[LayoutEditorMain] SaveSuccessDialog initialized');
+        }
+    }
+    
+    /**
+     * ✨ v1.4.0: Template Dialog 초기화
+     */
+    initTemplateDialog() {
+        if (window.TemplateDialog) {
+            this.templateDialog = new window.TemplateDialog({
+                onSave: (name, description, options) => {
+                    this.saveAsTemplate(name, description, options);
+                },
+                onCancel: () => {
+                    console.log('[LayoutEditorMain] Template dialog cancelled');
+                }
+            });
+            this.templateDialog.init();
+            console.log('[LayoutEditorMain] TemplateDialog initialized');
+        } else {
+            console.warn('[LayoutEditorMain] TemplateDialog not available');
+        }
+    }
+    
+    /**
+     * ✨ v1.4.0: Template 목록 갱신 (커스텀 포함)
+     */
+    refreshTemplateList() {
+        if (this.templateManager) {
+            const allTemplates = this.templateManager.getAllTemplates();
+            
+            // 기본 Template 유지 + 커스텀 추가
+            const customTemplates = allTemplates.filter(t => !t.isDefault);
+            
+            customTemplates.forEach(t => {
+                // 중복 확인
+                const exists = this.availableTemplates.some(at => at.id === t.id);
+                if (!exists) {
+                    this.availableTemplates.push({
+                        id: t.id,
+                        name: t.name,
+                        description: t.description || '',
+                        filename: t.filename,
+                        isDefault: false
+                    });
+                }
+            });
+            
+            console.log(`[LayoutEditorMain] Template list refreshed: ${this.availableTemplates.length} templates`);
         }
     }
     
@@ -210,13 +284,19 @@ class LayoutEditorMain {
     }
     
     /**
-     * Template 선택 UI 표시
+     * Template 선택 UI 표시 (✨ v1.4.0: 커스텀 Template 포함)
      */
     async showTemplateSelection(siteId) {
         console.log(`[LayoutEditorMain] Template 선택 UI 표시: ${siteId}`);
         
+        // Template 목록 갱신
+        this.refreshTemplateList();
+        
         const templateOptions = this.availableTemplates
-            .map((t, idx) => `${idx + 1}. ${t.name}\n   ${t.description}`)
+            .map((t, idx) => {
+                const badge = t.isDefault ? '' : ' [Custom]';
+                return `${idx + 1}. ${t.name}${badge}\n   ${t.description}`;
+            })
             .join('\n\n');
         
         const message = `🏗️ 새로운 Layout 생성 - ${siteId}\n\nLayout Template을 선택하세요:\n\n${templateOptions}\n\n번호를 입력하세요 (1-${this.availableTemplates.length}):`;
@@ -281,6 +361,126 @@ class LayoutEditorMain {
         } catch (error) {
             console.error('[LayoutEditorMain] Layout 생성 실패:', error);
             this.showError(`Layout 생성 실패: ${error.message}`);
+        }
+    }
+
+    // =====================================================
+    // ✨ v1.4.0: Template 저장 기능
+    // =====================================================
+
+    /**
+     * ✨ v1.4.0: Save as Template Dialog 표시
+     */
+    showSaveTemplateDialog() {
+        console.log('[LayoutEditorMain] 📋 showSaveTemplateDialog called');
+        
+        // 1. Canvas2DEditor 확인
+        if (!this.canvas2DEditor) {
+            this.showError('Canvas2DEditor가 초기화되지 않았습니다');
+            return;
+        }
+        
+        // 2. 현재 Layout 데이터 가져오기
+        let layoutData = null;
+        
+        if (window.layoutSerializer) {
+            const siteId = this.state?.state?.currentSiteId || 'template';
+            layoutData = window.layoutSerializer.serialize(this.canvas2DEditor, siteId, {
+                layoutVersion: this.state?.state?.layoutVersion || 1
+            });
+        } else if (this.state?.state?.currentLayout) {
+            layoutData = this.state.state.currentLayout;
+        }
+        
+        if (!layoutData) {
+            this.showError('Layout 데이터를 가져올 수 없습니다');
+            return;
+        }
+        
+        // 3. Template Dialog 표시
+        if (this.templateDialog) {
+            this.templateDialog.show(layoutData);
+        } else {
+            // Fallback: prompt 사용
+            this.showSaveTemplatePrompt(layoutData);
+        }
+    }
+
+    /**
+     * ✨ v1.4.0: Fallback - prompt로 Template 저장
+     * @private
+     */
+    showSaveTemplatePrompt(layoutData) {
+        const templateName = prompt('📋 Save as Template\n\nTemplate 이름을 입력하세요:');
+        
+        if (templateName && templateName.trim()) {
+            const description = prompt('Template 설명 (선택사항):') || '';
+            this.saveAsTemplate(templateName.trim(), description, {});
+        }
+    }
+
+    /**
+     * ✨ v1.4.0: Template으로 저장 실행
+     * @param {string} templateName - Template 이름
+     * @param {string} description - Template 설명
+     * @param {Object} options - 옵션 (overwrite 등)
+     */
+    async saveAsTemplate(templateName, description, options = {}) {
+        console.log('[LayoutEditorMain] 📋 ========================================');
+        console.log('[LayoutEditorMain] 📋 Save as Template Started');
+        console.log('[LayoutEditorMain] 📋 ========================================');
+        console.log('[LayoutEditorMain] Template Name:', templateName);
+        console.log('[LayoutEditorMain] Description:', description);
+        console.log('[LayoutEditorMain] Options:', options);
+        
+        try {
+            // 1. TemplateManager 확인
+            if (!this.templateManager && !window.templateManager) {
+                throw new Error('TemplateManager not available');
+            }
+            
+            const tm = this.templateManager || window.templateManager;
+            
+            // 2. 현재 Layout 데이터 가져오기
+            let layoutData = null;
+            
+            if (window.layoutSerializer && this.canvas2DEditor) {
+                const siteId = this.state?.state?.currentSiteId || 'template';
+                layoutData = window.layoutSerializer.serialize(this.canvas2DEditor, siteId, {
+                    layoutVersion: 1  // Template은 항상 버전 1로 시작
+                });
+            } else if (this.state?.state?.currentLayout) {
+                layoutData = { ...this.state.state.currentLayout };
+            }
+            
+            if (!layoutData) {
+                throw new Error('Layout data not available');
+            }
+            
+            // 3. Template 저장
+            const result = await tm.saveAsTemplate(layoutData, templateName, description, options);
+            
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to save template');
+            }
+            
+            // 4. Template 목록 갱신
+            this.refreshTemplateList();
+            
+            // 5. 성공 메시지
+            this.showSuccess(`Template "${templateName}" 저장 완료!`);
+            console.log('[LayoutEditorMain] 📋 Template saved successfully:', result);
+            
+            console.log('[LayoutEditorMain] 📋 ========================================');
+            console.log('[LayoutEditorMain] 📋 Save as Template Completed!');
+            console.log('[LayoutEditorMain] 📋 ========================================');
+            
+            return true;
+            
+        } catch (error) {
+            console.error('[LayoutEditorMain] ❌ Error saving template:', error);
+            this.showError(`Template 저장 실패: ${error.message}`);
+            return false;
         }
     }
 
@@ -882,6 +1082,24 @@ class LayoutEditorMain {
             // Fallback
             alert(message);
         }
+    }
+
+    /**
+     * ✨ v1.4.0: 디버그 정보 출력
+     */
+    debug() {
+        console.log('[LayoutEditorMain] Debug Info:', {
+            version: '1.4.0',
+            hasFileManager: !!this.fileManager,
+            hasState: !!this.state,
+            hasValidator: !!this.validator,
+            hasTemplateManager: !!this.templateManager,
+            hasCanvas2DEditor: !!this.canvas2DEditor,
+            hasTemplateDialog: !!this.templateDialog,
+            availableTemplates: this.availableTemplates.length,
+            mode: this.state?.state?.mode,
+            currentSiteId: this.state?.state?.currentSiteId
+        });
     }
 }
 

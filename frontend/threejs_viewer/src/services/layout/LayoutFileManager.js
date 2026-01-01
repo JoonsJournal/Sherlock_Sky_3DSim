@@ -4,7 +4,7 @@
  * 
  * 파일 위치: threejs_viewer/src/services/layout/LayoutFileManager.js
  * 
- * @version 1.1.0 - Phase 3.3: 백업 및 버전 관리 통합
+ * @version 1.2.0 - Phase 3.4: Template Manager 통합
  * 
  * 주요 기능:
  * 1. checkLayout(siteId): 파일 존재 여부 확인
@@ -17,6 +17,11 @@
  * - 버전 관리 통합
  * - Auto-save 파일 삭제
  * - Change Log 메타데이터
+ * 
+ * ✨ v1.2.0 신규 기능:
+ * - saveAsTemplate(): Layout을 Template으로 저장
+ * - listTemplates(): 기본 + 커스텀 Template 목록 통합
+ * - loadCustomTemplate(): 커스텀 Template 로드
  * 
  * 웹 서버 루트: threejs_viewer/public/
  * Layout 파일 위치: /public/layouts/*.json
@@ -38,7 +43,14 @@
             this.maxBackups = 5;
             this.enableAutoBackup = true;
             
-            console.log('[LayoutFileManager] ✅ Instance created v1.1.0');
+            // ✨ v1.2.0: 기본 Template 목록
+            this.defaultTemplates = [
+                'standard_26x6',
+                'compact_13x4',
+                'default_template'
+            ];
+            
+            console.log('[LayoutFileManager] ✅ Instance created v1.2.0');
             console.log('[LayoutFileManager] Base path:', this.basePath);
             console.log('[LayoutFileManager] Template path:', this.templatePath);
         }
@@ -228,6 +240,63 @@
                 result.error = error.message;
                 return result;
             }
+        }
+
+        /**
+         * ✨ v1.2.0: Layout을 Template으로 저장
+         * @param {string} templateId - Template ID
+         * @param {Object} templateData - Template 데이터
+         * @returns {Promise<Object>} 저장 결과
+         */
+        async saveAsTemplate(templateId, templateData) {
+            const result = {
+                success: false,
+                filename: null,
+                size: 0
+            };
+            
+            try {
+                console.log(`[LayoutFileManager] 📋 Saving as template: ${templateId}`);
+                
+                const filename = `${templateId}.json`;
+                
+                // 메타데이터 확인
+                if (!templateData.is_template) {
+                    templateData.is_template = true;
+                }
+                
+                if (!templateData.template_id) {
+                    templateData.template_id = templateId;
+                }
+                
+                // JSON 직렬화
+                const jsonString = JSON.stringify(templateData, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                
+                // 다운로드 트리거
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                result.success = true;
+                result.filename = filename;
+                result.size = blob.size;
+                
+                console.log(`[LayoutFileManager] ✅ Template download triggered: ${filename}`);
+                console.log(`[LayoutFileManager] 📁 Save to: threejs_viewer/public/layouts/templates/`);
+                console.log(`[LayoutFileManager] Size: ${(blob.size / 1024).toFixed(2)} KB`);
+                
+            } catch (error) {
+                console.error(`[LayoutFileManager] ❌ Error saving template:`, error);
+                result.error = error.message;
+            }
+            
+            return result;
         }
 
         /**
@@ -440,17 +509,84 @@
         }
 
         /**
-         * 헬퍼: Templates 목록
+         * ✨ v1.2.0 수정: Templates 목록 (기본 + 커스텀 통합)
+         * @returns {Promise<Array>} Template 목록
          */
         async listTemplates() {
-            const knownTemplates = [
-                'standard_26x6',
-                'compact_13x4',
-                'default_template'
-            ];
+            // 기본 Template 목록
+            const templates = [...this.defaultTemplates];
             
-            console.log(`[LayoutFileManager] 📋 Available templates:`, knownTemplates);
-            return knownTemplates;
+            // TemplateManager가 있으면 커스텀 목록 추가
+            if (window.templateManager) {
+                const customTemplates = window.templateManager.getCustomTemplateList();
+                customTemplates.forEach(t => {
+                    templates.push(t.id);
+                });
+            } else {
+                // localStorage에서 직접 조회
+                try {
+                    const stored = localStorage.getItem('custom_templates');
+                    if (stored) {
+                        const customList = JSON.parse(stored);
+                        customList.forEach(t => {
+                            templates.push(t.id);
+                        });
+                    }
+                } catch (error) {
+                    console.warn('[LayoutFileManager] Error reading custom templates:', error);
+                }
+            }
+            
+            console.log(`[LayoutFileManager] 📋 Available templates:`, templates);
+            return templates;
+        }
+
+        /**
+         * ✨ v1.2.0: 상세 Template 목록 (메타데이터 포함)
+         * @returns {Promise<Array>} Template 상세 목록
+         */
+        async listTemplatesWithDetails() {
+            const templates = [];
+            
+            // 기본 Template
+            this.defaultTemplates.forEach(id => {
+                templates.push({
+                    id: id,
+                    name: this.getDefaultTemplateName(id),
+                    isDefault: true,
+                    filename: `${id}.json`
+                });
+            });
+            
+            // 커스텀 Template
+            if (window.templateManager) {
+                const customTemplates = window.templateManager.getCustomTemplateList();
+                customTemplates.forEach(t => {
+                    templates.push({
+                        id: t.id,
+                        name: t.name,
+                        description: t.description,
+                        isDefault: false,
+                        filename: t.filename,
+                        createdAt: t.createdAt
+                    });
+                });
+            }
+            
+            return templates;
+        }
+
+        /**
+         * 기본 Template 이름 반환
+         * @private
+         */
+        getDefaultTemplateName(id) {
+            const names = {
+                'standard_26x6': 'Standard 26×6 Layout',
+                'compact_13x4': 'Compact 13×4 Layout',
+                'default_template': '기본 Template'
+            };
+            return names[id] || id;
         }
 
         /**
@@ -487,7 +623,7 @@
         }
 
         /**
-         * ✨ v1.1.0: 디버그 정보 출력
+         * ✨ v1.2.0: 디버그 정보 출력
          */
         debug() {
             console.log('[LayoutFileManager] Debug Info:', {
@@ -496,7 +632,13 @@
                 backupSuffix: this.backupSuffix,
                 autoSaveSuffix: this.autoSaveSuffix,
                 maxBackups: this.maxBackups,
-                enableAutoBackup: this.enableAutoBackup
+                enableAutoBackup: this.enableAutoBackup,
+                defaultTemplates: this.defaultTemplates
+            });
+            
+            // Template 목록 출력
+            this.listTemplates().then(templates => {
+                console.log('[LayoutFileManager] Templates:', templates);
             });
         }
     }
