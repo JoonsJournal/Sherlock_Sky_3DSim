@@ -4,6 +4,7 @@
  * SceneManager, EquipmentLoader, CameraControls, InteractionHandler, DataOverlay, StatusVisualizer, PerformanceMonitor 통합
  * ⭐ Phase 2 추가: ConnectionModal 통합
  * ⭐ Phase 4.2 추가: RoomParamsAdapter 및 Layout 적용 연동
+ * ⭐ Phase 4.4 추가: SceneManager-EquipmentLoader 연결, LayoutEditorMain 연동
 */
 
 // ⭐⭐⭐ 1. THREE import (가장 먼저!)
@@ -112,6 +113,14 @@ function init() {
         equipmentLoader.loadEquipmentArray(updateLoadingStatus);
         console.log('✅ EquipmentLoader 초기화 완료');
         
+        // ============================================
+        // ⭐ Phase 4.4: SceneManager-EquipmentLoader 연결
+        // ============================================
+        if (sceneManager.setEquipmentLoader) {
+            sceneManager.setEquipmentLoader(equipmentLoader);
+            console.log('✅ SceneManager-EquipmentLoader 연결 완료');
+        }
+        
         // 4. Camera Controls
         console.log('🎮 CameraControls 생성 중...');
         cameraControls = new CameraControls(
@@ -203,6 +212,12 @@ function init() {
         // ============================================
         setupLayoutEventListeners();
         console.log('✅ Layout 이벤트 리스너 설정 완료');
+        
+        // ============================================
+        // ⭐ Phase 4.4: LayoutEditorMain 연결
+        // ============================================
+        setupLayoutEditorMainConnection();
+        console.log('✅ LayoutEditorMain 연결 설정 완료');
         
         // ============================================
         // ⭐ Edit Button 이벤트 리스너
@@ -429,6 +444,38 @@ function init() {
 }
 
 // ============================================
+// ⭐ Phase 4.4: LayoutEditorMain 연결 설정
+// ============================================
+
+/**
+ * LayoutEditorMain과 SceneManager 연결
+ */
+function setupLayoutEditorMainConnection() {
+    // LayoutEditorMain이 로드된 후 연결
+    const connectLayoutEditorMain = () => {
+        if (window.layoutEditorMain && sceneManager) {
+            // SceneManager 연결
+            if (typeof window.layoutEditorMain.setSceneManager === 'function') {
+                window.layoutEditorMain.setSceneManager(sceneManager);
+                console.log('[main.js] LayoutEditorMain-SceneManager 연결 완료');
+            }
+        }
+    };
+    
+    // 즉시 시도
+    connectLayoutEditorMain();
+    
+    // 지연 시도 (LayoutEditorMain이 늦게 로드될 경우)
+    setTimeout(connectLayoutEditorMain, 100);
+    setTimeout(connectLayoutEditorMain, 500);
+    
+    // 이벤트 기반 연결 (LayoutEditorMain이 초기화 완료 이벤트를 발생시킬 경우)
+    window.addEventListener('layout-editor-main-ready', () => {
+        connectLayoutEditorMain();
+    });
+}
+
+// ============================================
 // ⭐ Phase 4.2: Layout 이벤트 리스너 설정
 // ============================================
 
@@ -448,6 +495,27 @@ function setupLayoutEventListeners() {
         console.log('[main.js] Layout 적용 요청 수신...');
         
         try {
+            // ✨ Phase 4.4: applyLayoutFull 사용 (있는 경우)
+            if (sceneManager && typeof sceneManager.applyLayoutFull === 'function') {
+                const success = sceneManager.applyLayoutFull(layoutData, options);
+                
+                if (success) {
+                    console.log('[main.js] ✅ Layout 적용 완료 (applyLayoutFull)');
+                    
+                    // 적용 완료 이벤트 발생
+                    window.dispatchEvent(new CustomEvent('layout-apply-complete', {
+                        detail: { 
+                            layoutData, 
+                            success: true 
+                        }
+                    }));
+                } else {
+                    throw new Error('applyLayoutFull 실패');
+                }
+                return;
+            }
+            
+            // Fallback: 기존 방식
             // 1. Layout2DTo3DConverter로 변환
             const convertedLayout = layout2DTo3DConverter.convert(layoutData);
             
@@ -508,6 +576,40 @@ function setupLayoutEventListeners() {
     
     window.addEventListener('layout-params-applied', (e) => {
         console.log('[main.js] layout-params-applied 이벤트 수신:', e.detail);
+    });
+    
+    // ✨ Phase 4.4: 전체 Layout 적용 완료 이벤트
+    window.addEventListener('layout-full-applied', (e) => {
+        console.log('[main.js] layout-full-applied 이벤트 수신:', e.detail);
+        
+        // Equipment 재연결 (필요한 경우)
+        if (interactionHandler && equipmentLoader) {
+            interactionHandler.setEquipmentArray(equipmentLoader.getEquipmentArray());
+            console.log('[main.js] InteractionHandler 설비 배열 재연결 완료');
+        }
+        
+        // StatusVisualizer 업데이트
+        if (statusVisualizer && equipmentLoader) {
+            statusVisualizer.setEquipmentArray(equipmentLoader.getEquipmentArray());
+            statusVisualizer.updateAllStatus();
+            console.log('[main.js] StatusVisualizer 재연결 완료');
+        }
+        
+        // SignalTowerManager 재연결
+        if (signalTowerManager) {
+            signalTowerManager.initializeAllLights();
+            console.log('[main.js] SignalTowerManager 재연결 완료');
+        }
+    });
+    
+    // Scene 재구축 완료 이벤트
+    window.addEventListener('scene-rebuilt', (e) => {
+        console.log('[main.js] scene-rebuilt 이벤트 수신:', e.detail);
+        
+        // Equipment 재연결
+        if (interactionHandler && equipmentLoader) {
+            interactionHandler.setEquipmentArray(equipmentLoader.getEquipmentArray());
+        }
     });
 }
 
@@ -595,6 +697,12 @@ function setupGlobalDebugFunctions() {
         console.log('  applyTestLayout() - 테스트 Layout 적용');
         console.log('  testRoomResize(w, d, h) - Room 크기 변경 테스트');
         console.log('  sceneManager.getRoomEnvironment().debug() - Room 정보');
+        console.log('');
+        // ✨ Phase 4.4 추가
+        console.log('🔗 SceneManager (Phase 4.4):');
+        console.log('  sceneManager.debug() - SceneManager 전체 정보');
+        console.log('  sceneManager.clearScene() - Scene 정리');
+        console.log('  sceneManager.rebuildScene(params) - Scene 재구축');
         console.log('');
         console.groupEnd();
     };
@@ -718,6 +826,7 @@ function setupGlobalDebugFunctions() {
         console.log('Camera Position:', sceneManager.camera.position);
         console.log('Camera Rotation:', sceneManager.camera.rotation);
         console.log('Total Equipment:', equipmentLoader ? equipmentLoader.getEquipmentArray().length : 0);
+        console.log('EquipmentLoader Connected:', sceneManager.getEquipmentLoader ? !!sceneManager.getEquipmentLoader() : 'N/A');
         console.groupEnd();
     };
     

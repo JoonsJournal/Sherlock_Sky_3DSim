@@ -3,11 +3,18 @@
  * Three.js 씬, 카메라, 렌더러 초기화 및 관리
  * 10,000 Class 클린룸 스타일 적용 - 최적화 버전
  * 
- * @version 1.2.0 - Phase 4.2 RoomEnvironment params 전달 지원
+ * @version 1.3.0 - Phase 4.4 SceneManager 통합
+ * 
+ * 변경사항 (v1.3.0):
+ * - setEquipmentLoader() 메서드 추가
+ * - clearScene() 메서드 추가
+ * - rebuildScene() 메서드 추가
+ * - applyLayoutFull() 메서드 추가 (Room + Equipment 동시 적용)
+ * - 기존 applyLayout(), applyLayoutWithParams() 유지 (하위 호환성)
  */
 
 import * as THREE from 'three';
-import { CONFIG, debugLog, updateSceneConfig } from '../utils/Config.js';
+import { CONFIG, debugLog, updateSceneConfig, updateEquipmentConfig } from '../utils/Config.js';
 import { RoomEnvironment } from './RoomEnvironment.js';
 
 export class SceneManager {
@@ -25,6 +32,12 @@ export class SceneManager {
         
         // ✨ Phase 4.2: 현재 적용된 Layout params
         this._currentLayoutParams = null;
+        
+        // ✨ Phase 4.4: EquipmentLoader 참조
+        this._equipmentLoader = null;
+        
+        // ✨ Phase 4.4: 재구축 상태 플래그
+        this._isRebuilding = false;
     }
     
     /**
@@ -95,6 +108,32 @@ export class SceneManager {
         window.addEventListener('resize', () => this.onWindowResize());
         
         return true;
+    }
+    
+    // =========================================================
+    // ✨ Phase 4.4: EquipmentLoader 연결
+    // =========================================================
+    
+    /**
+     * ✨ Phase 4.4: EquipmentLoader 참조 설정
+     * @param {EquipmentLoader} loader - EquipmentLoader 인스턴스
+     */
+    setEquipmentLoader(loader) {
+        if (!loader) {
+            console.warn('[SceneManager] setEquipmentLoader: loader가 null입니다');
+            return;
+        }
+        
+        this._equipmentLoader = loader;
+        console.log('[SceneManager] ✅ EquipmentLoader 연결 완료');
+    }
+    
+    /**
+     * ✨ Phase 4.4: EquipmentLoader 반환
+     * @returns {EquipmentLoader|null}
+     */
+    getEquipmentLoader() {
+        return this._equipmentLoader;
     }
     
     // =========================================================
@@ -186,6 +225,114 @@ export class SceneManager {
     }
     
     // =========================================================
+    // ✨ Phase 4.4: Scene 정리 및 재구축 메서드
+    // =========================================================
+    
+    /**
+     * ✨ Phase 4.4: Scene 정리 (Floor, Grid 제외)
+     * RoomEnvironment와 Equipment만 정리
+     */
+    clearScene() {
+        console.log('[SceneManager] Scene 정리 시작...');
+        this._isRebuilding = true;
+        
+        // 1. RoomEnvironment 정리
+        if (this.roomEnvironment) {
+            this.roomEnvironment.dispose();
+            this.roomEnvironment = null;
+            console.log('  - RoomEnvironment 정리 완료');
+        }
+        
+        // 2. EquipmentLoader 정리 (연결된 경우)
+        if (this._equipmentLoader) {
+            this._equipmentLoader.dispose();
+            console.log('  - EquipmentLoader 정리 완료');
+        }
+        
+        // 3. 기타 동적 객체 정리 (Floor, Grid, Lights 제외)
+        const objectsToRemove = [];
+        this.scene.traverse((object) => {
+            // Floor, Grid, Lights는 유지
+            if (object.name === 'cleanroom-floor' || 
+                object.name === 'cleanroom-grid' ||
+                object.isLight) {
+                return;
+            }
+            
+            // Mesh, Group 등은 정리 대상
+            if (object.isMesh || object.isGroup) {
+                // 이미 정리된 RoomEnvironment나 Equipment가 아닌 것들
+                if (object.parent === this.scene) {
+                    objectsToRemove.push(object);
+                }
+            }
+        });
+        
+        objectsToRemove.forEach(obj => {
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) {
+                if (Array.isArray(obj.material)) {
+                    obj.material.forEach(mat => mat.dispose());
+                } else {
+                    obj.material.dispose();
+                }
+            }
+            this.scene.remove(obj);
+        });
+        
+        console.log(`[SceneManager] ✅ Scene 정리 완료 (${objectsToRemove.length}개 객체 제거)`);
+        this._isRebuilding = false;
+    }
+    
+    /**
+     * ✨ Phase 4.4: Scene 재구축
+     * @param {Object} roomParams - Room 파라미터
+     * @param {Object} equipmentConfig - Equipment CONFIG (선택적)
+     * @param {Function} updateStatusCallback - 상태 업데이트 콜백 (선택적)
+     */
+    rebuildScene(roomParams, equipmentConfig = null, updateStatusCallback = null) {
+        console.log('[SceneManager] Scene 재구축 시작...');
+        this._isRebuilding = true;
+        
+        try {
+            // 1. Floor 업데이트
+            if (roomParams) {
+                this.updateFloor(roomParams);
+            }
+            
+            // 2. RoomEnvironment 재생성
+            this.initRoomEnvironment(roomParams);
+            
+            // 3. Equipment 재배치 (EquipmentLoader가 연결된 경우)
+            if (this._equipmentLoader && equipmentConfig) {
+                console.log('[SceneManager] Equipment 재배치 시작...');
+                
+                // CONFIG 업데이트
+                if (typeof updateEquipmentConfig === 'function') {
+                    updateEquipmentConfig(equipmentConfig);
+                }
+                
+                // 설비 재로드
+                this._equipmentLoader.loadEquipmentArray(updateStatusCallback);
+                console.log('[SceneManager] Equipment 재배치 완료');
+            }
+            
+            console.log('[SceneManager] ✅ Scene 재구축 완료');
+            
+            // 재구축 완료 이벤트 발생
+            window.dispatchEvent(new CustomEvent('scene-rebuilt', {
+                detail: { roomParams, equipmentConfig }
+            }));
+            
+        } catch (error) {
+            console.error('[SceneManager] Scene 재구축 실패:', error);
+            throw error;
+        } finally {
+            this._isRebuilding = false;
+        }
+    }
+    
+    // =========================================================
     // ✨ Phase 4: Layout 적용 메서드
     // =========================================================
     
@@ -231,6 +378,11 @@ export class SceneManager {
                 if (options.rebuildRoom !== false) {
                     this.roomEnvironment.rebuild();
                 }
+            }
+            
+            // ✨ Phase 4.4: Equipment 재배치 (옵션)
+            if (options.updateEquipment !== false && this._equipmentLoader && equipmentConfig) {
+                this._equipmentLoader.applyDynamicConfig(equipmentConfig);
             }
             
             console.log('[SceneManager] ✅ Layout 적용 완료');
@@ -292,6 +444,92 @@ export class SceneManager {
             
         } catch (error) {
             console.error('[SceneManager] Layout 적용 실패 (params 방식):', error);
+            return false;
+        }
+    }
+    
+    /**
+     * ✨ Phase 4.4: 전체 Layout 적용 (Room + Equipment)
+     * LayoutEditorMain.goTo3DViewer()에서 호출
+     * 
+     * @param {Object} layoutData - Layout JSON 데이터
+     * @param {Object} options - 적용 옵션
+     * @returns {boolean} 성공 여부
+     */
+    applyLayoutFull(layoutData, options = {}) {
+        if (!layoutData) {
+            console.error('[SceneManager] applyLayoutFull: layoutData가 없습니다');
+            return false;
+        }
+        
+        console.log('[SceneManager] 전체 Layout 적용 시작 (Room + Equipment)...');
+        
+        try {
+            // Layout2DTo3DConverter가 전역에 있는지 확인
+            const converter = window.layout2DTo3DConverter;
+            const adapter = window.roomParamsAdapter;
+            
+            if (!converter) {
+                console.error('[SceneManager] layout2DTo3DConverter가 없습니다');
+                return false;
+            }
+            
+            // 1. Layout 변환
+            const convertedLayout = converter.convert(layoutData);
+            if (!convertedLayout) {
+                throw new Error('Layout 변환 실패');
+            }
+            
+            // 2. Params 변환 (RoomParamsAdapter 사용)
+            let adaptedParams = null;
+            if (adapter) {
+                adaptedParams = adapter.adapt(convertedLayout);
+            } else {
+                // Adapter 없으면 직접 추출
+                adaptedParams = {
+                    roomWidth: convertedLayout.roomParams?.roomWidth || 40,
+                    roomDepth: convertedLayout.roomParams?.roomDepth || 60,
+                    wallHeight: convertedLayout.roomParams?.wallHeight || 4,
+                    wallThickness: convertedLayout.roomParams?.wallThickness || 0.2,
+                    hasOffice: !!convertedLayout.officeParams,
+                    officeWidth: convertedLayout.officeParams?.size?.width || 12,
+                    officeDepth: convertedLayout.officeParams?.size?.depth || 20,
+                    officeX: convertedLayout.officeParams?.position?.x || 15,
+                    officeZ: convertedLayout.officeParams?.position?.z || -20
+                };
+            }
+            
+            // 3. Scene 정리
+            if (options.clearFirst !== false) {
+                this.clearScene();
+            }
+            
+            // 4. Scene 재구축
+            this.rebuildScene(
+                adaptedParams, 
+                convertedLayout.equipmentConfig,
+                options.updateStatusCallback || null
+            );
+            
+            // 5. 현재 Layout 저장
+            this._currentLayoutParams = adaptedParams;
+            
+            console.log('[SceneManager] ✅ 전체 Layout 적용 완료');
+            
+            // 적용 완료 이벤트 발생
+            window.dispatchEvent(new CustomEvent('layout-full-applied', {
+                detail: { 
+                    layoutData, 
+                    convertedLayout,
+                    adaptedParams,
+                    options 
+                }
+            }));
+            
+            return true;
+            
+        } catch (error) {
+            console.error('[SceneManager] 전체 Layout 적용 실패:', error);
             return false;
         }
     }
@@ -434,6 +672,13 @@ export class SceneManager {
         return this._currentLayoutParams;
     }
     
+    /**
+     * ✨ Phase 4.4: 재구축 중 여부 반환
+     */
+    isRebuilding() {
+        return this._isRebuilding;
+    }
+    
     // =========================================================
     // ✨ Phase 4: 추가 유틸리티
     // =========================================================
@@ -448,6 +693,8 @@ export class SceneManager {
         console.log('FPS:', this.currentFps);
         console.log('Draw calls:', this.renderer.info.render.calls);
         console.log('Current Layout Params:', this._currentLayoutParams);
+        console.log('EquipmentLoader connected:', !!this._equipmentLoader);
+        console.log('Is Rebuilding:', this._isRebuilding);
         
         if (this.roomEnvironment) {
             this.roomEnvironment.debug();
@@ -480,6 +727,7 @@ export class SceneManager {
         
         // 참조 초기화
         this._currentLayoutParams = null;
+        this._equipmentLoader = null;
         
         window.removeEventListener('resize', () => this.onWindowResize());
         

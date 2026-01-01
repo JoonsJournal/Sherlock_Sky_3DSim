@@ -2,7 +2,7 @@
  * LayoutEditorMain.js
  * Layout Editor 시스템의 진입점이자 메인 컨트롤러
  * 
- * @version 1.4.0 - Phase 3.4: Template Manager 통합
+ * @version 1.5.0 - Phase 4.4: SceneManager 통합
  * 
  * 주요 역할:
  * 1. Site 선택 시 Layout 파일 존재 여부 확인
@@ -12,13 +12,14 @@
  * 5. ComponentPalette 초기화 및 관리 (Phase 2.6)
  * 6. Layout 저장 전 검증 (Phase 3.2)
  * 7. 저장 프로세스 통합 (Phase 3.3)
- * 8. ✨ Template 저장 기능 (Phase 3.4) - NEW
+ * 8. Template 저장 기능 (Phase 3.4)
+ * 9. ✨ SceneManager 연동 및 3D Viewer 전환 (Phase 4.4) - NEW
  * 
- * ✨ v1.4.0 신규 기능:
- * - TemplateDialog 통합
- * - saveAsTemplate() 메서드
- * - showSaveTemplateDialog() 메서드
- * - Template 목록 갱신 (커스텀 포함)
+ * ✨ v1.5.0 신규 기능:
+ * - goTo3DViewer() SceneManager 연동 완성
+ * - setSceneManager() 메서드
+ * - tryConnectSceneManager() 자동 연결
+ * - 3D Viewer 전환 시 Layout 자동 적용
  */
 
 // ES Module imports (환경에 따라 조정 필요)
@@ -44,6 +45,9 @@ class LayoutEditorMain {
         
         // ✨ v1.4.0: Template 매니저
         this.templateManager = window.templateManager || null;
+        
+        // ✨ v1.5.0: SceneManager 참조
+        this.sceneManager = window.sceneManager || null;
         
         // UI 컴포넌트
         this.componentPalette = null;
@@ -93,7 +97,7 @@ class LayoutEditorMain {
             }
         ];
         
-        console.log('[LayoutEditorMain] ✅ 초기화 완료 (v1.4.0 - Template Manager 통합)');
+        console.log('[LayoutEditorMain] ✅ 초기화 완료 (v1.5.0 - SceneManager 통합)');
     }
     
     /**
@@ -149,7 +153,34 @@ class LayoutEditorMain {
         // ✨ v1.4.0: Template 목록 갱신
         this.refreshTemplateList();
         
+        // ✨ v1.5.0: SceneManager 자동 연결 시도
+        this.tryConnectSceneManager();
+        
         console.log('[LayoutEditorMain] 초기화 완료');
+    }
+    
+    /**
+     * ✨ v1.5.0: SceneManager 연결 시도
+     */
+    tryConnectSceneManager() {
+        if (!this.sceneManager && window.sceneManager) {
+            this.sceneManager = window.sceneManager;
+            console.log('[LayoutEditorMain] SceneManager 자동 연결 완료');
+        }
+    }
+    
+    /**
+     * ✨ v1.5.0: SceneManager 설정
+     * @param {SceneManager} sceneManager - SceneManager 인스턴스
+     */
+    setSceneManager(sceneManager) {
+        if (!sceneManager) {
+            console.warn('[LayoutEditorMain] setSceneManager: sceneManager가 null입니다');
+            return;
+        }
+        
+        this.sceneManager = sceneManager;
+        console.log('[LayoutEditorMain] ✅ SceneManager 설정 완료');
     }
     
     /**
@@ -866,22 +897,92 @@ class LayoutEditorMain {
     }
     
     /**
-     * ✨ v1.3.0: 3D Viewer로 이동
+     * ✨ v1.5.0: 3D Viewer로 이동 (SceneManager 연동 완성)
      */
     goTo3DViewer() {
         console.log('[LayoutEditorMain] Switching to 3D Viewer...');
         
-        if (this.state) {
-            const siteId = this.state.state.currentSiteId;
-            const layout = this.state.state.currentLayout;
-            
-            if (siteId && layout) {
-                this.state.enterViewerMode(siteId, layout);
-            }
+        // SceneManager 연결 확인
+        this.tryConnectSceneManager();
+        
+        if (!this.state) {
+            console.error('[LayoutEditorMain] State가 초기화되지 않았습니다');
+            return;
         }
         
-        // TODO: 실제 3D Viewer 전환 구현
-        console.log('[LayoutEditorMain] TODO: Implement 3D Viewer switch');
+        const siteId = this.state.state.currentSiteId;
+        const layout = this.state.state.currentLayout;
+        
+        if (!siteId || !layout) {
+            console.error('[LayoutEditorMain] siteId 또는 layout이 없습니다');
+            this.showError('Layout 데이터가 없습니다');
+            return;
+        }
+        
+        try {
+            // 1. Viewer 모드로 전환
+            this.state.enterViewerMode(siteId, layout);
+            
+            // 2. UI 전환
+            this.showViewerUI();
+            
+            // 3. SceneManager에 Layout 적용 (연결된 경우)
+            if (this.sceneManager) {
+                console.log('[LayoutEditorMain] SceneManager에 Layout 적용 중...');
+                
+                // applyLayoutFull 사용 (Room + Equipment 모두 적용)
+                if (typeof this.sceneManager.applyLayoutFull === 'function') {
+                    const success = this.sceneManager.applyLayoutFull(layout, {
+                        clearFirst: true,
+                        updateStatusCallback: (message, isError) => {
+                            console.log(`[3D Viewer] ${message}`);
+                        }
+                    });
+                    
+                    if (success) {
+                        console.log('[LayoutEditorMain] ✅ 3D Viewer Layout 적용 완료');
+                    } else {
+                        console.warn('[LayoutEditorMain] ⚠️ 3D Viewer Layout 적용 실패 (일부 기능만 동작)');
+                    }
+                } else {
+                    // Fallback: 이벤트 발생
+                    console.log('[LayoutEditorMain] applyLayoutFull 없음, 이벤트로 대체...');
+                    window.dispatchEvent(new CustomEvent('apply-layout-request', {
+                        detail: { 
+                            layoutData: layout,
+                            options: {
+                                updateFloor: true,
+                                rebuildRoom: true
+                            }
+                        }
+                    }));
+                }
+            } else {
+                console.warn('[LayoutEditorMain] SceneManager가 연결되지 않았습니다. 이벤트로 대체...');
+                
+                // 이벤트 기반 적용 (main.js의 setupLayoutEventListeners가 처리)
+                window.dispatchEvent(new CustomEvent('apply-layout-request', {
+                    detail: { 
+                        layoutData: layout,
+                        options: {
+                            updateFloor: true,
+                            rebuildRoom: true
+                        }
+                    }
+                }));
+            }
+            
+            // 4. 3D Viewer 전환 완료 이벤트
+            window.dispatchEvent(new CustomEvent('viewer-mode-entered', {
+                detail: { siteId, layout }
+            }));
+            
+            console.log('[LayoutEditorMain] ✅ 3D Viewer 전환 완료');
+            
+        } catch (error) {
+            console.error('[LayoutEditorMain] 3D Viewer 전환 실패:', error);
+            this.showError(`3D Viewer 전환 실패: ${error.message}`);
+        }
     }
     
     /**
@@ -1085,20 +1186,27 @@ class LayoutEditorMain {
     }
 
     /**
-     * ✨ v1.4.0: 디버그 정보 출력
+     * ✨ v1.5.0: 디버그 정보 출력
      */
     debug() {
         console.log('[LayoutEditorMain] Debug Info:', {
-            version: '1.4.0',
+            version: '1.5.0',
             hasFileManager: !!this.fileManager,
             hasState: !!this.state,
             hasValidator: !!this.validator,
+            hasBackupManager: !!this.backupManager,
             hasTemplateManager: !!this.templateManager,
+            hasSceneManager: !!this.sceneManager,
             hasCanvas2DEditor: !!this.canvas2DEditor,
+            hasPropertyPanel: !!this.propertyPanel,
+            hasValidationErrorDialog: !!this.validationErrorDialog,
+            hasSaveSuccessDialog: !!this.saveSuccessDialog,
             hasTemplateDialog: !!this.templateDialog,
+            hasComponentPalette: !!this.componentPalette,
             availableTemplates: this.availableTemplates.length,
             mode: this.state?.state?.mode,
-            currentSiteId: this.state?.state?.currentSiteId
+            currentSiteId: this.state?.state?.currentSiteId,
+            layoutVersion: this.state?.state?.layoutVersion
         });
     }
 }
