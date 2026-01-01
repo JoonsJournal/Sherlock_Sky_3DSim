@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 3.3 - Save Process Integration Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #4a9eff;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .test-section {
+            background: #252525;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #333;
+        }
+        
+        .test-section h2 {
+            color: #4a9eff;
+            margin-bottom: 15px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .test-section h2::before {
+            content: '📦';
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #4a9eff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #3a8eef;
+        }
+        
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #43a047;
+        }
+        
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #f57c00;
+        }
+        
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+        
+        .btn-secondary {
+            background: #444;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #555;
+        }
+        
+        .output-box {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #333;
+        }
+        
+        .output-box .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid #2a2a2a;
+        }
+        
+        .output-box .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .output-box .success {
+            color: #4caf50;
+        }
+        
+        .output-box .error {
+            color: #f44336;
+        }
+        
+        .output-box .warning {
+            color: #ff9800;
+        }
+        
+        .output-box .info {
+            color: #4a9eff;
+        }
+        
+        .status-bar {
+            background: #333;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-label {
+            color: #888;
+            font-size: 13px;
+        }
+        
+        .status-value {
+            color: #fff;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .status-value.highlight {
+            color: #4caf50;
+        }
+        
+        .canvas-mock {
+            background: #1e1e1e;
+            border: 2px dashed #444;
+            border-radius: 8px;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            background: #1a1a1a;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #4a9eff;
+        }
+        
+        .changelog-list {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .changelog-item {
+            padding: 8px;
+            border-bottom: 1px solid #2a2a2a;
+            font-size: 12px;
+        }
+        
+        .changelog-item:last-child {
+            border-bottom: none;
+        }
+        
+        .changelog-version {
+            color: #4a9eff;
+            font-weight: bold;
+        }
+        
+        .changelog-time {
+            color: #666;
+            font-size: 11px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 10001;
+            animation: slideIn 0.3s ease;
+            display: none;
+        }
+        
+        .toast.success {
+            background: #4caf50;
+        }
+        
+        .toast.error {
+            background: #f44336;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .process-steps {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .step {
+            background: #333;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .step.active {
+            background: #4a9eff;
+        }
+        
+        .step.done {
+            background: #4caf50;
+        }
+        
+        .step.error {
+            background: #f44336;
+        }
+        
+        .step-number {
+            background: rgba(255,255,255,0.2);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Phase 3.3 - Save Process Integration Test</h1>
+        <p class="subtitle">Layout Editor 저장 프로세스 통합 테스트 (버전 관리, 백업, Dialog)</p>
+        
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">Site ID:</span>
+                <span class="status-value" id="status-site-id">korea_site1_line1</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Version:</span>
+                <span class="status-value highlight" id="status-version">v1</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Dirty:</span>
+                <span class="status-value" id="status-dirty">No</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Last Saved:</span>
+                <span class="status-value" id="status-last-saved">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Equipment:</span>
+                <span class="status-value" id="status-equipment">117</span>
+            </div>
+        </div>
+        
+        <!-- Save Process Steps -->
+        <div class="test-section full-width">
+            <h2 style="margin-bottom: 10px;">💾 Save Process Steps</h2>
+            <div class="process-steps" id="process-steps">
+                <div class="step" data-step="1">
+                    <span class="step-number">1</span>
+                    <span>Validation</span>
+                </div>
+                <div class="step" data-step="2">
+                    <span class="step-number">2</span>
+                    <span>Version</span>
+                </div>
+                <div class="step" data-step="3">
+                    <span class="step-number">3</span>
+                    <span>Backup</span>
+                </div>
+                <div class="step" data-step="4">
+                    <span class="step-number">4</span>
+                    <span>Change Log</span>
+                </div>
+                <div class="step" data-step="5">
+                    <span class="step-number">5</span>
+                    <span>Serialize</span>
+                </div>
+                <div class="step" data-step="6">
+                    <span class="step-number">6</span>
+                    <span>Save File</span>
+                </div>
+                <div class="step" data-step="7">
+                    <span class="step-number">7</span>
+                    <span>Update State</span>
+                </div>
+                <div class="step" data-step="8">
+                    <span class="step-number">8</span>
+                    <span>Show Dialog</span>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="testFullSaveProcess()">
+                    💾 Full Save Process Test
+                </button>
+                <button class="btn btn-warning" onclick="testSaveWithValidationError()">
+                    ⚠️ Save with Validation Error
+                </button>
+                <button class="btn btn-secondary" onclick="resetProcessSteps()">
+                    🔄 Reset Steps
+                </button>
+            </div>
+        </div>
+        
+        <div class="test-grid">
+            <!-- 1. LayoutEditorState Test -->
+            <div class="test-section">
+                <h2>LayoutEditorState (v1.2.0)</h2>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="testStateInit()">Init State</button>
+                    <button class="btn btn-success" onclick="testMarkAsSaved()">markAsSaved()</button>
+                    <button class="btn btn-warning" onclick="testIncrementVersion()">Increment Version</button>
+                    <button class="btn btn-secondary" onclick="testAddChangeLog()">Add Change Log</button>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="testGetVersionInfo()">Get Version Info</button>
+                    <button class="btn btn-secondary" onclick="testStateDebug()">Debug State</button>
+                </div>
+                <div class="output-box" id="output-state"></div>
+            </div>
+            
+            <!-- 2. LayoutSerializer Test -->
+            <div class="test-section">
+                <h2>LayoutSerializer (v1.2.0)</h2>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="testSerialize()">Serialize</button>
+                    <button class="btn btn-success" onclick="testSerializeWithVersion()">Serialize (v3)</button>
+                    <button class="btn btn-warning" onclick="testDetectChanges()">Detect Changes</button>
+                    <button class="btn btn-secondary" onclick="testBuildChangeLog()">Build Change Log</button>
+                </div>
+                <div class="output-box" id="output-serializer"></div>
+            </div>
+            
+            <!-- 3. LayoutFileManager Test -->
+            <div class="test-section">
+                <h2>LayoutFileManager (v1.1.0)</h2>
+                <div class="input-group">
+                    <label>Site ID</label>
+                    <input type="text" id="input-site-id" value="korea_site1_line1">
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="testFileManagerInit()">Init</button>
+                    <button class="btn btn-success" onclick="testSaveLayout()">Save Layout</button>
+                    <button class="btn btn-warning" onclick="testCreateBackup()">Create Backup</button>
+                    <button class="btn btn-secondary" onclick="testGetBackupList()">Get Backup List</button>
+                </div>
+                <div class="output-box" id="output-filemanager"></div>
+            </div>
+            
+            <!-- 4. BackupManager Test -->
+            <div class="test-section">
+                <h2>BackupManager (v1.0.0)</h2>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="testBackupManagerInit()">Init</button>
+                    <button class="btn btn-success" onclick="testGenerateBackupFilename()">Generate Filename</button>
+                    <button class="btn btn-warning" onclick="testBackupCreate()">Create Backup</button>
+                    <button class="btn btn-secondary" onclick="testShouldCreateBackup()">Should Backup?</button>
+                </div>
+                <div class="output-box" id="output-backup"></div>
+            </div>
+            
+            <!-- 5. ValidationErrorDialog Test -->
+            <div class="test-section">
+                <h2>ValidationErrorDialog (v1.0.0)</h2>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="testValidationDialogInit()">Init Dialog</button>
+                    <button class="btn btn-danger" onclick="testShowValidationErrors()">Show Errors</button>
+                    <button class="btn btn-warning" onclick="testShowSingleError()">Show Single Error</button>
+                    <button class="btn btn-secondary" onclick="testHideValidationDialog()">Hide Dialog</button>
+                </div>
+                <div class="output-box" id="output-validation-dialog"></div>
+            </div>
+            
+            <!-- 6. SaveSuccessDialog Test -->
+            <div class="test-section">
+                <h2>SaveSuccessDialog (v1.0.0)</h2>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="testSaveDialogInit()">Init Dialog</button>
+                    <button class="btn btn-success" onclick="testShowSaveSuccess()">Show Success</button>
+                    <button class="btn btn-warning" onclick="testShowSaveWithBackup()">With Backup Info</button>
+                    <button class="btn btn-secondary" onclick="testHideSaveDialog()">Hide Dialog</button>
+                </div>
+                <div class="output-box" id="output-save-dialog"></div>
+            </div>
+            
+            <!-- 7. Change Log Display -->
+            <div class="test-section">
+                <h2>📜 Change Log History</h2>
+                <div class="changelog-list" id="changelog-display">
+                    <div class="changelog-item">
+                        <span class="changelog-version">v1</span>
+                        <span> - 초기 생성</span>
+                        <div class="changelog-time">2025-01-20 10:00:00</div>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top: 10px;">
+                    <button class="btn btn-primary" onclick="refreshChangeLog()">🔄 Refresh</button>
+                    <button class="btn btn-secondary" onclick="clearChangeLog()">🗑️ Clear</button>
+                </div>
+            </div>
+            
+            <!-- 8. Integration Test -->
+            <div class="test-section">
+                <h2>🔗 Integration Test</h2>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="testFullIntegration()">Full Integration</button>
+                    <button class="btn btn-primary" onclick="testEditorMainSave()">LayoutEditorMain.save()</button>
+                    <button class="btn btn-warning" onclick="testVersionUpgrade()">Version Upgrade Flow</button>
+                    <button class="btn btn-danger" onclick="testErrorRecovery()">Error Recovery</button>
+                </div>
+                <div class="output-box" id="output-integration"></div>
+            </div>
+        </div>
+        
+        <!-- Console Output -->
+        <div class="test-section full-width">
+            <h2>📋 Console Output</h2>
+            <div class="output-box" id="console-output" style="max-height: 300px;"></div>
+            <div class="btn-group" style="margin-top: 10px;">
+                <button class="btn btn-secondary" onclick="clearConsole()">🗑️ Clear Console</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+    
+    <!-- Load Dependencies -->
+    <script src="https://unpkg.com/konva@8/konva.min.js"></script>
+    
+    <!-- Load Our Modules -->
+    <script>
+        // ========================================
+        // Mock Canvas2DEditor for Testing
+        // ========================================
+        class MockCanvas2DEditor {
+            constructor() {
+                this.config = {
+                    width: 800,
+                    height: 600,
+                    scale: 10,
+                    gridSize: 10,
+                    showGrid: true,
+                    snapToGrid: true
+                };
+                this.currentLayout = {
+                    room: { width: 40, depth: 60, wallHeight: 3.5, wallThickness: 0.2 }
+                };
+                this.layers = {
+                    room: { find: () => [] },
+                    equipment: { find: () => this.mockEquipments, batchDraw: () => {} }
+                };
+                this.wallShapes = new Map();
+                this.equipmentShapes = new Map();
+                this.cssColors = {
+                    equipmentDefault: '#4a5568',
+                    equipmentStroke: '#2d3748',
+                    equipmentHover: '#5a6578'
+                };
+                
+                // Create mock equipments
+                this.mockEquipments = [];
+                for (let i = 0; i < 117; i++) {
+                    this.mockEquipments.push({
+                        name: () => 'equipment',
+                        getAttr: (attr) => ({
+                            equipmentData: {
+                                id: `EQ-${String(Math.floor(i/6)+1).padStart(2,'0')}-${String(i%6+1).padStart(2,'0')}`,
+                                row: Math.floor(i/6) + 1,
+                                col: i % 6 + 1,
+                                size: { width: 1.5, depth: 3.0 }
+                            }
+                        })[attr],
+                        position: () => ({ x: (i % 6) * 20, y: Math.floor(i/6) * 35 }),
+                        rotation: () => 0,
+                        getParent: () => ({ name: () => 'equipmentArray' })
+                    });
+                }
+            }
+        }
+        
+        // Global mock editor
+        window.mockCanvas2DEditor = new MockCanvas2DEditor();
+    </script>
+    
+    <!-- LayoutEditorState -->
+    <script>
+        /**
+         * LayoutEditorState.js (Inline for testing)
+         */
+        class LayoutEditorState {
+            constructor() {
+                this._state = {
+                    mode: 'editor',
+                    currentSiteId: 'korea_site1_line1',
+                    currentLayout: null,
+                    selectedObjects: [],
+                    editHistory: [],
+                    historyIndex: -1,
+                    isDirty: false,
+                    lastSaved: null,
+                    autoSaveEnabled: true,
+                    showGrid: true,
+                    snapToGrid: true,
+                    gridSize: 10,
+                    equipmentArrayConfig: {
+                        rows: 26, cols: 6,
+                        equipmentSize: { width: 1.5, depth: 3.0 },
+                        spacing: 0.5,
+                        corridorCols: [2, 4],
+                        corridorColWidth: 1.2,
+                        corridorRows: [13],
+                        corridorRowWidth: 2.0,
+                        excludedPositions: []
+                    },
+                    layoutVersion: 1,
+                    changeLog: [],
+                    previousLayout: null,
+                    isSaving: false,
+                    lastSaveResult: null
+                };
+                this._listeners = new Map();
+                this._globalListeners = new Set();
+                
+                this.state = new Proxy(this._state, {
+                    set: (target, property, value) => {
+                        const oldValue = target[property];
+                        if (oldValue !== value) {
+                            target[property] = value;
+                            this._notifyListeners(property, value, oldValue);
+                        }
+                        return true;
+                    },
+                    get: (target, property) => target[property]
+                });
+            }
+            
+            subscribe(key, callback) {
+                if (!this._listeners.has(key)) {
+                    this._listeners.set(key, new Set());
+                }
+                this._listeners.get(key).add(callback);
+                return () => this.unsubscribe(key, callback);
+            }
+            
+            unsubscribe(key, callback) {
+                if (this._listeners.has(key)) {
+                    this._listeners.get(key).delete(callback);
+                }
+            }
+            
+            _notifyListeners(key, newValue, oldValue) {
+                if (this._listeners.has(key)) {
+                    this._listeners.get(key).forEach(cb => cb(newValue, oldValue));
+                }
+            }
+            
+            enterEditorMode(siteId, layoutData) {
+                this.state.mode = 'editor';
+                this.state.currentSiteId = siteId;
+                this.state.currentLayout = layoutData;
+                this.state.layoutVersion = layoutData?.layout_version || 1;
+                this.state.changeLog = layoutData?.change_log || [];
+                this.state.previousLayout = layoutData ? JSON.parse(JSON.stringify(layoutData)) : null;
+                this.state.isDirty = false;
+            }
+            
+            markAsSaved(options = {}) {
+                const { incrementVersion = false, changeDescription = null } = options;
+                this.state.isDirty = false;
+                this.state.lastSaved = new Date();
+                
+                if (incrementVersion) {
+                    this.state.layoutVersion = (this.state.layoutVersion || 1) + 1;
+                    if (changeDescription) {
+                        this.addChangeLogEntry(changeDescription);
+                    }
+                }
+                
+                if (this.state.currentLayout) {
+                    this.state.previousLayout = JSON.parse(JSON.stringify(this.state.currentLayout));
+                }
+            }
+            
+            incrementVersion() {
+                this.state.layoutVersion = (this.state.layoutVersion || 1) + 1;
+                return this.state.layoutVersion;
+            }
+            
+            addChangeLogEntry(description) {
+                const entry = {
+                    version: this.state.layoutVersion,
+                    timestamp: new Date().toISOString(),
+                    changes: description
+                };
+                this.state.changeLog = [entry, ...this.state.changeLog].slice(0, 20);
+            }
+            
+            getVersionInfo() {
+                return {
+                    version: this.state.layoutVersion,
+                    changeLog: [...this.state.changeLog],
+                    lastSaved: this.state.lastSaved,
+                    isDirty: this.state.isDirty
+                };
+            }
+            
+            startSaving() { this.state.isSaving = true; }
+            finishSaving(result) { this.state.isSaving = false; this.state.lastSaveResult = result; }
+            markAsDirty() { this.state.isDirty = true; }
+            
+            debug() {
+                return {
+                    mode: this.state.mode,
+                    currentSiteId: this.state.currentSiteId,
+                    layoutVersion: this.state.layoutVersion,
+                    changeLogCount: this.state.changeLog.length,
+                    isDirty: this.state.isDirty,
+                    lastSaved: this.state.lastSaved,
+                    isSaving: this.state.isSaving
+                };
+            }
+        }
+        
+        window.layoutEditorState = new LayoutEditorState();
+        window.LayoutEditorState = LayoutEditorState;
+    </script>
+    
+    <!-- LayoutSerializer -->
+    <script>
+        /**
+         * LayoutSerializer.js (Inline for testing)
+         */
+        class LayoutSerializer {
+            constructor() {
+                this.version = '1.2.0';
+            }
+            
+            serialize(canvas2DEditor, siteId, options = {}) {
+                const layoutVersion = options.layoutVersion || 1;
+                const existingChangeLog = options.changeLog || [];
+                const changeDescription = options.changeDescription || null;
+                
+                const layout = {
+                    version: this.version,
+                    site_id: siteId,
+                    created_at: options.createdAt || new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    layout_version: layoutVersion,
+                    canvas: canvas2DEditor.config,
+                    room: canvas2DEditor.currentLayout?.room || { width: 40, depth: 60 },
+                    walls: [],
+                    office: null,
+                    partitions: [],
+                    equipmentArrays: this.serializeEquipmentArrays(canvas2DEditor),
+                    components: [],
+                    change_log: this.buildChangeLog(existingChangeLog, layoutVersion, changeDescription)
+                };
+                
+                layout.statistics = this.calculateStatistics(layout);
+                return layout;
+            }
+            
+            serializeEquipmentArrays(canvas2DEditor) {
+                const equipments = canvas2DEditor.mockEquipments || [];
+                return [{
+                    id: 'main_array',
+                    position: { x: 0, y: 0 },
+                    rotation: 0,
+                    config: { rows: 26, cols: 6 },
+                    equipments: equipments.map(eq => ({
+                        id: eq.getAttr('equipmentData').id,
+                        row: eq.getAttr('equipmentData').row,
+                        col: eq.getAttr('equipmentData').col,
+                        x: eq.position().x,
+                        y: eq.position().y,
+                        size: eq.getAttr('equipmentData').size,
+                        rotation: eq.rotation()
+                    })),
+                    count: equipments.length
+                }];
+            }
+            
+            buildChangeLog(existingLog, version, description) {
+                const changeLog = [...existingLog];
+                if (description || version > 1) {
+                    changeLog.unshift({
+                        version: version,
+                        timestamp: new Date().toISOString(),
+                        changes: description || (version === 1 ? '초기 생성' : `버전 ${version} 저장`)
+                    });
+                }
+                return changeLog.slice(0, 20);
+            }
+            
+            calculateStatistics(layout) {
+                let totalEquipment = 0;
+                if (layout.equipmentArrays) {
+                    layout.equipmentArrays.forEach(arr => {
+                        totalEquipment += arr.count || arr.equipments?.length || 0;
+                    });
+                }
+                return {
+                    totalEquipment,
+                    totalWalls: layout.walls?.length || 0,
+                    totalPartitions: layout.partitions?.length || 0,
+                    roomArea: (layout.room?.width || 0) * (layout.room?.depth || 0)
+                };
+            }
+            
+            detectChanges(currentLayout, previousLayout) {
+                const changes = [];
+                if (!previousLayout) {
+                    changes.push('신규 생성');
+                    return changes;
+                }
+                
+                const currentCount = currentLayout.statistics?.totalEquipment || 0;
+                const previousCount = previousLayout.statistics?.totalEquipment || 0;
+                if (currentCount !== previousCount) {
+                    const diff = currentCount - previousCount;
+                    changes.push(`설비 ${diff > 0 ? '추가' : '삭제'}: ${Math.abs(diff)}개`);
+                }
+                
+                if (changes.length === 0) changes.push('설정 변경');
+                return changes;
+            }
+        }
+        
+        window.layoutSerializer = new LayoutSerializer();
+        window.LayoutSerializer = LayoutSerializer;
+    </script>
+    
+    <!-- LayoutFileManager -->
+    <script>
+        /**
+         * LayoutFileManager.js (Inline for testing)
+         */
+        class LayoutFileManager {
+            constructor() {
+                this.basePath = '/layouts/';
+                this.templatePath = '/layouts/templates/';
+                this.maxBackups = 5;
+                this.enableAutoBackup = true;
+            }
+            
+            async checkLayout(siteId) {
+                return true; // Mock: always exists
+            }
+            
+            async loadLayout(siteId) {
+                return {
+                    site_id: siteId,
+                    layout_version: 1,
+                    room: { width: 40, depth: 60 },
+                    equipmentArrays: [],
+                    change_log: [{ version: 1, timestamp: new Date().toISOString(), changes: '초기 생성' }]
+                };
+            }
+            
+            async saveLayout(siteId, layoutData, options = {}) {
+                const { createBackup = true, deleteAutoSave = true } = options;
+                
+                const result = {
+                    success: true,
+                    filename: `${siteId}.json`,
+                    backupFilename: createBackup ? `${siteId}.backup_${new Date().toISOString().replace(/:/g, '-')}.json` : null,
+                    version: layoutData.layout_version || 1,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Simulate download
+                const jsonString = JSON.stringify(layoutData, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                result.size = blob.size;
+                
+                // Update backup list
+                if (result.backupFilename) {
+                    this.updateBackupList(siteId, {
+                        filename: result.backupFilename,
+                        timestamp: new Date(),
+                        version: (layoutData.layout_version || 1) - 1
+                    });
+                }
+                
+                return result;
+            }
+            
+            async createBackup(siteId, layoutData) {
+                const timestamp = new Date();
+                const filename = `${siteId}.backup_${timestamp.toISOString().replace(/:/g, '-').replace(/\.\d{3}Z$/, '')}.json`;
+                
+                return {
+                    success: true,
+                    filename: filename,
+                    timestamp: timestamp,
+                    size: JSON.stringify(layoutData).length
+                };
+            }
+            
+            updateBackupList(siteId, backupInfo) {
+                const storageKey = `backup_list_${siteId}`;
+                let backups = [];
+                try {
+                    const stored = localStorage.getItem(storageKey);
+                    if (stored) backups = JSON.parse(stored);
+                } catch (e) {}
+                
+                backups.unshift({
+                    filename: backupInfo.filename,
+                    timestamp: backupInfo.timestamp.toISOString(),
+                    version: backupInfo.version
+                });
+                
+                backups = backups.slice(0, this.maxBackups);
+                localStorage.setItem(storageKey, JSON.stringify(backups));
+            }
+            
+            getBackupList(siteId) {
+                try {
+                    const stored = localStorage.getItem(`backup_list_${siteId}`);
+                    return stored ? JSON.parse(stored) : [];
+                } catch (e) {
+                    return [];
+                }
+            }
+            
+            debug() {
+                return {
+                    basePath: this.basePath,
+                    maxBackups: this.maxBackups,
+                    enableAutoBackup: this.enableAutoBackup
+                };
+            }
+        }
+        
+        window.LayoutFileManager = LayoutFileManager;
+    </script>
+    
+    <!-- BackupManager -->
+    <script>
+        /**
+         * BackupManager.js (Inline for testing)
+         */
+        class BackupManager {
+            constructor() {
+                this.basePath = '/layouts/';
+                this.maxBackups = 5;
+                this.backupPrefix = '.backup_';
+            }
+            
+            generateBackupFilename(siteId, timestamp = new Date()) {
+                const dateStr = timestamp.toISOString()
+                    .replace(/:/g, '-')
+                    .replace(/\.\d{3}Z$/, '');
+                return `${siteId}${this.backupPrefix}${dateStr}.json`;
+            }
+            
+            createBackup(siteId, layoutData) {
+                const timestamp = new Date();
+                const filename = this.generateBackupFilename(siteId, timestamp);
+                
+                const backupData = {
+                    ...layoutData,
+                    _backup_info: {
+                        original_site_id: siteId,
+                        backup_timestamp: timestamp.toISOString(),
+                        is_backup: true
+                    }
+                };
+                
+                const jsonString = JSON.stringify(backupData, null, 2);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                
+                return {
+                    success: true,
+                    filename: filename,
+                    timestamp: timestamp,
+                    size: blob.size
+                };
+            }
+            
+            shouldCreateBackup(layoutData, siteId) {
+                if (layoutData.is_new || layoutData.layout_version === 1) return false;
+                if (layoutData.layout_version > 1) return true;
+                if (layoutData.last_modified || layoutData.updated_at) return true;
+                return false;
+            }
+            
+            formatBackupInfo(backupInfo) {
+                const date = new Date(backupInfo.timestamp);
+                return `${date.toLocaleString('ko-KR')} (${(backupInfo.size / 1024).toFixed(1)} KB)`;
+            }
+        }
+        
+        window.backupManager = new BackupManager();
+        window.BackupManager = BackupManager;
+    </script>
+    
+    <!-- ValidationErrorDialog -->
+    <script>
+        /**
+         * ValidationErrorDialog.js (Inline for testing)
+         */
+        class ValidationErrorDialog {
+            constructor(options = {}) {
+                this.containerId = options.containerId || 'validation-error-dialog';
+                this.onFocusError = options.onFocusError || null;
+                this.onAutoFix = options.onAutoFix || null;
+                this.onAutoFixAll = options.onAutoFixAll || null;
+                this.onClose = options.onClose || null;
+                this.errors = [];
+                this.isVisible = false;
+                this.dialogElement = null;
+            }
+            
+            init() {
+                if (document.getElementById(this.containerId)) return;
+                
+                const styles = `
+                    <style id="validation-dialog-styles">
+                        .validation-dialog-overlay {
+                            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                            background: rgba(0,0,0,0.5); display: flex; align-items: center;
+                            justify-content: center; z-index: 10000;
+                        }
+                        .validation-dialog {
+                            background: #1e1e1e; border-radius: 12px; max-width: 550px; width: 90%;
+                            border: 1px solid #333; animation: vdSlideIn 0.2s ease-out;
+                        }
+                        @keyframes vdSlideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+                        .vd-header { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid #333; background: #252525; border-radius: 12px 12px 0 0; }
+                        .vd-header h3 { margin: 0; flex: 1; color: #ff6b6b; font-size: 18px; }
+                        .vd-close { background: none; border: none; color: #888; font-size: 24px; cursor: pointer; }
+                        .vd-content { padding: 20px; max-height: 400px; overflow-y: auto; }
+                        .vd-error-item { background: #2a2a2a; border-radius: 8px; padding: 12px; margin-bottom: 10px; border-left: 4px solid #ff6b6b; }
+                        .vd-error-title { color: #fff; font-weight: 500; margin-bottom: 5px; }
+                        .vd-error-details { color: #aaa; font-size: 13px; }
+                        .vd-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid #333; background: #252525; border-radius: 0 0 12px 12px; }
+                        .vd-btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500; }
+                        .vd-btn-primary { background: #4a9eff; color: #fff; }
+                        .vd-btn-secondary { background: #444; color: #fff; }
+                    </style>
+                `;
+                document.head.insertAdjacentHTML('beforeend', styles);
+                
+                const html = `
+                    <div id="${this.containerId}" class="validation-dialog-overlay" style="display: none;">
+                        <div class="validation-dialog">
+                            <div class="vd-header">
+                                <span style="font-size: 24px; margin-right: 12px;">❌</span>
+                                <h3>Layout 검증 실패</h3>
+                                <button class="vd-close">&times;</button>
+                            </div>
+                            <div class="vd-content" id="vd-error-list"></div>
+                            <div class="vd-footer">
+                                <button class="vd-btn vd-btn-primary" id="vd-autofix-all">🔧 모두 자동 수정</button>
+                                <button class="vd-btn vd-btn-secondary" id="vd-manual">✏️ 직접 수정</button>
+                                <button class="vd-btn vd-btn-secondary" id="vd-cancel">취소</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', html);
+                
+                this.dialogElement = document.getElementById(this.containerId);
+                this.bindEvents();
+            }
+            
+            bindEvents() {
+                this.dialogElement.querySelector('.vd-close').onclick = () => this.hide();
+                this.dialogElement.querySelector('#vd-cancel').onclick = () => this.hide();
+                this.dialogElement.querySelector('#vd-manual').onclick = () => { this.hide(); if (this.onClose) this.onClose('manual'); };
+                this.dialogElement.querySelector('#vd-autofix-all').onclick = () => { if (this.onAutoFixAll) this.onAutoFixAll(this.errors); };
+                this.dialogElement.onclick = (e) => { if (e.target === this.dialogElement) this.hide(); };
+            }
+            
+            show(errors = []) {
+                if (!this.dialogElement) this.init();
+                this.errors = errors;
+                
+                const listEl = document.getElementById('vd-error-list');
+                listEl.innerHTML = errors.map((err, i) => `
+                    <div class="vd-error-item">
+                        <div class="vd-error-title">${i + 1}. ⚠️ ${err.rule || err.type || 'Error'}</div>
+                        <div class="vd-error-details">${err.message || err.details || ''}</div>
+                    </div>
+                `).join('');
+                
+                this.dialogElement.style.display = 'flex';
+                this.isVisible = true;
+            }
+            
+            hide() {
+                if (this.dialogElement) this.dialogElement.style.display = 'none';
+                this.isVisible = false;
+            }
+            
+            removeError(index) {
+                this.errors.splice(index, 1);
+                this.show(this.errors);
+            }
+        }
+        
+        window.ValidationErrorDialog = ValidationErrorDialog;
+    </script>
+    
+    <!-- SaveSuccessDialog -->
+    <script>
+        /**
+         * SaveSuccessDialog.js (Inline for testing)
+         */
+        class SaveSuccessDialog {
+            constructor(options = {}) {
+                this.containerId = options.containerId || 'save-success-dialog';
+                this.onGoTo3DViewer = options.onGoTo3DViewer || null;
+                this.onContinueEdit = options.onContinueEdit || null;
+                this.dialogElement = null;
+                this.isVisible = false;
+            }
+            
+            init() {
+                if (document.getElementById(this.containerId)) return;
+                
+                const styles = `
+                    <style id="save-dialog-styles">
+                        .save-dialog-overlay {
+                            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                            background: rgba(0,0,0,0.5); display: flex; align-items: center;
+                            justify-content: center; z-index: 10000;
+                        }
+                        .save-dialog {
+                            background: #1e1e1e; border-radius: 12px; max-width: 480px; width: 90%;
+                            border: 1px solid #333; animation: sdSlideIn 0.2s ease-out;
+                        }
+                        @keyframes sdSlideIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+                        .sd-header { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid #333; background: linear-gradient(135deg, #1a3a1a, #1e1e1e); border-radius: 12px 12px 0 0; }
+                        .sd-header h3 { margin: 0; flex: 1; color: #4caf50; font-size: 18px; }
+                        .sd-close { background: none; border: none; color: #888; font-size: 24px; cursor: pointer; }
+                        .sd-content { padding: 20px; }
+                        .sd-info { background: #252525; border-radius: 8px; padding: 16px; }
+                        .sd-info-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #333; }
+                        .sd-info-item:last-child { border-bottom: none; }
+                        .sd-info-label { color: #888; }
+                        .sd-info-value { color: #fff; font-weight: 500; }
+                        .sd-backup { background: #2a3a2a; border-radius: 8px; padding: 12px; margin-top: 15px; color: #8bc34a; font-size: 13px; }
+                        .sd-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px; border-top: 1px solid #333; background: #252525; border-radius: 0 0 12px 12px; }
+                        .sd-btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: 500; }
+                        .sd-btn-primary { background: #4caf50; color: #fff; }
+                        .sd-btn-secondary { background: #444; color: #fff; }
+                    </style>
+                `;
+                document.head.insertAdjacentHTML('beforeend', styles);
+                
+                const html = `
+                    <div id="${this.containerId}" class="save-dialog-overlay" style="display: none;">
+                        <div class="save-dialog">
+                            <div class="sd-header">
+                                <span style="font-size: 28px; margin-right: 12px;">✅</span>
+                                <h3>Layout 저장 완료</h3>
+                                <button class="sd-close">&times;</button>
+                            </div>
+                            <div class="sd-content">
+                                <div class="sd-info">
+                                    <div class="sd-info-item"><span class="sd-info-label">파일:</span><span class="sd-info-value" id="sd-filename">-</span></div>
+                                    <div class="sd-info-item"><span class="sd-info-label">버전:</span><span class="sd-info-value" id="sd-version">-</span></div>
+                                    <div class="sd-info-item"><span class="sd-info-label">설비:</span><span class="sd-info-value" id="sd-equipment">-</span></div>
+                                    <div class="sd-info-item"><span class="sd-info-label">저장 시각:</span><span class="sd-info-value" id="sd-timestamp">-</span></div>
+                                </div>
+                                <div class="sd-backup" id="sd-backup" style="display: none;">📦 백업 생성됨: <strong id="sd-backup-name">-</strong></div>
+                            </div>
+                            <div class="sd-footer">
+                                <button class="sd-btn sd-btn-primary" id="sd-goto-3d">🎮 3D Viewer로 이동</button>
+                                <button class="sd-btn sd-btn-secondary" id="sd-continue">✏️ 계속 편집</button>
+                                <button class="sd-btn sd-btn-secondary" id="sd-close-btn">닫기</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', html);
+                
+                this.dialogElement = document.getElementById(this.containerId);
+                this.bindEvents();
+            }
+            
+            bindEvents() {
+                this.dialogElement.querySelector('.sd-close').onclick = () => this.hide();
+                this.dialogElement.querySelector('#sd-close-btn').onclick = () => this.hide();
+                this.dialogElement.querySelector('#sd-continue').onclick = () => { this.hide(); if (this.onContinueEdit) this.onContinueEdit(); };
+                this.dialogElement.querySelector('#sd-goto-3d').onclick = () => { this.hide(); if (this.onGoTo3DViewer) this.onGoTo3DViewer(); };
+                this.dialogElement.onclick = (e) => { if (e.target === this.dialogElement) this.hide(); };
+            }
+            
+            show(saveInfo = {}) {
+                if (!this.dialogElement) this.init();
+                
+                document.getElementById('sd-filename').textContent = saveInfo.filename || '-';
+                document.getElementById('sd-version').textContent = `v${saveInfo.version || saveInfo.layoutVersion || 1}`;
+                document.getElementById('sd-equipment').textContent = `${saveInfo.equipmentCount || 0}개`;
+                document.getElementById('sd-timestamp').textContent = new Date().toLocaleString('ko-KR');
+                
+                const backupEl = document.getElementById('sd-backup');
+                if (saveInfo.backupFilename) {
+                    backupEl.style.display = 'block';
+                    document.getElementById('sd-backup-name').textContent = saveInfo.backupFilename;
+                } else {
+                    backupEl.style.display = 'none';
+                }
+                
+                this.dialogElement.style.display = 'flex';
+                this.isVisible = true;
+            }
+            
+            hide() {
+                if (this.dialogElement) this.dialogElement.style.display = 'none';
+                this.isVisible = false;
+            }
+        }
+        
+        window.SaveSuccessDialog = SaveSuccessDialog;
+    </script>
+    
+    <!-- Test Functions -->
+    <script>
+        // ========================================
+        // Utility Functions
+        // ========================================
+        function log(target, message, type = 'info') {
+            const output = document.getElementById(target);
+            if (output) {
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                output.insertBefore(entry, output.firstChild);
+            }
+            
+            // Also log to console output
+            const consoleOutput = document.getElementById('console-output');
+            if (consoleOutput && target !== 'console-output') {
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                entry.textContent = `[${target}] ${message}`;
+                consoleOutput.insertBefore(entry, consoleOutput.firstChild);
+            }
+        }
+        
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        }
+        window.showToast = showToast;
+        
+        function updateStatusBar() {
+            const state = window.layoutEditorState.state;
+            document.getElementById('status-site-id').textContent = state.currentSiteId || '-';
+            document.getElementById('status-version').textContent = `v${state.layoutVersion || 1}`;
+            document.getElementById('status-dirty').textContent = state.isDirty ? 'Yes' : 'No';
+            document.getElementById('status-dirty').style.color = state.isDirty ? '#ff9800' : '#4caf50';
+            document.getElementById('status-last-saved').textContent = state.lastSaved ? state.lastSaved.toLocaleTimeString() : '-';
+            document.getElementById('status-equipment').textContent = window.mockCanvas2DEditor.mockEquipments.length;
+        }
+        
+        function updateProcessStep(step, status) {
+            const steps = document.querySelectorAll('#process-steps .step');
+            steps.forEach(s => {
+                const stepNum = parseInt(s.dataset.step);
+                if (stepNum === step) {
+                    s.className = `step ${status}`;
+                } else if (stepNum < step && status !== 'error') {
+                    s.className = 'step done';
+                }
+            });
+        }
+        
+        function resetProcessSteps() {
+            document.querySelectorAll('#process-steps .step').forEach(s => s.className = 'step');
+            log('console-output', 'Process steps reset', 'info');
+        }
+        
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = '';
+        }
+        
+        function refreshChangeLog() {
+            const changeLog = window.layoutEditorState.state.changeLog;
+            const display = document.getElementById('changelog-display');
+            
+            if (changeLog.length === 0) {
+                display.innerHTML = '<div class="changelog-item" style="color: #666;">변경 이력이 없습니다.</div>';
+                return;
+            }
+            
+            display.innerHTML = changeLog.map(entry => `
+                <div class="changelog-item">
+                    <span class="changelog-version">v${entry.version}</span>
+                    <span> - ${entry.changes}</span>
+                    <div class="changelog-time">${new Date(entry.timestamp).toLocaleString('ko-KR')}</div>
+                </div>
+            `).join('');
+        }
+        
+        function clearChangeLog() {
+            window.layoutEditorState.state.changeLog = [];
+            refreshChangeLog();
+            log('console-output', 'Change log cleared', 'warning');
+        }
+        
+        // ========================================
+        // LayoutEditorState Tests
+        // ========================================
+        function testStateInit() {
+            const state = window.layoutEditorState;
+            state.enterEditorMode('korea_site1_line1', {
+                layout_version: 1,
+                change_log: [{ version: 1, timestamp: new Date().toISOString(), changes: '초기 생성' }]
+            });
+            log('output-state', 'State initialized for korea_site1_line1', 'success');
+            updateStatusBar();
+            refreshChangeLog();
+        }
+        
+        function testMarkAsSaved() {
+            window.layoutEditorState.markAsSaved({ incrementVersion: true, changeDescription: '테스트 저장' });
+            log('output-state', `Marked as saved. Version: ${window.layoutEditorState.state.layoutVersion}`, 'success');
+            updateStatusBar();
+            refreshChangeLog();
+        }
+        
+        function testIncrementVersion() {
+            const newVersion = window.layoutEditorState.incrementVersion();
+            log('output-state', `Version incremented to: ${newVersion}`, 'success');
+            updateStatusBar();
+        }
+        
+        function testAddChangeLog() {
+            window.layoutEditorState.addChangeLogEntry('설비 5개 추가, Office 확장');
+            log('output-state', 'Change log entry added', 'success');
+            refreshChangeLog();
+        }
+        
+        function testGetVersionInfo() {
+            const info = window.layoutEditorState.getVersionInfo();
+            log('output-state', `Version: ${info.version}, Dirty: ${info.isDirty}, Log entries: ${info.changeLog.length}`, 'info');
+        }
+        
+        function testStateDebug() {
+            const debug = window.layoutEditorState.debug();
+            log('output-state', JSON.stringify(debug, null, 2), 'info');
+        }
+        
+        // ========================================
+        // LayoutSerializer Tests
+        // ========================================
+        function testSerialize() {
+            const layout = window.layoutSerializer.serialize(window.mockCanvas2DEditor, 'korea_site1_line1');
+            log('output-serializer', `Serialized: v${layout.layout_version}, ${layout.statistics.totalEquipment} equipment`, 'success');
+            console.log('Serialized Layout:', layout);
+        }
+        
+        function testSerializeWithVersion() {
+            const layout = window.layoutSerializer.serialize(window.mockCanvas2DEditor, 'korea_site1_line1', {
+                layoutVersion: 3,
+                changeLog: window.layoutEditorState.state.changeLog,
+                changeDescription: '설비 배치 변경'
+            });
+            log('output-serializer', `Serialized: v${layout.layout_version}, Change log: ${layout.change_log.length} entries`, 'success');
+        }
+        
+        function testDetectChanges() {
+            const current = { statistics: { totalEquipment: 120 } };
+            const previous = { statistics: { totalEquipment: 117 } };
+            const changes = window.layoutSerializer.detectChanges(current, previous);
+            log('output-serializer', `Changes detected: ${changes.join(', ')}`, 'info');
+        }
+        
+        function testBuildChangeLog() {
+            const existingLog = [{ version: 1, timestamp: new Date().toISOString(), changes: '초기' }];
+            const newLog = window.layoutSerializer.buildChangeLog(existingLog, 2, '설비 추가');
+            log('output-serializer', `Change log built: ${newLog.length} entries`, 'success');
+        }
+        
+        // ========================================
+        // LayoutFileManager Tests
+        // ========================================
+        let fileManager = null;
+        
+        function testFileManagerInit() {
+            fileManager = new window.LayoutFileManager();
+            log('output-filemanager', 'LayoutFileManager initialized', 'success');
+            log('output-filemanager', JSON.stringify(fileManager.debug()), 'info');
+        }
+        
+        async function testSaveLayout() {
+            if (!fileManager) testFileManagerInit();
+            const siteId = document.getElementById('input-site-id').value;
+            const layout = window.layoutSerializer.serialize(window.mockCanvas2DEditor, siteId, {
+                layoutVersion: window.layoutEditorState.state.layoutVersion + 1
+            });
+            
+            const result = await fileManager.saveLayout(siteId, layout, { createBackup: false });
+            log('output-filemanager', `Save result: ${result.success ? 'Success' : 'Failed'}, v${result.version}`, result.success ? 'success' : 'error');
+            showToast(`Layout saved: ${result.filename}`, 'success');
+        }
+        
+        async function testCreateBackup() {
+            if (!fileManager) testFileManagerInit();
+            const siteId = document.getElementById('input-site-id').value;
+            const layout = { layout_version: 2, site_id: siteId };
+            
+            const result = await fileManager.createBackup(siteId, layout);
+            log('output-filemanager', `Backup: ${result.success ? result.filename : 'Failed'}`, result.success ? 'success' : 'error');
+        }
+        
+        function testGetBackupList() {
+            if (!fileManager) testFileManagerInit();
+            const siteId = document.getElementById('input-site-id').value;
+            const backups = fileManager.getBackupList(siteId);
+            log('output-filemanager', `Backup list: ${backups.length} backups found`, 'info');
+            backups.forEach((b, i) => log('output-filemanager', `  ${i + 1}. ${b.filename}`, 'info'));
+        }
+        
+        // ========================================
+        // BackupManager Tests
+        // ========================================
+        function testBackupManagerInit() {
+            log('output-backup', 'BackupManager ready (singleton)', 'success');
+        }
+        
+        function testGenerateBackupFilename() {
+            const filename = window.backupManager.generateBackupFilename('korea_site1_line1');
+            log('output-backup', `Generated: ${filename}`, 'success');
+        }
+        
+        function testBackupCreate() {
+            const layout = { layout_version: 2, site_id: 'korea_site1_line1' };
+            const result = window.backupManager.createBackup('korea_site1_line1', layout);
+            log('output-backup', `Backup created: ${result.filename}`, result.success ? 'success' : 'error');
+        }
+        
+        function testShouldCreateBackup() {
+            const layout1 = { layout_version: 1, is_new: true };
+            const layout2 = { layout_version: 3 };
+            
+            const should1 = window.backupManager.shouldCreateBackup(layout1, 'test');
+            const should2 = window.backupManager.shouldCreateBackup(layout2, 'test');
+            
+            log('output-backup', `New layout (v1): ${should1 ? 'Yes' : 'No'}`, 'info');
+            log('output-backup', `Existing layout (v3): ${should2 ? 'Yes' : 'No'}`, 'info');
+        }
+        
+        // ========================================
+        // Dialog Tests
+        // ========================================
+        let validationDialog = null;
+        let saveDialog = null;
+        
+        function testValidationDialogInit() {
+            validationDialog = new window.ValidationErrorDialog({
+                onFocusError: (err, i) => log('output-validation-dialog', `Focus on error ${i + 1}`, 'info'),
+                onAutoFix: (err, i) => { log('output-validation-dialog', `Auto fix error ${i + 1}`, 'success'); validationDialog.removeError(i); },
+                onAutoFixAll: (errors) => { log('output-validation-dialog', `Auto fix all ${errors.length} errors`, 'success'); validationDialog.hide(); },
+                onClose: (action) => log('output-validation-dialog', `Dialog closed: ${action}`, 'info')
+            });
+            validationDialog.init();
+            log('output-validation-dialog', 'ValidationErrorDialog initialized', 'success');
+        }
+        
+        function testShowValidationErrors() {
+            if (!validationDialog) testValidationDialogInit();
+            
+            const errors = [
+                { rule: 'Room Size', type: 'error', message: 'Room size too small: 8×12m (minimum: 10×10m)' },
+                { rule: 'Equipment Overlap', type: 'warning', message: 'Equipment EQ-01-01 overlaps with wall' },
+                { rule: 'Corridor Width', type: 'error', message: 'Corridor width insufficient: 0.5m (required: 0.8m)' }
+            ];
+            
+            validationDialog.show(errors);
+            log('output-validation-dialog', `Showing ${errors.length} errors`, 'error');
+        }
+        
+        function testShowSingleError() {
+            if (!validationDialog) testValidationDialogInit();
+            validationDialog.show([{ rule: 'Single Error', message: 'This is a single test error' }]);
+            log('output-validation-dialog', 'Showing single error', 'warning');
+        }
+        
+        function testHideValidationDialog() {
+            if (validationDialog) validationDialog.hide();
+            log('output-validation-dialog', 'Dialog hidden', 'info');
+        }
+        
+        function testSaveDialogInit() {
+            saveDialog = new window.SaveSuccessDialog({
+                onGoTo3DViewer: () => { log('output-save-dialog', 'Go to 3D Viewer clicked', 'info'); showToast('Switching to 3D Viewer...'); },
+                onContinueEdit: () => log('output-save-dialog', 'Continue editing', 'info')
+            });
+            saveDialog.init();
+            log('output-save-dialog', 'SaveSuccessDialog initialized', 'success');
+        }
+        
+        function testShowSaveSuccess() {
+            if (!saveDialog) testSaveDialogInit();
+            saveDialog.show({
+                siteId: 'korea_site1_line1',
+                filename: 'korea_site1_line1.json',
+                version: 2,
+                equipmentCount: 117
+            });
+            log('output-save-dialog', 'Showing save success', 'success');
+        }
+        
+        function testShowSaveWithBackup() {
+            if (!saveDialog) testSaveDialogInit();
+            saveDialog.show({
+                siteId: 'korea_site1_line1',
+                filename: 'korea_site1_line1.json',
+                version: 3,
+                equipmentCount: 120,
+                backupFilename: 'korea_site1_line1.backup_2025-01-20T14-30-00.json'
+            });
+            log('output-save-dialog', 'Showing save success with backup', 'success');
+        }
+        
+        function testHideSaveDialog() {
+            if (saveDialog) saveDialog.hide();
+            log('output-save-dialog', 'Dialog hidden', 'info');
+        }
+        
+        // ========================================
+        // Integration Tests
+        // ========================================
+        async function testFullSaveProcess() {
+            log('output-integration', '========== Full Save Process Started ==========', 'info');
+            resetProcessSteps();
+            
+            const siteId = 'korea_site1_line1';
+            const state = window.layoutEditorState;
+            
+            try {
+                // Step 1: Validation
+                updateProcessStep(1, 'active');
+                await new Promise(r => setTimeout(r, 300));
+                log('output-integration', 'Step 1: Validation passed ✅', 'success');
+                updateProcessStep(1, 'done');
+                
+                // Step 2: Version Management
+                updateProcessStep(2, 'active');
+                await new Promise(r => setTimeout(r, 300));
+                const currentVersion = state.state.layoutVersion;
+                const newVersion = currentVersion + 1;
+                log('output-integration', `Step 2: Version ${currentVersion} → ${newVersion}`, 'success');
+                updateProcessStep(2, 'done');
+                
+                // Step 3: Backup
+                updateProcessStep(3, 'active');
+                await new Promise(r => setTimeout(r, 300));
+                if (currentVersion > 1) {
+                    const backupResult = window.backupManager.createBackup(siteId, { layout_version: currentVersion });
+                    log('output-integration', `Step 3: Backup created: ${backupResult.filename}`, 'success');
+                } else {
+                    log('output-integration', 'Step 3: Skipped (first save)', 'info');
+                }
+                updateProcessStep(3, 'done');
+                
+                // Step 4: Change Description
+                updateProcessStep(4, 'active');
+                await new Promise(r => setTimeout(r, 300));
+                const changeDesc = '설비 배치 업데이트';
+                log('output-integration', `Step 4: Change description: "${changeDesc}"`, 'success');
+                updateProcessStep(4, 'done');
+                
+                // Step 5: Serialize
+                updateProcessStep(5, 'active');
+                await new Promise(r => setTimeout(r, 300));
+                const layout = window.layoutSerializer.serialize(window.mockCanvas2DEditor, siteId, {
+                    layoutVersion: newVersion,
+                    changeLog: state.state.changeLog,
+                    changeDescription: changeDesc
+                });
+                log('output-integration', `Step 5: Serialized - ${layout.statistics.totalEquipment} equipment`, 'success');
+                updateProcessStep(5, 'done');
+                
+                // Step 6: Save File
+                updateProcessStep(6, 'active');
+                await new Promise(r => setTimeout(r, 300));
+                if (!fileManager) fileManager = new window.LayoutFileManager();
+                const saveResult = await fileManager.saveLayout(siteId, layout, { createBackup: false });
+                log('output-integration', `Step 6: File saved - ${saveResult.filename}`, 'success');
+                updateProcessStep(6, 'done');
+                
+                // Step 7: Update State
+                updateProcessStep(7, 'active');
+                await new Promise(r => setTimeout(r, 300));
+                state.state.layoutVersion = newVersion;
+                state.state.changeLog = layout.change_log;
+                state.markAsSaved();
+                log('output-integration', 'Step 7: State updated', 'success');
+                updateProcessStep(7, 'done');
+                
+                // Step 8: Show Dialog
+                updateProcessStep(8, 'active');
+                await new Promise(r => setTimeout(r, 300));
+                if (!saveDialog) {
+                    testSaveDialogInit();
+                    await new Promise(r => setTimeout(r, 100)); // Dialog 초기화 대기
+                }
+                saveDialog.show({
+                    siteId: siteId,
+                    filename: `${siteId}.json`,
+                    version: newVersion,
+                    equipmentCount: layout.statistics.totalEquipment,
+                    backupFilename: currentVersion > 1 ? `${siteId}.backup_xxx.json` : null
+                });
+                log('output-integration', 'Step 8: Success dialog shown', 'success');
+                updateProcessStep(8, 'done');
+                
+                log('output-integration', '========== Save Process Completed! ==========', 'success');
+                showToast('Save Process Completed!', 'success');
+                
+            } catch (error) {
+                log('output-integration', `Error: ${error.message}`, 'error');
+                showToast(`Error: ${error.message}`, 'error');
+            }
+            
+            updateStatusBar();
+            refreshChangeLog();
+        }
+        
+        async function testSaveWithValidationError() {
+            log('output-integration', '========== Save with Validation Error ==========', 'info');
+            resetProcessSteps();
+            
+            // Step 1: Validation (fails)
+            updateProcessStep(1, 'active');
+            await new Promise(r => setTimeout(r, 500));
+            updateProcessStep(1, 'error');
+            
+            log('output-integration', 'Step 1: Validation FAILED ❌', 'error');
+            
+            // Show validation errors
+            if (!validationDialog) {
+                testValidationDialogInit();
+                await new Promise(r => setTimeout(r, 100)); // Dialog 초기화 대기
+            }
+            validationDialog.show([
+                { rule: 'Room Size', message: 'Room is too small' },
+                { rule: 'Equipment Bounds', message: 'Equipment EQ-05-03 is outside room bounds' }
+            ]);
+            
+            log('output-integration', 'Save process stopped - fix errors first', 'warning');
+            showToast('Validation failed!', 'error');
+        }
+        
+        function testFullIntegration() {
+            log('output-integration', 'Testing full integration...', 'info');
+            
+            // Initialize all components
+            testStateInit();
+            testFileManagerInit();
+            testValidationDialogInit();
+            testSaveDialogInit();
+            
+            log('output-integration', 'All components initialized', 'success');
+            showToast('Integration test ready!', 'success');
+        }
+        
+        function testEditorMainSave() {
+            log('output-integration', 'LayoutEditorMain.saveLayout() would be called here', 'info');
+            log('output-integration', 'In real implementation, this orchestrates the entire flow', 'info');
+            
+            // Simulate the flow
+            testFullSaveProcess();
+        }
+        
+        async function testVersionUpgrade() {
+            log('output-integration', '========== Version Upgrade Flow ==========', 'info');
+            
+            const state = window.layoutEditorState;
+            
+            // Simulate v1 → v2 → v3
+            for (let i = 0; i < 3; i++) {
+                await new Promise(r => setTimeout(r, 500));
+                const newVersion = state.incrementVersion();
+                state.addChangeLogEntry(`Version ${newVersion} changes`);
+                log('output-integration', `Upgraded to v${newVersion}`, 'success');
+            }
+            
+            log('output-integration', `Final version: v${state.state.layoutVersion}`, 'success');
+            updateStatusBar();
+            refreshChangeLog();
+        }
+        
+        function testErrorRecovery() {
+            log('output-integration', 'Testing error recovery...', 'info');
+            
+            // Simulate an error during save
+            try {
+                throw new Error('Simulated save error');
+            } catch (error) {
+                log('output-integration', `Error caught: ${error.message}`, 'error');
+                log('output-integration', 'Recovery: State not modified, user can retry', 'warning');
+                showToast('Error recovery demonstrated', 'warning');
+            }
+        }
+        
+        // ========================================
+        // Initialize on Load
+        // ========================================
+        window.onload = function() {
+            testStateInit();
+            updateStatusBar();
+            refreshChangeLog();
+            log('console-output', 'Test page loaded successfully', 'success');
+            log('console-output', 'All modules ready for testing', 'info');
+        };
+    </script>
+</body>
+</html>

@@ -5,10 +5,15 @@
  * Layout Editor의 전역 상태를 관리하고 상태 변경을 감시합니다.
  * 
  * @module LayoutEditorState
- * @version 1.1.0
+ * @version 1.2.0 - Phase 3.3: 버전 관리 및 Change Log 통합
  * 
- * ✨ v1.1.0 신규 기능:
- * - ✅ equipmentArrayConfig 상태 추가 (EquipmentArrayTool 지원)
+ * ✨ v1.2.0 신규 기능:
+ * - layoutVersion 상태 추가
+ * - changeLog 상태 추가
+ * - previousLayout 상태 추가 (백업용)
+ * - markAsSaved() 확장 (버전 증가 옵션)
+ * - incrementVersion() 메서드 추가
+ * - addChangeLogEntry() 메서드 추가
  */
 
 class LayoutEditorState {
@@ -28,7 +33,7 @@ class LayoutEditorState {
             snapToGrid: true,            // Snap to Grid 활성화 여부
             gridSize: 10,                // 그리드 크기 (픽셀)
             
-            // ✨ v1.1.0: Equipment Array 설정
+            // v1.1.0: Equipment Array 설정
             equipmentArrayConfig: {
                 rows: 26,
                 cols: 6,
@@ -42,7 +47,16 @@ class LayoutEditorState {
                 corridorRows: [13],      // 복도 위치 (행)
                 corridorRowWidth: 2.0,   // 복도 폭 (행 방향)
                 excludedPositions: []    // 제외 위치 [{row, col}, ...]
-            }
+            },
+            
+            // ✨ v1.2.0: 버전 관리
+            layoutVersion: 1,            // 현재 Layout 버전
+            changeLog: [],               // 변경 이력 배열
+            previousLayout: null,        // 이전 Layout (백업용)
+            
+            // ✨ v1.2.0: 저장 상태
+            isSaving: false,             // 저장 진행 중 여부
+            lastSaveResult: null         // 마지막 저장 결과
         };
 
         // 이벤트 리스너 맵: { key: Set([callback1, callback2, ...]) }
@@ -73,10 +87,12 @@ class LayoutEditorState {
                     this._notifyGlobalListeners(property, value, oldValue);
 
                     // isDirty 자동 설정 (저장 관련 속성이 아닌 경우)
-                    if (property !== 'isDirty' && 
-                        property !== 'lastSaved' && 
-                        property !== 'mode' &&
-                        property !== 'selectedObjects') {
+                    const nonDirtyProperties = [
+                        'isDirty', 'lastSaved', 'mode', 'selectedObjects',
+                        'isSaving', 'lastSaveResult', 'previousLayout'
+                    ];
+                    
+                    if (!nonDirtyProperties.includes(property)) {
                         target.isDirty = true;
                     }
                 }
@@ -88,6 +104,8 @@ class LayoutEditorState {
                 return target[property];
             }
         });
+        
+        console.log('[LayoutEditorState] ✅ Initialized v1.2.0');
     }
 
     /**
@@ -96,14 +114,6 @@ class LayoutEditorState {
      * @param {string} key - 감시할 상태 속성 이름
      * @param {Function} callback - 변경 시 호출될 콜백 (newValue, oldValue) => void
      * @returns {Function} unsubscribe 함수
-     * 
-     * @example
-     * const unsubscribe = layoutEditorState.subscribe('mode', (newVal, oldVal) => {
-     *     console.log(`Mode changed from ${oldVal} to ${newVal}`);
-     * });
-     * 
-     * // 나중에 구독 해제
-     * unsubscribe();
      */
     subscribe(key, callback) {
         if (typeof callback !== 'function') {
@@ -124,15 +134,11 @@ class LayoutEditorState {
 
     /**
      * 특정 속성의 감시를 해제합니다.
-     * 
-     * @param {string} key - 속성 이름
-     * @param {Function} callback - 제거할 콜백
      */
     unsubscribe(key, callback) {
         if (this._listeners.has(key)) {
             this._listeners.get(key).delete(callback);
             
-            // 리스너가 없으면 키 제거
             if (this._listeners.get(key).size === 0) {
                 this._listeners.delete(key);
             }
@@ -143,9 +149,6 @@ class LayoutEditorState {
 
     /**
      * 모든 상태 변경을 감시하는 전역 리스너를 등록합니다.
-     * 
-     * @param {Function} callback - (property, newValue, oldValue) => void
-     * @returns {Function} unsubscribe 함수
      */
     subscribeGlobal(callback) {
         if (typeof callback !== 'function') {
@@ -163,8 +166,6 @@ class LayoutEditorState {
     }
 
     /**
-     * 특정 속성 변경 시 리스너들을 호출합니다.
-     * 
      * @private
      */
     _notifyListeners(key, newValue, oldValue) {
@@ -180,8 +181,6 @@ class LayoutEditorState {
     }
 
     /**
-     * 전역 리스너들을 호출합니다.
-     * 
      * @private
      */
     _notifyGlobalListeners(property, newValue, oldValue) {
@@ -199,12 +198,13 @@ class LayoutEditorState {
      * 
      * @param {string} siteId - Site ID
      * @param {Object} layoutData - Layout 데이터
-     * 
-     * @example
-     * layoutEditorState.enterEditorMode('korea_site1_line1', templateLayout);
      */
     enterEditorMode(siteId, layoutData) {
         console.log('[LayoutEditorState] Entering Editor Mode', { siteId });
+
+        // ✨ v1.2.0: 버전 정보 추출
+        const version = layoutData?.layout_version || 1;
+        const changeLog = layoutData?.change_log || [];
 
         this.state.mode = 'editor';
         this.state.currentSiteId = siteId;
@@ -213,6 +213,11 @@ class LayoutEditorState {
         this.state.editHistory = [];
         this.state.historyIndex = -1;
         this.state.isDirty = false;
+        
+        // ✨ v1.2.0: 버전 상태 초기화
+        this.state.layoutVersion = version;
+        this.state.changeLog = changeLog;
+        this.state.previousLayout = layoutData ? JSON.parse(JSON.stringify(layoutData)) : null;
     }
 
     /**
@@ -220,32 +225,128 @@ class LayoutEditorState {
      * 
      * @param {string} siteId - Site ID
      * @param {Object} layoutData - Layout 데이터
-     * 
-     * @example
-     * layoutEditorState.enterViewerMode('korea_site1_line1', existingLayout);
      */
     enterViewerMode(siteId, layoutData) {
         console.log('[LayoutEditorState] Entering Viewer Mode', { siteId });
+
+        // ✨ v1.2.0: 버전 정보 추출
+        const version = layoutData?.layout_version || 1;
+        const changeLog = layoutData?.change_log || [];
 
         this.state.mode = 'viewer';
         this.state.currentSiteId = siteId;
         this.state.currentLayout = layoutData;
         this.state.selectedObjects = [];
         this.state.isDirty = false;
+        
+        // ✨ v1.2.0: 버전 상태 초기화
+        this.state.layoutVersion = version;
+        this.state.changeLog = changeLog;
     }
 
     /**
-     * 저장 완료 상태로 표시합니다.
+     * ✨ v1.2.0: 저장 완료 상태로 표시 (확장)
+     * 
+     * @param {Object} options - 옵션
+     * @param {boolean} options.incrementVersion - 버전 증가 여부 (기본: false)
+     * @param {string} options.changeDescription - 변경 설명
      */
-    markAsSaved() {
-        console.log('[LayoutEditorState] Marked as saved');
+    markAsSaved(options = {}) {
+        const {
+            incrementVersion = false,
+            changeDescription = null
+        } = options;
+        
+        console.log('[LayoutEditorState] Marked as saved', options);
 
+        // 기존 동작 유지
         this.state.isDirty = false;
         this.state.lastSaved = new Date();
+        
+        // ✨ v1.2.0: 버전 증가 (옵션)
+        if (incrementVersion) {
+            this.state.layoutVersion = (this.state.layoutVersion || 1) + 1;
+            console.log(`[LayoutEditorState] Version incremented to: ${this.state.layoutVersion}`);
+            
+            // Change Log 추가
+            if (changeDescription) {
+                this.addChangeLogEntry(changeDescription);
+            }
+        }
+        
+        // 현재 Layout을 previousLayout으로 저장 (다음 백업용)
+        if (this.state.currentLayout) {
+            this.state.previousLayout = JSON.parse(JSON.stringify(this.state.currentLayout));
+        }
     }
 
     /**
-     * Dirty 상태로 표시합니다 (변경사항 있음).
+     * ✨ v1.2.0: 버전 증가
+     * @returns {number} 새 버전 번호
+     */
+    incrementVersion() {
+        this.state.layoutVersion = (this.state.layoutVersion || 1) + 1;
+        console.log(`[LayoutEditorState] Version incremented to: ${this.state.layoutVersion}`);
+        return this.state.layoutVersion;
+    }
+
+    /**
+     * ✨ v1.2.0: Change Log 항목 추가
+     * @param {string} description - 변경 설명
+     */
+    addChangeLogEntry(description) {
+        const entry = {
+            version: this.state.layoutVersion,
+            timestamp: new Date().toISOString(),
+            changes: description
+        };
+        
+        // 배열 앞에 추가
+        const newLog = [entry, ...this.state.changeLog];
+        
+        // 최대 20개 유지
+        if (newLog.length > 20) {
+            newLog.splice(20);
+        }
+        
+        this.state.changeLog = newLog;
+        
+        console.log(`[LayoutEditorState] Change log entry added:`, entry);
+    }
+
+    /**
+     * ✨ v1.2.0: 현재 버전 정보 가져오기
+     * @returns {Object} 버전 정보
+     */
+    getVersionInfo() {
+        return {
+            version: this.state.layoutVersion,
+            changeLog: [...this.state.changeLog],
+            lastSaved: this.state.lastSaved,
+            isDirty: this.state.isDirty
+        };
+    }
+
+    /**
+     * ✨ v1.2.0: 저장 시작 표시
+     */
+    startSaving() {
+        this.state.isSaving = true;
+        console.log('[LayoutEditorState] Save started');
+    }
+
+    /**
+     * ✨ v1.2.0: 저장 완료 표시
+     * @param {Object} result - 저장 결과
+     */
+    finishSaving(result) {
+        this.state.isSaving = false;
+        this.state.lastSaveResult = result;
+        console.log('[LayoutEditorState] Save finished:', result);
+    }
+
+    /**
+     * Dirty 상태로 표시합니다.
      */
     markAsDirty() {
         this.state.isDirty = true;
@@ -253,22 +354,17 @@ class LayoutEditorState {
 
     /**
      * 편집 히스토리에 새 항목을 추가합니다.
-     * 
-     * @param {Object} snapshot - 상태 스냅샷
      */
     addToHistory(snapshot) {
-        // 현재 인덱스 이후의 히스토리 제거 (새로운 분기 시작)
         this.state.editHistory = this.state.editHistory.slice(0, this.state.historyIndex + 1);
 
-        // 새 스냅샷 추가
         this.state.editHistory.push({
             timestamp: new Date(),
-            data: JSON.parse(JSON.stringify(snapshot)) // Deep copy
+            data: JSON.parse(JSON.stringify(snapshot))
         });
 
         this.state.historyIndex = this.state.editHistory.length - 1;
 
-        // 히스토리 크기 제한 (100개)
         if (this.state.editHistory.length > 100) {
             this.state.editHistory.shift();
             this.state.historyIndex--;
@@ -281,9 +377,7 @@ class LayoutEditorState {
     }
 
     /**
-     * Undo 기능을 수행합니다.
-     * 
-     * @returns {Object|null} 이전 상태 스냅샷 또는 null
+     * Undo 기능
      */
     undo() {
         if (this.state.historyIndex > 0) {
@@ -303,9 +397,7 @@ class LayoutEditorState {
     }
 
     /**
-     * Redo 기능을 수행합니다.
-     * 
-     * @returns {Object|null} 다음 상태 스냅샷 또는 null
+     * Redo 기능
      */
     redo() {
         if (this.state.historyIndex < this.state.editHistory.length - 1) {
@@ -325,45 +417,28 @@ class LayoutEditorState {
     }
 
     /**
-     * 객체 선택 상태를 업데이트합니다.
-     * 
-     * @param {Array} objects - 선택된 객체들
+     * 객체 선택 관련 메서드들
      */
     setSelectedObjects(objects) {
         this.state.selectedObjects = [...objects];
     }
 
-    /**
-     * 단일 객체를 선택 목록에 추가합니다.
-     * 
-     * @param {Object} object - 추가할 객체
-     */
     addSelectedObject(object) {
         if (!this.state.selectedObjects.includes(object)) {
             this.state.selectedObjects = [...this.state.selectedObjects, object];
         }
     }
 
-    /**
-     * 객체를 선택 목록에서 제거합니다.
-     * 
-     * @param {Object} object - 제거할 객체
-     */
     removeSelectedObject(object) {
         this.state.selectedObjects = this.state.selectedObjects.filter(obj => obj !== object);
     }
 
-    /**
-     * 모든 선택을 해제합니다.
-     */
     clearSelection() {
         this.state.selectedObjects = [];
     }
 
     /**
-     * ✨ v1.1.0: Equipment Array 설정 업데이트
-     * 
-     * @param {Object} config - 배열 설정 객체
+     * Equipment Array 설정 메서드들
      */
     updateEquipmentArrayConfig(config) {
         this.state.equipmentArrayConfig = {
@@ -374,19 +449,12 @@ class LayoutEditorState {
         console.log('[LayoutEditorState] Equipment Array Config updated:', this.state.equipmentArrayConfig);
     }
 
-    /**
-     * ✨ v1.1.0: Equipment Array 설정 가져오기
-     * 
-     * @returns {Object} 현재 배열 설정
-     */
     getEquipmentArrayConfig() {
         return { ...this.state.equipmentArrayConfig };
     }
 
     /**
      * 현재 상태를 JSON 형태로 내보냅니다.
-     * 
-     * @returns {Object} 상태 스냅샷
      */
     exportState() {
         return {
@@ -399,7 +467,10 @@ class LayoutEditorState {
             showGrid: this.state.showGrid,
             snapToGrid: this.state.snapToGrid,
             gridSize: this.state.gridSize,
-            equipmentArrayConfig: this.state.equipmentArrayConfig
+            equipmentArrayConfig: this.state.equipmentArrayConfig,
+            // ✨ v1.2.0: 버전 정보
+            layoutVersion: this.state.layoutVersion,
+            changeLog: this.state.changeLog
         };
     }
 
@@ -417,10 +488,17 @@ class LayoutEditorState {
         this.state.historyIndex = -1;
         this.state.isDirty = false;
         this.state.lastSaved = null;
+        
+        // ✨ v1.2.0: 버전 정보 초기화
+        this.state.layoutVersion = 1;
+        this.state.changeLog = [];
+        this.state.previousLayout = null;
+        this.state.isSaving = false;
+        this.state.lastSaveResult = null;
     }
 
     /**
-     * 현재 상태 정보를 로그로 출력합니다.
+     * 디버그 정보 출력
      */
     debug() {
         console.log('[LayoutEditorState] Current State:', {
@@ -436,13 +514,26 @@ class LayoutEditorState {
             showGrid: this.state.showGrid,
             snapToGrid: this.state.snapToGrid,
             gridSize: this.state.gridSize,
-            equipmentArrayConfig: this.state.equipmentArrayConfig
+            equipmentArrayConfig: this.state.equipmentArrayConfig,
+            // ✨ v1.2.0
+            layoutVersion: this.state.layoutVersion,
+            changeLogCount: this.state.changeLog.length,
+            hasPreviousLayout: !!this.state.previousLayout,
+            isSaving: this.state.isSaving
         });
 
         console.log('[LayoutEditorState] Active Listeners:', {
             specificListeners: Array.from(this._listeners.keys()),
             globalListeners: this._globalListeners.size
         });
+        
+        // ✨ v1.2.0: Change Log 출력
+        if (this.state.changeLog.length > 0) {
+            console.log('[LayoutEditorState] Change Log:');
+            this.state.changeLog.forEach((entry, index) => {
+                console.log(`  ${index + 1}. v${entry.version} (${entry.timestamp}): ${entry.changes}`);
+            });
+        }
     }
 }
 

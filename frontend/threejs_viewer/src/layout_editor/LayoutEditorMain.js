@@ -1,45 +1,53 @@
 /**
  * LayoutEditorMain.js
- * Phase 1.5: Layout Editor 시스템의 진입점이자 메인 컨트롤러
- * Phase 2.6: ComponentPalette 통합
- * Phase 3.2: LayoutValidator 통합 ✨ NEW
+ * Layout Editor 시스템의 진입점이자 메인 컨트롤러
+ * 
+ * @version 1.3.0 - Phase 3.3: 저장 프로세스 통합
  * 
  * 주요 역할:
  * 1. Site 선택 시 Layout 파일 존재 여부 확인
  * 2. 기존 Layout 로드 또는 Template 선택 분기
  * 3. Editor/Viewer 모드 전환 제어
  * 4. UI 컴포넌트 표시/숨김 관리
- * 5. ComponentPalette 초기화 및 관리 (✨ Phase 2.6)
- * 6. Layout 저장 전 검증 (✨ Phase 3.2)
+ * 5. ComponentPalette 초기화 및 관리 (Phase 2.6)
+ * 6. Layout 저장 전 검증 (Phase 3.2)
+ * 7. ✨ 저장 프로세스 통합 (Phase 3.3) - NEW
  * 
- * 의존성:
- * - LayoutFileManager (Phase 1.2)
- * - LayoutEditorState (Phase 1.4)
- * - ComponentPalette (Phase 2.6)
- * - LayoutValidator (Phase 3.2) ✨ NEW
+ * ✨ v1.3.0 신규 기능:
+ * - 버전 관리 통합
+ * - 백업 자동 생성
+ * - ValidationErrorDialog 연동
+ * - SaveSuccessDialog 연동
+ * - Change Log 자동 생성
  */
 
-import { LayoutFileManager } from '../services/layout/LayoutFileManager.js';
-import { layoutEditorState } from '../stores/LayoutEditorState.js';
-import { ComponentPalette } from './components/ComponentPalette.js';
+// ES Module imports (환경에 따라 조정 필요)
+// import { LayoutFileManager } from '../services/layout/LayoutFileManager.js';
+// import { layoutEditorState } from '../stores/LayoutEditorState.js';
+// import { ComponentPalette } from './components/ComponentPalette.js';
+// import { LayoutValidator } from '../services/validation/index.js';
+// import { ValidationErrorDialog } from '../components/dialogs/ValidationErrorDialog.js';
+// import { SaveSuccessDialog } from '../components/dialogs/SaveSuccessDialog.js';
+// import { BackupManager } from '../services/layout/BackupManager.js';
 
-// ✨ Phase 3.2: LayoutValidator import
-import { LayoutValidator } from '../services/validation/index.js';
-
-export class LayoutEditorMain {
+class LayoutEditorMain {
     constructor() {
-        this.fileManager = new LayoutFileManager();
-        this.state = layoutEditorState;
+        // 서비스 인스턴스
+        this.fileManager = window.LayoutFileManager ? new window.LayoutFileManager() : null;
+        this.state = window.layoutEditorState || null;
+        this.validator = window.LayoutValidator ? new window.LayoutValidator() : null;
         
-        // ✨ Phase 2.6: ComponentPalette 참조
+        // ✨ v1.3.0: 백업 매니저
+        this.backupManager = window.backupManager || null;
+        
+        // UI 컴포넌트
         this.componentPalette = null;
         this.canvas2DEditor = null;
-        
-        // ✨ Phase 3.2: LayoutValidator 인스턴스
-        this.validator = new LayoutValidator();
-        
-        // ✨ Phase 3.2: PropertyPanel 참조 (검증 에러 표시용)
         this.propertyPanel = null;
+        
+        // ✨ v1.3.0: Dialogs
+        this.validationErrorDialog = null;
+        this.saveSuccessDialog = null;
         
         // UI 요소 참조
         this.elements = {
@@ -47,7 +55,8 @@ export class LayoutEditorMain {
             editorContainer: null,
             viewerContainer: null,
             templateModal: null,
-            recoveryModal: null
+            recoveryModal: null,
+            saveButton: null
         };
         
         // Template 목록
@@ -72,7 +81,7 @@ export class LayoutEditorMain {
             }
         ];
         
-        console.log('[LayoutEditorMain] 초기화 완료 (Phase 3.2 - Validator 통합)');
+        console.log('[LayoutEditorMain] ✅ 초기화 완료 (v1.3.0 - 저장 프로세스 통합)');
     }
     
     /**
@@ -85,45 +94,85 @@ export class LayoutEditorMain {
         this.elements.siteSelector = document.getElementById('site-selector');
         this.elements.editorContainer = document.getElementById('layout-editor-container');
         this.elements.viewerContainer = document.getElementById('viewer-container');
-        
-        if (!this.elements.siteSelector) {
-            console.error('[LayoutEditorMain] Site Selector 요소를 찾을 수 없습니다');
-            return;
-        }
+        this.elements.saveButton = document.getElementById('btn-save-layout');
         
         // Site 선택 이벤트 리스너
-        this.elements.siteSelector.addEventListener('change', (e) => {
-            const siteId = e.target.value;
-            if (siteId) {
-                this.onSiteSelected(siteId);
-            }
-        });
+        if (this.elements.siteSelector) {
+            this.elements.siteSelector.addEventListener('change', (e) => {
+                const siteId = e.target.value;
+                if (siteId) {
+                    this.onSiteSelected(siteId);
+                }
+            });
+        }
+        
+        // ✨ v1.3.0: Save 버튼 이벤트 리스너
+        if (this.elements.saveButton) {
+            this.elements.saveButton.addEventListener('click', () => {
+                this.saveLayout();
+            });
+        }
         
         // 상태 변화 구독
-        this.state.subscribe('mode', (newMode) => {
-            this.onModeChanged(newMode);
-        });
+        if (this.state) {
+            this.state.subscribe('mode', (newMode) => {
+                this.onModeChanged(newMode);
+            });
+        }
+        
+        // ✨ v1.3.0: Dialogs 초기화
+        this.initDialogs();
         
         console.log('[LayoutEditorMain] 초기화 완료');
     }
     
     /**
+     * ✨ v1.3.0: Dialogs 초기화
+     */
+    initDialogs() {
+        // ValidationErrorDialog
+        if (window.ValidationErrorDialog) {
+            this.validationErrorDialog = new window.ValidationErrorDialog({
+                onFocusError: (error, index) => this.focusOnError(error),
+                onAutoFix: (error, index) => this.autoFixError(error, index),
+                onAutoFixAll: (errors) => this.autoFixAllErrors(errors),
+                onClose: (action) => this.onValidationDialogClose(action),
+                onRetry: () => this.saveLayout()
+            });
+            this.validationErrorDialog.init();
+            console.log('[LayoutEditorMain] ValidationErrorDialog initialized');
+        }
+        
+        // SaveSuccessDialog
+        if (window.SaveSuccessDialog) {
+            this.saveSuccessDialog = new window.SaveSuccessDialog({
+                onGoTo3DViewer: () => this.goTo3DViewer(),
+                onContinueEdit: () => this.continueEditing(),
+                onViewChanges: () => this.viewChanges(),
+                onClose: () => console.log('[LayoutEditorMain] Save dialog closed')
+            });
+            this.saveSuccessDialog.init();
+            console.log('[LayoutEditorMain] SaveSuccessDialog initialized');
+        }
+    }
+    
+    /**
      * Site 선택 시 메인 처리 로직
-     * @param {string} siteId - 선택된 Site ID (예: 'korea_site1_line1')
      */
     async onSiteSelected(siteId) {
         console.log(`[LayoutEditorMain] Site 선택됨: ${siteId}`);
         
         try {
-            // 1. Layout 파일 존재 여부 확인
+            if (!this.fileManager) {
+                throw new Error('LayoutFileManager not initialized');
+            }
+            
             const exists = await this.fileManager.checkLayout(siteId);
             console.log(`[LayoutEditorMain] Layout 파일 존재: ${exists}`);
             
             if (exists) {
-                // 2-A. 기존 파일 로드
                 await this.loadExistingLayout(siteId);
             } else {
-                // 2-B. Template 선택 후 신규 생성
                 await this.showTemplateSelection(siteId);
             }
         } catch (error) {
@@ -134,26 +183,21 @@ export class LayoutEditorMain {
     
     /**
      * 기존 Layout 파일 로드
-     * @param {string} siteId - Site ID
      */
     async loadExistingLayout(siteId) {
         console.log(`[LayoutEditorMain] 기존 Layout 로드 시작: ${siteId}`);
         
         try {
-            // Layout 파일 로드
             const layoutData = await this.fileManager.loadLayout(siteId);
             
             if (layoutData) {
                 console.log('[LayoutEditorMain] Layout 로드 성공:', layoutData);
                 
-                // Viewer 모드로 전환
-                this.state.enterViewerMode(siteId, layoutData);
+                if (this.state) {
+                    this.state.enterViewerMode(siteId, layoutData);
+                }
                 
-                // 성공 메시지
-                this.showSuccess(`Layout "${siteId}" 로드 완료`);
-                
-                // TODO: Phase 2에서 3D 렌더링 추가
-                console.log('[LayoutEditorMain] TODO: 3D Scene 렌더링 (Phase 2)');
+                this.showSuccess(`Layout "${siteId}" 로드 완료 (v${layoutData.layout_version || 1})`);
                 
             } else {
                 throw new Error('Layout 데이터가 null입니다');
@@ -161,20 +205,16 @@ export class LayoutEditorMain {
             
         } catch (error) {
             console.error('[LayoutEditorMain] Layout 로드 실패:', error);
-            
-            // 복구 옵션 표시
             await this.showRecoveryDialog(siteId);
         }
     }
     
     /**
      * Template 선택 UI 표시
-     * @param {string} siteId - Site ID
      */
     async showTemplateSelection(siteId) {
         console.log(`[LayoutEditorMain] Template 선택 UI 표시: ${siteId}`);
         
-        // 임시: prompt 사용 (Phase 2에서 Modal UI로 교체)
         const templateOptions = this.availableTemplates
             .map((t, idx) => `${idx + 1}. ${t.name}\n   ${t.description}`)
             .join('\n\n');
@@ -202,14 +242,11 @@ export class LayoutEditorMain {
     
     /**
      * 신규 Layout 생성 (Template 기반)
-     * @param {string} siteId - Site ID
-     * @param {Object} templateInfo - Template 정보
      */
     async createNewLayout(siteId, templateInfo) {
         console.log(`[LayoutEditorMain] 신규 Layout 생성: ${siteId}, Template: ${templateInfo.name}`);
         
         try {
-            // 1. Template 로드
             const templateData = await this.fileManager.loadTemplate(templateInfo.filename);
             
             if (!templateData) {
@@ -218,349 +255,271 @@ export class LayoutEditorMain {
             
             console.log('[LayoutEditorMain] Template 로드 성공:', templateData);
             
-            // 2. Site ID 교체 및 메타데이터 추가
+            // Site ID 교체 및 메타데이터 추가
             const newLayout = {
                 ...templateData,
                 site_id: siteId,
                 template_source: templateInfo.id,
                 created_at: new Date().toISOString(),
                 layout_version: 1,
-                is_new: true // 신규 생성 플래그
+                change_log: [{
+                    version: 1,
+                    timestamp: new Date().toISOString(),
+                    changes: '초기 생성'
+                }],
+                is_new: true
             };
             
             console.log('[LayoutEditorMain] 신규 Layout 데이터:', newLayout);
             
-            // 3. Editor 모드로 진입
-            this.state.enterEditorMode(siteId, newLayout);
+            if (this.state) {
+                this.state.enterEditorMode(siteId, newLayout);
+            }
             
-            // 성공 메시지
             this.showSuccess(`신규 Layout 생성됨: ${siteId} (Template: ${templateInfo.name})`);
             
-            // TODO: Phase 2에서 Canvas2DEditor 초기화
-            console.log('[LayoutEditorMain] TODO: Canvas2DEditor 초기화 (Phase 2)');
-            
         } catch (error) {
-            console.error('[LayoutEditorMain] 신규 Layout 생성 실패:', error);
-            this.showError(`Layout 생성 중 오류: ${error.message}`);
-        }
-    }
-    
-    /**
-     * 복구 Dialog 표시
-     * @param {string} siteId - Site ID
-     */
-    async showRecoveryDialog(siteId) {
-        console.log(`[LayoutEditorMain] 복구 Dialog 표시: ${siteId}`);
-        
-        const options = [
-            '1. 백업 파일에서 복구 시도',
-            '2. Template으로 새로 생성',
-            '3. 취소'
-        ].join('\n');
-        
-        const message = `❌ Layout 파일 로드 실패: ${siteId}\n\n복구 방법을 선택하세요:\n\n${options}\n\n번호를 입력하세요:`;
-        
-        const choice = prompt(message);
-        
-        switch (choice) {
-            case '1':
-                // 백업 파일 복구 시도
-                console.log('[LayoutEditorMain] 백업 파일 복구 시도');
-                const backupData = await this.fileManager.loadBackup(siteId);
-                if (backupData) {
-                    this.state.enterViewerMode(siteId, backupData);
-                    this.showSuccess('백업 파일로 복구 성공');
-                } else {
-                    this.showError('백업 파일도 손상되었습니다');
-                    await this.showTemplateSelection(siteId);
-                }
-                break;
-                
-            case '2':
-                // Template 선택
-                await this.showTemplateSelection(siteId);
-                break;
-                
-            case '3':
-            default:
-                console.log('[LayoutEditorMain] 복구 취소');
-                break;
-        }
-    }
-    
-    /**
-     * 모드 변경 시 UI 업데이트
-     * @param {string} newMode - 'editor' | 'viewer'
-     */
-    onModeChanged(newMode) {
-        console.log(`[LayoutEditorMain] 모드 변경: ${newMode}`);
-        
-        if (newMode === 'editor') {
-            // Editor UI 표시
-            if (this.elements.editorContainer) {
-                this.elements.editorContainer.style.display = 'block';
-            }
-            if (this.elements.viewerContainer) {
-                this.elements.viewerContainer.style.display = 'none';
-            }
-            
-            console.log('[LayoutEditorMain] Editor UI 표시');
-            
-        } else if (newMode === 'viewer') {
-            // Viewer UI 표시
-            if (this.elements.editorContainer) {
-                this.elements.editorContainer.style.display = 'none';
-            }
-            if (this.elements.viewerContainer) {
-                this.elements.viewerContainer.style.display = 'block';
-            }
-            
-            console.log('[LayoutEditorMain] Viewer UI 표시');
-        }
-    }
-    
-    /**
-     * Layout 저장 (Phase 3에서 상세 구현)
-     */
-    async saveCurrentLayout() {
-        const currentLayout = this.state.state.currentLayout;
-        const siteId = this.state.state.currentSiteId;
-        
-        if (!currentLayout || !siteId) {
-            this.showError('저장할 Layout이 없습니다');
-            return;
-        }
-        
-        console.log(`[LayoutEditorMain] Layout 저장: ${siteId}`);
-        
-        try {
-            // LayoutFileManager를 통해 저장 (브라우저 다운로드)
-            await this.fileManager.saveLayout(siteId, currentLayout);
-            
-            // 상태 업데이트
-            this.state.markAsSaved();
-            
-            this.showSuccess(`Layout 저장 완료: ${siteId}.json`);
-            
-        } catch (error) {
-            console.error('[LayoutEditorMain] Layout 저장 실패:', error);
-            this.showError(`저장 중 오류: ${error.message}`);
-        }
-    }
-    
-    /**
-     * 성공 메시지 표시
-     * @param {string} message - 메시지
-     */
-    showSuccess(message) {
-        console.log(`[LayoutEditorMain] ✅ ${message}`);
-        // TODO: Phase 2에서 Toast UI로 교체
-        alert(`✅ ${message}`);
-    }
-    
-    /**
-     * 에러 메시지 표시
-     * @param {string} message - 메시지
-     */
-    showError(message) {
-        console.error(`[LayoutEditorMain] ❌ ${message}`);
-        // TODO: Phase 2에서 Toast UI로 교체
-        alert(`❌ ${message}`);
-    }
-    
-    /**
-     * 현재 상태 정보 반환 (디버깅용)
-     */
-    getDebugInfo() {
-        return {
-            mode: this.state.state.mode,
-            siteId: this.state.state.currentSiteId,
-            hasLayout: !!this.state.state.currentLayout,
-            isDirty: this.state.state.isDirty,
-            availableTemplates: this.availableTemplates.length
-        };
-    }
-    
-    // =====================================================
-    // ✨ Phase 2.6: ComponentPalette 통합 메서드들
-    // =====================================================
-    
-    /**
-     * ✨ Phase 2.6: Canvas2DEditor 설정 (Editor 모드 진입 시 호출)
-     * @param {Canvas2DEditor} canvas2DEditor - Canvas2DEditor 인스턴스
-     */
-    setCanvas2DEditor(canvas2DEditor) {
-        if (!canvas2DEditor) {
-            console.error('[LayoutEditorMain] Canvas2DEditor 인스턴스가 필요합니다');
-            return;
-        }
-        
-        this.canvas2DEditor = canvas2DEditor;
-        console.log('[LayoutEditorMain] Canvas2DEditor 설정 완료');
-        
-        // ComponentPalette 초기화
-        this.initComponentPalette();
-    }
-    
-    /**
-     * ✨ Phase 3.2: PropertyPanel 설정
-     * @param {PropertyPanel} propertyPanel - PropertyPanel 인스턴스
-     */
-    setPropertyPanel(propertyPanel) {
-        if (!propertyPanel) {
-            console.error('[LayoutEditorMain] PropertyPanel 인스턴스가 필요합니다');
-            return;
-        }
-        
-        this.propertyPanel = propertyPanel;
-        console.log('[LayoutEditorMain] PropertyPanel 설정 완료');
-    }
-    
-    /**
-     * ✨ Phase 2.6: ComponentPalette 초기화
-     */
-    initComponentPalette() {
-        if (!this.canvas2DEditor) {
-            console.error('[LayoutEditorMain] Canvas2DEditor가 설정되지 않았습니다');
-            return;
-        }
-        
-        try {
-            // ComponentPalette 인스턴스 생성
-            this.componentPalette = new ComponentPalette(
-                'component-palette',
-                this.canvas2DEditor
-            );
-            
-            // Canvas2DEditor Drop Zone 활성화
-            this.canvas2DEditor.enableDropZone();
-            
-            console.log('[LayoutEditorMain] ComponentPalette 초기화 완료');
-            
-        } catch (error) {
-            console.error('[LayoutEditorMain] ComponentPalette 초기화 실패:', error);
-        }
-    }
-    
-    /**
-     * ✨ Phase 2.6: ComponentPalette 표시
-     */
-    showComponentPalette() {
-        if (this.componentPalette) {
-            this.componentPalette.show();
-            console.log('[LayoutEditorMain] ComponentPalette 표시');
-        }
-    }
-    
-    /**
-     * ✨ Phase 2.6: ComponentPalette 숨김
-     */
-    hideComponentPalette() {
-        if (this.componentPalette) {
-            this.componentPalette.hide();
-            console.log('[LayoutEditorMain] ComponentPalette 숨김');
+            console.error('[LayoutEditorMain] Layout 생성 실패:', error);
+            this.showError(`Layout 생성 실패: ${error.message}`);
         }
     }
 
     // =====================================================
-    // ✨ Phase 3.2: LayoutValidator 통합 메서드들
+    // ✨ v1.3.0: 저장 프로세스 통합
     // =====================================================
 
     /**
-     * ✨ Phase 3.2: Layout 저장 (검증 포함)
+     * ✨ v1.3.0: Layout 저장 (전체 프로세스)
      * @returns {Promise<boolean>} 저장 성공 여부
      */
     async saveLayout() {
-        console.log('[LayoutEditorMain] 💾 Saving layout with validation...');
+        console.log('[LayoutEditorMain] 💾 ========================================');
+        console.log('[LayoutEditorMain] 💾 Save Layout Process Started');
+        console.log('[LayoutEditorMain] 💾 ========================================');
         
         try {
-            // 1. Canvas2DEditor 확인
+            // 0. 상태 확인
             if (!this.canvas2DEditor) {
                 throw new Error('Canvas2DEditor not initialized');
             }
             
-            // 2. Site ID 확인
+            if (!this.state) {
+                throw new Error('LayoutEditorState not initialized');
+            }
+            
             const siteId = this.state.state.currentSiteId;
             if (!siteId) {
                 throw new Error('No site selected');
             }
             
-            // =====================================================
-            // ✨ Phase 3.2: 검증 실행 (NEW)
-            // =====================================================
-            console.log('[LayoutEditorMain] 🔍 Validating layout...');
+            // 저장 시작 표시
+            this.state.startSaving();
             
-            const validationResult = this.validator.validate(null, this.canvas2DEditor);
+            // =====================================================
+            // Step 1: 검증 (Validation)
+            // =====================================================
+            console.log('[LayoutEditorMain] 🔍 Step 1: Validating layout...');
             
-            // 검증 실패 시 저장 차단
-            if (!validationResult.valid) {
-                console.log('[LayoutEditorMain] ❌ Validation failed');
-                this.showValidationErrors(validationResult);
-                return false;
+            let validationResult = { valid: true, errors: [] };
+            
+            if (this.validator) {
+                validationResult = this.validator.validate(null, this.canvas2DEditor);
+                
+                if (!validationResult.valid) {
+                    console.log('[LayoutEditorMain] ❌ Validation failed');
+                    this.showValidationErrors(validationResult);
+                    this.state.finishSaving({ success: false, reason: 'validation_failed' });
+                    return false;
+                }
+                
+                console.log('[LayoutEditorMain] ✅ Validation passed');
+            } else {
+                console.warn('[LayoutEditorMain] ⚠️ Validator not available, skipping validation');
             }
             
-            console.log('[LayoutEditorMain] ✅ Validation passed');
+            // =====================================================
+            // Step 2: 버전 관리 (Version Management)
+            // =====================================================
+            console.log('[LayoutEditorMain] 📊 Step 2: Managing version...');
             
-            // 검증 하이라이트 제거
-            this.clearValidationHighlights();
+            const currentVersion = this.state.state.layoutVersion || 1;
+            const newVersion = currentVersion + 1;
+            const previousLayout = this.state.state.previousLayout;
+            const existingChangeLog = this.state.state.changeLog || [];
+            
+            console.log(`[LayoutEditorMain] Version: ${currentVersion} → ${newVersion}`);
             
             // =====================================================
-            // 기존 저장 로직 (변경 없음)
+            // Step 3: 백업 생성 (Backup)
             // =====================================================
+            let backupResult = null;
             
-            // 3. LayoutSerializer로 직렬화
+            if (previousLayout && currentVersion > 1) {
+                console.log('[LayoutEditorMain] 📦 Step 3: Creating backup...');
+                
+                if (this.backupManager) {
+                    backupResult = this.backupManager.createBackup(siteId, previousLayout);
+                    
+                    if (backupResult.success) {
+                        console.log(`[LayoutEditorMain] ✅ Backup created: ${backupResult.filename}`);
+                    } else {
+                        console.warn('[LayoutEditorMain] ⚠️ Backup creation failed (continuing save)');
+                    }
+                }
+            } else {
+                console.log('[LayoutEditorMain] ⏭️ Step 3: Skipping backup (first save or no previous layout)');
+            }
+            
+            // =====================================================
+            // Step 4: 변경 설명 생성 (Change Description)
+            // =====================================================
+            console.log('[LayoutEditorMain] 📝 Step 4: Generating change description...');
+            
+            let changeDescription = '설정 변경';
+            
+            if (window.layoutSerializer && previousLayout) {
+                const changes = window.layoutSerializer.detectChanges(
+                    { statistics: this.calculateCurrentStatistics() },
+                    previousLayout
+                );
+                changeDescription = changes.join(', ');
+            }
+            
+            console.log(`[LayoutEditorMain] Change description: ${changeDescription}`);
+            
+            // =====================================================
+            // Step 5: 직렬화 (Serialization)
+            // =====================================================
+            console.log('[LayoutEditorMain] 📄 Step 5: Serializing layout...');
+            
             const serializer = window.layoutSerializer;
             if (!serializer) {
                 throw new Error('LayoutSerializer not available');
             }
             
-            const layoutData = serializer.serialize(this.canvas2DEditor, siteId);
-            console.log('[LayoutEditorMain] Layout serialized:', layoutData);
+            const layoutData = serializer.serialize(this.canvas2DEditor, siteId, {
+                layoutVersion: newVersion,
+                changeLog: existingChangeLog,
+                changeDescription: changeDescription,
+                createdAt: this.state.state.currentLayout?.created_at
+            });
             
-            // 4. LayoutFileManager로 저장
-            const success = await this.fileManager.saveLayout(siteId, layoutData);
+            console.log('[LayoutEditorMain] ✅ Layout serialized');
+            console.log(`[LayoutEditorMain] Equipment count: ${layoutData.statistics?.totalEquipment || '?'}`);
             
-            // 5. 상태 업데이트
-            if (success) {
-                this.state.markAsSaved();
-                this.showSuccess(`Layout "${siteId}" 저장 완료`);
-                console.log('[LayoutEditorMain] ✅ Layout saved successfully');
-                
-                // PropertyPanel 에러 섹션 숨김
-                if (this.propertyPanel && this.propertyPanel.hideValidationErrors) {
-                    this.propertyPanel.hideValidationErrors();
-                }
-            } else {
-                throw new Error('Save operation failed');
+            // =====================================================
+            // Step 6: 파일 저장 (File Save)
+            // =====================================================
+            console.log('[LayoutEditorMain] 💾 Step 6: Saving to file...');
+            
+            const saveResult = await this.fileManager.saveLayout(siteId, layoutData, {
+                createBackup: false,  // 이미 Step 3에서 처리
+                deleteAutoSave: true,
+                previousLayout: previousLayout
+            });
+            
+            if (!saveResult.success) {
+                throw new Error(saveResult.error || 'Save operation failed');
             }
             
-            return success;
+            console.log('[LayoutEditorMain] ✅ File save triggered');
+            
+            // =====================================================
+            // Step 7: 상태 업데이트 (State Update)
+            // =====================================================
+            console.log('[LayoutEditorMain] 🔄 Step 7: Updating state...');
+            
+            this.state.state.layoutVersion = newVersion;
+            this.state.state.changeLog = layoutData.change_log;
+            this.state.markAsSaved({
+                incrementVersion: false,  // 이미 직접 설정
+                changeDescription: changeDescription
+            });
+            
+            // =====================================================
+            // Step 8: 성공 Dialog 표시
+            // =====================================================
+            console.log('[LayoutEditorMain] 🎉 Step 8: Showing success dialog...');
+            
+            this.state.finishSaving({ success: true });
+            
+            // 검증 하이라이트 제거
+            this.clearValidationHighlights();
+            
+            // 성공 Dialog 표시
+            if (this.saveSuccessDialog) {
+                this.saveSuccessDialog.show({
+                    siteId: siteId,
+                    filename: `${siteId}.json`,
+                    version: newVersion,
+                    layoutVersion: newVersion,
+                    equipmentCount: layoutData.statistics?.totalEquipment || 0,
+                    backupFilename: backupResult?.filename || null,
+                    changeLog: changeDescription ? [changeDescription] : []
+                });
+            } else {
+                this.showSuccess(`Layout "${siteId}" 저장 완료 (v${newVersion})`);
+            }
+            
+            console.log('[LayoutEditorMain] 💾 ========================================');
+            console.log('[LayoutEditorMain] 💾 Save Layout Process Completed!');
+            console.log('[LayoutEditorMain] 💾 ========================================');
+            
+            return true;
             
         } catch (error) {
             console.error('[LayoutEditorMain] ❌ Error saving layout:', error);
+            
+            if (this.state) {
+                this.state.finishSaving({ success: false, error: error.message });
+            }
+            
             this.showError(`Layout 저장 실패: ${error.message}`);
             return false;
         }
     }
-    
+
     /**
-     * ✨ Phase 3.2: 검증 에러 표시
-     * @param {Object} validationResult - 검증 결과
+     * ✨ v1.3.0: 현재 통계 계산
+     */
+    calculateCurrentStatistics() {
+        if (!this.canvas2DEditor) return {};
+        
+        let totalEquipment = 0;
+        
+        // Equipment Layer에서 설비 수 계산
+        if (this.canvas2DEditor.layers && this.canvas2DEditor.layers.equipment) {
+            const equipments = this.canvas2DEditor.layers.equipment.find('.equipment');
+            totalEquipment = equipments ? equipments.length : 0;
+        }
+        
+        return {
+            totalEquipment: totalEquipment
+        };
+    }
+
+    /**
+     * ✨ v1.3.0: 검증 에러 표시 (Dialog 사용)
      */
     showValidationErrors(validationResult) {
         console.log('[LayoutEditorMain] 🔴 Showing validation errors...');
         
         const { errors, stats, summary } = validationResult;
         
-        // 1. Toast/Alert 표시
-        this.showError(`Layout 검증 실패: ${summary}`);
+        // Dialog로 표시
+        if (this.validationErrorDialog) {
+            this.validationErrorDialog.show(errors);
+        } else {
+            // Fallback: Toast 메시지
+            this.showError(`Layout 검증 실패: ${summary || errors.length + '개 오류'}`);
+        }
         
-        // 2. PropertyPanel에 에러 목록 표시
+        // PropertyPanel에도 표시 (있는 경우)
         if (this.propertyPanel && this.propertyPanel.showValidationErrors) {
             this.propertyPanel.showValidationErrors(errors);
         }
         
-        // 3. Canvas에 에러 위치 하이라이트
+        // Canvas에 에러 위치 하이라이트
         if (this.canvas2DEditor && this.canvas2DEditor.highlightValidationErrors) {
             this.canvas2DEditor.highlightValidationErrors(errors);
         }
@@ -569,7 +528,7 @@ export class LayoutEditorMain {
     }
     
     /**
-     * ✨ Phase 3.2: 검증 하이라이트 제거
+     * ✨ v1.3.0: 검증 하이라이트 제거
      */
     clearValidationHighlights() {
         if (this.canvas2DEditor && this.canvas2DEditor.clearValidationHighlights) {
@@ -582,8 +541,104 @@ export class LayoutEditorMain {
     }
     
     /**
-     * ✨ Phase 3.2: 수동 검증 실행 (Validate 버튼용)
-     * @returns {Object} 검증 결과
+     * ✨ v1.3.0: 특정 에러 위치로 이동
+     */
+    focusOnError(error) {
+        if (!error) return;
+        
+        console.log('[LayoutEditorMain] 에러 위치로 이동:', error);
+        
+        // Canvas에서 해당 위치로 스크롤
+        if (this.canvas2DEditor && this.canvas2DEditor.scrollToError) {
+            this.canvas2DEditor.scrollToError(error);
+        }
+        
+        // 해당 객체 선택
+        if (error.equipmentId && this.canvas2DEditor && this.canvas2DEditor.equipmentShapes) {
+            const shape = this.canvas2DEditor.equipmentShapes.get(error.equipmentId);
+            if (shape && this.canvas2DEditor.selectObject) {
+                this.canvas2DEditor.selectObject(shape, false);
+            }
+        }
+    }
+    
+    /**
+     * ✨ v1.3.0: 단일 에러 자동 수정
+     */
+    autoFixError(error, index) {
+        console.log('[LayoutEditorMain] Auto fixing error:', error);
+        
+        if (this.validator && this.validator.autoFix) {
+            const result = this.validator.autoFix(error, this.canvas2DEditor);
+            
+            if (result.success) {
+                this.showSuccess(`에러 수정됨: ${error.rule || error.type}`);
+                
+                if (this.validationErrorDialog) {
+                    this.validationErrorDialog.removeError(index);
+                }
+            } else {
+                this.showError(`자동 수정 실패: ${result.message || '알 수 없는 오류'}`);
+            }
+        }
+    }
+    
+    /**
+     * ✨ v1.3.0: 모든 에러 자동 수정
+     */
+    autoFixAllErrors(errors) {
+        console.log('[LayoutEditorMain] Auto fixing all errors:', errors.length);
+        
+        let fixedCount = 0;
+        let failedCount = 0;
+        
+        errors.forEach((error, index) => {
+            if (this.validator && this.validator.autoFix) {
+                const result = this.validator.autoFix(error, this.canvas2DEditor);
+                
+                if (result.success) {
+                    fixedCount++;
+                } else {
+                    failedCount++;
+                }
+            }
+        });
+        
+        if (fixedCount > 0) {
+            this.showSuccess(`${fixedCount}개 에러 수정됨`);
+        }
+        
+        if (failedCount > 0) {
+            this.showError(`${failedCount}개 에러 수정 실패`);
+        }
+        
+        // Dialog 닫고 재검증
+        if (this.validationErrorDialog) {
+            this.validationErrorDialog.hide();
+        }
+        
+        // 재검증
+        setTimeout(() => {
+            this.validateLayout();
+        }, 500);
+    }
+    
+    /**
+     * ✨ v1.3.0: Validation Dialog 닫힘 처리
+     */
+    onValidationDialogClose(action) {
+        console.log('[LayoutEditorMain] Validation dialog closed:', action);
+        
+        if (action === 'manual') {
+            // 직접 수정 모드 - Canvas 포커스
+            if (this.canvas2DEditor && this.canvas2DEditor.stage) {
+                this.canvas2DEditor.stage.container().focus();
+            }
+        }
+    }
+    
+    /**
+     * ✨ v1.3.0: 수동 검증 실행
      */
     validateLayout() {
         console.log('[LayoutEditorMain] 🔍 Manual validation...');
@@ -591,6 +646,11 @@ export class LayoutEditorMain {
         if (!this.canvas2DEditor) {
             this.showError('Canvas2DEditor가 초기화되지 않았습니다');
             return { valid: false, errors: [] };
+        }
+        
+        if (!this.validator) {
+            console.warn('[LayoutEditorMain] Validator not available');
+            return { valid: true, errors: [] };
         }
         
         const result = this.validator.validate(null, this.canvas2DEditor);
@@ -606,28 +666,234 @@ export class LayoutEditorMain {
     }
     
     /**
-     * ✨ Phase 3.2: 특정 에러 위치로 이동
-     * @param {Object} error - 에러 객체
+     * ✨ v1.3.0: 3D Viewer로 이동
      */
-    focusOnError(error) {
-        if (!error) return;
+    goTo3DViewer() {
+        console.log('[LayoutEditorMain] Switching to 3D Viewer...');
         
-        console.log('[LayoutEditorMain] 에러 위치로 이동:', error);
-        
-        // Canvas에서 해당 위치로 스크롤
-        if (this.canvas2DEditor && this.canvas2DEditor.scrollToError) {
-            this.canvas2DEditor.scrollToError(error);
+        if (this.state) {
+            const siteId = this.state.state.currentSiteId;
+            const layout = this.state.state.currentLayout;
+            
+            if (siteId && layout) {
+                this.state.enterViewerMode(siteId, layout);
+            }
         }
         
-        // 해당 객체 선택
-        if (error.equipmentId && this.canvas2DEditor) {
-            const shape = this.canvas2DEditor.equipmentShapes.get(error.equipmentId);
-            if (shape) {
-                this.canvas2DEditor.selectObject(shape, false);
+        // TODO: 실제 3D Viewer 전환 구현
+        console.log('[LayoutEditorMain] TODO: Implement 3D Viewer switch');
+    }
+    
+    /**
+     * ✨ v1.3.0: 계속 편집
+     */
+    continueEditing() {
+        console.log('[LayoutEditorMain] Continue editing...');
+        // Dialog 닫히고 자동으로 Editor 유지
+    }
+    
+    /**
+     * ✨ v1.3.0: 변경사항 보기
+     */
+    viewChanges() {
+        console.log('[LayoutEditorMain] View changes...');
+        
+        if (this.state && this.state.state.changeLog) {
+            console.log('Change Log:');
+            this.state.state.changeLog.forEach((entry, index) => {
+                console.log(`  ${index + 1}. v${entry.version}: ${entry.changes}`);
+            });
+        }
+    }
+
+    // =====================================================
+    // 모드 전환 및 UI 관리
+    // =====================================================
+    
+    /**
+     * 모드 변경 시 처리
+     */
+    onModeChanged(newMode) {
+        console.log('[LayoutEditorMain] Mode changed to:', newMode);
+        
+        if (newMode === 'editor') {
+            this.showEditorUI();
+            this.showComponentPalette();
+        } else {
+            this.showViewerUI();
+            this.hideComponentPalette();
+        }
+    }
+    
+    /**
+     * Editor UI 표시
+     */
+    showEditorUI() {
+        if (this.elements.editorContainer) {
+            this.elements.editorContainer.style.display = 'block';
+        }
+        if (this.elements.viewerContainer) {
+            this.elements.viewerContainer.style.display = 'none';
+        }
+        console.log('[LayoutEditorMain] Editor UI shown');
+    }
+    
+    /**
+     * Viewer UI 표시
+     */
+    showViewerUI() {
+        if (this.elements.editorContainer) {
+            this.elements.editorContainer.style.display = 'none';
+        }
+        if (this.elements.viewerContainer) {
+            this.elements.viewerContainer.style.display = 'block';
+        }
+        console.log('[LayoutEditorMain] Viewer UI shown');
+    }
+    
+    /**
+     * 복구 Dialog 표시
+     */
+    async showRecoveryDialog(siteId) {
+        console.log(`[LayoutEditorMain] Showing recovery dialog for: ${siteId}`);
+        
+        const message = `❌ Layout 파일 로드 실패: ${siteId}\n\n옵션을 선택하세요:\n\n1. 새 Template로 생성\n2. 취소`;
+        
+        const choice = prompt(message);
+        
+        if (choice === '1') {
+            await this.showTemplateSelection(siteId);
+        }
+    }
+
+    // =====================================================
+    // Canvas2DEditor 및 ComponentPalette 관리
+    // =====================================================
+    
+    /**
+     * Canvas2DEditor 설정
+     */
+    setCanvas2DEditor(canvas2DEditor) {
+        if (!canvas2DEditor) {
+            console.error('[LayoutEditorMain] Canvas2DEditor 인스턴스가 필요합니다');
+            return;
+        }
+        
+        this.canvas2DEditor = canvas2DEditor;
+        console.log('[LayoutEditorMain] Canvas2DEditor 설정 완료');
+        
+        this.initComponentPalette();
+    }
+    
+    /**
+     * PropertyPanel 설정
+     */
+    setPropertyPanel(propertyPanel) {
+        if (!propertyPanel) {
+            console.error('[LayoutEditorMain] PropertyPanel 인스턴스가 필요합니다');
+            return;
+        }
+        
+        this.propertyPanel = propertyPanel;
+        console.log('[LayoutEditorMain] PropertyPanel 설정 완료');
+    }
+    
+    /**
+     * ComponentPalette 초기화
+     */
+    initComponentPalette() {
+        if (!this.canvas2DEditor) {
+            console.error('[LayoutEditorMain] Canvas2DEditor가 설정되지 않았습니다');
+            return;
+        }
+        
+        try {
+            if (window.ComponentPalette) {
+                this.componentPalette = new window.ComponentPalette(
+                    'component-palette',
+                    this.canvas2DEditor
+                );
+                
+                if (this.canvas2DEditor.enableDropZone) {
+                    this.canvas2DEditor.enableDropZone();
+                }
+                
+                console.log('[LayoutEditorMain] ComponentPalette 초기화 완료');
             }
+        } catch (error) {
+            console.error('[LayoutEditorMain] ComponentPalette 초기화 실패:', error);
+        }
+    }
+    
+    /**
+     * ComponentPalette 표시
+     */
+    showComponentPalette() {
+        if (this.componentPalette && this.componentPalette.show) {
+            this.componentPalette.show();
+            console.log('[LayoutEditorMain] ComponentPalette 표시');
+        }
+    }
+    
+    /**
+     * ComponentPalette 숨김
+     */
+    hideComponentPalette() {
+        if (this.componentPalette && this.componentPalette.hide) {
+            this.componentPalette.hide();
+            console.log('[LayoutEditorMain] ComponentPalette 숨김');
+        }
+    }
+
+    // =====================================================
+    // 유틸리티 메서드
+    // =====================================================
+    
+    /**
+     * 성공 메시지 표시
+     */
+    showSuccess(message) {
+        console.log(`[LayoutEditorMain] ✅ ${message}`);
+        
+        // Toast 표시 (있는 경우)
+        if (window.showToast) {
+            window.showToast(message, 'success');
+        } else {
+            // Fallback
+            const toast = document.getElementById('toast-success');
+            if (toast) {
+                toast.textContent = message;
+                toast.style.display = 'block';
+                setTimeout(() => { toast.style.display = 'none'; }, 3000);
+            }
+        }
+    }
+    
+    /**
+     * 에러 메시지 표시
+     */
+    showError(message) {
+        console.error(`[LayoutEditorMain] ❌ ${message}`);
+        
+        // Toast 표시 (있는 경우)
+        if (window.showToast) {
+            window.showToast(message, 'error');
+        } else {
+            // Fallback
+            alert(message);
         }
     }
 }
 
 // 전역 인스턴스 생성
-export const layoutEditorMain = new LayoutEditorMain();
+const layoutEditorMain = new LayoutEditorMain();
+
+// 전역 객체로 내보내기 (브라우저 환경)
+if (typeof window !== 'undefined') {
+    window.layoutEditorMain = layoutEditorMain;
+    window.LayoutEditorMain = LayoutEditorMain;
+}
+
+// ES Module export (환경에 따라 조정)
+// export { LayoutEditorMain };
+// export const layoutEditorMain = new LayoutEditorMain();
