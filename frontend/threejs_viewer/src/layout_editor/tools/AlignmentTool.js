@@ -306,6 +306,33 @@ class AlignmentTool {
     /**
      * 선택된 객체들을 90도 반시계방향 회전
      */
+    rotateCW() {
+        const objects = this.canvas.selectedObjects;
+        if (objects.length === 0) {
+            console.warn('[AlignmentTool] 회전할 객체를 선택하세요');
+            return;
+        }
+        
+        objects.forEach(shape => {
+            this.rotateShape(shape, 90);
+        });
+        
+        // 🔥 레이어 명시적 갱신
+        if (this.canvas.layers && this.canvas.layers.equipment) {
+            this.canvas.layers.equipment.batchDraw();
+        }
+        if (this.canvas.layers && this.canvas.layers.room) {
+            this.canvas.layers.room.batchDraw();
+        }
+        
+        this.canvas.updateTransformer();
+        this.canvas.stage.batchDraw();
+        console.log('[AlignmentTool] 90° 시계방향 회전 완료');
+    }
+    
+    /**
+     * 선택된 객체들을 90도 반시계방향 회전
+     */
     rotateCCW() {
         const objects = this.canvas.selectedObjects;
         if (objects.length === 0) {
@@ -317,17 +344,25 @@ class AlignmentTool {
             this.rotateShape(shape, -90);
         });
         
+        // 🔥 레이어 명시적 갱신
+        if (this.canvas.layers && this.canvas.layers.equipment) {
+            this.canvas.layers.equipment.batchDraw();
+        }
+        if (this.canvas.layers && this.canvas.layers.room) {
+            this.canvas.layers.room.batchDraw();
+        }
+        
         this.canvas.updateTransformer();
         this.canvas.stage.batchDraw();
         console.log('[AlignmentTool] 90° 반시계방향 회전 완료');
     }
-    
+
     /**
      * 개별 Shape 회전 (중심점 기준)
      * @param {Konva.Shape} shape - 회전할 Shape
      * @param {number} angle - 회전 각도 (양수: 시계방향)
      */
-    rotateShape(shape, angle) {
+rotateShape(shape, angle) {
         const currentRotation = shape.rotation() || 0;
         const newRotation = (currentRotation + angle) % 360;
         
@@ -339,6 +374,12 @@ class AlignmentTool {
         // Group인 경우
         if (shape.className === 'Group') {
             shape.rotation(newRotation);
+            
+            // 🔥 Group이 속한 레이어 즉시 갱신
+            const layer = shape.getLayer();
+            if (layer) {
+                layer.batchDraw();
+            }
             
             // 방향 화살표도 함께 회전
             const arrow = shape.findOne('.directionArrow');

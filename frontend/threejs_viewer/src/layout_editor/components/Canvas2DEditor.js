@@ -1633,6 +1633,39 @@ class Canvas2DEditor {
         
         shape.position({ x: snappedX, y: snappedY });
     }
+
+        /**
+     * ✨ Phase 3.1: 직렬화 가능한 데이터 반환
+     * LayoutSerializer가 사용할 수 있는 형태로 데이터 제공
+     * 
+     * @returns {Object} 직렬화 가능한 데이터
+     */
+    getSerializableData() {
+        console.log('[Canvas2DEditor] Getting serializable data...');
+        
+        return {
+            config: this.config,
+            layers: this.layers,
+            currentLayout: this.currentLayout,
+            wallShapes: this.wallShapes,
+            equipmentShapes: this.equipmentShapes,
+            componentShapes: this.componentShapes
+        };
+    }
+
+    /**
+     * ✨ Phase 3.1: JSON 데이터로부터 Layout 로드
+     * @param {Object} layoutData - Layout JSON
+     */
+    loadFromJSON(layoutData) {
+        console.log('[Canvas2DEditor] Loading from JSON...', layoutData);
+        
+        // LayoutSerializer.deserialize() 호출
+        const serializer = window.layoutSerializer || new LayoutSerializer();
+        serializer.deserialize(layoutData, this);
+        
+        console.log('[Canvas2DEditor] Layout loaded from JSON');
+    }
 }
 
 // ✅ ES6 모듈 export (브라우저 환경)

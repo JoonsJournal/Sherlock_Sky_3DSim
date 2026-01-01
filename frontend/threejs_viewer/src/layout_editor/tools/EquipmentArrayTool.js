@@ -5,7 +5,7 @@
  * 복도를 고려하여 26×6 설비 배열 생성 및 관리
  * 
  * @module EquipmentArrayTool
- * @version 1.0.3 - Col/Row 계산 로직 완전히 통일
+ * @version 1.1.0 - Phase 3.1: rotation 속성 추가
  * 
  * 위치: frontend/threejs_viewer/src/layout_editor/tools/EquipmentArrayTool.js
  */
@@ -25,7 +25,7 @@ class EquipmentArrayTool {
 
         this.previewGroup = null;
 
-        console.log('[EquipmentArrayTool] Initialized');
+        console.log('[EquipmentArrayTool] Initialized v1.1.0');
     }
 
     activate(config) {
@@ -116,9 +116,11 @@ class EquipmentArrayTool {
             x: startPoint.x,
             y: startPoint.y,
             draggable: true,
-            name: 'equipmentArray'
+            name: 'equipmentArray',
+            rotation: 0  // ✨ Phase 3.1: 기본 rotation
         });
 
+        // ✨ Phase 3.1: rotation 포함
         arrayGroup.setAttr('arrayConfig', {
             rows,
             cols,
@@ -127,7 +129,8 @@ class EquipmentArrayTool {
             corridorCols,
             corridorColWidth,
             corridorRows,
-            corridorRowWidth
+            corridorRowWidth,
+            rotation: 0  // ✨ 기본 회전 각도
         });
 
         let equipmentCount = 0;
@@ -168,6 +171,7 @@ class EquipmentArrayTool {
         this.canvas.currentLayout.equipmentArrays.push({
             id: arrayGroup._id,
             position: { x: startPoint.x, y: startPoint.y },
+            rotation: 0,  // ✨ Phase 3.1
             config: this.config
         });
 
@@ -175,7 +179,7 @@ class EquipmentArrayTool {
     }
 
     /**
-     * ✅ v1.0.3 Fix: Col 계산 로직을 Row 로직과 동일하게 통일 (조건문 제거)
+     * Position 계산
      * @param {number} row - 행 인덱스
      * @param {number} col - 열 인덱스
      * @returns {Object} {x, y} 픽셀 좌표
@@ -200,22 +204,19 @@ class EquipmentArrayTool {
         let x = 0;
         let y = 0;
 
-        // ✅ X 좌표 계산 (Col) - 수정됨
-        // 0부터 col-1까지 모든 이전 열의 너비+간격을 더함
+        // X 좌표 계산 (Col)
         for (let c = 0; c < col; c++) {
             x += equipWidthPx + spacingPx;
             
-            // 현재 열(c) 바로 다음에 복도가 있는지 확인 (c+1)
             if (corridorCols.includes(c + 1)) {
                 x += corridorColWidth * scale;
             }
         }
 
-        // ✅ Y 좌표 계산 (Row) - 기존 유지 (정상 작동)
+        // Y 좌표 계산 (Row)
         for (let r = 0; r < row; r++) {
             y += equipDepthPx + spacingPx;
             
-            // 현재 행(r) 바로 다음에 복도가 있는지 확인 (r+1)
             if (corridorRows.includes(r + 1)) {
                 y += corridorRowWidth * scale;
             }
@@ -238,14 +239,17 @@ class EquipmentArrayTool {
             x: position.x,
             y: position.y,
             draggable: false,
-            name: 'equipment'
+            name: 'equipment',
+            rotation: 0  // ✨ Phase 3.1: 기본 rotation
         });
 
+        // ✨ Phase 3.1: rotation 포함
         equipGroup.setAttr('equipmentData', {
             row,
             col,
-            id: `EQ-${String(row + 1).padStart(2, '0')}-${String(col + 1).padStart(2, '0')}`,
-            size: equipmentSize
+            id: `EQ-${String(row + 1).padStart(2, '0')}-${String(col + 1).padStart(2, '00')}`,
+            size: equipmentSize,
+            rotation: 0  // ✨ 기본 회전 각도
         });
 
         const rect = new Konva.Rect({

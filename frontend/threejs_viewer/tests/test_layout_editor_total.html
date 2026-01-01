@@ -17,6 +17,9 @@
     <!-- ✅ ObjectSelectionTool 로드 (전역 객체) -->
     <script src="../src/layout_editor/tools/ObjectSelectionTool.js"></script>
     
+    <!-- ✅ AlignmentTool 로드 (전역 객체) -->
+    <script src="../src/layout_editor/tools/AlignmentTool.js"></script>
+
     <!-- CSS -->
     <link rel="stylesheet" href="../src/styles/layout_editor.css">
     <link rel="stylesheet" href="../src/styles/component-palette.css">
@@ -163,8 +166,8 @@
         /* ✨ 정렬/회전 팝업 메뉴 */
         .align-popup {
             display: none;
-            position: absolute;
-            left: 75px;
+            position: fixed;
+            left: 80px;
             top: 0;
             background: white;
             border-radius: 8px;
@@ -670,6 +673,63 @@
                 <button class="toolbar-btn" id="align-btn" data-tooltip="정렬/회전 (A)" onclick="editorApp.toggleAlignPopup()">📐</button>
                 <button class="toolbar-btn" data-tooltip="90° 회전 (R)" onclick="editorApp.rotateCW()">🔄</button>
                 
+                <button class="toolbar-btn" id="align-btn" data-tooltip="정렬/회전 (A)" onclick="editorApp.toggleAlignPopup()">📐</button>
+                
+                <!-- ✨ 정렬/회전 팝업 메뉴 (버튼 바로 다음에 배치) -->
+                <div class="align-popup" id="align-popup">
+                    <div class="align-popup-header">📐 정렬 & 회전</div>
+                    
+                    <div class="align-popup-section">
+                        <div class="align-popup-section-title">정렬 (2개 이상 선택)</div>
+                        <button class="align-popup-btn" onclick="editorApp.alignLeft()">
+                            <span class="icon">⬅️</span> 좌측 정렬
+                        </button>
+                        <button class="align-popup-btn" onclick="editorApp.alignRight()">
+                            <span class="icon">➡️</span> 우측 정렬
+                        </button>
+                        <button class="align-popup-btn" onclick="editorApp.alignTop()">
+                            <span class="icon">⬆️</span> 상단 정렬
+                        </button>
+                        <button class="align-popup-btn" onclick="editorApp.alignBottom()">
+                            <span class="icon">⬇️</span> 하단 정렬
+                        </button>
+                        <button class="align-popup-btn" onclick="editorApp.alignCenterH()">
+                            <span class="icon">↔️</span> 수평 중앙
+                        </button>
+                        <button class="align-popup-btn" onclick="editorApp.alignCenterV()">
+                            <span class="icon">↕️</span> 수직 중앙
+                        </button>
+                    </div>
+                    
+                    <div class="align-popup-section">
+                        <div class="align-popup-section-title">균등 분배 (3개 이상 선택)</div>
+                        <button class="align-popup-btn" onclick="editorApp.distributeH()">
+                            <span class="icon">⇔</span> 수평 분배
+                        </button>
+                        <button class="align-popup-btn" onclick="editorApp.distributeV()">
+                            <span class="icon">⇕</span> 수직 분배
+                        </button>
+                    </div>
+                    
+                    <div class="align-popup-section">
+                        <div class="align-popup-section-title">회전</div>
+                        <button class="align-popup-btn" onclick="editorApp.rotateCW()">
+                            <span class="icon">🔃</span> 90° 시계방향
+                            <span class="shortcut">R</span>
+                        </button>
+                        <button class="align-popup-btn" onclick="editorApp.rotateCCW()">
+                            <span class="icon">🔄</span> 90° 반시계방향
+                            <span class="shortcut">Shift+R</span>
+                        </button>
+                        <button class="align-popup-btn" onclick="editorApp.resetRotation()">
+                            <span class="icon">↩️</span> 회전 초기화
+                        </button>
+                    </div>
+                </div>
+                
+                <button class="toolbar-btn" data-tooltip="90° 회전 (R)" onclick="editorApp.rotateCW()">🔄</button>
+
+
                 <div class="toolbar-divider"></div>
                 
                 <button class="toolbar-btn" data-tooltip="샘플 레이아웃" onclick="editorApp.loadSampleLayout()">📁</button>
@@ -717,57 +777,9 @@
                 </div>
             </div>
             
-            <!-- ✨ 정렬/회전 팝업 메뉴 -->
-            <div class="align-popup" id="align-popup">
-                <div class="align-popup-header">📐 정렬 & 회전</div>
-                
-                <div class="align-popup-section">
-                    <div class="align-popup-section-title">정렬 (2개 이상 선택)</div>
-                    <button class="align-popup-btn" onclick="editorApp.alignLeft()">
-                        <span class="icon">⬅️</span> 좌측 정렬
-                    </button>
-                    <button class="align-popup-btn" onclick="editorApp.alignRight()">
-                        <span class="icon">➡️</span> 우측 정렬
-                    </button>
-                    <button class="align-popup-btn" onclick="editorApp.alignTop()">
-                        <span class="icon">⬆️</span> 상단 정렬
-                    </button>
-                    <button class="align-popup-btn" onclick="editorApp.alignBottom()">
-                        <span class="icon">⬇️</span> 하단 정렬
-                    </button>
-                    <button class="align-popup-btn" onclick="editorApp.alignCenterH()">
-                        <span class="icon">↔️</span> 수평 중앙
-                    </button>
-                    <button class="align-popup-btn" onclick="editorApp.alignCenterV()">
-                        <span class="icon">↕️</span> 수직 중앙
-                    </button>
-                </div>
-                
-                <div class="align-popup-section">
-                    <div class="align-popup-section-title">균등 분배 (3개 이상 선택)</div>
-                    <button class="align-popup-btn" onclick="editorApp.distributeH()">
-                        <span class="icon">⇔</span> 수평 분배
-                    </button>
-                    <button class="align-popup-btn" onclick="editorApp.distributeV()">
-                        <span class="icon">⇕</span> 수직 분배
-                    </button>
-                </div>
-                
-                <div class="align-popup-section">
-                    <div class="align-popup-section-title">회전</div>
-                    <button class="align-popup-btn" onclick="editorApp.rotateCW()">
-                        <span class="icon">🔃</span> 90° 시계방향
-                        <span class="shortcut">R</span>
-                    </button>
-                    <button class="align-popup-btn" onclick="editorApp.rotateCCW()">
-                        <span class="icon">🔄</span> 90° 반시계방향
-                        <span class="shortcut">Shift+R</span>
-                    </button>
-                    <button class="align-popup-btn" onclick="editorApp.resetRotation()">
-                        <span class="icon">↩️</span> 회전 초기화
-                    </button>
-                </div>
-            </div>
+
+
+
         </div>
 
         <!-- Canvas 영역 -->
@@ -945,240 +957,7 @@
         // =====================================================
         // ✨ AlignmentTool - 정렬 및 회전 기능
         // =====================================================
-        class AlignmentTool {
-            constructor(canvas2DEditor) {
-                this.canvas = canvas2DEditor;
-                console.log('[AlignmentTool] 초기화 완료');
-            }
-            
-            getBoundingBox(objects) {
-                if (!objects || objects.length === 0) return null;
-                let minX = Infinity, maxX = -Infinity;
-                let minY = Infinity, maxY = -Infinity;
-                
-                objects.forEach(shape => {
-                    const rect = shape.getClientRect();
-                    minX = Math.min(minX, rect.x);
-                    maxX = Math.max(maxX, rect.x + rect.width);
-                    minY = Math.min(minY, rect.y);
-                    maxY = Math.max(maxY, rect.y + rect.height);
-                });
-                
-                return {
-                    minX, maxX, minY, maxY,
-                    centerX: (minX + maxX) / 2,
-                    centerY: (minY + maxY) / 2
-                };
-            }
-            
-            alignLeft() {
-                const objects = this.canvas.selectedObjects;
-                if (objects.length < 2) { this.showToast('2개 이상의 객체를 선택하세요', 'warning'); return; }
-                const bbox = this.getBoundingBox(objects);
-                objects.forEach(shape => {
-                    const shapeRect = shape.getClientRect();
-                    const offsetX = shapeRect.x - shape.x();
-                    shape.x(bbox.minX - offsetX);
-                });
-                this.canvas.stage.batchDraw();
-                this.showToast('좌측 정렬 완료');
-            }
-            
-            alignRight() {
-                const objects = this.canvas.selectedObjects;
-                if (objects.length < 2) { this.showToast('2개 이상의 객체를 선택하세요', 'warning'); return; }
-                const bbox = this.getBoundingBox(objects);
-                objects.forEach(shape => {
-                    const shapeRect = shape.getClientRect();
-                    shape.x(bbox.maxX - shapeRect.width - (shapeRect.x - shape.x()));
-                });
-                this.canvas.stage.batchDraw();
-                this.showToast('우측 정렬 완료');
-            }
-            
-            alignTop() {
-                const objects = this.canvas.selectedObjects;
-                if (objects.length < 2) { this.showToast('2개 이상의 객체를 선택하세요', 'warning'); return; }
-                const bbox = this.getBoundingBox(objects);
-                objects.forEach(shape => {
-                    const shapeRect = shape.getClientRect();
-                    const offsetY = shapeRect.y - shape.y();
-                    shape.y(bbox.minY - offsetY);
-                });
-                this.canvas.stage.batchDraw();
-                this.showToast('상단 정렬 완료');
-            }
-            
-            alignBottom() {
-                const objects = this.canvas.selectedObjects;
-                if (objects.length < 2) { this.showToast('2개 이상의 객체를 선택하세요', 'warning'); return; }
-                const bbox = this.getBoundingBox(objects);
-                objects.forEach(shape => {
-                    const shapeRect = shape.getClientRect();
-                    shape.y(bbox.maxY - shapeRect.height - (shapeRect.y - shape.y()));
-                });
-                this.canvas.stage.batchDraw();
-                this.showToast('하단 정렬 완료');
-            }
-            
-            alignCenterHorizontal() {
-                const objects = this.canvas.selectedObjects;
-                if (objects.length < 2) { this.showToast('2개 이상의 객체를 선택하세요', 'warning'); return; }
-                const bbox = this.getBoundingBox(objects);
-                objects.forEach(shape => {
-                    const shapeRect = shape.getClientRect();
-                    const shapeCenterX = shapeRect.x + shapeRect.width / 2;
-                    const offsetX = shapeCenterX - shape.x();
-                    shape.x(bbox.centerX - offsetX);
-                });
-                this.canvas.stage.batchDraw();
-                this.showToast('수평 중앙 정렬 완료');
-            }
-            
-            alignCenterVertical() {
-                const objects = this.canvas.selectedObjects;
-                if (objects.length < 2) { this.showToast('2개 이상의 객체를 선택하세요', 'warning'); return; }
-                const bbox = this.getBoundingBox(objects);
-                objects.forEach(shape => {
-                    const shapeRect = shape.getClientRect();
-                    const shapeCenterY = shapeRect.y + shapeRect.height / 2;
-                    const offsetY = shapeCenterY - shape.y();
-                    shape.y(bbox.centerY - offsetY);
-                });
-                this.canvas.stage.batchDraw();
-                this.showToast('수직 중앙 정렬 완료');
-            }
-            
-            distributeHorizontal() {
-                const objects = this.canvas.selectedObjects;
-                if (objects.length < 3) { this.showToast('3개 이상의 객체를 선택하세요', 'warning'); return; }
-                const sorted = [...objects].sort((a, b) => a.getClientRect().x - b.getClientRect().x);
-                const firstRect = sorted[0].getClientRect();
-                const lastRect = sorted[sorted.length - 1].getClientRect();
-                let totalWidth = 0;
-                sorted.forEach(shape => totalWidth += shape.getClientRect().width);
-                const totalSpace = (lastRect.x + lastRect.width) - firstRect.x;
-                const gap = (totalSpace - totalWidth) / (sorted.length - 1);
-                let currentX = firstRect.x;
-                sorted.forEach((shape, index) => {
-                    if (index === 0) { currentX += shape.getClientRect().width + gap; return; }
-                    const shapeRect = shape.getClientRect();
-                    const offsetX = shapeRect.x - shape.x();
-                    shape.x(currentX - offsetX);
-                    currentX += shapeRect.width + gap;
-                });
-                this.canvas.stage.batchDraw();
-                this.showToast('수평 균등 분배 완료');
-            }
-            
-            distributeVertical() {
-                const objects = this.canvas.selectedObjects;
-                if (objects.length < 3) { this.showToast('3개 이상의 객체를 선택하세요', 'warning'); return; }
-                const sorted = [...objects].sort((a, b) => a.getClientRect().y - b.getClientRect().y);
-                const firstRect = sorted[0].getClientRect();
-                const lastRect = sorted[sorted.length - 1].getClientRect();
-                let totalHeight = 0;
-                sorted.forEach(shape => totalHeight += shape.getClientRect().height);
-                const totalSpace = (lastRect.y + lastRect.height) - firstRect.y;
-                const gap = (totalSpace - totalHeight) / (sorted.length - 1);
-                let currentY = firstRect.y;
-                sorted.forEach((shape, index) => {
-                    if (index === 0) { currentY += shape.getClientRect().height + gap; return; }
-                    const shapeRect = shape.getClientRect();
-                    const offsetY = shapeRect.y - shape.y();
-                    shape.y(currentY - offsetY);
-                    currentY += shapeRect.height + gap;
-                });
-                this.canvas.stage.batchDraw();
-                this.showToast('수직 균등 분배 완료');
-            }
-            
-            rotateCW() {
-                const objects = this.canvas.selectedObjects;
-                if (objects.length === 0) { this.showToast('회전할 객체를 선택하세요', 'warning'); return; }
-                objects.forEach(shape => this.rotateShape(shape, 90));
-                this.canvas.updateTransformer();
-                this.canvas.stage.batchDraw();
-                this.showToast('90° 시계방향 회전');
-            }
-            
-            rotateCCW() {
-                const objects = this.canvas.selectedObjects;
-                if (objects.length === 0) { this.showToast('회전할 객체를 선택하세요', 'warning'); return; }
-                objects.forEach(shape => this.rotateShape(shape, -90));
-                this.canvas.updateTransformer();
-                this.canvas.stage.batchDraw();
-                this.showToast('90° 반시계방향 회전');
-            }
-            
-            rotateShape(shape, angle) {
-                const currentRotation = shape.rotation() || 0;
-                const newRotation = (currentRotation + angle) % 360;
-                
-                if (shape.className === 'Group') {
-                    shape.rotation(newRotation);
-                } else if (shape.className === 'Rect') {
-                    if (!shape.offsetX()) {
-                        const width = shape.width();
-                        const height = shape.height();
-                        shape.offsetX(width / 2);
-                        shape.offsetY(height / 2);
-                        shape.x(shape.x() + width / 2);
-                        shape.y(shape.y() + height / 2);
-                    }
-                    shape.rotation(newRotation);
-                } else if (shape.className === 'Line') {
-                    const points = shape.points();
-                    const cx = (points[0] + points[2]) / 2;
-                    const cy = (points[1] + points[3]) / 2;
-                    const rad = (angle * Math.PI) / 180;
-                    const cos = Math.cos(rad);
-                    const sin = Math.sin(rad);
-                    const newPoints = [];
-                    for (let i = 0; i < points.length; i += 2) {
-                        const px = points[i] - cx;
-                        const py = points[i + 1] - cy;
-                        newPoints.push(px * cos - py * sin + cx);
-                        newPoints.push(px * sin + py * cos + cy);
-                    }
-                    shape.points(newPoints);
-                }
-                
-                shape.setAttr('currentRotation', newRotation);
-                
-                // ✨ 방향 화살표 업데이트
-                const arrow = shape.findOne ? shape.findOne('.directionArrow') : null;
-                if (arrow) {
-                    // 화살표는 부모와 함께 회전됨
-                }
-            }
-            
-            resetRotation() {
-                const objects = this.canvas.selectedObjects;
-                if (objects.length === 0) return;
-                objects.forEach(shape => {
-                    shape.rotation(0);
-                    shape.setAttr('currentRotation', 0);
-                    if (shape.className === 'Rect' && shape.offsetX()) {
-                        shape.x(shape.x() - shape.offsetX());
-                        shape.y(shape.y() - shape.offsetY());
-                        shape.offsetX(0);
-                        shape.offsetY(0);
-                    }
-                });
-                this.canvas.updateTransformer();
-                this.canvas.stage.batchDraw();
-                this.showToast('회전 초기화');
-            }
-            
-            showToast(message, type = 'info') {
-                if (window.editorApp && window.editorApp.showToast) {
-                    window.editorApp.showToast(message, type);
-                } else {
-                    console.log(`[AlignmentTool] ${message}`);
-                }
-            }
-        }
+
         
         class WallDrawToolFixed extends WallDrawTool {
             constructor(canvas2DEditor) { super(canvas2DEditor); }
@@ -1622,6 +1401,13 @@
                 const popup = document.getElementById('align-popup');
                 const btn = document.getElementById('align-btn');
                 
+                if (this.alignPopupVisible) {
+                    // 버튼 위치 기준으로 팝업 위치 계산
+                    const btnRect = btn.getBoundingClientRect();
+                    popup.style.top = `${btnRect.top}px`;
+                    popup.style.left = `${btnRect.right + 5}px`; // 버튼 오른쪽 5px
+                }
+                
                 popup.classList.toggle('show', this.alignPopupVisible);
                 btn.classList.toggle('active', this.alignPopupVisible);
                 
@@ -1644,8 +1430,32 @@
             distributeV() { this.alignmentTool.distributeVertical(); this.hideAlignPopup(); }
             
             // 회전 메서드들
-            rotateCW() { this.alignmentTool.rotateCW(); }
-            rotateCCW() { this.alignmentTool.rotateCCW(); }
+// 회전 메서드들
+rotateCW() { 
+    console.log('[LayoutEditorApp] rotateCW 호출됨');
+    console.log('alignmentTool:', this.alignmentTool);
+    console.log('selectedObjects:', this.canvas.selectedObjects);
+    
+    if (!this.alignmentTool) {
+        console.error('[LayoutEditorApp] AlignmentTool이 초기화되지 않음!');
+        this.showToast('AlignmentTool 초기화 오류', 'error');
+        return;
+    }
+    
+    this.alignmentTool.rotateCW(); 
+}
+
+rotateCCW() { 
+    console.log('[LayoutEditorApp] rotateCCW 호출됨');
+    
+    if (!this.alignmentTool) {
+        console.error('[LayoutEditorApp] AlignmentTool이 초기화되지 않음!');
+        this.showToast('AlignmentTool 초기화 오류', 'error');
+        return;
+    }
+    
+    this.alignmentTool.rotateCCW(); 
+}
             resetRotation() { this.alignmentTool.resetRotation(); this.hideAlignPopup(); }
             
             hideAlignPopup() {

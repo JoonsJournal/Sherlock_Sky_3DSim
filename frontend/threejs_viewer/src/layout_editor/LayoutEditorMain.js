@@ -435,6 +435,54 @@ export class LayoutEditorMain {
             console.log('[LayoutEditorMain] ComponentPalette 숨김');
         }
     }
+
+    /**
+     * ✨ Phase 3.1: Layout 저장
+     */
+    async saveLayout() {
+        console.log('[LayoutEditorMain] 💾 Saving layout...');
+        
+        try {
+            // 1. Canvas2DEditor 확인
+            if (!this.canvas2DEditor) {
+                throw new Error('Canvas2DEditor not initialized');
+            }
+            
+            // 2. Site ID 확인
+            const siteId = this.state.state.currentSiteId;
+            if (!siteId) {
+                throw new Error('No site selected');
+            }
+            
+            // 3. LayoutSerializer로 직렬화
+            const serializer = window.layoutSerializer;
+            if (!serializer) {
+                throw new Error('LayoutSerializer not available');
+            }
+            
+            const layoutData = serializer.serialize(this.canvas2DEditor, siteId);
+            console.log('[LayoutEditorMain] Layout serialized:', layoutData);
+            
+            // 4. LayoutFileManager로 저장
+            const success = await this.fileManager.saveLayout(siteId, layoutData);
+            
+            // 5. 상태 업데이트
+            if (success) {
+                this.state.markAsSaved();
+                this.showSuccess(`Layout "${siteId}" 저장 완료`);
+                console.log('[LayoutEditorMain] ✅ Layout saved successfully');
+            } else {
+                throw new Error('Save operation failed');
+            }
+            
+            return success;
+            
+        } catch (error) {
+            console.error('[LayoutEditorMain] ❌ Error saving layout:', error);
+            this.showError(`Layout 저장 실패: ${error.message}`);
+            return false;
+        }
+    }
 }
 
 // 전역 인스턴스 생성

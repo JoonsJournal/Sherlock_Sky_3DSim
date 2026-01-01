@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LayoutSerializer 테스트 - Phase 3.1</title>
+    <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .test-section h2 {
+            color: #34495e;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: #95a5a6;
+        }
+
+        button.secondary:hover {
+            background: #7f8c8d;
+        }
+
+        button.success {
+            background: #27ae60;
+        }
+
+        button.success:hover {
+            background: #229954;
+        }
+
+        button.danger {
+            background: #e74c3c;
+        }
+
+        button.danger:hover {
+            background: #c0392b;
+        }
+
+        #canvas-container {
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            background: #f9f9f9;
+        }
+
+        .json-viewer {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .json-viewer pre {
+            margin: 0;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .stat-card {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            color: #2c3e50;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 LayoutSerializer 테스트</h1>
+        <p class="subtitle">Phase 3.1: Layout 저장/검증 기능 테스트</p>
+
+        <!-- Status -->
+        <div id="status-area"></div>
+
+        <!-- Canvas Section -->
+        <div class="test-section">
+            <h2>📐 Canvas (Konva.js)</h2>
+            <div class="button-group">
+                <button onclick="createSampleLayout()">샘플 Layout 생성</button>
+                <button onclick="addWall()">벽 추가</button>
+                <button onclick="addEquipmentArray()">설비 배열 추가</button>
+                <button onclick="clearCanvas()" class="danger">Canvas 초기화</button>
+            </div>
+            <div id="canvas-container"></div>
+        </div>
+
+        <!-- Serialization Section -->
+        <div class="test-section">
+            <h2>💾 직렬화 / 역직렬화</h2>
+            <div class="button-group">
+                <button onclick="serializeLayout()" class="success">직렬화 (Serialize)</button>
+                <button onclick="deserializeLayout()" class="secondary">역직렬화 (Deserialize)</button>
+                <button onclick="downloadJSON()">JSON 다운로드</button>
+                <div class="file-input-wrapper">
+                    <button class="secondary">JSON 업로드</button>
+                    <input type="file" id="file-input" accept=".json" onchange="loadJSON(event)">
+                </div>
+            </div>
+
+            <div class="grid">
+                <div>
+                    <h3 style="margin-bottom: 10px;">📋 직렬화 결과 (JSON)</h3>
+                    <div class="json-viewer" id="json-output">
+                        <pre>직렬화 버튼을 클릭하세요...</pre>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="margin-bottom: 10px;">📊 통계</h3>
+                    <div class="stats" id="stats-container">
+                        <div class="stat-card">
+                            <div class="label">Walls</div>
+                            <div class="value" id="stat-walls">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">Equipment</div>
+                            <div class="value" id="stat-equipment">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">Components</div>
+                            <div class="value" id="stat-components">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">JSON Size</div>
+                            <div class="value" id="stat-size">0 KB</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Validation Section -->
+        <div class="test-section">
+            <h2>✅ 검증 (Validation)</h2>
+            <div class="button-group">
+                <button onclick="validateLayout()">Layout 검증</button>
+                <button onclick="compareLayouts()">원본 vs 복원 비교</button>
+            </div>
+            <div id="validation-output"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module">
+        import { LayoutSerializer } from '../src/services/layout/LayoutSerializer.js';
+        import { LayoutFileFormat } from '../src/services/layout/LayoutFileFormat.js';
+
+        // Global variables
+        let stage = null;
+        let layers = {};
+        let serializedData = null;
+        let canvas2DEditor = null;
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            initCanvas();
+            showStatus('Canvas 초기화 완료', 'success');
+        });
+
+        // Initialize Canvas
+        function initCanvas() {
+            stage = new Konva.Stage({
+                container: 'canvas-container',
+                width: 1200,
+                height: 600
+            });
+
+            layers.background = new Konva.Layer();
+            layers.room = new Konva.Layer();
+            layers.equipment = new Konva.Layer();
+            layers.ui = new Konva.Layer();
+
+            stage.add(layers.background);
+            stage.add(layers.room);
+            stage.add(layers.equipment);
+            stage.add(layers.ui);
+
+            // Draw grid
+            drawGrid();
+
+            // Mock Canvas2DEditor
+            canvas2DEditor = {
+                config: { width: 1200, height: 600, scale: 10, gridSize: 10, showGrid: true, snapToGrid: true },
+                layers: layers,
+                currentLayout: { room: { width: 40, depth: 60, wallHeight: 3.5, wallThickness: 0.2 }, equipmentArrays: [] },
+                wallShapes: new Map(),
+                equipmentShapes: new Map(),
+                componentShapes: new Map(),
+                cssColors: {
+                    equipmentDefault: '#4a90e2',
+                    equipmentStroke: '#2c3e50',
+                    equipmentHover: '#3498db',
+                    wall: '#888888',
+                    roomStroke: '#333333'
+                }
+            };
+
+            window.canvas2DEditor = canvas2DEditor;
+        }
+
+        // Draw grid
+        function drawGrid() {
+            const gridSize = 10;
+            const width = stage.width();
+            const height = stage.height();
+
+            for (let i = 0; i < width / gridSize; i++) {
+                const line = new Konva.Line({
+                    points: [i * gridSize, 0, i * gridSize, height],
+                    stroke: i % 10 === 0 ? '#a0a0a0' : '#d0d0d0',
+                    strokeWidth: i % 10 === 0 ? 1 : 0.5,
+                    listening: false
+                });
+                layers.background.add(line);
+            }
+
+            for (let i = 0; i < height / gridSize; i++) {
+                const line = new Konva.Line({
+                    points: [0, i * gridSize, width, i * gridSize],
+                    stroke: i % 10 === 0 ? '#a0a0a0' : '#d0d0d0',
+                    strokeWidth: i % 10 === 0 ? 1 : 0.5,
+                    listening: false
+                });
+                layers.background.add(line);
+            }
+
+            layers.background.batchDraw();
+        }
+
+        // Create sample layout
+        window.createSampleLayout = function() {
+            clearCanvas();
+            
+            // Room boundary
+            const room = new Konva.Rect({
+                x: 0,
+                y: 0,
+                width: 400,
+                height: 600,
+                stroke: '#333333',
+                strokeWidth: 3,
+                name: 'roomBoundary'
+            });
+            layers.room.add(room);
+
+            // Add walls
+            for (let i = 0; i < 3; i++) {
+                addWall();
+            }
+
+            // Add equipment array
+            addEquipmentArray();
+
+            layers.room.batchDraw();
+            layers.equipment.batchDraw();
+
+            showStatus('샘플 Layout 생성 완료', 'success');
+        };
+
+        // Add wall
+        window.addWall = function() {
+            const wallId = `wall_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+            const x1 = Math.random() * 300 + 50;
+            const y1 = Math.random() * 400 + 50;
+            const x2 = x1 + Math.random() * 200 - 100;
+            const y2 = y1 + Math.random() * 200 - 100;
+
+            const wall = new Konva.Line({
+                id: wallId,
+                name: 'wall',
+                points: [x1, y1, x2, y2],
+                stroke: '#888888',
+                strokeWidth: 4,
+                lineCap: 'round',
+                draggable: true,
+                rotation: 0,  // ✨ rotation
+                wallType: 'partition',
+                wallHeight: 3.5,
+                wallThickness: 0.2
+            });
+
+            layers.room.add(wall);
+            canvas2DEditor.wallShapes.set(wallId, wall);
+            layers.room.batchDraw();
+
+            updateStats();
+            showStatus(`벽 추가: ${wallId}`, 'info');
+        };
+
+        // Add equipment array
+        window.addEquipmentArray = function() {
+            const arrayGroup = new Konva.Group({
+                x: 50,
+                y: 50,
+                draggable: true,
+                name: 'equipmentArray',
+                rotation: 0  // ✨ rotation
+            });
+
+            arrayGroup.setAttr('arrayConfig', {
+                rows: 5,
+                cols: 3,
+                rotation: 0
+            });
+
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 3; col++) {
+                    const equip = new Konva.Group({
+                        x: col * 50,
+                        y: row * 35,
+                        name: 'equipment',
+                        rotation: 0  // ✨ rotation
+                    });
+
+                    equip.setAttr('equipmentData', {
+                        id: `EQ-${row+1}-${col+1}`,
+                        row: row,
+                        col: col,
+                        size: { width: 1.5, depth: 3.0 },
+                        rotation: 0
+                    });
+
+                    const rect = new Konva.Rect({
+                        width: 45,
+                        height: 30,
+                        fill: '#4a90e2',
+                        stroke: '#2c3e50',
+                        strokeWidth: 1
+                    });
+
+                    const text = new Konva.Text({
+                        width: 45,
+                        height: 30,
+                        text: `${row+1}-${col+1}`,
+                        fontSize: 10,
+                        fill: '#ffffff',
+                        align: 'center',
+                        verticalAlign: 'middle'
+                    });
+
+                    equip.add(rect);
+                    equip.add(text);
+                    arrayGroup.add(equip);
+                }
+            }
+
+            layers.equipment.add(arrayGroup);
+            layers.equipment.batchDraw();
+
+            updateStats();
+            showStatus('설비 배열 추가 (5×3)', 'info');
+        };
+
+        // Clear canvas
+        window.clearCanvas = function() {
+            layers.room.destroyChildren();
+            layers.equipment.destroyChildren();
+            canvas2DEditor.wallShapes.clear();
+            canvas2DEditor.equipmentShapes.clear();
+            canvas2DEditor.componentShapes.clear();
+
+            layers.room.batchDraw();
+            layers.equipment.batchDraw();
+
+            updateStats();
+            showStatus('Canvas 초기화 완료', 'info');
+        };
+
+        // Serialize layout
+        window.serializeLayout = function() {
+            try {
+                const serializer = new LayoutSerializer();
+                serializedData = serializer.serialize(canvas2DEditor, 'test_site');
+
+                const jsonString = JSON.stringify(serializedData, null, 2);
+                document.getElementById('json-output').innerHTML = `<pre>${escapeHtml(jsonString)}</pre>`;
+
+                updateStats();
+                showStatus('✅ 직렬화 성공', 'success');
+
+                console.log('[Test] Serialized data:', serializedData);
+            } catch (error) {
+                showStatus(`❌ 직렬화 실패: ${error.message}`, 'error');
+                console.error('[Test] Serialization error:', error);
+            }
+        };
+
+        // Deserialize layout
+        window.deserializeLayout = function() {
+            if (!serializedData) {
+                showStatus('먼저 직렬화를 실행하세요', 'error');
+                return;
+            }
+
+            try {
+                clearCanvas();
+
+                const serializer = new LayoutSerializer();
+                serializer.deserialize(serializedData, canvas2DEditor);
+
+                updateStats();
+                showStatus('✅ 역직렬화 성공', 'success');
+
+                console.log('[Test] Deserialized successfully');
+            } catch (error) {
+                showStatus(`❌ 역직렬화 실패: ${error.message}`, 'error');
+                console.error('[Test] Deserialization error:', error);
+            }
+        };
+
+        // Download JSON
+        window.downloadJSON = function() {
+            if (!serializedData) {
+                showStatus('먼저 직렬화를 실행하세요', 'error');
+                return;
+            }
+
+            const serializer = new LayoutSerializer();
+            serializer.downloadAsFile(serializedData, 'test_layout.json');
+
+            showStatus('✅ JSON 파일 다운로드 완료', 'success');
+        };
+
+        // Load JSON
+        window.loadJSON = async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const serializer = new LayoutSerializer();
+                const layoutData = await serializer.loadFromFile(file);
+
+                serializedData = layoutData;
+
+                clearCanvas();
+                serializer.deserialize(layoutData, canvas2DEditor);
+
+                const jsonString = JSON.stringify(layoutData, null, 2);
+                document.getElementById('json-output').innerHTML = `<pre>${escapeHtml(jsonString)}</pre>`;
+
+                updateStats();
+                showStatus(`✅ JSON 파일 로드 완료: ${file.name}`, 'success');
+            } catch (error) {
+                showStatus(`❌ JSON 로드 실패: ${error.message}`, 'error');
+                console.error('[Test] Load error:', error);
+            }
+        };
+
+        // Validate layout
+        window.validateLayout = function() {
+            if (!serializedData) {
+                showStatus('먼저 직렬화를 실행하세요', 'error');
+                return;
+            }
+
+            const format = new LayoutFileFormat();
+            const result = format.validate(serializedData);
+
+            let html = '';
+            if (result.valid) {
+                html = '<div class="status success">✅ 검증 성공: Layout이 유효합니다</div>';
+            } else {
+                html = '<div class="status error">❌ 검증 실패</div>';
+                html += '<ul style="margin-left: 20px;">';
+                result.errors.forEach(err => {
+                    html += `<li><strong>${err.field}:</strong> ${err.message}</li>`;
+                });
+                html += '</ul>';
+            }
+
+            document.getElementById('validation-output').innerHTML = html;
+        };
+
+        // Compare layouts
+        window.compareLayouts = function() {
+            if (!serializedData) {
+                showStatus('먼저 직렬화를 실행하세요', 'error');
+                return;
+            }
+
+            // Re-serialize current state
+            const serializer = new LayoutSerializer();
+            const currentData = serializer.serialize(canvas2DEditor, 'test_site');
+
+            const comparison = {
+                walls: {
+                    original: serializedData.walls.length,
+                    current: currentData.walls.length,
+                    match: serializedData.walls.length === currentData.walls.length
+                },
+                equipmentArrays: {
+                    original: serializedData.equipmentArrays.length,
+                    current: currentData.equipmentArrays.length,
+                    match: serializedData.equipmentArrays.length === currentData.equipmentArrays.length
+                }
+            };
+
+            let html = '<div class="status info"><strong>원본 vs 복원 비교</strong></div>';
+            html += '<table style="width:100%; border-collapse: collapse; margin-top: 10px;">';
+            html += '<tr style="background: #ecf0f1;"><th style="padding: 10px; border: 1px solid #ddd;">항목</th><th style="padding: 10px; border: 1px solid #ddd;">원본</th><th style="padding: 10px; border: 1px solid #ddd;">복원</th><th style="padding: 10px; border: 1px solid #ddd;">일치</th></tr>';
+
+            Object.keys(comparison).forEach(key => {
+                const item = comparison[key];
+                const matchIcon = item.match ? '✅' : '❌';
+                html += `<tr>`;
+                html += `<td style="padding: 10px; border: 1px solid #ddd;">${key}</td>`;
+                html += `<td style="padding: 10px; border: 1px solid #ddd;">${item.original}</td>`;
+                html += `<td style="padding: 10px; border: 1px solid #ddd;">${item.current}</td>`;
+                html += `<td style="padding: 10px; border: 1px solid #ddd;">${matchIcon}</td>`;
+                html += `</tr>`;
+            });
+
+            html += '</table>';
+
+            document.getElementById('validation-output').innerHTML = html;
+        };
+
+        // Update stats
+        function updateStats() {
+            const wallCount = canvas2DEditor.wallShapes.size;
+            const equipCount = layers.equipment.find('.equipment').length;
+            const compCount = canvas2DEditor.componentShapes.size;
+            const jsonSize = serializedData ? (JSON.stringify(serializedData).length / 1024).toFixed(2) : 0;
+
+            document.getElementById('stat-walls').textContent = wallCount;
+            document.getElementById('stat-equipment').textContent = equipCount;
+            document.getElementById('stat-components').textContent = compCount;
+            document.getElementById('stat-size').textContent = `${jsonSize} KB`;
+        }
+
+        // Show status
+        function showStatus(message, type = 'info') {
+            const statusArea = document.getElementById('status-area');
+            statusArea.innerHTML = `<div class="status ${type}">${message}</div>`;
+
+            setTimeout(() => {
+                statusArea.innerHTML = '';
+            }, 5000);
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>

@@ -4,11 +4,7 @@
  * 
  * 벽을 직선으로 그릴 수 있는 도구
  * 
- * 사용자 플로우:
- * 1. "Wall Tool" 버튼 클릭
- * 2. Canvas에서 시작점 클릭
- * 3. 마우스 이동 (실시간 라인 표시)
- * 4. 끝점 클릭 → 벽 생성
+ * @version 1.1.0 - Phase 3.1: rotation 속성 추가
  * 
  * 위치: frontend/threejs_viewer/src/layout_editor/tools/WallDrawTool.js
  */
@@ -27,7 +23,8 @@ export class WallDrawTool {
         this.wallConfig = {
             thickness: 0.2,  // 20cm
             height: 3,       // 3m
-            color: '#888888'
+            color: '#888888',
+            rotation: 0      // ✨ Phase 3.1: 기본 rotation
         };
         
         // 이벤트 핸들러 바인딩
@@ -36,7 +33,7 @@ export class WallDrawTool {
         this.onMouseUp = this.onMouseUp.bind(this);
         this.onKeyDown = this.onKeyDown.bind(this);
         
-        console.log('[WallDrawTool] 초기화 완료');
+        console.log('[WallDrawTool] 초기화 완료 v1.1.0');
     }
     
     /**
@@ -231,11 +228,12 @@ export class WallDrawTool {
             lineCap: 'round',
             lineJoin: 'round',
             
-            // ✅ 수정: 벽 드래그 가능하도록 변경
+            // 벽 드래그 가능
             draggable: true,
-            
-            // ✅ 선택은 가능 (PropertyPanel에서 편집)
             listening: true,
+            
+            // ✨ Phase 3.1: rotation 추가
+            rotation: this.wallConfig.rotation || 0,
             
             // 메타데이터 저장
             wallType: 'partition',  // 파티션 (내부 벽)
@@ -319,6 +317,10 @@ export class WallDrawTool {
         }
         if (config.color !== undefined) {
             this.wallConfig.color = config.color;
+        }
+        // ✨ Phase 3.1: rotation 업데이트
+        if (config.rotation !== undefined) {
+            this.wallConfig.rotation = config.rotation;
         }
         
         console.log('[WallDrawTool] 벽 설정 업데이트:', this.wallConfig);
