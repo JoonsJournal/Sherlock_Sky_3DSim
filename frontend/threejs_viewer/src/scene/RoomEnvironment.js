@@ -2,36 +2,86 @@
  * RoomEnvironment.js
  * 클린룸 환경 구축 - 벽, Office, 파티션, 책상
  * 
- * @version 1.1.0 - Phase 4 동적 치수 업데이트 지원
+ * @version 1.2.0 - Phase 4.2 동적 파라미터 주입 지원
+ * 
+ * 변경사항:
+ * - constructor에 params 파라미터 추가
+ * - params 우선, 없으면 기본값 fallback (backward compatible)
+ * - 동적 벽/파티션 배열 지원
  */
 
 import * as THREE from 'three';
 import { debugLog } from '../utils/Config.js';
 
 export class RoomEnvironment {
-    constructor(scene) {
+    /**
+     * @param {THREE.Scene} scene - Three.js Scene 객체
+     * @param {Object|null} params - 동적 파라미터 (선택적)
+     * @param {number} params.roomWidth - 클린룸 너비 (m)
+     * @param {number} params.roomDepth - 클린룸 깊이 (m)
+     * @param {number} params.wallHeight - 벽 높이 (m)
+     * @param {number} params.wallThickness - 벽 두께 (m)
+     * @param {number} params.officeWidth - Office 너비 (m)
+     * @param {number} params.officeDepth - Office 깊이 (m)
+     * @param {number} params.officeX - Office X 위치 (m)
+     * @param {number} params.officeZ - Office Z 위치 (m)
+     * @param {boolean} params.hasOffice - Office 생성 여부
+     * @param {Array|null} params.walls - 동적 벽 배열
+     * @param {Array|null} params.partitions - 동적 파티션 배열
+     */
+    constructor(scene, params = null) {
         this.scene = scene;
         this.walls = [];
         this.partitions = [];
         this.furniture = [];
         
+        // =========================================================
+        // ✨ Phase 4.2: 동적 파라미터 주입
+        // params가 있으면 사용, 없으면 기본값 (backward compatible)
+        // =========================================================
+        
         // 클린룸 치수 (미터 단위)
-        this.roomWidth = 40;    // 클린룸 너비
-        this.roomDepth = 60;   // 클린룸 깊이
-        this.wallHeight = 4;    // 벽 높이
-        this.wallThickness = 0.2; // 벽 두께
+        this.roomWidth = params?.roomWidth ?? 40;
+        this.roomDepth = params?.roomDepth ?? 60;
+        this.wallHeight = params?.wallHeight ?? 4;
+        this.wallThickness = params?.wallThickness ?? 0.2;
         
         // Office 치수
-        this.officeWidth = 12;
-        this.officeDepth = 20;
-        this.officeX = 15;      // Office X 위치 (오른쪽 상단)
-        this.officeZ = -20;     // Office Z 위치
+        this.officeWidth = params?.officeWidth ?? 12;
+        this.officeDepth = params?.officeDepth ?? 20;
+        this.officeX = params?.officeX ?? 15;
+        this.officeZ = params?.officeZ ?? -20;
         
-        // ✨ Phase 4: 동적 업데이트 플래그
+        // ✨ Phase 4.2: 새로운 옵션
+        this.hasOffice = params?.hasOffice ?? true;
+        this.officeHasEntrance = params?.officeHasEntrance ?? true;
+        this.officeEntranceWidth = params?.officeEntranceWidth ?? 3;
+        
+        // ✨ Phase 4.2: 동적 벽/파티션 배열
+        this._dynamicWalls = params?.walls || null;
+        this._dynamicPartitions = params?.partitions || null;
+        
+        // ✨ Phase 4.2: 메타데이터
+        this._meta = params?._meta || null;
+        
+        // 동적 업데이트 플래그
         this._isBuilt = false;
+        this._usesDynamicParams = params !== null;
         
         // 재질
         this.materials = this.createMaterials();
+        
+        // 로그 출력
+        if (this._usesDynamicParams) {
+            console.log('[RoomEnvironment] ✅ 동적 파라미터로 초기화:', {
+                room: `${this.roomWidth}m × ${this.roomDepth}m`,
+                office: this.hasOffice ? `${this.officeWidth}m × ${this.officeDepth}m` : 'None',
+                dynamicWalls: this._dynamicWalls ? this._dynamicWalls.length : 'Default',
+                dynamicPartitions: this._dynamicPartitions ? this._dynamicPartitions.length : 'Default'
+            });
+        } else {
+            debugLog('[RoomEnvironment] 기본 파라미터로 초기화');
+        }
     }
     
     /**
@@ -137,6 +187,10 @@ export class RoomEnvironment {
             if (officeParams.position.z !== undefined) this.officeZ = officeParams.position.z;
         }
         
+        // 추가 옵션
+        if (officeParams.hasEntrance !== undefined) this.officeHasEntrance = officeParams.hasEntrance;
+        if (officeParams.entranceWidth !== undefined) this.officeEntranceWidth = officeParams.entranceWidth;
+        
         console.log('[RoomEnvironment] Office 파라미터 업데이트 완료');
         return this;
     }
@@ -168,16 +222,32 @@ export class RoomEnvironment {
         debugLog('🏗️ 클린룸 환경 구축 시작...');
         
         // 1. 클린룸 외벽
-        this.createCleanRoomWalls();
+        if (this._dynamicWalls && this._dynamicWalls.length > 0) {
+            // ✨ Phase 4.2: 동적 벽 사용
+            this.createDynamicWalls();
+        } else {
+            // 기본 벽 생성
+            this.createCleanRoomWalls();
+        }
         
-        // 2. Office 공간
-        this.createOfficeArea();
+        // 2. Office 공간 (옵션)
+        if (this.hasOffice) {
+            this.createOfficeArea();
+        }
         
         // 3. 파티션 (칸막이)
-        this.createPartitions();
+        if (this._dynamicPartitions && this._dynamicPartitions.length > 0) {
+            // ✨ Phase 4.2: 동적 파티션 사용
+            this.createDynamicPartitions();
+        } else if (this.hasOffice) {
+            // 기본 파티션 생성 (Office가 있을 때만)
+            this.createPartitions();
+        }
         
-        // 4. 책상
-        this.createDesk();
+        // 4. 책상 (Office가 있을 때만)
+        if (this.hasOffice) {
+            this.createDesk();
+        }
         
         // 5. 기둥 (선택사항)
         // this.createPillars();
@@ -231,10 +301,54 @@ export class RoomEnvironment {
     }
     
     /**
+     * ✨ Phase 4.2: 동적 벽 생성
+     */
+    createDynamicWalls() {
+        if (!this._dynamicWalls || this._dynamicWalls.length === 0) {
+            console.warn('[RoomEnvironment] 동적 벽 데이터가 없습니다');
+            return;
+        }
+        
+        this._dynamicWalls.forEach((wallData, index) => {
+            const geometry = new THREE.BoxGeometry(
+                wallData.size?.width || 1,
+                wallData.size?.height || this.wallHeight,
+                wallData.size?.depth || this.wallThickness
+            );
+            
+            const wall = new THREE.Mesh(geometry, this.materials.wall);
+            
+            wall.position.set(
+                wallData.position?.x || 0,
+                wallData.position?.y || this.wallHeight / 2,
+                wallData.position?.z || 0
+            );
+            
+            // 회전 적용
+            if (wallData.rotation) {
+                wall.rotation.y = wallData.rotation;
+            }
+            
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            wall.name = wallData.id || `dynamic-wall-${index}`;
+            
+            this.scene.add(wall);
+            this.walls.push(wall);
+        });
+        
+        debugLog(`🧱 동적 벽 ${this._dynamicWalls.length}개 생성 완료`);
+    }
+    
+    /**
      * Office 공간 생성 (3면 벽 + 입구)
      */
     createOfficeArea() {
         const halfHeight = this.wallHeight / 2;
+        
+        // 입구 크기 계산
+        const entranceGap = this.officeHasEntrance ? this.officeEntranceWidth : 0;
+        const sideWallLength = (this.officeDepth - entranceGap) / 2;
         
         // Office 벽 설정
         const officeWallConfigs = [
@@ -256,29 +370,41 @@ export class RoomEnvironment {
                 this.wallThickness,
                 this.wallHeight,
                 this.officeDepth
-            ],
-            
-            // Office 서쪽 벽 (왼쪽) - 입구를 위해 두 부분으로 나눔
-            // 위쪽 부분
-            [
-                this.officeX - this.officeWidth / 2,
-                halfHeight,
-                this.officeZ - this.officeDepth / 4 - 2,
-                this.wallThickness,
-                this.wallHeight,
-                this.officeDepth / 2 - 4
-            ],
-            
-            // 아래쪽 부분
-            [
-                this.officeX - this.officeWidth / 2,
-                halfHeight,
-                this.officeZ + this.officeDepth / 4 + 2,
-                this.wallThickness,
-                this.wallHeight,
-                this.officeDepth / 2 - 4
             ]
         ];
+        
+        // Office 서쪽 벽 (왼쪽) - 입구를 위해 두 부분으로 나눔
+        if (this.officeHasEntrance && entranceGap > 0) {
+            // 위쪽 부분
+            officeWallConfigs.push([
+                this.officeX - this.officeWidth / 2,
+                halfHeight,
+                this.officeZ - this.officeDepth / 4 - entranceGap / 4,
+                this.wallThickness,
+                this.wallHeight,
+                sideWallLength
+            ]);
+            
+            // 아래쪽 부분
+            officeWallConfigs.push([
+                this.officeX - this.officeWidth / 2,
+                halfHeight,
+                this.officeZ + this.officeDepth / 4 + entranceGap / 4,
+                this.wallThickness,
+                this.wallHeight,
+                sideWallLength
+            ]);
+        } else {
+            // 입구 없이 전체 벽
+            officeWallConfigs.push([
+                this.officeX - this.officeWidth / 2,
+                halfHeight,
+                this.officeZ,
+                this.wallThickness,
+                this.wallHeight,
+                this.officeDepth
+            ]);
+        }
         
         officeWallConfigs.forEach((config, index) => {
             const [x, y, z, width, height, depth] = config;
@@ -303,7 +429,7 @@ export class RoomEnvironment {
     createPartitions() {
         const partitionX = this.officeX - this.officeWidth / 2;
         const partitionZ = this.officeZ;
-        const partitionWidth = 3;
+        const partitionWidth = this.officeEntranceWidth;
         const partitionHeight = 2.5;
         
         // 파티션 프레임 (알루미늄)
@@ -342,6 +468,71 @@ export class RoomEnvironment {
         this.partitions.push(glass);
         
         debugLog('🚪 파티션 생성 완료 (유리 칸막이)');
+    }
+    
+    /**
+     * ✨ Phase 4.2: 동적 파티션 생성
+     */
+    createDynamicPartitions() {
+        if (!this._dynamicPartitions || this._dynamicPartitions.length === 0) {
+            console.warn('[RoomEnvironment] 동적 파티션 데이터가 없습니다');
+            return;
+        }
+        
+        this._dynamicPartitions.forEach((partitionData, index) => {
+            const partitionHeight = partitionData.size?.height || 2.5;
+            const partitionWidth = partitionData.size?.width || 3;
+            const partitionDepth = partitionData.size?.depth || 0.1;
+            
+            // 프레임 생성 (hasFrame이 true일 때)
+            if (partitionData.hasFrame !== false) {
+                const frameGeometry = new THREE.BoxGeometry(0.1, partitionHeight, 0.05);
+                
+                // 왼쪽 프레임
+                const leftFrame = new THREE.Mesh(frameGeometry, this.materials.frame);
+                leftFrame.position.set(
+                    partitionData.position.x,
+                    partitionData.position.y,
+                    partitionData.position.z - partitionWidth / 2
+                );
+                leftFrame.castShadow = true;
+                this.scene.add(leftFrame);
+                this.partitions.push(leftFrame);
+                
+                // 오른쪽 프레임
+                const rightFrame = new THREE.Mesh(frameGeometry, this.materials.frame);
+                rightFrame.position.set(
+                    partitionData.position.x,
+                    partitionData.position.y,
+                    partitionData.position.z + partitionWidth / 2
+                );
+                rightFrame.castShadow = true;
+                this.scene.add(rightFrame);
+                this.partitions.push(rightFrame);
+            }
+            
+            // 유리/패널 생성
+            const material = partitionData.type === 'glass' 
+                ? this.materials.glass 
+                : this.materials.wall;
+            
+            const panelGeometry = new THREE.BoxGeometry(partitionDepth, partitionHeight, partitionWidth);
+            const panel = new THREE.Mesh(panelGeometry, material);
+            
+            panel.position.set(
+                partitionData.position.x,
+                partitionData.position.y,
+                partitionData.position.z
+            );
+            panel.castShadow = true;
+            panel.receiveShadow = true;
+            panel.name = partitionData.id || `dynamic-partition-${index}`;
+            
+            this.scene.add(panel);
+            this.partitions.push(panel);
+        });
+        
+        debugLog(`🚪 동적 파티션 ${this._dynamicPartitions.length}개 생성 완료`);
     }
     
     /**
@@ -450,8 +641,18 @@ export class RoomEnvironment {
             officeWidth: this.officeWidth,
             officeDepth: this.officeDepth,
             officeX: this.officeX,
-            officeZ: this.officeZ
+            officeZ: this.officeZ,
+            hasOffice: this.hasOffice,
+            officeHasEntrance: this.officeHasEntrance,
+            officeEntranceWidth: this.officeEntranceWidth
         };
+    }
+    
+    /**
+     * ✨ Phase 4.2: 동적 파라미터 사용 여부 확인
+     */
+    usesDynamicParams() {
+        return this._usesDynamicParams;
     }
     
     /**
@@ -460,12 +661,18 @@ export class RoomEnvironment {
     debug() {
         console.group('[RoomEnvironment] Debug Info');
         console.log('Room 치수:', `${this.roomWidth}m × ${this.roomDepth}m × ${this.wallHeight}m`);
-        console.log('Office 치수:', `${this.officeWidth}m × ${this.officeDepth}m`);
-        console.log('Office 위치:', `(${this.officeX}, ${this.officeZ})`);
+        console.log('Office 치수:', this.hasOffice 
+            ? `${this.officeWidth}m × ${this.officeDepth}m at (${this.officeX}, ${this.officeZ})`
+            : 'None');
+        console.log('Office 입구:', this.officeHasEntrance ? `${this.officeEntranceWidth}m` : 'None');
         console.log('벽 개수:', this.walls.length);
         console.log('파티션 개수:', this.partitions.length);
         console.log('가구 개수:', this.furniture.length);
         console.log('구축 완료:', this._isBuilt);
+        console.log('동적 파라미터 사용:', this._usesDynamicParams);
+        console.log('동적 벽:', this._dynamicWalls ? `${this._dynamicWalls.length}개` : 'None');
+        console.log('동적 파티션:', this._dynamicPartitions ? `${this._dynamicPartitions.length}개` : 'None');
+        console.log('메타데이터:', this._meta);
         console.groupEnd();
     }
     

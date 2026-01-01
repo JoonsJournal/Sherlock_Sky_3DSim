@@ -3,7 +3,7 @@
  * Three.js 씬, 카메라, 렌더러 초기화 및 관리
  * 10,000 Class 클린룸 스타일 적용 - 최적화 버전
  * 
- * @version 1.1.0 - Phase 4 applyLayout 지원
+ * @version 1.2.0 - Phase 4.2 RoomEnvironment params 전달 지원
  */
 
 import * as THREE from 'three';
@@ -22,12 +22,16 @@ export class SceneManager {
         this.fpsLastTime = performance.now();
         this.fpsFrameCount = 0;
         this.currentFps = 60;
+        
+        // ✨ Phase 4.2: 현재 적용된 Layout params
+        this._currentLayoutParams = null;
     }
     
     /**
      * 씬, 카메라, 렌더러 초기화
+     * @param {Object|null} roomParams - RoomEnvironment 초기화 파라미터 (선택적)
      */
-    init() {
+    init(roomParams = null) {
         // 씬 생성
         this.scene = new THREE.Scene();
         // 클린룸 배경 - 매우 밝은 아이보리/연한 회색
@@ -84,14 +88,55 @@ export class SceneManager {
         // 바닥 추가
         this.addCleanRoomFloor();
         
-        // ⭐ 클린룸 환경 구축
-        this.roomEnvironment = new RoomEnvironment(this.scene);
-        this.roomEnvironment.buildEnvironment();
+        // ⭐ 클린룸 환경 구축 (params 전달 지원)
+        this.initRoomEnvironment(roomParams);
         
         // 창 크기 변경 이벤트 리스너
         window.addEventListener('resize', () => this.onWindowResize());
         
         return true;
+    }
+    
+    // =========================================================
+    // ✨ Phase 4.2: RoomEnvironment 초기화 메서드
+    // =========================================================
+    
+    /**
+     * ✨ Phase 4.2: RoomEnvironment 초기화 (params 지원)
+     * @param {Object|null} params - RoomEnvironment 파라미터
+     * @returns {RoomEnvironment} 생성된 RoomEnvironment 인스턴스
+     */
+    initRoomEnvironment(params = null) {
+        // 기존 RoomEnvironment가 있으면 정리
+        if (this.roomEnvironment) {
+            this.roomEnvironment.dispose();
+            this.roomEnvironment = null;
+        }
+        
+        // ✨ Phase 4.2: params와 함께 RoomEnvironment 생성
+        this.roomEnvironment = new RoomEnvironment(this.scene, params);
+        this.roomEnvironment.buildEnvironment();
+        
+        // 현재 params 저장
+        this._currentLayoutParams = params;
+        
+        if (params) {
+            console.log('[SceneManager] ✅ RoomEnvironment 초기화 완료 (동적 params 사용)');
+        } else {
+            debugLog('[SceneManager] RoomEnvironment 초기화 완료 (기본 params)');
+        }
+        
+        return this.roomEnvironment;
+    }
+    
+    /**
+     * ✨ Phase 4.2: RoomEnvironment 재초기화 (새 params로)
+     * @param {Object} params - 새로운 RoomEnvironment 파라미터
+     * @returns {RoomEnvironment} 생성된 RoomEnvironment 인스턴스
+     */
+    reinitRoomEnvironment(params) {
+        console.log('[SceneManager] RoomEnvironment 재초기화 시작...');
+        return this.initRoomEnvironment(params);
     }
     
     /**
@@ -199,6 +244,54 @@ export class SceneManager {
             
         } catch (error) {
             console.error('[SceneManager] Layout 적용 실패:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * ✨ Phase 4.2: RoomParamsAdapter 결과로 Layout 적용
+     * @param {Object} adaptedParams - RoomParamsAdapter.adapt() 결과
+     * @param {Object} options - 적용 옵션
+     * @returns {boolean} 성공 여부
+     */
+    applyLayoutWithParams(adaptedParams, options = {}) {
+        if (!adaptedParams) {
+            console.error('[SceneManager] applyLayoutWithParams: adaptedParams가 없습니다');
+            return false;
+        }
+        
+        console.log('[SceneManager] Layout 적용 (params 방식) 시작...');
+        
+        try {
+            // 1. Floor 업데이트
+            if (options.updateFloor !== false) {
+                const newFloorSize = Math.max(
+                    adaptedParams.roomWidth || 40, 
+                    adaptedParams.roomDepth || 60
+                ) + 20;
+                updateSceneConfig({ FLOOR_SIZE: newFloorSize });
+                this.updateFloor({
+                    roomWidth: adaptedParams.roomWidth,
+                    roomDepth: adaptedParams.roomDepth
+                });
+            }
+            
+            // 2. RoomEnvironment 재초기화 (새 params로)
+            if (options.rebuildRoom !== false) {
+                this.reinitRoomEnvironment(adaptedParams);
+            }
+            
+            console.log('[SceneManager] ✅ Layout 적용 완료 (params 방식)');
+            
+            // 적용 완료 이벤트 발생
+            window.dispatchEvent(new CustomEvent('layout-params-applied', {
+                detail: { adaptedParams, options }
+            }));
+            
+            return true;
+            
+        } catch (error) {
+            console.error('[SceneManager] Layout 적용 실패 (params 방식):', error);
             return false;
         }
     }
@@ -334,6 +427,13 @@ export class SceneManager {
         return this.roomEnvironment;
     }
     
+    /**
+     * ✨ Phase 4.2: 현재 Layout params 반환
+     */
+    getCurrentLayoutParams() {
+        return this._currentLayoutParams;
+    }
+    
     // =========================================================
     // ✨ Phase 4: 추가 유틸리티
     // =========================================================
@@ -347,6 +447,7 @@ export class SceneManager {
         console.log('Floor size:', this.floor?.geometry?.parameters?.width);
         console.log('FPS:', this.currentFps);
         console.log('Draw calls:', this.renderer.info.render.calls);
+        console.log('Current Layout Params:', this._currentLayoutParams);
         
         if (this.roomEnvironment) {
             this.roomEnvironment.debug();
@@ -376,6 +477,9 @@ export class SceneManager {
         if (this.roomEnvironment) {
             this.roomEnvironment.dispose();
         }
+        
+        // 참조 초기화
+        this._currentLayoutParams = null;
         
         window.removeEventListener('resize', () => this.onWindowResize());
         

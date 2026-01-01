@@ -3,6 +3,7 @@
  * 메인 애플리케이션 진입점
  * SceneManager, EquipmentLoader, CameraControls, InteractionHandler, DataOverlay, StatusVisualizer, PerformanceMonitor 통합
  * ⭐ Phase 2 추가: ConnectionModal 통합
+ * ⭐ Phase 4.2 추가: RoomParamsAdapter 및 Layout 적용 연동
 */
 
 // ⭐⭐⭐ 1. THREE import (가장 먼저!)
@@ -34,6 +35,12 @@ import { ApiClient } from './api/ApiClient.js';
 // ============================================
 import { MonitoringService } from './services/MonitoringService.js';
 import { SignalTowerManager } from './services/SignalTowerManager.js';
+
+// ============================================
+// ⭐ Phase 4.2: Layout 변환 및 적용 import
+// ============================================
+import { Layout2DTo3DConverter, layout2DTo3DConverter } from './services/converter/Layout2DTo3DConverter.js';
+import { RoomParamsAdapter, roomParamsAdapter } from './services/converter/RoomParamsAdapter.js';
 
 // 전역 객체
 let sceneManager;
@@ -190,6 +197,12 @@ function init() {
         // 전역 객체로 노출 (테스트용)
         window.monitoringService = monitoringService;
         window.signalTowerManager = signalTowerManager;
+        
+        // ============================================
+        // ⭐ Phase 4.2: Layout 적용 이벤트 리스너
+        // ============================================
+        setupLayoutEventListeners();
+        console.log('✅ Layout 이벤트 리스너 설정 완료');
         
         // ============================================
         // ⭐ Edit Button 이벤트 리스너
@@ -415,6 +428,89 @@ function init() {
     }
 }
 
+// ============================================
+// ⭐ Phase 4.2: Layout 이벤트 리스너 설정
+// ============================================
+
+/**
+ * Layout 관련 이벤트 리스너 설정
+ */
+function setupLayoutEventListeners() {
+    // Layout Editor에서 Layout 적용 요청 시
+    window.addEventListener('apply-layout-request', (e) => {
+        const { layoutData, options } = e.detail || {};
+        
+        if (!layoutData) {
+            console.error('[main.js] apply-layout-request: layoutData가 없습니다');
+            return;
+        }
+        
+        console.log('[main.js] Layout 적용 요청 수신...');
+        
+        try {
+            // 1. Layout2DTo3DConverter로 변환
+            const convertedLayout = layout2DTo3DConverter.convert(layoutData);
+            
+            if (!convertedLayout) {
+                throw new Error('Layout 변환 실패');
+            }
+            
+            // 2. RoomParamsAdapter로 params 변환
+            const adaptedParams = roomParamsAdapter.adapt(convertedLayout);
+            
+            // 3. 검증
+            const validation = roomParamsAdapter.validate(adaptedParams);
+            if (!validation.valid) {
+                console.error('[main.js] Layout params 검증 실패:', validation.errors);
+                throw new Error(`Layout params 검증 실패: ${validation.errors.join(', ')}`);
+            }
+            
+            if (validation.warnings.length > 0) {
+                console.warn('[main.js] Layout params 경고:', validation.warnings);
+            }
+            
+            // 4. SceneManager에 적용
+            const success = sceneManager.applyLayoutWithParams(adaptedParams, options);
+            
+            if (success) {
+                console.log('[main.js] ✅ Layout 적용 완료');
+                
+                // 적용 완료 이벤트 발생
+                window.dispatchEvent(new CustomEvent('layout-apply-complete', {
+                    detail: { 
+                        layoutData, 
+                        adaptedParams,
+                        success: true 
+                    }
+                }));
+            } else {
+                throw new Error('SceneManager.applyLayoutWithParams 실패');
+            }
+            
+        } catch (error) {
+            console.error('[main.js] Layout 적용 실패:', error);
+            
+            // 실패 이벤트 발생
+            window.dispatchEvent(new CustomEvent('layout-apply-complete', {
+                detail: { 
+                    layoutData, 
+                    error: error.message,
+                    success: false 
+                }
+            }));
+        }
+    });
+    
+    // Layout 적용 완료 이벤트 (SceneManager에서 발생)
+    window.addEventListener('layout-applied', (e) => {
+        console.log('[main.js] layout-applied 이벤트 수신:', e.detail);
+    });
+    
+    window.addEventListener('layout-params-applied', (e) => {
+        console.log('[main.js] layout-params-applied 이벤트 수신:', e.detail);
+    });
+}
+
 /**
  * 애니메이션 루프
  */
@@ -476,6 +572,29 @@ function setupGlobalDebugFunctions() {
         console.log('  getEquipmentInfo(id) - 특정 설비 정보 조회');
         console.log('  updateEquipmentStatus(id, status) - 설비 상태 변경');
         console.log('  getSelectedEquipments() - 선택된 설비 목록');
+        console.log('');
+        console.log('📷 카메라:');
+        console.log('  setCameraView(0~7) - 카메라 뷰 변경');
+        console.log('  rotateCameraView() - 카메라 90도 회전');
+        console.log('  getViewMode() - 현재 View 모드 확인');
+        console.log('  setViewMode("top" | "isometric") - View 모드 변경');
+        console.log('');
+        console.log('✏️ Edit 모드:');
+        console.log('  toggleEditMode() - Edit 모드 토글');
+        console.log('  getMappingStatus() - 매핑 상태 확인');
+        console.log('  clearAllMappings() - 모든 매핑 초기화');
+        console.log('  exportMappings() - 매핑 파일 내보내기');
+        console.log('');
+        console.log('📡 Monitoring:');
+        console.log('  toggleMonitoringMode() - Monitoring 모드 토글');
+        console.log('  monitoringService.testStatusChange(id, status) - 상태 변경 테스트');
+        console.log('  signalTowerManager.debug() - Signal Tower 상태 확인');
+        console.log('');
+        // ✨ Phase 4.2 추가
+        console.log('🏗️ Layout (Phase 4.2):');
+        console.log('  applyTestLayout() - 테스트 Layout 적용');
+        console.log('  testRoomResize(w, d, h) - Room 크기 변경 테스트');
+        console.log('  sceneManager.getRoomEnvironment().debug() - Room 정보');
         console.log('');
         console.groupEnd();
     };
@@ -884,6 +1003,85 @@ function setupGlobalDebugFunctions() {
         console.log('📁 매핑 데이터가 파일로 내보내졌습니다');
     };
 
+    // ============================================
+    // ⭐ Phase 4.2: Layout 테스트 함수
+    // ============================================
+    
+    /**
+     * 테스트용 Layout 적용
+     */
+    window.applyTestLayout = () => {
+        console.log('[Test] 테스트 Layout 적용 시작...');
+        
+        // 테스트용 Layout 데이터
+        const testLayoutData = {
+            version: '1.0',
+            site_id: 'test_site',
+            template_name: 'test_layout',
+            canvas: {
+                width: 1200,
+                height: 800,
+                scale: 10
+            },
+            room: {
+                width: 50,   // 기본 40 → 50으로 변경
+                depth: 70,   // 기본 60 → 70으로 변경
+                wallHeight: 5,  // 기본 4 → 5으로 변경
+                wallThickness: 0.25
+            },
+            office: {
+                x: 350,  // Canvas 좌표
+                y: 100,
+                width: 150,  // Canvas 크기
+                height: 250,
+                hasEntrance: true,
+                entranceWidth: 40
+            },
+            equipmentArrays: [{
+                rows: 26,
+                cols: 6
+            }]
+        };
+        
+        // 이벤트 발생
+        window.dispatchEvent(new CustomEvent('apply-layout-request', {
+            detail: { 
+                layoutData: testLayoutData,
+                options: {
+                    updateFloor: true,
+                    rebuildRoom: true
+                }
+            }
+        }));
+        
+        console.log('[Test] 테스트 Layout 이벤트 발생 완료');
+    };
+    
+    /**
+     * Room 치수 직접 변경 테스트
+     */
+    window.testRoomResize = (width, depth, height) => {
+        if (!sceneManager || !sceneManager.getRoomEnvironment) {
+            console.error('❌ SceneManager 또는 RoomEnvironment가 초기화되지 않았습니다');
+            return;
+        }
+        
+        const params = {
+            roomWidth: width || 50,
+            roomDepth: depth || 70,
+            wallHeight: height || 5,
+            wallThickness: 0.2,
+            hasOffice: true,
+            officeWidth: 15,
+            officeDepth: 25,
+            officeX: 18,
+            officeZ: -25
+        };
+        
+        console.log('[Test] Room 크기 변경 테스트:', params);
+        sceneManager.applyLayoutWithParams(params);
+    };
+
     console.log('✅ 전역 디버그 함수 등록 완료');
 }
 
@@ -967,5 +1165,11 @@ window.equipmentEditState = equipmentEditState;
 window.equipmentEditModal = equipmentEditModal;
 window.apiClient = apiClient;
 
+// ============================================
+// ⭐ Phase 4.2: Layout 관련 전역 객체 노출
+// ============================================
+window.layout2DTo3DConverter = layout2DTo3DConverter;
+window.roomParamsAdapter = roomParamsAdapter;
 
-console.log('🌐 전역 객체 노출 완료 (window.connectionModal 추가)');
+
+console.log('🌐 전역 객체 노출 완료 (window.connectionModal, layout2DTo3DConverter, roomParamsAdapter 추가)');

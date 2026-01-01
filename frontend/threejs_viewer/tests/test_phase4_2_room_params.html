@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 4.2 Test - RoomEnvironment Dynamic Params</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        /* 테스트 컨트롤 패널 */
+        #test-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 350px;
+            max-height: 90vh;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        #test-panel h2 {
+            color: #3498db;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+            font-size: 18px;
+        }
+        
+        #test-panel h3 {
+            color: #2ecc71;
+            margin: 15px 0 10px 0;
+            font-size: 14px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #bdc3c7;
+            font-size: 12px;
+        }
+        
+        .control-group input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        
+        .control-group .value-display {
+            text-align: right;
+            font-size: 14px;
+            color: #f39c12;
+            font-weight: bold;
+        }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #2ecc71;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #27ae60;
+        }
+        
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #d68910;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .btn-info {
+            background: #9b59b6;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: #8e44ad;
+        }
+        
+        /* 로그 패널 */
+        #log-panel {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            width: 350px;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 12px;
+            padding: 15px;
+            z-index: 100;
+            overflow-y: auto;
+        }
+        
+        #log-panel h4 {
+            color: #3498db;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        #log-content {
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        
+        .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .log-success { color: #2ecc71; }
+        .log-error { color: #e74c3c; }
+        .log-warning { color: #f39c12; }
+        .log-info { color: #3498db; }
+        
+        /* 결과 표시 패널 */
+        #result-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 300px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+        }
+        
+        #result-panel h3 {
+            color: #e74c3c;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 13px;
+        }
+        
+        .result-item .label {
+            color: #bdc3c7;
+        }
+        
+        .result-item .value {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        
+        /* 테스트 상태 표시 */
+        .test-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 5px;
+        }
+        
+        .test-pass {
+            background: #2ecc71;
+            color: white;
+        }
+        
+        .test-fail {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .test-pending {
+            background: #f39c12;
+            color: white;
+        }
+        
+        /* 커스텀 스크롤바 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #3498db;
+            border-radius: 3px;
+        }
+        
+        /* 체크박스 스타일 */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 5px 0;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .checkbox-group label {
+            cursor: pointer;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Three.js 렌더링 영역 -->
+    <div id="canvas-container"></div>
+    
+    <!-- 테스트 컨트롤 패널 -->
+    <div id="test-panel">
+        <h2>🧪 Phase 4.2 테스트</h2>
+        <p style="font-size: 12px; color: #95a5a6; margin-bottom: 15px;">
+            RoomEnvironment 동적 파라미터 주입 테스트
+        </p>
+        
+        <!-- 1. 기본 테스트 -->
+        <h3>1️⃣ 기본 테스트</h3>
+        <button class="btn btn-primary" onclick="testDefaultParams()">
+            기본값으로 Room 생성
+        </button>
+        <button class="btn btn-success" onclick="testDynamicParams()">
+            동적 파라미터로 Room 생성
+        </button>
+        
+        <!-- 2. Room 치수 조정 -->
+        <h3>2️⃣ Room 치수 조정</h3>
+        <div class="control-group">
+            <label>Room Width (m)</label>
+            <input type="range" id="roomWidth" min="20" max="100" value="40" oninput="updateRoomWidthDisplay()">
+            <div class="value-display" id="roomWidthValue">40m</div>
+        </div>
+        
+        <div class="control-group">
+            <label>Room Depth (m)</label>
+            <input type="range" id="roomDepth" min="20" max="120" value="60" oninput="updateRoomDepthDisplay()">
+            <div class="value-display" id="roomDepthValue">60m</div>
+        </div>
+        
+        <div class="control-group">
+            <label>Wall Height (m)</label>
+            <input type="range" id="wallHeight" min="2" max="10" value="4" step="0.5" oninput="updateWallHeightDisplay()">
+            <div class="value-display" id="wallHeightValue">4m</div>
+        </div>
+        
+        <button class="btn btn-warning" onclick="applyRoomDimensions()">
+            ✨ Room 치수 적용
+        </button>
+        
+        <!-- 3. Office 설정 -->
+        <h3>3️⃣ Office 설정</h3>
+        <div class="checkbox-group">
+            <input type="checkbox" id="hasOffice" checked>
+            <label for="hasOffice">Office 표시</label>
+        </div>
+        
+        <div class="control-group">
+            <label>Office Width (m)</label>
+            <input type="range" id="officeWidth" min="5" max="25" value="12" oninput="updateOfficeWidthDisplay()">
+            <div class="value-display" id="officeWidthValue">12m</div>
+        </div>
+        
+        <div class="control-group">
+            <label>Office Depth (m)</label>
+            <input type="range" id="officeDepth" min="5" max="35" value="20" oninput="updateOfficeDepthDisplay()">
+            <div class="value-display" id="officeDepthValue">20m</div>
+        </div>
+        
+        <button class="btn btn-info" onclick="applyOfficeSettings()">
+            🏢 Office 설정 적용
+        </button>
+        
+        <!-- 4. RoomParamsAdapter 테스트 -->
+        <h3>4️⃣ RoomParamsAdapter 테스트</h3>
+        <button class="btn btn-primary" onclick="testRoomParamsAdapter()">
+            Adapter 변환 테스트
+        </button>
+        <button class="btn btn-success" onclick="testAdapterValidation()">
+            Adapter 검증 테스트
+        </button>
+        
+        <!-- 5. 전체 Flow 테스트 -->
+        <h3>5️⃣ 전체 Flow 테스트</h3>
+        <button class="btn btn-warning" onclick="testFullLayoutFlow()">
+            🔄 Layout JSON → 3D 전체 Flow
+        </button>
+        <button class="btn btn-danger" onclick="testEventBasedFlow()">
+            📡 이벤트 기반 Layout 적용
+        </button>
+        
+        <!-- 6. 프리셋 테스트 -->
+        <h3>6️⃣ 프리셋 테스트</h3>
+        <button class="btn btn-primary" onclick="applyPreset('small')">
+            📦 Small Room (30×40)
+        </button>
+        <button class="btn btn-success" onclick="applyPreset('medium')">
+            📦 Medium Room (50×70)
+        </button>
+        <button class="btn btn-info" onclick="applyPreset('large')">
+            📦 Large Room (80×100)
+        </button>
+        
+        <!-- 7. 유틸리티 -->
+        <h3>7️⃣ 유틸리티</h3>
+        <button class="btn btn-danger" onclick="resetToDefault()">
+            🔄 기본값 초기화
+        </button>
+        <button class="btn btn-info" onclick="showCurrentState()">
+            📊 현재 상태 출력
+        </button>
+        <button class="btn btn-warning" onclick="runAllTests()">
+            🚀 전체 테스트 실행
+        </button>
+    </div>
+    
+    <!-- 결과 패널 -->
+    <div id="result-panel">
+        <h3>📊 현재 Room 상태</h3>
+        <div class="result-item">
+            <span class="label">Room Size:</span>
+            <span class="value" id="currentRoomSize">40m × 60m</span>
+        </div>
+        <div class="result-item">
+            <span class="label">Wall Height:</span>
+            <span class="value" id="currentWallHeight">4m</span>
+        </div>
+        <div class="result-item">
+            <span class="label">Office:</span>
+            <span class="value" id="currentOffice">12m × 20m</span>
+        </div>
+        <div class="result-item">
+            <span class="label">Dynamic Params:</span>
+            <span class="value" id="currentDynamicParams">No</span>
+        </div>
+        <div class="result-item">
+            <span class="label">Walls Count:</span>
+            <span class="value" id="currentWallsCount">-</span>
+        </div>
+        <div class="result-item">
+            <span class="label">Partitions Count:</span>
+            <span class="value" id="currentPartitionsCount">-</span>
+        </div>
+        
+        <h3 style="margin-top: 20px;">🧪 테스트 결과</h3>
+        <div id="test-results">
+            <div class="result-item">
+                <span class="label">Default Params</span>
+                <span class="test-status test-pending" id="test-default">대기</span>
+            </div>
+            <div class="result-item">
+                <span class="label">Dynamic Params</span>
+                <span class="test-status test-pending" id="test-dynamic">대기</span>
+            </div>
+            <div class="result-item">
+                <span class="label">Adapter Convert</span>
+                <span class="test-status test-pending" id="test-adapter">대기</span>
+            </div>
+            <div class="result-item">
+                <span class="label">Validation</span>
+                <span class="test-status test-pending" id="test-validation">대기</span>
+            </div>
+            <div class="result-item">
+                <span class="label">Full Flow</span>
+                <span class="test-status test-pending" id="test-fullflow">대기</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 로그 패널 -->
+    <div id="log-panel">
+        <h4>📋 테스트 로그</h4>
+        <div id="log-content"></div>
+    </div>
+    
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        
+        // ============================================
+        // 전역 변수
+        // ============================================
+        let scene, camera, renderer, controls;
+        let roomEnvironment = null;
+        let roomParamsAdapter = null;
+        
+        // ============================================
+        // RoomParamsAdapter 클래스 (인라인)
+        // ============================================
+        class RoomParamsAdapter {
+            constructor() {
+                log('info', '[RoomParamsAdapter] 초기화 완료');
+            }
+            
+            adapt(convertedLayout) {
+                if (!convertedLayout) {
+                    log('warning', '[RoomParamsAdapter] convertedLayout이 없습니다');
+                    return null;
+                }
+                
+                try {
+                    const params = {
+                        ...this.adaptRoomParams(convertedLayout.roomParams),
+                        ...this.adaptOfficeParams(convertedLayout.officeParams),
+                        walls: this.adaptWallParams(convertedLayout.wallParams),
+                        partitions: this.adaptPartitionParams(convertedLayout.partitionParams),
+                        _meta: {
+                            siteId: convertedLayout.meta?.siteId || 'unknown',
+                            templateName: convertedLayout.meta?.templateName || 'custom',
+                            adaptedAt: new Date().toISOString()
+                        }
+                    };
+                    
+                    log('success', '[RoomParamsAdapter] 변환 완료');
+                    return params;
+                } catch (error) {
+                    log('error', `[RoomParamsAdapter] 변환 실패: ${error.message}`);
+                    return null;
+                }
+            }
+            
+            adaptRoomParams(roomParams) {
+                if (!roomParams) {
+                    return { roomWidth: 40, roomDepth: 60, wallHeight: 4, wallThickness: 0.2 };
+                }
+                return {
+                    roomWidth: roomParams.roomWidth || 40,
+                    roomDepth: roomParams.roomDepth || 60,
+                    wallHeight: roomParams.wallHeight || 4,
+                    wallThickness: roomParams.wallThickness || 0.2
+                };
+            }
+            
+            adaptOfficeParams(officeParams) {
+                if (!officeParams) {
+                    return { officeWidth: 12, officeDepth: 20, officeX: 15, officeZ: -20, hasOffice: false };
+                }
+                return {
+                    officeWidth: officeParams.size?.width || 12,
+                    officeDepth: officeParams.size?.depth || 20,
+                    officeX: officeParams.position?.x || 15,
+                    officeZ: officeParams.position?.z || -20,
+                    hasOffice: true,
+                    officeHasEntrance: officeParams.hasEntrance !== false,
+                    officeEntranceWidth: officeParams.entranceWidth || 3
+                };
+            }
+            
+            adaptWallParams(wallParams) {
+                if (!wallParams || !Array.isArray(wallParams) || wallParams.length === 0) {
+                    return null;
+                }
+                return wallParams.map((wall, index) => ({
+                    id: `wall-${index}`,
+                    position: { x: wall.position?.x || 0, y: wall.position?.y || 2, z: wall.position?.z || 0 },
+                    size: { width: wall.size?.width || 1, height: wall.size?.height || 4, depth: wall.size?.depth || 0.2 },
+                    rotation: wall.rotation?.y || 0,
+                    type: wall.type || 'standard'
+                }));
+            }
+            
+            adaptPartitionParams(partitionParams) {
+                if (!partitionParams || !Array.isArray(partitionParams) || partitionParams.length === 0) {
+                    return null;
+                }
+                return partitionParams.map((partition, index) => ({
+                    id: `partition-${index}`,
+                    position: { x: partition.position?.x || 0, y: partition.position?.y || 1.25, z: partition.position?.z || 0 },
+                    size: { width: partition.size?.width || 3, height: partition.size?.height || 2.5, depth: partition.size?.depth || 0.1 },
+                    type: partition.type || 'glass',
+                    hasFrame: partition.hasFrame !== false
+                }));
+            }
+            
+            validate(params) {
+                const errors = [];
+                const warnings = [];
+                
+                if (!params) {
+                    errors.push('params가 null입니다');
+                    return { valid: false, errors, warnings };
+                }
+                
+                if (params.roomWidth <= 0) errors.push('roomWidth가 0 이하입니다');
+                if (params.roomDepth <= 0) errors.push('roomDepth가 0 이하입니다');
+                if (params.wallHeight <= 0) errors.push('wallHeight가 0 이하입니다');
+                
+                if (params.hasOffice) {
+                    if (params.officeWidth <= 0) warnings.push('officeWidth가 0 이하입니다');
+                    if (params.officeDepth <= 0) warnings.push('officeDepth가 0 이하입니다');
+                }
+                
+                return { valid: errors.length === 0, errors, warnings };
+            }
+            
+            getDefaultParams() {
+                return {
+                    roomWidth: 40, roomDepth: 60, wallHeight: 4, wallThickness: 0.2,
+                    officeWidth: 12, officeDepth: 20, officeX: 15, officeZ: -20,
+                    hasOffice: true, officeHasEntrance: true, officeEntranceWidth: 3,
+                    walls: null, partitions: null
+                };
+            }
+        }
+        
+        // ============================================
+        // RoomEnvironment 클래스 (인라인 - 간소화)
+        // ============================================
+        class RoomEnvironment {
+            constructor(scene, params = null) {
+                this.scene = scene;
+                this.walls = [];
+                this.partitions = [];
+                this.furniture = [];
+                
+                // 동적 파라미터 또는 기본값
+                this.roomWidth = params?.roomWidth ?? 40;
+                this.roomDepth = params?.roomDepth ?? 60;
+                this.wallHeight = params?.wallHeight ?? 4;
+                this.wallThickness = params?.wallThickness ?? 0.2;
+                
+                this.officeWidth = params?.officeWidth ?? 12;
+                this.officeDepth = params?.officeDepth ?? 20;
+                this.officeX = params?.officeX ?? 15;
+                this.officeZ = params?.officeZ ?? -20;
+                
+                this.hasOffice = params?.hasOffice ?? true;
+                this.officeHasEntrance = params?.officeHasEntrance ?? true;
+                this.officeEntranceWidth = params?.officeEntranceWidth ?? 3;
+                
+                this._dynamicWalls = params?.walls || null;
+                this._dynamicPartitions = params?.partitions || null;
+                this._usesDynamicParams = params !== null;
+                this._isBuilt = false;
+                
+                this.materials = this.createMaterials();
+                
+                if (this._usesDynamicParams) {
+                    log('success', `[RoomEnvironment] 동적 파라미터: ${this.roomWidth}m × ${this.roomDepth}m`);
+                } else {
+                    log('info', '[RoomEnvironment] 기본 파라미터 사용');
+                }
+            }
+            
+            createMaterials() {
+                return {
+                    wall: new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.3, metalness: 0.1, side: THREE.DoubleSide }),
+                    officeWall: new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.25, metalness: 0.05, side: THREE.DoubleSide }),
+                    glass: new THREE.MeshPhysicalMaterial({ color: 0xe0f0ff, transparent: true, opacity: 0.3, roughness: 0.1, metalness: 0.1, transmission: 0.9, thickness: 0.5, side: THREE.DoubleSide }),
+                    frame: new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.4, metalness: 0.6 }),
+                    desk: new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.5, metalness: 0.3 })
+                };
+            }
+            
+            buildEnvironment() {
+                log('info', '🏗️ Room 환경 구축 시작...');
+                
+                if (this._dynamicWalls && this._dynamicWalls.length > 0) {
+                    this.createDynamicWalls();
+                } else {
+                    this.createCleanRoomWalls();
+                }
+                
+                if (this.hasOffice) {
+                    this.createOfficeArea();
+                    
+                    if (this._dynamicPartitions && this._dynamicPartitions.length > 0) {
+                        this.createDynamicPartitions();
+                    } else {
+                        this.createPartitions();
+                    }
+                    
+                    this.createDesk();
+                }
+                
+                this._isBuilt = true;
+                log('success', `✅ Room 구축 완료: 벽 ${this.walls.length}개, 파티션 ${this.partitions.length}개`);
+                updateResultPanel();
+            }
+            
+            createCleanRoomWalls() {
+                const halfWidth = this.roomWidth / 2;
+                const halfDepth = this.roomDepth / 2;
+                const halfHeight = this.wallHeight / 2;
+                
+                const wallConfigs = [
+                    [0, halfHeight, -halfDepth, this.roomWidth, this.wallHeight, this.wallThickness, 0],
+                    [0, halfHeight, halfDepth, this.roomWidth, this.wallHeight, this.wallThickness, 0],
+                    [halfWidth, halfHeight, 0, this.wallThickness, this.wallHeight, this.roomDepth, 0],
+                    [-halfWidth, halfHeight, 0, this.wallThickness, this.wallHeight, this.roomDepth, 0]
+                ];
+                
+                wallConfigs.forEach((config, index) => {
+                    const [x, y, z, width, height, depth] = config;
+                    const geometry = new THREE.BoxGeometry(width, height, depth);
+                    const wall = new THREE.Mesh(geometry, this.materials.wall);
+                    wall.position.set(x, y, z);
+                    wall.castShadow = true;
+                    wall.receiveShadow = true;
+                    wall.name = `cleanroom-wall-${index}`;
+                    this.scene.add(wall);
+                    this.walls.push(wall);
+                });
+            }
+            
+            createDynamicWalls() {
+                this._dynamicWalls.forEach((wallData, index) => {
+                    const geometry = new THREE.BoxGeometry(
+                        wallData.size?.width || 1,
+                        wallData.size?.height || this.wallHeight,
+                        wallData.size?.depth || this.wallThickness
+                    );
+                    const wall = new THREE.Mesh(geometry, this.materials.wall);
+                    wall.position.set(wallData.position?.x || 0, wallData.position?.y || this.wallHeight / 2, wallData.position?.z || 0);
+                    if (wallData.rotation) wall.rotation.y = wallData.rotation;
+                    wall.castShadow = true;
+                    wall.receiveShadow = true;
+                    wall.name = wallData.id || `dynamic-wall-${index}`;
+                    this.scene.add(wall);
+                    this.walls.push(wall);
+                });
+                log('info', `동적 벽 ${this._dynamicWalls.length}개 생성`);
+            }
+            
+            createOfficeArea() {
+                const halfHeight = this.wallHeight / 2;
+                const entranceGap = this.officeHasEntrance ? this.officeEntranceWidth : 0;
+                const sideWallLength = (this.officeDepth - entranceGap) / 2;
+                
+                const officeWallConfigs = [
+                    [this.officeX, halfHeight, this.officeZ - this.officeDepth / 2, this.officeWidth, this.wallHeight, this.wallThickness],
+                    [this.officeX + this.officeWidth / 2, halfHeight, this.officeZ, this.wallThickness, this.wallHeight, this.officeDepth]
+                ];
+                
+                if (this.officeHasEntrance && entranceGap > 0) {
+                    officeWallConfigs.push([this.officeX - this.officeWidth / 2, halfHeight, this.officeZ - this.officeDepth / 4 - entranceGap / 4, this.wallThickness, this.wallHeight, sideWallLength]);
+                    officeWallConfigs.push([this.officeX - this.officeWidth / 2, halfHeight, this.officeZ + this.officeDepth / 4 + entranceGap / 4, this.wallThickness, this.wallHeight, sideWallLength]);
+                } else {
+                    officeWallConfigs.push([this.officeX - this.officeWidth / 2, halfHeight, this.officeZ, this.wallThickness, this.wallHeight, this.officeDepth]);
+                }
+                
+                officeWallConfigs.forEach((config, index) => {
+                    const [x, y, z, width, height, depth] = config;
+                    const geometry = new THREE.BoxGeometry(width, height, depth);
+                    const wall = new THREE.Mesh(geometry, this.materials.officeWall);
+                    wall.position.set(x, y, z);
+                    wall.castShadow = true;
+                    wall.receiveShadow = true;
+                    wall.name = `office-wall-${index}`;
+                    this.scene.add(wall);
+                    this.walls.push(wall);
+                });
+            }
+            
+            createPartitions() {
+                const partitionX = this.officeX - this.officeWidth / 2;
+                const partitionZ = this.officeZ;
+                const partitionWidth = this.officeEntranceWidth;
+                const partitionHeight = 2.5;
+                
+                const frameGeometry = new THREE.BoxGeometry(0.1, partitionHeight, 0.05);
+                
+                const leftFrame = new THREE.Mesh(frameGeometry, this.materials.frame);
+                leftFrame.position.set(partitionX - 0.5, partitionHeight / 2, partitionZ - partitionWidth / 2);
+                leftFrame.castShadow = true;
+                this.scene.add(leftFrame);
+                this.partitions.push(leftFrame);
+                
+                const rightFrame = new THREE.Mesh(frameGeometry, this.materials.frame);
+                rightFrame.position.set(partitionX - 0.5, partitionHeight / 2, partitionZ + partitionWidth / 2);
+                rightFrame.castShadow = true;
+                this.scene.add(rightFrame);
+                this.partitions.push(rightFrame);
+                
+                const topFrameGeometry = new THREE.BoxGeometry(0.1, 0.05, partitionWidth);
+                const topFrame = new THREE.Mesh(topFrameGeometry, this.materials.frame);
+                topFrame.position.set(partitionX - 0.5, partitionHeight, partitionZ);
+                topFrame.castShadow = true;
+                this.scene.add(topFrame);
+                this.partitions.push(topFrame);
+                
+                const glassGeometry = new THREE.BoxGeometry(0.05, partitionHeight - 0.1, partitionWidth - 0.1);
+                const glass = new THREE.Mesh(glassGeometry, this.materials.glass);
+                glass.position.set(partitionX - 0.5, partitionHeight / 2, partitionZ);
+                glass.castShadow = true;
+                glass.receiveShadow = true;
+                glass.name = 'office-partition-glass';
+                this.scene.add(glass);
+                this.partitions.push(glass);
+            }
+            
+            createDynamicPartitions() {
+                this._dynamicPartitions.forEach((partitionData, index) => {
+                    const partitionHeight = partitionData.size?.height || 2.5;
+                    const partitionWidth = partitionData.size?.width || 3;
+                    const partitionDepth = partitionData.size?.depth || 0.1;
+                    
+                    const material = partitionData.type === 'glass' ? this.materials.glass : this.materials.wall;
+                    const panelGeometry = new THREE.BoxGeometry(partitionDepth, partitionHeight, partitionWidth);
+                    const panel = new THREE.Mesh(panelGeometry, material);
+                    panel.position.set(partitionData.position.x, partitionData.position.y, partitionData.position.z);
+                    panel.castShadow = true;
+                    panel.receiveShadow = true;
+                    panel.name = partitionData.id || `dynamic-partition-${index}`;
+                    this.scene.add(panel);
+                    this.partitions.push(panel);
+                });
+                log('info', `동적 파티션 ${this._dynamicPartitions.length}개 생성`);
+            }
+            
+            createDesk() {
+                const deskX = this.officeX - this.officeWidth / 2 + 1.5;
+                const deskZ = this.officeZ;
+                const deskWidth = 1.6;
+                const deskDepth = 0.8;
+                const deskHeight = 0.75;
+                const deskThickness = 0.05;
+                
+                const topGeometry = new THREE.BoxGeometry(deskWidth, deskThickness, deskDepth);
+                const deskTop = new THREE.Mesh(topGeometry, this.materials.desk);
+                deskTop.position.set(deskX, deskHeight, deskZ);
+                deskTop.castShadow = true;
+                deskTop.receiveShadow = true;
+                deskTop.name = 'desk-top';
+                this.scene.add(deskTop);
+                this.furniture.push(deskTop);
+                
+                const legGeometry = new THREE.BoxGeometry(0.05, deskHeight - deskThickness, 0.05);
+                const legPositions = [
+                    [deskX - deskWidth / 2 + 0.1, (deskHeight - deskThickness) / 2, deskZ - deskDepth / 2 + 0.1],
+                    [deskX + deskWidth / 2 - 0.1, (deskHeight - deskThickness) / 2, deskZ - deskDepth / 2 + 0.1],
+                    [deskX - deskWidth / 2 + 0.1, (deskHeight - deskThickness) / 2, deskZ + deskDepth / 2 - 0.1],
+                    [deskX + deskWidth / 2 - 0.1, (deskHeight - deskThickness) / 2, deskZ + deskDepth / 2 - 0.1]
+                ];
+                
+                legPositions.forEach((pos, index) => {
+                    const leg = new THREE.Mesh(legGeometry, this.materials.desk);
+                    leg.position.set(...pos);
+                    leg.castShadow = true;
+                    leg.receiveShadow = true;
+                    leg.name = `desk-leg-${index}`;
+                    this.scene.add(leg);
+                    this.furniture.push(leg);
+                });
+            }
+            
+            getDimensions() {
+                return {
+                    roomWidth: this.roomWidth, roomDepth: this.roomDepth, wallHeight: this.wallHeight,
+                    officeWidth: this.officeWidth, officeDepth: this.officeDepth,
+                    officeX: this.officeX, officeZ: this.officeZ, hasOffice: this.hasOffice
+                };
+            }
+            
+            usesDynamicParams() {
+                return this._usesDynamicParams;
+            }
+            
+            dispose() {
+                [...this.walls, ...this.partitions, ...this.furniture].forEach(obj => {
+                    if (obj.geometry) obj.geometry.dispose();
+                    if (obj.material) {
+                        if (Array.isArray(obj.material)) {
+                            obj.material.forEach(mat => mat.dispose());
+                        } else {
+                            obj.material.dispose();
+                        }
+                    }
+                    this.scene.remove(obj);
+                });
+                this.walls = [];
+                this.partitions = [];
+                this.furniture = [];
+                this._isBuilt = false;
+            }
+            
+            debug() {
+                console.group('[RoomEnvironment] Debug Info');
+                console.log('Room 치수:', `${this.roomWidth}m × ${this.roomDepth}m × ${this.wallHeight}m`);
+                console.log('Office:', this.hasOffice ? `${this.officeWidth}m × ${this.officeDepth}m at (${this.officeX}, ${this.officeZ})` : 'None');
+                console.log('벽 개수:', this.walls.length);
+                console.log('파티션 개수:', this.partitions.length);
+                console.log('동적 파라미터 사용:', this._usesDynamicParams);
+                console.groupEnd();
+            }
+        }
+        
+        // ============================================
+        // Three.js 초기화
+        // ============================================
+        function initThreeJS() {
+            log('info', '🚀 Three.js 초기화 시작...');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf8f8f8);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(50, 40, 50);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 0, 0);
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(30, 50, 30);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 200;
+            directionalLight.shadow.camera.left = -100;
+            directionalLight.shadow.camera.right = 100;
+            directionalLight.shadow.camera.top = 100;
+            directionalLight.shadow.camera.bottom = -100;
+            scene.add(directionalLight);
+            
+            // Floor
+            const floorGeometry = new THREE.PlaneGeometry(150, 150);
+            const floorMaterial = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.15, metalness: 0.05 });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            
+            // Grid
+            const gridHelper = new THREE.GridHelper(150, 150, 0xe5e5e5, 0xf0f0f0);
+            gridHelper.material.opacity = 0.2;
+            gridHelper.material.transparent = true;
+            scene.add(gridHelper);
+            
+            // Adapter 초기화
+            roomParamsAdapter = new RoomParamsAdapter();
+            
+            // 기본 Room 생성
+            roomEnvironment = new RoomEnvironment(scene);
+            roomEnvironment.buildEnvironment();
+            
+            // Window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            log('success', '✅ Three.js 초기화 완료');
+            updateResultPanel();
+            
+            // Animation loop
+            animate();
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // ============================================
+        // 로그 함수
+        // ============================================
+        function log(type, message) {
+            const logContent = document.getElementById('log-content');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            
+            logContent.insertBefore(entry, logContent.firstChild);
+            
+            // 최대 50개 로그 유지
+            while (logContent.children.length > 50) {
+                logContent.removeChild(logContent.lastChild);
+            }
+            
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        // ============================================
+        // 결과 패널 업데이트
+        // ============================================
+        function updateResultPanel() {
+            if (!roomEnvironment) return;
+            
+            const dims = roomEnvironment.getDimensions();
+            document.getElementById('currentRoomSize').textContent = `${dims.roomWidth}m × ${dims.roomDepth}m`;
+            document.getElementById('currentWallHeight').textContent = `${dims.wallHeight}m`;
+            document.getElementById('currentOffice').textContent = dims.hasOffice 
+                ? `${dims.officeWidth}m × ${dims.officeDepth}m` 
+                : 'None';
+            document.getElementById('currentDynamicParams').textContent = roomEnvironment.usesDynamicParams() ? 'Yes' : 'No';
+            document.getElementById('currentWallsCount').textContent = roomEnvironment.walls.length;
+            document.getElementById('currentPartitionsCount').textContent = roomEnvironment.partitions.length;
+        }
+        
+        function updateTestStatus(testId, passed) {
+            const el = document.getElementById(testId);
+            if (el) {
+                el.textContent = passed ? '✅ 통과' : '❌ 실패';
+                el.className = `test-status ${passed ? 'test-pass' : 'test-fail'}`;
+            }
+        }
+        
+        // ============================================
+        // 테스트 함수들
+        // ============================================
+        
+        // 1. 기본 파라미터 테스트
+        window.testDefaultParams = function() {
+            log('info', '🧪 기본 파라미터 테스트 시작...');
+            
+            if (roomEnvironment) {
+                roomEnvironment.dispose();
+            }
+            
+            roomEnvironment = new RoomEnvironment(scene);  // params 없이 생성
+            roomEnvironment.buildEnvironment();
+            
+            const dims = roomEnvironment.getDimensions();
+            const passed = dims.roomWidth === 40 && dims.roomDepth === 60 && dims.wallHeight === 4;
+            
+            if (passed) {
+                log('success', '✅ 기본 파라미터 테스트 통과 (40m × 60m × 4m)');
+            } else {
+                log('error', `❌ 기본 파라미터 테스트 실패: ${dims.roomWidth}m × ${dims.roomDepth}m × ${dims.wallHeight}m`);
+            }
+            
+            updateTestStatus('test-default', passed);
+            updateResultPanel();
+        };
+        
+        // 2. 동적 파라미터 테스트
+        window.testDynamicParams = function() {
+            log('info', '🧪 동적 파라미터 테스트 시작...');
+            
+            if (roomEnvironment) {
+                roomEnvironment.dispose();
+            }
+            
+            const testParams = {
+                roomWidth: 55,
+                roomDepth: 75,
+                wallHeight: 5,
+                wallThickness: 0.25,
+                officeWidth: 15,
+                officeDepth: 25,
+                officeX: 20,
+                officeZ: -25,
+                hasOffice: true
+            };
+            
+            roomEnvironment = new RoomEnvironment(scene, testParams);
+            roomEnvironment.buildEnvironment();
+            
+            const dims = roomEnvironment.getDimensions();
+            const passed = dims.roomWidth === 55 && dims.roomDepth === 75 && dims.wallHeight === 5 
+                        && roomEnvironment.usesDynamicParams();
+            
+            if (passed) {
+                log('success', '✅ 동적 파라미터 테스트 통과 (55m × 75m × 5m)');
+            } else {
+                log('error', `❌ 동적 파라미터 테스트 실패`);
+            }
+            
+            updateTestStatus('test-dynamic', passed);
+            updateResultPanel();
+        };
+        
+        // 3. RoomParamsAdapter 테스트
+        window.testRoomParamsAdapter = function() {
+            log('info', '🧪 RoomParamsAdapter 변환 테스트 시작...');
+            
+            const mockConvertedLayout = {
+                roomParams: {
+                    roomWidth: 65,
+                    roomDepth: 85,
+                    wallHeight: 6,
+                    wallThickness: 0.3
+                },
+                officeParams: {
+                    size: { width: 18, depth: 28 },
+                    position: { x: 22, z: -30 },
+                    hasEntrance: true,
+                    entranceWidth: 4
+                },
+                meta: {
+                    siteId: 'test_site',
+                    templateName: 'test_template'
+                }
+            };
+            
+            const adaptedParams = roomParamsAdapter.adapt(mockConvertedLayout);
+            
+            const passed = adaptedParams !== null 
+                        && adaptedParams.roomWidth === 65 
+                        && adaptedParams.roomDepth === 85
+                        && adaptedParams.officeWidth === 18
+                        && adaptedParams.hasOffice === true;
+            
+            if (passed) {
+                log('success', '✅ RoomParamsAdapter 변환 테스트 통과');
+                log('info', `   Room: ${adaptedParams.roomWidth}m × ${adaptedParams.roomDepth}m`);
+                log('info', `   Office: ${adaptedParams.officeWidth}m × ${adaptedParams.officeDepth}m`);
+            } else {
+                log('error', '❌ RoomParamsAdapter 변환 테스트 실패');
+            }
+            
+            updateTestStatus('test-adapter', passed);
+        };
+        
+        // 4. Adapter 검증 테스트
+        window.testAdapterValidation = function() {
+            log('info', '🧪 Adapter 검증 테스트 시작...');
+            
+            // 정상 케이스
+            const validParams = roomParamsAdapter.getDefaultParams();
+            const validResult = roomParamsAdapter.validate(validParams);
+            
+            // 에러 케이스
+            const invalidParams = { roomWidth: -10, roomDepth: 0, wallHeight: -1 };
+            const invalidResult = roomParamsAdapter.validate(invalidParams);
+            
+            // null 케이스
+            const nullResult = roomParamsAdapter.validate(null);
+            
+            const passed = validResult.valid === true 
+                        && invalidResult.valid === false 
+                        && invalidResult.errors.length > 0
+                        && nullResult.valid === false;
+            
+            if (passed) {
+                log('success', '✅ Adapter 검증 테스트 통과');
+                log('info', `   정상 케이스: valid=${validResult.valid}`);
+                log('info', `   에러 케이스: errors=${invalidResult.errors.length}개`);
+            } else {
+                log('error', '❌ Adapter 검증 테스트 실패');
+            }
+            
+            updateTestStatus('test-validation', passed);
+        };
+        
+        // 5. 전체 Flow 테스트
+        window.testFullLayoutFlow = function() {
+            log('info', '🧪 전체 Layout Flow 테스트 시작...');
+            
+            // 1. Mock Layout JSON (Layout Editor 출력 형식)
+            const layoutJSON = {
+                version: '1.0',
+                site_id: 'full_flow_test',
+                template_name: 'test_layout',
+                room: {
+                    width: 70,
+                    depth: 90,
+                    wallHeight: 5.5,
+                    wallThickness: 0.25
+                },
+                office: {
+                    width: 16,
+                    depth: 24,
+                    x: 25,
+                    z: -30,
+                    hasEntrance: true,
+                    entranceWidth: 3.5
+                }
+            };
+            
+            // 2. 변환 (실제로는 Layout2DTo3DConverter가 수행)
+            const convertedLayout = {
+                roomParams: {
+                    roomWidth: layoutJSON.room.width,
+                    roomDepth: layoutJSON.room.depth,
+                    wallHeight: layoutJSON.room.wallHeight,
+                    wallThickness: layoutJSON.room.wallThickness
+                },
+                officeParams: {
+                    size: { width: layoutJSON.office.width, depth: layoutJSON.office.depth },
+                    position: { x: layoutJSON.office.x, z: layoutJSON.office.z },
+                    hasEntrance: layoutJSON.office.hasEntrance,
+                    entranceWidth: layoutJSON.office.entranceWidth
+                },
+                meta: {
+                    siteId: layoutJSON.site_id,
+                    templateName: layoutJSON.template_name
+                }
+            };
+            
+            // 3. Adapter로 params 변환
+            const adaptedParams = roomParamsAdapter.adapt(convertedLayout);
+            
+            // 4. 검증
+            const validation = roomParamsAdapter.validate(adaptedParams);
+            
+            if (!validation.valid) {
+                log('error', `❌ 검증 실패: ${validation.errors.join(', ')}`);
+                updateTestStatus('test-fullflow', false);
+                return;
+            }
+            
+            // 5. RoomEnvironment 재생성
+            if (roomEnvironment) {
+                roomEnvironment.dispose();
+            }
+            
+            roomEnvironment = new RoomEnvironment(scene, adaptedParams);
+            roomEnvironment.buildEnvironment();
+            
+            // 6. 결과 확인
+            const dims = roomEnvironment.getDimensions();
+            const passed = dims.roomWidth === 70 && dims.roomDepth === 90 && dims.wallHeight === 5.5;
+            
+            if (passed) {
+                log('success', '✅ 전체 Flow 테스트 통과');
+                log('info', `   최종 Room: ${dims.roomWidth}m × ${dims.roomDepth}m × ${dims.wallHeight}m`);
+            } else {
+                log('error', '❌ 전체 Flow 테스트 실패');
+            }
+            
+            updateTestStatus('test-fullflow', passed);
+            updateResultPanel();
+        };
+        
+        // 6. 이벤트 기반 Flow 테스트
+        window.testEventBasedFlow = function() {
+            log('info', '🧪 이벤트 기반 Layout 적용 테스트 시작...');
+            
+            // 이벤트 리스너 등록
+            const handleLayoutApplyComplete = (e) => {
+                const { success, adaptedParams, error } = e.detail;
+                
+                if (success) {
+                    log('success', '✅ 이벤트 기반 Flow 테스트 통과');
+                    log('info', `   Room: ${adaptedParams.roomWidth}m × ${adaptedParams.roomDepth}m`);
+                } else {
+                    log('error', `❌ 이벤트 기반 Flow 테스트 실패: ${error}`);
+                }
+                
+                window.removeEventListener('layout-apply-complete', handleLayoutApplyComplete);
+            };
+            
+            window.addEventListener('layout-apply-complete', handleLayoutApplyComplete);
+            
+            // apply-layout-request 이벤트 발생
+            const layoutData = {
+                version: '1.0',
+                site_id: 'event_test',
+                room: { width: 45, depth: 65, wallHeight: 4.5 },
+                office: { width: 14, depth: 22, x: 16, z: -22, hasEntrance: true }
+            };
+            
+            // 이벤트 핸들러 시뮬레이션
+            try {
+                const convertedLayout = {
+                    roomParams: {
+                        roomWidth: layoutData.room.width,
+                        roomDepth: layoutData.room.depth,
+                        wallHeight: layoutData.room.wallHeight,
+                        wallThickness: 0.2
+                    },
+                    officeParams: {
+                        size: { width: layoutData.office.width, depth: layoutData.office.depth },
+                        position: { x: layoutData.office.x, z: layoutData.office.z },
+                        hasEntrance: layoutData.office.hasEntrance
+                    }
+                };
+                
+                const adaptedParams = roomParamsAdapter.adapt(convertedLayout);
+                const validation = roomParamsAdapter.validate(adaptedParams);
+                
+                if (!validation.valid) {
+                    throw new Error(validation.errors.join(', '));
+                }
+                
+                if (roomEnvironment) {
+                    roomEnvironment.dispose();
+                }
+                
+                roomEnvironment = new RoomEnvironment(scene, adaptedParams);
+                roomEnvironment.buildEnvironment();
+                
+                window.dispatchEvent(new CustomEvent('layout-apply-complete', {
+                    detail: { layoutData, adaptedParams, success: true }
+                }));
+                
+            } catch (error) {
+                window.dispatchEvent(new CustomEvent('layout-apply-complete', {
+                    detail: { layoutData, error: error.message, success: false }
+                }));
+            }
+            
+            updateResultPanel();
+        };
+        
+        // ============================================
+        // UI 컨트롤 함수들
+        // ============================================
+        
+        window.updateRoomWidthDisplay = function() {
+            const value = document.getElementById('roomWidth').value;
+            document.getElementById('roomWidthValue').textContent = `${value}m`;
+        };
+        
+        window.updateRoomDepthDisplay = function() {
+            const value = document.getElementById('roomDepth').value;
+            document.getElementById('roomDepthValue').textContent = `${value}m`;
+        };
+        
+        window.updateWallHeightDisplay = function() {
+            const value = document.getElementById('wallHeight').value;
+            document.getElementById('wallHeightValue').textContent = `${value}m`;
+        };
+        
+        window.updateOfficeWidthDisplay = function() {
+            const value = document.getElementById('officeWidth').value;
+            document.getElementById('officeWidthValue').textContent = `${value}m`;
+        };
+        
+        window.updateOfficeDepthDisplay = function() {
+            const value = document.getElementById('officeDepth').value;
+            document.getElementById('officeDepthValue').textContent = `${value}m`;
+        };
+        
+        window.applyRoomDimensions = function() {
+            const roomWidth = parseInt(document.getElementById('roomWidth').value);
+            const roomDepth = parseInt(document.getElementById('roomDepth').value);
+            const wallHeight = parseFloat(document.getElementById('wallHeight').value);
+            
+            log('info', `Room 치수 적용: ${roomWidth}m × ${roomDepth}m × ${wallHeight}m`);
+            
+            if (roomEnvironment) {
+                roomEnvironment.dispose();
+            }
+            
+            const params = {
+                roomWidth,
+                roomDepth,
+                wallHeight,
+                wallThickness: 0.2,
+                hasOffice: document.getElementById('hasOffice').checked,
+                officeWidth: parseInt(document.getElementById('officeWidth').value),
+                officeDepth: parseInt(document.getElementById('officeDepth').value),
+                officeX: roomWidth / 2 - 5,
+                officeZ: -roomDepth / 3
+            };
+            
+            roomEnvironment = new RoomEnvironment(scene, params);
+            roomEnvironment.buildEnvironment();
+            
+            log('success', '✅ Room 치수 적용 완료');
+            updateResultPanel();
+        };
+        
+        window.applyOfficeSettings = function() {
+            const hasOffice = document.getElementById('hasOffice').checked;
+            const officeWidth = parseInt(document.getElementById('officeWidth').value);
+            const officeDepth = parseInt(document.getElementById('officeDepth').value);
+            
+            log('info', `Office 설정 적용: ${hasOffice ? `${officeWidth}m × ${officeDepth}m` : 'None'}`);
+            
+            if (roomEnvironment) {
+                const currentDims = roomEnvironment.getDimensions();
+                roomEnvironment.dispose();
+                
+                const params = {
+                    roomWidth: currentDims.roomWidth,
+                    roomDepth: currentDims.roomDepth,
+                    wallHeight: currentDims.wallHeight,
+                    wallThickness: 0.2,
+                    hasOffice,
+                    officeWidth,
+                    officeDepth,
+                    officeX: currentDims.roomWidth / 2 - 5,
+                    officeZ: -currentDims.roomDepth / 3
+                };
+                
+                roomEnvironment = new RoomEnvironment(scene, params);
+                roomEnvironment.buildEnvironment();
+            }
+            
+            log('success', '✅ Office 설정 적용 완료');
+            updateResultPanel();
+        };
+        
+        window.applyPreset = function(preset) {
+            const presets = {
+                small: { roomWidth: 30, roomDepth: 40, wallHeight: 3.5, officeWidth: 8, officeDepth: 12 },
+                medium: { roomWidth: 50, roomDepth: 70, wallHeight: 4.5, officeWidth: 14, officeDepth: 22 },
+                large: { roomWidth: 80, roomDepth: 100, wallHeight: 6, officeWidth: 20, officeDepth: 30 }
+            };
+            
+            const p = presets[preset];
+            if (!p) return;
+            
+            log('info', `프리셋 적용: ${preset.toUpperCase()}`);
+            
+            // UI 업데이트
+            document.getElementById('roomWidth').value = p.roomWidth;
+            document.getElementById('roomDepth').value = p.roomDepth;
+            document.getElementById('wallHeight').value = p.wallHeight;
+            document.getElementById('officeWidth').value = p.officeWidth;
+            document.getElementById('officeDepth').value = p.officeDepth;
+            
+            updateRoomWidthDisplay();
+            updateRoomDepthDisplay();
+            updateWallHeightDisplay();
+            updateOfficeWidthDisplay();
+            updateOfficeDepthDisplay();
+            
+            // Room 적용
+            if (roomEnvironment) {
+                roomEnvironment.dispose();
+            }
+            
+            const params = {
+                roomWidth: p.roomWidth,
+                roomDepth: p.roomDepth,
+                wallHeight: p.wallHeight,
+                wallThickness: 0.2,
+                hasOffice: true,
+                officeWidth: p.officeWidth,
+                officeDepth: p.officeDepth,
+                officeX: p.roomWidth / 2 - p.officeWidth / 2 - 2,
+                officeZ: -p.roomDepth / 3
+            };
+            
+            roomEnvironment = new RoomEnvironment(scene, params);
+            roomEnvironment.buildEnvironment();
+            
+            // 카메라 위치 조정
+            const maxDim = Math.max(p.roomWidth, p.roomDepth);
+            camera.position.set(maxDim * 0.8, maxDim * 0.5, maxDim * 0.8);
+            controls.update();
+            
+            log('success', `✅ ${preset.toUpperCase()} 프리셋 적용 완료`);
+            updateResultPanel();
+        };
+        
+        window.resetToDefault = function() {
+            log('info', '🔄 기본값으로 초기화...');
+            
+            // UI 초기화
+            document.getElementById('roomWidth').value = 40;
+            document.getElementById('roomDepth').value = 60;
+            document.getElementById('wallHeight').value = 4;
+            document.getElementById('officeWidth').value = 12;
+            document.getElementById('officeDepth').value = 20;
+            document.getElementById('hasOffice').checked = true;
+            
+            updateRoomWidthDisplay();
+            updateRoomDepthDisplay();
+            updateWallHeightDisplay();
+            updateOfficeWidthDisplay();
+            updateOfficeDepthDisplay();
+            
+            // Room 초기화
+            if (roomEnvironment) {
+                roomEnvironment.dispose();
+            }
+            
+            roomEnvironment = new RoomEnvironment(scene);
+            roomEnvironment.buildEnvironment();
+            
+            // 카메라 초기화
+            camera.position.set(50, 40, 50);
+            controls.target.set(0, 0, 0);
+            controls.update();
+            
+            // 테스트 상태 초기화
+            ['test-default', 'test-dynamic', 'test-adapter', 'test-validation', 'test-fullflow'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = '대기';
+                    el.className = 'test-status test-pending';
+                }
+            });
+            
+            log('success', '✅ 기본값 초기화 완료');
+            updateResultPanel();
+        };
+        
+        window.showCurrentState = function() {
+            if (!roomEnvironment) {
+                log('error', 'RoomEnvironment가 없습니다');
+                return;
+            }
+            
+            roomEnvironment.debug();
+            
+            const dims = roomEnvironment.getDimensions();
+            log('info', '=== 현재 Room 상태 ===');
+            log('info', `Room: ${dims.roomWidth}m × ${dims.roomDepth}m × ${dims.wallHeight}m`);
+            log('info', `Office: ${dims.hasOffice ? `${dims.officeWidth}m × ${dims.officeDepth}m` : 'None'}`);
+            log('info', `동적 파라미터: ${roomEnvironment.usesDynamicParams()}`);
+            log('info', `벽: ${roomEnvironment.walls.length}개`);
+            log('info', `파티션: ${roomEnvironment.partitions.length}개`);
+        };
+        
+        window.runAllTests = function() {
+            log('warning', '🚀 전체 테스트 실행 시작...');
+            
+            setTimeout(() => testDefaultParams(), 100);
+            setTimeout(() => testDynamicParams(), 600);
+            setTimeout(() => testRoomParamsAdapter(), 1100);
+            setTimeout(() => testAdapterValidation(), 1600);
+            setTimeout(() => testFullLayoutFlow(), 2100);
+            setTimeout(() => {
+                log('success', '🎉 전체 테스트 완료!');
+            }, 2600);
+        };
+        
+        // ============================================
+        // 초기화
+        // ============================================
+        initThreeJS();
+        
+        // 전역 객체 노출
+        window.scene = scene;
+        window.camera = camera;
+        window.renderer = renderer;
+        window.roomEnvironment = roomEnvironment;
+        window.roomParamsAdapter = roomParamsAdapter;
+    </script>
+</body>
+</html>
