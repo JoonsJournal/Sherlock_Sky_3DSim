@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LayoutValidator Test - Phase 3.2</title>
+    
+    <!-- Konva.js CDN -->
+    <script src="https://unpkg.com/konva@8/konva.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        
+        .test-container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .canvas-section {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .canvas-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .canvas-header h2 {
+            color: #667eea;
+        }
+        
+        #canvas-container {
+            background: #f5f5f5;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .panel-section {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .panel-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        /* 버튼 스타일 */
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a6fd6;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #219a52;
+        }
+        
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #d68910;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .btn-info {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: #2980b9;
+        }
+        
+        /* 테스트 결과 */
+        .test-results {
+            background: #0f0f23;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .test-results h3 {
+            color: #27ae60;
+            margin-bottom: 10px;
+        }
+        
+        .result-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+        }
+        
+        .result-pass {
+            background: rgba(39, 174, 96, 0.2);
+            border-left: 4px solid #27ae60;
+        }
+        
+        .result-fail {
+            background: rgba(231, 76, 60, 0.2);
+            border-left: 4px solid #e74c3c;
+        }
+        
+        .result-info {
+            background: rgba(52, 152, 219, 0.2);
+            border-left: 4px solid #3498db;
+        }
+        
+        /* 콘솔 로그 */
+        #console-log {
+            background: #0f0f23;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #333;
+        }
+        
+        .log-info { color: #3498db; }
+        .log-success { color: #27ae60; }
+        .log-warning { color: #f39c12; }
+        .log-error { color: #e74c3c; }
+        
+        /* Property Panel 영역 */
+        #property-panel {
+            background: white;
+            border-radius: 8px;
+            min-height: 400px;
+            color: #333;
+        }
+        
+        /* CSS 변수 (Canvas2DEditor용) */
+        :root {
+            --canvas-equipment-default: #4a90e2;
+            --canvas-equipment-selected: #FFD700;
+            --canvas-equipment-hover: #3498db;
+            --canvas-equipment-stroke: #2c3e50;
+            --canvas-transformer-border: #667eea;
+            --canvas-transformer-anchor-stroke: #667eea;
+            --canvas-transformer-anchor-fill: #ffffff;
+            --canvas-bg: #f5f5f5;
+            --canvas-grid-minor: #d0d0d0;
+            --canvas-grid-major: #a0a0a0;
+            --canvas-grid-label: #999999;
+            --canvas-selection-stroke: #667eea;
+            --canvas-selection-fill: rgba(102, 126, 234, 0.1);
+            --canvas-coord-bg: #667eea;
+            --canvas-coord-text: #ffffff;
+            --canvas-room-stroke: #666666;
+            --canvas-wall-default: #888888;
+            --canvas-office-fill: #d4e6f1;
+            --canvas-office-stroke: #3498db;
+            --canvas-partition: #aaaaaa;
+            --canvas-text-primary: #212529;
+            --canvas-text-secondary: #6c757d;
+            --canvas-validation-error: #e74c3c;
+            --canvas-validation-warning: #f39c12;
+        }
+        
+        /* 테스트 시나리오 선택 */
+        .scenario-select {
+            margin-bottom: 20px;
+        }
+        
+        .scenario-select label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .scenario-select select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 2px solid #667eea;
+            background: #0f0f23;
+            color: white;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 LayoutValidator Test - Phase 3.2</h1>
+    
+    <div class="test-container">
+        <!-- Canvas 영역 -->
+        <div class="canvas-section">
+            <div class="canvas-header">
+                <h2>📐 Canvas2DEditor</h2>
+                <span id="canvas-status">Ready</span>
+            </div>
+            <div id="canvas-container"></div>
+            
+            <div class="btn-group" style="margin-top: 15px;">
+                <button class="btn btn-primary" onclick="testValidation()">🔍 Validate Layout</button>
+                <button class="btn btn-success" onclick="testSaveWithValidation()">💾 Save (with Validation)</button>
+                <button class="btn btn-info" onclick="clearHighlights()">🧹 Clear Highlights</button>
+            </div>
+        </div>
+        
+        <!-- Property Panel 영역 -->
+        <div class="panel-section">
+            <h2>📋 Property Panel</h2>
+            <div id="property-panel"></div>
+            
+            <div class="scenario-select">
+                <label>🎯 Test Scenario</label>
+                <select id="scenario-select" onchange="loadScenario(this.value)">
+                    <option value="valid">✅ Valid Layout (All Pass)</option>
+                    <option value="room_small">❌ Room Too Small</option>
+                    <option value="no_walls">❌ Missing Walls</option>
+                    <option value="equipment_out">❌ Equipment Out of Bounds</option>
+                    <option value="collision">❌ Equipment Collision</option>
+                    <option value="corridor_narrow">⚠️ Narrow Corridor</option>
+                    <option value="multiple_errors">❌ Multiple Errors</option>
+                </select>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="runAllTests()">🚀 Run All Tests</button>
+                <button class="btn btn-warning" onclick="clearConsole()">🗑️ Clear Console</button>
+            </div>
+            
+            <div id="console-log">
+                <div class="log-entry log-info">Console ready...</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-results" id="test-results" style="max-width: 1600px; margin: 20px auto;">
+        <h3>📊 Test Results</h3>
+        <div id="results-container"></div>
+    </div>
+
+    <!-- Validation 모듈 (인라인) -->
+    <script>
+        // =====================================================
+        // ValidationRules.js (인라인)
+        // =====================================================
+        const ValidationRules = {
+            ROOM: {
+                MIN_WIDTH: 10,
+                MIN_DEPTH: 10,
+                MAX_WIDTH: 500,
+                MAX_DEPTH: 500
+            },
+            WALL: {
+                MIN_COUNT: 4,
+                MIN_THICKNESS: 0.1,
+                MAX_THICKNESS: 1.0,
+                MIN_HEIGHT: 2.0,
+                MAX_HEIGHT: 10.0
+            },
+            EQUIPMENT: {
+                MIN_ARRAYS: 1,
+                MIN_WIDTH: 0.1,
+                MIN_DEPTH: 0.1,
+                MAX_WIDTH: 20,
+                MAX_DEPTH: 20,
+                MIN_SPACING: 0.3
+            },
+            CORRIDOR: {
+                MIN_WIDTH: 0.8,
+                RECOMMENDED_WIDTH: 1.2
+            },
+            BOUNDARY: {
+                MIN_MARGIN: 0.5,
+                WALL_COLLISION_MARGIN: 0.1
+            }
+        };
+
+        const ERROR_TYPES = {
+            ROOM_MISSING: 'ROOM_MISSING',
+            ROOM_SIZE_TOO_SMALL: 'ROOM_SIZE_TOO_SMALL',
+            ROOM_SIZE_TOO_LARGE: 'ROOM_SIZE_TOO_LARGE',
+            ROOM_INVALID_DIMENSIONS: 'ROOM_INVALID_DIMENSIONS',
+            WALL_COUNT_INSUFFICIENT: 'WALL_COUNT_INSUFFICIENT',
+            WALL_MISSING: 'WALL_MISSING',
+            EQUIPMENT_ARRAY_MISSING: 'EQUIPMENT_ARRAY_MISSING',
+            EQUIPMENT_ARRAY_EMPTY: 'EQUIPMENT_ARRAY_EMPTY',
+            SITE_ID_MISSING: 'SITE_ID_MISSING',
+            EQUIPMENT_OUT_OF_BOUNDS: 'EQUIPMENT_OUT_OF_BOUNDS',
+            EQUIPMENT_COLLISION: 'EQUIPMENT_COLLISION',
+            EQUIPMENT_WALL_COLLISION: 'EQUIPMENT_WALL_COLLISION',
+            CORRIDOR_TOO_NARROW: 'CORRIDOR_TOO_NARROW',
+            CORRIDOR_BELOW_RECOMMENDED: 'CORRIDOR_BELOW_RECOMMENDED',
+            EQUIPMENT_WIDTH_INVALID: 'EQUIPMENT_WIDTH_INVALID',
+            EQUIPMENT_DEPTH_INVALID: 'EQUIPMENT_DEPTH_INVALID'
+        };
+
+        const SEVERITY = {
+            ERROR: 'error',
+            WARNING: 'warning',
+            INFO: 'info'
+        };
+
+        const ERROR_MESSAGES = {
+            [ERROR_TYPES.ROOM_MISSING]: {
+                message: 'Room 정보가 없습니다',
+                fix: 'Layout에 Room을 추가하세요'
+            },
+            [ERROR_TYPES.ROOM_SIZE_TOO_SMALL]: {
+                message: 'Room 크기가 너무 작습니다 (현재: {width}×{depth}m)',
+                fix: `Room 크기를 최소 ${ValidationRules.ROOM.MIN_WIDTH}×${ValidationRules.ROOM.MIN_DEPTH}m로 설정하세요`
+            },
+            [ERROR_TYPES.WALL_COUNT_INSUFFICIENT]: {
+                message: '외벽 개수가 부족합니다 (현재: {count}개)',
+                fix: `최소 ${ValidationRules.WALL.MIN_COUNT}개의 외벽이 필요합니다`
+            },
+            [ERROR_TYPES.WALL_MISSING]: {
+                message: '벽 정보가 없습니다',
+                fix: 'Layout에 벽을 추가하세요'
+            },
+            [ERROR_TYPES.EQUIPMENT_ARRAY_MISSING]: {
+                message: '설비 배열이 없습니다',
+                fix: '최소 1개의 설비 배열을 추가하세요'
+            },
+            [ERROR_TYPES.EQUIPMENT_OUT_OF_BOUNDS]: {
+                message: '설비 {equipmentId}가 Room 영역 밖에 있습니다',
+                fix: '설비를 Room 내부로 이동하세요'
+            },
+            [ERROR_TYPES.EQUIPMENT_COLLISION]: {
+                message: '설비 {equipmentId1}과 {equipmentId2}이 겹칩니다',
+                fix: '설비 위치를 조정하여 겹침을 해소하세요'
+            },
+            [ERROR_TYPES.CORRIDOR_TOO_NARROW]: {
+                message: '복도 폭이 부족합니다 ({location})',
+                fix: `복도 폭을 최소 ${ValidationRules.CORRIDOR.MIN_WIDTH}m로 설정하세요`
+            },
+            [ERROR_TYPES.SITE_ID_MISSING]: {
+                message: 'Site ID가 없습니다',
+                fix: 'Layout에 site_id를 설정하세요'
+            }
+        };
+
+        function getErrorMessage(errorType, params = {}) {
+            const template = ERROR_MESSAGES[errorType];
+            if (!template) {
+                return { message: `알 수 없는 에러: ${errorType}`, fix: '관리자에게 문의하세요' };
+            }
+            
+            let message = template.message;
+            let fix = template.fix;
+            
+            Object.keys(params).forEach(key => {
+                const regex = new RegExp(`\\{${key}\\}`, 'g');
+                message = message.replace(regex, params[key]);
+                fix = fix.replace(regex, params[key]);
+            });
+            
+            return { message, fix };
+        }
+
+        // =====================================================
+        // ErrorReporter.js (인라인)
+        // =====================================================
+        class ErrorReporter {
+            constructor() {
+                this.errors = [];
+                this.stats = { errorCount: 0, warningCount: 0, infoCount: 0 };
+            }
+            
+            addError(type, details = {}) {
+                const severity = details.severity || SEVERITY.ERROR;
+                const params = { ...details.params };
+                
+                if (details.equipmentId) params.equipmentId = details.equipmentId;
+                if (details.equipmentId1) params.equipmentId1 = details.equipmentId1;
+                if (details.equipmentId2) params.equipmentId2 = details.equipmentId2;
+                if (details.width !== undefined) params.width = details.width;
+                if (details.depth !== undefined) params.depth = details.depth;
+                if (details.count !== undefined) params.count = details.count;
+                if (details.location) params.location = details.location;
+                
+                const { message, fix } = getErrorMessage(type, params);
+                
+                const error = {
+                    id: `err-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    type,
+                    severity,
+                    message,
+                    fix,
+                    equipmentId: details.equipmentId || null,
+                    position: details.position || null,
+                    timestamp: new Date().toISOString()
+                };
+                
+                this.errors.push(error);
+                this.updateStats(severity);
+                return error;
+            }
+            
+            updateStats(severity) {
+                if (severity === SEVERITY.ERROR) this.stats.errorCount++;
+                else if (severity === SEVERITY.WARNING) this.stats.warningCount++;
+                else this.stats.infoCount++;
+            }
+            
+            getErrors() { return [...this.errors]; }
+            hasErrors() { return this.stats.errorCount > 0; }
+            hasWarnings() { return this.stats.warningCount > 0; }
+            clear() {
+                this.errors = [];
+                this.stats = { errorCount: 0, warningCount: 0, infoCount: 0 };
+            }
+            
+            getStats() { return { ...this.stats, total: this.errors.length }; }
+            
+            getSummary() {
+                const { errorCount, warningCount } = this.stats;
+                if (errorCount === 0 && warningCount === 0) return '✅ 모든 검증 통과';
+                const parts = [];
+                if (errorCount > 0) parts.push(`❌ ${errorCount}개 에러`);
+                if (warningCount > 0) parts.push(`⚠️ ${warningCount}개 경고`);
+                return parts.join(', ');
+            }
+            
+            toJSON() {
+                return {
+                    valid: !this.hasErrors(),
+                    errors: this.errors,
+                    stats: this.getStats(),
+                    summary: this.getSummary()
+                };
+            }
+        }
+
+        // =====================================================
+        // LayoutValidator.js (인라인)
+        // =====================================================
+        class LayoutValidator {
+            constructor() {
+                this.reporter = null;
+                this.layoutData = null;
+                this.scale = 10;
+            }
+            
+            validate(layoutData, canvas2DEditor = null) {
+                logConsole('info', '[LayoutValidator] 검증 시작...');
+                
+                this.reporter = new ErrorReporter();
+                
+                if (canvas2DEditor) {
+                    this.layoutData = this.extractFromCanvas(canvas2DEditor);
+                    this.scale = canvas2DEditor.config?.scale || 10;
+                } else if (layoutData) {
+                    this.layoutData = layoutData;
+                } else {
+                    this.reporter.addError(ERROR_TYPES.ROOM_MISSING, { severity: SEVERITY.ERROR });
+                    return this.reporter.toJSON();
+                }
+                
+                this.checkRequired();
+                
+                if (this.reporter.hasErrors()) {
+                    logConsole('error', '[LayoutValidator] 필수 항목 에러 발견');
+                    return this.reporter.toJSON();
+                }
+                
+                this.checkBounds();
+                this.checkCollisions();
+                this.checkCorridors();
+                
+                const result = this.reporter.toJSON();
+                logConsole(result.valid ? 'success' : 'error', 
+                    `[LayoutValidator] 검증 완료: ${result.summary}`);
+                
+                return result;
+            }
+            
+            extractFromCanvas(canvas) {
+                const scale = canvas.config?.scale || 10;
+                const data = {
+                    site_id: canvas.currentLayout?.site_id || 'test_site',
+                    room: this.extractRoomData(canvas),
+                    walls: this.extractWallsData(canvas, scale),
+                    equipmentArrays: this.extractEquipmentData(canvas, scale),
+                    corridors: canvas.currentLayout?.corridors || []
+                };
+                return data;
+            }
+            
+            extractRoomData(canvas) {
+                if (canvas.currentLayout?.room) return canvas.currentLayout.room;
+                const roomBoundary = canvas.layers?.room?.findOne('.room_boundary');
+                if (roomBoundary) {
+                    const scale = canvas.config?.scale || 10;
+                    return {
+                        width: roomBoundary.width() / scale,
+                        depth: roomBoundary.height() / scale
+                    };
+                }
+                return null;
+            }
+            
+            extractWallsData(canvas, scale) {
+                const walls = [];
+                canvas.wallShapes?.forEach((wall, id) => {
+                    const points = wall.points?.() || [];
+                    walls.push({
+                        id,
+                        type: wall.getAttr('wallType') || 'partition',
+                        points,
+                        startX: points[0] / scale,
+                        startY: points[1] / scale,
+                        endX: points[2] / scale,
+                        endY: points[3] / scale
+                    });
+                });
+                return walls;
+            }
+            
+            extractEquipmentData(canvas, scale) {
+                const equipments = [];
+                canvas.equipmentShapes?.forEach((eq, id) => {
+                    equipments.push({
+                        id,
+                        x: eq.x() / scale,
+                        y: eq.y() / scale,
+                        width: eq.width() / scale,
+                        depth: eq.height() / scale
+                    });
+                });
+                return equipments.length > 0 ? [{ id: 'main-array', equipments }] : [];
+            }
+            
+            checkRequired() {
+                const data = this.layoutData;
+                
+                if (!data.site_id) {
+                    this.reporter.addError(ERROR_TYPES.SITE_ID_MISSING, { severity: SEVERITY.ERROR });
+                }
+                
+                if (!data.room) {
+                    this.reporter.addError(ERROR_TYPES.ROOM_MISSING, { severity: SEVERITY.ERROR });
+                } else {
+                    const { width, depth } = data.room;
+                    if (width < ValidationRules.ROOM.MIN_WIDTH || depth < ValidationRules.ROOM.MIN_DEPTH) {
+                        this.reporter.addError(ERROR_TYPES.ROOM_SIZE_TOO_SMALL, {
+                            severity: SEVERITY.ERROR,
+                            params: { width, depth }
+                        });
+                    }
+                }
+                
+                if (!data.walls || data.walls.length < ValidationRules.WALL.MIN_COUNT) {
+                    this.reporter.addError(ERROR_TYPES.WALL_COUNT_INSUFFICIENT, {
+                        severity: SEVERITY.ERROR,
+                        params: { count: data.walls?.length || 0 }
+                    });
+                }
+                
+                if (!data.equipmentArrays || data.equipmentArrays.length === 0) {
+                    this.reporter.addError(ERROR_TYPES.EQUIPMENT_ARRAY_MISSING, {
+                        severity: SEVERITY.ERROR
+                    });
+                }
+            }
+            
+            checkBounds() {
+                const data = this.layoutData;
+                if (!data.room || !data.equipmentArrays) return;
+                
+                const roomWidth = data.room.width;
+                const roomDepth = data.room.depth;
+                const margin = ValidationRules.BOUNDARY.MIN_MARGIN;
+                
+                data.equipmentArrays.forEach(array => {
+                    (array.equipments || []).forEach(eq => {
+                        const eqRight = eq.x + eq.width;
+                        const eqBottom = eq.y + eq.depth;
+                        
+                        if (eq.x < margin || eq.y < margin || 
+                            eqRight > roomWidth - margin || eqBottom > roomDepth - margin) {
+                            this.reporter.addError(ERROR_TYPES.EQUIPMENT_OUT_OF_BOUNDS, {
+                                severity: SEVERITY.ERROR,
+                                equipmentId: eq.id,
+                                position: { x: eq.x, y: eq.y }
+                            });
+                        }
+                    });
+                });
+            }
+            
+            checkCollisions() {
+                const data = this.layoutData;
+                if (!data.equipmentArrays) return;
+                
+                const allEquipments = [];
+                data.equipmentArrays.forEach(array => {
+                    allEquipments.push(...(array.equipments || []));
+                });
+                
+                for (let i = 0; i < allEquipments.length; i++) {
+                    for (let j = i + 1; j < allEquipments.length; j++) {
+                        if (this.checkRectCollision(allEquipments[i], allEquipments[j])) {
+                            this.reporter.addError(ERROR_TYPES.EQUIPMENT_COLLISION, {
+                                severity: SEVERITY.ERROR,
+                                equipmentId1: allEquipments[i].id,
+                                equipmentId2: allEquipments[j].id,
+                                position: { x: allEquipments[i].x, y: allEquipments[i].y }
+                            });
+                        }
+                    }
+                }
+            }
+            
+            checkRectCollision(rect1, rect2) {
+                const gap = ValidationRules.EQUIPMENT.MIN_SPACING;
+                return !(rect1.x + rect1.width + gap <= rect2.x ||
+                         rect2.x + rect2.width + gap <= rect1.x ||
+                         rect1.y + rect1.depth + gap <= rect2.y ||
+                         rect2.y + rect2.depth + gap <= rect1.y);
+            }
+            
+            checkCorridors() {
+                const data = this.layoutData;
+                if (!data.corridors) return;
+                
+                data.corridors.forEach(corridor => {
+                    if (corridor.width < ValidationRules.CORRIDOR.MIN_WIDTH) {
+                        this.reporter.addError(ERROR_TYPES.CORRIDOR_TOO_NARROW, {
+                            severity: SEVERITY.ERROR,
+                            location: corridor.location || 'unknown'
+                        });
+                    } else if (corridor.width < ValidationRules.CORRIDOR.RECOMMENDED_WIDTH) {
+                        this.reporter.addError(ERROR_TYPES.CORRIDOR_BELOW_RECOMMENDED, {
+                            severity: SEVERITY.WARNING,
+                            location: corridor.location || 'unknown'
+                        });
+                    }
+                });
+            }
+        }
+
+        // =====================================================
+        // Canvas2DEditor (간소화 버전)
+        // =====================================================
+        class Canvas2DEditor {
+            constructor(containerId, options = {}) {
+                this.containerId = containerId;
+                this.container = document.getElementById(containerId);
+                
+                this.config = {
+                    width: options.width || 800,
+                    height: options.height || 600,
+                    scale: options.scale || 10,
+                    gridSize: options.gridSize || 10
+                };
+                
+                this.stage = null;
+                this.layers = {};
+                this.currentLayout = null;
+                this.equipmentShapes = new Map();
+                this.wallShapes = new Map();
+                this.componentShapes = new Map();
+                this.validationHighlights = new Map();
+                this.propertyPanel = null;
+                
+                this.cssColors = {
+                    equipmentDefault: '#4a90e2',
+                    equipmentSelected: '#FFD700',
+                    equipmentStroke: '#2c3e50',
+                    roomStroke: '#666666',
+                    wallDefault: '#888888',
+                    validationError: '#e74c3c',
+                    validationWarning: '#f39c12'
+                };
+                
+                this.init();
+            }
+            
+            init() {
+                this.stage = new Konva.Stage({
+                    container: this.containerId,
+                    width: this.config.width,
+                    height: this.config.height
+                });
+                
+                this.layers.background = new Konva.Layer({ listening: false });
+                this.layers.room = new Konva.Layer();
+                this.layers.equipment = new Konva.Layer();
+                this.layers.ui = new Konva.Layer();
+                
+                this.stage.add(this.layers.background);
+                this.stage.add(this.layers.room);
+                this.stage.add(this.layers.equipment);
+                this.stage.add(this.layers.ui);
+                
+                this.drawGrid();
+                
+                logConsole('success', '[Canvas2DEditor] 초기화 완료');
+            }
+            
+            drawGrid() {
+                const { width, height, gridSize } = this.config;
+                
+                for (let i = 0; i <= width; i += gridSize) {
+                    this.layers.background.add(new Konva.Line({
+                        points: [i, 0, i, height],
+                        stroke: '#d0d0d0',
+                        strokeWidth: (i % 100 === 0) ? 1 : 0.5
+                    }));
+                }
+                
+                for (let j = 0; j <= height; j += gridSize) {
+                    this.layers.background.add(new Konva.Line({
+                        points: [0, j, width, j],
+                        stroke: '#d0d0d0',
+                        strokeWidth: (j % 100 === 0) ? 1 : 0.5
+                    }));
+                }
+                
+                this.layers.background.batchDraw();
+            }
+            
+            loadLayout(layoutData) {
+                this.currentLayout = layoutData;
+                
+                // Clear existing
+                this.equipmentShapes.forEach(s => s.destroy());
+                this.wallShapes.forEach(s => s.destroy());
+                this.equipmentShapes.clear();
+                this.wallShapes.clear();
+                
+                // Draw room
+                if (layoutData.room) {
+                    const scale = this.config.scale;
+                    const rect = new Konva.Rect({
+                        x: 0, y: 0,
+                        width: layoutData.room.width * scale,
+                        height: layoutData.room.depth * scale,
+                        stroke: this.cssColors.roomStroke,
+                        strokeWidth: 3,
+                        fill: 'transparent',
+                        name: 'room_boundary'
+                    });
+                    this.layers.room.add(rect);
+                }
+                
+                // Draw walls
+                if (layoutData.walls) {
+                    layoutData.walls.forEach(wall => {
+                        const scale = this.config.scale;
+                        const line = new Konva.Line({
+                            id: wall.id,
+                            points: [
+                                wall.startX * scale, wall.startY * scale,
+                                wall.endX * scale, wall.endY * scale
+                            ],
+                            stroke: this.cssColors.wallDefault,
+                            strokeWidth: 2,
+                            name: 'wall'
+                        });
+                        line.setAttr('wallType', wall.type);
+                        this.wallShapes.set(wall.id, line);
+                        this.layers.room.add(line);
+                    });
+                }
+                
+                // Draw equipment
+                if (layoutData.equipmentArrays) {
+                    layoutData.equipmentArrays.forEach(array => {
+                        (array.equipments || []).forEach(eq => {
+                            const scale = this.config.scale;
+                            const rect = new Konva.Rect({
+                                id: eq.id,
+                                x: eq.x * scale,
+                                y: eq.y * scale,
+                                width: eq.width * scale,
+                                height: eq.depth * scale,
+                                fill: this.cssColors.equipmentDefault,
+                                stroke: this.cssColors.equipmentStroke,
+                                strokeWidth: 2,
+                                name: 'equipment'
+                            });
+                            rect.setAttr('originalStroke', this.cssColors.equipmentStroke);
+                            this.equipmentShapes.set(eq.id, rect);
+                            this.layers.equipment.add(rect);
+                        });
+                    });
+                }
+                
+                this.stage.batchDraw();
+                logConsole('success', `[Canvas2DEditor] Layout 로드 완료: ${this.equipmentShapes.size}개 설비`);
+            }
+            
+            highlightValidationErrors(errors) {
+                this.clearValidationHighlights();
+                
+                errors.forEach(error => {
+                    if (!error) return;
+                    
+                    const color = error.severity === 'error' 
+                        ? this.cssColors.validationError 
+                        : this.cssColors.validationWarning;
+                    
+                    if (error.equipmentId) {
+                        this.highlightShapeById(error.equipmentId, color);
+                    }
+                    if (error.equipmentId1) {
+                        this.highlightShapeById(error.equipmentId1, color);
+                    }
+                    if (error.equipmentId2) {
+                        this.highlightShapeById(error.equipmentId2, color);
+                    }
+                });
+                
+                this.stage.batchDraw();
+                logConsole('warning', `[Canvas2DEditor] ${errors.length}개 에러 하이라이트`);
+            }
+            
+            highlightShapeById(id, color) {
+                const shape = this.equipmentShapes.get(id);
+                if (!shape) return;
+                
+                this.validationHighlights.set(id, {
+                    shape,
+                    originalStroke: shape.stroke(),
+                    originalStrokeWidth: shape.strokeWidth()
+                });
+                
+                shape.stroke(color);
+                shape.strokeWidth(4);
+                shape.shadowColor(color);
+                shape.shadowBlur(10);
+                shape.shadowOpacity(0.5);
+            }
+            
+            clearValidationHighlights() {
+                this.validationHighlights.forEach((highlight, id) => {
+                    if (highlight.shape) {
+                        highlight.shape.stroke(highlight.originalStroke);
+                        highlight.shape.strokeWidth(highlight.originalStrokeWidth);
+                        highlight.shape.shadowBlur(0);
+                    }
+                });
+                this.validationHighlights.clear();
+                this.stage.batchDraw();
+            }
+            
+            scrollToError(error) {
+                if (!error) return;
+                
+                let targetX, targetY;
+                
+                if (error.equipmentId) {
+                    const shape = this.equipmentShapes.get(error.equipmentId);
+                    if (shape) {
+                        targetX = shape.x() + shape.width() / 2;
+                        targetY = shape.y() + shape.height() / 2;
+                    }
+                } else if (error.position) {
+                    targetX = error.position.x * this.config.scale;
+                    targetY = error.position.y * this.config.scale;
+                }
+                
+                if (targetX !== undefined) {
+                    const newX = this.stage.width() / 2 - targetX;
+                    const newY = this.stage.height() / 2 - targetY;
+                    this.stage.position({ x: newX, y: newY });
+                    this.stage.batchDraw();
+                    logConsole('info', `[Canvas2DEditor] 스크롤: (${targetX}, ${targetY})`);
+                }
+            }
+            
+            setPropertyPanel(panel) {
+                this.propertyPanel = panel;
+            }
+        }
+
+        // =====================================================
+        // PropertyPanel (간소화 버전)
+        // =====================================================
+        class PropertyPanel {
+            constructor(containerId, canvas) {
+                this.container = document.getElementById(containerId);
+                this.canvas = canvas;
+                this.currentValidationErrors = [];
+                this.initPanel();
+            }
+            
+            initPanel() {
+                this.container.innerHTML = `
+                    <div id="validation-errors-section" style="display: none; padding: 15px; background: #fff5f5;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                            <h3 style="margin: 0; color: #e74c3c;">🔴 Validation Errors</h3>
+                            <button onclick="propertyPanel.hideValidationErrors()" style="border: none; background: none; cursor: pointer; font-size: 16px;">✕</button>
+                        </div>
+                        <div id="validation-summary"></div>
+                        <div id="validation-list"></div>
+                    </div>
+                    <div id="panel-empty" style="padding: 40px; text-align: center; color: #95a5a6;">
+                        <p>🎯 테스트 시나리오를 선택하세요</p>
+                    </div>
+                `;
+            }
+            
+            showValidationErrors(errors) {
+                if (!errors || errors.length === 0) {
+                    this.hideValidationErrors();
+                    return;
+                }
+                
+                this.currentValidationErrors = errors;
+                
+                document.getElementById('validation-errors-section').style.display = 'block';
+                document.getElementById('panel-empty').style.display = 'none';
+                
+                const errorCount = errors.filter(e => e.severity === 'error').length;
+                const warningCount = errors.filter(e => e.severity === 'warning').length;
+                
+                document.getElementById('validation-summary').innerHTML = `
+                    <div style="margin-bottom: 10px;">
+                        ${errorCount > 0 ? `<span style="color: #e74c3c; font-weight: bold;">❌ ${errorCount} 에러</span> ` : ''}
+                        ${warningCount > 0 ? `<span style="color: #f39c12; font-weight: bold;">⚠️ ${warningCount} 경고</span>` : ''}
+                    </div>
+                `;
+                
+                document.getElementById('validation-list').innerHTML = errors.map((error, i) => `
+                    <div style="padding: 12px; margin: 8px 0; background: white; border-radius: 6px; border-left: 4px solid ${error.severity === 'error' ? '#e74c3c' : '#f39c12'}; cursor: pointer;"
+                         onclick="propertyPanel.onErrorClick(${i})">
+                        <div style="font-weight: bold; margin-bottom: 5px;">
+                            ${error.severity === 'error' ? '❌' : '⚠️'} ${error.type}
+                        </div>
+                        <div style="color: #333; margin-bottom: 5px;">${error.message}</div>
+                        <div style="color: #27ae60; font-size: 12px;">💡 ${error.fix}</div>
+                    </div>
+                `).join('');
+            }
+            
+            hideValidationErrors() {
+                this.currentValidationErrors = [];
+                document.getElementById('validation-errors-section').style.display = 'none';
+                document.getElementById('panel-empty').style.display = 'block';
+                
+                if (this.canvas) {
+                    this.canvas.clearValidationHighlights();
+                }
+            }
+            
+            onErrorClick(index) {
+                const error = this.currentValidationErrors[index];
+                if (error && this.canvas) {
+                    this.canvas.highlightValidationErrors([error]);
+                    this.canvas.scrollToError(error);
+                }
+            }
+        }
+
+        // =====================================================
+        // 테스트 시나리오 데이터
+        // =====================================================
+        const TEST_SCENARIOS = {
+            valid: {
+                name: 'Valid Layout',
+                site_id: 'test_korea_line1',
+                room: { width: 50, depth: 40 },
+                walls: [
+                    { id: 'wall-1', type: 'room_boundary', startX: 0, startY: 0, endX: 50, endY: 0 },
+                    { id: 'wall-2', type: 'room_boundary', startX: 50, startY: 0, endX: 50, endY: 40 },
+                    { id: 'wall-3', type: 'room_boundary', startX: 50, startY: 40, endX: 0, endY: 40 },
+                    { id: 'wall-4', type: 'room_boundary', startX: 0, startY: 40, endX: 0, endY: 0 }
+                ],
+                equipmentArrays: [{
+                    id: 'array-1',
+                    equipments: [
+                        { id: 'EQ-01-01', x: 5, y: 5, width: 2, depth: 3 },
+                        { id: 'EQ-01-02', x: 10, y: 5, width: 2, depth: 3 },
+                        { id: 'EQ-02-01', x: 5, y: 15, width: 2, depth: 3 },
+                        { id: 'EQ-02-02', x: 10, y: 15, width: 2, depth: 3 }
+                    ]
+                }],
+                corridors: [{ location: 'main', width: 1.5 }]
+            },
+            
+            room_small: {
+                name: 'Room Too Small',
+                site_id: 'test_site',
+                room: { width: 5, depth: 5 },  // 너무 작음!
+                walls: [
+                    { id: 'wall-1', startX: 0, startY: 0, endX: 5, endY: 0 },
+                    { id: 'wall-2', startX: 5, startY: 0, endX: 5, endY: 5 },
+                    { id: 'wall-3', startX: 5, startY: 5, endX: 0, endY: 5 },
+                    { id: 'wall-4', startX: 0, startY: 5, endX: 0, endY: 0 }
+                ],
+                equipmentArrays: [{
+                    id: 'array-1',
+                    equipments: [{ id: 'EQ-01', x: 1, y: 1, width: 2, depth: 2 }]
+                }]
+            },
+            
+            no_walls: {
+                name: 'Missing Walls',
+                site_id: 'test_site',
+                room: { width: 30, depth: 20 },
+                walls: [
+                    { id: 'wall-1', startX: 0, startY: 0, endX: 30, endY: 0 },
+                    { id: 'wall-2', startX: 30, startY: 0, endX: 30, endY: 20 }
+                    // 벽 2개 부족!
+                ],
+                equipmentArrays: [{
+                    id: 'array-1',
+                    equipments: [{ id: 'EQ-01', x: 5, y: 5, width: 2, depth: 3 }]
+                }]
+            },
+            
+            equipment_out: {
+                name: 'Equipment Out of Bounds',
+                site_id: 'test_site',
+                room: { width: 30, depth: 20 },
+                walls: [
+                    { id: 'wall-1', startX: 0, startY: 0, endX: 30, endY: 0 },
+                    { id: 'wall-2', startX: 30, startY: 0, endX: 30, endY: 20 },
+                    { id: 'wall-3', startX: 30, startY: 20, endX: 0, endY: 20 },
+                    { id: 'wall-4', startX: 0, startY: 20, endX: 0, endY: 0 }
+                ],
+                equipmentArrays: [{
+                    id: 'array-1',
+                    equipments: [
+                        { id: 'EQ-INSIDE', x: 5, y: 5, width: 2, depth: 3 },
+                        { id: 'EQ-OUTSIDE', x: 28, y: 18, width: 3, depth: 3 }  // 범위 밖!
+                    ]
+                }]
+            },
+            
+            collision: {
+                name: 'Equipment Collision',
+                site_id: 'test_site',
+                room: { width: 30, depth: 20 },
+                walls: [
+                    { id: 'wall-1', startX: 0, startY: 0, endX: 30, endY: 0 },
+                    { id: 'wall-2', startX: 30, startY: 0, endX: 30, endY: 20 },
+                    { id: 'wall-3', startX: 30, startY: 20, endX: 0, endY: 20 },
+                    { id: 'wall-4', startX: 0, startY: 20, endX: 0, endY: 0 }
+                ],
+                equipmentArrays: [{
+                    id: 'array-1',
+                    equipments: [
+                        { id: 'EQ-A', x: 5, y: 5, width: 3, depth: 3 },
+                        { id: 'EQ-B', x: 6, y: 6, width: 3, depth: 3 }  // 겹침!
+                    ]
+                }]
+            },
+            
+            corridor_narrow: {
+                name: 'Narrow Corridor',
+                site_id: 'test_site',
+                room: { width: 30, depth: 20 },
+                walls: [
+                    { id: 'wall-1', startX: 0, startY: 0, endX: 30, endY: 0 },
+                    { id: 'wall-2', startX: 30, startY: 0, endX: 30, endY: 20 },
+                    { id: 'wall-3', startX: 30, startY: 20, endX: 0, endY: 20 },
+                    { id: 'wall-4', startX: 0, startY: 20, endX: 0, endY: 0 }
+                ],
+                equipmentArrays: [{
+                    id: 'array-1',
+                    equipments: [{ id: 'EQ-01', x: 5, y: 5, width: 2, depth: 3 }]
+                }],
+                corridors: [{ location: 'Row 1-2 사이', width: 0.5 }]  // 너무 좁음!
+            },
+            
+            multiple_errors: {
+                name: 'Multiple Errors',
+                site_id: '',  // Site ID 없음!
+                room: { width: 8, depth: 8 },  // 너무 작음!
+                walls: [
+                    { id: 'wall-1', startX: 0, startY: 0, endX: 8, endY: 0 }
+                    // 벽 부족!
+                ],
+                equipmentArrays: [{
+                    id: 'array-1',
+                    equipments: [
+                        { id: 'EQ-A', x: 1, y: 1, width: 2, depth: 2 },
+                        { id: 'EQ-B', x: 1.5, y: 1.5, width: 2, depth: 2 }  // 겹침!
+                    ]
+                }]
+            }
+        };
+
+        // =====================================================
+        // 전역 변수 & 초기화
+        // =====================================================
+        let canvas2DEditor;
+        let propertyPanel;
+        let validator;
+        
+        function init() {
+            // Canvas 초기화
+            canvas2DEditor = new Canvas2DEditor('canvas-container', {
+                width: 800,
+                height: 600,
+                scale: 10
+            });
+            
+            // PropertyPanel 초기화
+            propertyPanel = new PropertyPanel('property-panel', canvas2DEditor);
+            canvas2DEditor.setPropertyPanel(propertyPanel);
+            
+            // Validator 초기화
+            validator = new LayoutValidator();
+            
+            // 전역 참조 (onclick 용)
+            window.propertyPanel = propertyPanel;
+            
+            // 기본 시나리오 로드
+            loadScenario('valid');
+            
+            logConsole('success', '🚀 테스트 환경 초기화 완료');
+        }
+        
+        // =====================================================
+        // 테스트 함수들
+        // =====================================================
+        function loadScenario(scenarioKey) {
+            const scenario = TEST_SCENARIOS[scenarioKey];
+            if (!scenario) {
+                logConsole('error', `시나리오 없음: ${scenarioKey}`);
+                return;
+            }
+            
+            logConsole('info', `📂 시나리오 로드: ${scenario.name}`);
+            
+            canvas2DEditor.loadLayout(scenario);
+            propertyPanel.hideValidationErrors();
+            
+            document.getElementById('canvas-status').textContent = scenario.name;
+        }
+        
+        function testValidation() {
+            logConsole('info', '🔍 검증 시작...');
+            
+            const result = validator.validate(null, canvas2DEditor);
+            
+            if (result.valid) {
+                logConsole('success', '✅ 검증 통과!');
+                propertyPanel.hideValidationErrors();
+            } else {
+                logConsole('error', `❌ 검증 실패: ${result.errors.length}개 문제`);
+                propertyPanel.showValidationErrors(result.errors);
+                canvas2DEditor.highlightValidationErrors(result.errors);
+            }
+            
+            return result;
+        }
+        
+        function testSaveWithValidation() {
+            logConsole('info', '💾 저장 시도 (검증 포함)...');
+            
+            const result = testValidation();
+            
+            if (result.valid) {
+                logConsole('success', '✅ 저장 성공! (시뮬레이션)');
+                addTestResult('Save with Validation', true, '저장 성공');
+            } else {
+                logConsole('error', '❌ 저장 차단: 검증 실패');
+                addTestResult('Save with Validation', false, `${result.errors.length}개 에러로 저장 차단됨`);
+            }
+        }
+        
+        function clearHighlights() {
+            canvas2DEditor.clearValidationHighlights();
+            propertyPanel.hideValidationErrors();
+            logConsole('info', '🧹 하이라이트 제거됨');
+        }
+        
+        function runAllTests() {
+            logConsole('info', '🚀 전체 테스트 시작...');
+            clearTestResults();
+            
+            const scenarios = Object.keys(TEST_SCENARIOS);
+            let passed = 0;
+            let failed = 0;
+            
+            scenarios.forEach(key => {
+                const scenario = TEST_SCENARIOS[key];
+                canvas2DEditor.loadLayout(scenario);
+                
+                const result = validator.validate(null, canvas2DEditor);
+                
+                // 예상 결과 확인
+                const expectedValid = (key === 'valid');
+                const testPassed = (result.valid === expectedValid);
+                
+                if (testPassed) {
+                    passed++;
+                    addTestResult(
+                        `Scenario: ${scenario.name}`,
+                        true,
+                        expectedValid ? '✅ 검증 통과 (예상대로)' : `❌ ${result.errors.length}개 에러 (예상대로)`
+                    );
+                } else {
+                    failed++;
+                    addTestResult(
+                        `Scenario: ${scenario.name}`,
+                        false,
+                        `예상: ${expectedValid ? 'Pass' : 'Fail'}, 실제: ${result.valid ? 'Pass' : 'Fail'}`
+                    );
+                }
+            });
+            
+            // 최종 결과
+            const allPassed = (failed === 0);
+            logConsole(allPassed ? 'success' : 'error', 
+                `📊 테스트 완료: ${passed}/${scenarios.length} 통과`);
+            
+            addTestResult(
+                '📊 TOTAL',
+                allPassed,
+                `${passed}/${scenarios.length} 테스트 통과`
+            );
+            
+            // 원래 시나리오로 복원
+            loadScenario(document.getElementById('scenario-select').value);
+        }
+        
+        // =====================================================
+        // UI 헬퍼 함수들
+        // =====================================================
+        function logConsole(type, message) {
+            const logEl = document.getElementById('console-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function clearConsole() {
+            document.getElementById('console-log').innerHTML = 
+                '<div class="log-entry log-info">Console cleared...</div>';
+        }
+        
+        function addTestResult(name, passed, message) {
+            const container = document.getElementById('results-container');
+            const item = document.createElement('div');
+            item.className = `result-item ${passed ? 'result-pass' : 'result-fail'}`;
+            item.innerHTML = `
+                <strong>${passed ? '✅' : '❌'} ${name}</strong>
+                <div style="margin-top: 5px; font-size: 12px;">${message}</div>
+            `;
+            container.appendChild(item);
+        }
+        
+        function clearTestResults() {
+            document.getElementById('results-container').innerHTML = '';
+        }
+        
+        // 페이지 로드 시 초기화
+        window.onload = init;
+    </script>
+</body>
+</html>

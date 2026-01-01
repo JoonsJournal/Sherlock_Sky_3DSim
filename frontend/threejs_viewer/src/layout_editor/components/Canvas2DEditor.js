@@ -1,8 +1,14 @@
 /**
- * Canvas2DEditor.js v4.0.2 (3.2.9 기반)
+ * Canvas2DEditor.js v4.1.0 (v4.0.2 기반)
  * ==============================================
  * 
- * ✨ v4.0.2 신규 기능:
+ * ✨ v4.1.0 신규 기능 (Phase 3.2):
+ * - ✅ highlightValidationErrors() - 검증 에러 하이라이트
+ * - ✅ clearValidationHighlights() - 하이라이트 제거
+ * - ✅ scrollToError() - 에러 위치로 스크롤
+ * - ✅ selectErrorShape() - 에러 객체 선택
+ * 
+ * 📝 v4.0.2 기능 유지:
  * - ✅ ZoomController 통합 (setZoomController)
  * - ✅ 동적 Snap to Grid (Zoom 레벨에 따라 조정)
  * - ✅ 오른쪽 마우스 Pan 기능 (setupRightClickPan)
@@ -72,6 +78,9 @@ class Canvas2DEditor {
         // ✨ Layout Editor: PropertyPanel 참조
         this.propertyPanel = null;
 
+        // ✨ v4.1.0: 검증 하이라이트 저장
+        this.validationHighlights = new Map();
+
         this.init();
     }
 
@@ -113,7 +122,11 @@ class Canvas2DEditor {
                 partition: styles.getPropertyValue('--canvas-partition').trim() || '#aaaaaa',
                 
                 textPrimary: styles.getPropertyValue('--canvas-text-primary').trim() || '#212529',
-                textSecondary: styles.getPropertyValue('--canvas-text-secondary').trim() || '#6c757d'
+                textSecondary: styles.getPropertyValue('--canvas-text-secondary').trim() || '#6c757d',
+                
+                // ✨ v4.1.0: 검증 에러 색상
+                validationError: styles.getPropertyValue('--canvas-validation-error').trim() || '#e74c3c',
+                validationWarning: styles.getPropertyValue('--canvas-validation-warning').trim() || '#f39c12'
             };
             
             document.body.removeChild(dummy);
@@ -151,12 +164,15 @@ class Canvas2DEditor {
             officeStroke: '#3498db',
             partition: '#aaaaaa',
             textPrimary: '#212529',
-            textSecondary: '#6c757d'
+            textSecondary: '#6c757d',
+            // ✨ v4.1.0: 검증 에러 색상
+            validationError: '#e74c3c',
+            validationWarning: '#f39c12'
         };
     }
 
     init() {
-        console.log('[Canvas2DEditor] Initializing...');
+        console.log('[Canvas2DEditor] Initializing v4.1.0...');
         
         this.stage = new Konva.Stage({
             container: this.containerId,
@@ -181,7 +197,7 @@ class Canvas2DEditor {
 
         this.setupEventListeners();
 
-        console.log('[Canvas2DEditor] Initialized successfully');
+        console.log('[Canvas2DEditor] Initialized successfully v4.1.0');
     }
 
     /**
@@ -1634,7 +1650,7 @@ class Canvas2DEditor {
         shape.position({ x: snappedX, y: snappedY });
     }
 
-        /**
+    /**
      * ✨ Phase 3.1: 직렬화 가능한 데이터 반환
      * LayoutSerializer가 사용할 수 있는 형태로 데이터 제공
      * 
@@ -1665,6 +1681,287 @@ class Canvas2DEditor {
         serializer.deserialize(layoutData, this);
         
         console.log('[Canvas2DEditor] Layout loaded from JSON');
+    }
+
+    // =====================================================
+    // ✨ v4.1.0 Phase 3.2: 검증 하이라이트 메서드들 (NEW)
+    // =====================================================
+
+    /**
+     * ✨ v4.1.0: 검증 에러 하이라이트 표시
+     * @param {Array} errors - 에러 배열
+     */
+    highlightValidationErrors(errors) {
+        console.log('[Canvas2DEditor] 🔴 Highlighting validation errors:', errors.length);
+        
+        // 기존 하이라이트 제거
+        this.clearValidationHighlights();
+        
+        errors.forEach(error => {
+            if (!error) return;
+            
+            // 에러 심각도에 따른 색상
+            const color = error.severity === 'error' 
+                ? this.cssColors.validationError 
+                : this.cssColors.validationWarning;
+            
+            // 1. Equipment ID로 하이라이트
+            if (error.equipmentId) {
+                this.highlightShapeById(error.equipmentId, color, 'equipment');
+            }
+            
+            // 2. Equipment ID1, ID2 (충돌)
+            if (error.equipmentId1) {
+                this.highlightShapeById(error.equipmentId1, color, 'equipment');
+            }
+            if (error.equipmentId2) {
+                this.highlightShapeById(error.equipmentId2, color, 'equipment');
+            }
+            
+            // 3. Wall ID로 하이라이트
+            if (error.wallId) {
+                this.highlightShapeById(error.wallId, color, 'wall');
+            }
+            
+            // 4. 위치 기반 하이라이트 (position이 있고 ID가 없는 경우)
+            if (error.position && !error.equipmentId && !error.wallId) {
+                this.highlightPosition(error.position, color, error.id);
+            }
+        });
+        
+        // 레이어 다시 그리기
+        this.layers.equipment.batchDraw();
+        this.layers.room.batchDraw();
+        this.layers.ui.batchDraw();
+        
+        console.log('[Canvas2DEditor] Validation highlights applied');
+    }
+
+    /**
+     * ✨ v4.1.0: ID로 Shape 하이라이트
+     * @param {string} id - Shape ID
+     * @param {string} color - 하이라이트 색상
+     * @param {string} type - 'equipment' | 'wall' | 'component'
+     */
+    highlightShapeById(id, color, type) {
+        let shape = null;
+        
+        if (type === 'equipment') {
+            shape = this.equipmentShapes.get(id);
+        } else if (type === 'wall') {
+            shape = this.wallShapes.get(id);
+        } else {
+            shape = this.componentShapes.get(id);
+        }
+        
+        if (!shape) {
+            console.warn(`[Canvas2DEditor] Shape not found for highlight: ${id}`);
+            return;
+        }
+        
+        // Group인 경우 내부 Rect 찾기
+        let targetShape = shape;
+        if (shape.findOne) {
+            const rect = shape.findOne('.equipmentRect, .officeRect');
+            if (rect) {
+                targetShape = rect;
+            }
+        }
+        
+        // 원래 스타일 저장
+        const originalStroke = targetShape.stroke();
+        const originalStrokeWidth = targetShape.strokeWidth();
+        const originalShadowColor = targetShape.shadowColor();
+        const originalShadowBlur = targetShape.shadowBlur();
+        
+        this.validationHighlights.set(id, {
+            shape: targetShape,
+            originalStroke: originalStroke,
+            originalStrokeWidth: originalStrokeWidth,
+            originalShadowColor: originalShadowColor,
+            originalShadowBlur: originalShadowBlur
+        });
+        
+        // 하이라이트 스타일 적용
+        targetShape.stroke(color);
+        targetShape.strokeWidth(4);
+        targetShape.shadowColor(color);
+        targetShape.shadowBlur(10);
+        targetShape.shadowOpacity(0.5);
+        
+        console.log(`[Canvas2DEditor] Highlighted: ${id} with color ${color}`);
+    }
+
+    /**
+     * ✨ v4.1.0: 위치 기반 하이라이트 (마커 생성)
+     * @param {Object} position - { x, y }
+     * @param {string} color - 하이라이트 색상
+     * @param {string} errorId - 에러 ID
+     */
+    highlightPosition(position, color, errorId) {
+        const scale = this.config.scale;
+        const centerX = this.config.width / 2;
+        const centerY = this.config.height / 2;
+        
+        // position이 미터 단위인 경우 픽셀로 변환
+        const x = centerX + (position.x || 0) * scale;
+        const y = centerY + (position.y || position.z || 0) * scale;
+        
+        // 에러 마커 생성 (원형)
+        const marker = new Konva.Circle({
+            id: `validation-marker-${errorId}`,
+            x: x,
+            y: y,
+            radius: 15,
+            stroke: color,
+            strokeWidth: 3,
+            fill: 'transparent',
+            dash: [5, 5],
+            name: 'validation-marker'
+        });
+        
+        // 펄스 애니메이션
+        const anim = new Konva.Animation((frame) => {
+            const scaleVal = 1 + Math.sin(frame.time * 0.005) * 0.2;
+            marker.scale({ x: scaleVal, y: scaleVal });
+        }, this.layers.ui);
+        
+        anim.start();
+        
+        this.validationHighlights.set(`marker-${errorId}`, {
+            shape: marker,
+            animation: anim
+        });
+        
+        this.layers.ui.add(marker);
+        
+        console.log(`[Canvas2DEditor] Position marker created at (${x}, ${y})`);
+    }
+
+    /**
+     * ✨ v4.1.0: 모든 검증 하이라이트 제거
+     */
+    clearValidationHighlights() {
+        console.log('[Canvas2DEditor] Clearing validation highlights...');
+        
+        this.validationHighlights.forEach((highlight, id) => {
+            if (highlight.animation) {
+                highlight.animation.stop();
+            }
+            
+            if (highlight.shape) {
+                // 마커인 경우 삭제
+                if (id.startsWith('marker-')) {
+                    highlight.shape.destroy();
+                } else {
+                    // 원래 스타일 복원
+                    highlight.shape.stroke(highlight.originalStroke);
+                    highlight.shape.strokeWidth(highlight.originalStrokeWidth);
+                    highlight.shape.shadowColor(highlight.originalShadowColor || 'transparent');
+                    highlight.shape.shadowBlur(highlight.originalShadowBlur || 0);
+                    highlight.shape.shadowOpacity(0);
+                }
+            }
+        });
+        
+        this.validationHighlights.clear();
+        
+        // 레이어 다시 그리기
+        this.layers.equipment.batchDraw();
+        this.layers.room.batchDraw();
+        this.layers.ui.batchDraw();
+        
+        console.log('[Canvas2DEditor] Validation highlights cleared');
+    }
+
+    /**
+     * ✨ v4.1.0: 특정 에러 위치로 스크롤/이동
+     * @param {Object} error - 에러 객체
+     */
+    scrollToError(error) {
+        if (!error) return;
+        
+        const scale = this.config.scale;
+        const centerX = this.config.width / 2;
+        const centerY = this.config.height / 2;
+        
+        let targetX, targetY;
+        
+        // 1. 설비 ID로 위치 찾기
+        if (error.equipmentId) {
+            const shape = this.equipmentShapes.get(error.equipmentId);
+            if (shape) {
+                if (shape.findOne) {
+                    // Group인 경우
+                    targetX = shape.x();
+                    targetY = shape.y();
+                } else {
+                    targetX = shape.x() + shape.width() / 2;
+                    targetY = shape.y() + shape.height() / 2;
+                }
+            }
+        }
+        
+        // 2. 벽 ID로 위치 찾기
+        if (error.wallId && targetX === undefined) {
+            const shape = this.wallShapes.get(error.wallId);
+            if (shape) {
+                const points = shape.points();
+                if (points && points.length >= 4) {
+                    targetX = (points[0] + points[2]) / 2;
+                    targetY = (points[1] + points[3]) / 2;
+                }
+            }
+        }
+        
+        // 3. position 객체 사용 (미터 → 픽셀 변환)
+        if (error.position && targetX === undefined) {
+            targetX = centerX + (error.position.x || 0) * scale;
+            targetY = centerY + (error.position.y || error.position.z || 0) * scale;
+        }
+        
+        if (targetX !== undefined && targetY !== undefined) {
+            // Stage 중앙으로 이동
+            const stageWidth = this.stage.width();
+            const stageHeight = this.stage.height();
+            
+            const newX = stageWidth / 2 - targetX;
+            const newY = stageHeight / 2 - targetY;
+            
+            // 부드러운 애니메이션
+            new Konva.Tween({
+                node: this.stage,
+                duration: 0.5,
+                x: newX,
+                y: newY,
+                easing: Konva.Easings.EaseInOut
+            }).play();
+            
+            console.log(`[Canvas2DEditor] Scrolling to error at (${targetX}, ${targetY})`);
+        }
+    }
+
+    /**
+     * ✨ v4.1.0: 특정 에러의 Shape 선택
+     * @param {Object} error - 에러 객체
+     */
+    selectErrorShape(error) {
+        if (!error) return;
+        
+        let shape = null;
+        
+        if (error.equipmentId) {
+            shape = this.equipmentShapes.get(error.equipmentId);
+        } else if (error.equipmentId1) {
+            shape = this.equipmentShapes.get(error.equipmentId1);
+        } else if (error.wallId) {
+            shape = this.wallShapes.get(error.wallId);
+        }
+        
+        if (shape) {
+            this.selectObject(shape, false);
+            console.log('[Canvas2DEditor] Error shape selected:', shape.id());
+        }
     }
 }
 

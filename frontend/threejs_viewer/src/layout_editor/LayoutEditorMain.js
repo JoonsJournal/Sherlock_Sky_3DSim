@@ -2,6 +2,7 @@
  * LayoutEditorMain.js
  * Phase 1.5: Layout Editor 시스템의 진입점이자 메인 컨트롤러
  * Phase 2.6: ComponentPalette 통합
+ * Phase 3.2: LayoutValidator 통합 ✨ NEW
  * 
  * 주요 역할:
  * 1. Site 선택 시 Layout 파일 존재 여부 확인
@@ -9,16 +10,21 @@
  * 3. Editor/Viewer 모드 전환 제어
  * 4. UI 컴포넌트 표시/숨김 관리
  * 5. ComponentPalette 초기화 및 관리 (✨ Phase 2.6)
+ * 6. Layout 저장 전 검증 (✨ Phase 3.2)
  * 
  * 의존성:
  * - LayoutFileManager (Phase 1.2)
  * - LayoutEditorState (Phase 1.4)
  * - ComponentPalette (Phase 2.6)
+ * - LayoutValidator (Phase 3.2) ✨ NEW
  */
 
 import { LayoutFileManager } from '../services/layout/LayoutFileManager.js';
 import { layoutEditorState } from '../stores/LayoutEditorState.js';
 import { ComponentPalette } from './components/ComponentPalette.js';
+
+// ✨ Phase 3.2: LayoutValidator import
+import { LayoutValidator } from '../services/validation/index.js';
 
 export class LayoutEditorMain {
     constructor() {
@@ -28,6 +34,12 @@ export class LayoutEditorMain {
         // ✨ Phase 2.6: ComponentPalette 참조
         this.componentPalette = null;
         this.canvas2DEditor = null;
+        
+        // ✨ Phase 3.2: LayoutValidator 인스턴스
+        this.validator = new LayoutValidator();
+        
+        // ✨ Phase 3.2: PropertyPanel 참조 (검증 에러 표시용)
+        this.propertyPanel = null;
         
         // UI 요소 참조
         this.elements = {
@@ -60,7 +72,7 @@ export class LayoutEditorMain {
             }
         ];
         
-        console.log('[LayoutEditorMain] 초기화 완료');
+        console.log('[LayoutEditorMain] 초기화 완료 (Phase 3.2 - Validator 통합)');
     }
     
     /**
@@ -391,6 +403,20 @@ export class LayoutEditorMain {
     }
     
     /**
+     * ✨ Phase 3.2: PropertyPanel 설정
+     * @param {PropertyPanel} propertyPanel - PropertyPanel 인스턴스
+     */
+    setPropertyPanel(propertyPanel) {
+        if (!propertyPanel) {
+            console.error('[LayoutEditorMain] PropertyPanel 인스턴스가 필요합니다');
+            return;
+        }
+        
+        this.propertyPanel = propertyPanel;
+        console.log('[LayoutEditorMain] PropertyPanel 설정 완료');
+    }
+    
+    /**
      * ✨ Phase 2.6: ComponentPalette 초기화
      */
     initComponentPalette() {
@@ -436,11 +462,16 @@ export class LayoutEditorMain {
         }
     }
 
+    // =====================================================
+    // ✨ Phase 3.2: LayoutValidator 통합 메서드들
+    // =====================================================
+
     /**
-     * ✨ Phase 3.1: Layout 저장
+     * ✨ Phase 3.2: Layout 저장 (검증 포함)
+     * @returns {Promise<boolean>} 저장 성공 여부
      */
     async saveLayout() {
-        console.log('[LayoutEditorMain] 💾 Saving layout...');
+        console.log('[LayoutEditorMain] 💾 Saving layout with validation...');
         
         try {
             // 1. Canvas2DEditor 확인
@@ -453,6 +484,29 @@ export class LayoutEditorMain {
             if (!siteId) {
                 throw new Error('No site selected');
             }
+            
+            // =====================================================
+            // ✨ Phase 3.2: 검증 실행 (NEW)
+            // =====================================================
+            console.log('[LayoutEditorMain] 🔍 Validating layout...');
+            
+            const validationResult = this.validator.validate(null, this.canvas2DEditor);
+            
+            // 검증 실패 시 저장 차단
+            if (!validationResult.valid) {
+                console.log('[LayoutEditorMain] ❌ Validation failed');
+                this.showValidationErrors(validationResult);
+                return false;
+            }
+            
+            console.log('[LayoutEditorMain] ✅ Validation passed');
+            
+            // 검증 하이라이트 제거
+            this.clearValidationHighlights();
+            
+            // =====================================================
+            // 기존 저장 로직 (변경 없음)
+            // =====================================================
             
             // 3. LayoutSerializer로 직렬화
             const serializer = window.layoutSerializer;
@@ -471,6 +525,11 @@ export class LayoutEditorMain {
                 this.state.markAsSaved();
                 this.showSuccess(`Layout "${siteId}" 저장 완료`);
                 console.log('[LayoutEditorMain] ✅ Layout saved successfully');
+                
+                // PropertyPanel 에러 섹션 숨김
+                if (this.propertyPanel && this.propertyPanel.hideValidationErrors) {
+                    this.propertyPanel.hideValidationErrors();
+                }
             } else {
                 throw new Error('Save operation failed');
             }
@@ -481,6 +540,91 @@ export class LayoutEditorMain {
             console.error('[LayoutEditorMain] ❌ Error saving layout:', error);
             this.showError(`Layout 저장 실패: ${error.message}`);
             return false;
+        }
+    }
+    
+    /**
+     * ✨ Phase 3.2: 검증 에러 표시
+     * @param {Object} validationResult - 검증 결과
+     */
+    showValidationErrors(validationResult) {
+        console.log('[LayoutEditorMain] 🔴 Showing validation errors...');
+        
+        const { errors, stats, summary } = validationResult;
+        
+        // 1. Toast/Alert 표시
+        this.showError(`Layout 검증 실패: ${summary}`);
+        
+        // 2. PropertyPanel에 에러 목록 표시
+        if (this.propertyPanel && this.propertyPanel.showValidationErrors) {
+            this.propertyPanel.showValidationErrors(errors);
+        }
+        
+        // 3. Canvas에 에러 위치 하이라이트
+        if (this.canvas2DEditor && this.canvas2DEditor.highlightValidationErrors) {
+            this.canvas2DEditor.highlightValidationErrors(errors);
+        }
+        
+        console.log(`[LayoutEditorMain] ${errors.length}개 에러 표시됨`);
+    }
+    
+    /**
+     * ✨ Phase 3.2: 검증 하이라이트 제거
+     */
+    clearValidationHighlights() {
+        if (this.canvas2DEditor && this.canvas2DEditor.clearValidationHighlights) {
+            this.canvas2DEditor.clearValidationHighlights();
+        }
+        
+        if (this.propertyPanel && this.propertyPanel.hideValidationErrors) {
+            this.propertyPanel.hideValidationErrors();
+        }
+    }
+    
+    /**
+     * ✨ Phase 3.2: 수동 검증 실행 (Validate 버튼용)
+     * @returns {Object} 검증 결과
+     */
+    validateLayout() {
+        console.log('[LayoutEditorMain] 🔍 Manual validation...');
+        
+        if (!this.canvas2DEditor) {
+            this.showError('Canvas2DEditor가 초기화되지 않았습니다');
+            return { valid: false, errors: [] };
+        }
+        
+        const result = this.validator.validate(null, this.canvas2DEditor);
+        
+        if (result.valid) {
+            this.showSuccess('✅ Layout 검증 통과');
+            this.clearValidationHighlights();
+        } else {
+            this.showValidationErrors(result);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * ✨ Phase 3.2: 특정 에러 위치로 이동
+     * @param {Object} error - 에러 객체
+     */
+    focusOnError(error) {
+        if (!error) return;
+        
+        console.log('[LayoutEditorMain] 에러 위치로 이동:', error);
+        
+        // Canvas에서 해당 위치로 스크롤
+        if (this.canvas2DEditor && this.canvas2DEditor.scrollToError) {
+            this.canvas2DEditor.scrollToError(error);
+        }
+        
+        // 해당 객체 선택
+        if (error.equipmentId && this.canvas2DEditor) {
+            const shape = this.canvas2DEditor.equipmentShapes.get(error.equipmentId);
+            if (shape) {
+                this.canvas2DEditor.selectObject(shape, false);
+            }
         }
     }
 }
