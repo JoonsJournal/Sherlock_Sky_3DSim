@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Config Migration Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #667eea; }
+        .test-section {
+            background: #16213e;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .test-section h3 { margin-top: 0; color: #4CAF50; }
+        .success { color: #4CAF50; }
+        .error { color: #F44336; }
+        .info { color: #2196F3; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #5a6fd6; }
+        #log {
+            background: #0f0f23;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .log-entry { margin: 2px 0; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        th { color: #667eea; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Config Migration Test</h1>
+    <p>Phase 1.4.1: utils/Config.js → core/config/settings.js 마이그레이션 테스트</p>
+    
+    <div class="test-section">
+        <h3>1. Import Test (기존 경로)</h3>
+        <div id="import-result">Testing...</div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. CONFIG 값 확인</h3>
+        <button onclick="testConfigValues()">Test CONFIG</button>
+        <div id="config-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. debugLog 함수 테스트</h3>
+        <button onclick="testDebugLog()">Test debugLog</button>
+        <div id="debuglog-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>4. isExcludedPosition 테스트</h3>
+        <button onclick="testExcludedPosition()">Test Excluded</button>
+        <div id="excluded-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>5. 동적 업데이트 함수 테스트</h3>
+        <button onclick="testUpdateFunctions()">Test Update</button>
+        <div id="update-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>6. 전역 함수 테스트</h3>
+        <button onclick="testGlobalFunctions()">Test Globals</button>
+        <div id="global-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>7. 하위 호환성 비교</h3>
+        <button onclick="testCompatibility()">Test Compatibility</button>
+        <div id="compat-result"></div>
+    </div>
+    
+    <h2>📋 Console Log</h2>
+    <div id="log"></div>
+
+    <script type="module">
+        // ⭐ 기존 경로로 import (마이그레이션 테스트)
+        import { 
+            CONFIG, 
+            debugLog, 
+            isExcludedPosition,
+            getExcludedStatistics,
+            updateEquipmentConfig,
+            updateSceneConfig,
+            resetConfig,
+            debugConfig
+        } from '../src/utils/Config.js';
+        
+        // 새 경로로도 import (비교용)
+        import {
+            SETTINGS,
+            updateEquipmentSettings,
+            updateSceneSettings
+        } from '../src/core/config/settings.js';
+
+        // 로그 함수
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        // 결과 표시 함수
+        function showResult(elementId, success, message) {
+            const el = document.getElementById(elementId);
+            el.innerHTML = `<span class="${success ? 'success' : 'error'}">${success ? '✅' : '❌'} ${message}</span>`;
+        }
+
+        // 1. Import Test
+        try {
+            const importTests = [
+                { name: 'CONFIG', value: CONFIG, expected: 'object' },
+                { name: 'debugLog', value: debugLog, expected: 'function' },
+                { name: 'isExcludedPosition', value: isExcludedPosition, expected: 'function' },
+                { name: 'getExcludedStatistics', value: getExcludedStatistics, expected: 'function' },
+                { name: 'updateEquipmentConfig', value: updateEquipmentConfig, expected: 'function' },
+                { name: 'updateSceneConfig', value: updateSceneConfig, expected: 'function' },
+                { name: 'resetConfig', value: resetConfig, expected: 'function' },
+                { name: 'debugConfig', value: debugConfig, expected: 'function' }
+            ];
+            
+            const allPassed = importTests.every(t => typeof t.value === t.expected);
+            
+            let resultHtml = '<table><tr><th>항목</th><th>타입</th><th>결과</th></tr>';
+            importTests.forEach(t => {
+                const passed = typeof t.value === t.expected;
+                resultHtml += `<tr>
+                    <td>${t.name}</td>
+                    <td>${typeof t.value}</td>
+                    <td class="${passed ? 'success' : 'error'}">${passed ? '✅' : '❌'}</td>
+                </tr>`;
+            });
+            resultHtml += '</table>';
+            
+            document.getElementById('import-result').innerHTML = resultHtml;
+            log(`Import test: ${allPassed ? 'All passed' : 'Some failed'}`);
+        } catch (e) {
+            showResult('import-result', false, 'Import error: ' + e.message);
+            log('Import error: ' + e.message, 'error');
+        }
+
+        // 2. CONFIG 값 테스트
+        window.testConfigValues = function() {
+            try {
+                const tests = [
+                    { key: 'EQUIPMENT.ROWS', value: CONFIG.EQUIPMENT.ROWS, expected: 26 },
+                    { key: 'EQUIPMENT.COLS', value: CONFIG.EQUIPMENT.COLS, expected: 6 },
+                    { key: 'CAMERA.FOV', value: CONFIG.CAMERA.FOV, expected: 75 },
+                    { key: 'DEBUG_MODE', value: CONFIG.DEBUG_MODE, expected: false },
+                    { key: 'SCENE.FLOOR_SIZE', value: CONFIG.SCENE.FLOOR_SIZE, expected: 70 }
+                ];
+                
+                let resultHtml = '<table><tr><th>키</th><th>값</th><th>예상</th><th>결과</th></tr>';
+                tests.forEach(t => {
+                    const passed = t.value === t.expected;
+                    resultHtml += `<tr>
+                        <td>${t.key}</td>
+                        <td>${t.value}</td>
+                        <td>${t.expected}</td>
+                        <td class="${passed ? 'success' : 'error'}">${passed ? '✅' : '❌'}</td>
+                    </tr>`;
+                });
+                resultHtml += '</table>';
+                
+                document.getElementById('config-result').innerHTML = resultHtml;
+                log('CONFIG values test completed');
+            } catch (e) {
+                showResult('config-result', false, 'Error: ' + e.message);
+            }
+        };
+
+        // 3. debugLog 테스트
+        window.testDebugLog = function() {
+            try {
+                // DEBUG_MODE 켜기
+                CONFIG.DEBUG_MODE = true;
+                debugLog('Test message 1', 'Test message 2');
+                CONFIG.DEBUG_MODE = false;
+                
+                showResult('debuglog-result', true, 'debugLog 함수 정상 동작 (콘솔 확인)');
+                log('debugLog test completed - check console');
+            } catch (e) {
+                showResult('debuglog-result', false, 'Error: ' + e.message);
+            }
+        };
+
+        // 4. isExcludedPosition 테스트
+        window.testExcludedPosition = function() {
+            try {
+                const tests = [
+                    { row: 5, col: 5, expected: true },   // col:5, row:5 는 제외됨
+                    { row: 22, col: 5, expected: true },  // col:5, row:22 는 제외됨
+                    { row: 1, col: 1, expected: false },  // col:1, row:1 은 포함됨
+                    { row: 10, col: 4, expected: true },  // col:4, row:10 은 제외됨
+                ];
+                
+                let resultHtml = '<table><tr><th>Row</th><th>Col</th><th>결과</th><th>예상</th><th>판정</th></tr>';
+                tests.forEach(t => {
+                    const result = isExcludedPosition(t.row, t.col);
+                    const passed = result === t.expected;
+                    resultHtml += `<tr>
+                        <td>${t.row}</td>
+                        <td>${t.col}</td>
+                        <td>${result}</td>
+                        <td>${t.expected}</td>
+                        <td class="${passed ? 'success' : 'error'}">${passed ? '✅' : '❌'}</td>
+                    </tr>`;
+                });
+                resultHtml += '</table>';
+                
+                const stats = getExcludedStatistics();
+                resultHtml += `<p class="info">총 제외 위치: ${stats.total}개</p>`;
+                
+                document.getElementById('excluded-result').innerHTML = resultHtml;
+                log(`isExcludedPosition test completed (${stats.total} excluded)`);
+            } catch (e) {
+                showResult('excluded-result', false, 'Error: ' + e.message);
+            }
+        };
+
+        // 5. 동적 업데이트 함수 테스트
+        window.testUpdateFunctions = function() {
+            try {
+                const originalRows = CONFIG.EQUIPMENT.ROWS;
+                const originalCols = CONFIG.EQUIPMENT.COLS;
+                
+                // 업데이트
+                updateEquipmentConfig({ ROWS: 10, COLS: 4 });
+                const afterUpdate = { rows: CONFIG.EQUIPMENT.ROWS, cols: CONFIG.EQUIPMENT.COLS };
+                
+                // 리셋
+                resetConfig();
+                const afterReset = { rows: CONFIG.EQUIPMENT.ROWS, cols: CONFIG.EQUIPMENT.COLS };
+                
+                let resultHtml = `
+                    <table>
+                        <tr><th>상태</th><th>ROWS</th><th>COLS</th></tr>
+                        <tr><td>원본</td><td>${originalRows}</td><td>${originalCols}</td></tr>
+                        <tr><td>업데이트 후</td><td>${afterUpdate.rows}</td><td>${afterUpdate.cols}</td></tr>
+                        <tr><td>리셋 후</td><td>${afterReset.rows}</td><td>${afterReset.cols}</td></tr>
+                    </table>
+                `;
+                
+                const passed = afterUpdate.rows === 10 && afterReset.rows === 26;
+                resultHtml += `<p class="${passed ? 'success' : 'error'}">${passed ? '✅ 동적 업데이트 정상' : '❌ 업데이트 실패'}</p>`;
+                
+                document.getElementById('update-result').innerHTML = resultHtml;
+                log('Update functions test completed');
+            } catch (e) {
+                showResult('update-result', false, 'Error: ' + e.message);
+            }
+        };
+
+        // 6. 전역 함수 테스트
+        window.testGlobalFunctions = function() {
+            try {
+                const globals = [
+                    'CONFIG',
+                    'updateEquipmentConfig',
+                    'updateSceneConfig',
+                    'resetConfig',
+                    'debugConfig',
+                    'SETTINGS',
+                    'updateEquipmentSettings',
+                    'updateSceneSettings',
+                    'resetSettings',
+                    'debugSettings'
+                ];
+                
+                let resultHtml = '<table><tr><th>전역 변수</th><th>타입</th><th>결과</th></tr>';
+                globals.forEach(name => {
+                    const exists = typeof window[name] !== 'undefined';
+                    const type = typeof window[name];
+                    resultHtml += `<tr>
+                        <td>window.${name}</td>
+                        <td>${type}</td>
+                        <td class="${exists ? 'success' : 'error'}">${exists ? '✅' : '❌'}</td>
+                    </tr>`;
+                });
+                resultHtml += '</table>';
+                
+                document.getElementById('global-result').innerHTML = resultHtml;
+                log('Global functions test completed');
+            } catch (e) {
+                showResult('global-result', false, 'Error: ' + e.message);
+            }
+        };
+
+        // 7. 하위 호환성 비교
+        window.testCompatibility = function() {
+            try {
+                const comparisons = [
+                    { 
+                        desc: 'CONFIG === SETTINGS', 
+                        result: CONFIG === SETTINGS,
+                        expected: true
+                    },
+                    { 
+                        desc: 'updateEquipmentConfig === updateEquipmentSettings', 
+                        result: updateEquipmentConfig === updateEquipmentSettings,
+                        expected: true
+                    },
+                    { 
+                        desc: 'CONFIG.EQUIPMENT.ROWS', 
+                        result: CONFIG.EQUIPMENT.ROWS === SETTINGS.EQUIPMENT.ROWS,
+                        expected: true
+                    }
+                ];
+                
+                let resultHtml = '<table><tr><th>비교</th><th>결과</th><th>판정</th></tr>';
+                comparisons.forEach(c => {
+                    resultHtml += `<tr>
+                        <td>${c.desc}</td>
+                        <td>${c.result}</td>
+                        <td class="${c.result === c.expected ? 'success' : 'error'}">${c.result === c.expected ? '✅' : '❌'}</td>
+                    </tr>`;
+                });
+                resultHtml += '</table>';
+                
+                resultHtml += '<p class="info">💡 CONFIG와 SETTINGS는 동일한 객체를 참조합니다.</p>';
+                
+                document.getElementById('compat-result').innerHTML = resultHtml;
+                log('Compatibility test completed');
+            } catch (e) {
+                showResult('compat-result', false, 'Error: ' + e.message);
+            }
+        };
+
+        // 초기화
+        log('Config Migration Test page loaded');
+        log('Click buttons to run each test');
+    </script>
+</body>
+</html>
