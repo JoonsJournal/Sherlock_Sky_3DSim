@@ -3,7 +3,7 @@
  * 사이트 선택 및 연결 관리
  */
 
-import { connectionStore } from '../stores/ConnectionStore.js';
+import { connectionStore } from '../../services/ConnectionStore.js';
 
 export class SiteSelectionPanel {
     constructor(container, connectionService, toast) {

@@ -4,7 +4,7 @@
  */
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CONFIG, debugLog } from '../utils/Config.js';
+import { CONFIG, debugLog } from '../../core/utils/Config.js';
 
 export class CameraControls {
     /**

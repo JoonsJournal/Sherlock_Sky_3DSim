@@ -14,7 +14,7 @@
  */
 
 import * as THREE from 'three';
-import { CONFIG, debugLog, updateSceneConfig, updateEquipmentConfig } from '../utils/Config.js';
+import { CONFIG, debugLog, updateSceneConfig, updateEquipmentConfig } from '../../core/utils/Config.js';
 import { RoomEnvironment } from './RoomEnvironment.js';
 
 export class SceneManager {

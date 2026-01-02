@@ -4,8 +4,8 @@
  */
 
 import * as THREE from 'three';
-import { createEquipmentModel } from '../../public/models/equipments/equipment1.js';
-import { CONFIG, debugLog, isExcludedPosition } from '../utils/Config.js';
+import { createEquipmentModel } from '../../../public/models/equipments/equipment1.js';
+import { CONFIG, debugLog, isExcludedPosition } from '../../core/utils/Config.js';
 
 export class EquipmentLoader {
     constructor(scene) {

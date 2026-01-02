@@ -11,7 +11,7 @@
  */
 
 import * as THREE from 'three';
-import { debugLog } from '../utils/Config.js';
+import { debugLog } from '../../core/utils/Config.js';
 
 export class RoomEnvironment {
     /**

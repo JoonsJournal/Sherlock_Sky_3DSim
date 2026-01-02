@@ -3,8 +3,8 @@
  * 설비 편집 모달
  */
 
-import { ToastNotification } from './ToastNotification.js';
-import { debugLog } from '../utils/Config.js';
+import { ToastNotification } from '../common/Toast.js';
+import { debugLog } from '../../core/utils/Config.js';
 
 export class EquipmentEditModal {
     constructor(editState, apiClient) {

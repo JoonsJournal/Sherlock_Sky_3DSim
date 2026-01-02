@@ -30,7 +30,7 @@
 
 // ES Module imports (환경에 따라 조정 필요)
 // import { LayoutFileManager } from '../services/layout/LayoutFileManager.js';
-// import { layoutEditorState } from '../stores/LayoutEditorState.js';
+// import { layoutEditorState } from '../services/LayoutEditorState.js';
 // import { ComponentPalette } from './components/ComponentPalette.js';
 // import { LayoutValidator } from '../services/validation/index.js';
 // import { ValidationErrorDialog } from '../components/dialogs/ValidationErrorDialog.js';

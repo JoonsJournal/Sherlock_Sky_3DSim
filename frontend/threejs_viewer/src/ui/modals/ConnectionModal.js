@@ -3,11 +3,11 @@
  * 데이터베이스 연결 관리 모달
  */
 
-import { ConnectionService } from '../services/ConnectionService.js';
-import { ToastNotification } from './ToastNotification.js';
-import { ConnectionStatusPanel } from './ConnectionStatusPanel.js';
-import { SiteSelectionPanel } from './SiteSelectionPanel.js';
-import { DatabaseListPanel } from './DatabaseListPanel.js';
+import { ConnectionService } from '../../services/ConnectionService.js';
+import { ToastNotification } from '../common/Toast.js';
+import { ConnectionStatusPanel } from '../panels/ConnectionStatusPanel.js';
+import { SiteSelectionPanel } from '../panels/SiteSelectionPanel.js';
+import { DatabaseListPanel } from '../panels/DatabaseListPanel.js';
 
 export class ConnectionModal {
     constructor() {

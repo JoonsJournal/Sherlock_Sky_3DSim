@@ -3,7 +3,7 @@
  * UI 오버레이 및 데이터 표시 관리 (다중 선택 평균값 표시 지원)
  */
 
-import { debugLog } from '../utils/Config.js';
+import { debugLog } from '../../core/utils/Config.js';
 
 export class DataOverlay {
     constructor() {

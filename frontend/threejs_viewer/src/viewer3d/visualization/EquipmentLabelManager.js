@@ -5,7 +5,7 @@
 
 import * as THREE from 'three';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { debugLog } from '../utils/Config.js';
+import { debugLog } from '../../core/utils/Config.js';
 
 export class EquipmentLabelManager {
     constructor(sceneManager, equipmentLoader) {

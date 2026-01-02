@@ -11,25 +11,25 @@
 // ⭐⭐⭐ 1. THREE import (가장 먼저!)
 import * as THREE from 'three';
 
-import { SceneManager } from './scene/SceneManager.js';
-import { EquipmentLoader } from './scene/EquipmentLoader.js';
-import { Lighting } from './scene/Lighting.js';
-import { CameraControls } from './controls/CameraControls.js';
-import { CameraNavigator } from './controls/CameraNavigator.js';
-import { InteractionHandler } from './controls/InteractionHandler.js';
-import { DataOverlay } from './visualization/DataOverlay.js';
-import { StatusVisualizer } from './visualization/StatusVisualizer.js';
-import { memoryManager } from './utils/MemoryManager.js';
-import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
-import { CONFIG, debugLog } from './utils/Config.js';
+import { SceneManager } from './viewer3d/scene/SceneManager.js';
+import { EquipmentLoader } from './viewer3d/scene/EquipmentLoader.js';
+import { Lighting } from './viewer3d/scene/Lighting.js';
+import { CameraControls } from './viewer3d/controls/CameraControls.js';
+import { CameraNavigator } from './viewer3d/controls/CameraNavigator.js';
+import { InteractionHandler } from './viewer3d/controls/InteractionHandler.js';
+import { DataOverlay } from './viewer3d/visualization/DataOverlay.js';
+import { StatusVisualizer } from './viewer3d/visualization/StatusVisualizer.js';
+import { memoryManager } from './core/utils/MemoryManager.js';
+import { PerformanceMonitor } from './core/utils/PerformanceMonitor.js';
+import { CONFIG, debugLog } from './core/utils/Config.js';
 
 // ============================================
 // ⭐ 새로 추가: ConnectionModal import
 // ============================================
-import { ConnectionModal } from './ui/ConnectionModal.js';
+import { ConnectionModal } from './ui/modals/ConnectionModal.js';
 
 import { EquipmentEditState } from './services/EquipmentEditState.js';
-import { EquipmentEditModal } from './ui/EquipmentEditModal.js';
+import { EquipmentEditModal } from './ui/modals/EquipmentEditModal.js';
 import { ApiClient } from './api/ApiClient.js';
 
 // ============================================

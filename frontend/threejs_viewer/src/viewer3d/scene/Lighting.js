@@ -5,7 +5,7 @@
  */
 
 import * as THREE from 'three';
-import { CONFIG, debugLog } from '../utils/Config.js';
+import { CONFIG, debugLog } from '../../core/utils/Config.js';
 
 export class Lighting {
     /**
