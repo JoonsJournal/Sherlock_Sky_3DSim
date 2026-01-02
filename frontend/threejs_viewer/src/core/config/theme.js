@@ -2,8 +2,11 @@
  * theme.js
  * 색상 시스템 및 테마 정의
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description Solid Edge 표준 + 프로젝트 커스텀 색상
+ * 
+ * 변경사항 (v1.1.0):
+ * - VIEWER_3D_COLORS에 Solid Edge 표준 적용
  */
 
 // =====================================================
@@ -124,7 +127,7 @@ export const EDITOR_2D_COLORS = Object.freeze({
 });
 
 // =====================================================
-// 3D Viewer 색상
+// 3D Viewer 색상 (⭐ Solid Edge 표준 적용)
 // =====================================================
 
 export const VIEWER_3D_COLORS = Object.freeze({
@@ -138,10 +141,10 @@ export const VIEWER_3D_COLORS = Object.freeze({
     GRID_PRIMARY: 0xe5e5e5,
     GRID_SECONDARY: 0xf0f0f0,
     
-// 선택 (Solid Edge 표준)
-    SELECTION_HIGHLIGHT: 0xFF6600,  // Orange - 선택 (SELECTED)
-    SELECTION_HOVER: 0x00BFFF,      // Cyan - 호버 (HIGHLIGHT)
-    SELECTION_DESELECTED: 0x000000  // Black - 기본값
+    // ⭐ 선택 (Solid Edge 표준)
+    SELECTION_HIGHLIGHT: 0xFF6600,  // Orange - 선택된 객체
+    SELECTION_HOVER: 0x00BFFF,      // Cyan - 마우스 호버
+    SELECTION_DESELECTED: 0x000000  // Black - 기본 상태
 });
 
 // =====================================================

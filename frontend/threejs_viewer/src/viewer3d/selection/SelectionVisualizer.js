@@ -2,181 +2,166 @@
  * SelectionVisualizer.js
  * 선택/호버 시각 효과 관리
  * 
- * @version 1.0.0
- * @description Solid Edge 색상 표준 적용
- * 
- * 색상 기준 (theme.js):
- * - Selected: Orange #FF6600
- * - Highlight (Hover): Cyan #00BFFF
- * - Deselected: Black #000000 (emissive 기본값)
+ * @version 1.5.0
+ * @description Solid Edge 색상 표준 적용, Material Clone, emissiveIntensity 조절
  */
 
 import { SOLID_EDGE_COLORS_HEX } from '../../core/config/theme.js';
-import { debugLog } from '../../utils/Config.js';
 
 export class SelectionVisualizer {
     constructor() {
-        // 원본 emissive 색상 저장 (복원용)
         this.originalEmissiveMap = new WeakMap();
+        this.originalIntensityMap = new WeakMap();  // 원본 intensity 저장
+        this.clonedMaterials = new WeakSet();
+        this.selectedObjects = new Set();
         
-        // 호버 중인 객체
-        this.hoveredObject = null;
-        
-        // 색상 설정 (theme.js 참조)
         this.colors = {
             selected: SOLID_EDGE_COLORS_HEX.SELECTED,    // 0xFF6600 (Orange)
             highlight: SOLID_EDGE_COLORS_HEX.HIGHLIGHT,  // 0x00BFFF (Cyan)
-            deselected: 0x000000                          // Black (기본값)
+            deselected: 0x000000                          // Black
         };
         
-        debugLog('✅ SelectionVisualizer 초기화 완료');
-        debugLog('   - Selected:', this.colors.selected.toString(16));
-        debugLog('   - Highlight:', this.colors.highlight.toString(16));
+        // ⭐ Intensity 설정 (가시성 조절)
+        this.intensity = {
+            selected: 3.0,    // 선택 시 강도
+            highlight: 1.5,   // 호버 시 강도
+            default: 1.0      // 기본 강도
+        };
     }
     
     /**
-     * 선택 스타일 적용
-     * @param {THREE.Object3D} object - 대상 객체
+     * 선택된 객체 목록 동기화
+     */
+    syncSelectedObjects(objects) {
+        this.selectedObjects = new Set(objects);
+    }
+    
+    /**
+     * 객체가 현재 선택되어 있는지 확인
+     */
+    isSelected(object) {
+        return this.selectedObjects.has(object);
+    }
+    
+    /**
+     * 선택 스타일 적용 (Orange)
      */
     applySelectionStyle(object) {
         if (!object) return;
         
-        this._traverseAndApply(object, (mesh) => {
-            if (mesh.material && mesh.material.emissive) {
-                // 원본 색상 저장 (최초 1회)
-                if (!this.originalEmissiveMap.has(mesh)) {
-                    this.originalEmissiveMap.set(mesh, mesh.material.emissive.getHex());
-                }
-                // 선택 색상 적용 (Orange)
-                mesh.material.emissive.setHex(this.colors.selected);
-            }
-        });
-        
-        debugLog('🟠 선택 스타일 적용:', object.userData?.id);
+        this.selectedObjects.add(object);
+        this._setEmissiveColor(object, this.colors.selected, this.intensity.selected);
     }
     
     /**
      * 선택 스타일 제거
-     * @param {THREE.Object3D} object - 대상 객체
      */
     removeSelectionStyle(object) {
         if (!object) return;
         
-        this._traverseAndApply(object, (mesh) => {
-            if (mesh.material && mesh.material.emissive) {
-                // 원본 색상으로 복원 또는 기본값
-                const originalColor = this.originalEmissiveMap.get(mesh) ?? this.colors.deselected;
-                mesh.material.emissive.setHex(originalColor);
-            }
-        });
-        
-        debugLog('⚫ 선택 스타일 제거:', object.userData?.id);
+        this.selectedObjects.delete(object);
+        this._restoreOriginalColor(object);
     }
     
     /**
-     * 호버 스타일 적용
-     * @param {THREE.Object3D} object - 대상 객체
+     * 호버 스타일 적용 (Cyan)
      */
     applyHoverStyle(object) {
         if (!object) return;
         
-        // 이전 호버 객체 스타일 제거
-        if (this.hoveredObject && this.hoveredObject !== object) {
-            this.removeHoverStyle(this.hoveredObject);
-        }
+        // 선택된 객체는 호버 제외
+        if (this.isSelected(object)) return;
         
-        this._traverseAndApply(object, (mesh) => {
-            if (mesh.material && mesh.material.emissive) {
-                // 원본 색상 저장 (최초 1회)
-                if (!this.originalEmissiveMap.has(mesh)) {
-                    this.originalEmissiveMap.set(mesh, mesh.material.emissive.getHex());
-                }
-                // 호버 색상 적용 (Cyan)
-                mesh.material.emissive.setHex(this.colors.highlight);
-            }
-        });
-        
-        this.hoveredObject = object;
-        debugLog('🔵 호버 스타일 적용:', object.userData?.id);
+        this._setEmissiveColor(object, this.colors.highlight, this.intensity.highlight);
     }
     
     /**
      * 호버 스타일 제거
-     * @param {THREE.Object3D} object - 대상 객체 (null이면 현재 호버 객체)
      */
-    removeHoverStyle(object = null) {
-        const target = object || this.hoveredObject;
-        if (!target) return;
+    removeHoverStyle(object) {
+        if (!object) return;
         
-        this._traverseAndApply(target, (mesh) => {
-            if (mesh.material && mesh.material.emissive) {
-                // 원본 색상으로 복원
-                const originalColor = this.originalEmissiveMap.get(mesh) ?? this.colors.deselected;
-                mesh.material.emissive.setHex(originalColor);
-            }
-        });
-        
-        if (target === this.hoveredObject) {
-            this.hoveredObject = null;
+        // 선택된 객체라면 선택 색상 유지
+        if (this.isSelected(object)) {
+            this._setEmissiveColor(object, this.colors.selected, this.intensity.selected);
+            return;
         }
         
-        debugLog('⚫ 호버 스타일 제거:', target.userData?.id);
+        this._restoreOriginalColor(object);
     }
     
     /**
-     * 현재 호버된 객체 반환
-     * @returns {THREE.Object3D|null}
-     */
-    getHoveredObject() {
-        return this.hoveredObject;
-    }
-    
-    /**
-     * 호버 상태 확인
-     * @param {THREE.Object3D} object 
-     * @returns {boolean}
-     */
-    isHovered(object) {
-        return this.hoveredObject === object;
-    }
-    
-    /**
-     * 색상 설정 변경
-     * @param {Object} colors - { selected, highlight, deselected }
-     */
-    setColors(colors) {
-        if (colors.selected !== undefined) {
-            this.colors.selected = colors.selected;
-        }
-        if (colors.highlight !== undefined) {
-            this.colors.highlight = colors.highlight;
-        }
-        if (colors.deselected !== undefined) {
-            this.colors.deselected = colors.deselected;
-        }
-        debugLog('🎨 색상 설정 변경됨');
-    }
-    
-    /**
-     * 내부: 객체 순회하며 함수 적용
+     * emissive 색상 및 강도 설정
      * @private
      */
-    _traverseAndApply(object, fn) {
+    _setEmissiveColor(object, color, intensity) {
         object.traverse((child) => {
-            if (child.isMesh) {
-                fn(child);
+            if (child.isMesh && child.material) {
+                this._ensureMaterialCloned(child);
+                
+                if (child.material.emissive) {
+                    // 원본 색상 저장 (최초 1회)
+                    if (!this.originalEmissiveMap.has(child)) {
+                        this.originalEmissiveMap.set(child, child.material.emissive.getHex());
+                        this.originalIntensityMap.set(child, child.material.emissiveIntensity ?? 1.0);
+                    }
+                    
+                    child.material.emissive.setHex(color);
+                    child.material.emissiveIntensity = intensity;
+                }
             }
         });
+    }
+    
+    /**
+     * Material Clone 보장
+     * @private
+     */
+    _ensureMaterialCloned(mesh) {
+        if (!mesh.material || this.clonedMaterials.has(mesh)) return;
+        
+        if (Array.isArray(mesh.material)) {
+            mesh.material = mesh.material.map(mat => mat.clone());
+        } else {
+            mesh.material = mesh.material.clone();
+        }
+        
+        this.clonedMaterials.add(mesh);
+    }
+    
+    /**
+     * 원본 색상 복원
+     * @private
+     */
+    _restoreOriginalColor(object) {
+        object.traverse((child) => {
+            if (child.isMesh && child.material && child.material.emissive) {
+                const originalColor = this.originalEmissiveMap.get(child) ?? this.colors.deselected;
+                const originalIntensity = this.originalIntensityMap.get(child) ?? this.intensity.default;
+                
+                child.material.emissive.setHex(originalColor);
+                child.material.emissiveIntensity = originalIntensity;
+            }
+        });
+    }
+    
+    /**
+     * Intensity 설정 변경
+     * @param {Object} settings - { selected, highlight, default }
+     */
+    setIntensity(settings) {
+        if (settings.selected !== undefined) this.intensity.selected = settings.selected;
+        if (settings.highlight !== undefined) this.intensity.highlight = settings.highlight;
+        if (settings.default !== undefined) this.intensity.default = settings.default;
     }
     
     /**
      * 리소스 정리
      */
     dispose() {
-        if (this.hoveredObject) {
-            this.removeHoverStyle();
-        }
+        this.selectedObjects.clear();
         this.originalEmissiveMap = new WeakMap();
-        debugLog('🗑️ SelectionVisualizer 정리 완료');
+        this.originalIntensityMap = new WeakMap();
+        this.clonedMaterials = new WeakSet();
     }
 }
