@@ -285,10 +285,9 @@ export function debugSettings() {
 
 if (typeof window !== 'undefined') {
     window.SETTINGS = SETTINGS;
-    window.CONFIG = CONFIG;
-    window.updateEquipmentConfig = updateEquipmentSettings;
-    window.updateSceneConfig = updateSceneSettings;
-    window.resetConfig = resetSettings;
-    window.debugConfig = debugSettings;
-    window.debugLog = debugLog;
+    window.CONFIG = SETTINGS;  // ⭐ 하위 호환성
+    window.updateEquipmentSettings = updateEquipmentSettings;
+    window.updateSceneSettings = updateSceneSettings;
+    window.resetSettings = resetSettings;
+    window.debugSettings = debugSettings;
 }
