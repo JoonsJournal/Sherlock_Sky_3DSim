@@ -6,7 +6,7 @@
  * - Signal Tower 업데이트 트리거
  */
 
-import { debugLog } from '../utils/Config.js';
+import { debugLog } from '../core/utils/Config.js';
 
 export class MonitoringService {
     constructor(signalTowerManager) {

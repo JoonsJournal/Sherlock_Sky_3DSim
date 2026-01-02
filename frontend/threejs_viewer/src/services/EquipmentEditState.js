@@ -14,7 +14,7 @@
  * - 디버깅 유틸리티
  */
 
-import { debugLog } from '../utils/Config.js';
+import { debugLog } from '../core/utils/Config.js';
 
 export class EquipmentEditState {
     constructor() {
