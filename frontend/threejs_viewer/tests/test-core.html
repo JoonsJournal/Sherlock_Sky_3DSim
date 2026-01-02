@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Core Module Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        h1 { color: #667eea; }
+        .test-section {
+            background: #16213e;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .test-section h3 { margin-top: 0; color: #4CAF50; }
+        .success { color: #4CAF50; }
+        .error { color: #F44336; }
+        .info { color: #2196F3; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #5a6fd6; }
+        #log {
+            background: #0f0f23;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .log-entry { margin: 2px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Core Module Test</h1>
+    
+    <div class="test-section">
+        <h3>1. Module Import Test</h3>
+        <div id="import-result">Testing...</div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. EventBus Test</h3>
+        <button onclick="testEventBus()">Test EventBus</button>
+        <div id="eventbus-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. Logger Test</h3>
+        <button onclick="testLogger()">Test Logger</button>
+        <div id="logger-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>4. AppModeManager Test</h3>
+        <button onclick="testModeManager()">Test Mode Switch</button>
+        <div id="mode-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>5. Error System Test</h3>
+        <button onclick="testErrorSystem()">Test Errors</button>
+        <div id="error-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>6. Config/Theme Test</h3>
+        <button onclick="testConfig()">Test Config</button>
+        <div id="config-result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>7. Debug Manager Test</h3>
+        <button onclick="testDebugManager()">Enable Debug Mode</button>
+        <div id="debug-result"></div>
+    </div>
+    
+    <h2>📋 Console Log</h2>
+    <div id="log"></div>
+
+    <script type="module">
+        // Import core modules (상대 경로: tests/ -> src/core/)
+        import {
+            // Config
+            APP_MODE,
+            OBJECT_STATE,
+            EVENT_NAME,
+            SETTINGS,
+            SOLID_EDGE_COLORS,
+            EQUIPMENT_STATUS_COLORS,
+            
+            // Managers
+            eventBus,
+            logger,
+            appModeManager,
+            keyboardManager,
+            debugManager,
+            
+            // Base
+            BaseComponent,
+            BaseModal,
+            BasePanel,
+            
+            // Errors
+            AppError,
+            errorHandler,
+            ERROR_CODE,
+            ERROR_SEVERITY,
+            
+            // Init
+            initCore
+        } from '../src/core/index.js';
+
+        // 로그 함수
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // 결과 표시 함수
+        function showResult(elementId, success, message) {
+            const el = document.getElementById(elementId);
+            el.innerHTML = `<span class="${success ? 'success' : 'error'}">${success ? '✅' : '❌'} ${message}</span>`;
+        }
+
+        // 1. Import Test
+        try {
+            const importTests = [
+                { name: 'APP_MODE', value: APP_MODE },
+                { name: 'SETTINGS', value: SETTINGS },
+                { name: 'eventBus', value: eventBus },
+                { name: 'logger', value: logger },
+                { name: 'appModeManager', value: appModeManager },
+                { name: 'BaseModal', value: BaseModal },
+                { name: 'AppError', value: AppError }
+            ];
+            
+            const allImported = importTests.every(t => t.value !== undefined);
+            showResult('import-result', allImported, 
+                allImported ? 'All modules imported successfully!' : 'Some imports failed');
+            
+            log('Import test completed: ' + importTests.map(t => t.name).join(', '));
+        } catch (e) {
+            showResult('import-result', false, 'Import error: ' + e.message);
+            log('Import error: ' + e.message, 'error');
+        }
+
+        // 전역에 노출 (버튼 테스트용)
+        window.testEventBus = function() {
+            try {
+                let received = false;
+                const unsubscribe = eventBus.on('test:event', (data) => {
+                    received = true;
+                    log(`EventBus received: ${JSON.stringify(data)}`);
+                });
+                
+                eventBus.emit('test:event', { message: 'Hello EventBus!' });
+                unsubscribe();
+                
+                showResult('eventbus-result', received, 
+                    received ? 'EventBus working correctly!' : 'EventBus failed');
+            } catch (e) {
+                showResult('eventbus-result', false, 'Error: ' + e.message);
+                log('EventBus error: ' + e.message, 'error');
+            }
+        };
+
+        window.testLogger = function() {
+            try {
+                logger.info('Info message');
+                logger.warn('Warning message');
+                logger.error('Error message');
+                logger.debug('Debug message');
+                
+                showResult('logger-result', true, 'Check browser console for log output');
+                log('Logger test completed - check browser console');
+            } catch (e) {
+                showResult('logger-result', false, 'Error: ' + e.message);
+            }
+        };
+
+        window.testModeManager = function() {
+            try {
+                const initialMode = appModeManager.getCurrentMode();
+                log(`Initial mode: ${initialMode}`);
+                
+                appModeManager.switchMode(APP_MODE.LAYOUT_EDIT_2D);
+                const newMode = appModeManager.getCurrentMode();
+                log(`After switch: ${newMode}`);
+                
+                appModeManager.switchMode(APP_MODE.MAIN_VIEWER);
+                
+                showResult('mode-result', true, 
+                    `Mode switch: ${initialMode} → ${newMode} → ${APP_MODE.MAIN_VIEWER}`);
+            } catch (e) {
+                showResult('mode-result', false, 'Error: ' + e.message);
+                log('Mode switch error: ' + e.message, 'error');
+            }
+        };
+
+        window.testErrorSystem = function() {
+            try {
+                // AppError 생성
+                const error = new AppError({
+                    code: ERROR_CODE.VALIDATION_ERROR,
+                    message: 'Test validation error',
+                    severity: ERROR_SEVERITY.MEDIUM
+                });
+                
+                log(`Created error: [${error.code}] ${error.message}`);
+                log(`Error category: ${error.category}`);
+                log(`User message: ${error.getUserMessage()}`);
+                
+                // 팩토리 메서드 테스트
+                const networkError = AppError.network('Network test');
+                log(`Network error: ${networkError.toString()}`);
+                
+                showResult('error-result', true, 'Error system working correctly!');
+            } catch (e) {
+                showResult('error-result', false, 'Error: ' + e.message);
+            }
+        };
+
+        window.testConfig = function() {
+            try {
+                const results = [];
+                
+                results.push(`Equipment Rows: ${SETTINGS.EQUIPMENT.ROWS}`);
+                results.push(`Equipment Cols: ${SETTINGS.EQUIPMENT.COLS}`);
+                results.push(`Highlight Color: ${SOLID_EDGE_COLORS.HIGHLIGHT}`);
+                results.push(`Running Status: ${EQUIPMENT_STATUS_COLORS.RUNNING}`);
+                
+                log('Config values: ' + results.join(', '));
+                
+                showResult('config-result', true, results.join(' | '));
+            } catch (e) {
+                showResult('config-result', false, 'Error: ' + e.message);
+            }
+        };
+
+        window.testDebugManager = function() {
+            try {
+                debugManager.enable();
+                log('Debug mode enabled');
+                log('Try: window.debug.help() in console');
+                
+                showResult('debug-result', true, 
+                    'Debug mode enabled! Try window.debug.help() in console');
+            } catch (e) {
+                showResult('debug-result', false, 'Error: ' + e.message);
+            }
+        };
+
+        // 초기화
+        log('Core module test page loaded');
+        log('Click buttons to test each module');
+    </script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+/**
+ * _toast.css
+ * ==========
+ * 토스트 알림 스타일
+ * 
+ * 기존: src/styles/toast.css 내용 이동
+ * 작성일: 2026-01-02
+ */
+
+/* =============================================
+   Toast Container
+   ============================================= */
+.toast-container {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: var(--z-toast);
+    pointer-events: none;
+}
+
+/* =============================================
+   Toast Base
+   ============================================= */
+.toast {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 300px;
+    max-width: 500px;
+    margin-bottom: 12px;
+    padding: 16px 20px;
+    background: var(--text-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transform: translateX(400px);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    pointer-events: auto;
+}
+
+/* =============================================
+   Toast 애니메이션
+   ============================================= */
+.toast.toast-show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.toast.toast-hide {
+    opacity: 0;
+    transform: translateX(400px);
+}
+
+/* =============================================
+   Toast 내부 요소
+   ============================================= */
+.toast-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.toast-message {
+    flex: 1;
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--text-dark);
+    line-height: 1.5;
+}
+
+.toast-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: color 0.2s;
+}
+
+.toast-close:hover {
+    color: var(--text-dark);
+}
+
+/* =============================================
+   Toast 타입별 스타일
+   ============================================= */
+.toast-success {
+    border-left: 4px solid var(--color-success);
+}
+
+.toast-success .toast-icon {
+    color: var(--color-success);
+}
+
+.toast-error {
+    border-left: 4px solid var(--color-danger);
+}
+
+.toast-error .toast-icon {
+    color: var(--color-danger);
+}
+
+.toast-warning {
+    border-left: 4px solid var(--color-warning);
+}
+
+.toast-warning .toast-icon {
+    color: var(--color-warning);
+}
+
+.toast-info {
+    border-left: 4px solid var(--color-info);
+}
+
+.toast-info .toast-icon {
+    color: var(--color-info);
+}
+
+/* =============================================
+   Toast Progress Bar (Optional)
+   ============================================= */
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    animation: toast-progress-shrink 3s linear forwards;
+}
+
+@keyframes toast-progress-shrink {
+    from {
+        width: 100%;
+    }
+    to {
+        width: 0%;
+    }
+}
+
+.toast-success .toast-progress {
+    background: var(--color-success);
+}
+
+.toast-error .toast-progress {
+    background: var(--color-danger);
+}
+
+.toast-warning .toast-progress {
+    background: var(--color-warning);
+}
+
+.toast-info .toast-progress {
+    background: var(--color-info);
+}
+
+/* =============================================
+   반응형
+   ============================================= */
+@media (max-width: 768px) {
+    .toast-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+    }
+    
+    .toast {
+        min-width: auto;
+        width: 100%;
+    }
+}

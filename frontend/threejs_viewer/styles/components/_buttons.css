@@ -1,0 +1,357 @@
+/**
+ * _buttons.css
+ * ============
+ * 모든 버튼 스타일 통합
+ * - 기본 버튼 (primary, secondary, danger 등)
+ * - 아이콘 버튼 (connectionBtn, editBtn 등)
+ * - 토글 버튼
+ * 
+ * 작성일: 2026-01-02
+ */
+
+/* =============================================
+   기본 버튼 스타일
+   ============================================= */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* =============================================
+   버튼 변형 (Variants)
+   ============================================= */
+.btn-primary {
+    background: var(--gradient-primary);
+    color: var(--text-light);
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-primary);
+}
+
+.btn-primary:disabled {
+    background: #cccccc;
+}
+
+.btn-secondary {
+    background-color: var(--color-secondary);
+    color: var(--text-light);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background-color: var(--color-secondary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.btn-success {
+    background: var(--gradient-success);
+    color: var(--text-light);
+}
+
+.btn-success:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(46, 204, 113, 0.4);
+}
+
+.btn-danger {
+    background-color: var(--color-danger);
+    color: var(--text-light);
+}
+
+.btn-danger:hover:not(:disabled) {
+    background-color: #c82333;
+    transform: translateY(-2px);
+}
+
+.btn-warning {
+    background-color: var(--color-warning);
+    color: var(--text-dark);
+}
+
+.btn-warning:hover:not(:disabled) {
+    background-color: #e0a800;
+}
+
+/* =============================================
+   아이콘 버튼 (작은 버튼)
+   ============================================= */
+.btn-icon {
+    padding: 8px 12px;
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.btn-icon:hover:not(:disabled) {
+    background-color: var(--border-light);
+    border-color: var(--border-dark);
+}
+
+.btn-icon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* =============================================
+   연결/해제 버튼
+   ============================================= */
+.btn-disconnect {
+    padding: 4px 12px;
+    background-color: var(--color-danger);
+    color: var(--text-light);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.btn-disconnect:hover {
+    background-color: #c82333;
+    transform: scale(1.05);
+}
+
+.btn-retry {
+    padding: 4px 12px;
+    background-color: var(--color-warning);
+    color: var(--text-dark);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.btn-retry:hover {
+    background-color: #e0a800;
+    transform: scale(1.05);
+}
+
+.btn-select {
+    padding: 8px 16px;
+    background: #3498db;
+    color: var(--text-light);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.btn-select:hover:not(:disabled) {
+    background: #2980b9;
+}
+
+.btn-select:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+}
+
+/* =============================================
+   플로팅 원형 버튼 (공통 베이스)
+   ============================================= */
+.floating-btn {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: var(--radius-full);
+    font-size: 24px;
+    cursor: pointer;
+    z-index: var(--z-fixed);
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s ease;
+    color: var(--text-light);
+}
+
+.floating-btn:hover {
+    transform: scale(1.1);
+}
+
+/* 툴팁 (::after) */
+.floating-btn::after {
+    position: absolute;
+    left: 60px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--bg-dark);
+    color: var(--text-light);
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.floating-btn:hover::after {
+    opacity: 1;
+}
+
+/* =============================================
+   Connection Button
+   ============================================= */
+#connectionBtn {
+    top: 10px;
+    left: 10px;
+    background: rgba(52, 152, 219, 0.9);
+}
+
+#connectionBtn:hover {
+    background: rgba(41, 128, 185, 0.9);
+}
+
+#connectionBtn.connected {
+    background: rgba(46, 204, 113, 0.9);
+    box-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
+}
+
+#connectionBtn.connecting {
+    background: rgba(241, 196, 15, 0.9);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+#connectionBtn::after {
+    content: 'DB Connection (Ctrl+K)';
+}
+
+/* =============================================
+   Edit Button
+   ============================================= */
+#editBtn {
+    top: 70px;
+    left: 10px;
+    background: rgba(52, 152, 219, 0.9);
+}
+
+#editBtn:hover {
+    background: rgba(41, 128, 185, 0.9);
+}
+
+#editBtn.active {
+    background: rgba(255, 152, 0, 0.9);
+    box-shadow: 0 0 20px rgba(255, 152, 0, 0.5);
+}
+
+#editBtn::after {
+    content: 'Equipment Edit (E)';
+}
+
+/* =============================================
+   Monitoring Button
+   ============================================= */
+#monitoringBtn {
+    top: 130px;
+    left: 10px;
+    background: rgba(52, 152, 219, 0.9);
+}
+
+#monitoringBtn:hover {
+    background: rgba(41, 128, 185, 0.9);
+}
+
+#monitoringBtn.active {
+    background: rgba(231, 76, 60, 0.9);
+    box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+#monitoringBtn::after {
+    content: 'Monitoring Mode (M)';
+}
+
+/* =============================================
+   Preview Button
+   ============================================= */
+#previewBtn {
+    top: 190px;
+    left: 10px;
+    background: rgba(155, 89, 182, 0.9);
+    display: none; /* 기본 숨김 - Editor 모드에서만 표시 */
+}
+
+#previewBtn:hover {
+    background: rgba(142, 68, 173, 0.9);
+}
+
+#previewBtn.active {
+    background: rgba(46, 204, 113, 0.9);
+    box-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
+}
+
+#previewBtn::after {
+    content: '3D Preview (P)';
+}
+
+/* =============================================
+   Debug Toggle Button
+   ============================================= */
+#debugToggle {
+    bottom: 20px;
+    left: 20px;
+    background: rgba(52, 152, 219, 0.9);
+}
+
+#debugToggle:hover {
+    background: rgba(41, 128, 185, 0.9);
+}
+
+#debugToggle.active {
+    background: rgba(255, 152, 0, 0.9);
+    box-shadow: 0 0 20px rgba(255, 152, 0, 0.5);
+}
+
+/* =============================================
+   Preview View Buttons
+   ============================================= */
+.preview-view-btn {
+    padding: 8px 16px;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-secondary);
+}
+
+.preview-view-btn:hover {
+    background: #e0e0e0;
+    border-color: var(--mode-layout);
+    color: var(--mode-layout);
+}
+
+.preview-view-btn:active {
+    background: var(--mode-layout);
+    color: var(--text-light);
+    border-color: var(--mode-layout);
+}
+
+/* =============================================
+   애니메이션
+   ============================================= */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}

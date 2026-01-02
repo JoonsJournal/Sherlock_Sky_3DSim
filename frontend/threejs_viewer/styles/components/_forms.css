@@ -1,0 +1,250 @@
+/**
+ * _forms.css
+ * ==========
+ * 폼 요소 스타일
+ * - Input, Select, Textarea
+ * - Checkbox, Radio
+ * - Search Box
+ * 
+ * 작성일: 2026-01-02
+ */
+
+/* =============================================
+   기본 Input 스타일
+   ============================================= */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+textarea,
+select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family);
+    color: var(--text-primary);
+    background-color: var(--text-light);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled {
+    background-color: var(--bg-secondary);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+/* =============================================
+   Placeholder
+   ============================================= */
+::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+}
+
+/* =============================================
+   Search Box
+   ============================================= */
+.search-box {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 10px 40px 10px 12px;
+    border: 2px solid #ddd;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    transition: border-color 0.2s;
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.search-box .btn-icon {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: var(--font-size-lg);
+    padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.search-box .btn-icon:hover {
+    color: var(--color-danger);
+}
+
+/* =============================================
+   Checkbox & Radio
+   ============================================= */
+input[type="checkbox"],
+input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--color-primary);
+}
+
+/* Custom Checkbox Label */
+.checkbox-label,
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+}
+
+.checkbox-label:hover,
+.radio-label:hover {
+    color: var(--color-primary);
+}
+
+/* =============================================
+   Form Group
+   ============================================= */
+.form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.form-label {
+    display: block;
+    margin-bottom: var(--spacing-sm);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-label.required::after {
+    content: ' *';
+    color: var(--color-danger);
+}
+
+.form-help {
+    margin-top: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.form-error {
+    margin-top: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    color: var(--color-danger);
+}
+
+/* =============================================
+   Input with Error State
+   ============================================= */
+input.error,
+textarea.error,
+select.error {
+    border-color: var(--color-danger);
+}
+
+input.error:focus,
+textarea.error:focus,
+select.error:focus {
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.1);
+}
+
+/* =============================================
+   Input with Success State
+   ============================================= */
+input.success,
+textarea.success,
+select.success {
+    border-color: var(--color-success);
+}
+
+input.success:focus,
+textarea.success:focus,
+select.success:focus {
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+}
+
+/* =============================================
+   Select 스타일
+   ============================================= */
+select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236c757d' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+    cursor: pointer;
+}
+
+/* =============================================
+   Textarea
+   ============================================= */
+textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+/* =============================================
+   Input Group (Input + Button)
+   ============================================= */
+.input-group {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.input-group input {
+    flex: 1;
+}
+
+.input-group .btn {
+    flex-shrink: 0;
+}
+
+/* =============================================
+   Range Input
+   ============================================= */
+input[type="range"] {
+    width: 100%;
+    height: 8px;
+    border-radius: var(--radius-sm);
+    background: var(--border-color);
+    appearance: none;
+    cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-full);
+    background: var(--color-primary);
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+}

@@ -7,528 +7,9 @@
 	<title>Sherlock Sky 3DSim - 설비 3D 시뮬레이션</title>
 
 	<!-- ============================================
-		⭐ CSS Import
+		⭐ CSS Import (통합된 스타일시트)
 		============================================ -->
-	<link rel="stylesheet" href="src/styles/modal.css">
-	<link rel="stylesheet" href="src/styles/connection-panel.css">
-	<link rel="stylesheet" href="src/styles/toast.css">
-	<!-- ⭐ 새로 추가: Equipment Edit CSS -->
-	<link rel="stylesheet" href="src/styles/equipment-edit.css">
-	<!-- ✨ Phase 2.6: ComponentPalette CSS -->
-	<link rel="stylesheet" href="src/styles/component-palette.css">
-	
-
-	<style>
-		body {
-			margin: 0;
-			overflow: hidden;
-			font-family: 'Segoe UI', Arial, sans-serif;
-			background: #f5f5f5;
-		}
-
-		/* ⭐ 편집 모드 활성화 시 커서 변경 */
-		body.edit-mode-active {
-			cursor: crosshair !important;
-		}
-
-		body.edit-mode-active canvas {
-			cursor: crosshair !important;
-		}
-
-		canvas {
-			display: block;
-			cursor: grab;
-		}
-
-		canvas:active {
-			cursor: grabbing;
-		}
-
-		/* ============================================
-			⭐ 마우스 사용법 정보 패널 - 오른쪽 상단으로 이동
-		   ============================================ */
-		#info {
-			position: absolute;
-			top: 10px;
-			right: 10px;  /* left에서 right로 변경 */
-			color: white;
-			background: rgba(0, 0, 0, 0.8);
-			padding: 15px;
-			border-radius: 8px;
-			font-size: 14px;
-			z-index: 100;
-			max-width: 300px;
-		}
-
-		#info h3 {
-			margin: 0 0 10px 0;
-			color: #3498db;
-		}
-
-		#info p {
-			margin: 5px 0;
-		}
-
-		/* 로딩 상태 표시 */
-		#loadingStatus {
-			position: absolute;
-			bottom: 20px;
-			left: 50%;
-			transform: translateX(-50%);
-			background: rgba(0, 0, 0, 0.9);
-			color: #2ecc71;
-			padding: 15px 30px;
-			border-radius: 25px;
-			font-size: 16px;
-			font-weight: bold;
-			z-index: 100;
-			box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-			animation: pulse 2s infinite;
-		}
-
-		@keyframes pulse {
-			0%, 100% {
-				opacity: 1;
-			}
-			50% {
-				opacity: 0.7;
-			}
-		}
-
-		/* 설비 정보 패널 */
-		#equipmentInfo {
-			position: absolute;
-			top: 10px;
-			right: 10px;
-			width: 350px;
-			max-height: 85vh;
-			overflow-y: auto;
-			background: rgba(255, 255, 255, 0.95);
-			border-radius: 12px;
-			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-			padding: 20px;
-			color: #333;
-			display: none;
-			z-index: 100;
-		}
-
-		#equipmentInfo.active {
-			display: block;
-			animation: slideIn 0.3s ease-out;
-		}
-
-		@keyframes slideIn {
-			from {
-				transform: translateX(100%);
-				opacity: 0;
-			}
-			to {
-				transform: translateX(0);
-				opacity: 1;
-			}
-		}
-
-		#equipmentInfo h2 {
-			margin: 0 0 15px 0;
-			color: #3498db;
-			font-size: 20px;
-			border-bottom: 2px solid #3498db;
-			padding-bottom: 10px;
-		}
-
-		#equipmentInfo .close-btn {
-			position: absolute;
-			top: 15px;
-			right: 15px;
-			background: #e74c3c;
-			color: white;
-			border: none;
-			border-radius: 50%;
-			width: 30px;
-			height: 30px;
-			cursor: pointer;
-			font-size: 18px;
-			line-height: 30px;
-			text-align: center;
-			transition: background 0.3s;
-		}
-
-		#equipmentInfo .close-btn:hover {
-			background: #c0392b;
-		}
-
-		#equipmentInfo .info-row {
-			margin: 10px 0;
-			padding: 8px;
-			background: #f8f9fa;
-			border-radius: 5px;
-		}
-
-		#equipmentInfo .info-label {
-			font-weight: bold;
-			color: #555;
-			display: inline-block;
-			width: 120px;
-		}
-
-		#equipmentInfo .info-value {
-			color: #333;
-		}
-
-		#equipmentInfo .status-indicator {
-			display: inline-block;
-			width: 12px;
-			height: 12px;
-			border-radius: 50%;
-			margin-right: 5px;
-		}
-
-		#equipmentInfo .status-running {
-			background: #2ecc71;
-			box-shadow: 0 0 8px #2ecc71;
-		}
-
-		#equipmentInfo .status-idle {
-			background: #f39c12;
-		}
-
-		#equipmentInfo .status-error {
-			background: #e74c3c;
-			box-shadow: 0 0 8px #e74c3c;
-		}
-
-		/* 다중 선택 헤더 스타일 */
-		#equipmentInfo .multi-select-header {
-			background: #e3f2fd !important;
-			border-left: 4px solid #2196F3 !important;
-			margin-bottom: 15px !important;
-			font-weight: bold;
-			color: #1976D2;
-		}
-
-		/* ============================================
-			⭐ 디버그 컨트롤 - 왼쪽 아래로 이동
-		   ============================================ */
-		#debugControls {
-			position: absolute;
-			bottom: 20px;
-			left: 80px;  /* debugToggle 오른쪽에 나타나도록 */
-			background: rgba(0, 0, 0, 0.8);
-			color: white;
-			padding: 15px;
-			border-radius: 8px;
-			font-size: 12px;
-			z-index: 100;
-			display: none;
-		}
-
-		#debugControls.active {
-			display: block;
-		}
-
-		#debugControls h4 {
-			margin: 0 0 10px 0;
-			color: #3498db;
-			font-size: 14px;
-		}
-
-		#debugControls button {
-			display: block;
-			width: 100%;
-			margin: 5px 0;
-			padding: 8px;
-			background: #3498db;
-			color: white;
-			border: none;
-			border-radius: 4px;
-			cursor: pointer;
-			transition: background 0.3s;
-		}
-
-		#debugControls button:hover {
-			background: #2980b9;
-		}
-
-		/* ============================================
-			⭐ 디버그 토글 버튼 - 왼쪽 아래로 이동
-		   ============================================ */
-		#debugToggle {
-			position: absolute;
-			bottom: 20px;
-			left: 20px;  /* right에서 left로 변경 */
-			background: rgba(52, 152, 219, 0.9);  /* 기본: 파란색 */
-			color: white;
-			border: none;
-			border-radius: 50%;
-			width: 50px;
-			height: 50px;
-			font-size: 24px;
-			cursor: pointer;
-			z-index: 101;
-			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-			transition: all 0.3s;
-		}
-
-		#debugToggle:hover {
-			background: rgba(41, 128, 185, 0.9);
-			transform: scale(1.1);
-		}
-
-		#debugToggle.active {
-			background: rgba(255, 152, 0, 0.9);  /* 활성화: 주황색 */
-			box-shadow: 0 0 20px rgba(255, 152, 0, 0.5);
-		}
-
-		/* 커스텀 스크롤바 */
-		#equipmentInfo::-webkit-scrollbar {
-			width: 8px;
-		}
-
-		#equipmentInfo::-webkit-scrollbar-track {
-			background: #f1f1f1;
-			border-radius: 4px;
-		}
-
-		#equipmentInfo::-webkit-scrollbar-thumb {
-			background: #888;
-			border-radius: 4px;
-		}
-
-		#equipmentInfo::-webkit-scrollbar-thumb:hover {
-			background: #555;
-		}
-
-		/* 키보드 단축키 안내 */
-		.keyboard-hint {
-			font-size: 11px;
-			color: #95a5a6;
-			margin-top: 10px;
-			padding-top: 10px;
-			border-top: 1px solid rgba(255, 255, 255, 0.2);
-		}
-
-		/* 다중 선택 강조 */
-		.multi-select-tip {
-			background: #e8f5e9;
-			border-left: 4px solid #4caf50;
-			padding: 8px;
-			margin-top: 10px;
-			border-radius: 4px;
-			font-size: 12px;
-			color: #2e7d32;
-		}
-
-		/* ============================================
-			⭐ Connection Button - 왼쪽 상단 최상위
-		   ============================================ */
-		#connectionBtn {
-			position: absolute;
-			top: 10px;  /* 최상단 */
-			left: 10px;
-			background: rgba(52, 152, 219, 0.9);  /* 기본: 파란색 */
-			color: white;
-			border: none;
-			border-radius: 50%;
-			width: 50px;
-			height: 50px;
-			font-size: 24px;
-			cursor: pointer;
-			z-index: 101;
-			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-			transition: all 0.3s;
-		}
-
-		#connectionBtn:hover {
-			background: rgba(41, 128, 185, 0.9);
-			transform: scale(1.1);
-		}
-
-		#connectionBtn.active {
-			background: rgba(255, 152, 0, 0.9);  /* 활성화: 주황색 */
-			box-shadow: 0 0 20px rgba(255, 152, 0, 0.5);
-		}
-
-		#connectionBtn::after {
-			content: 'Database Connection (Ctrl+K)';
-			position: absolute;
-			left: 60px;
-			top: 50%;
-			transform: translateY(-50%);
-			background: rgba(0, 0, 0, 0.8);
-			color: white;
-			padding: 8px 12px;
-			border-radius: 6px;
-			font-size: 12px;
-			white-space: nowrap;
-			opacity: 0;
-			pointer-events: none;
-			transition: opacity 0.2s ease;
-		}
-
-		#connectionBtn:hover::after {
-			opacity: 1;
-		}
-
-		/* ============================================
-			⭐ Edit Button - connectionBtn 바로 아래
-		   ============================================ */
-		#editBtn {
-			position: absolute;
-			top: 70px;  /* connectionBtn 아래 */
-			left: 10px;
-			background: rgba(52, 152, 219, 0.9);  /* 기본: 파란색 */
-			color: white;
-			border: none;
-			border-radius: 50%;
-			width: 50px;
-			height: 50px;
-			font-size: 24px;
-			cursor: pointer;
-			z-index: 101;
-			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-			transition: all 0.3s;
-		}
-
-		#editBtn:hover {
-			background: rgba(41, 128, 185, 0.9);
-			transform: scale(1.1);
-		}
-
-		#editBtn.active {
-			background: rgba(255, 152, 0, 0.9);  /* 활성화: 주황색 */
-			box-shadow: 0 0 20px rgba(255, 152, 0, 0.5);
-		}
-
-		#editBtn::after {
-			content: 'Equipment Edit Mode (E)';
-			position: absolute;
-			left: 60px;
-			top: 50%;
-			transform: translateY(-50%);
-			background: rgba(0, 0, 0, 0.8);
-			color: white;
-			padding: 8px 12px;
-			border-radius: 6px;
-			font-size: 12px;
-			white-space: nowrap;
-			opacity: 0;
-			pointer-events: none;
-			transition: opacity 0.2s ease;
-		}
-
-		#editBtn:hover::after {
-			opacity: 1;
-		}
-
-		/* ============================================
-		   ⭐ Phase 2: Monitoring Button 스타일
-		   ============================================ */
-		#monitoringBtn {
-			position: absolute;
-			top: 130px;  /* editBtn 아래 */
-			left: 10px;
-			background: rgba(52, 152, 219, 0.9);  /* 파란색 기본 */
-			border: none;
-			border-radius: 50%;
-			width: 50px;
-			height: 50px;
-			font-size: 24px;
-			cursor: pointer;
-			z-index: 101;
-			transition: all 0.3s ease;
-		}
-
-		#monitoringBtn:hover {
-			transform: scale(1.1);
-		}
-
-		#monitoringBtn.active {
-			background: rgba(46, 204, 113, 0.9);  /* 초록색 활성화 */
-			animation: pulse-monitoring 2s infinite;
-		}
-
-		@keyframes pulse-monitoring {
-			0%, 100% {
-				box-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
-			}
-			50% {
-				box-shadow: 0 0 30px rgba(46, 204, 113, 0.8);
-			}
-		}
-
-		#monitoringBtn::after {
-			content: 'Monitoring Mode (M)';
-			position: absolute;
-			left: 60px;
-			top: 50%;
-			transform: translateY(-50%);
-			background: rgba(0, 0, 0, 0.8);
-			color: white;
-			padding: 8px 12px;
-			border-radius: 6px;
-			font-size: 12px;
-			white-space: nowrap;
-			opacity: 0;
-			pointer-events: none;
-			transition: opacity 0.2s ease;
-		}
-
-		#monitoringBtn:hover::after {
-			opacity: 1;
-		}
-
-		/* ============================================
-		   ✨ Phase 4.5: Preview Button 스타일 (NEW)
-		   ============================================ */
-		#previewBtn {
-			position: absolute;
-			top: 190px;  /* monitoringBtn 아래 */
-			left: 10px;
-			background: rgba(155, 89, 182, 0.9);  /* 보라색 기본 */
-			color: white;
-			border: none;
-			border-radius: 50%;
-			width: 50px;
-			height: 50px;
-			font-size: 24px;
-			cursor: pointer;
-			z-index: 101;
-			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-			transition: all 0.3s ease;
-			display: none;  /* 기본 숨김 - Editor 모드에서만 표시 */
-		}
-
-		#previewBtn:hover {
-			background: rgba(142, 68, 173, 0.9);
-			transform: scale(1.1);
-		}
-
-		#previewBtn.active {
-			background: rgba(46, 204, 113, 0.9);
-			box-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
-		}
-
-		#previewBtn::after {
-			content: '3D Preview (P)';
-			position: absolute;
-			left: 60px;
-			top: 50%;
-			transform: translateY(-50%);
-			background: rgba(0, 0, 0, 0.8);
-			color: white;
-			padding: 8px 12px;
-			border-radius: 6px;
-			font-size: 12px;
-			white-space: nowrap;
-			opacity: 0;
-			pointer-events: none;
-			transition: opacity 0.2s ease;
-		}
-
-		#previewBtn:hover::after {
-			opacity: 1;
-		}
-	</style>
+	<link rel="stylesheet" href="styles/main.css">
 </head>
 
 <body>
@@ -569,28 +50,28 @@
 	<!-- ============================================
 		⭐ Connection Button - 왼쪽 상단 최상위
 		============================================ -->
-	<button id="connectionBtn" title="Database Connection (Ctrl+K)">
+	<button id="connectionBtn" class="floating-btn" title="Database Connection (Ctrl+K)">
 		🔌
 	</button>
 
 	<!-- ============================================
 		⭐ Equipment Edit Button - Connection 버튼 아래
 		============================================ -->
-	<button id="editBtn" title="Equipment Edit Mode (E)">
+	<button id="editBtn" class="floating-btn" title="Equipment Edit Mode (E)">
 		✏️
 	</button>
 
 	<!-- ============================================
 		⭐ Phase 2: Monitoring Button
 		============================================ -->
-	<button id="monitoringBtn" title="Monitoring Mode (M)">
+	<button id="monitoringBtn" class="floating-btn" title="Monitoring Mode (M)">
 		🚨
 	</button>
 
 	<!-- ============================================
 		✨ Phase 4.5: Preview Button (NEW - Editor 모드에서만 표시)
 		============================================ -->
-	<button id="previewBtn" title="3D Preview (P)">
+	<button id="previewBtn" class="floating-btn" title="3D Preview (P)">
 		🔍
 	</button>
 
@@ -633,10 +114,10 @@
 				</div>
 			</div>
 			<div class="modal-footer preview-footer">
-				<button class="btn-secondary" id="preview-back-edit">
+				<button class="btn btn-secondary" id="preview-back-edit">
 					✏️ Back to Edit
 				</button>
-				<button class="btn-primary" id="preview-save-apply">
+				<button class="btn btn-primary" id="preview-save-apply">
 					💾 Save & Apply
 				</button>
 			</div>
@@ -646,7 +127,7 @@
 	<!-- ============================================
 		⭐ 디버그 토글 버튼 - 왼쪽 아래
 		============================================ -->
-	<button id="debugToggle" onclick="toggleDebugPanel()" title="디버그 패널">
+	<button id="debugToggle" class="floating-btn" onclick="toggleDebugPanel()" title="디버그 패널">
 		🔧
 	</button>
 
@@ -690,7 +171,7 @@
 	<!-- ============================================
 		Toast Container
 		============================================ -->
-	<div id="toast-container"></div>
+	<div id="toast-container" class="toast-container"></div>
 
 
 	<!-- Three.js Import Map -->

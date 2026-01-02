@@ -1,0 +1,206 @@
+/**
+ * _viewer-3d.css
+ * ==============
+ * 3D Viewer 페이지 전용 스타일
+ * - 3D 캔버스 관련
+ * - 뷰어 모드 UI
+ * 
+ * 작성일: 2026-01-02
+ */
+
+/* =============================================
+   3D Viewer Container
+   ============================================= */
+.viewer-3d-container {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* =============================================
+   Badge 스타일
+   ============================================= */
+.badge {
+    display: inline-block;
+    padding: var(--spacing-xs) 10px;
+    border-radius: 12px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.badge-success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.badge-warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.badge-danger {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.badge-info {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.badge-secondary {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+/* =============================================
+   Info Box 스타일
+   ============================================= */
+.info-box {
+    padding: 15px;
+    border-radius: var(--radius-md);
+    margin: 10px 0;
+}
+
+.info-box-success {
+    background: #d4edda;
+    border-left: 4px solid var(--color-success);
+    color: #155724;
+}
+
+.info-box-error {
+    background: #f8d7da;
+    border-left: 4px solid var(--color-danger);
+    color: #721c24;
+}
+
+.info-box-warning {
+    background: #fff3cd;
+    border-left: 4px solid var(--color-warning);
+    color: #856404;
+}
+
+.info-box-info {
+    background: #d1ecf1;
+    border-left: 4px solid var(--color-primary);
+    color: #0c5460;
+}
+
+/* =============================================
+   Card 스타일
+   ============================================= */
+.card {
+    background: var(--text-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 15px var(--spacing-lg);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.card-body {
+    padding: var(--spacing-lg);
+}
+
+.card-footer {
+    padding: 15px var(--spacing-lg);
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+}
+
+/* =============================================
+   Divider
+   ============================================= */
+.divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 15px 0;
+}
+
+.divider-vertical {
+    width: 1px;
+    background: var(--border-color);
+    height: 100%;
+}
+
+/* =============================================
+   유틸리티 클래스
+   ============================================= */
+.hidden {
+    display: none !important;
+}
+
+.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.mt-20 {
+    margin-top: 20px;
+}
+
+.mb-10 {
+    margin-bottom: 10px;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+/* =============================================
+   Connection Pool Info
+   ============================================= */
+.connection-pool-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.pool-label {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.pool-stats {
+    display: flex;
+    gap: var(--spacing-md);
+}
+
+.pool-item {
+    font-size: var(--font-size-sm);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+}
+
+.pool-item.active {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.pool-item.idle {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.pool-item.max {
+    background-color: #e2e3e5;
+    color: #383d41;
+}

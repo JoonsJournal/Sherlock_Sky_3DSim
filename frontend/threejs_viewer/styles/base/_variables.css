@@ -1,0 +1,224 @@
+/**
+ * _variables.css
+ * ==============
+ * SHERLOCK SKY 3DSim - CSS 변수 정의
+ * 
+ * 기준: 리팩토링 프로세스 가이드 v5.0
+ * - Solid Edge 색상 시스템
+ * - 장비 상태 색상
+ * - 모드별 UI 색상
+ * 
+ * 작성일: 2026-01-02
+ */
+
+:root {
+    /* =============================================
+       SOLID EDGE 객체 상태 색상
+       ============================================= */
+    --se-highlight: #00BFFF;      /* Cyan - 마우스 호버 */
+    --se-selected: #FF6600;       /* Orange - 선택된 객체 */
+    --se-active: #4CAF50;         /* Green - 편집 중 */
+    --se-inactive: #808080;       /* Gray - 비활성 (50%) */
+    --se-construction: #FFD700;   /* Gold - 보조선 */
+    --se-error: #FF0000;          /* Red - 오류 */
+    --se-locked: #9C27B0;         /* Purple - 잠김 */
+
+    /* =============================================
+       장비 상태 색상 (MONITORING)
+       ============================================= */
+    --equip-running: #4CAF50;     /* Green - 가동 중 */
+    --equip-idle: #FFC107;        /* Amber - 대기 중 */
+    --equip-alarm: #F44336;       /* Red - 알람 발생 */
+    --equip-maintenance: #2196F3; /* Blue - 유지보수 */
+    --equip-offline: #9E9E9E;     /* Gray - 오프라인 */
+
+    /* =============================================
+       SIGNAL TOWER 색상
+       ============================================= */
+    --tower-red: #FF0000;         /* 비상/정지 */
+    --tower-yellow: #FFFF00;      /* 경고/주의 */
+    --tower-green: #00FF00;       /* 정상/가동 */
+    --tower-blue: #0000FF;        /* 작업자 호출 */
+    --tower-white: #FFFFFF;       /* 전원/기타 */
+
+    /* =============================================
+       모드별 UI 강조 색상
+       ============================================= */
+    --mode-connection: #2196F3;   /* 모달 헤더, 버튼 */
+    --mode-edit: #FF9800;         /* 모달 헤더, 편집 UI */
+    --mode-monitoring: #4CAF50;   /* 탭, 상태 패널 */
+    --mode-layout: #9C27B0;       /* 탭, 에디터 UI */
+    --mode-viewer: #607D8B;       /* 기본 모드 */
+
+    /* =============================================
+       선택 영역 (FENCE) 색상
+       ============================================= */
+    --fence-window-fill: rgba(0, 102, 255, 0.2);
+    --fence-window-border: #0066FF;
+    --fence-crossing-fill: rgba(0, 255, 102, 0.2);
+    --fence-crossing-border: #00FF66;
+
+    /* =============================================
+       SMART GUIDES 색상
+       ============================================= */
+    --guide-center: #FF00FF;      /* Magenta - 수평/수직 중앙 */
+    --guide-align: #00BFFF;       /* Cyan - 상하좌우 정렬 */
+    --guide-distribute: #00FF00;  /* Green - 간격 균등 분배 */
+
+    /* =============================================
+       핸들 스타일 (PowerPoint)
+       ============================================= */
+    --handle-fill: #FFFFFF;
+    --handle-stroke: #FF6600;     /* Orange */
+    --handle-rotate-fill: #4CAF50; /* Green */
+    --handle-size: 8px;
+    --handle-rotate-size: 10px;
+
+    /* =============================================
+       애니메이션 타이밍
+       ============================================= */
+    --transition-hover: 150ms ease-out;
+    --transition-hover-out: 200ms ease-out;
+    --transition-select: 200ms ease-out;
+    --transition-status: 300ms ease-in-out;
+    --animation-alarm: 500ms linear infinite;
+    --animation-pulse: 1000ms ease-in-out infinite;
+
+    /* =============================================
+       기본 UI 색상
+       ============================================= */
+    --color-primary: #667eea;
+    --color-primary-dark: #5568d3;
+    --color-secondary: #6c757d;
+    --color-secondary-dark: #5a6268;
+    --color-success: #28a745;
+    --color-danger: #dc3545;
+    --color-warning: #ffc107;
+    --color-info: #17a2b8;
+
+    /* =============================================
+       그라디언트
+       ============================================= */
+    --gradient-primary: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    --gradient-success: linear-gradient(90deg, #27ae60 0%, #2ecc71 100%);
+    --gradient-preview: linear-gradient(90deg, #9b59b6 0%, #8e44ad 100%);
+
+    /* =============================================
+       배경 색상
+       ============================================= */
+    --bg-primary: #f5f5f5;
+    --bg-secondary: #f8f9fa;
+    --bg-dark: rgba(0, 0, 0, 0.8);
+    --bg-overlay: rgba(0, 0, 0, 0.7);
+    --bg-panel: rgba(255, 255, 255, 0.95);
+
+    /* =============================================
+       텍스트 색상
+       ============================================= */
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --text-muted: #95a5a6;
+    --text-light: #ffffff;
+    --text-dark: #333333;
+
+    /* =============================================
+       테두리 색상
+       ============================================= */
+    --border-color: #dee2e6;
+    --border-light: #e9ecef;
+    --border-dark: #adb5bd;
+
+    /* =============================================
+       그림자
+       ============================================= */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 15px rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.3);
+    --shadow-primary: 0 4px 12px rgba(102, 126, 234, 0.4);
+
+    /* =============================================
+       간격 (Spacing)
+       ============================================= */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+
+    /* =============================================
+       둥근 모서리 (Border Radius)
+       ============================================= */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-full: 50%;
+
+    /* =============================================
+       폰트
+       ============================================= */
+    --font-family: 'Segoe UI', Arial, sans-serif;
+    --font-mono: 'Consolas', 'Monaco', monospace;
+    --font-size-xs: 11px;
+    --font-size-sm: 12px;
+    --font-size-base: 14px;
+    --font-size-md: 16px;
+    --font-size-lg: 18px;
+    --font-size-xl: 20px;
+    --font-size-2xl: 24px;
+
+    /* =============================================
+       Z-Index 레이어
+       ============================================= */
+    --z-base: 1;
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-fixed: 300;
+    --z-modal-backdrop: 9998;
+    --z-modal: 9999;
+    --z-toast: 10000;
+
+    /* =============================================
+       레거시 호환 변수 (기존 코드 지원)
+       ============================================= */
+    /* canvas-editor.css 호환 */
+    --canvas-primary: var(--color-primary);
+    --canvas-primary-start: #667eea;
+    --canvas-primary-end: #764ba2;
+    --canvas-equipment-default: #4a90e2;
+    --canvas-equipment-selected: var(--se-selected);
+    --canvas-equipment-hover: #3498db;
+    --canvas-equipment-stroke: #2c3e50;
+    --canvas-success: var(--equip-running);
+    --canvas-danger: var(--color-danger);
+    --canvas-warning: var(--equip-idle);
+    --canvas-info: var(--mode-connection);
+    --canvas-transformer-border: var(--color-primary);
+    --canvas-transformer-anchor-stroke: var(--color-primary);
+    --canvas-transformer-anchor-fill: var(--handle-fill);
+    --canvas-bg: var(--bg-primary);
+    --canvas-grid-minor: #d0d0d0;
+    --canvas-grid-major: #a0a0a0;
+    --canvas-grid-label: #999999;
+    --canvas-selection-stroke: var(--color-primary);
+    --canvas-selection-fill: rgba(102, 126, 234, 0.1);
+    --canvas-coord-bg: var(--color-primary);
+    --canvas-coord-text: var(--text-light);
+    --canvas-room-stroke: #666666;
+    --canvas-wall-default: #888888;
+    --canvas-office-fill: #d4e6f1;
+    --canvas-office-stroke: #3498db;
+    --canvas-partition: #aaaaaa;
+    --canvas-text-primary: var(--text-primary);
+    --canvas-text-secondary: var(--text-secondary);
+
+    /* layout_editor.css 호환 */
+    --primary-color: var(--color-primary);
+    --primary-hover: var(--color-primary-dark);
+    --danger-color: var(--color-danger);
+    --danger-hover: #c0392b;
+    --success-color: var(--color-success);
+    --success-hover: #229954;
+    --secondary-color: var(--color-secondary);
+    --secondary-hover: var(--color-secondary-dark);
+}

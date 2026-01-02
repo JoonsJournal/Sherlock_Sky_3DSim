@@ -1,0 +1,35 @@
+/**
+ * main.css
+ * ========
+ * SHERLOCK SKY 3DSim - CSS 진입점
+ * 모든 CSS 파일을 통합하여 import
+ * 
+ * 사용법: <link rel="stylesheet" href="styles/main.css">
+ * 
+ * 작성일: 2026-01-02
+ */
+
+/* =============================================
+   Base Styles (기본 스타일)
+   - 변수, 리셋, 타이포그래피
+   ============================================= */
+@import './base/_variables.css';
+@import './base/_reset.css';
+@import './base/_typography.css';
+
+/* =============================================
+   Component Styles (컴포넌트)
+   - 버튼, 모달, 패널, 폼, 토스트
+   ============================================= */
+@import './components/_buttons.css';
+@import './components/_modals.css';
+@import './components/_panels.css';
+@import './components/_forms.css';
+@import './components/_toast.css';
+
+/* =============================================
+   Page Styles (페이지별)
+   - 3D Viewer, Layout Editor
+   ============================================= */
+@import './pages/_viewer-3d.css';
+@import './pages/_layout-editor.css';
