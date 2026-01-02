@@ -3,7 +3,12 @@
  * Three.js 씬, 카메라, 렌더러 초기화 및 관리
  * 10,000 Class 클린룸 스타일 적용 - 최적화 버전
  * 
- * @version 1.3.0 - Phase 4.4 SceneManager 통합
+ * @version 1.4.0 - Phase 1.6 헬퍼/그리드 토글 추가
+ * 
+ * 변경사항 (v1.4.0):
+ * - toggleHelpers() 메서드 추가
+ * - toggleGrid() 메서드 추가
+ * - AxesHelper 추가
  * 
  * 변경사항 (v1.3.0):
  * - setEquipmentLoader() 메서드 추가
@@ -25,10 +30,15 @@ export class SceneManager {
         this.roomEnvironment = null;
         this.floor = null;  // ✨ Phase 4: Floor 참조 저장
         this.grid = null;   // ✨ Phase 4: Grid 참조 저장
+        this.axesHelper = null;  // ⭐ Phase 1.6: AxesHelper 참조 저장
         this.frameCount = 0;
         this.fpsLastTime = performance.now();
         this.fpsFrameCount = 0;
         this.currentFps = 60;
+        
+        // ⭐ Phase 1.6: 헬퍼/그리드 표시 상태
+        this._helpersVisible = true;
+        this._gridVisible = true;
         
         // ✨ Phase 4.2: 현재 적용된 Layout params
         this._currentLayoutParams = null;
@@ -108,6 +118,71 @@ export class SceneManager {
         window.addEventListener('resize', () => this.onWindowResize());
         
         return true;
+    }
+    
+    // =========================================================
+    // ⭐ Phase 1.6: 헬퍼/그리드 토글 메서드
+    // =========================================================
+    
+    /**
+     * ⭐ Phase 1.6: 헬퍼 토글 (AxesHelper 등)
+     * @returns {boolean} 현재 표시 상태
+     */
+    toggleHelpers() {
+        this._helpersVisible = !this._helpersVisible;
+        
+        // AxesHelper 토글
+        if (this.axesHelper) {
+            this.axesHelper.visible = this._helpersVisible;
+        }
+        
+        // 기타 헬퍼들 토글 (이름에 'Helper' 포함)
+        this.scene.traverse((object) => {
+            if (object.type === 'AxesHelper' || 
+                object.name?.toLowerCase().includes('helper')) {
+                object.visible = this._helpersVisible;
+            }
+        });
+        
+        console.log(`🔧 헬퍼 ${this._helpersVisible ? '표시' : '숨김'}`);
+        return this._helpersVisible;
+    }
+    
+    /**
+     * ⭐ Phase 1.6: 그리드 토글
+     * @returns {boolean} 현재 표시 상태
+     */
+    toggleGrid() {
+        this._gridVisible = !this._gridVisible;
+        
+        // Grid 토글
+        if (this.grid) {
+            this.grid.visible = this._gridVisible;
+        }
+        
+        // 다른 GridHelper들도 토글
+        this.scene.traverse((object) => {
+            if (object.type === 'GridHelper') {
+                object.visible = this._gridVisible;
+            }
+        });
+        
+        console.log(`🔧 그리드 ${this._gridVisible ? '표시' : '숨김'}`);
+        return this._gridVisible;
+    }
+    
+    /**
+     * ⭐ Phase 1.6: 헬퍼 표시 상태 반환
+     */
+    isHelpersVisible() {
+        return this._helpersVisible;
+    }
+    
+    /**
+     * ⭐ Phase 1.6: 그리드 표시 상태 반환
+     */
+    isGridVisible() {
+        return this._gridVisible;
     }
     
     // =========================================================
@@ -219,9 +294,17 @@ export class SceneManager {
         this.scene.add(gridHelper);
         this.grid = gridHelper;  // ✨ Phase 4: 참조 저장
         
+        // ⭐ Phase 1.6: AxesHelper 추가
+        const axesHelper = new THREE.AxesHelper(10);  // 10m 크기
+        axesHelper.name = 'axes-helper';
+        axesHelper.visible = this._helpersVisible;
+        this.scene.add(axesHelper);
+        this.axesHelper = axesHelper;
+        
         debugLog('🏗️ 클린룸 스타일 바닥 생성 완료');
         debugLog(`📐 바닥 크기: ${CONFIG.SCENE.FLOOR_SIZE}m × ${CONFIG.SCENE.FLOOR_SIZE}m`);
         debugLog(`✨ 바닥 재질: 광택 (roughness: 0.15, metalness: 0.05)`);
+        debugLog(`🔧 AxesHelper 추가됨 (H키로 토글)`);
     }
     
     // =========================================================
@@ -249,12 +332,13 @@ export class SceneManager {
             console.log('  - EquipmentLoader 정리 완료');
         }
         
-        // 3. 기타 동적 객체 정리 (Floor, Grid, Lights 제외)
+        // 3. 기타 동적 객체 정리 (Floor, Grid, Lights, AxesHelper 제외)
         const objectsToRemove = [];
         this.scene.traverse((object) => {
-            // Floor, Grid, Lights는 유지
+            // Floor, Grid, Lights, AxesHelper는 유지
             if (object.name === 'cleanroom-floor' || 
                 object.name === 'cleanroom-grid' ||
+                object.name === 'axes-helper' ||
                 object.isLight) {
                 return;
             }
@@ -576,6 +660,7 @@ export class SceneManager {
         this.grid.material.opacity = 0.2;
         this.grid.material.transparent = true;
         this.grid.name = 'cleanroom-grid';
+        this.grid.visible = this._gridVisible;  // ⭐ 현재 표시 상태 유지
         this.scene.add(this.grid);
         
         debugLog(`[SceneManager] Floor 업데이트 완료: ${newSize}m × ${newSize}m`);
@@ -695,6 +780,8 @@ export class SceneManager {
         console.log('Current Layout Params:', this._currentLayoutParams);
         console.log('EquipmentLoader connected:', !!this._equipmentLoader);
         console.log('Is Rebuilding:', this._isRebuilding);
+        console.log('Helpers visible:', this._helpersVisible);
+        console.log('Grid visible:', this._gridVisible);
         
         if (this.roomEnvironment) {
             this.roomEnvironment.debug();
@@ -718,6 +805,11 @@ export class SceneManager {
         if (this.grid) {
             this.grid.geometry.dispose();
             this.grid.material.dispose();
+        }
+        
+        // ⭐ AxesHelper 정리
+        if (this.axesHelper) {
+            this.axesHelper.dispose();
         }
         
         // ⭐ RoomEnvironment 정리

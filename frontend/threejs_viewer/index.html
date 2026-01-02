@@ -192,8 +192,10 @@
 		function toggleDebugPanel() {
 			const panel = document.getElementById('debugControls');
 			const button = document.getElementById('debugToggle');
-			panel.classList.toggle('active');
-			button.classList.toggle('active');  /* 버튼 활성화 상태 토글 */
+			if (panel && button) {
+				panel.classList.toggle('active');
+				button.classList.toggle('active');
+			} 
 		}
 
 		// 설비 정보 패널 닫기
@@ -221,56 +223,58 @@
 			}
 		}, 3000);
 
-		// 키보드 단축키
-		document.addEventListener('keydown', (event) => {
-			// 'D' 키: 디버그 패널 토글
-			if (event.key === 'd' || event.key === 'D') {
-				toggleDebugPanel();
-			}
-			// ESC 키: 정보 패널 닫기 및 Preview Modal 닫기
-			if (event.key === 'Escape') {
-				closeEquipmentInfo();
-				// ✨ Phase 4.5: Preview Modal 닫기 추가
-				if (window.closePreviewModal) {
-					window.closePreviewModal();
-				}
-			}
-			// 'C' 키: 선택 해제
-			if (event.key === 'c' || event.key === 'C') {
-				if (window.clearSelections) {
-					window.clearSelections();
-				}
-			}
-			// ⭐ 새로 추가: 'E' 키: Equipment Edit 모드 토글
-			if (event.key === 'e' || event.key === 'E') {
-				if (window.toggleEditMode) {
-					window.toggleEditMode();
-				}
-			}
-			// ⭐ Phase 2: 'M' 키: Monitoring 모드 토글
-			if (event.key === 'm' || event.key === 'M') {
-				if (window.toggleMonitoringMode) {
-					window.toggleMonitoringMode();
-				}
-			}
-			// ✨ Phase 4.5: 'P' 키: Preview 모드 토글 (NEW)
-			if (event.key === 'p' || event.key === 'P') {
-				if (window.showPreview3D) {
-					window.showPreview3D();
-				}
-			}
-		});
+		// // 키보드 단축키
+		// document.addEventListener('keydown', (event) => {
+		// 	// 'D' 키: 디버그 패널 토글
+		// 	if (event.key === 'd' || event.key === 'D') {
+		// 		toggleDebugPanel();
+		// 	}
+		// 	// ESC 키: 정보 패널 닫기 및 Preview Modal 닫기
+		// 	if (event.key === 'Escape') {
+		// 		closeEquipmentInfo();
+		// 		// ✨ Phase 4.5: Preview Modal 닫기 추가
+		// 		if (window.closePreviewModal) {
+		// 			window.closePreviewModal();
+		// 		}
+		// 	}
+		// 	// 'C' 키: 선택 해제
+		// 	if (event.key === 'c' || event.key === 'C') {
+		// 		if (window.clearSelections) {
+		// 			window.clearSelections();
+		// 		}
+		// 	}
+		// 	// ⭐ 새로 추가: 'E' 키: Equipment Edit 모드 토글
+		// 	if (event.key === 'e' || event.key === 'E') {
+		// 		if (window.toggleEditMode) {
+		// 			window.toggleEditMode();
+		// 		}
+		// 	}
+		// 	// ⭐ Phase 2: 'M' 키: Monitoring 모드 토글
+		// 	if (event.key === 'm' || event.key === 'M') {
+		// 		if (window.toggleMonitoringMode) {
+		// 			window.toggleMonitoringMode();
+		// 		}
+		// 	}
+		// 	// ✨ Phase 4.5: 'P' 키: Preview 모드 토글 (NEW)
+		// 	if (event.key === 'p' || event.key === 'P') {
+		// 		if (window.showPreview3D) {
+		// 			window.showPreview3D();
+		// 		}
+		// 	}
+		// });
 
 		// 페이지 로드 완료 시
 		window.addEventListener('load', () => {
 			console.log('🚀 페이지 로드 완료');
 			console.log('💡 키보드 단축키:');
 			console.log('   D - 디버그 패널 토글');
-			console.log('   C - 선택 해제');
+			console.log('   P - 성능 모니터 토글');
+			console.log('   H - 헬퍼 토글');
+			console.log('   G - 그리드 토글');
 			console.log('   E - Equipment Edit 모드 토글');
 			console.log('   M - Monitoring 모드 토글');
-			console.log('   P - 3D Preview (Editor 모드에서)');  // ✨ Phase 4.5 추가
-			console.log('   ESC - 정보 패널/모달 닫기');
+			console.log('   Ctrl+K - Connection Modal');
+			console.log('   ESC - 모달 닫기');
 			console.log('');
 			console.log('🔧 디버그 명령어:');
 			console.log('   debugHelp() - 사용 가능한 명령어 확인');
