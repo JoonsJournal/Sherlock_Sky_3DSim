@@ -138,9 +138,10 @@ export const VIEWER_3D_COLORS = Object.freeze({
     GRID_PRIMARY: 0xe5e5e5,
     GRID_SECONDARY: 0xf0f0f0,
     
-    // 선택
-    SELECTION_HIGHLIGHT: 0x4444ff,
-    SELECTION_DESELECTED: 0x000000
+// 선택 (Solid Edge 표준)
+    SELECTION_HIGHLIGHT: 0xFF6600,  // Orange - 선택 (SELECTED)
+    SELECTION_HOVER: 0x00BFFF,      // Cyan - 호버 (HIGHLIGHT)
+    SELECTION_DESELECTED: 0x000000  // Black - 기본값
 });
 
 // =====================================================
