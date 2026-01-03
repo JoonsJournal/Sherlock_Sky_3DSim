@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Layout Editor - SHERLOCK_SKY_3DSIM (Phase 1)</title>
+    <title>Layout Editor - SHERLOCK_SKY_3DSIM (Phase 3)</title>
     
     <!-- Konva.js CDN -->
     <script src="https://unpkg.com/konva@9/konva.min.js"></script>
@@ -48,6 +48,9 @@
     <script src="../src/layout-editor/tools/EquipmentArrayTool.js"></script>
     <script src="../src/layout-editor/managers/RoomSizeManager.js"></script>
     <script src="../src/layout-editor/components/PropertyPanel.js"></script>
+    
+    <!-- ✅ Phase 3: GroupingTool 추가 -->
+    <script src="../src/layout-editor/tools/GroupingTool.js"></script>
     
     <style>
         :root {
@@ -155,6 +158,9 @@
         .toolbar-btn.zoom.reset { background: var(--info-color); }
         .toolbar-btn.danger { background: #c0392b; }
         .toolbar-btn.danger:hover { background: var(--danger-color); }
+        /* ✅ Phase 3: 그룹화 버튼 스타일 */
+        .toolbar-btn.group { background: #16a085; }
+        .toolbar-btn.group:hover { background: #1abc9c; }
         
         /* Tooltip */
         .toolbar-btn::after {
@@ -224,6 +230,10 @@
         .status-item.zoom-display { background: var(--success-color); padding: 3px 10px; border-radius: 4px; font-weight: 600; }
         /* ✅ Phase 1: Undo/Redo 상태 표시 스타일 */
         .status-item.history { background: #9b59b6; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+        /* ✅ Phase 2: MICE 상태 표시 스타일 */
+        .status-item.mice { background: #e67e22; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+        /* ✅ Phase 3: 그룹 상태 표시 스타일 */
+        .status-item.groups { background: #16a085; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
         
         /* ============================================
            Modal
@@ -249,7 +259,7 @@
         @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         
         /* ============================================
-           Shortcuts Help - ✅ Phase 1: Arrow Keys 추가
+           Shortcuts Help - ✅ Phase 3: 전체 업데이트
            ============================================ */
         .shortcuts-help { position: fixed; bottom: 45px; left: 16px; background: rgba(0,0,0,0.85); color: white; padding: 12px 16px; border-radius: 6px; font-size: 11px; z-index: 100; display: none; max-width: 280px; }
         .shortcuts-help.show { display: block; }
@@ -280,7 +290,7 @@
     <div id="loading-indicator"><div class="spinner"></div><div>Layout Editor 로딩 중...</div></div>
 
     <div class="header">
-        <h1>🏗️ Layout Editor - Phase 1 (Undo/Redo + Arrow Keys)</h1>
+        <h1>🏗️ Layout Editor - Phase 3 (Equipment Array + 그룹화)</h1>
         <div class="header-actions">
             <button class="header-btn btn-secondary" id="btn-undo" disabled>↶ Undo</button>
             <button class="header-btn btn-secondary" id="btn-redo" disabled>↷ Redo</button>
@@ -310,6 +320,11 @@
                 <div class="toolbar-divider"></div>
                 <button class="toolbar-btn" id="align-btn" data-tooltip="정렬 (L)">📏</button>
                 <button class="toolbar-btn" id="tool-rotate" data-tooltip="회전 (R)">🔄</button>
+                <div class="toolbar-divider"></div>
+                <!-- ✅ Phase 3: Equipment Array + 그룹화 버튼 -->
+                <button class="toolbar-btn" id="tool-eq-array" data-tooltip="Equipment Array (A)">🏭</button>
+                <button class="toolbar-btn group" id="tool-group" data-tooltip="그룹화 (⌘G)">📦</button>
+                <button class="toolbar-btn group" id="tool-ungroup" data-tooltip="그룹해제 (⇧⌘G)">📤</button>
                 <div class="toolbar-divider"></div>
                 <button class="toolbar-btn" id="tool-sample" data-tooltip="샘플 로드">📁</button>
             </div>
@@ -360,18 +375,21 @@
         </div>
     </div>
 
-    <!-- ✅ Phase 1: 상태바에 History 표시 추가 -->
+    <!-- ✅ Phase 3: 상태바 전체 업데이트 -->
     <div class="status-bar">
         <span class="status-item">🔧 <span id="status-tool">선택</span></span>
         <span class="status-item zoom-display">🔍 <span id="status-zoom">100%</span></span>
         <span class="status-item history">↶ <span id="status-undo">0</span> / ↷ <span id="status-redo">0</span></span>
         <span class="status-item">Grid: <span id="status-grid">ON</span></span>
         <span class="status-item">Snap: <span id="status-snap">ON</span></span>
+        <span class="status-item mice">🎪 MICE: <span id="status-mice-snap">OFF</span></span>
         <span class="status-item">📦 <span id="status-objects">0</span></span>
+        <span class="status-item">⚙️ Eq: <span id="status-equipment">0</span></span>
+        <span class="status-item groups">📁 Groups: <span id="status-groups">0</span></span>
         <span class="status-item">✅ <span id="status-selected">0</span></span>
     </div>
 
-    <!-- ✅ Phase 1: 단축키 도움말 업데이트 -->
+    <!-- ✅ Phase 3: 단축키 도움말 전체 업데이트 -->
     <div class="shortcuts-help" id="shortcuts-help">
         <h4>⌨️ 단축키</h4>
         <ul>
@@ -380,18 +398,31 @@
             <li><kbd>C</kbd> 컴포넌트</li>
             <li><kbd>G</kbd> Grid</li>
             <li><kbd>S</kbd> Snap</li>
+            <li><kbd>M</kbd> MICE Snap</li>
             <li><kbd>R</kbd> 회전</li>
             <li><kbd>L</kbd> 정렬</li>
             <li><kbd>Del</kbd> 삭제</li>
             <li><kbd>⌘A</kbd> 전체선택</li>
             <li><kbd>⌘Z</kbd> Undo</li>
             <li><kbd>⌘Y</kbd> Redo</li>
+            <li><kbd>⌘D</kbd> 복제</li>
             <li><kbd>Esc</kbd> 해제</li>
         </ul>
         <div class="section-title">🎯 이동 (Phase 1)</div>
         <ul>
             <li><kbd>↑↓←→</kbd> 1px 이동</li>
             <li><kbd>⇧+방향</kbd> 10px 이동</li>
+        </ul>
+        <div class="section-title">📋 Phase 2</div>
+        <ul>
+            <li><kbd>⌘D</kbd> 복제 (+20px)</li>
+            <li><kbd>M</kbd> MICE Snap</li>
+        </ul>
+        <div class="section-title">🏭 Phase 3</div>
+        <ul>
+            <li><kbd>A</kbd> Equipment Array</li>
+            <li><kbd>⌘G</kbd> 그룹화</li>
+            <li><kbd>⇧⌘G</kbd> 그룹 해제</li>
         </ul>
     </div>
 
@@ -402,6 +433,55 @@
             <div class="form-group"><label>Depth (m)</label><input type="number" id="room-depth" value="90" min="10" step="1"></div>
             <div class="form-group"><label>Height (m)</label><input type="number" id="room-height" value="3" min="2" step="0.1"></div>
             <div class="modal-actions"><button class="btn-secondary" id="room-cancel">취소</button><button class="btn-primary" id="room-apply">적용</button></div>
+        </div>
+    </div>
+
+    <!-- ✅ Phase 3: Equipment Array 설정 모달 -->
+    <div class="modal" id="eq-array-modal">
+        <div class="modal-content" style="min-width: 400px;">
+            <h2>🏭 Equipment Array 설정</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label>Rows (행)</label>
+                    <input type="number" id="eq-array-rows" value="6" min="1" max="20" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Cols (열)</label>
+                    <input type="number" id="eq-array-cols" value="26" min="1" max="50" step="1">
+                </div>
+                <div class="form-group">
+                    <label>장비 폭 (m)</label>
+                    <input type="number" id="eq-array-width" value="1.5" min="0.5" max="5" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>장비 깊이 (m)</label>
+                    <input type="number" id="eq-array-depth" value="3.0" min="0.5" max="10" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>장비 간격 (m)</label>
+                    <input type="number" id="eq-array-spacing" value="0.3" min="0" max="2" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>복도 열 위치</label>
+                    <input type="text" id="eq-array-corridor-cols" value="13" placeholder="예: 13 또는 10,20">
+                </div>
+                <div class="form-group">
+                    <label>복도 열 폭 (m)</label>
+                    <input type="number" id="eq-array-corridor-col-width" value="3.0" min="1" max="10" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label>복도 행 위치</label>
+                    <input type="text" id="eq-array-corridor-rows" value="3" placeholder="예: 3 또는 2,4">
+                </div>
+                <div class="form-group">
+                    <label>복도 행 폭 (m)</label>
+                    <input type="number" id="eq-array-corridor-row-width" value="2.0" min="1" max="10" step="0.5">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="eq-array-cancel">취소</button>
+                <button class="btn-primary" id="eq-array-apply">생성</button>
+            </div>
         </div>
     </div>
 
@@ -583,7 +663,7 @@
         }
         
         // =====================================================
-        // Main App - ✅ Phase 1: Undo/Redo + Arrow Keys 추가
+        // Main App - ✅ Phase 3: Equipment Array + 그룹화
         // =====================================================
         class LayoutEditorApp {
             constructor() {
@@ -630,6 +710,11 @@
                 if (typeof PropertyPanel !== 'undefined') { this.propertyPanel = new PropertyPanel('property-panel', this.canvas); this.canvas.setPropertyPanel(this.propertyPanel); }
                 if (typeof AlignmentTool !== 'undefined') { this.alignmentTool = new AlignmentTool(this.canvas); }
                 
+                // ✅ Phase 3: GroupingTool 초기화
+                if (typeof GroupingTool !== 'undefined') { 
+                    this.groupingTool = new GroupingTool(this.canvas); 
+                }
+                
                 // ✅ Phase 1: CommandManager 초기화
                 this.initCommandManager();
                 
@@ -641,8 +726,8 @@
                 setInterval(() => this.updateStatus(), 500);
                 
                 document.getElementById('loading-indicator').style.display = 'none';
-                console.log('✅ Layout Editor 초기화 완료 (Phase 1)');
-                this.showToast('Layout Editor 준비 완료! (Undo/Redo + Arrow Keys)', 'success');
+                console.log('✅ Layout Editor 초기화 완료 (Phase 3)');
+                this.showToast('Layout Editor 준비 완료! (Phase 3)', 'success');
             }
             
             // =====================================================
@@ -680,9 +765,15 @@
                 };
             }
             
+            // ✅ Phase 2 버그 수정: resize() → stage 직접 수정
             updateCanvasSize() { 
                 const size = this.calculateCanvasSize(); 
-                this.canvas.resize(size.width, size.height); 
+                if (this.canvas.stage) {
+                    this.canvas.stage.width(size.width);
+                    this.canvas.stage.height(size.height);
+                    this.canvas.config.width = size.width;
+                    this.canvas.config.height = size.height;
+                }
                 this.zoomController?.updateGrid?.(); 
             }
             
@@ -719,6 +810,13 @@
                 document.getElementById('rotate-reset').addEventListener('click', () => this.resetRotation());
                 document.getElementById('room-cancel').addEventListener('click', () => this.closeRoomSizeModal());
                 document.getElementById('room-apply').addEventListener('click', () => this.applyRoomSize());
+                
+                // ✅ Phase 3: Equipment Array + 그룹화 버튼
+                document.getElementById('tool-eq-array').addEventListener('click', () => this.showEquipmentArrayModal());
+                document.getElementById('tool-group').addEventListener('click', () => this.groupSelected());
+                document.getElementById('tool-ungroup').addEventListener('click', () => this.ungroupSelected());
+                document.getElementById('eq-array-cancel').addEventListener('click', () => this.closeEquipmentArrayModal());
+                document.getElementById('eq-array-apply').addEventListener('click', () => this.applyEquipmentArray());
             }
             
             enableDropZone() {
@@ -790,7 +888,7 @@
             }
             
             // =====================================================
-            // ✅ Phase 1: 키보드 이벤트 - Arrow Keys 추가
+            // ✅ Phase 3: 키보드 이벤트 - 모든 단축키 통합
             // =====================================================
             setupEventListeners() {
                 document.addEventListener('keydown', e => {
@@ -800,6 +898,11 @@
                         else if (e.key === 'y') { e.preventDefault(); this.redo(); }
                         else if (e.key === 'a') { e.preventDefault(); this.selectAll(); }
                         else if (e.key === 's') { e.preventDefault(); this.saveLayout(); }
+                        // ✅ Phase 2: 복제 (Ctrl+D)
+                        else if (e.key === 'd') { e.preventDefault(); this.duplicateSelected(); }
+                        // ✅ Phase 3: 그룹화 (Ctrl+G / Ctrl+Shift+G)
+                        else if (e.key === 'g' && e.shiftKey) { e.preventDefault(); this.ungroupSelected(); }
+                        else if (e.key === 'g') { e.preventDefault(); this.groupSelected(); }
                         return;
                     }
                     
@@ -818,12 +921,16 @@
                         case 'c': this.toggleComponentSubmenu(); break;
                         case 'g': this.toggleGrid(); break;
                         case 's': this.toggleSnap(); break;
+                        // ✅ Phase 2: MICE Snap 토글 (M)
+                        case 'm': this.toggleMICESnap(); break;
                         case 'l': this.toggleAlignPopup(); break;
                         case 'r': e.preventDefault(); if (e.shiftKey) this.rotateCCW(); else this.rotateCW(); break;
                         case '=': case '+': this.zoomIn(); break;
                         case '-': case '_': this.zoomOut(); break;
                         case '0': this.resetZoom(); break;
                         case 'delete': case 'backspace': this.deleteSelected(); break;
+                        // ✅ Phase 3: Equipment Array 단축키 (A)
+                        case 'a': if (!e.ctrlKey && !e.metaKey) this.showEquipmentArrayModal(); break;
                         case 'escape': 
                             this.deselectAll(); 
                             if (this.componentSubmenuVisible) this.toggleComponentSubmenu(); 
@@ -919,6 +1026,21 @@
             }
             toggleSnap() { const isOn = this.canvas.toggleSnapToGrid(); document.getElementById('status-snap').textContent = isOn ? 'ON' : 'OFF'; }
             
+            // =====================================================
+            // ✅ Phase 2: MICE Snap 토글
+            // =====================================================
+            toggleMICESnap() {
+                if (this.canvas.snapManager?.miceSnapPoints) {
+                    const miceSnap = this.canvas.snapManager.miceSnapPoints;
+                    const isEnabled = miceSnap.toggle ? miceSnap.toggle() : !miceSnap.isEnabled;
+                    if (!miceSnap.toggle) miceSnap.isEnabled = isEnabled;
+                    document.getElementById('status-mice-snap').textContent = isEnabled ? 'ON' : 'OFF';
+                    this.showToast(`🎪 MICE Snap: ${isEnabled ? 'ON' : 'OFF'}`, 'info');
+                } else {
+                    this.showToast('MICESnapPoints 모듈 로드 안됨', 'error');
+                }
+            }
+            
             zoomIn() { 
                 this.zoomController?.zoomIn(); 
                 this.zoomController?.updateGrid?.();
@@ -950,12 +1072,28 @@
             selectAll() { this.selectionTool?.selectAll(); this.updateStatus(); this.showToast(`${this.canvas.selectedObjects.length}개 선택됨`, 'success'); }
             updateObjectCount() { setTimeout(() => { document.getElementById('status-objects').textContent = this.canvas.getObjectCount().total; }, 100); }
             
+            // =====================================================
+            // ✅ Phase 3: 상태 업데이트 (전체 통합)
+            // =====================================================
             updateStatus() { 
-                document.getElementById('status-objects').textContent = this.canvas.getObjectCount().total; 
+                const objectCount = this.canvas.getObjectCount();
+                document.getElementById('status-objects').textContent = objectCount.total; 
                 document.getElementById('status-selected').textContent = this.canvas.selectedObjects.length; 
                 this.updateZoomDisplay(); 
                 document.getElementById('status-grid').textContent = this.canvas.config.showGrid ? 'ON' : 'OFF'; 
                 document.getElementById('status-snap').textContent = this.canvas.config.snapToGrid ? 'ON' : 'OFF';
+                
+                // ✅ Phase 2: Equipment 카운트
+                document.getElementById('status-equipment').textContent = objectCount.equipment || objectCount.equipments || 0;
+                
+                // ✅ Phase 2: MICE Snap 상태
+                if (this.canvas.snapManager?.miceSnapPoints) {
+                    document.getElementById('status-mice-snap').textContent = this.canvas.snapManager.miceSnapPoints.isEnabled ? 'ON' : 'OFF';
+                }
+                
+                // ✅ Phase 3: 그룹 수 표시
+                const groupCount = this.groupingTool?.getGroupCount?.() || 0;
+                document.getElementById('status-groups').textContent = groupCount;
                 
                 // ✅ Phase 1: Undo/Redo 상태 업데이트
                 if (this.commandManager) {
@@ -995,6 +1133,129 @@
                     }
                 } else {
                     this.showToast('CommandManager 로드 안됨', 'error');
+                }
+            }
+            
+            // =====================================================
+            // ✅ Phase 2: 복제 기능 (Ctrl+D)
+            // =====================================================
+            duplicateSelected() {
+                const selected = this.canvas.selectedObjects;
+                if (!selected || selected.length === 0) {
+                    this.showToast('선택된 객체 없음', 'info');
+                    return;
+                }
+                
+                const offset = 20;  // 복제 시 오프셋 (px)
+                const newShapes = [];
+                
+                selected.forEach(shape => {
+                    const componentData = shape.getAttr('componentData');
+                    const rotation = shape.rotation() || 0;
+                    
+                    if (componentData) {
+                        const newShape = this.createComponent(componentData, shape.x() + offset, shape.y() + offset);
+                        if (newShape) { newShape.rotation(rotation); newShapes.push(newShape); }
+                    } else {
+                        const clone = shape.clone({ x: shape.x() + offset, y: shape.y() + offset });
+                        clone.id(`clone-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+                        const layer = shape.getLayer();
+                        if (layer) { layer.add(clone); newShapes.push(clone); }
+                    }
+                });
+                
+                if (newShapes.length > 0) {
+                    this.canvas.deselectAll();
+                    newShapes.forEach((shape, i) => {
+                        this.canvas.selectObject(shape, i > 0);
+                        this.selectionTool?.attachShapeEvents?.(shape);
+                    });
+                    this.canvas.stage.batchDraw();
+                    this.updateObjectCount();
+                    this.showToast(`📋 ${newShapes.length}개 복제됨 (+${offset}px)`, 'success');
+                }
+            }
+            
+            // =====================================================
+            // ✅ Phase 3: Equipment Array 모달
+            // =====================================================
+            showEquipmentArrayModal() { 
+                document.getElementById('eq-array-modal').classList.add('active'); 
+            }
+            
+            closeEquipmentArrayModal() { 
+                document.getElementById('eq-array-modal').classList.remove('active'); 
+            }
+            
+            applyEquipmentArray() {
+                const rows = parseInt(document.getElementById('eq-array-rows').value) || 6;
+                const cols = parseInt(document.getElementById('eq-array-cols').value) || 26;
+                const width = parseFloat(document.getElementById('eq-array-width').value) || 1.5;
+                const depth = parseFloat(document.getElementById('eq-array-depth').value) || 3.0;
+                const spacing = parseFloat(document.getElementById('eq-array-spacing').value) || 0.3;
+                
+                // 복도 위치 파싱 (쉼표로 구분된 숫자들)
+                const corridorColsStr = document.getElementById('eq-array-corridor-cols').value || '13';
+                const corridorCols = corridorColsStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+                const corridorColWidth = parseFloat(document.getElementById('eq-array-corridor-col-width').value) || 3.0;
+                
+                const corridorRowsStr = document.getElementById('eq-array-corridor-rows').value || '3';
+                const corridorRows = corridorRowsStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+                const corridorRowWidth = parseFloat(document.getElementById('eq-array-corridor-row-width').value) || 2.0;
+                
+                const config = {
+                    rows: rows,
+                    cols: cols,
+                    equipmentSize: { width: width, depth: depth },
+                    spacing: spacing,
+                    corridorCols: corridorCols,
+                    corridorColWidth: corridorColWidth,
+                    corridorRows: corridorRows,
+                    corridorRowWidth: corridorRowWidth,
+                    excludedPositions: []
+                };
+                
+                console.log('[Phase 3] Equipment Array Config:', config);
+                
+                if (this.equipmentArrayTool) {
+                    this.closeEquipmentArrayModal();
+                    this.equipmentArrayTool.activate(config);
+                    this.showToast(`클릭하여 ${rows}×${cols} 배열 시작점 지정`, 'info');
+                } else {
+                    this.showToast('EquipmentArrayTool 로드 안됨', 'error');
+                }
+            }
+            
+            // =====================================================
+            // ✅ Phase 3: 그룹화 기능
+            // =====================================================
+            groupSelected() {
+                if (!this.groupingTool) {
+                    this.showToast('GroupingTool 로드 안됨', 'error');
+                    return;
+                }
+                
+                const group = this.groupingTool.groupSelected();
+                if (group) {
+                    this.showToast(`📦 ${group.getChildren().length}개 객체 그룹화됨`, 'success');
+                    this.updateStatus();
+                } else {
+                    this.showToast('2개 이상 선택 필요', 'info');
+                }
+            }
+            
+            ungroupSelected() {
+                if (!this.groupingTool) {
+                    this.showToast('GroupingTool 로드 안됨', 'error');
+                    return;
+                }
+                
+                const objects = this.groupingTool.ungroupSelected();
+                if (objects && objects.length > 0) {
+                    this.showToast(`📤 ${objects.length}개 객체 그룹 해제됨`, 'success');
+                    this.updateStatus();
+                } else {
+                    this.showToast('그룹을 선택하세요', 'info');
                 }
             }
             
@@ -1049,8 +1310,11 @@
             showToast(message, type = 'info') { const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.textContent = message; document.body.appendChild(toast); setTimeout(() => { toast.style.animation = 'slideIn 0.3s reverse'; setTimeout(() => toast.remove(), 300); }, 2000); }
         }
         
-        // ✅ Phase 1: Command.js에서 MoveCommand 로드됨 (GitHub v1.0.1)
-        // ✅ Phase 1: CommandManager.js에서 CommandManager 로드됨 (GitHub v1.0.1)
+        // ✅ Phase 3: 모든 모듈 로드됨 (GitHub)
+        // - Command.js (MoveCommand, GroupCommand 등)
+        // - CommandManager.js
+        // - EquipmentArrayTool.js
+        // - GroupingTool.js
         
         document.addEventListener('DOMContentLoaded', () => {
             console.log('✅ DOM 로드 완료');
