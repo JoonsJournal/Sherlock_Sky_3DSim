@@ -1,6 +1,8 @@
 /**
  * AdaptivePerformance.js
  * 적응형 성능 관리 (쉽게 ON/OFF 가능)
+ * 
+ * @version 1.1.0 - GPU 정보 접근 버그 수정
  */
 
 import * as THREE from 'three';
@@ -69,29 +71,52 @@ export class AdaptivePerformance {
         // 초기 품질 감지
         this.detectInitialQuality();
         
-        debugLog('🎮 AdaptivePerformance 초기화 완료 (비활성화 상태)');
+        debugLog('🎮 AdaptivePerformance 초기화 완료 (기본: OFF)');
     }
     
     /**
-     * ===== 초기 품질 감지 =====
+     * ===== 초기 품질 감지 (버그 수정) =====
      */
     detectInitialQuality() {
         if (!this.enabled) return;
         
-        const gpu = this.performanceMonitor.systemInfo.gpu.toLowerCase();
+        // ⭐ 수정: GPU 정보 안전하게 접근
+        let gpuRenderer = '';
         
-        if (gpu.includes('nvidia rtx') || gpu.includes('amd rx 6')) {
-            this.qualityLevel = 4;
-        } else if (gpu.includes('nvidia gtx') || gpu.includes('amd radeon')) {
-            this.qualityLevel = 3;
-        } else if (gpu.includes('intel')) {
-            this.qualityLevel = 1;
-        } else {
+        try {
+            const systemInfo = this.performanceMonitor?.systemInfo;
+            
+            if (systemInfo?.gpu?.renderer) {
+                gpuRenderer = systemInfo.gpu.renderer.toLowerCase();
+            } else if (systemInfo?.gpu?.vendor) {
+                gpuRenderer = systemInfo.gpu.vendor.toLowerCase();
+            } else {
+                // GPU 정보 없으면 기본값 사용
+                console.log('⚠️ GPU 정보를 가져올 수 없어 기본 품질로 설정');
+                this.qualityLevel = 2;
+                this.applyQualityLevel(this.qualityLevel);
+                return;
+            }
+        } catch (error) {
+            console.warn('⚠️ GPU 감지 중 오류:', error.message);
             this.qualityLevel = 2;
+            this.applyQualityLevel(this.qualityLevel);
+            return;
+        }
+        
+        // GPU 종류에 따른 품질 설정
+        if (gpuRenderer.includes('nvidia rtx') || gpuRenderer.includes('amd rx 6') || gpuRenderer.includes('amd rx 7')) {
+            this.qualityLevel = 4;  // 최고
+        } else if (gpuRenderer.includes('nvidia gtx') || gpuRenderer.includes('amd radeon') || gpuRenderer.includes('geforce')) {
+            this.qualityLevel = 3;  // 높음
+        } else if (gpuRenderer.includes('intel') || gpuRenderer.includes('integrated')) {
+            this.qualityLevel = 1;  // 낮음
+        } else {
+            this.qualityLevel = 2;  // 중간 (기본)
         }
         
         this.applyQualityLevel(this.qualityLevel);
-        debugLog(`🎯 초기 품질: ${this.qualityLevel} (${this.qualityPresets[this.qualityLevel].name})`);
+        console.log(`🎯 초기 품질: ${this.qualityLevel} (${this.qualityPresets[this.qualityLevel].name}) - GPU: ${gpuRenderer.substring(0, 50)}...`);
     }
     
     /**
@@ -103,30 +128,37 @@ export class AdaptivePerformance {
         const currentTime = performance.now();
         if (currentTime - this.lastAdjustment < this.adjustmentCooldown) return;
         
-        const fps = this.performanceMonitor.metrics.currentFPS;
-        const avgFPS = this.performanceMonitor.metrics.averageFPS;
+        const fps = this.performanceMonitor?.metrics?.fps || 0;
+        const avgFPS = this.getAverageFPS();
         
         // 품질 하향 (FPS 낮음)
         if (avgFPS < this.minAcceptableFPS && this.qualityLevel > 0) {
             this.qualityLevel--;
             this.applyQualityLevel(this.qualityLevel);
-            console.warn(`⬇️ 품질 낮춤: ${this.qualityPresets[this.qualityLevel].name} (FPS: ${avgFPS})`);
+            console.warn(`⬇️ 품질 낮춤: ${this.qualityPresets[this.qualityLevel].name} (FPS: ${avgFPS.toFixed(1)})`);
             this.lastAdjustment = currentTime;
         }
         // 품질 상향 (FPS 높음)
         else if (avgFPS > this.targetFPS * 0.9 && fps > this.targetFPS * 0.95 && this.qualityLevel < this.maxQualityLevel) {
-            if (this.performanceMonitor.metrics.minFPS > this.targetFPS * 0.8) {
-                this.qualityLevel++;
-                this.applyQualityLevel(this.qualityLevel);
-                console.log(`⬆️ 품질 향상: ${this.qualityPresets[this.qualityLevel].name} (FPS: ${avgFPS})`);
-                this.lastAdjustment = currentTime;
-            }
+            this.qualityLevel++;
+            this.applyQualityLevel(this.qualityLevel);
+            console.log(`⬆️ 품질 향상: ${this.qualityPresets[this.qualityLevel].name} (FPS: ${avgFPS.toFixed(1)})`);
+            this.lastAdjustment = currentTime;
         }
         
         // 비교 데이터 수집
         if (this.comparisonData.isComparing) {
             this.collectComparisonData();
         }
+    }
+    
+    /**
+     * 평균 FPS 계산
+     */
+    getAverageFPS() {
+        const fpsHistory = this.performanceMonitor?.fpsHistory || [];
+        if (fpsHistory.length === 0) return this.performanceMonitor?.metrics?.fps || 60;
+        return fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length;
     }
     
     /**
@@ -138,10 +170,14 @@ export class AdaptivePerformance {
         const preset = this.qualityPresets[level];
         if (!preset) return;
         
-        this.renderer.setPixelRatio(preset.pixelRatio);
-        this.renderer.shadowMap.enabled = preset.shadows;
-        
-        debugLog(`✅ 품질: ${preset.name} (레벨 ${level})`);
+        try {
+            this.renderer.setPixelRatio(preset.pixelRatio);
+            this.renderer.shadowMap.enabled = preset.shadows;
+            
+            debugLog(`✅ 품질 적용: ${preset.name} (레벨 ${level})`);
+        } catch (error) {
+            console.warn('⚠️ 품질 적용 중 오류:', error.message);
+        }
     }
     
     /**
@@ -172,11 +208,12 @@ export class AdaptivePerformance {
         this.comparisonData.comparisonStartTime = performance.now();
         
         // BEFORE 데이터 초기화
+        const metrics = this.performanceMonitor?.metrics || {};
         this.comparisonData.beforeAdaptive = {
-            averageFPS: this.performanceMonitor.metrics.averageFPS,
-            minFPS: this.performanceMonitor.metrics.minFPS,
-            drawCalls: this.performanceMonitor.metrics.drawCalls,
-            memory: this.performanceMonitor.metrics.memoryUsagePercent,
+            averageFPS: this.getAverageFPS(),
+            minFPS: metrics.fps || 0,
+            drawCalls: metrics.drawCalls || 0,
+            memory: metrics.gpuMemory || 0,
             samples: 0
         };
         
@@ -202,9 +239,10 @@ export class AdaptivePerformance {
         
         // 최종 평균 계산
         if (this.comparisonData.afterAdaptive.samples > 0) {
-            this.comparisonData.afterAdaptive.averageFPS /= this.comparisonData.afterAdaptive.samples;
-            this.comparisonData.afterAdaptive.drawCalls /= this.comparisonData.afterAdaptive.samples;
-            this.comparisonData.afterAdaptive.memory /= this.comparisonData.afterAdaptive.samples;
+            const after = this.comparisonData.afterAdaptive;
+            after.averageFPS /= after.samples;
+            after.drawCalls /= after.samples;
+            after.memory /= after.samples;
         }
         
         console.log('📊 성능 비교 완료');
@@ -214,13 +252,13 @@ export class AdaptivePerformance {
      * ===== 비교 데이터 수집 =====
      */
     collectComparisonData() {
-        const metrics = this.performanceMonitor.metrics;
+        const metrics = this.performanceMonitor?.metrics || {};
         const after = this.comparisonData.afterAdaptive;
         
-        after.averageFPS += metrics.currentFPS;
-        after.minFPS = Math.min(after.minFPS, metrics.currentFPS);
-        after.drawCalls += metrics.drawCalls;
-        after.memory += metrics.memoryUsagePercent;
+        after.averageFPS += metrics.fps || 0;
+        after.minFPS = Math.min(after.minFPS, metrics.fps || 999);
+        after.drawCalls += metrics.drawCalls || 0;
+        after.memory += metrics.gpuMemory || 0;
         after.samples++;
     }
     
@@ -239,11 +277,13 @@ export class AdaptivePerformance {
             return { error: '비교 데이터 없음 (적응형 성능을 활성화하고 잠시 대기하세요)' };
         }
         
+        const safeDiv = (a, b) => b !== 0 ? ((a - b) / b * 100).toFixed(1) : '0';
+        
         const improvement = {
-            fps: ((after.averageFPS - before.averageFPS) / before.averageFPS * 100).toFixed(1),
-            minFPS: ((after.minFPS - before.minFPS) / before.minFPS * 100).toFixed(1),
-            drawCalls: ((before.drawCalls - after.drawCalls) / before.drawCalls * 100).toFixed(1),
-            memory: ((before.memory - after.memory) / before.memory * 100).toFixed(1)
+            fps: safeDiv(after.averageFPS, before.averageFPS),
+            minFPS: safeDiv(after.minFPS, before.minFPS),
+            drawCalls: safeDiv(before.drawCalls, after.drawCalls),
+            memory: safeDiv(before.memory, after.memory)
         };
         
         return {
@@ -282,7 +322,23 @@ export class AdaptivePerformance {
         
         this.qualityLevel = level;
         this.applyQualityLevel(level);
-        console.log(`🎨 품질: ${this.qualityPresets[level].name}`);
+        console.log(`🎨 품질 수동 설정: ${this.qualityPresets[level].name} (레벨 ${level})`);
+    }
+    
+    /**
+     * ===== 현재 상태 반환 =====
+     */
+    getStatus() {
+        return {
+            enabled: this.enabled,
+            adjustmentEnabled: this.adjustmentEnabled,
+            qualityLevel: this.qualityLevel,
+            qualityName: this.qualityPresets[this.qualityLevel]?.name || 'Unknown',
+            targetFPS: this.targetFPS,
+            minAcceptableFPS: this.minAcceptableFPS,
+            currentFPS: this.performanceMonitor?.metrics?.fps || 0,
+            averageFPS: this.getAverageFPS()
+        };
     }
     
     /**
@@ -293,12 +349,22 @@ export class AdaptivePerformance {
             if (!this.enabled) {
                 console.warn('⚠️ AdaptivePerformance는 Feature Flag로 비활성화되어 있습니다');
                 console.log('💡 활성화 방법: AdaptivePerformance.js에서 ENABLE_ADAPTIVE_PERFORMANCE = true로 설정');
-                return;
+                return false;
             }
             this.setEnabled(!this.adjustmentEnabled);
+            return this.adjustmentEnabled;
         };
         
         window.setQualityLevel = (level) => this.setQualityLevel(level);
+        
+        window.getAdaptiveStatus = () => {
+            const status = this.getStatus();
+            console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #00ff00');
+            console.log('%c🎮 AdaptivePerformance 상태', 'color: #00ff00; font-size: 14px; font-weight: bold');
+            console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #00ff00');
+            console.table(status);
+            return status;
+        };
         
         window.getPerformanceComparison = () => {
             const report = this.getComparisonReport();
@@ -328,6 +394,12 @@ export class AdaptivePerformance {
             
             return report;
         };
+        
+        console.log('✅ AdaptivePerformance 전역 명령어 등록 완료');
+        console.log('   - toggleAdaptivePerformance() : ON/OFF 토글');
+        console.log('   - setQualityLevel(0-4) : 수동 품질 설정');
+        console.log('   - getAdaptiveStatus() : 현재 상태 확인');
+        console.log('   - getPerformanceComparison() : 성능 비교 리포트');
     }
 }
 

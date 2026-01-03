@@ -4,8 +4,8 @@
  * 
  * 메인 애플리케이션 진입점 (리팩토링 버전)
  * 
- * @version 3.0.0
- * @description Phase 4-1 - Bootstrap 모듈 분리 완료
+ * @version 3.1.0
+ * @description Phase 4-1 - PerformanceMonitor & AdaptivePerformance 연결 완료
  * 
  * 역할: 오케스트레이션만 담당
  * - Bootstrap 모듈들 호출
@@ -132,6 +132,43 @@ function toggleFullscreen() {
 }
 
 // ============================================
+// ⭐ AdaptivePerformance ON/OFF 토글
+// ============================================
+function toggleAdaptivePerformance() {
+    const adaptivePerformance = services.scene?.adaptivePerformance;
+    
+    if (!adaptivePerformance) {
+        console.warn('⚠️ AdaptivePerformance가 초기화되지 않았습니다');
+        toast?.show('AdaptivePerformance 미초기화', 'warning');
+        return false;
+    }
+    
+    if (!adaptivePerformance.enabled) {
+        console.warn('⚠️ AdaptivePerformance가 Feature Flag로 비활성화되어 있습니다');
+        toast?.show('AdaptivePerformance Feature Flag 비활성화', 'warning');
+        return false;
+    }
+    
+    // ON/OFF 토글
+    const newState = !adaptivePerformance.adjustmentEnabled;
+    adaptivePerformance.setEnabled(newState);
+    
+    // 버튼 상태 업데이트
+    updateButtonState('adaptiveBtn', newState);
+    
+    // 토스트 알림
+    if (newState) {
+        toast?.show('✅ AdaptivePerformance ON', 'success');
+        console.log('✅ AdaptivePerformance ON - 자동 품질 조정 활성화');
+    } else {
+        toast?.show('🛑 AdaptivePerformance OFF', 'info');
+        console.log('🛑 AdaptivePerformance OFF - 자동 품질 조정 비활성화');
+    }
+    
+    return newState;
+}
+
+// ============================================
 // 메인 초기화
 // ============================================
 
@@ -170,6 +207,7 @@ function init() {
             toggleMonitoringMode,
             toggleConnectionModal,
             toggleDebugPanel,
+            toggleAdaptivePerformance,  // ⭐ 추가
             togglePerformanceMonitor: () => {
                 performanceMonitorUI = togglePerformanceMonitorUI(performanceMonitorUI);
             },
@@ -209,6 +247,11 @@ function init() {
             toggleMonitoringMode
         });
         
+        // ⭐ AdaptivePerformance 전역 명령어 설정
+        if (services.scene.adaptivePerformance) {
+            services.scene.adaptivePerformance.setupGlobalCommands();
+        }
+        
         // 10. 애니메이션 시작
         animate();
         
@@ -223,6 +266,7 @@ function init() {
             dataOverlay: services.scene.dataOverlay,
             statusVisualizer: services.scene.statusVisualizer,
             performanceMonitor: services.scene.performanceMonitor,
+            adaptivePerformance: services.scene.adaptivePerformance,  // ⭐ 추가
             
             // UI
             connectionModal: services.ui.connectionModal,
@@ -245,7 +289,10 @@ function init() {
             // Layout
             layout2DTo3DConverter,
             roomParamsAdapter,
-            previewGenerator
+            previewGenerator,
+            
+            // ⭐ 함수 노출
+            toggleAdaptivePerformance
         });
         
         // 12. 초기화 완료
@@ -266,6 +313,7 @@ function init() {
         console.log('✅ 모든 초기화 완료!');
         console.log('💡 콘솔에서 debugHelp() 입력으로 사용 가능한 명령어 확인');
         console.log('💡 키보드 단축키: D=디버그, P=성능, H=헬퍼, G=그리드, M=모니터링, E=편집');
+        console.log('💡 AdaptivePerformance: toggleAdaptivePerformance() 또는 A키로 ON/OFF');
         
     } catch (error) {
         console.error('❌ 초기화 중 오류 발생:', error);
@@ -281,7 +329,13 @@ function init() {
 function animate() {
     animationFrameId = requestAnimationFrame(animate);
     
-    const { cameraControls, statusVisualizer, sceneManager } = services.scene || {};
+    const { 
+        cameraControls, 
+        statusVisualizer, 
+        sceneManager, 
+        performanceMonitor,
+        adaptivePerformance  // ⭐ 추가
+    } = services.scene || {};
     const { signalTowerManager } = services.monitoring || {};
     
     // 카메라 컨트롤 업데이트
@@ -304,7 +358,17 @@ function animate() {
         sceneManager.render();
     }
     
-    // 성능 모니터 업데이트
+    // ⭐ PerformanceMonitor 업데이트 (FPS 계산 - 필수!)
+    if (performanceMonitor) {
+        performanceMonitor.update();
+    }
+    
+    // ⭐ AdaptivePerformance 업데이트 (자동 품질 조정)
+    if (adaptivePerformance) {
+        adaptivePerformance.update();
+    }
+    
+    // 성능 모니터 UI 업데이트
     if (performanceMonitorUI?.isVisible?.()) {
         performanceMonitorUI.recordFrame();
         if (sceneManager?.renderer) {
@@ -355,6 +419,7 @@ function handleCleanup() {
     cleanup({
         animationFrameId,
         performanceMonitor: services.scene?.performanceMonitor,
+        adaptivePerformance: services.scene?.adaptivePerformance,  // ⭐ 추가
         performanceMonitorUI,
         previewGenerator,
         sceneManager: services.scene?.sceneManager,

@@ -8,8 +8,9 @@
  * - CameraControls / CameraNavigator
  * - Lighting
  * - PerformanceMonitor
+ * - AdaptivePerformance ⭐ 추가
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @module SceneBootstrap
  * 
  * 위치: frontend/threejs_viewer/src/bootstrap/SceneBootstrap.js
@@ -29,6 +30,7 @@ import { DataOverlay } from '../viewer3d/visualization/DataOverlay.js';
 import { StatusVisualizer } from '../viewer3d/visualization/StatusVisualizer.js';
 
 import { PerformanceMonitor } from '../core/utils/PerformanceMonitor.js';
+import { AdaptivePerformance } from '../core/utils/AdaptivePerformance.js';  // ⭐ 추가
 import { debugLog } from '../core/utils/Config.js';
 
 /**
@@ -108,7 +110,21 @@ export function initScene() {
     const performanceMonitor = new PerformanceMonitor(sceneManager.renderer);
     console.log('  ✅ PerformanceMonitor 초기화 완료');
     
-    // 9. Interaction Handler
+    // ⭐ 9. AdaptivePerformance 초기화
+    let adaptivePerformance = null;
+    try {
+        adaptivePerformance = new AdaptivePerformance(
+            sceneManager.renderer,
+            sceneManager.scene,
+            sceneManager.camera,
+            performanceMonitor
+        );
+        console.log('  ✅ AdaptivePerformance 초기화 완료 (기본: OFF)');
+    } catch (error) {
+        console.warn('  ⚠️ AdaptivePerformance 초기화 실패:', error.message);
+    }
+    
+    // 10. Interaction Handler
     const interactionHandler = new InteractionHandler(
         sceneManager.camera,
         sceneManager.scene,
@@ -143,6 +159,7 @@ export function initScene() {
         dataOverlay,
         statusVisualizer,
         performanceMonitor,
+        adaptivePerformance,  // ⭐ 추가
         interactionHandler
     };
 }
