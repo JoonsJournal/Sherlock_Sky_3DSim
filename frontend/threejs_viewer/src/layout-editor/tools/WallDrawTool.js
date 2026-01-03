@@ -1,10 +1,17 @@
 /**
- * WallDrawTool.js
- * ===============
+ * WallDrawTool.js v2.0.0
+ * ======================
  * 
  * 벽을 직선으로 그릴 수 있는 도구
  * 
- * @version 1.2.0 - Zoom/Pan 좌표 변환 수정
+ * ✨ v2.0.0 수정 (Phase 5.1 - Tool-Command 통합):
+ * - ✅ CommandManager 참조 추가
+ * - ✅ setCommandManager() 메서드 추가
+ * - ✅ getCommandManager() 메서드 추가
+ * - ✅ 벽 생성 시 CreateCommand 사용
+ * - ✅ Undo 시 벽 자동 삭제
+ * 
+ * @version 2.0.0
  * 
  * 위치: frontend/threejs_viewer/src/layout-editor/tools/WallDrawTool.js
  */
@@ -15,6 +22,9 @@ class WallDrawTool {
         this.isActive = false;
         this.isDrawing = false;
         
+        // ✨ v2.0.0: CommandManager 참조
+        this.commandManager = null;
+        
         // 그리기 상태
         this.startPoint = null;
         this.tempLine = null;
@@ -24,7 +34,7 @@ class WallDrawTool {
             thickness: 0.2,  // 20cm
             height: 3,       // 3m
             color: '#888888',
-            rotation: 0      // ✨ Phase 3.1: 기본 rotation
+            rotation: 0
         };
         
         // 이벤트 핸들러 바인딩
@@ -33,8 +43,42 @@ class WallDrawTool {
         this.onMouseUp = this.onMouseUp.bind(this);
         this.onKeyDown = this.onKeyDown.bind(this);
         
-        console.log('[WallDrawTool] 초기화 완료 v1.2.0');
+        console.log('[WallDrawTool] 초기화 완료 v2.0.0 (Command 통합)');
     }
+    
+    // =====================================================
+    // ✨ v2.0.0: CommandManager 연동
+    // =====================================================
+    
+    /**
+     * ✨ v2.0.0: CommandManager 설정
+     * @param {CommandManager} commandManager
+     */
+    setCommandManager(commandManager) {
+        this.commandManager = commandManager;
+        console.log('[WallDrawTool] CommandManager 설정 완료');
+    }
+    
+    /**
+     * ✨ v2.0.0: CommandManager 가져오기 (여러 소스에서 시도)
+     * @returns {CommandManager|null}
+     */
+    getCommandManager() {
+        if (this.commandManager) {
+            return this.commandManager;
+        }
+        if (this.canvas && this.canvas.commandManager) {
+            return this.canvas.commandManager;
+        }
+        if (typeof window !== 'undefined' && window.commandManager) {
+            return window.commandManager;
+        }
+        return null;
+    }
+    
+    // =====================================================
+    // 도구 활성화/비활성화
+    // =====================================================
     
     /**
      * 도구 활성화
@@ -81,6 +125,10 @@ class WallDrawTool {
         console.log('[WallDrawTool] 이벤트 리스너 제거 완료');
     }
     
+    // =====================================================
+    // 마우스 이벤트 핸들러
+    // =====================================================
+    
     /**
      * 마우스 다운 이벤트 - 시작점 기록
      */
@@ -92,7 +140,7 @@ class WallDrawTool {
             return;
         }
         
-        // ✅ 수정: Zoom/Pan이 적용된 캔버스 좌표 가져오기
+        // Zoom/Pan이 적용된 캔버스 좌표 가져오기
         const pos = this.getCanvasPos();
         
         // Snap to Grid 적용
@@ -129,7 +177,7 @@ class WallDrawTool {
     onMouseMove(e) {
         if (!this.isActive || !this.isDrawing || !this.tempLine) return;
         
-        // ✅ 수정: Zoom/Pan이 적용된 캔버스 좌표 가져오기
+        // Zoom/Pan이 적용된 캔버스 좌표 가져오기
         const currentPos = this.getCanvasPos();
         
         // Snap to Grid 적용
@@ -155,7 +203,7 @@ class WallDrawTool {
     onMouseUp(e) {
         if (!this.isActive || !this.isDrawing) return;
         
-        // ✅ 수정: Zoom/Pan이 적용된 캔버스 좌표 가져오기
+        // Zoom/Pan이 적용된 캔버스 좌표 가져오기
         const endPoint = this.getCanvasPos();
         
         // Snap to Grid 적용
@@ -181,7 +229,7 @@ class WallDrawTool {
             this.tempLine = null;
         }
         
-        // 실제 벽 생성
+        // ✨ v2.0.0: 실제 벽 생성 (Command 사용)
         this.createWall(this.startPoint, endPoint);
         
         // 상태 초기화
@@ -218,11 +266,16 @@ class WallDrawTool {
         this.canvas.layers.ui.batchDraw();
     }
     
+    // =====================================================
+    // ✨ v2.0.0: 벽 생성 (Command 통합)
+    // =====================================================
+    
     /**
-     * 실제 벽 생성
+     * 실제 벽 생성 - CreateCommand 사용
      */
     createWall(start, end) {
         const wallId = `wall_${Date.now()}`;
+        const layer = this.canvas.layers.room;
         
         console.log('[WallDrawTool] 벽 생성:', {
             id: wallId,
@@ -244,11 +297,11 @@ class WallDrawTool {
             draggable: true,
             listening: true,
             
-            // ✨ Phase 3.1: rotation 추가
+            // rotation 추가
             rotation: this.wallConfig.rotation || 0,
             
             // 메타데이터 저장
-            wallType: 'partition',  // 파티션 (내부 벽)
+            wallType: 'partition',
             wallHeight: this.wallConfig.height,
             wallThickness: this.wallConfig.thickness,
             
@@ -261,7 +314,6 @@ class WallDrawTool {
         wall.on('click', (e) => {
             console.log('[WallDrawTool] Wall 클릭:', wallId);
             
-            // Ctrl+클릭: 다중 선택
             if (e.evt.ctrlKey || e.evt.metaKey) {
                 this.canvas.selectMultiple(wall);
             } else {
@@ -288,21 +340,43 @@ class WallDrawTool {
             document.body.style.cursor = this.isActive ? 'crosshair' : 'default';
         });
         
-        // Room 레이어에 추가
-        this.canvas.layers.room.add(wall);
-        this.canvas.layers.room.batchDraw();
+        // ✨ v2.0.0: CreateCommand 사용
+        const cmdManager = this.getCommandManager();
+        const CreateCommandClass = window.CreateCommand;
         
-        // wallShapes Map에 추가
-        this.canvas.wallShapes.set(wallId, wall);
+        if (cmdManager && CreateCommandClass) {
+            // CreateCommand로 벽 추가 (Undo 가능)
+            console.log('[WallDrawTool] CreateCommand 사용하여 벽 생성');
+            
+            const createCommand = new CreateCommandClass(wall, layer);
+            cmdManager.execute(createCommand);
+            
+            // wallShapes Map에 추가 (Command 실행 후)
+            this.canvas.wallShapes.set(wallId, wall);
+            
+            console.log('[WallDrawTool] ✅ CreateCommand 실행 완료:', wallId);
+        } else {
+            // 폴백: 직접 추가 (Command 없이)
+            console.warn('[WallDrawTool] CommandManager 없음 - 직접 추가');
+            
+            layer.add(wall);
+            layer.batchDraw();
+            
+            // wallShapes Map에 추가
+            this.canvas.wallShapes.set(wallId, wall);
+            
+            console.log('[WallDrawTool] ✅ 벽 직접 생성 완료:', wallId);
+        }
         
-        console.log('[WallDrawTool] ✅ 벽 생성 완료:', wallId);
+        return wall;
     }
     
+    // =====================================================
+    // 좌표 변환 유틸리티
+    // =====================================================
+    
     /**
-     * ✅ 수정: 캔버스 좌표 가져오기 (Zoom/Pan 변환 적용)
-     * 
-     * 스크린 좌표를 캔버스 좌표로 변환합니다.
-     * Stage의 scale(zoom)과 position(pan)을 역변환하여 실제 캔버스 위치를 계산합니다.
+     * 캔버스 좌표 가져오기 (Zoom/Pan 변환 적용)
      */
     getCanvasPos() {
         const stage = this.canvas.stage;
@@ -327,7 +401,6 @@ class WallDrawTool {
     
     /**
      * @deprecated getMousePos는 getCanvasPos로 대체됨
-     * 하위 호환성을 위해 유지
      */
     getMousePos(e) {
         return this.getCanvasPos();
@@ -340,6 +413,10 @@ class WallDrawTool {
         const gridSize = this.canvas.config.gridSize;
         return Math.round(value / gridSize) * gridSize;
     }
+    
+    // =====================================================
+    // 설정
+    // =====================================================
     
     /**
      * 벽 설정 업데이트
@@ -354,7 +431,6 @@ class WallDrawTool {
         if (config.color !== undefined) {
             this.wallConfig.color = config.color;
         }
-        // ✨ Phase 3.1: rotation 업데이트
         if (config.rotation !== undefined) {
             this.wallConfig.rotation = config.rotation;
         }
@@ -368,9 +444,29 @@ class WallDrawTool {
     getWallConfig() {
         return { ...this.wallConfig };
     }
+    
+    // =====================================================
+    // 정리
+    // =====================================================
+    
+    /**
+     * 파괴
+     */
+    destroy() {
+        this.deactivate();
+        this.commandManager = null;
+        console.log('[WallDrawTool] 파괴 완료');
+    }
 }
 
 // 전역 객체 등록 (브라우저 환경)
 if (typeof module === 'undefined' && typeof window !== 'undefined') {
     window.WallDrawTool = WallDrawTool;
 }
+
+// CommonJS export (Node.js 환경)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = WallDrawTool;
+}
+
+console.log('✅ WallDrawTool.js 로드 완료 v2.0.0 (Command 통합)');

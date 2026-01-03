@@ -1,22 +1,17 @@
 /**
- * initLayoutServices.js v2.1.0
+ * initLayoutServices.js v2.2.0
  * ============================
  * Layout Editor 서비스 초기화
+ * 
+ * ✨ v2.2.0 수정 (버튼 이벤트 중복 해결):
+ * - ❌ setupHeaderButtonEvents()에서 btn-undo, btn-redo 이벤트 제거
+ * - ✅ Undo/Redo는 index.js의 createDefaultHandlers()에서 통합 관리
+ * - ✅ 버튼 이벤트 중복 등록 문제 해결
  * 
  * ✨ v2.1.0 수정 (EditorStateManager 통합):
  * - ✅ EditorStateManager 초기화 추가
  * - ✅ cleanupAfterUndoRedo → stateManager.cleanupAfterHistoryChange() 대체
- * - ✅ Header 버튼에서 StateManager 사용
  * - ✅ 전역 참조 window.stateManager 추가
- * 
- * ✨ v2.0.1 수정:
- * - ✅ Undo/Redo 후 HandleManager 업데이트 추가
- * - ✅ canvas.handleManager?.detach() 호출로 조정틀 제거
- * 
- * ✨ v2.0.0 수정 (Phase 5.1 - Tool-Command 통합):
- * - ✅ ToolService에 CommandManager 전달
- * - ✅ initToolService에서 commandManager 옵션 추가
- * - ✅ Tools에 CommandManager 자동 연결
  * 
  * main.js bootstrap 패턴 적용
  * 
@@ -68,7 +63,7 @@ function calculateCanvasSize() {
 }
 
 /**
- * ✨ v2.1.0: EditorStateManager 초기화
+ * EditorStateManager 초기화
  */
 function initStateManager(canvas) {
     if (typeof EditorStateManager === 'undefined') {
@@ -206,19 +201,26 @@ function initKeyboardService(canvas, commandManager) {
 }
 
 /**
- * ✨ v2.1.0: Header 버튼 이벤트 설정 (StateManager 사용)
+ * ✨ v2.2.0: Header 버튼 이벤트 설정 (Undo/Redo 제외)
+ * 
+ * ⚠️ btn-undo, btn-redo는 index.js의 createDefaultHandlers()에서
+ *    setupLayoutEvents.js의 bindToolbarButtons()를 통해 등록됩니다.
+ *    여기서 등록하면 이벤트가 중복되어 2번 실행됩니다.
  */
 function setupHeaderButtonEvents(commandManager, canvas, stateManager) {
-    // Undo 버튼
+    // ❌ v2.2.0: Undo/Redo 버튼 이벤트 제거
+    // 이유: index.js의 createDefaultHandlers()에서 이미 등록함
+    // 중복 등록 시 버튼 클릭 1번에 Undo가 2번 실행됨
+    
+    /*
+    // [제거됨] - 아래 코드는 setupLayoutEvents.js에서 처리
     const undoBtn = document.getElementById('btn-undo');
     if (undoBtn) {
         undoBtn.addEventListener('click', () => {
             if (commandManager?.undo()) {
-                // ✅ v2.1.0: StateManager로 통합 정리
                 if (stateManager) {
                     stateManager.cleanupAfterHistoryChange();
                 } else {
-                    // 폴백: 기존 방식
                     cleanupAfterUndoRedo(canvas);
                 }
                 console.log('[Header] Undo 실행 완료');
@@ -226,24 +228,22 @@ function setupHeaderButtonEvents(commandManager, canvas, stateManager) {
         });
     }
     
-    // Redo 버튼
     const redoBtn = document.getElementById('btn-redo');
     if (redoBtn) {
         redoBtn.addEventListener('click', () => {
             if (commandManager?.redo()) {
-                // ✅ v2.1.0: StateManager로 통합 정리
                 if (stateManager) {
                     stateManager.cleanupAfterHistoryChange();
                 } else {
-                    // 폴백: 기존 방식
                     cleanupAfterUndoRedo(canvas);
                 }
                 console.log('[Header] Redo 실행 완료');
             }
         });
     }
+    */
     
-    console.log('  ✓ Header Undo/Redo 버튼 이벤트 (v2.1.0)');
+    console.log('  ✓ Header 버튼 이벤트 (v2.2.0 - Undo/Redo는 index.js에서 관리)');
 }
 
 /**
@@ -282,15 +282,14 @@ function cleanupAfterUndoRedo(canvas) {
 
 /**
  * 모든 서비스 초기화 (통합)
- * ✨ v2.1.0: EditorStateManager 추가
  */
 function initLayoutServices(options = {}) {
-    console.log('🔧 Layout Services 초기화 시작 v2.1.0...');
+    console.log('🔧 Layout Services 초기화 시작 v2.2.0...');
     
     // 1. Canvas 초기화
     const canvas = initCanvas(options.containerId);
     
-    // 2. ✨ v2.1.0: EditorStateManager 초기화 (Canvas 직후!)
+    // 2. EditorStateManager 초기화 (Canvas 직후!)
     const stateManager = initStateManager(canvas);
     
     // 3. CommandManager 초기화
@@ -314,23 +313,22 @@ function initLayoutServices(options = {}) {
     // 6. KeyboardService 초기화
     const keyboardService = initKeyboardService(canvas, commandManager);
     
-    // 7. ✨ v2.1.0: Header 버튼 이벤트 설정 (StateManager 포함)
+    // 7. ✨ v2.2.0: Header 버튼 이벤트 설정 (Undo/Redo 제외)
     setupHeaderButtonEvents(commandManager, canvas, stateManager);
     
     // 8. StateManager에 나중에 추가된 Manager들 재바인딩
     if (stateManager) {
-        // 약간의 지연 후 재바인딩 (다른 초기화 완료 후)
         setTimeout(() => {
             stateManager.rebindManagers();
             console.log('[StateManager] Manager 재바인딩 완료');
         }, 100);
     }
     
-    console.log('✅ Layout Services 초기화 완료 v2.1.0');
+    console.log('✅ Layout Services 초기화 완료 v2.2.0');
     
     return {
         canvas,
-        stateManager,      // ✨ v2.1.0: 추가
+        stateManager,
         commandManager,
         toolService,
         componentService,
@@ -342,7 +340,7 @@ function initLayoutServices(options = {}) {
 if (typeof window !== 'undefined') {
     window.initLayoutServices = initLayoutServices;
     window.initCanvas = initCanvas;
-    window.initStateManager = initStateManager;  // ✨ v2.1.0
+    window.initStateManager = initStateManager;
     window.initCommandManager = initCommandManager;
     window.initToolService = initToolService;
     window.initComponentService = initComponentService;
@@ -350,7 +348,7 @@ if (typeof window !== 'undefined') {
     window.calculateCanvasSize = calculateCanvasSize;
     window.updateUndoRedoUI = updateUndoRedoUI;
     window.setupHeaderButtonEvents = setupHeaderButtonEvents;
-    window.cleanupAfterUndoRedo = cleanupAfterUndoRedo;  // 폴백용 유지
+    window.cleanupAfterUndoRedo = cleanupAfterUndoRedo;
 }
 
-console.log('✅ initLayoutServices.js 로드 완료 v2.1.0');
+console.log('✅ initLayoutServices.js 로드 완료 v2.2.0');

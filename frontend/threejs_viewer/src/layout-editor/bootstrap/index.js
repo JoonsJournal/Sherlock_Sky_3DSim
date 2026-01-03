@@ -1,7 +1,12 @@
 /**
- * bootstrap/index.js
- * ===================
+ * bootstrap/index.js v2.0.0
+ * =========================
  * Layout Editor Bootstrap 모듈 통합 export
+ * 
+ * ✨ v2.0.0 수정 (Undo/Redo StateManager 통합):
+ * - ✅ createDefaultHandlers()에서 StateManager 연동 추가
+ * - ✅ Undo/Redo 후 cleanupAfterHistoryChange() 호출
+ * - ✅ initLayoutServices.js와의 역할 분리 명확화
  * 
  * main.js bootstrap 패턴 적용
  * 
@@ -90,32 +95,63 @@ function initLayoutEditor(options = {}) {
         // 편의 getter
         getCanvas: () => services.canvas,
         getCommandManager: () => services.commandManager,
+        getStateManager: () => services.stateManager,  // ✨ v2.0.0: 추가
         getToolService: () => services.toolService,
         getUIService: () => ui.uiService
     };
 }
 
 /**
- * 기본 핸들러 생성
+ * ✨ v2.0.0: 기본 핸들러 생성 (StateManager 연동 추가)
  */
 function createDefaultHandlers(services, ui, options = {}) {
-    const { canvas, commandManager, toolService, componentService } = services;
+    const { canvas, commandManager, stateManager, toolService, componentService } = services;
     const { uiService } = ui;
     
     return {
-        // Undo/Redo
+        // ✨ v2.0.0: Undo - StateManager 연동
         undo: () => {
             if (commandManager?.undo()) {
-                canvas.transformer?.forceUpdate();
+                // StateManager로 통합 정리
+                if (stateManager) {
+                    stateManager.cleanupAfterHistoryChange();
+                } else if (canvas.stateManager) {
+                    canvas.stateManager.cleanupAfterHistoryChange();
+                } else {
+                    // 폴백: 기존 방식
+                    if (typeof cleanupAfterUndoRedo === 'function') {
+                        cleanupAfterUndoRedo(canvas);
+                    } else {
+                        canvas.handleManager?.detach();
+                        canvas.transformer?.forceUpdate();
+                    }
+                }
                 canvas.stage.batchDraw();
                 uiService?.updateStatus();
+                console.log('[index.js] Undo 실행 완료');
             }
         },
+        
+        // ✨ v2.0.0: Redo - StateManager 연동
         redo: () => {
             if (commandManager?.redo()) {
-                canvas.transformer?.forceUpdate();
+                // StateManager로 통합 정리
+                if (stateManager) {
+                    stateManager.cleanupAfterHistoryChange();
+                } else if (canvas.stateManager) {
+                    canvas.stateManager.cleanupAfterHistoryChange();
+                } else {
+                    // 폴백: 기존 방식
+                    if (typeof cleanupAfterUndoRedo === 'function') {
+                        cleanupAfterUndoRedo(canvas);
+                    } else {
+                        canvas.handleManager?.detach();
+                        canvas.transformer?.forceUpdate();
+                    }
+                }
                 canvas.stage.batchDraw();
                 uiService?.updateStatus();
+                console.log('[index.js] Redo 실행 완료');
             }
         },
         
@@ -221,6 +257,7 @@ if (typeof window !== 'undefined') {
         // 개별 초기화 (initLayoutServices.js) - 안전한 참조
         initLayoutServices: safeGet(window.initLayoutServices),
         initCanvas: safeGet(window.initCanvas),
+        initStateManager: safeGet(window.initStateManager),  // ✨ v2.0.0: 추가
         initCommandManager: safeGet(window.initCommandManager),
         initToolService: safeGet(window.initToolService),
         initComponentService: safeGet(window.initComponentService),
@@ -251,5 +288,5 @@ if (typeof window !== 'undefined') {
     checkDependencies();
 }
 
-console.log('✅ bootstrap/index.js 로드 완료');
+console.log('✅ bootstrap/index.js 로드 완료 v2.0.0');
 console.log('💡 사용법: const app = initLayoutEditor() 또는 LayoutEditorBootstrap.initLayoutEditor()');
