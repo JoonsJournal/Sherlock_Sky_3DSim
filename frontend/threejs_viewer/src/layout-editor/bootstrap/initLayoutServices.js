@@ -1,7 +1,11 @@
 /**
- * initLayoutServices.js v2.0.0
+ * initLayoutServices.js v2.0.1
  * ============================
  * Layout Editor 서비스 초기화
+ * 
+ * ✨ v2.0.1 수정:
+ * - ✅ Undo/Redo 후 HandleManager 업데이트 추가
+ * - ✅ canvas.handleManager?.detach() 호출로 조정틀 제거
  * 
  * ✨ v2.0.0 수정 (Phase 5.1 - Tool-Command 통합):
  * - ✅ ToolService에 CommandManager 전달
@@ -176,7 +180,43 @@ function initKeyboardService(canvas, commandManager) {
 }
 
 /**
- * ✨ v2.0.0: Header 버튼 이벤트 설정
+ * ✨ v2.0.1: Undo/Redo 후 Canvas 상태 정리
+ * - HandleManager(조정틀) 해제
+ * - Transformer 업데이트
+ * - 선택 상태 정리
+ */
+function cleanupAfterUndoRedo(canvas) {
+    // ✅ HandleManager 해제 (PowerPoint 스타일 핸들)
+    if (canvas.handleManager) {
+        canvas.handleManager.detach();
+        console.log('[Undo/Redo] HandleManager detached');
+    }
+    
+    // ✅ Transformer 업데이트 (폴백)
+    if (canvas.transformer) {
+        canvas.transformer.nodes([]);
+        canvas.transformer.forceUpdate?.();
+    }
+    
+    // ✅ SelectionRenderer 정리
+    if (canvas.selectionRenderer) {
+        canvas.selectionRenderer.destroyTransformer?.();
+    }
+    
+    // ✅ 선택 상태 정리
+    if (canvas.selectionManager) {
+        canvas.selectionManager.deselectAll?.();
+    } else if (canvas._selectedObjectsProxy) {
+        canvas._selectedObjectsProxy = [];
+    }
+    
+    // ✅ UI 레이어 다시 그리기
+    canvas.layers?.ui?.batchDraw();
+    canvas.stage?.batchDraw();
+}
+
+/**
+ * ✨ v2.0.1: Header 버튼 이벤트 설정 (HandleManager 업데이트 포함)
  */
 function setupHeaderButtonEvents(commandManager, canvas) {
     // Undo 버튼
@@ -184,9 +224,9 @@ function setupHeaderButtonEvents(commandManager, canvas) {
     if (undoBtn) {
         undoBtn.addEventListener('click', () => {
             if (commandManager?.undo()) {
-                canvas.transformer?.forceUpdate?.();
-                canvas.stage?.batchDraw();
-                console.log('[Header] Undo 실행');
+                // ✅ v2.0.1: HandleManager 및 선택 상태 정리
+                cleanupAfterUndoRedo(canvas);
+                console.log('[Header] Undo 실행 완료');
             }
         });
     }
@@ -196,14 +236,14 @@ function setupHeaderButtonEvents(commandManager, canvas) {
     if (redoBtn) {
         redoBtn.addEventListener('click', () => {
             if (commandManager?.redo()) {
-                canvas.transformer?.forceUpdate?.();
-                canvas.stage?.batchDraw();
-                console.log('[Header] Redo 실행');
+                // ✅ v2.0.1: HandleManager 및 선택 상태 정리
+                cleanupAfterUndoRedo(canvas);
+                console.log('[Header] Redo 실행 완료');
             }
         });
     }
     
-    console.log('  ✓ Header Undo/Redo 버튼 이벤트');
+    console.log('  ✓ Header Undo/Redo 버튼 이벤트 (v2.0.1)');
 }
 
 /**
@@ -211,7 +251,7 @@ function setupHeaderButtonEvents(commandManager, canvas) {
  * ✨ v2.0.0: Tool-Command 연결 강화
  */
 function initLayoutServices(options = {}) {
-    console.log('🔧 Layout Services 초기화 시작 v2.0.0...');
+    console.log('🔧 Layout Services 초기화 시작 v2.0.1...');
     
     // 1. Canvas 초기화
     const canvas = initCanvas(options.containerId);
@@ -237,10 +277,10 @@ function initLayoutServices(options = {}) {
     // 5. KeyboardService 초기화
     const keyboardService = initKeyboardService(canvas, commandManager);
     
-    // 6. ✨ v2.0.0: Header 버튼 이벤트 설정
+    // 6. ✨ v2.0.1: Header 버튼 이벤트 설정 (HandleManager 정리 포함)
     setupHeaderButtonEvents(commandManager, canvas);
     
-    console.log('✅ Layout Services 초기화 완료 v2.0.0');
+    console.log('✅ Layout Services 초기화 완료 v2.0.1');
     
     return {
         canvas,
@@ -262,6 +302,7 @@ if (typeof window !== 'undefined') {
     window.calculateCanvasSize = calculateCanvasSize;
     window.updateUndoRedoUI = updateUndoRedoUI;
     window.setupHeaderButtonEvents = setupHeaderButtonEvents;
+    window.cleanupAfterUndoRedo = cleanupAfterUndoRedo;  // ✨ v2.0.1
 }
 
-console.log('✅ initLayoutServices.js 로드 완료 v2.0.0');
+console.log('✅ initLayoutServices.js 로드 완료 v2.0.1');
