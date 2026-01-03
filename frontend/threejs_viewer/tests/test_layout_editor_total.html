@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Layout Editor - SHERLOCK_SKY_3DSIM</title>
+    <title>Layout Editor - SHERLOCK_SKY_3DSIM (Phase 1)</title>
     
     <!-- Konva.js CDN -->
     <script src="https://unpkg.com/konva@9/konva.min.js"></script>
@@ -32,6 +32,10 @@
     <script src="../src/layout-editor/selection/SelectionRenderer.js"></script>
     <script src="../src/layout-editor/selection/Selection2DManager.js"></script>
     <script src="../src/layout-editor/selection/FenceSelection.js"></script>
+    
+    <!-- ✅ Phase 1: Command 모듈 (ES6 export 제거됨, script 태그 로드 가능) -->
+    <script src="../src/layout-editor/commands/Command.js"></script>
+    <script src="../src/layout-editor/commands/CommandManager.js"></script>
     
     <script src="../src/layout-editor/components/Canvas2DEditor.js"></script>
     <script src="../src/layout-editor/controllers/ZoomController.js"></script>
@@ -88,10 +92,11 @@
         .header h1 { font-size: 16px; margin: 0; }
         .header-actions { display: flex; gap: 6px; }
         .header-btn { padding: 6px 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+        .header-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-primary { background: var(--success-color); color: white; }
-        .btn-primary:hover { background: #229954; }
+        .btn-primary:hover:not(:disabled) { background: #229954; }
         .btn-secondary { background: rgba(255,255,255,0.2); color: white; }
-        .btn-secondary:hover { background: rgba(255,255,255,0.3); }
+        .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.3); }
         
         /* ============================================
            Layout
@@ -214,6 +219,8 @@
         .status-bar { position: fixed; bottom: 0; left: 0; right: 0; height: var(--status-height); background: #34495e; color: white; display: flex; align-items: center; padding: 0 16px; font-size: 12px; gap: 16px; z-index: 100; }
         .status-item { display: flex; align-items: center; gap: 4px; }
         .status-item.zoom-display { background: var(--success-color); padding: 3px 10px; border-radius: 4px; font-weight: 600; }
+        /* ✅ Phase 1: Undo/Redo 상태 표시 스타일 */
+        .status-item.history { background: #9b59b6; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
         
         /* ============================================
            Modal
@@ -239,14 +246,15 @@
         @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         
         /* ============================================
-           Shortcuts Help
+           Shortcuts Help - ✅ Phase 1: Arrow Keys 추가
            ============================================ */
-        .shortcuts-help { position: fixed; bottom: 45px; left: 16px; background: rgba(0,0,0,0.85); color: white; padding: 12px 16px; border-radius: 6px; font-size: 11px; z-index: 100; display: none; }
+        .shortcuts-help { position: fixed; bottom: 45px; left: 16px; background: rgba(0,0,0,0.85); color: white; padding: 12px 16px; border-radius: 6px; font-size: 11px; z-index: 100; display: none; max-width: 280px; }
         .shortcuts-help.show { display: block; }
         .shortcuts-help h4 { margin: 0 0 8px 0; color: var(--primary-color); font-size: 12px; }
-        .shortcuts-help ul { list-style: none; margin: 0; padding: 0; }
-        .shortcuts-help li { margin: 3px 0; }
+        .shortcuts-help ul { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 20px; }
+        .shortcuts-help li { margin: 3px 0; break-inside: avoid; }
         .shortcuts-help kbd { background: #444; padding: 1px 5px; border-radius: 3px; margin-right: 6px; font-size: 10px; }
+        .shortcuts-help .section-title { color: #9b59b6; font-weight: 600; margin-top: 8px; margin-bottom: 4px; column-span: all; }
         
         /* ============================================
            Loading
@@ -269,10 +277,10 @@
     <div id="loading-indicator"><div class="spinner"></div><div>Layout Editor 로딩 중...</div></div>
 
     <div class="header">
-        <h1>🏗️ Layout Editor - SHERLOCK_SKY_3DSIM</h1>
+        <h1>🏗️ Layout Editor - Phase 1 (Undo/Redo + Arrow Keys)</h1>
         <div class="header-actions">
-            <button class="header-btn btn-secondary" id="btn-undo">↶ Undo</button>
-            <button class="header-btn btn-secondary" id="btn-redo">↷ Redo</button>
+            <button class="header-btn btn-secondary" id="btn-undo" disabled>↶ Undo</button>
+            <button class="header-btn btn-secondary" id="btn-redo" disabled>↷ Redo</button>
             <button class="header-btn btn-secondary" id="btn-help">❓</button>
             <button class="header-btn btn-primary" id="btn-save">💾 Save</button>
         </div>
@@ -349,18 +357,39 @@
         </div>
     </div>
 
+    <!-- ✅ Phase 1: 상태바에 History 표시 추가 -->
     <div class="status-bar">
         <span class="status-item">🔧 <span id="status-tool">선택</span></span>
         <span class="status-item zoom-display">🔍 <span id="status-zoom">100%</span></span>
+        <span class="status-item history">↶ <span id="status-undo">0</span> / ↷ <span id="status-redo">0</span></span>
         <span class="status-item">Grid: <span id="status-grid">ON</span></span>
         <span class="status-item">Snap: <span id="status-snap">ON</span></span>
         <span class="status-item">📦 <span id="status-objects">0</span></span>
         <span class="status-item">✅ <span id="status-selected">0</span></span>
     </div>
 
+    <!-- ✅ Phase 1: 단축키 도움말 업데이트 -->
     <div class="shortcuts-help" id="shortcuts-help">
         <h4>⌨️ 단축키</h4>
-        <ul><li><kbd>V</kbd> 선택</li><li><kbd>W</kbd> 벽</li><li><kbd>C</kbd> 컴포넌트</li><li><kbd>G</kbd> Grid</li><li><kbd>S</kbd> Snap</li><li><kbd>R</kbd> 회전</li><li><kbd>L</kbd> 정렬</li><li><kbd>Del</kbd> 삭제</li><li><kbd>⌘A</kbd> 전체선택</li><li><kbd>Esc</kbd> 해제</li></ul>
+        <ul>
+            <li><kbd>V</kbd> 선택</li>
+            <li><kbd>W</kbd> 벽</li>
+            <li><kbd>C</kbd> 컴포넌트</li>
+            <li><kbd>G</kbd> Grid</li>
+            <li><kbd>S</kbd> Snap</li>
+            <li><kbd>R</kbd> 회전</li>
+            <li><kbd>L</kbd> 정렬</li>
+            <li><kbd>Del</kbd> 삭제</li>
+            <li><kbd>⌘A</kbd> 전체선택</li>
+            <li><kbd>⌘Z</kbd> Undo</li>
+            <li><kbd>⌘Y</kbd> Redo</li>
+            <li><kbd>Esc</kbd> 해제</li>
+        </ul>
+        <div class="section-title">🎯 이동 (Phase 1)</div>
+        <ul>
+            <li><kbd>↑↓←→</kbd> 1px 이동</li>
+            <li><kbd>⇧+방향</kbd> 10px 이동</li>
+        </ul>
     </div>
 
     <div class="modal" id="room-size-modal">
@@ -420,83 +449,115 @@
                     y: startY,
                     width: viewWidth,
                     height: viewHeight,
-                    fill: '#f0f0f0'
+                    fill: '#f0f0f0',
+                    listening: false
                 });
                 this.editor.layers.background.add(background);
                 
-                // 그리드 크기 계산
-                const gridSize = this.getCurrentGridSize();
-                if (gridSize < 2) {
-                    this.editor.layers.background.batchDraw();
-                    return;
-                }
-                
-                const majorInterval = this.gridConfig?.majorInterval || 5;
-                
-                // 그리드 시작점 계산
-                const gridStartX = Math.floor(startX / gridSize) * gridSize;
-                const gridStartY = Math.floor(startY / gridSize) * gridSize;
-                const gridEndX = startX + viewWidth;
-                const gridEndY = startY + viewHeight;
-                
-                // 수직선
-                for (let x = gridStartX; x <= gridEndX; x += gridSize) {
-                    const gridIndex = Math.round(x / gridSize);
-                    const isMajor = (gridIndex % majorInterval) === 0;
+                // 그리드 그리기
+                if (this.editor.config.showGrid) {
+                    const gridSize = this.editor.config.gridSize;
+                    const majorInterval = 100;
                     
-                    this.editor.layers.background.add(new Konva.Line({
-                        points: [x, gridStartY, x, gridEndY],
-                        stroke: isMajor ? '#b0b0b0' : '#d8d8d8',
-                        strokeWidth: (isMajor ? 1 : 0.5) / zoom
-                    }));
+                    // 시작점을 그리드에 맞춤
+                    const gridStartX = Math.floor(startX / gridSize) * gridSize;
+                    const gridStartY = Math.floor(startY / gridSize) * gridSize;
+                    const gridEndX = startX + viewWidth;
+                    const gridEndY = startY + viewHeight;
                     
-                    // 라벨 (Major 선에만)
-                    if (isMajor && x !== 0) {
-                        const meters = Math.round((x / (this.baseScale || 10)) * 10) / 10;
-                        this.editor.layers.background.add(new Konva.Text({
-                            x: x + 2 / zoom,
-                            y: gridStartY + 3 / zoom,
-                            text: `${meters}m`,
-                            fontSize: 9 / zoom,
-                            fill: '#888888'
-                        }));
+                    // Minor grid lines
+                    for (let x = gridStartX; x <= gridEndX; x += gridSize) {
+                        const isMajor = Math.abs(x % majorInterval) < 0.1;
+                        const line = new Konva.Line({
+                            points: [x, startY, x, startY + viewHeight],
+                            stroke: isMajor ? '#b0b0b0' : '#d8d8d8',
+                            strokeWidth: isMajor ? 1 : 0.5,
+                            listening: false
+                        });
+                        this.editor.layers.background.add(line);
                     }
-                }
-                
-                // 수평선
-                for (let y = gridStartY; y <= gridEndY; y += gridSize) {
-                    const gridIndex = Math.round(y / gridSize);
-                    const isMajor = (gridIndex % majorInterval) === 0;
                     
-                    this.editor.layers.background.add(new Konva.Line({
-                        points: [gridStartX, y, gridEndX, y],
-                        stroke: isMajor ? '#b0b0b0' : '#d8d8d8',
-                        strokeWidth: (isMajor ? 1 : 0.5) / zoom
-                    }));
+                    for (let y = gridStartY; y <= gridEndY; y += gridSize) {
+                        const isMajor = Math.abs(y % majorInterval) < 0.1;
+                        const line = new Konva.Line({
+                            points: [startX, y, startX + viewWidth, y],
+                            stroke: isMajor ? '#b0b0b0' : '#d8d8d8',
+                            strokeWidth: isMajor ? 1 : 0.5,
+                            listening: false
+                        });
+                        this.editor.layers.background.add(line);
+                    }
                     
-                    if (isMajor && y !== 0) {
-                        const meters = Math.round((y / (this.baseScale || 10)) * 10) / 10;
-                        this.editor.layers.background.add(new Konva.Text({
-                            x: gridStartX + 3 / zoom,
-                            y: y + 2 / zoom,
-                            text: `${meters}m`,
-                            fontSize: 9 / zoom,
-                            fill: '#888888'
-                        }));
+                    // 라벨 (줌 레벨이 0.3 이상일 때만)
+                    if (zoom >= 0.3) {
+                        for (let x = gridStartX; x <= gridEndX; x += majorInterval) {
+                            if (x === 0) continue;
+                            const label = new Konva.Text({
+                                x: x + 2,
+                                y: startY + 5,
+                                text: (x / 10).toFixed(0) + 'm',
+                                fontSize: 10 / zoom,
+                                fill: '#888888',
+                                listening: false
+                            });
+                            this.editor.layers.background.add(label);
+                        }
+                        
+                        for (let y = gridStartY; y <= gridEndY; y += majorInterval) {
+                            if (y === 0) continue;
+                            const label = new Konva.Text({
+                                x: startX + 5,
+                                y: y + 2,
+                                text: (y / 10).toFixed(0) + 'm',
+                                fontSize: 10 / zoom,
+                                fill: '#888888',
+                                listening: false
+                            });
+                            this.editor.layers.background.add(label);
+                        }
                     }
                 }
                 
                 this.editor.layers.background.batchDraw();
             }
             
-            // ✅ 마우스 휠 줌 - 그리드 업데이트 포함
-            onWheel(e) {
-                e.preventDefault();
+            // ✅ Pan 후 그리드 업데이트
+            handleWheel(e) {
+                super.handleWheel(e);
+                this.updateGrid();
+            }
+            
+            setZoom(newZoom) {
+                super.setZoom(newZoom);
+                this.updateGrid();
+            }
+            
+            zoomIn() {
                 const oldZoom = this.currentZoom;
-                const delta = -e.deltaY * (this.config?.wheelSensitivity || 0.001);
-                let newZoom = Math.max(this.config?.minZoom || 0.1, Math.min(this.config?.maxZoom || 5, oldZoom + delta));
+                const newZoom = Math.min(this.options.maxZoom, oldZoom + this.options.zoomStep);
                 
-                if (Math.abs(newZoom - oldZoom) < 0.001) return;
+                const pointer = this.editor.stage.getPointerPosition();
+                if (!pointer) return;
+                
+                const mousePointTo = {
+                    x: pointer.x / oldZoom - this.editor.stage.x() / oldZoom,
+                    y: pointer.y / oldZoom - this.editor.stage.y() / oldZoom
+                };
+                
+                this.setZoom(newZoom);
+                
+                this.editor.stage.position({
+                    x: -(mousePointTo.x - pointer.x / newZoom) * newZoom,
+                    y: -(mousePointTo.y - pointer.y / newZoom) * newZoom
+                });
+                
+                this.updateGrid();
+                this.editor.stage.batchDraw();
+            }
+            
+            zoomOut() {
+                const oldZoom = this.currentZoom;
+                const newZoom = Math.max(this.options.minZoom, oldZoom - this.options.zoomStep);
                 
                 const pointer = this.editor.stage.getPointerPosition();
                 if (!pointer) return;
@@ -519,7 +580,7 @@
         }
         
         // =====================================================
-        // Main App
+        // Main App - ✅ Phase 1: Undo/Redo + Arrow Keys 추가
         // =====================================================
         class LayoutEditorApp {
             constructor() {
@@ -557,14 +618,17 @@
                 if (typeof RoomSizeManager !== 'undefined') { this.roomSizeManager = new RoomSizeManager(this.canvas); }
                 if (typeof WallDrawTool !== 'undefined') { 
                     this.wallDrawTool = new WallDrawTool(this.canvas); 
-                    this.canvas.setWallDrawTool(this.wallDrawTool);  // ✅ Canvas2DEditor에 등록
+                    this.canvas.setWallDrawTool(this.wallDrawTool);
                 }
                 if (typeof EquipmentArrayTool !== 'undefined') { 
                     this.equipmentArrayTool = new EquipmentArrayTool(this.canvas);
-                    this.canvas.equipmentArrayTool = this.equipmentArrayTool;  // ✅ Canvas2DEditor에 등록
+                    this.canvas.equipmentArrayTool = this.equipmentArrayTool;
                 }
                 if (typeof PropertyPanel !== 'undefined') { this.propertyPanel = new PropertyPanel('property-panel', this.canvas); this.canvas.setPropertyPanel(this.propertyPanel); }
                 if (typeof AlignmentTool !== 'undefined') { this.alignmentTool = new AlignmentTool(this.canvas); }
+                
+                // ✅ Phase 1: CommandManager 초기화
+                this.initCommandManager();
                 
                 this.enableDropZone();
                 this.setupComponentSubmenu();
@@ -574,8 +638,35 @@
                 setInterval(() => this.updateStatus(), 500);
                 
                 document.getElementById('loading-indicator').style.display = 'none';
-                console.log('✅ Layout Editor 초기화 완료');
-                this.showToast('Layout Editor 준비 완료!', 'success');
+                console.log('✅ Layout Editor 초기화 완료 (Phase 1)');
+                this.showToast('Layout Editor 준비 완료! (Undo/Redo + Arrow Keys)', 'success');
+            }
+            
+            // =====================================================
+            // ✅ Phase 1: CommandManager 초기화
+            // =====================================================
+            initCommandManager() {
+                if (typeof CommandManager !== 'undefined') {
+                    this.commandManager = new CommandManager({
+                        maxHistory: 50,
+                        onHistoryChange: (state) => {
+                            // 버튼 활성화/비활성화
+                            document.getElementById('btn-undo').disabled = !state.canUndo;
+                            document.getElementById('btn-redo').disabled = !state.canRedo;
+                            
+                            // 상태바 업데이트
+                            document.getElementById('status-undo').textContent = state.undoCount;
+                            document.getElementById('status-redo').textContent = state.redoCount;
+                        }
+                    });
+                    
+                    // Canvas2DEditor에 CommandManager 연결
+                    this.canvas.commandManager = this.commandManager;
+                    
+                    console.log('✅ CommandManager 초기화 완료');
+                } else {
+                    console.warn('⚠️ CommandManager가 로드되지 않았습니다 - Undo/Redo 비활성화');
+                }
             }
             
             calculateCanvasSize() {
@@ -589,7 +680,6 @@
             updateCanvasSize() { 
                 const size = this.calculateCanvasSize(); 
                 this.canvas.resize(size.width, size.height); 
-                // ✅ 리사이즈 후 그리드 업데이트
                 this.zoomController?.updateGrid?.(); 
             }
             
@@ -696,8 +786,12 @@
                 setTimeout(() => this.updateCanvasSize(), 350);
             }
             
+            // =====================================================
+            // ✅ Phase 1: 키보드 이벤트 - Arrow Keys 추가
+            // =====================================================
             setupEventListeners() {
                 document.addEventListener('keydown', e => {
+                    // Ctrl/Cmd 키 조합
                     if (e.ctrlKey || e.metaKey) {
                         if (e.key === 'z') { e.preventDefault(); this.undo(); }
                         else if (e.key === 'y') { e.preventDefault(); this.redo(); }
@@ -705,6 +799,16 @@
                         else if (e.key === 's') { e.preventDefault(); this.saveLayout(); }
                         return;
                     }
+                    
+                    // ✅ Phase 1: Arrow Keys 처리
+                    if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(e.key.toLowerCase())) {
+                        e.preventDefault();
+                        const step = e.shiftKey ? 10 : 1;  // Shift = 10px, 기본 = 1px
+                        this.moveSelected(e.key.toLowerCase(), step);
+                        return;
+                    }
+                    
+                    // 일반 단축키
                     switch (e.key.toLowerCase()) {
                         case 'v': this.activateTool('select'); break;
                         case 'w': this.activateTool('wall'); break;
@@ -717,10 +821,16 @@
                         case '-': case '_': this.zoomOut(); break;
                         case '0': this.resetZoom(); break;
                         case 'delete': case 'backspace': this.deleteSelected(); break;
-                        case 'escape': this.deselectAll(); if (this.componentSubmenuVisible) this.toggleComponentSubmenu(); if (this.alignPopupVisible) this.hideAlignPopup(); if (this.shortcutsHelpVisible) this.toggleShortcutsHelp(); break;
+                        case 'escape': 
+                            this.deselectAll(); 
+                            if (this.componentSubmenuVisible) this.toggleComponentSubmenu(); 
+                            if (this.alignPopupVisible) this.hideAlignPopup(); 
+                            if (this.shortcutsHelpVisible) this.toggleShortcutsHelp(); 
+                            break;
                         case '?': this.toggleShortcutsHelp(); break;
                     }
                 });
+                
                 document.addEventListener('click', e => {
                     const toolbarContainer = document.getElementById('toolbar-container');
                     const alignPopup = document.getElementById('align-popup');
@@ -728,7 +838,52 @@
                     if (this.componentSubmenuVisible && !toolbarContainer.contains(e.target)) this.toggleComponentSubmenu();
                     if (this.alignPopupVisible && !alignPopup.contains(e.target) && !alignBtn.contains(e.target)) this.hideAlignPopup();
                 });
+                
                 window.addEventListener('resize', () => this.updateCanvasSize());
+            }
+            
+            // =====================================================
+            // ✅ Phase 1: Arrow Keys로 선택 객체 이동
+            // =====================================================
+            moveSelected(direction, step) {
+                const selected = this.canvas.selectedObjects;
+                if (!selected || selected.length === 0) {
+                    return;  // 선택된 객체 없으면 조용히 무시
+                }
+                
+                let dx = 0, dy = 0;
+                switch(direction) {
+                    case 'arrowleft':  dx = -step; break;
+                    case 'arrowright': dx = step; break;
+                    case 'arrowup':    dy = -step; break;
+                    case 'arrowdown':  dy = step; break;
+                }
+                
+                // ✅ GitHub MoveCommand 사용 (targets, deltaX, deltaY)
+                if (this.commandManager && typeof MoveCommand !== 'undefined') {
+                    // MoveCommand가 execute()에서 이동을 처리함
+                    const moveCommand = new MoveCommand(selected, dx, dy);
+                    this.commandManager.execute(moveCommand);
+                    
+                    // Transformer 위치 갱신
+                    if (this.canvas.transformer) {
+                        this.canvas.transformer.forceUpdate();
+                    }
+                } else {
+                    // CommandManager 없으면 직접 이동
+                    selected.forEach(shape => {
+                        shape.x(shape.x() + dx);
+                        shape.y(shape.y() + dy);
+                    });
+                    this.canvas.stage.batchDraw();
+                    
+                    if (this.canvas.transformer) {
+                        this.canvas.transformer.forceUpdate();
+                    }
+                }
+                
+                // 상태 업데이트
+                this.updateStatus();
             }
             
             activateTool(toolName) {
@@ -778,15 +933,78 @@
             }
             updateZoomDisplay() { const zoom = this.zoomController?.getZoom?.() || 1; document.getElementById('status-zoom').textContent = (zoom * 100).toFixed(0) + '%'; }
             
-            deleteSelected() { if (this.canvas.selectedObjects.length === 0) { this.showToast('선택된 객체 없음', 'info'); return; } const count = this.canvas.selectedObjects.length; this.canvas.deleteSelected(); this.updateObjectCount(); this.showToast(`${count}개 삭제됨`); }
+            deleteSelected() { 
+                if (this.canvas.selectedObjects.length === 0) { 
+                    this.showToast('선택된 객체 없음', 'info'); 
+                    return; 
+                } 
+                const count = this.canvas.selectedObjects.length; 
+                this.canvas.deleteSelected(); 
+                this.updateObjectCount(); 
+                this.showToast(`${count}개 삭제됨`); 
+            }
             deselectAll() { this.canvas.deselectAll(); this.propertyPanel?.hide(); this.updateStatus(); }
             selectAll() { this.selectionTool?.selectAll(); this.updateStatus(); this.showToast(`${this.canvas.selectedObjects.length}개 선택됨`, 'success'); }
             updateObjectCount() { setTimeout(() => { document.getElementById('status-objects').textContent = this.canvas.getObjectCount().total; }, 100); }
-            updateStatus() { document.getElementById('status-objects').textContent = this.canvas.getObjectCount().total; document.getElementById('status-selected').textContent = this.canvas.selectedObjects.length; this.updateZoomDisplay(); document.getElementById('status-grid').textContent = this.canvas.config.showGrid ? 'ON' : 'OFF'; document.getElementById('status-snap').textContent = this.canvas.config.snapToGrid ? 'ON' : 'OFF'; }
             
-            undo() { this.showToast('Undo 준비 중', 'info'); }
-            redo() { this.showToast('Redo 준비 중', 'info'); }
-            saveLayout() { const layout = this.canvas.getCurrentLayout(); const blob = new Blob([JSON.stringify(layout, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'layout_' + Date.now() + '.json'; link.click(); this.showToast('저장 완료!', 'success'); }
+            updateStatus() { 
+                document.getElementById('status-objects').textContent = this.canvas.getObjectCount().total; 
+                document.getElementById('status-selected').textContent = this.canvas.selectedObjects.length; 
+                this.updateZoomDisplay(); 
+                document.getElementById('status-grid').textContent = this.canvas.config.showGrid ? 'ON' : 'OFF'; 
+                document.getElementById('status-snap').textContent = this.canvas.config.snapToGrid ? 'ON' : 'OFF';
+                
+                // ✅ Phase 1: Undo/Redo 상태 업데이트
+                if (this.commandManager) {
+                    const historySize = this.commandManager.getHistorySize();
+                    document.getElementById('status-undo').textContent = historySize.undo;
+                    document.getElementById('status-redo').textContent = historySize.redo;
+                }
+            }
+            
+            // =====================================================
+            // ✅ Phase 1: Undo/Redo 실제 연동
+            // =====================================================
+            undo() { 
+                if (this.commandManager) {
+                    if (this.commandManager.canUndo()) {
+                        this.commandManager.undo();
+                        this.updateStatus();
+                        this.canvas.stage.batchDraw();
+                        this.showToast('↶ Undo', 'info');
+                    } else {
+                        this.showToast('Undo할 항목 없음', 'info');
+                    }
+                } else {
+                    this.showToast('CommandManager 로드 안됨', 'error');
+                }
+            }
+            
+            redo() { 
+                if (this.commandManager) {
+                    if (this.commandManager.canRedo()) {
+                        this.commandManager.redo();
+                        this.updateStatus();
+                        this.canvas.stage.batchDraw();
+                        this.showToast('↷ Redo', 'info');
+                    } else {
+                        this.showToast('Redo할 항목 없음', 'info');
+                    }
+                } else {
+                    this.showToast('CommandManager 로드 안됨', 'error');
+                }
+            }
+            
+            saveLayout() { 
+                const layout = this.canvas.getCurrentLayout(); 
+                const blob = new Blob([JSON.stringify(layout, null, 2)], { type: 'application/json' }); 
+                const link = document.createElement('a'); 
+                link.href = URL.createObjectURL(blob); 
+                link.download = 'layout_' + Date.now() + '.json'; 
+                link.click(); 
+                this.showToast('저장 완료!', 'success'); 
+            }
+            
             loadSampleLayout() {
                 this.canvas.loadLayout({ room: { width: 30, height: 20, walls: [], offices: [] }, equipment: [
                     { id: 'eq_1', x: 2, y: 5, width: 2, depth: 1.5, name: 'Equipment 1', rotation: 0 },
@@ -827,6 +1045,9 @@
             toggleShortcutsHelp() { this.shortcutsHelpVisible = !this.shortcutsHelpVisible; document.getElementById('shortcuts-help').classList.toggle('show', this.shortcutsHelpVisible); }
             showToast(message, type = 'info') { const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.textContent = message; document.body.appendChild(toast); setTimeout(() => { toast.style.animation = 'slideIn 0.3s reverse'; setTimeout(() => toast.remove(), 300); }, 2000); }
         }
+        
+        // ✅ Phase 1: Command.js에서 MoveCommand 로드됨 (GitHub v1.0.1)
+        // ✅ Phase 1: CommandManager.js에서 CommandManager 로드됨 (GitHub v1.0.1)
         
         document.addEventListener('DOMContentLoaded', () => {
             console.log('✅ DOM 로드 완료');
