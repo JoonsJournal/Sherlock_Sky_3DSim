@@ -8,18 +8,31 @@
  * 위치: frontend/threejs_viewer/src/layout-editor/bootstrap/index.js
  */
 
-/**
- * 모든 Bootstrap 함수 통합
- * 
- * 사용 예:
- * ```javascript
- * const { initLayoutServices, initLayoutUI, setupLayoutEvents } = window.LayoutEditorBootstrap;
- * 
- * const services = initLayoutServices();
- * const ui = initLayoutUI(services);
- * const { cleanup } = setupLayoutEvents(services, ui, handlers);
- * ```
- */
+// =====================================================
+// 의존성 확인
+// =====================================================
+function checkDependencies() {
+    const required = {
+        'initLayoutServices': window.initLayoutServices,
+        'initLayoutUI': window.initLayoutUI,
+        'setupLayoutEvents': window.setupLayoutEvents
+    };
+    
+    const missing = Object.entries(required)
+        .filter(([name, fn]) => typeof fn !== 'function')
+        .map(([name]) => name);
+    
+    if (missing.length > 0) {
+        console.error('❌ Bootstrap 의존성 누락:', missing.join(', '));
+        console.error('💡 다음 파일들이 index.js보다 먼저 로드되어야 합니다:');
+        console.error('   - initLayoutServices.js');
+        console.error('   - initLayoutUI.js');
+        console.error('   - setupLayoutEvents.js');
+        return false;
+    }
+    
+    return true;
+}
 
 // =====================================================
 // 통합 초기화 함수
@@ -33,22 +46,30 @@
 function initLayoutEditor(options = {}) {
     console.log('🚀 Layout Editor 초기화 시작...');
     
+    // 의존성 확인
+    if (!checkDependencies()) {
+        throw new Error('Bootstrap 의존성이 누락되었습니다. 콘솔을 확인하세요.');
+    }
+    
     const state = window.layoutEditorState || createFallbackState();
+    
+    // UI 변수 선언 (콜백에서 참조)
+    let ui = null;
     
     // 1. 서비스 초기화
     const services = window.initLayoutServices({
         containerId: options.containerId || 'canvas-container',
         onToolChanged: options.onToolChanged,
-        onToast: (msg, type) => ui?.showToast(msg, type),
+        onToast: (msg, type) => ui?.showToast?.(msg, type),
         onComponentCreated: (comp, shape) => {
-            ui?.uiService?.updateStatus();
-            ui?.showToast(`${comp.name} 생성됨`, 'success');
+            ui?.uiService?.updateStatus?.();
+            ui?.showToast?.(`${comp.name} 생성됨`, 'success');
         },
-        onStatusUpdate: () => ui?.uiService?.updateStatus()
+        onStatusUpdate: () => ui?.uiService?.updateStatus?.()
     });
     
     // 2. UI 초기화
-    const ui = window.initLayoutUI(services);
+    ui = window.initLayoutUI(services);
     
     // 3. 이벤트 설정
     const handlers = createDefaultHandlers(services, ui, options);
@@ -187,40 +208,47 @@ function createFallbackState() {
 // 전역 노출
 // =====================================================
 if (typeof window !== 'undefined') {
+    // 안전한 함수 참조 (undefined 방지)
+    const safeGet = (fn) => typeof fn === 'function' ? fn : undefined;
+    
     window.LayoutEditorBootstrap = {
         // 통합 초기화
         initLayoutEditor,
         createDefaultHandlers,
         createFallbackState,
+        checkDependencies,
         
-        // 개별 초기화 (initLayoutServices.js)
-        initLayoutServices: window.initLayoutServices,
-        initCanvas: window.initCanvas,
-        initCommandManager: window.initCommandManager,
-        initToolService: window.initToolService,
-        initComponentService: window.initComponentService,
-        initKeyboardService: window.initKeyboardService,
-        calculateCanvasSize: window.calculateCanvasSize,
+        // 개별 초기화 (initLayoutServices.js) - 안전한 참조
+        initLayoutServices: safeGet(window.initLayoutServices),
+        initCanvas: safeGet(window.initCanvas),
+        initCommandManager: safeGet(window.initCommandManager),
+        initToolService: safeGet(window.initToolService),
+        initComponentService: safeGet(window.initComponentService),
+        initKeyboardService: safeGet(window.initKeyboardService),
+        calculateCanvasSize: safeGet(window.calculateCanvasSize),
         
-        // UI 초기화 (initLayoutUI.js)
-        initLayoutUI: window.initLayoutUI,
-        initUIService: window.initUIService,
-        setupComponentSubmenu: window.setupComponentSubmenu,
-        setupDropZone: window.setupDropZone,
-        hideLoading: window.hideLoading,
-        showToast: window.showToast,
+        // UI 초기화 (initLayoutUI.js) - 안전한 참조
+        initLayoutUI: safeGet(window.initLayoutUI),
+        initUIService: safeGet(window.initUIService),
+        setupComponentSubmenu: safeGet(window.setupComponentSubmenu),
+        setupDropZone: safeGet(window.setupDropZone),
+        hideLoading: safeGet(window.hideLoading),
+        showToast: safeGet(window.showToast),
         
-        // 이벤트 설정 (setupLayoutEvents.js)
-        setupLayoutEvents: window.setupLayoutEvents,
-        registerKeyboardActions: window.registerKeyboardActions,
-        bindToolbarButtons: window.bindToolbarButtons,
-        setupResizeHandler: window.setupResizeHandler,
-        subscribeToStateEvents: window.subscribeToStateEvents,
-        createCleanup: window.createCleanup
+        // 이벤트 설정 (setupLayoutEvents.js) - 안전한 참조
+        setupLayoutEvents: safeGet(window.setupLayoutEvents),
+        registerKeyboardActions: safeGet(window.registerKeyboardActions),
+        bindToolbarButtons: safeGet(window.bindToolbarButtons),
+        setupResizeHandler: safeGet(window.setupResizeHandler),
+        subscribeToStateEvents: safeGet(window.subscribeToStateEvents),
+        createCleanup: safeGet(window.createCleanup)
     };
     
     // 편의를 위해 initLayoutEditor도 직접 노출
     window.initLayoutEditor = initLayoutEditor;
+    
+    // 의존성 상태 출력
+    checkDependencies();
 }
 
 console.log('✅ bootstrap/index.js 로드 완료');
