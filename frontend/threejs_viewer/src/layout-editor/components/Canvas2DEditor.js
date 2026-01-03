@@ -1183,6 +1183,101 @@ class Canvas2DEditor {
     }
 
     // =====================================================
+    // Grid / Snap 토글
+    // =====================================================
+
+    /**
+     * 그리드 표시 토글
+     * @returns {boolean} 현재 그리드 표시 상태
+     */
+    toggleGrid() {
+        this.config.showGrid = !this.config.showGrid;
+        
+        if (this.config.showGrid) {
+            if (this.renderer) {
+                this.renderer.redrawGrid();
+            }
+        } else {
+            // 그리드 숨기기
+            if (this.layers.background) {
+                this.layers.background.destroyChildren();
+                this.layers.background.batchDraw();
+            }
+        }
+        
+        console.log('[Canvas2DEditor] 그리드 토글:', this.config.showGrid);
+        return this.config.showGrid;
+    }
+
+    /**
+     * 스냅 토글
+     * @returns {boolean} 현재 스냅 상태
+     */
+    toggleSnapToGrid() {
+        this.config.snapToGrid = !this.config.snapToGrid;
+        
+        if (this.snapManager) {
+            this.snapManager.setEnabled(this.config.snapToGrid);
+        }
+        
+        console.log('[Canvas2DEditor] 스냅 토글:', this.config.snapToGrid);
+        return this.config.snapToGrid;
+    }
+
+    // =====================================================
+    // 삭제
+    // =====================================================
+
+    /**
+     * 선택된 객체 삭제
+     * @returns {number} 삭제된 객체 수
+     */
+    deleteSelected() {
+        const selectedObjects = this.selectedObjects;
+        
+        if (selectedObjects.length === 0) {
+            console.log('[Canvas2DEditor] 삭제할 객체 없음');
+            return 0;
+        }
+        
+        const count = selectedObjects.length;
+        
+        // 각 객체 삭제
+        selectedObjects.forEach(shape => {
+            const id = shape.id();
+            
+            // Map에서 제거
+            if (this.equipmentShapes.has(id)) {
+                this.equipmentShapes.delete(id);
+            }
+            if (this.wallShapes.has(id)) {
+                this.wallShapes.delete(id);
+            }
+            if (this.componentShapes.has(id)) {
+                this.componentShapes.delete(id);
+            }
+            
+            // LayerManager에서 제거
+            if (this.layerManager) {
+                this.layerManager.removeShape(id);
+            }
+            
+            // Shape 파괴
+            shape.destroy();
+        });
+        
+        // 선택 해제
+        this.deselectAll();
+        
+        // 레이어 다시 그리기
+        this.layers.room.batchDraw();
+        this.layers.equipment.batchDraw();
+        
+        console.log(`[Canvas2DEditor] ${count}개 객체 삭제됨`);
+        return count;
+    }
+
+    // =====================================================
     // 유틸리티
     // =====================================================
 
