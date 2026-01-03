@@ -122,6 +122,12 @@ export const EVENT_NAME = Object.freeze({
     CONNECTION_STATUS: 'connection:status',
     CONNECTION_CHANGE: 'connection:change',
     
+    // ⭐ 매핑 관련 (신규 추가)
+    MAPPING_CHANGE: 'mapping:change',
+    MAPPING_SAVED: 'mapping:saved',
+    MAPPING_LOADED: 'mapping:loaded',
+    MAPPING_VALIDATED: 'mapping:validated',
+    
     // UI 관련
     MODAL_OPEN: 'modal:open',
     MODAL_CLOSE: 'modal:close',
@@ -141,16 +147,22 @@ export const API_ENDPOINTS = Object.freeze({
     HEALTH: '/health',
     
     // Connection
-    CONNECTION_PROFILES: '/connection/profiles',
-    CONNECTION_STATUS: '/connection/status',
-    CONNECTION_CONNECT: '/connection/connect',
-    CONNECTION_DISCONNECT: '/connection/disconnect',
+    CONNECTION_PROFILES: '/connections/profiles',
+    CONNECTION_SITE_PROFILES: '/connections/site-profiles',
+    CONNECTION_STATUS: '/connections/status',
+    CONNECTION_STATUS_LIST: '/connections/connection-status',
+    CONNECTION_CONNECT: '/connections/connect',
+    CONNECTION_DISCONNECT: '/connections/disconnect',
+    CONNECTION_DATABASE_INFO: '/connections/database-info',
     
     // Equipment
     EQUIPMENT_LIST: '/equipment',
     EQUIPMENT_NAMES: '/equipment/names',
     EQUIPMENT_STATUS: '/equipment/status',
+    
+    // ⭐ Equipment Mapping (신규 추가)
     EQUIPMENT_MAPPING: '/equipment/mapping',
+    EQUIPMENT_MAPPING_VALIDATE: '/equipment/mapping/validate',
     
     // Layout
     LAYOUT_GET: '/layout',
@@ -187,7 +199,9 @@ export const STORAGE_KEY = Object.freeze({
     AUTO_CONNECT: 'sherlock_autoConnect',
     DEBUG_MODE: 'sherlock_debugMode',
     CAMERA_POSITION: 'sherlock_cameraPosition',
-    UI_PREFERENCES: 'sherlock_uiPreferences'
+    UI_PREFERENCES: 'sherlock_uiPreferences',
+    // ⭐ 매핑 관련 (신규 추가)
+    EQUIPMENT_MAPPINGS: 'sherlock_equipment_mappings'
 });
 
 // =====================================================
@@ -200,5 +214,8 @@ export const DEFAULTS = Object.freeze({
     DEBOUNCE_DELAY: 150,           // ms
     HEALTH_CHECK_INTERVAL: 30000,  // ms
     MAX_RETRY_COUNT: 3,
-    SNAP_THRESHOLD: 15             // px
+    SNAP_THRESHOLD: 15,            // px
+    // ⭐ 매핑 관련 (신규 추가)
+    TOTAL_EQUIPMENTS: 117,         // 전체 설비 수
+    MAPPING_CACHE_DURATION: 300000 // 5분 (ms)
 });

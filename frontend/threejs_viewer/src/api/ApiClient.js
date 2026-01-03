@@ -179,7 +179,7 @@ export class ApiClient {
     }
     
     // ============================================
-    // ⭐ 새로 추가: Equipment Mapping API
+    // ⭐ Equipment Mapping API
     // ============================================
     
     /**
@@ -198,11 +198,11 @@ export class ApiClient {
     
     /**
      * 설비 매핑 데이터 저장
-     * @param {Array} mappings - [{ frontend_id, equipment_id, equipment_name }, ...]
+     * @param {Object} data - { mappings: [{ frontend_id, equipment_id, equipment_name }, ...] }
      * @returns {Promise<Object>}
      */
-    async saveEquipmentMappings(mappings) {
-        return await this.post('/equipment/mapping', mappings);
+    async saveEquipmentMappings(data) {
+        return await this.post('/equipment/mapping', data);
     }
     
     /**
@@ -226,6 +226,27 @@ export class ApiClient {
      */
     async deleteEquipmentMapping(frontendId) {
         return await this.delete(`/equipment/mapping/${frontendId}`);
+    }
+    
+    /**
+     * ⭐ 매핑 유효성 검증 (신규 추가)
+     * @param {Object} data - { mappings: [{ frontend_id, equipment_id, equipment_name }, ...] }
+     * @returns {Promise<Object>} ValidationResult
+     */
+    async validateEquipmentMapping(data) {
+        try {
+            const result = await this.post('/equipment/mapping/validate', data);
+            return result;
+        } catch (error) {
+            console.error('Validate equipment mapping error:', error);
+            return {
+                valid: false,
+                errors: [error.message || 'Validation request failed'],
+                warnings: [],
+                duplicates: {},
+                missing: []
+            };
+        }
     }
     
     // ============================================
@@ -414,7 +435,7 @@ export class ApiClient {
     async testConnection() {
         try {
             await this.get('/equipment');
-            console.log('✓ API 연결 성공');
+            console.log('✔ API 연결 성공');
             return true;
         } catch (error) {
             console.error('✗ API 연결 실패:', error);
