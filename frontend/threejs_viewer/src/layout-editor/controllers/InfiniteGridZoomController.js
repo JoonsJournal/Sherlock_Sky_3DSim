@@ -1,8 +1,12 @@
 /**
- * InfiniteGridZoomController.js v1.0.0
+ * InfiniteGridZoomController.js v1.1.0
  * =====================================
  * 
  * 무한 그리드 지원 ZoomController 확장
+ * 
+ * ✨ v1.1.0 수정:
+ * - ✅ Zoom 변경 시 SnapManager.setZoomLevel() 호출
+ * - ✅ GridSnap과 Zoom 레벨 동기화
  * 
  * 기능:
  * - 뷰포트 기반 동적 그리드 렌더링
@@ -42,7 +46,22 @@ class InfiniteGridZoomController extends ZoomController {
             label: options.labelColor || '#888888'
         };
         
-        console.log('[InfiniteGridZoomController] 초기화 완료 v1.0.0');
+        console.log('[InfiniteGridZoomController] 초기화 완료 v1.1.0');
+    }
+    
+    /**
+     * ✨ v1.1.0: SnapManager에 Zoom 레벨 전달
+     * @private
+     */
+    _syncZoomToSnapManager() {
+        if (this.editor.snapManager) {
+            this.editor.snapManager.setZoomLevel(this.currentZoom);
+        }
+        
+        // GridSnap에도 직접 전달 (폴백)
+        if (this.editor.snapManager?.gridSnap) {
+            this.editor.snapManager.gridSnap.setZoomLevel(this.currentZoom);
+        }
     }
     
     /**
@@ -185,6 +204,9 @@ class InfiniteGridZoomController extends ZoomController {
     handleWheel(e) {
         super.handleWheel(e);
         this.updateGrid();
+        
+        // ✨ v1.1.0: SnapManager 동기화
+        this._syncZoomToSnapManager();
     }
     
     /**
@@ -194,6 +216,9 @@ class InfiniteGridZoomController extends ZoomController {
     setZoom(newZoom) {
         super.setZoom(newZoom);
         this.updateGrid();
+        
+        // ✨ v1.1.0: SnapManager 동기화
+        this._syncZoomToSnapManager();
     }
     
     /**
@@ -224,6 +249,9 @@ class InfiniteGridZoomController extends ZoomController {
         
         this.updateGrid();
         this.editor.stage.batchDraw();
+        
+        // ✨ v1.1.0: SnapManager 동기화
+        this._syncZoomToSnapManager();
     }
     
     /**
@@ -254,6 +282,9 @@ class InfiniteGridZoomController extends ZoomController {
         
         this.updateGrid();
         this.editor.stage.batchDraw();
+        
+        // ✨ v1.1.0: SnapManager 동기화
+        this._syncZoomToSnapManager();
     }
     
     /**
@@ -262,6 +293,9 @@ class InfiniteGridZoomController extends ZoomController {
     resetZoom() {
         super.resetZoom();
         this.updateGrid();
+        
+        // ✨ v1.1.0: SnapManager 동기화
+        this._syncZoomToSnapManager();
     }
     
     /**

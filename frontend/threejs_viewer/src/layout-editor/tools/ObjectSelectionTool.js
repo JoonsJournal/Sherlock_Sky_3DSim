@@ -1,6 +1,10 @@
 /**
- * ObjectSelectionTool.js v5.0.0
+ * ObjectSelectionTool.js v5.0.1
  * ====================================================
+ * 
+ * ✨ v5.0.1 수정:
+ * - ✅ dragend에서 동적 Grid 크기 사용 (Zoom 레벨 연동)
+ * - ✅ SnapManager.gridSnap.getCurrentGridSize() 활용
  * 
  * ✨ v5.0.0 수정 (Phase 5.1 - Tool-Command 통합):
  * - ✅ CommandManager 연동으로 Undo/Redo 지원
@@ -399,9 +403,20 @@ class ObjectSelectionTool {
                 this.editor.smartGuideManager.clearGuides();
             }
             
-            // ✅ Snap to Grid 적용
+            // ✅ v5.0.1: Snap to Grid 적용 (동적 Grid 크기 지원)
             if (this.editor.config.snapToGrid) {
-                const gridSize = this.editor.config.gridSize;
+                // SnapManager 또는 GridSnap에서 현재 Grid 크기 가져오기 (Zoom 레벨 고려)
+                let gridSize = this.editor.config.gridSize;  // 기본값 (폴백)
+                
+                // 우선순위: SnapManager.gridSnap > SnapManager.getCurrentGridSize > config.gridSize
+                if (this.editor.snapManager?.gridSnap?.getCurrentGridSize) {
+                    gridSize = this.editor.snapManager.gridSnap.getCurrentGridSize();
+                } else if (this.editor.snapManager?.getCurrentGridSize) {
+                    gridSize = this.editor.snapManager.getCurrentGridSize();
+                }
+                
+                console.log(`[ObjectSelectionTool] Snap Grid Size: ${gridSize}px`);
+                
                 this.editor.selectedObjects.forEach(obj => {
                     obj.x(Math.round(obj.x() / gridSize) * gridSize);
                     obj.y(Math.round(obj.y() / gridSize) * gridSize);

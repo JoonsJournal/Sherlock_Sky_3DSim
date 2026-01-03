@@ -1,6 +1,9 @@
 /**
- * Canvas2DEditor.js v6.0.0 (완전 리팩토링 버전)
+ * Canvas2DEditor.js v6.0.1 (완전 리팩토링 버전)
  * ==============================================
+ * 
+ * ✨ v6.0.1 수정:
+ * - ✅ toggleSnapToGrid()에서 enable()/disable() 메서드 사용
  * 
  * Phase 4 리팩토링: 모듈 완전 분리 및 통합
  * 
@@ -1211,13 +1214,19 @@ class Canvas2DEditor {
 
     /**
      * 스냅 토글
+     * ✨ v6.0.1: enable()/disable() 메서드 사용으로 수정
      * @returns {boolean} 현재 스냅 상태
      */
     toggleSnapToGrid() {
         this.config.snapToGrid = !this.config.snapToGrid;
         
+        // ✨ v6.0.1: SnapManager의 enable()/disable() 메서드 사용
         if (this.snapManager) {
-            this.snapManager.setEnabled(this.config.snapToGrid);
+            if (this.config.snapToGrid) {
+                this.snapManager.enable();
+            } else {
+                this.snapManager.disable();
+            }
         }
         
         console.log('[Canvas2DEditor] 스냅 토글:', this.config.snapToGrid);

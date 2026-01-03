@@ -1,10 +1,14 @@
 /**
- * SnapManager.js
- * ================
+ * SnapManager.js v1.1.0
+ * ======================
  * 
  * 스냅 시스템 통합 관리자
  * 
- * @version 1.0.0 - Phase 1.5
+ * ✨ v1.1.0 수정:
+ * - ✅ setEnabled(boolean) 편의 메서드 추가
+ * - ✅ isEnabled() 상태 조회 메서드 추가
+ * 
+ * @version 1.1.0 - Phase 5.1
  * @module SnapManager
  * 
  * 역할:
@@ -14,7 +18,7 @@
  * 4. 스냅 시각화 (스냅 포인트 표시)
  * 5. 스냅 모드 전환 (Grid, Object, Guide, MICE)
  * 
- * 위치: frontend/threejs_viewer/src/layout_editor/snap/SnapManager.js
+ * 위치: frontend/threejs_viewer/src/layout-editor/snap/SnapManager.js
  */
 
 class SnapManager {
@@ -77,7 +81,7 @@ class SnapManager {
             onSnapModeChange: options.onSnapModeChange || null
         };
         
-        console.log('[SnapManager] 초기화 완료 v1.0.0');
+        console.log('[SnapManager] 초기화 완료 v1.1.0');
     }
     
     // =====================================================
@@ -117,6 +121,7 @@ class SnapManager {
      */
     enable() {
         this.config.enabled = true;
+        console.log('[SnapManager] 스냅 활성화');
     }
     
     /**
@@ -125,6 +130,27 @@ class SnapManager {
     disable() {
         this.config.enabled = false;
         this.clearIndicators();
+        console.log('[SnapManager] 스냅 비활성화');
+    }
+    
+    /**
+     * ✨ v1.1.0: 스냅 활성화/비활성화 (편의 메서드)
+     * @param {boolean} enabled - true: 활성화, false: 비활성화
+     */
+    setEnabled(enabled) {
+        if (enabled) {
+            this.enable();
+        } else {
+            this.disable();
+        }
+    }
+    
+    /**
+     * ✨ v1.1.0: 스냅 활성화 상태 조회
+     * @returns {boolean}
+     */
+    isEnabled() {
+        return this.config.enabled;
     }
     
     /**
@@ -204,6 +230,8 @@ class SnapManager {
         if (this.gridSnap) {
             this.gridSnap.setZoomLevel(zoom);
         }
+        
+        console.log(`[SnapManager] Zoom 레벨 설정: ${zoom.toFixed(2)}`);
     }
     
     /**
@@ -222,6 +250,17 @@ class SnapManager {
             this.config.minThreshold,
             Math.min(this.config.maxThreshold, adjustedThreshold)
         );
+    }
+    
+    /**
+     * ✨ v1.1.0: 현재 Grid 크기 반환 (Zoom 레벨 고려)
+     * @returns {number}
+     */
+    getCurrentGridSize() {
+        if (this.gridSnap) {
+            return this.gridSnap.getCurrentGridSize();
+        }
+        return 10;  // 기본값
     }
     
     // =====================================================
@@ -672,4 +711,3 @@ if (typeof module === 'undefined' && typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = SnapManager;
 }
-
