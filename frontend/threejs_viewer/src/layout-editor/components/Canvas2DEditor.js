@@ -1,6 +1,12 @@
 /**
- * Canvas2DEditor.js v6.0.1 (완전 리팩토링 버전)
- * ==============================================
+ * Canvas2DEditor.js v6.1.0 (EditorStateManager 통합)
+ * ===================================================
+ * 
+ * ✨ v6.1.0 수정 (EditorStateManager 통합):
+ * - ✅ stateManager 속성 추가
+ * - ✅ deselectAll() → stateManager.clearSelection() 위임
+ * - ✅ deleteSelected() → stateManager 사용
+ * - ✅ clearSelection() 편의 메서드 추가
  * 
  * ✨ v6.0.1 수정:
  * - ✅ toggleSnapToGrid()에서 enable()/disable() 메서드 사용
@@ -11,22 +17,10 @@
  * - LayerManager.js: 레이어 및 Shape 저장소 관리
  * - CanvasRenderer.js: 모든 렌더링 담당
  * - CanvasEventHandler.js: 이벤트 처리
- * - Selection2DManager.js: 선택 상태 관리 ✨ NEW
- * - SelectionRenderer.js: 선택 시각화 ✨ NEW
- * - LayoutExporter.js: Layout Export ✨ NEW
- * 
- * 이 파일의 역할:
- * - 메인 오케스트레이터 (최소화)
- * - 모듈 초기화 및 조율
- * - 공용 API 제공
- * - 도구 연동
- * 
- * ✨ v6.0.0 변경사항 (Phase 4):
- * - Selection2DManager 통합 (선택 상태 관리 위임)
- * - SelectionRenderer 통합 (선택 시각화 위임)
- * - LayoutExporter 통합 (Export 로직 위임)
- * - Fallback 렌더링 메서드 제거 (CanvasRenderer 사용)
- * - 파일 크기 대폭 감소 (2300줄 → ~800줄)
+ * - Selection2DManager.js: 선택 상태 관리
+ * - SelectionRenderer.js: 선택 시각화
+ * - LayoutExporter.js: Layout Export
+ * - EditorStateManager.js: 통합 상태 관리 ✨ NEW
  * 
  * 위치: frontend/threejs_viewer/src/layout-editor/components/Canvas2DEditor.js
  */
@@ -40,7 +34,7 @@ class Canvas2DEditor {
             throw new Error(`Container with id "${containerId}" not found`);
         }
 
-        // ✅ CSS 변수 로드
+        // CSS 변수 로드
         this.loadCSSColors();
 
         // 기본 설정
@@ -60,13 +54,16 @@ class Canvas2DEditor {
         // Konva Stage
         this.stage = null;
         
-        // ✨ v6.0.0: 분리된 모듈 참조
+        // 분리된 모듈 참조
         this.layerManager = null;
         this.renderer = null;
         this.eventHandler = null;
-        this.selectionManager = null;      // ✨ NEW
-        this.selectionRenderer = null;     // ✨ NEW
-        this.layoutExporter = null;        // ✨ NEW
+        this.selectionManager = null;
+        this.selectionRenderer = null;
+        this.layoutExporter = null;
+        
+        // ✨ v6.1.0: EditorStateManager 참조
+        this.stateManager = null;
 
         // 하위 호환성을 위한 layers 프록시
         this.layers = null;
@@ -79,13 +76,13 @@ class Canvas2DEditor {
         // 현재 레이아웃
         this.currentLayout = null;
 
-        // 하위 호환성: selectedObjects 프록시 (Selection2DManager에서 가져옴)
+        // 하위 호환성: selectedObjects 프록시
         this._selectedObjectsProxy = null;
 
         // Transformer 참조 (하위 호환성)
         this.transformer = null;
         
-        // 박스 선택 플래그 (ObjectSelectionTool 연동)
+        // 박스 선택 플래그
         this._isBoxSelecting = false;
 
         // 외부 도구/매니저 참조
@@ -97,6 +94,7 @@ class Canvas2DEditor {
         this.smartGuideManager = null;
         this.snapManager = null;
         this.fenceSelection = null;
+        this.alignmentGuide = null;  // ✨ v6.1.0: 추가
 
         // 초기화
         this.init();
@@ -205,7 +203,7 @@ class Canvas2DEditor {
     // =====================================================
 
     init() {
-        console.log('[Canvas2DEditor] 초기화 시작 v6.0.0...');
+        console.log('[Canvas2DEditor] 초기화 시작 v6.1.0...');
         
         // 1. Konva Stage 생성
         this.stage = new Konva.Stage({
@@ -228,13 +226,13 @@ class Canvas2DEditor {
             this.renderer.drawGrid();
         }
 
-        // 6. ✨ Selection2DManager 초기화
+        // 6. Selection2DManager 초기화
         this.initSelectionManager();
 
-        // 7. ✨ SelectionRenderer 초기화
+        // 7. SelectionRenderer 초기화
         this.initSelectionRenderer();
 
-        // 8. ✨ LayoutExporter 초기화
+        // 8. LayoutExporter 초기화
         this.initLayoutExporter();
 
         // 9. SmartGuideManager 초기화
@@ -246,7 +244,7 @@ class Canvas2DEditor {
         // 11. FenceSelection 초기화
         this.initFenceSelection();
 
-        console.log('[Canvas2DEditor] 초기화 완료 v6.0.0');
+        console.log('[Canvas2DEditor] 초기화 완료 v6.1.0');
     }
 
     // =====================================================
@@ -400,10 +398,7 @@ class Canvas2DEditor {
         });
     }
 
-    // =====================================================
-    // ✨ v6.0.0: Selection2DManager 초기화
-    // =====================================================
-
+    // Selection2DManager 초기화
     initSelectionManager() {
         const Selection2DManagerClass = window.Selection2DManager || (typeof Selection2DManager !== 'undefined' ? Selection2DManager : null);
         
@@ -414,19 +409,16 @@ class Canvas2DEditor {
 
         this.selectionManager = new Selection2DManagerClass({
             onSelect: (shape) => {
-                // 선택 시 시각화 적용
                 if (this.selectionRenderer) {
                     this.selectionRenderer.applySelectionHighlight(shape);
                 }
             },
             onDeselect: (shape) => {
-                // 선택 해제 시 시각화 제거
                 if (this.selectionRenderer) {
                     this.selectionRenderer.removeSelectionHighlight(shape);
                 }
             },
             onSelectionChange: (objects, info) => {
-                // 선택 변경 시 Transformer 업데이트
                 this.updateTransformer();
                 this.updatePropertyPanel();
                 console.log(`[Canvas2DEditor] 선택 변경: ${info.count}개`);
@@ -436,10 +428,7 @@ class Canvas2DEditor {
         console.log('[Canvas2DEditor] Selection2DManager 초기화 완료');
     }
 
-    // =====================================================
-    // ✨ v6.0.0: SelectionRenderer 초기화
-    // =====================================================
-
+    // SelectionRenderer 초기화
     initSelectionRenderer() {
         const SelectionRendererClass = window.SelectionRenderer || (typeof SelectionRenderer !== 'undefined' ? SelectionRenderer : null);
         
@@ -451,19 +440,13 @@ class Canvas2DEditor {
         this.selectionRenderer = new SelectionRendererClass(
             this.layers.ui,
             this.cssColors,
-            {
-                rotateEnabled: true,
-                keepRatio: false
-            }
+            { rotateEnabled: true, keepRatio: false }
         );
 
         console.log('[Canvas2DEditor] SelectionRenderer 초기화 완료');
     }
 
-    // =====================================================
-    // ✨ v6.0.0: LayoutExporter 초기화
-    // =====================================================
-
+    // LayoutExporter 초기화
     initLayoutExporter() {
         const LayoutExporterClass = window.LayoutExporter || (typeof LayoutExporter !== 'undefined' ? LayoutExporter : null);
         
@@ -480,10 +463,7 @@ class Canvas2DEditor {
         console.log('[Canvas2DEditor] LayoutExporter 초기화 완료');
     }
 
-    // =====================================================
     // 외부 매니저 초기화
-    // =====================================================
-
     initSmartGuideManager() {
         if (typeof SmartGuideManager === 'undefined') {
             console.warn('[Canvas2DEditor] SmartGuideManager 클래스를 찾을 수 없습니다');
@@ -497,7 +477,8 @@ class Canvas2DEditor {
             lineColor: this.cssColors.transformerBorder || '#667eea',
             showDistance: true,
             alignEdges: true,
-            alignCenters: true
+            alignCenters: true,
+            stage: this.stage  // ✨ Stage 전달
         });
 
         console.log('[Canvas2DEditor] SmartGuideManager 초기화 완료');
@@ -524,9 +505,7 @@ class Canvas2DEditor {
 
         let miceSnapPoints = null;
         if (typeof MICESnapPoints !== 'undefined') {
-            miceSnapPoints = new MICESnapPoints(this.layers.ui, {
-                enabled: false
-            });
+            miceSnapPoints = new MICESnapPoints(this.layers.ui, { enabled: false });
         }
 
         this.snapManager = new SnapManager({
@@ -567,13 +546,23 @@ class Canvas2DEditor {
     }
 
     // =====================================================
-    // ✨ v6.0.0: 선택 관리 (Selection2DManager 위임)
+    // ✨ v6.1.0: EditorStateManager 설정
+    // =====================================================
+
+    /**
+     * StateManager 설정 (initLayoutServices에서 호출)
+     */
+    setStateManager(stateManager) {
+        this.stateManager = stateManager;
+        console.log('[Canvas2DEditor] EditorStateManager 설정 완료');
+    }
+
+    // =====================================================
+    // 선택 관리 (Selection2DManager 위임)
     // =====================================================
 
     /**
      * 객체 선택
-     * @param {Konva.Shape|Konva.Group} shape - 선택할 Shape
-     * @param {boolean} multiSelect - 다중 선택 여부
      */
     selectObject(shape, multiSelect = false) {
         if (!shape) return;
@@ -583,14 +572,12 @@ class Canvas2DEditor {
         if (this.selectionManager) {
             this.selectionManager.selectObject(shape, multiSelect);
         } else {
-            // Fallback: 직접 처리
             this._selectObjectFallback(shape, multiSelect);
         }
     }
 
     /**
      * 다중 선택
-     * @param {Konva.Shape|Konva.Group} shape - 추가 선택할 Shape
      */
     selectMultiple(shape) {
         this.selectObject(shape, true);
@@ -598,7 +585,6 @@ class Canvas2DEditor {
 
     /**
      * 객체 선택 해제
-     * @param {Konva.Shape|Konva.Group} shape - 선택 해제할 Shape
      */
     deselectObject(shape) {
         if (this.selectionManager) {
@@ -608,27 +594,32 @@ class Canvas2DEditor {
     }
 
     /**
-     * 전체 선택 해제
+     * ✨ v6.1.0: 전체 선택 해제 (StateManager 사용)
      */
     deselectAll() {
         console.log('[Canvas2DEditor] deselectAll');
         
+        // ✨ v6.1.0: StateManager가 있으면 사용
+        if (this.stateManager) {
+            this.stateManager.clearSelection();
+            this.updatePropertyPanel();
+            return;
+        }
+        
+        // 폴백: 기존 방식
         if (this.selectionManager) {
             this.selectionManager.deselectAll();
         }
         
-        // HandleManager 해제
         if (this.handleManager) {
             this.handleManager.detach();
         }
         
-        // Transformer 해제
         if (this.transformer) {
             this.transformer.destroy();
             this.transformer = null;
         }
         
-        // SelectionRenderer 정리
         if (this.selectionRenderer) {
             this.selectionRenderer.destroyTransformer();
         }
@@ -640,6 +631,13 @@ class Canvas2DEditor {
     }
 
     /**
+     * ✨ v6.1.0: clearSelection 편의 메서드 (StateManager 래퍼)
+     */
+    clearSelection() {
+        this.deselectAll();
+    }
+
+    /**
      * selectShape 별칭 (하위 호환성)
      */
     selectShape(shape) {
@@ -647,7 +645,7 @@ class Canvas2DEditor {
     }
 
     /**
-     * 선택 Fallback (Selection2DManager 없을 때)
+     * 선택 Fallback
      * @private
      */
     _selectObjectFallback(shape, multiSelect) {
@@ -665,7 +663,6 @@ class Canvas2DEditor {
 
         this._selectedObjectsProxy.push(shape);
         
-        // 시각화 적용
         if (this.selectionRenderer) {
             this.selectionRenderer.applySelectionHighlight(shape);
         }
@@ -712,7 +709,6 @@ class Canvas2DEditor {
             } else {
                 this.handleManager.attachTo(selectedObjects);
                 
-                // 객체 타입에 따른 모드 설정
                 const firstObj = selectedObjects[0];
                 const objName = firstObj.name() || '';
                 
@@ -736,7 +732,7 @@ class Canvas2DEditor {
             return;
         }
 
-        // Fallback: 직접 Transformer 생성
+        // Fallback
         if (this.transformer) {
             this.transformer.destroy();
         }
@@ -798,10 +794,6 @@ class Canvas2DEditor {
         console.log('[Canvas2DEditor] ZoomController 설정 완료');
     }
 
-    // =====================================================
-    // WallDrawTool 연동
-    // =====================================================
-
     setWallDrawTool(wallDrawTool) {
         this.wallDrawTool = wallDrawTool;
         console.log('[Canvas2DEditor] WallDrawTool 설정 완료');
@@ -822,7 +814,6 @@ class Canvas2DEditor {
     getAllSelectableShapes() {
         const shapes = [];
         
-        // Equipment 레이어
         if (this.layers.equipment) {
             const equipments = this.layers.equipment.find('.equipment');
             equipments.forEach(shape => {
@@ -832,7 +823,6 @@ class Canvas2DEditor {
             });
         }
         
-        // Room 레이어 (Wall, Office, Component)
         if (this.layers.room) {
             const roomShapes = this.layers.room.getChildren();
             roomShapes.forEach(shape => {
@@ -855,49 +845,40 @@ class Canvas2DEditor {
         console.log('[Canvas2DEditor] Layout 로드 시작...');
         
         this.currentLayout = layoutData;
-
-        // 기존 내용 클리어
         this.clearLayout();
 
-        // Room 렌더링
         if (layoutData.room) {
             this.renderer.drawRoom(layoutData.room);
         }
 
-        // Walls 렌더링
         if (layoutData.walls && layoutData.walls.length > 0) {
             layoutData.walls.forEach(wall => {
                 this.renderer.drawWall(wall, onClickCallback);
             });
         }
 
-        // Office 렌더링
         if (layoutData.office) {
             this.renderer.drawOffice(layoutData.office, onClickCallback);
         }
 
-        // Partitions 렌더링
         if (layoutData.partitions && layoutData.partitions.length > 0) {
             layoutData.partitions.forEach(partition => {
                 this.renderer.drawPartition(partition);
             });
         }
 
-        // Equipment Arrays 렌더링
         if (layoutData.equipmentArrays && layoutData.equipmentArrays.length > 0) {
             layoutData.equipmentArrays.forEach(array => {
                 this.renderer.drawEquipmentArray(array, onClickCallback);
             });
         }
 
-        // 단순 equipment 배열 렌더링
         if (layoutData.equipment && layoutData.equipment.length > 0) {
             layoutData.equipment.forEach(eq => {
                 this.renderer.drawSingleEquipment(eq, onClickCallback);
             });
         }
 
-        // 레이어 다시 그리기
         this.layers.room.batchDraw();
         this.layers.equipment.batchDraw();
 
@@ -1134,7 +1115,7 @@ class Canvas2DEditor {
     }
 
     // =====================================================
-    // ✨ v6.0.0: 데이터 Export (LayoutExporter 위임)
+    // 데이터 Export (LayoutExporter 위임)
     // =====================================================
 
     getCurrentLayout() {
@@ -1169,7 +1150,6 @@ class Canvas2DEditor {
             return this.layoutExporter.exportLayoutData(this.currentLayout);
         }
         
-        // Fallback: 기본 데이터 반환
         console.warn('[Canvas2DEditor] LayoutExporter 없음, 기본 데이터 반환');
         return {
             ...this.currentLayout,
@@ -1189,10 +1169,6 @@ class Canvas2DEditor {
     // Grid / Snap 토글
     // =====================================================
 
-    /**
-     * 그리드 표시 토글
-     * @returns {boolean} 현재 그리드 표시 상태
-     */
     toggleGrid() {
         this.config.showGrid = !this.config.showGrid;
         
@@ -1201,7 +1177,6 @@ class Canvas2DEditor {
                 this.renderer.redrawGrid();
             }
         } else {
-            // 그리드 숨기기
             if (this.layers.background) {
                 this.layers.background.destroyChildren();
                 this.layers.background.batchDraw();
@@ -1212,15 +1187,9 @@ class Canvas2DEditor {
         return this.config.showGrid;
     }
 
-    /**
-     * 스냅 토글
-     * ✨ v6.0.1: enable()/disable() 메서드 사용으로 수정
-     * @returns {boolean} 현재 스냅 상태
-     */
     toggleSnapToGrid() {
         this.config.snapToGrid = !this.config.snapToGrid;
         
-        // ✨ v6.0.1: SnapManager의 enable()/disable() 메서드 사용
         if (this.snapManager) {
             if (this.config.snapToGrid) {
                 this.snapManager.enable();
@@ -1234,7 +1203,7 @@ class Canvas2DEditor {
     }
 
     // =====================================================
-    // 삭제
+    // ✨ v6.1.0: 삭제 (StateManager 사용)
     // =====================================================
 
     /**
@@ -1250,6 +1219,11 @@ class Canvas2DEditor {
         }
         
         const count = selectedObjects.length;
+        
+        // ✨ v6.1.0: StateManager로 핸들 먼저 정리
+        if (this.stateManager) {
+            this.stateManager.prepareForDelete();
+        }
         
         // 각 객체 삭제
         selectedObjects.forEach(shape => {
@@ -1275,8 +1249,13 @@ class Canvas2DEditor {
             shape.destroy();
         });
         
-        // 선택 해제
-        this.deselectAll();
+        // ✨ v6.1.0: StateManager로 삭제 후 정리
+        if (this.stateManager) {
+            this.stateManager.cleanupAfterDelete();
+        } else {
+            // 폴백: 기존 방식
+            this.deselectAll();
+        }
         
         // 레이어 다시 그리기
         this.layers.room.batchDraw();
@@ -1328,6 +1307,12 @@ class Canvas2DEditor {
     destroy() {
         console.log('[Canvas2DEditor] 파괴 시작...');
         
+        // StateManager 정리
+        if (this.stateManager) {
+            this.stateManager.destroy();
+            this.stateManager = null;
+        }
+        
         // 모듈 정리
         if (this.selectionManager) {
             this.selectionManager.destroy();
@@ -1367,7 +1352,7 @@ class Canvas2DEditor {
     }
 }
 
-// ✅ ES6 모듈 export (브라우저 환경)
+// ES6 모듈 export (브라우저 환경)
 if (typeof module === 'undefined') {
     window.Canvas2DEditor = Canvas2DEditor;
 }

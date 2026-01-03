@@ -1,7 +1,13 @@
 /**
- * initLayoutServices.js v2.0.1
+ * initLayoutServices.js v2.1.0
  * ============================
  * Layout Editor 서비스 초기화
+ * 
+ * ✨ v2.1.0 수정 (EditorStateManager 통합):
+ * - ✅ EditorStateManager 초기화 추가
+ * - ✅ cleanupAfterUndoRedo → stateManager.cleanupAfterHistoryChange() 대체
+ * - ✅ Header 버튼에서 StateManager 사용
+ * - ✅ 전역 참조 window.stateManager 추가
  * 
  * ✨ v2.0.1 수정:
  * - ✅ Undo/Redo 후 HandleManager 업데이트 추가
@@ -62,6 +68,28 @@ function calculateCanvasSize() {
 }
 
 /**
+ * ✨ v2.1.0: EditorStateManager 초기화
+ */
+function initStateManager(canvas) {
+    if (typeof EditorStateManager === 'undefined') {
+        console.warn('⚠️ EditorStateManager 미로드 - 통합 상태 관리 비활성화');
+        return null;
+    }
+    
+    const stateManager = new EditorStateManager();
+    stateManager.setEditor(canvas);
+    
+    // Canvas에 참조 저장
+    canvas.stateManager = stateManager;
+    
+    // 전역 참조 (폴백용)
+    window.stateManager = stateManager;
+    
+    console.log('  ✓ EditorStateManager');
+    return stateManager;
+}
+
+/**
  * CommandManager 초기화
  */
 function initCommandManager() {
@@ -81,12 +109,12 @@ function initCommandManager() {
                 state.updateHistory(historyState);
             }
             
-            // ✨ v2.0.0: DOM 업데이트 (Undo/Redo 버튼 + Status Bar)
+            // DOM 업데이트 (Undo/Redo 버튼 + Status Bar)
             updateUndoRedoUI(historyState);
         }
     });
     
-    // ✨ v2.0.0: 전역 참조 저장 (폴백용)
+    // 전역 참조 저장 (폴백용)
     window.commandManager = commandManager;
     
     console.log('  ✓ CommandManager');
@@ -94,7 +122,7 @@ function initCommandManager() {
 }
 
 /**
- * ✨ v2.0.0: Undo/Redo UI 업데이트 헬퍼
+ * Undo/Redo UI 업데이트 헬퍼
  */
 function updateUndoRedoUI(historyState) {
     // Header 버튼 활성화/비활성화
@@ -114,7 +142,6 @@ function updateUndoRedoUI(historyState) {
 
 /**
  * ToolService 초기화
- * ✨ v2.0.0: commandManager 옵션 추가
  */
 function initToolService(canvas, options = {}) {
     if (typeof ToolService === 'undefined') {
@@ -126,13 +153,12 @@ function initToolService(canvas, options = {}) {
         state: window.layoutEditorState,
         onToolChanged: options.onToolChanged || ((tool) => console.log(`🔧 Tool: ${tool}`)),
         onToast: options.onToast || (() => {}),
-        // ✨ v2.0.0: CommandManager 전달
         commandManager: options.commandManager || null
     });
     
     toolService.initAllTools();
     
-    // ✨ v2.0.0: CommandManager가 나중에 전달된 경우 연결
+    // CommandManager가 나중에 전달된 경우 연결
     if (options.commandManager && !toolService.commandManager) {
         toolService.setCommandManager(options.commandManager);
     }
@@ -180,52 +206,21 @@ function initKeyboardService(canvas, commandManager) {
 }
 
 /**
- * ✨ v2.0.1: Undo/Redo 후 Canvas 상태 정리
- * - HandleManager(조정틀) 해제
- * - Transformer 업데이트
- * - 선택 상태 정리
+ * ✨ v2.1.0: Header 버튼 이벤트 설정 (StateManager 사용)
  */
-function cleanupAfterUndoRedo(canvas) {
-    // ✅ HandleManager 해제 (PowerPoint 스타일 핸들)
-    if (canvas.handleManager) {
-        canvas.handleManager.detach();
-        console.log('[Undo/Redo] HandleManager detached');
-    }
-    
-    // ✅ Transformer 업데이트 (폴백)
-    if (canvas.transformer) {
-        canvas.transformer.nodes([]);
-        canvas.transformer.forceUpdate?.();
-    }
-    
-    // ✅ SelectionRenderer 정리
-    if (canvas.selectionRenderer) {
-        canvas.selectionRenderer.destroyTransformer?.();
-    }
-    
-    // ✅ 선택 상태 정리
-    if (canvas.selectionManager) {
-        canvas.selectionManager.deselectAll?.();
-    } else if (canvas._selectedObjectsProxy) {
-        canvas._selectedObjectsProxy = [];
-    }
-    
-    // ✅ UI 레이어 다시 그리기
-    canvas.layers?.ui?.batchDraw();
-    canvas.stage?.batchDraw();
-}
-
-/**
- * ✨ v2.0.1: Header 버튼 이벤트 설정 (HandleManager 업데이트 포함)
- */
-function setupHeaderButtonEvents(commandManager, canvas) {
+function setupHeaderButtonEvents(commandManager, canvas, stateManager) {
     // Undo 버튼
     const undoBtn = document.getElementById('btn-undo');
     if (undoBtn) {
         undoBtn.addEventListener('click', () => {
             if (commandManager?.undo()) {
-                // ✅ v2.0.1: HandleManager 및 선택 상태 정리
-                cleanupAfterUndoRedo(canvas);
+                // ✅ v2.1.0: StateManager로 통합 정리
+                if (stateManager) {
+                    stateManager.cleanupAfterHistoryChange();
+                } else {
+                    // 폴백: 기존 방식
+                    cleanupAfterUndoRedo(canvas);
+                }
                 console.log('[Header] Undo 실행 완료');
             }
         });
@@ -236,54 +231,106 @@ function setupHeaderButtonEvents(commandManager, canvas) {
     if (redoBtn) {
         redoBtn.addEventListener('click', () => {
             if (commandManager?.redo()) {
-                // ✅ v2.0.1: HandleManager 및 선택 상태 정리
-                cleanupAfterUndoRedo(canvas);
+                // ✅ v2.1.0: StateManager로 통합 정리
+                if (stateManager) {
+                    stateManager.cleanupAfterHistoryChange();
+                } else {
+                    // 폴백: 기존 방식
+                    cleanupAfterUndoRedo(canvas);
+                }
                 console.log('[Header] Redo 실행 완료');
             }
         });
     }
     
-    console.log('  ✓ Header Undo/Redo 버튼 이벤트 (v2.0.1)');
+    console.log('  ✓ Header Undo/Redo 버튼 이벤트 (v2.1.0)');
+}
+
+/**
+ * [폴백용] Undo/Redo 후 Canvas 상태 정리
+ * StateManager가 없을 때 사용
+ */
+function cleanupAfterUndoRedo(canvas) {
+    // HandleManager 해제
+    if (canvas.handleManager) {
+        canvas.handleManager.detach();
+        console.log('[Undo/Redo] HandleManager detached');
+    }
+    
+    // Transformer 업데이트 (폴백)
+    if (canvas.transformer) {
+        canvas.transformer.nodes([]);
+        canvas.transformer.forceUpdate?.();
+    }
+    
+    // SelectionRenderer 정리
+    if (canvas.selectionRenderer) {
+        canvas.selectionRenderer.destroyTransformer?.();
+    }
+    
+    // 선택 상태 정리
+    if (canvas.selectionManager) {
+        canvas.selectionManager.deselectAll?.();
+    } else if (canvas._selectedObjectsProxy) {
+        canvas._selectedObjectsProxy = [];
+    }
+    
+    // UI 레이어 다시 그리기
+    canvas.layers?.ui?.batchDraw();
+    canvas.stage?.batchDraw();
 }
 
 /**
  * 모든 서비스 초기화 (통합)
- * ✨ v2.0.0: Tool-Command 연결 강화
+ * ✨ v2.1.0: EditorStateManager 추가
  */
 function initLayoutServices(options = {}) {
-    console.log('🔧 Layout Services 초기화 시작 v2.0.1...');
+    console.log('🔧 Layout Services 초기화 시작 v2.1.0...');
     
     // 1. Canvas 초기화
     const canvas = initCanvas(options.containerId);
     
-    // 2. CommandManager 초기화
+    // 2. ✨ v2.1.0: EditorStateManager 초기화 (Canvas 직후!)
+    const stateManager = initStateManager(canvas);
+    
+    // 3. CommandManager 초기화
     const commandManager = initCommandManager();
     canvas.commandManager = commandManager;
     
-    // 3. ToolService 초기화 (CommandManager 전달!)
+    // 4. ToolService 초기화 (CommandManager 전달!)
     const toolService = initToolService(canvas, {
         onToolChanged: options.onToolChanged,
         onToast: options.onToast,
-        commandManager: commandManager  // ✨ v2.0.0: 핵심!
+        commandManager: commandManager
     });
     
-    // 4. ComponentService 초기화
+    // 5. ComponentService 초기화
     const componentService = initComponentService(canvas, commandManager, {
         selectionTool: toolService?.getTool('selection'),
         onComponentCreated: options.onComponentCreated,
         onStatusUpdate: options.onStatusUpdate
     });
     
-    // 5. KeyboardService 초기화
+    // 6. KeyboardService 초기화
     const keyboardService = initKeyboardService(canvas, commandManager);
     
-    // 6. ✨ v2.0.1: Header 버튼 이벤트 설정 (HandleManager 정리 포함)
-    setupHeaderButtonEvents(commandManager, canvas);
+    // 7. ✨ v2.1.0: Header 버튼 이벤트 설정 (StateManager 포함)
+    setupHeaderButtonEvents(commandManager, canvas, stateManager);
     
-    console.log('✅ Layout Services 초기화 완료 v2.0.1');
+    // 8. StateManager에 나중에 추가된 Manager들 재바인딩
+    if (stateManager) {
+        // 약간의 지연 후 재바인딩 (다른 초기화 완료 후)
+        setTimeout(() => {
+            stateManager.rebindManagers();
+            console.log('[StateManager] Manager 재바인딩 완료');
+        }, 100);
+    }
+    
+    console.log('✅ Layout Services 초기화 완료 v2.1.0');
     
     return {
         canvas,
+        stateManager,      // ✨ v2.1.0: 추가
         commandManager,
         toolService,
         componentService,
@@ -295,6 +342,7 @@ function initLayoutServices(options = {}) {
 if (typeof window !== 'undefined') {
     window.initLayoutServices = initLayoutServices;
     window.initCanvas = initCanvas;
+    window.initStateManager = initStateManager;  // ✨ v2.1.0
     window.initCommandManager = initCommandManager;
     window.initToolService = initToolService;
     window.initComponentService = initComponentService;
@@ -302,7 +350,7 @@ if (typeof window !== 'undefined') {
     window.calculateCanvasSize = calculateCanvasSize;
     window.updateUndoRedoUI = updateUndoRedoUI;
     window.setupHeaderButtonEvents = setupHeaderButtonEvents;
-    window.cleanupAfterUndoRedo = cleanupAfterUndoRedo;  // ✨ v2.0.1
+    window.cleanupAfterUndoRedo = cleanupAfterUndoRedo;  // 폴백용 유지
 }
 
-console.log('✅ initLayoutServices.js 로드 완료 v2.0.1');
+console.log('✅ initLayoutServices.js 로드 완료 v2.1.0');

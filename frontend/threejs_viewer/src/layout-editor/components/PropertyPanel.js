@@ -1,8 +1,12 @@
 /**
- * PropertyPanel.js v2.0.1
+ * PropertyPanel.js v2.1.0
  * ========================
  * 
  * 선택된 객체의 속성을 표시하고 편집할 수 있는 패널
+ * 
+ * ✨ v2.1.0 수정 (EditorStateManager 통합):
+ * - ✅ deleteSelected()에서 StateManager 사용
+ * - ✅ 삭제 후 핸들 정리 보장
  * 
  * ✨ v2.0.1 신규 (Canvas2DEditor 호환성):
  * - clearProperties() - 패널 숨김 별칭
@@ -14,11 +18,6 @@
  * - ✅ showValidationErrors() - 검증 에러 목록 표시
  * - ✅ hideValidationErrors() - 에러 섹션 숨김
  * - ✅ 에러 클릭 시 Canvas 하이라이트 및 스크롤
- * 
- * 📝 v1.0 기능 유지:
- * - ✅ 객체 타입별 속성 표시 (벽, 설비, Room 등)
- * - ✅ 값 변경 → 실시간 Canvas 업데이트
- * - ✅ 다중 선택 시 공통 속성 표시
  * 
  * 위치: frontend/threejs_viewer/src/layout-editor/components/PropertyPanel.js
  */
@@ -36,16 +35,16 @@ class PropertyPanel {
         // 현재 선택된 객체들
         this.selectedObjects = [];
         
-        // ✨ v2.0.0: 현재 표시 중인 검증 에러
+        // 현재 표시 중인 검증 에러
         this.currentValidationErrors = [];
         
-        // ✨ v2.0.0: LayoutEditorMain 참조 (에러 클릭 시 사용)
+        // LayoutEditorMain 참조 (에러 클릭 시 사용)
         this.layoutEditorMain = null;
         
         // 패널 초기 HTML
         this.initPanel();
         
-        console.log('[PropertyPanel] 초기화 완료 v2.0.1');
+        console.log('[PropertyPanel] 초기화 완료 v2.1.0');
     }
     
     /**
@@ -53,7 +52,7 @@ class PropertyPanel {
      */
     initPanel() {
         this.container.innerHTML = `
-            <!-- ✨ v2.0.0: 검증 에러 섹션 (NEW) -->
+            <!-- 검증 에러 섹션 -->
             <div class="validation-errors-section" id="validation-errors-section" style="display: none;">
                 <div class="validation-errors-header">
                     <h3 style="margin: 0; color: #e74c3c; display: flex; align-items: center; gap: 8px;">
@@ -65,7 +64,7 @@ class PropertyPanel {
                 <div class="validation-errors-list" id="validation-errors-list"></div>
             </div>
             
-            <!-- 기존: 속성 패널 (변경 없음) -->
+            <!-- 속성 패널 -->
             <div class="property-panel-content" style="padding: 20px; display: none;">
                 <h3 style="margin: 0 0 20px 0; color: #2c3e50; border-bottom: 2px solid #667eea; padding-bottom: 10px;">
                     Properties
@@ -73,20 +72,19 @@ class PropertyPanel {
                 <div id="property-fields"></div>
             </div>
             
-            <!-- 기존: 빈 상태 (변경 없음) -->
+            <!-- 빈 상태 -->
             <div class="property-panel-empty" style="padding: 20px; text-align: center; color: #95a5a6;">
                 <p style="margin: 100px 0;">객체를 선택하세요</p>
                 <p style="font-size: 12px;">👆 Canvas에서 객체를 클릭</p>
             </div>
         `;
         
-        // ✨ v2.0.0: CSS 스타일 추가
+        // CSS 스타일 추가
         this.addValidationStyles();
     }
     
     /**
-     * ✨ v2.0.0: LayoutEditorMain 참조 설정
-     * @param {LayoutEditorMain} main - LayoutEditorMain 인스턴스
+     * LayoutEditorMain 참조 설정
      */
     setLayoutEditorMain(main) {
         this.layoutEditorMain = main;
@@ -95,7 +93,6 @@ class PropertyPanel {
     
     /**
      * 선택된 객체 표시
-     * @param {Array} objects - Konva.Shape 배열
      */
     show(objects) {
         if (!objects || objects.length === 0) {
@@ -111,12 +108,9 @@ class PropertyPanel {
         this.container.querySelector('.property-panel-content').style.display = 'block';
         this.container.querySelector('.property-panel-empty').style.display = 'none';
         
-        // 객체 타입 판별
         if (objects.length === 1) {
-            // 단일 선택
             this.showSingleObjectProperties(objects[0]);
         } else {
-            // 다중 선택
             this.showMultipleObjectsProperties(objects);
         }
     }
@@ -142,7 +136,7 @@ class PropertyPanel {
         
         let html = '';
         
-        // 1. 기본 정보
+        // 기본 정보
         html += `<div class="property-section">
             <div class="property-label">ID</div>
             <div class="property-value">${shapeId}</div>
@@ -153,7 +147,7 @@ class PropertyPanel {
             <div class="property-value">${shapeName}</div>
         </div>`;
         
-        // 2. 타입별 속성
+        // 타입별 속성
         if (shapeName === 'wall' || shapeName.includes('wall')) {
             html += this.getWallProperties(shape);
         } else if (shapeName === 'equipment' || shapeName.includes('equipment')) {
@@ -164,10 +158,10 @@ class PropertyPanel {
             </div>`;
         }
         
-        // 3. 위치 정보
+        // 위치 정보
         html += this.getPositionProperties(shape);
         
-        // 4. 액션 버튼
+        // 액션 버튼
         html += `<div class="property-actions" style="margin-top: 20px;">
             <button class="property-btn property-btn-danger" onclick="propertyPanel.deleteSelected()">
                 🗑️ 삭제
@@ -398,38 +392,57 @@ class PropertyPanel {
     }
     
     /**
-     * ✅ v2.0.1 수정: 선택된 객체 삭제 (Canvas2DEditor에 위임)
+     * ✨ v2.1.0: 선택된 객체 삭제 (StateManager 사용)
      */
     deleteSelected() {
         if (this.canvas && this.canvas.deleteSelected) {
-            // Canvas2DEditor의 deleteSelected() 호출 (중복 제거)
+            // Canvas2DEditor의 deleteSelected() 호출 (StateManager 사용됨)
             this.canvas.deleteSelected();
         } else {
             // Fallback: 직접 삭제 (Canvas2DEditor 없을 때)
-            if (this.selectedObjects.length === 0) return;
-            
-            console.log('[PropertyPanel] Fallback 삭제:', this.selectedObjects.length, '개');
-            
-            this.selectedObjects.forEach(shape => {
-                const id = shape.id();
-                
-                if (shape.name() === 'equipment' || shape.name().includes('equipment')) {
-                    this.canvas.equipmentShapes.delete(id);
-                } else if (shape.name() === 'wall' || shape.name().includes('wall')) {
-                    this.canvas.wallShapes.delete(id);
-                } else {
-                    this.canvas.componentShapes.delete(id);
-                }
-                
-                shape.destroy();
-            });
-            
-            this.canvas.deselectAll();
-            this.canvas.stage.batchDraw();
+            this._deleteSelectedFallback();
         }
         
         this.hide();
         console.log('[PropertyPanel] ✅ 삭제 완료');
+    }
+    
+    /**
+     * 삭제 폴백 (Canvas2DEditor 없을 때)
+     * @private
+     */
+    _deleteSelectedFallback() {
+        if (this.selectedObjects.length === 0) return;
+        
+        console.log('[PropertyPanel] Fallback 삭제:', this.selectedObjects.length, '개');
+        
+        // ✨ v2.1.0: StateManager가 있으면 핸들 먼저 정리
+        if (this.canvas?.stateManager) {
+            this.canvas.stateManager.prepareForDelete();
+        }
+        
+        this.selectedObjects.forEach(shape => {
+            const id = shape.id();
+            
+            if (shape.name() === 'equipment' || shape.name().includes('equipment')) {
+                this.canvas.equipmentShapes.delete(id);
+            } else if (shape.name() === 'wall' || shape.name().includes('wall')) {
+                this.canvas.wallShapes.delete(id);
+            } else {
+                this.canvas.componentShapes.delete(id);
+            }
+            
+            shape.destroy();
+        });
+        
+        // ✨ v2.1.0: StateManager로 삭제 후 정리
+        if (this.canvas?.stateManager) {
+            this.canvas.stateManager.cleanupAfterDelete();
+        } else {
+            this.canvas.deselectAll();
+        }
+        
+        this.canvas.stage.batchDraw();
     }
     
     /**
@@ -453,12 +466,11 @@ class PropertyPanel {
     }
     
     // =====================================================
-    // ✨ v2.0.0 Phase 3.2: 검증 에러 표시 메서드들
+    // 검증 에러 표시 메서드들
     // =====================================================
     
     /**
-     * ✨ v2.0.0: 검증 에러 목록 표시
-     * @param {Array} errors - 에러 배열
+     * 검증 에러 목록 표시
      */
     showValidationErrors(errors) {
         if (!errors || errors.length === 0) {
@@ -502,7 +514,7 @@ class PropertyPanel {
     }
     
     /**
-     * ✨ v2.0.0: 단일 에러 아이템 렌더링
+     * 단일 에러 아이템 렌더링
      */
     renderErrorItem(error, index) {
         const icon = error.severity === 'error' ? '❌' : '⚠️';
@@ -535,12 +547,10 @@ class PropertyPanel {
     }
     
     /**
-     * ✨ v2.0.0: 에러 타입 포맷팅
+     * 에러 타입 포맷팅
      */
     formatErrorType(type) {
         if (!type) return 'Unknown';
-        
-        // EQUIPMENT_OUT_OF_BOUNDS → Equipment Out Of Bounds
         return type
             .split('_')
             .map(word => word.charAt(0) + word.slice(1).toLowerCase())
@@ -548,7 +558,7 @@ class PropertyPanel {
     }
     
     /**
-     * ✨ v2.0.0: 검증 에러 이벤트 등록
+     * 검증 에러 이벤트 등록
      */
     attachValidationErrorEvents() {
         const listEl = this.container.querySelector('#validation-errors-list');
@@ -556,7 +566,6 @@ class PropertyPanel {
         // 에러 아이템 클릭 (하이라이트)
         listEl.querySelectorAll('.validation-error-item').forEach(item => {
             item.addEventListener('click', (e) => {
-                // 버튼 클릭은 제외
                 if (e.target.closest('.error-action-btn')) return;
                 
                 const index = parseInt(item.dataset.errorIndex);
@@ -582,7 +591,7 @@ class PropertyPanel {
     }
     
     /**
-     * ✨ v2.0.0: 에러 아이템 클릭 처리
+     * 에러 아이템 클릭 처리
      */
     onErrorItemClick(index) {
         const error = this.currentValidationErrors[index];
@@ -590,14 +599,13 @@ class PropertyPanel {
         
         console.log('[PropertyPanel] Error item clicked:', index, error);
         
-        // Canvas에서 해당 에러 하이라이트
         if (this.canvas && this.canvas.highlightValidationErrors) {
             this.canvas.highlightValidationErrors([error]);
         }
     }
     
     /**
-     * ✨ v2.0.0: 에러 위치로 이동
+     * 에러 위치로 이동
      */
     onErrorFocus(index) {
         const error = this.currentValidationErrors[index];
@@ -605,19 +613,17 @@ class PropertyPanel {
         
         console.log('[PropertyPanel] Focusing on error:', index);
         
-        // Canvas에서 해당 위치로 스크롤
         if (this.canvas && this.canvas.scrollToError) {
             this.canvas.scrollToError(error);
         }
         
-        // LayoutEditorMain을 통해 처리
         if (this.layoutEditorMain && this.layoutEditorMain.focusOnError) {
             this.layoutEditorMain.focusOnError(error);
         }
     }
     
     /**
-     * ✨ v2.0.0: 에러 객체 선택
+     * 에러 객체 선택
      */
     onErrorSelect(index) {
         const error = this.currentValidationErrors[index];
@@ -625,14 +631,13 @@ class PropertyPanel {
         
         console.log('[PropertyPanel] Selecting error shape:', index);
         
-        // Canvas에서 해당 객체 선택
         if (this.canvas && this.canvas.selectErrorShape) {
             this.canvas.selectErrorShape(error);
         }
     }
     
     /**
-     * ✨ v2.0.0: 검증 에러 섹션 숨기기
+     * 검증 에러 섹션 숨기기
      */
     hideValidationErrors() {
         console.log('[PropertyPanel] Hiding validation errors');
@@ -655,10 +660,9 @@ class PropertyPanel {
     }
     
     /**
-     * ✨ v2.0.0: 검증 스타일 추가
+     * 검증 스타일 추가
      */
     addValidationStyles() {
-        // 이미 추가되었는지 확인
         if (document.getElementById('property-panel-validation-styles')) {
             return;
         }
@@ -666,7 +670,6 @@ class PropertyPanel {
         const style = document.createElement('style');
         style.id = 'property-panel-validation-styles';
         style.textContent = `
-            /* 검증 에러 섹션 */
             .validation-errors-section {
                 padding: 15px;
                 background: #fff5f5;
@@ -698,7 +701,6 @@ class PropertyPanel {
                 color: #e74c3c;
             }
             
-            /* 요약 */
             .validation-errors-summary {
                 margin-bottom: 15px;
                 padding: 10px;
@@ -712,22 +714,14 @@ class PropertyPanel {
                 margin-bottom: 8px;
             }
             
-            .stat-error {
-                color: #e74c3c;
-                font-weight: 600;
-            }
-            
-            .stat-warning {
-                color: #f39c12;
-                font-weight: 600;
-            }
+            .stat-error { color: #e74c3c; font-weight: 600; }
+            .stat-warning { color: #f39c12; font-weight: 600; }
             
             .validation-summary-message {
                 font-size: 12px;
                 color: #666;
             }
             
-            /* 에러 목록 */
             .validation-errors-list {
                 display: flex;
                 flex-direction: column;
@@ -743,13 +737,8 @@ class PropertyPanel {
                 border-left: 4px solid transparent;
             }
             
-            .validation-error-item.error {
-                border-left-color: #e74c3c;
-            }
-            
-            .validation-error-item.warning {
-                border-left-color: #f39c12;
-            }
+            .validation-error-item.error { border-left-color: #e74c3c; }
+            .validation-error-item.warning { border-left-color: #f39c12; }
             
             .validation-error-item:hover {
                 box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -763,9 +752,7 @@ class PropertyPanel {
                 margin-bottom: 8px;
             }
             
-            .error-icon {
-                font-size: 16px;
-            }
+            .error-icon { font-size: 16px; }
             
             .error-type {
                 font-size: 11px;
@@ -805,45 +792,24 @@ class PropertyPanel {
                 transition: all 0.3s;
             }
             
-            .focus-btn {
-                background: #3498db;
-                color: white;
-            }
+            .focus-btn { background: #3498db; color: white; }
+            .focus-btn:hover { background: #2980b9; }
             
-            .focus-btn:hover {
-                background: #2980b9;
-            }
-            
-            .select-btn {
-                background: #9b59b6;
-                color: white;
-            }
-            
-            .select-btn:hover {
-                background: #8e44ad;
-            }
+            .select-btn { background: #9b59b6; color: white; }
+            .select-btn:hover { background: #8e44ad; }
         `;
         
         document.head.appendChild(style);
     }
 
     // =====================================================
-    // ✅ v2.0.1 추가: Canvas2DEditor 호환용 별칭 메서드
+    // Canvas2DEditor 호환용 별칭 메서드
     // =====================================================
 
-    /**
-     * Canvas2DEditor.updatePropertyPanel() 호환용
-     * 선택 해제 시 패널 숨김
-     */
     clearProperties() {
         this.hide();
     }
 
-    /**
-     * Canvas2DEditor.updatePropertyPanel() 호환용
-     * 단일 객체 속성 표시
-     * @param {Konva.Shape} shape - 선택된 Shape
-     */
     showProperties(shape) {
         if (!shape) {
             this.hide();
@@ -852,11 +818,6 @@ class PropertyPanel {
         this.show([shape]);
     }
 
-    /**
-     * Canvas2DEditor.updatePropertyPanel() 호환용
-     * 다중 객체 속성 표시
-     * @param {Array<Konva.Shape>} shapes - 선택된 Shape 배열
-     */
     showMultipleProperties(shapes) {
         if (!shapes || shapes.length === 0) {
             this.hide();
@@ -866,7 +827,7 @@ class PropertyPanel {
     }
 }
 
-// CSS 스타일 추가 (기존 v1.0 스타일)
+// CSS 스타일 추가 (기본 스타일)
 const style = document.createElement('style');
 style.textContent = `
     .property-section {
