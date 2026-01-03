@@ -1,71 +1,36 @@
 /**
- * EditorStateManager.js v1.0.0
+ * EditorStateManager.js v1.0.1
  * =============================
  * 
+ * ✨ v1.0.1 수정:
+ * - ✅ clearSelection()에서 동적 생성된 HandleManager 지원
+ * - ✅ this._managers.handle 대신 this.editor.handleManager 직접 참조
+ * 
  * Layout Editor 통합 상태 관리자 (Facade 패턴)
- * 
- * ┌──────────────────────────────────────────────────────────────┐
- * │                    EditorStateManager                        │
- * │  ┌─────────────────────────────────────────────────────────┐ │
- * │  │ clearAll()         ← 모든 것 정리                        │ │
- * │  │ clearSelection()   ← 선택 관련만 정리                    │ │
- * │  │ clearGuides()      ← 가이드 관련만 정리                  │ │
- * │  │ reset()            ← 에디터 전체 리셋                    │ │
- * │  └─────────────────────────────────────────────────────────┘ │
- * │                           ↓                                  │
- * │  ┌─────────┬───────────┬───────────┬──────────┬───────────┐ │
- * │  │Selection│ Handle   │ Selection │ Smart   │ Snap      │ │
- * │  │2DManager│ Manager  │ Renderer  │ Guide   │ Manager   │ │
- * │  └─────────┴───────────┴───────────┴──────────┴───────────┘ │
- * └──────────────────────────────────────────────────────────────┘
- * 
- * 역할:
- * 1. 모든 Manager의 정리 작업을 단일 진입점으로 통합
- * 2. 선택, 핸들, 가이드라인 등 분산된 상태 관리를 일원화
- * 3. 새 Manager 추가 시 이 파일만 수정하면 됨
- * 
- * 사용 예시:
- * - 기존: editor.selectionManager.deselectAll(); 
- *         editor.handleManager.clear(); 
- *         editor.selectionRenderer.clear();
- * - 통합: editor.stateManager.clearSelection();
  * 
  * 위치: frontend/threejs_viewer/src/layout-editor/state/EditorStateManager.js
  */
 
 class EditorStateManager {
-    /**
-     * @param {Object} options - 초기화 옵션
-     * @param {Canvas2DEditor} options.editor - Canvas2DEditor 인스턴스
-     */
     constructor(options = {}) {
         this.editor = options.editor || null;
         
         // Manager 참조들 (lazy binding)
         this._managers = {
-            selection: null,      // Selection2DManager
-            handle: null,         // HandleManager
-            renderer: null,       // SelectionRenderer
-            smartGuide: null,     // SmartGuideManager
-            snap: null,           // SnapManager
-            fence: null,          // FenceSelection
-            alignment: null       // AlignmentGuide
+            selection: null,
+            handle: null,
+            renderer: null,
+            smartGuide: null,
+            snap: null,
+            fence: null,
+            alignment: null
         };
         
-        // 상태 플래그
         this._initialized = false;
         
-        console.log('[EditorStateManager] 생성 완료 v1.0.0');
+        console.log('[EditorStateManager] 생성 완료 v1.0.1');
     }
     
-    // =====================================================
-    // Manager 등록 (Lazy Binding)
-    // =====================================================
-    
-    /**
-     * Canvas2DEditor 설정 (모든 Manager 자동 바인딩)
-     * @param {Canvas2DEditor} editor
-     */
     setEditor(editor) {
         this.editor = editor;
         this._bindManagers();
@@ -73,14 +38,9 @@ class EditorStateManager {
         console.log('[EditorStateManager] Editor 바인딩 완료');
     }
     
-    /**
-     * Editor에서 Manager들 자동 바인딩
-     * @private
-     */
     _bindManagers() {
         if (!this.editor) return;
         
-        // Canvas2DEditor의 속성명에 맞춰 바인딩
         this._managers.selection = this.editor.selectionManager || null;
         this._managers.handle = this.editor.handleManager || null;
         this._managers.renderer = this.editor.selectionRenderer || null;
@@ -89,34 +49,46 @@ class EditorStateManager {
         this._managers.fence = this.editor.fenceSelection || null;
         this._managers.alignment = this.editor.alignmentGuide || null;
         
-        // 바인딩 결과 로그
         const bound = Object.entries(this._managers)
             .filter(([k, v]) => v !== null)
             .map(([k]) => k);
         console.log('[EditorStateManager] 바인딩된 Manager:', bound.join(', ') || '없음');
     }
     
-    /**
-     * Manager 재바인딩 (나중에 추가된 Manager 연결)
-     */
     rebindManagers() {
         this._bindManagers();
     }
     
-    /**
-     * 개별 Manager 등록
-     * @param {string} name - Manager 이름
-     * @param {Object} manager - Manager 인스턴스
-     */
     registerManager(name, manager) {
-        if (this._managers.hasOwnProperty(name)) {
-            this._managers[name] = manager;
-            console.log(`[EditorStateManager] ${name} Manager 등록됨`);
-        } else {
-            // 새로운 Manager 타입 추가
-            this._managers[name] = manager;
-            console.log(`[EditorStateManager] 새 Manager 등록: ${name}`);
-        }
+        this._managers[name] = manager;
+        console.log(`[EditorStateManager] ${name} Manager 등록됨`);
+    }
+    
+    // =====================================================
+    // 🔥 핵심 수정: 동적 생성된 Manager 지원
+    // =====================================================
+    
+    /**
+     * ✨ v1.0.1: Handle Manager를 동적으로 가져옴
+     * (HandleManager는 객체 선택 시 동적 생성되므로)
+     */
+    _getHandleManager() {
+        // 캐시된 참조 먼저 확인, 없으면 editor에서 직접 가져옴
+        return this._managers.handle || this.editor?.handleManager || null;
+    }
+    
+    /**
+     * ✨ v1.0.1: Selection Renderer를 동적으로 가져옴
+     */
+    _getSelectionRenderer() {
+        return this._managers.renderer || this.editor?.selectionRenderer || null;
+    }
+    
+    /**
+     * ✨ v1.0.1: Selection Manager를 동적으로 가져옴
+     */
+    _getSelectionManager() {
+        return this._managers.selection || this.editor?.selectionManager || null;
     }
     
     // =====================================================
@@ -125,64 +97,67 @@ class EditorStateManager {
     
     /**
      * ✨ 선택 관련 모든 것 정리
-     * - Selection2DManager: 선택 배열 초기화
-     * - HandleManager: Transform 핸들 제거
-     * - SelectionRenderer: 하이라이트/Transformer 제거
-     * - FenceSelection: 범위 선택 사각형 제거
+     * v1.0.1: 동적 생성된 HandleManager 지원
      */
     clearSelection() {
         console.log('[EditorStateManager] clearSelection() 호출');
         
-        // 1. HandleManager 먼저! (시각적 핸들 제거) - 가장 중요!
-        if (this._managers.handle) {
+        // ✨ v1.0.1: 동적으로 HandleManager 가져옴!
+        const handleManager = this._getHandleManager();
+        if (handleManager) {
             try {
-                this._managers.handle.detach?.();
-                this._managers.handle.clear?.();
+                console.log('[EditorStateManager] HandleManager.detach() 호출');
+                handleManager.detach?.();
+                handleManager.clear?.();
             } catch (e) {
                 console.warn('[EditorStateManager] HandleManager clear 실패:', e);
             }
+        } else {
+            console.log('[EditorStateManager] HandleManager 없음 (null)');
         }
         
-        // 2. SelectionRenderer (하이라이트 제거)
-        if (this._managers.renderer) {
+        // ✨ v1.0.1: 동적으로 SelectionRenderer 가져옴!
+        const selectionRenderer = this._getSelectionRenderer();
+        if (selectionRenderer) {
             try {
-                // 선택된 객체들의 하이라이트 먼저 제거
-                const selectedObjects = this._managers.selection?.getSelectedObjects?.() || [];
+                const selectionManager = this._getSelectionManager();
+                const selectedObjects = selectionManager?.getSelectedObjects?.() || [];
                 if (selectedObjects.length > 0) {
-                    this._managers.renderer.removeAllHighlights?.(selectedObjects);
+                    selectionRenderer.removeAllHighlights?.(selectedObjects);
                 }
-                this._managers.renderer.destroyTransformer?.();
-                this._managers.renderer.hideCoordinates?.();
+                selectionRenderer.destroyTransformer?.();
+                selectionRenderer.hideCoordinates?.();
             } catch (e) {
                 console.warn('[EditorStateManager] SelectionRenderer clear 실패:', e);
             }
         }
         
-        // 3. Selection2DManager (상태 초기화)
-        if (this._managers.selection) {
+        // ✨ v1.0.1: 동적으로 SelectionManager 가져옴!
+        const selectionManager = this._getSelectionManager();
+        if (selectionManager) {
             try {
-                this._managers.selection.deselectAll?.(false);  // 이벤트 발행 안함
+                selectionManager.deselectAll?.(false);
             } catch (e) {
                 console.warn('[EditorStateManager] Selection2DManager clear 실패:', e);
             }
         }
         
-        // 4. FenceSelection (범위 선택 박스)
-        if (this._managers.fence) {
+        // FenceSelection
+        const fenceSelection = this._managers.fence || this.editor?.fenceSelection;
+        if (fenceSelection) {
             try {
-                this._managers.fence.clear?.();
+                fenceSelection.clear?.();
             } catch (e) {
                 console.warn('[EditorStateManager] FenceSelection clear 실패:', e);
             }
         }
         
-        // 5. Editor의 내부 배열 정리 (폴백)
+        // Editor의 내부 배열 정리
         if (this.editor) {
             if (this.editor._selectedObjectsProxy) {
                 this.editor._selectedObjectsProxy = [];
             }
             
-            // Transformer 직접 참조 정리
             if (this.editor.transformer) {
                 try {
                     this.editor.transformer.destroy();
@@ -191,78 +166,65 @@ class EditorStateManager {
             }
         }
         
-        // 6. UI Layer 갱신
+        // UI Layer 갱신
         this._refreshUILayer();
         
         console.log('[EditorStateManager] ✅ Selection 정리 완료');
     }
     
-    /**
-     * ✨ 가이드라인 관련 모든 것 정리
-     * - SmartGuideManager: 정렬 가이드라인 제거
-     * - SnapManager: Snap 상태 초기화
-     * - AlignmentGuide: 미리보기 제거
-     */
     clearGuides() {
         console.log('[EditorStateManager] clearGuides() 호출');
         
-        // 1. SmartGuideManager
-        if (this._managers.smartGuide) {
+        const smartGuide = this._managers.smartGuide || this.editor?.smartGuideManager;
+        if (smartGuide) {
             try {
-                this._managers.smartGuide.clearGuides?.();
-                this._managers.smartGuide.clearReferenceObjects?.();
+                smartGuide.clearGuides?.();
+                smartGuide.clearReferenceObjects?.();
             } catch (e) {
                 console.warn('[EditorStateManager] SmartGuideManager clear 실패:', e);
             }
         }
         
-        // 2. SnapManager (가이드라인만 제거, Snap 기능은 유지)
-        if (this._managers.snap) {
+        const snapManager = this._managers.snap || this.editor?.snapManager;
+        if (snapManager) {
             try {
-                this._managers.snap.clearGuides?.();
+                snapManager.clearGuides?.();
             } catch (e) {
                 console.warn('[EditorStateManager] SnapManager clearGuides 실패:', e);
             }
         }
         
-        // 3. AlignmentGuide
-        if (this._managers.alignment) {
+        const alignment = this._managers.alignment || this.editor?.alignmentGuide;
+        if (alignment) {
             try {
-                this._managers.alignment.clearPreview?.();
-                this._managers.alignment.clear?.();
+                alignment.clearPreview?.();
+                alignment.clear?.();
             } catch (e) {
                 console.warn('[EditorStateManager] AlignmentGuide clear 실패:', e);
             }
         }
         
-        // 4. UI Layer 갱신
         this._refreshUILayer();
-        
         console.log('[EditorStateManager] ✅ Guides 정리 완료');
     }
     
-    /**
-     * ✨ UI 요소 정리
-     * - 툴팁, 라벨, 임시 도형 등
-     */
     clearUI() {
         console.log('[EditorStateManager] clearUI() 호출');
         
-        // 1. 좌표 라벨
-        if (this._managers.renderer) {
+        const renderer = this._getSelectionRenderer();
+        if (renderer) {
             try {
-                this._managers.renderer.hideCoordinates?.();
+                renderer.hideCoordinates?.();
             } catch (e) {}
         }
         
-        // 2. FenceSelection
-        if (this._managers.fence) {
+        const fence = this._managers.fence || this.editor?.fenceSelection;
+        if (fence) {
             try {
-                this._managers.fence.clear?.();
+                fence.clear?.();
             } catch (e) {}
         }
         
-        // 3. UI Layer의 임시 요소들 제거
         if (this.editor?.layers?.ui) {
             try {
                 const tempElements = this.editor.layers.ui.find('.smart-guide-line, .distance-label, .fence-rect, .alignment-preview');
@@ -270,98 +232,66 @@ class EditorStateManager {
             } catch (e) {}
         }
         
-        // 4. UI Layer 갱신
         this._refreshUILayer();
-        
         console.log('[EditorStateManager] ✅ UI 정리 완료');
     }
     
-    /**
-     * ✨ 모든 것 정리 (Selection + Guides + UI)
-     */
     clearAll() {
         console.log('[EditorStateManager] clearAll() 호출');
-        
         this.clearSelection();
         this.clearGuides();
         this.clearUI();
-        
         console.log('[EditorStateManager] ✅ All 정리 완료');
     }
     
-    /**
-     * ✨ 에디터 전체 리셋 (히스토리 포함)
-     */
     reset() {
         console.log('[EditorStateManager] reset() 호출');
-        
-        // 1. 모든 것 정리
         this.clearAll();
         
-        // 2. 각 Manager의 destroy/clear
         Object.values(this._managers).forEach(manager => {
             if (manager && typeof manager.clear === 'function') {
-                try {
-                    manager.clear();
-                } catch (e) {}
+                try { manager.clear(); } catch (e) {}
             }
         });
         
-        // 3. CommandManager 히스토리 클리어 (있다면)
         if (this.editor?.commandManager) {
-            try {
-                this.editor.commandManager.clear?.();
-            } catch (e) {}
+            try { this.editor.commandManager.clear?.(); } catch (e) {}
         }
         
         console.log('[EditorStateManager] ✅ Reset 완료');
     }
     
     // =====================================================
-    // 특수 상황 처리 (편의 메서드)
+    // 특수 상황 처리
     // =====================================================
     
-    /**
-     * Undo/Redo 후 정리
-     * (기존 cleanupAfterUndoRedo 대체)
-     */
     cleanupAfterHistoryChange() {
         console.log('[EditorStateManager] cleanupAfterHistoryChange() 호출');
         this.clearSelection();
         this.editor?.stage?.batchDraw();
     }
     
-    /**
-     * 도구 전환 시 정리
-     */
     cleanupOnToolChange() {
         console.log('[EditorStateManager] cleanupOnToolChange() 호출');
         this.clearGuides();
         this.clearUI();
     }
     
-    /**
-     * 삭제 작업 전 정리 (핸들만)
-     */
     prepareForDelete() {
         console.log('[EditorStateManager] prepareForDelete() 호출');
         
-        if (this._managers.handle) {
-            try {
-                this._managers.handle.detach?.();
-            } catch (e) {}
+        // ✨ v1.0.1: 동적으로 가져옴
+        const handleManager = this._getHandleManager();
+        if (handleManager) {
+            try { handleManager.detach?.(); } catch (e) {}
         }
         
-        if (this._managers.renderer) {
-            try {
-                this._managers.renderer.destroyTransformer?.();
-            } catch (e) {}
+        const renderer = this._getSelectionRenderer();
+        if (renderer) {
+            try { renderer.destroyTransformer?.(); } catch (e) {}
         }
     }
     
-    /**
-     * 삭제 작업 후 정리
-     */
     cleanupAfterDelete() {
         console.log('[EditorStateManager] cleanupAfterDelete() 호출');
         this.clearSelection();
@@ -371,10 +301,6 @@ class EditorStateManager {
     // 헬퍼 메서드
     // =====================================================
     
-    /**
-     * UI Layer 갱신
-     * @private
-     */
     _refreshUILayer() {
         try {
             if (this.editor?.layers?.ui) {
@@ -388,41 +314,27 @@ class EditorStateManager {
         }
     }
     
-    /**
-     * Manager 가져오기
-     * @param {string} name - Manager 이름
-     * @returns {Object|null}
-     */
     getManager(name) {
         return this._managers[name] || null;
     }
     
-    /**
-     * 초기화 여부 확인
-     * @returns {boolean}
-     */
     isInitialized() {
         return this._initialized;
     }
     
-    /**
-     * 현재 상태 디버그 출력
-     */
     debugState() {
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log('[EditorStateManager] Debug State');
+        console.log('[EditorStateManager] Debug State v1.0.1');
         console.log('  ├─ Initialized:', this._initialized);
         console.log('  ├─ Editor:', this.editor ? '✅' : '❌');
-        console.log('  └─ Managers:');
+        console.log('  ├─ Editor.handleManager:', this.editor?.handleManager ? '✅ (동적 생성됨)' : '❌');
+        console.log('  └─ Cached Managers:');
         Object.entries(this._managers).forEach(([name, manager]) => {
             console.log(`      ├─ ${name}: ${manager ? '✅' : '❌'}`);
         });
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     }
     
-    /**
-     * 파괴
-     */
     destroy() {
         this.clearAll();
         this._managers = {};
@@ -441,4 +353,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = EditorStateManager;
 }
 
-console.log('✅ EditorStateManager.js 로드 완료 v1.0.0');
+console.log('✅ EditorStateManager.js 로드 완료 v1.0.1');

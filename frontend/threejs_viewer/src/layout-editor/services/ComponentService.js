@@ -1,6 +1,11 @@
 /**
- * ComponentService.js
- * ====================
+ * ComponentService.js v1.0.1
+ * ==========================
+ * 
+ * ✨ v1.0.1 수정:
+ * - ✅ deleteSelected()에서 StateManager/deselectAll() 호출 추가
+ * - ✅ 삭제 후 HandleManager 정리 보장
+ * 
  * 컴포넌트 생성, 드래그, 드롭 처리 서비스
  * 
  * 위치: frontend/threejs_viewer/src/layout-editor/services/ComponentService.js
@@ -23,7 +28,7 @@ class ComponentService {
             equipment: { id: 'equipment', name: 'Equipment', width: 1.5, depth: 3.0, color: '#FF8C00', layer: 'equipment' }
         };
         
-        console.log('✅ ComponentService 초기화 완료');
+        console.log('✅ ComponentService 초기화 완료 v1.0.1');
     }
     
     /**
@@ -253,26 +258,57 @@ class ComponentService {
     }
     
     /**
-     * 선택된 객체 삭제
+     * ✨ v1.0.1: 선택된 객체 삭제 (핸들 정리 추가)
      */
     deleteSelected() {
         const selected = this.canvas.selectedObjects;
         if (!selected || selected.length === 0) return 0;
         
         const count = selected.length;
+        const shapesToDelete = [...selected];  // 복사본 생성
         
+        console.log('[ComponentService] deleteSelected:', count, '개');
+        
+        // ✨ v1.0.1: 삭제 전 선택 해제 (핸들 정리!)
+        // StateManager가 있으면 사용, 없으면 deselectAll 호출
+        if (this.canvas.stateManager) {
+            this.canvas.stateManager.prepareForDelete();
+        } else {
+            // HandleManager 직접 정리
+            if (this.canvas.handleManager) {
+                this.canvas.handleManager.detach();
+            }
+            // SelectionRenderer 정리
+            if (this.canvas.selectionRenderer) {
+                this.canvas.selectionRenderer.destroyTransformer?.();
+            }
+        }
+        
+        // 선택 배열 먼저 비우기
+        if (this.canvas.selectionManager) {
+            this.canvas.selectionManager.deselectAll?.(false);
+        }
+        this.canvas._selectedObjectsProxy = [];
+        
+        // DeleteCommand 실행
         if (this.commandManager && typeof DeleteCommand !== 'undefined') {
-            const deleteCmd = new DeleteCommand(selected);
+            const deleteCmd = new DeleteCommand(shapesToDelete);
             this.commandManager.execute(deleteCmd);
         } else {
-            selected.forEach(shape => shape.destroy());
+            shapesToDelete.forEach(shape => shape.destroy());
             this.canvas.stage.batchDraw();
         }
         
-        this.canvas.selectedObjects = [];
-        this.canvas.transformer?.nodes([]);
+        // ✨ v1.0.1: 삭제 후 정리
+        if (this.canvas.stateManager) {
+            this.canvas.stateManager.cleanupAfterDelete();
+        }
+        
+        // UI 갱신
+        this.canvas.layers?.ui?.batchDraw();
         this.onStatusUpdate();
         
+        console.log('[ComponentService] ✅ 삭제 완료:', count, '개');
         return count;
     }
     
@@ -296,4 +332,4 @@ if (typeof window !== 'undefined') {
     window.ComponentService = ComponentService;
 }
 
-console.log('✅ ComponentService.js 로드 완료');
+console.log('✅ ComponentService.js 로드 완료 v1.0.1');
