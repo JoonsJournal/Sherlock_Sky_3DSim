@@ -2,13 +2,17 @@
  * EquipmentEditModal.js
  * 설비 편집 모달
  * 
- * @version 2.0.0
- * @description BaseModal 상속 적용
+ * @version 2.1.0
+ * @description 
+ *   - BaseModal 상속 적용
+ *   - EquipmentMappingService 연동
+ *   - 서버 저장/검증 기능 추가
  */
 
 import { BaseModal } from '../core/base/BaseModal.js';
 import { toast } from './common/Toast.js';
 import { debugLog } from '../core/utils/Config.js';
+import { EquipmentMappingService } from '../services/mapping/EquipmentMappingService.js';
 
 /**
  * EquipmentEditModal
@@ -32,11 +36,22 @@ export class EquipmentEditModal extends BaseModal {
         this.editState = options.editState;
         this.apiClient = options.apiClient;
         
+        // ⭐ MappingService 초기화
+        this.mappingService = new EquipmentMappingService({
+            apiClient: this.apiClient,
+            editState: this.editState
+        });
+        
         this.currentEquipment = null;
         this.availableEquipments = [];
         this.filteredEquipments = [];
         this.selectedEquipmentId = null;
         this.selectedEquipmentName = null;
+        
+        // 검증 상태
+        this.validationResult = null;
+        this.isValidating = false;
+        this.isSaving = false;
     }
     
     /**
@@ -111,10 +126,18 @@ export class EquipmentEditModal extends BaseModal {
                     </div>
                 </div>
                 
+                <!-- Validation Status -->
+                <div class="edit-section" style="margin-top: 16px;">
+                    <div id="validation-status" style="display: none;">
+                        <!-- 검증 결과가 여기에 표시됨 -->
+                    </div>
+                </div>
+                
                 <!-- Progress -->
                 <div class="edit-section" style="margin-top: 16px;">
-                    <div class="progress-info" style="text-align: center;">
+                    <div class="progress-info" style="display: flex; justify-content: space-between; align-items: center;">
                         <span id="mapping-progress" style="color: #888;">0 / 0 Mapped</span>
+                        <span id="sync-status" style="color: #666; font-size: 12px;"></span>
                     </div>
                 </div>
             </div>
@@ -126,8 +149,23 @@ export class EquipmentEditModal extends BaseModal {
      */
     renderFooter() {
         return `
-            <button class="btn-secondary modal-cancel-btn">Cancel</button>
-            <button class="btn-primary modal-confirm-btn" disabled>Confirm</button>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <div class="footer-left" style="display: flex; gap: 8px;">
+                    <button id="btn-validate" class="btn-outline" title="Validate all mappings">
+                        🔍 Validate
+                    </button>
+                    <button id="btn-sync-server" class="btn-outline" title="Load from server">
+                        🔄 Sync
+                    </button>
+                </div>
+                <div class="footer-right" style="display: flex; gap: 8px;">
+                    <button class="btn-secondary modal-cancel-btn">Cancel</button>
+                    <button id="btn-save-server" class="btn-success" title="Save to server">
+                        💾 Save All
+                    </button>
+                    <button class="btn-primary modal-confirm-btn" disabled>Confirm</button>
+                </div>
+            </div>
         `;
     }
     
@@ -153,6 +191,30 @@ export class EquipmentEditModal extends BaseModal {
                 }
             });
         }
+        
+        // ⭐ 검증 버튼
+        const validateBtn = this.$('#btn-validate');
+        if (validateBtn) {
+            this.addDomListener(validateBtn, 'click', () => {
+                this._handleValidate();
+            });
+        }
+        
+        // ⭐ 서버 동기화 버튼
+        const syncBtn = this.$('#btn-sync-server');
+        if (syncBtn) {
+            this.addDomListener(syncBtn, 'click', () => {
+                this._handleSyncFromServer();
+            });
+        }
+        
+        // ⭐ 서버 저장 버튼
+        const saveBtn = this.$('#btn-save-server');
+        if (saveBtn) {
+            this.addDomListener(saveBtn, 'click', () => {
+                this._handleSaveToServer();
+            });
+        }
     }
     
     /**
@@ -163,6 +225,7 @@ export class EquipmentEditModal extends BaseModal {
         this.currentEquipment = equipment;
         this.selectedEquipmentId = null;
         this.selectedEquipmentName = null;
+        this.validationResult = null;
         
         // BaseModal의 open 호출
         super.open();
@@ -172,6 +235,9 @@ export class EquipmentEditModal extends BaseModal {
         
         // 진행 상황 업데이트
         this._updateProgress();
+        
+        // 동기화 상태 표시
+        this._updateSyncStatus();
         
         // Equipment 목록 로드
         await this._loadAvailableEquipments();
@@ -184,11 +250,18 @@ export class EquipmentEditModal extends BaseModal {
         this.currentEquipment = null;
         this.selectedEquipmentId = null;
         this.selectedEquipmentName = null;
+        this.validationResult = null;
         
         // 검색 초기화
         const searchInput = this.$('#equipment-search');
         if (searchInput) {
             searchInput.value = '';
+        }
+        
+        // 검증 상태 초기화
+        const validationStatus = this.$('#validation-status');
+        if (validationStatus) {
+            validationStatus.style.display = 'none';
         }
     }
     
@@ -209,76 +282,312 @@ export class EquipmentEditModal extends BaseModal {
         
         toast.success(`Mapped: ${this.currentEquipment.userData.id} → ${this.selectedEquipmentName}`);
         
-        // 진행 상황 업데이트
-        this._updateProgress();
-        
         // 모달 닫기
         this.close();
     }
     
-    /**
-     * Cancel 버튼 클릭
-     */
-    onCancel() {
-        this.close();
-    }
+    // ==========================================
+    // ⭐ 서버 연동 메서드 (신규)
+    // ==========================================
     
     /**
-     * 설비 정보 표시
+     * 검증 실행
      */
-    _displayEquipmentInfo() {
-        if (!this.currentEquipment) return;
+    async _handleValidate() {
+        if (this.isValidating) return;
         
-        const userData = this.currentEquipment.userData;
+        const validateBtn = this.$('#btn-validate');
+        const validationStatus = this.$('#validation-status');
         
-        const frontendIdEl = this.$('#edit-frontend-id');
-        const positionEl = this.$('#edit-position');
-        const currentMappingEl = this.$('#edit-current-mapping');
-        
-        if (frontendIdEl) {
-            frontendIdEl.textContent = userData.id;
-        }
-        
-        if (positionEl) {
-            positionEl.textContent = `Row ${userData.position.row}, Col ${userData.position.col}`;
-        }
-        
-        // 현재 매핑 확인
-        const mapping = this.editState.getMapping(userData.id);
-        
-        if (currentMappingEl) {
-            if (mapping) {
-                currentMappingEl.innerHTML = `<span class="badge badge-success" style="
-                    background: #4CAF50;
-                    color: #fff;
-                    padding: 2px 8px;
-                    border-radius: 4px;
-                    font-size: 12px;
-                ">${mapping.equipment_name}</span>`;
+        try {
+            this.isValidating = true;
+            if (validateBtn) {
+                validateBtn.disabled = true;
+                validateBtn.innerHTML = '🔄 Validating...';
+            }
+            
+            // 먼저 로컬 검증
+            const localResult = this.mappingService.validateLocal();
+            
+            if (!localResult.valid) {
+                this._displayValidationResult(localResult, 'local');
+                toast.warning('Local validation found issues');
+                return;
+            }
+            
+            // 서버 검증
+            const serverResult = await this.mappingService.validateMapping();
+            this.validationResult = serverResult;
+            
+            this._displayValidationResult(serverResult, 'server');
+            
+            if (serverResult.valid) {
+                toast.success('✅ All mappings are valid!');
             } else {
-                currentMappingEl.innerHTML = `<span class="badge badge-warning" style="
-                    background: #FFC107;
-                    color: #000;
-                    padding: 2px 8px;
-                    border-radius: 4px;
-                    font-size: 12px;
-                ">Not Assigned</span>`;
+                toast.warning(`⚠️ Found ${serverResult.errors?.length || 0} errors`);
+            }
+            
+        } catch (error) {
+            console.error('Validation error:', error);
+            toast.error('Validation failed: ' + error.message);
+        } finally {
+            this.isValidating = false;
+            if (validateBtn) {
+                validateBtn.disabled = false;
+                validateBtn.innerHTML = '🔍 Validate';
             }
         }
     }
     
     /**
-     * Available Equipment 목록 로드
+     * 서버에서 매핑 로드
+     */
+    async _handleSyncFromServer() {
+        const syncBtn = this.$('#btn-sync-server');
+        
+        try {
+            if (syncBtn) {
+                syncBtn.disabled = true;
+                syncBtn.innerHTML = '🔄 Loading...';
+            }
+            
+            // 충돌 감지
+            const conflicts = await this.mappingService.detectConflicts();
+            
+            if (conflicts.needsSync && conflicts.conflicts.length > 0) {
+                // 충돌이 있으면 사용자에게 확인
+                const choice = confirm(
+                    `⚠️ ${conflicts.conflicts.length} conflicts detected.\n\n` +
+                    `Local only: ${conflicts.localOnly.length}\n` +
+                    `Server only: ${conflicts.serverOnly.length}\n\n` +
+                    `Click OK to use server data, Cancel to keep local data.`
+                );
+                
+                const strategy = choice ? 'replace' : 'keep-local';
+                await this.mappingService.loadMappings(strategy);
+                toast.success(`Synced with server (${strategy})`);
+            } else {
+                await this.mappingService.loadMappings('merge');
+                toast.success('Synced with server');
+            }
+            
+            // UI 업데이트
+            this._updateProgress();
+            this._updateSyncStatus();
+            this._renderEquipmentList();
+            
+        } catch (error) {
+            console.error('Sync error:', error);
+            toast.error('Sync failed: ' + error.message);
+        } finally {
+            if (syncBtn) {
+                syncBtn.disabled = false;
+                syncBtn.innerHTML = '🔄 Sync';
+            }
+        }
+    }
+    
+    /**
+     * 서버에 매핑 저장
+     */
+    async _handleSaveToServer() {
+        if (this.isSaving) return;
+        
+        const saveBtn = this.$('#btn-save-server');
+        const mappingCount = this.editState?.getMappingCount() || 0;
+        
+        if (mappingCount === 0) {
+            toast.warning('No mappings to save');
+            return;
+        }
+        
+        // 저장 확인
+        const confirmed = confirm(
+            `💾 Save ${mappingCount} mappings to server?\n\n` +
+            `This will overwrite existing server data.`
+        );
+        
+        if (!confirmed) return;
+        
+        try {
+            this.isSaving = true;
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '💾 Saving...';
+            }
+            
+            const result = await this.mappingService.saveMappings(true); // 검증 후 저장
+            
+            if (result.success) {
+                toast.success(`✅ Saved ${result.total || mappingCount} mappings to server`);
+                this._updateSyncStatus();
+            } else {
+                // 검증 실패
+                if (result.validation) {
+                    this._displayValidationResult(result.validation, 'server');
+                }
+                toast.error('Save failed: Validation errors');
+            }
+            
+        } catch (error) {
+            console.error('Save error:', error);
+            toast.error('Save failed: ' + error.message);
+        } finally {
+            this.isSaving = false;
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '💾 Save All';
+            }
+        }
+    }
+    
+    /**
+     * 검증 결과 표시
+     * @param {Object} result - 검증 결과
+     * @param {string} source - 'local' | 'server'
+     */
+    _displayValidationResult(result, source) {
+        const validationStatus = this.$('#validation-status');
+        if (!validationStatus) return;
+        
+        validationStatus.style.display = 'block';
+        
+        const statusColor = result.valid ? '#4CAF50' : '#f44336';
+        const statusIcon = result.valid ? '✅' : '❌';
+        
+        let html = `
+            <div style="
+                background: ${result.valid ? 'rgba(76, 175, 80, 0.1)' : 'rgba(244, 67, 54, 0.1)'};
+                border: 1px solid ${statusColor};
+                border-radius: 4px;
+                padding: 12px;
+            ">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <span style="font-size: 18px;">${statusIcon}</span>
+                    <span style="color: ${statusColor}; font-weight: bold;">
+                        ${result.valid ? 'Validation Passed' : 'Validation Failed'}
+                    </span>
+                    <span style="color: #666; font-size: 12px;">(${source})</span>
+                </div>
+        `;
+        
+        // 에러 표시
+        if (result.errors && result.errors.length > 0) {
+            html += `
+                <div style="margin-top: 8px;">
+                    <div style="color: #f44336; font-weight: 500; margin-bottom: 4px;">Errors:</div>
+                    <ul style="margin: 0; padding-left: 20px; color: #ff6b6b; font-size: 12px;">
+                        ${result.errors.slice(0, 5).map(e => `<li>${e}</li>`).join('')}
+                        ${result.errors.length > 5 ? `<li>... and ${result.errors.length - 5} more</li>` : ''}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        // 경고 표시
+        if (result.warnings && result.warnings.length > 0) {
+            html += `
+                <div style="margin-top: 8px;">
+                    <div style="color: #FFC107; font-weight: 500; margin-bottom: 4px;">Warnings:</div>
+                    <ul style="margin: 0; padding-left: 20px; color: #ffd54f; font-size: 12px;">
+                        ${result.warnings.map(w => `<li>${w}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        validationStatus.innerHTML = html;
+    }
+    
+    /**
+     * 동기화 상태 업데이트
+     */
+    _updateSyncStatus() {
+        const syncStatus = this.$('#sync-status');
+        if (!syncStatus) return;
+        
+        const status = this.mappingService.getStatus();
+        
+        if (status.lastSyncTime) {
+            const timeAgo = this._formatTimeAgo(status.lastSyncTime);
+            syncStatus.innerHTML = `
+                <span style="color: ${status.isDirty ? '#FFC107' : '#4CAF50'};">
+                    ${status.isDirty ? '⚠️ Unsaved changes' : '✅ Synced'} • Last sync: ${timeAgo}
+                </span>
+            `;
+        } else {
+            syncStatus.innerHTML = `
+                <span style="color: #888;">Not synced with server</span>
+            `;
+        }
+    }
+    
+    /**
+     * 시간 포맷팅
+     * @param {Date} date
+     * @returns {string}
+     */
+    _formatTimeAgo(date) {
+        const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+        
+        if (seconds < 60) return 'just now';
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+        return `${Math.floor(seconds / 86400)}d ago`;
+    }
+    
+    // ==========================================
+    // 기존 Private Methods
+    // ==========================================
+    
+    /**
+     * 설비 정보 표시
+     */
+    _displayEquipmentInfo() {
+        const frontendIdEl = this.$('#edit-frontend-id');
+        const positionEl = this.$('#edit-position');
+        const currentMappingEl = this.$('#edit-current-mapping');
+        
+        if (!this.currentEquipment) return;
+        
+        const userData = this.currentEquipment.userData;
+        
+        if (frontendIdEl) {
+            frontendIdEl.textContent = userData.id || '-';
+        }
+        
+        if (positionEl) {
+            const pos = this.currentEquipment.position;
+            positionEl.textContent = `Row ${userData.row || '-'}, Col ${userData.col || '-'}`;
+        }
+        
+        if (currentMappingEl) {
+            const mapping = this.editState?.getMapping(userData.id);
+            if (mapping) {
+                currentMappingEl.innerHTML = `
+                    <span style="color: #4CAF50;">${mapping.equipment_name}</span>
+                    <span style="color: #666; font-size: 12px;">(ID: ${mapping.equipment_id})</span>
+                `;
+            } else {
+                currentMappingEl.textContent = 'Not Assigned';
+                currentMappingEl.style.color = '#888';
+            }
+        }
+    }
+    
+    /**
+     * Available Equipments 로드
      */
     async _loadAvailableEquipments() {
         const listContainer = this.$('#equipment-list');
         if (!listContainer) return;
         
+        listContainer.innerHTML = '<div class="loading" style="padding: 20px; text-align: center; color: #888;">Loading equipment list...</div>';
+        
         try {
-            listContainer.innerHTML = '<div class="loading" style="padding: 20px; text-align: center; color: #888;">Loading equipment list...</div>';
-            
-            // API 호출
-            const equipments = await this.apiClient.get('/equipment/names');
+            // ⭐ MappingService 통해 로드 (캐싱 적용)
+            const equipments = await this.mappingService.loadEquipmentNames();
             
             this.availableEquipments = equipments;
             this.filteredEquipments = equipments;
@@ -463,15 +772,14 @@ export class EquipmentEditModal extends BaseModal {
      * 진행 상황 업데이트
      */
     _updateProgress() {
-        const totalEquipments = 117; // CONFIG.EQUIPMENT.ROWS * CONFIG.EQUIPMENT.COLS - excluded
-        const mappedCount = this.editState ? this.editState.getMappingCount() : 0;
+        const completion = this.mappingService.getCompletionStatus();
         
         const progressEl = this.$('#mapping-progress');
         if (!progressEl) return;
         
-        progressEl.textContent = `${mappedCount} / ${totalEquipments} Mapped`;
+        progressEl.textContent = `${completion.mapped} / ${completion.total} Mapped (${completion.percentage}%)`;
         
-        if (mappedCount === totalEquipments) {
+        if (completion.isComplete) {
             progressEl.innerHTML = `
                 <span class="badge badge-success" style="
                     background: #4CAF50;
@@ -479,7 +787,7 @@ export class EquipmentEditModal extends BaseModal {
                     padding: 4px 12px;
                     border-radius: 4px;
                 ">
-                    ✓ All Equipment Mapped (${totalEquipments} / ${totalEquipments})
+                    ✓ All Equipment Mapped (${completion.total} / ${completion.total})
                 </span>
             `;
         }
