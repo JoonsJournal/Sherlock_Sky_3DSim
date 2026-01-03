@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Layout Editor - SHERLOCK_SKY_3DSIM (Phase 1)</title>
+    <title>Layout Editor - SHERLOCK_SKY_3DSIM (Phase 2)</title>
     
     <!-- Konva.js CDN -->
     <script src="https://unpkg.com/konva@9/konva.min.js"></script>
@@ -102,101 +102,75 @@
         .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.3); }
         
         /* ============================================
-           Layout
+           Main Layout
            ============================================ */
-        .layout-container { display: flex; position: fixed; top: var(--header-height); left: 0; right: 0; bottom: var(--status-height); }
+        .main-wrapper { display: flex; margin-top: var(--header-height); height: calc(100vh - var(--header-height) - var(--status-height)); }
         
         /* ============================================
-           Toolbar - 자동 크기 조절
+           Toolbar - ✅ 자동 너비 조절
            ============================================ */
-        .toolbar-container {
+        .toolbar-container { 
+            display: flex; 
+            flex-shrink: 0; 
+            background: #2c3e50; 
+            transition: width 0.3s ease; 
             width: var(--toolbar-width);
-            display: flex;
-            flex-shrink: 0;
-            transition: width 0.3s ease;
-            z-index: 10;
+            overflow: hidden;
         }
         .toolbar-container.expanded { width: var(--toolbar-expanded-width); }
         
-        .toolbar {
-            width: var(--toolbar-width);
-            min-width: var(--toolbar-width);
-            background: #2c3e50;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 8px 0;
+        .toolbar { 
+            width: var(--toolbar-width); 
+            flex-shrink: 0;
+            display: flex; 
+            flex-direction: column; 
+            padding: 6px; 
             gap: 2px;
             overflow-y: auto;
-            overflow-x: hidden;
+            max-height: 100%;
         }
-        
-        /* ✅ 버튼 크기 조절 */
-        .toolbar-btn {
-            width: var(--btn-size);
-            height: var(--btn-size);
-            background: #34495e;
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
+        .toolbar-btn { 
+            width: var(--btn-size); height: var(--btn-size); border: none; 
+            background: transparent; color: white; border-radius: 8px; 
+            cursor: pointer; display: flex; align-items: center; justify-content: center; 
+            font-size: 20px; transition: all 0.15s; position: relative;
         }
-        .toolbar-btn:hover { background: var(--primary-color); transform: scale(1.05); }
-        .toolbar-btn.active { background: var(--primary-color); box-shadow: 0 0 10px rgba(102, 126, 234, 0.6); }
-        .toolbar-btn.zoom { background: var(--success-color); font-size: 18px; }
-        .toolbar-btn.zoom:hover { background: #229954; }
-        .toolbar-btn.zoom.reset { background: var(--info-color); }
-        .toolbar-btn.danger { background: #c0392b; }
-        .toolbar-btn.danger:hover { background: var(--danger-color); }
+        .toolbar-btn:hover { background: rgba(255,255,255,0.15); }
+        .toolbar-btn.active { background: var(--primary-color); }
+        .toolbar-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .toolbar-divider { height: 1px; background: rgba(255,255,255,0.15); margin: 4px 6px; }
         
         /* Tooltip */
-        .toolbar-btn::after {
-            content: attr(data-tooltip);
-            position: absolute; left: calc(var(--btn-size) + 8px); top: 50%; transform: translateY(-50%);
-            background: rgba(0,0,0,0.9); color: white; padding: 6px 10px; border-radius: 5px;
-            font-size: 11px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 1000;
+        .toolbar-btn::after { 
+            content: attr(title); position: absolute; left: calc(100% + 8px); 
+            background: #2c3e50; color: white; padding: 4px 10px; border-radius: 4px; 
+            font-size: 11px; white-space: nowrap; opacity: 0; pointer-events: none; 
+            transition: opacity 0.2s; z-index: 1000;
         }
         .toolbar-btn:hover::after { opacity: 1; }
-        .toolbar-container.expanded .toolbar-btn::after { display: none; }
-        
-        .toolbar-divider { width: 32px; height: 2px; background: #4a5c6a; margin: 4px 0; flex-shrink: 0; }
         
         /* ============================================
-           Align Popup
+           Component Submenu - ✅ Toolbar 옆에 표시
            ============================================ */
-        .align-popup { display: none; position: fixed; left: 70px; top: 0; background: white; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); padding: 8px; z-index: 1000; min-width: 180px; }
-        .align-popup.show { display: block; animation: fadeIn 0.2s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-        .align-popup-header { font-size: 11px; font-weight: 600; color: var(--primary-color); padding: 4px 8px; border-bottom: 1px solid #eee; margin-bottom: 6px; }
-        .align-popup-section { margin-bottom: 8px; }
-        .align-popup-section-title { font-size: 10px; color: #999; padding: 4px 8px; text-transform: uppercase; }
-        .align-popup-btn { display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px 10px; border: none; background: transparent; cursor: pointer; border-radius: 5px; font-size: 12px; color: #333; transition: all 0.2s; }
-        .align-popup-btn:hover { background: #f0f4ff; color: var(--primary-color); }
-        .align-popup-btn .icon { font-size: 14px; width: 20px; text-align: center; }
-        .align-popup-btn .shortcut { margin-left: auto; font-size: 9px; color: #aaa; background: #f0f0f0; padding: 2px 5px; border-radius: 3px; }
-        
-        /* ============================================
-           Component Submenu
-           ============================================ */
-        .component-submenu { width: 0; background: white; overflow: hidden; transition: width 0.3s ease; box-shadow: 2px 0 15px rgba(0,0,0,0.15); }
-        .toolbar-container.expanded .component-submenu { width: var(--submenu-width); }
-        .submenu-content { width: var(--submenu-width); min-width: var(--submenu-width); }
-        .submenu-header { padding: 12px 14px; background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); color: white; font-weight: 600; font-size: 13px; }
-        .submenu-item { padding: 10px 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; border-bottom: 1px solid #eee; transition: background 0.2s; }
-        .submenu-item:hover { background: #f0f4ff; }
-        .submenu-item:active { background: var(--primary-color); color: white; }
-        .submenu-item-icon { font-size: 18px; width: 26px; text-align: center; }
-        .submenu-item-info { flex: 1; }
-        .submenu-item-name { font-weight: 600; font-size: 12px; color: #2c3e50; }
-        .submenu-item-size { font-size: 10px; color: #999; margin-top: 1px; }
-        .submenu-item:active .submenu-item-name, .submenu-item:active .submenu-item-size { color: white; }
+        .component-submenu { 
+            width: var(--submenu-width); 
+            background: #34495e; 
+            padding: 12px; 
+            display: none;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .toolbar-container.expanded .component-submenu { display: flex; }
+        .submenu-title { color: white; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+        .submenu-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .submenu-item { 
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); 
+            border-radius: 6px; padding: 10px 6px; text-align: center; color: white; 
+            cursor: grab; transition: all 0.2s; font-size: 11px;
+        }
+        .submenu-item:hover { background: rgba(255,255,255,0.2); border-color: var(--primary-color); transform: translateY(-2px); }
+        .submenu-item:active { cursor: grabbing; }
+        .submenu-item-icon { font-size: 24px; display: block; margin-bottom: 4px; }
         
         /* ============================================
            Canvas Area - Grid가 항상 채우도록
@@ -224,6 +198,8 @@
         .status-item.zoom-display { background: var(--success-color); padding: 3px 10px; border-radius: 4px; font-weight: 600; }
         /* ✅ Phase 1: Undo/Redo 상태 표시 스타일 */
         .status-item.history { background: #9b59b6; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
+        /* ✅ Phase 2: MICE 상태 표시 스타일 */
+        .status-item.mice { background: #e67e22; padding: 3px 8px; border-radius: 4px; font-size: 11px; }
         
         /* ============================================
            Modal
@@ -249,7 +225,7 @@
         @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         
         /* ============================================
-           Shortcuts Help - ✅ Phase 1: Arrow Keys 추가
+           Shortcuts Help - ✅ Phase 2: 복제/MICE 추가
            ============================================ */
         .shortcuts-help { position: fixed; bottom: 45px; left: 16px; background: rgba(0,0,0,0.85); color: white; padding: 12px 16px; border-radius: 6px; font-size: 11px; z-index: 100; display: none; max-width: 280px; }
         .shortcuts-help.show { display: block; }
@@ -267,6 +243,19 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         
         /* ============================================
+           Align Popup
+           ============================================ */
+        .align-popup { position: fixed; background: white; border-radius: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); padding: 12px; z-index: 150; display: none; min-width: 220px; }
+        .align-popup.show { display: block; }
+        .align-popup-section { margin-bottom: 10px; }
+        .align-popup-section:last-child { margin-bottom: 0; }
+        .align-popup-section-title { font-size: 11px; color: #888; margin-bottom: 6px; text-transform: uppercase; }
+        .align-popup-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border: none; background: #f8f9fa; border-radius: 5px; cursor: pointer; font-size: 12px; margin-bottom: 4px; transition: all 0.15s; }
+        .align-popup-btn:hover { background: #e9ecef; }
+        .align-popup-btn .icon { font-size: 16px; width: 20px; text-align: center; }
+        .align-popup-btn .shortcut { margin-left: auto; color: #888; font-size: 10px; }
+        
+        /* ============================================
            Scrollbar
            ============================================ */
         .toolbar::-webkit-scrollbar { width: 3px; }
@@ -280,77 +269,80 @@
     <div id="loading-indicator"><div class="spinner"></div><div>Layout Editor 로딩 중...</div></div>
 
     <div class="header">
-        <h1>🏗️ Layout Editor - Phase 1 (Undo/Redo + Arrow Keys)</h1>
+        <h1>🏭 Layout Editor <span style="font-size: 11px; opacity: 0.8;">Phase 2</span></h1>
         <div class="header-actions">
-            <button class="header-btn btn-secondary" id="btn-undo" disabled>↶ Undo</button>
-            <button class="header-btn btn-secondary" id="btn-redo" disabled>↷ Redo</button>
-            <button class="header-btn btn-secondary" id="btn-help">❓</button>
-            <button class="header-btn btn-primary" id="btn-save">💾 Save</button>
+            <button class="header-btn btn-secondary" id="btn-help" title="단축키 도움말 (?)">⌨️ 단축키</button>
+            <button class="header-btn btn-secondary" id="btn-undo" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+            <button class="header-btn btn-secondary" id="btn-redo" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+            <button class="header-btn btn-primary" id="btn-save" title="저장 (Ctrl+S)">💾 저장</button>
         </div>
     </div>
 
-    <div class="layout-container">
+    <div class="main-wrapper">
         <div class="toolbar-container" id="toolbar-container">
             <div class="toolbar">
-                <button class="toolbar-btn active" id="tool-select" data-tooltip="선택 (V)">👆</button>
-                <button class="toolbar-btn" id="tool-room" data-tooltip="Room Size">📐</button>
-                <button class="toolbar-btn" id="tool-wall" data-tooltip="벽 그리기 (W)">🧱</button>
-                <button class="toolbar-btn" id="component-btn" data-tooltip="컴포넌트 (C)">🎨</button>
+                <button class="toolbar-btn active" id="tool-select" title="선택 (V)">🖱️</button>
+                <button class="toolbar-btn" id="tool-room" title="Room Size">📐</button>
+                <button class="toolbar-btn" id="tool-wall" title="벽 (W)">🧱</button>
+                <button class="toolbar-btn" id="component-btn" title="컴포넌트 (C)">📦</button>
                 <div class="toolbar-divider"></div>
-                <button class="toolbar-btn" id="tool-grid" data-tooltip="Grid (G)">🔲</button>
-                <button class="toolbar-btn" id="tool-snap" data-tooltip="Snap (S)">🧲</button>
+                <button class="toolbar-btn" id="tool-grid" title="Grid (G)">⊞</button>
+                <button class="toolbar-btn" id="tool-snap" title="Snap (S)">🧲</button>
                 <div class="toolbar-divider"></div>
-                <button class="toolbar-btn zoom" id="tool-zoom-in" data-tooltip="Zoom In (+)">➕</button>
-                <button class="toolbar-btn zoom" id="tool-zoom-out" data-tooltip="Zoom Out (-)">➖</button>
-                <button class="toolbar-btn zoom reset" id="tool-zoom-reset" data-tooltip="Reset (0)">🎯</button>
+                <button class="toolbar-btn" id="tool-zoom-in" title="확대 (+)">🔍</button>
+                <button class="toolbar-btn" id="tool-zoom-out" title="축소 (-)">🔎</button>
+                <button class="toolbar-btn" id="tool-zoom-reset" title="리셋 (0)">↺</button>
                 <div class="toolbar-divider"></div>
-                <button class="toolbar-btn" id="tool-select-all" data-tooltip="전체선택 (⌘A)">✅</button>
-                <button class="toolbar-btn danger" id="tool-delete" data-tooltip="삭제 (Del)">🗑️</button>
-                <button class="toolbar-btn" id="tool-deselect" data-tooltip="해제 (Esc)">❌</button>
+                <button class="toolbar-btn" id="tool-select-all" title="전체 선택 (Ctrl+A)">☑️</button>
+                <button class="toolbar-btn" id="tool-delete" title="삭제 (Del)">🗑️</button>
+                <button class="toolbar-btn" id="tool-deselect" title="선택 해제 (Esc)">✖️</button>
                 <div class="toolbar-divider"></div>
-                <button class="toolbar-btn" id="align-btn" data-tooltip="정렬 (L)">📏</button>
-                <button class="toolbar-btn" id="tool-rotate" data-tooltip="회전 (R)">🔄</button>
+                <button class="toolbar-btn" id="align-btn" title="정렬 (L)">📏</button>
+                <button class="toolbar-btn" id="tool-rotate" title="회전 (R)">🔄</button>
                 <div class="toolbar-divider"></div>
-                <button class="toolbar-btn" id="tool-sample" data-tooltip="샘플 로드">📁</button>
+                <button class="toolbar-btn" id="tool-sample" title="샘플 로드">📂</button>
             </div>
-            <div class="component-submenu" id="component-submenu">
-                <div class="submenu-content">
-                    <div class="submenu-header">🎨 Components</div>
-                    <div class="submenu-item" draggable="true" data-component="equipment"><span class="submenu-item-icon">⚙️</span><div class="submenu-item-info"><div class="submenu-item-name">Equipment</div><div class="submenu-item-size">1.5 × 3.0m</div></div></div>
-                    <div class="submenu-item" draggable="true" data-component="partition"><span class="submenu-item-icon">🚪</span><div class="submenu-item-info"><div class="submenu-item-name">Partition</div><div class="submenu-item-size">3.0 × 2.5m</div></div></div>
-                    <div class="submenu-item" draggable="true" data-component="desk"><span class="submenu-item-icon">🪑</span><div class="submenu-item-info"><div class="submenu-item-name">Desk</div><div class="submenu-item-size">1.6 × 0.8m</div></div></div>
-                    <div class="submenu-item" draggable="true" data-component="pillar"><span class="submenu-item-icon">🏛️</span><div class="submenu-item-info"><div class="submenu-item-name">Pillar</div><div class="submenu-item-size">0.3 × 0.3m</div></div></div>
-                    <div class="submenu-item" draggable="true" data-component="office"><span class="submenu-item-icon">🏢</span><div class="submenu-item-info"><div class="submenu-item-name">Office</div><div class="submenu-item-size">12 × 20m</div></div></div>
+            
+            <div class="component-submenu">
+                <div class="submenu-title">📦 컴포넌트 드래그 또는 클릭</div>
+                <div class="submenu-grid">
+                    <div class="submenu-item" draggable="true" data-component="partition"><span class="submenu-item-icon">🚧</span>Partition</div>
+                    <div class="submenu-item" draggable="true" data-component="desk"><span class="submenu-item-icon">🪑</span>Desk</div>
+                    <div class="submenu-item" draggable="true" data-component="pillar"><span class="submenu-item-icon">🏛️</span>Pillar</div>
+                    <div class="submenu-item" draggable="true" data-component="office"><span class="submenu-item-icon">🏢</span>Office</div>
+                    <div class="submenu-item" draggable="true" data-component="equipment"><span class="submenu-item-icon">⚙️</span>Equipment</div>
                 </div>
             </div>
         </div>
+
         <div class="canvas-area">
             <div id="canvas-container"></div>
-            <div class="drop-guide" id="drop-guide">📦 드롭하여 생성!</div>
+            <div class="drop-guide" id="drop-guide">📦 여기에 드롭하세요</div>
         </div>
+
         <div class="property-panel" id="property-panel">
             <div class="property-panel-content">
-                <div class="property-panel-header">📋 속성</div>
-                <div class="property-panel-empty"><div class="property-panel-empty-icon">👆</div><div>객체를 선택하세요</div></div>
+                <div class="property-panel-header">📋 Properties</div>
+                <div class="property-panel-empty"><span class="property-panel-empty-icon">🖱️</span><span>객체를 선택하세요</span></div>
             </div>
         </div>
     </div>
 
+    <!-- Align Popup -->
     <div class="align-popup" id="align-popup">
-        <div class="align-popup-header">📐 정렬 & 회전</div>
         <div class="align-popup-section">
             <div class="align-popup-section-title">정렬</div>
-            <button class="align-popup-btn" id="align-left"><span class="icon">⬅️</span> 좌측</button>
-            <button class="align-popup-btn" id="align-right"><span class="icon">➡️</span> 우측</button>
-            <button class="align-popup-btn" id="align-top"><span class="icon">⬆️</span> 상단</button>
-            <button class="align-popup-btn" id="align-bottom"><span class="icon">⬇️</span> 하단</button>
-            <button class="align-popup-btn" id="align-center-h"><span class="icon">↔️</span> 수평중앙</button>
-            <button class="align-popup-btn" id="align-center-v"><span class="icon">↕️</span> 수직중앙</button>
+            <button class="align-popup-btn" id="align-left"><span class="icon">⬅️</span> 왼쪽 정렬</button>
+            <button class="align-popup-btn" id="align-center-h"><span class="icon">↔️</span> 수평 중앙</button>
+            <button class="align-popup-btn" id="align-right"><span class="icon">➡️</span> 오른쪽 정렬</button>
+            <button class="align-popup-btn" id="align-top"><span class="icon">⬆️</span> 위 정렬</button>
+            <button class="align-popup-btn" id="align-center-v"><span class="icon">↕️</span> 수직 중앙</button>
+            <button class="align-popup-btn" id="align-bottom"><span class="icon">⬇️</span> 아래 정렬</button>
         </div>
         <div class="align-popup-section">
             <div class="align-popup-section-title">분배</div>
-            <button class="align-popup-btn" id="distribute-h"><span class="icon">⇔</span> 수평분배</button>
-            <button class="align-popup-btn" id="distribute-v"><span class="icon">⇕</span> 수직분배</button>
+            <button class="align-popup-btn" id="distribute-h"><span class="icon">⇔</span> 수평 분배</button>
+            <button class="align-popup-btn" id="distribute-v"><span class="icon">⇕</span> 수직 분배</button>
         </div>
         <div class="align-popup-section">
             <div class="align-popup-section-title">회전</div>
@@ -360,18 +352,20 @@
         </div>
     </div>
 
-    <!-- ✅ Phase 1: 상태바에 History 표시 추가 -->
+    <!-- ✅ Phase 2: 상태바에 MICE/Equipment 추가 -->
     <div class="status-bar">
         <span class="status-item">🔧 <span id="status-tool">선택</span></span>
         <span class="status-item zoom-display">🔍 <span id="status-zoom">100%</span></span>
         <span class="status-item history">↶ <span id="status-undo">0</span> / ↷ <span id="status-redo">0</span></span>
         <span class="status-item">Grid: <span id="status-grid">ON</span></span>
         <span class="status-item">Snap: <span id="status-snap">ON</span></span>
+        <span class="status-item mice">🎪 MICE: <span id="status-mice-snap">OFF</span></span>
         <span class="status-item">📦 <span id="status-objects">0</span></span>
+        <span class="status-item">⚙️ Eq: <span id="status-equipment">0</span></span>
         <span class="status-item">✅ <span id="status-selected">0</span></span>
     </div>
 
-    <!-- ✅ Phase 1: 단축키 도움말 업데이트 -->
+    <!-- ✅ Phase 2: 단축키 도움말 업데이트 -->
     <div class="shortcuts-help" id="shortcuts-help">
         <h4>⌨️ 단축키</h4>
         <ul>
@@ -380,18 +374,25 @@
             <li><kbd>C</kbd> 컴포넌트</li>
             <li><kbd>G</kbd> Grid</li>
             <li><kbd>S</kbd> Snap</li>
+            <li><kbd>M</kbd> MICE Snap</li>
             <li><kbd>R</kbd> 회전</li>
             <li><kbd>L</kbd> 정렬</li>
             <li><kbd>Del</kbd> 삭제</li>
             <li><kbd>⌘A</kbd> 전체선택</li>
             <li><kbd>⌘Z</kbd> Undo</li>
             <li><kbd>⌘Y</kbd> Redo</li>
+            <li><kbd>⌘D</kbd> 복제</li>
             <li><kbd>Esc</kbd> 해제</li>
         </ul>
         <div class="section-title">🎯 이동 (Phase 1)</div>
         <ul>
             <li><kbd>↑↓←→</kbd> 1px 이동</li>
             <li><kbd>⇧+방향</kbd> 10px 이동</li>
+        </ul>
+        <div class="section-title">📋 Phase 2</div>
+        <ul>
+            <li><kbd>⌘D</kbd> 복제 (+20px)</li>
+            <li><kbd>M</kbd> MICE Snap</li>
         </ul>
     </div>
 
@@ -429,7 +430,6 @@
                 super(editor, options);
             }
             
-            // ✅ 그리드가 항상 뷰포트 전체를 채우도록 오버라이드
             updateGrid() {
                 if (!this.editor.layers?.background) return;
                 
@@ -439,151 +439,92 @@
                 const stagePos = stage.position();
                 const zoom = this.currentZoom;
                 
-                // 뷰포트 크기 계산 (여유 공간 추가)
                 const padding = 2000 / zoom;
                 const viewWidth = (this.editor.config.width / zoom) + padding * 2;
                 const viewHeight = (this.editor.config.height / zoom) + padding * 2;
                 const startX = (-stagePos.x / zoom) - padding;
                 const startY = (-stagePos.y / zoom) - padding;
                 
-                // 배경
                 const background = new Konva.Rect({
-                    x: startX,
-                    y: startY,
-                    width: viewWidth,
-                    height: viewHeight,
-                    fill: '#f0f0f0',
-                    listening: false
+                    x: startX, y: startY, width: viewWidth, height: viewHeight,
+                    fill: '#f0f0f0', listening: false
                 });
                 this.editor.layers.background.add(background);
                 
-                // 그리드 그리기
                 if (this.editor.config.showGrid) {
                     const gridSize = this.editor.config.gridSize;
                     const majorInterval = 100;
-                    
-                    // 시작점을 그리드에 맞춤
                     const gridStartX = Math.floor(startX / gridSize) * gridSize;
                     const gridStartY = Math.floor(startY / gridSize) * gridSize;
                     const gridEndX = startX + viewWidth;
                     const gridEndY = startY + viewHeight;
                     
-                    // Minor grid lines
                     for (let x = gridStartX; x <= gridEndX; x += gridSize) {
                         const isMajor = Math.abs(x % majorInterval) < 0.1;
-                        const line = new Konva.Line({
+                        this.editor.layers.background.add(new Konva.Line({
                             points: [x, startY, x, startY + viewHeight],
                             stroke: isMajor ? '#b0b0b0' : '#d8d8d8',
-                            strokeWidth: isMajor ? 1 : 0.5,
-                            listening: false
-                        });
-                        this.editor.layers.background.add(line);
+                            strokeWidth: isMajor ? 1 : 0.5, listening: false
+                        }));
                     }
                     
                     for (let y = gridStartY; y <= gridEndY; y += gridSize) {
                         const isMajor = Math.abs(y % majorInterval) < 0.1;
-                        const line = new Konva.Line({
+                        this.editor.layers.background.add(new Konva.Line({
                             points: [startX, y, startX + viewWidth, y],
                             stroke: isMajor ? '#b0b0b0' : '#d8d8d8',
-                            strokeWidth: isMajor ? 1 : 0.5,
-                            listening: false
-                        });
-                        this.editor.layers.background.add(line);
+                            strokeWidth: isMajor ? 1 : 0.5, listening: false
+                        }));
                     }
                     
-                    // 라벨 (줌 레벨이 0.3 이상일 때만)
                     if (zoom >= 0.3) {
                         for (let x = gridStartX; x <= gridEndX; x += majorInterval) {
                             if (x === 0) continue;
-                            const label = new Konva.Text({
-                                x: x + 2,
-                                y: startY + 5,
-                                text: (x / 10).toFixed(0) + 'm',
-                                fontSize: 10 / zoom,
-                                fill: '#888888',
-                                listening: false
-                            });
-                            this.editor.layers.background.add(label);
+                            this.editor.layers.background.add(new Konva.Text({
+                                x: x + 2, y: startY + 5, text: (x / 10).toFixed(0) + 'm',
+                                fontSize: 10 / zoom, fill: '#888888', listening: false
+                            }));
                         }
-                        
                         for (let y = gridStartY; y <= gridEndY; y += majorInterval) {
                             if (y === 0) continue;
-                            const label = new Konva.Text({
-                                x: startX + 5,
-                                y: y + 2,
-                                text: (y / 10).toFixed(0) + 'm',
-                                fontSize: 10 / zoom,
-                                fill: '#888888',
-                                listening: false
-                            });
-                            this.editor.layers.background.add(label);
+                            this.editor.layers.background.add(new Konva.Text({
+                                x: startX + 5, y: y + 2, text: (y / 10).toFixed(0) + 'm',
+                                fontSize: 10 / zoom, fill: '#888888', listening: false
+                            }));
                         }
                     }
                 }
-                
                 this.editor.layers.background.batchDraw();
             }
             
-            // ✅ Pan 후 그리드 업데이트
-            handleWheel(e) {
-                super.handleWheel(e);
-                this.updateGrid();
-            }
-            
-            setZoom(newZoom) {
-                super.setZoom(newZoom);
-                this.updateGrid();
-            }
+            handleWheel(e) { super.handleWheel(e); this.updateGrid(); }
+            setZoom(newZoom) { super.setZoom(newZoom); this.updateGrid(); }
             
             zoomIn() {
                 const oldZoom = this.currentZoom;
                 const newZoom = Math.min(this.options.maxZoom, oldZoom + this.options.zoomStep);
-                
                 const pointer = this.editor.stage.getPointerPosition();
                 if (!pointer) return;
-                
-                const mousePointTo = {
-                    x: pointer.x / oldZoom - this.editor.stage.x() / oldZoom,
-                    y: pointer.y / oldZoom - this.editor.stage.y() / oldZoom
-                };
-                
+                const mousePointTo = { x: pointer.x / oldZoom - this.editor.stage.x() / oldZoom, y: pointer.y / oldZoom - this.editor.stage.y() / oldZoom };
                 this.setZoom(newZoom);
-                
-                this.editor.stage.position({
-                    x: -(mousePointTo.x - pointer.x / newZoom) * newZoom,
-                    y: -(mousePointTo.y - pointer.y / newZoom) * newZoom
-                });
-                
-                this.updateGrid();
-                this.editor.stage.batchDraw();
+                this.editor.stage.position({ x: -(mousePointTo.x - pointer.x / newZoom) * newZoom, y: -(mousePointTo.y - pointer.y / newZoom) * newZoom });
+                this.updateGrid(); this.editor.stage.batchDraw();
             }
             
             zoomOut() {
                 const oldZoom = this.currentZoom;
                 const newZoom = Math.max(this.options.minZoom, oldZoom - this.options.zoomStep);
-                
                 const pointer = this.editor.stage.getPointerPosition();
                 if (!pointer) return;
-                
-                const mousePointTo = {
-                    x: pointer.x / oldZoom - this.editor.stage.x() / oldZoom,
-                    y: pointer.y / oldZoom - this.editor.stage.y() / oldZoom
-                };
-                
+                const mousePointTo = { x: pointer.x / oldZoom - this.editor.stage.x() / oldZoom, y: pointer.y / oldZoom - this.editor.stage.y() / oldZoom };
                 this.setZoom(newZoom);
-                
-                this.editor.stage.position({
-                    x: -(mousePointTo.x - pointer.x / newZoom) * newZoom,
-                    y: -(mousePointTo.y - pointer.y / newZoom) * newZoom
-                });
-                
-                this.updateGrid();
-                this.editor.stage.batchDraw();
+                this.editor.stage.position({ x: -(mousePointTo.x - pointer.x / newZoom) * newZoom, y: -(mousePointTo.y - pointer.y / newZoom) * newZoom });
+                this.updateGrid(); this.editor.stage.batchDraw();
             }
         }
         
         // =====================================================
-        // Main App - ✅ Phase 1: Undo/Redo + Arrow Keys 추가
+        // Main App - ✅ Phase 2
         // =====================================================
         class LayoutEditorApp {
             constructor() {
@@ -593,46 +534,23 @@
                 this.shortcutsHelpVisible = false;
                 
                 const canvasSize = this.calculateCanvasSize();
-                
                 if (typeof Canvas2DEditor === 'undefined') throw new Error('Canvas2DEditor가 로드되지 않았습니다.');
                 
-                this.canvas = new Canvas2DEditor('canvas-container', { 
-                    width: canvasSize.width, 
-                    height: canvasSize.height, 
-                    showGrid: true, 
-                    snapToGrid: true, 
-                    gridSize: 10 
-                });
+                this.canvas = new Canvas2DEditor('canvas-container', { width: canvasSize.width, height: canvasSize.height, showGrid: true, snapToGrid: true, gridSize: 10 });
                 
-                // ✅ 무한 그리드 ZoomController 사용
-                this.zoomController = new InfiniteGridZoomController(this.canvas, { 
-                    minZoom: 0.1, 
-                    maxZoom: 5.0, 
-                    zoomStep: 0.1, 
-                    wheelSensitivity: 0.001 
-                });
+                this.zoomController = new InfiniteGridZoomController(this.canvas, { minZoom: 0.1, maxZoom: 5.0, zoomStep: 0.1, wheelSensitivity: 0.001 });
                 this.canvas.setZoomController(this.zoomController);
                 this.zoomController.activate();
-                
-                // 초기 그리드 렌더링
                 this.zoomController.updateGrid();
                 
                 if (typeof ObjectSelectionTool !== 'undefined') { this.selectionTool = new ObjectSelectionTool(this.canvas); this.selectionTool.activate(); }
                 if (typeof RoomSizeManager !== 'undefined') { this.roomSizeManager = new RoomSizeManager(this.canvas); }
-                if (typeof WallDrawTool !== 'undefined') { 
-                    this.wallDrawTool = new WallDrawTool(this.canvas); 
-                    this.canvas.setWallDrawTool(this.wallDrawTool);
-                }
-                if (typeof EquipmentArrayTool !== 'undefined') { 
-                    this.equipmentArrayTool = new EquipmentArrayTool(this.canvas);
-                    this.canvas.equipmentArrayTool = this.equipmentArrayTool;
-                }
+                if (typeof WallDrawTool !== 'undefined') { this.wallDrawTool = new WallDrawTool(this.canvas); this.canvas.setWallDrawTool(this.wallDrawTool); }
+                if (typeof EquipmentArrayTool !== 'undefined') { this.equipmentArrayTool = new EquipmentArrayTool(this.canvas); this.canvas.equipmentArrayTool = this.equipmentArrayTool; }
                 if (typeof PropertyPanel !== 'undefined') { this.propertyPanel = new PropertyPanel('property-panel', this.canvas); this.canvas.setPropertyPanel(this.propertyPanel); }
                 if (typeof AlignmentTool !== 'undefined') { this.alignmentTool = new AlignmentTool(this.canvas); }
                 
-                // ✅ Phase 1: CommandManager 초기화
                 this.initCommandManager();
-                
                 this.enableDropZone();
                 this.setupComponentSubmenu();
                 this.setupEventListeners();
@@ -641,48 +559,42 @@
                 setInterval(() => this.updateStatus(), 500);
                 
                 document.getElementById('loading-indicator').style.display = 'none';
-                console.log('✅ Layout Editor 초기화 완료 (Phase 1)');
-                this.showToast('Layout Editor 준비 완료! (Undo/Redo + Arrow Keys)', 'success');
+                console.log('✅ Layout Editor 초기화 완료 (Phase 2)');
+                this.showToast('Layout Editor 준비 완료! (Phase 2)', 'success');
             }
             
-            // =====================================================
-            // ✅ Phase 1: CommandManager 초기화
-            // =====================================================
             initCommandManager() {
                 if (typeof CommandManager !== 'undefined') {
                     this.commandManager = new CommandManager({
                         maxHistory: 50,
                         onHistoryChange: (state) => {
-                            // 버튼 활성화/비활성화
                             document.getElementById('btn-undo').disabled = !state.canUndo;
                             document.getElementById('btn-redo').disabled = !state.canRedo;
-                            
-                            // 상태바 업데이트
                             document.getElementById('status-undo').textContent = state.undoCount;
                             document.getElementById('status-redo').textContent = state.redoCount;
                         }
                     });
-                    
-                    // Canvas2DEditor에 CommandManager 연결
                     this.canvas.commandManager = this.commandManager;
-                    
                     console.log('✅ CommandManager 초기화 완료');
                 } else {
-                    console.warn('⚠️ CommandManager가 로드되지 않았습니다 - Undo/Redo 비활성화');
+                    console.warn('⚠️ CommandManager가 로드되지 않았습니다');
                 }
             }
             
             calculateCanvasSize() {
                 const toolbarWidth = this.componentSubmenuVisible ? TOOLBAR_EXPANDED_WIDTH : TOOLBAR_WIDTH;
-                return { 
-                    width: window.innerWidth - toolbarWidth - PROPERTY_PANEL_WIDTH, 
-                    height: window.innerHeight - HEADER_HEIGHT - STATUS_HEIGHT 
-                };
+                return { width: window.innerWidth - toolbarWidth - PROPERTY_PANEL_WIDTH, height: window.innerHeight - HEADER_HEIGHT - STATUS_HEIGHT };
             }
             
+            // ✅ 오류 수정: resize() → stage 직접 수정
             updateCanvasSize() { 
                 const size = this.calculateCanvasSize(); 
-                this.canvas.resize(size.width, size.height); 
+                if (this.canvas.stage) {
+                    this.canvas.stage.width(size.width);
+                    this.canvas.stage.height(size.height);
+                    this.canvas.config.width = size.width;
+                    this.canvas.config.height = size.height;
+                }
                 this.zoomController?.updateGrid?.(); 
             }
             
@@ -789,47 +701,39 @@
                 setTimeout(() => this.updateCanvasSize(), 350);
             }
             
-            // =====================================================
-            // ✅ Phase 1: 키보드 이벤트 - Arrow Keys 추가
-            // =====================================================
+            // ✅ Phase 2: 키보드 이벤트 - Ctrl+D, M 추가
             setupEventListeners() {
                 document.addEventListener('keydown', e => {
-                    // Ctrl/Cmd 키 조합
                     if (e.ctrlKey || e.metaKey) {
                         if (e.key === 'z') { e.preventDefault(); this.undo(); }
                         else if (e.key === 'y') { e.preventDefault(); this.redo(); }
                         else if (e.key === 'a') { e.preventDefault(); this.selectAll(); }
                         else if (e.key === 's') { e.preventDefault(); this.saveLayout(); }
+                        else if (e.key === 'd') { e.preventDefault(); this.duplicateSelected(); }
                         return;
                     }
                     
-                    // ✅ Phase 1: Arrow Keys 처리
                     if (['arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(e.key.toLowerCase())) {
                         e.preventDefault();
-                        const step = e.shiftKey ? 10 : 1;  // Shift = 10px, 기본 = 1px
+                        const step = e.shiftKey ? 10 : 1;
                         this.moveSelected(e.key.toLowerCase(), step);
                         return;
                     }
                     
-                    // 일반 단축키
                     switch (e.key.toLowerCase()) {
                         case 'v': this.activateTool('select'); break;
                         case 'w': this.activateTool('wall'); break;
                         case 'c': this.toggleComponentSubmenu(); break;
                         case 'g': this.toggleGrid(); break;
                         case 's': this.toggleSnap(); break;
+                        case 'm': this.toggleMICESnap(); break;
                         case 'l': this.toggleAlignPopup(); break;
                         case 'r': e.preventDefault(); if (e.shiftKey) this.rotateCCW(); else this.rotateCW(); break;
                         case '=': case '+': this.zoomIn(); break;
                         case '-': case '_': this.zoomOut(); break;
                         case '0': this.resetZoom(); break;
                         case 'delete': case 'backspace': this.deleteSelected(); break;
-                        case 'escape': 
-                            this.deselectAll(); 
-                            if (this.componentSubmenuVisible) this.toggleComponentSubmenu(); 
-                            if (this.alignPopupVisible) this.hideAlignPopup(); 
-                            if (this.shortcutsHelpVisible) this.toggleShortcutsHelp(); 
-                            break;
+                        case 'escape': this.deselectAll(); if (this.componentSubmenuVisible) this.toggleComponentSubmenu(); if (this.alignPopupVisible) this.hideAlignPopup(); if (this.shortcutsHelpVisible) this.toggleShortcutsHelp(); break;
                         case '?': this.toggleShortcutsHelp(); break;
                     }
                 });
@@ -845,47 +749,27 @@
                 window.addEventListener('resize', () => this.updateCanvasSize());
             }
             
-            // =====================================================
-            // ✅ Phase 1: Arrow Keys로 선택 객체 이동
-            // =====================================================
             moveSelected(direction, step) {
                 const selected = this.canvas.selectedObjects;
-                if (!selected || selected.length === 0) {
-                    return;  // 선택된 객체 없으면 조용히 무시
-                }
+                if (!selected || selected.length === 0) return;
                 
                 let dx = 0, dy = 0;
                 switch(direction) {
-                    case 'arrowleft':  dx = -step; break;
+                    case 'arrowleft': dx = -step; break;
                     case 'arrowright': dx = step; break;
-                    case 'arrowup':    dy = -step; break;
-                    case 'arrowdown':  dy = step; break;
+                    case 'arrowup': dy = -step; break;
+                    case 'arrowdown': dy = step; break;
                 }
                 
-                // ✅ GitHub MoveCommand 사용 (targets, deltaX, deltaY)
                 if (this.commandManager && typeof MoveCommand !== 'undefined') {
-                    // MoveCommand가 execute()에서 이동을 처리함
                     const moveCommand = new MoveCommand(selected, dx, dy);
                     this.commandManager.execute(moveCommand);
-                    
-                    // Transformer 위치 갱신
-                    if (this.canvas.transformer) {
-                        this.canvas.transformer.forceUpdate();
-                    }
+                    if (this.canvas.transformer) this.canvas.transformer.forceUpdate();
                 } else {
-                    // CommandManager 없으면 직접 이동
-                    selected.forEach(shape => {
-                        shape.x(shape.x() + dx);
-                        shape.y(shape.y() + dy);
-                    });
+                    selected.forEach(shape => { shape.x(shape.x() + dx); shape.y(shape.y() + dy); });
                     this.canvas.stage.batchDraw();
-                    
-                    if (this.canvas.transformer) {
-                        this.canvas.transformer.forceUpdate();
-                    }
+                    if (this.canvas.transformer) this.canvas.transformer.forceUpdate();
                 }
-                
-                // 상태 업데이트
                 this.updateStatus();
             }
             
@@ -912,52 +796,44 @@
                 this.showToast(`Room: ${width}m × ${depth}m`, 'success');
             }
             
-            toggleGrid() { 
-                this.canvas.toggleGrid(); 
-                document.getElementById('status-grid').textContent = this.canvas.config.showGrid ? 'ON' : 'OFF'; 
-                this.zoomController?.updateGrid?.();
-            }
+            toggleGrid() { this.canvas.toggleGrid(); document.getElementById('status-grid').textContent = this.canvas.config.showGrid ? 'ON' : 'OFF'; this.zoomController?.updateGrid?.(); }
             toggleSnap() { const isOn = this.canvas.toggleSnapToGrid(); document.getElementById('status-snap').textContent = isOn ? 'ON' : 'OFF'; }
             
-            zoomIn() { 
-                this.zoomController?.zoomIn(); 
-                this.zoomController?.updateGrid?.();
-                this.updateZoomDisplay(); 
+            // ✅ Phase 2: MICE Snap 토글
+            toggleMICESnap() {
+                if (this.canvas.snapManager?.miceSnapPoints) {
+                    const miceSnap = this.canvas.snapManager.miceSnapPoints;
+                    const isEnabled = miceSnap.toggle ? miceSnap.toggle() : !miceSnap.isEnabled;
+                    if (!miceSnap.toggle) miceSnap.isEnabled = isEnabled;
+                    document.getElementById('status-mice-snap').textContent = isEnabled ? 'ON' : 'OFF';
+                    this.showToast(`🎪 MICE Snap: ${isEnabled ? 'ON' : 'OFF'}`, 'info');
+                } else {
+                    this.showToast('MICESnapPoints 모듈 로드 안됨', 'error');
+                }
             }
-            zoomOut() { 
-                this.zoomController?.zoomOut(); 
-                this.zoomController?.updateGrid?.();
-                this.updateZoomDisplay(); 
-            }
-            resetZoom() { 
-                this.zoomController?.resetZoom(); 
-                this.zoomController?.updateGrid?.();
-                this.updateZoomDisplay(); 
-            }
+            
+            zoomIn() { this.zoomController?.zoomIn(); this.zoomController?.updateGrid?.(); this.updateZoomDisplay(); }
+            zoomOut() { this.zoomController?.zoomOut(); this.zoomController?.updateGrid?.(); this.updateZoomDisplay(); }
+            resetZoom() { this.zoomController?.resetZoom(); this.zoomController?.updateGrid?.(); this.updateZoomDisplay(); }
             updateZoomDisplay() { const zoom = this.zoomController?.getZoom?.() || 1; document.getElementById('status-zoom').textContent = (zoom * 100).toFixed(0) + '%'; }
             
-            deleteSelected() { 
-                if (this.canvas.selectedObjects.length === 0) { 
-                    this.showToast('선택된 객체 없음', 'info'); 
-                    return; 
-                } 
-                const count = this.canvas.selectedObjects.length; 
-                this.canvas.deleteSelected(); 
-                this.updateObjectCount(); 
-                this.showToast(`${count}개 삭제됨`); 
-            }
-            deselectAll() { this.canvas.deselectAll(); this.propertyPanel?.hide(); this.updateStatus(); }
+            deleteSelected() { if (this.canvas.selectedObjects.length === 0) { this.showToast('선택된 객체 없음', 'info'); return; } const count = this.canvas.selectedObjects.length; this.canvas.deleteSelected(); this.updateObjectCount(); this.showToast(`${count}개 삭제됨`); }
+            deselectAll() { this.canvas.deselectAll(); this.propertyPanel?.hide?.(); this.updateStatus(); }
             selectAll() { this.selectionTool?.selectAll(); this.updateStatus(); this.showToast(`${this.canvas.selectedObjects.length}개 선택됨`, 'success'); }
             updateObjectCount() { setTimeout(() => { document.getElementById('status-objects').textContent = this.canvas.getObjectCount().total; }, 100); }
             
+            // ✅ Phase 2: 상태 업데이트
             updateStatus() { 
-                document.getElementById('status-objects').textContent = this.canvas.getObjectCount().total; 
+                const objectCount = this.canvas.getObjectCount();
+                document.getElementById('status-objects').textContent = objectCount.total; 
                 document.getElementById('status-selected').textContent = this.canvas.selectedObjects.length; 
                 this.updateZoomDisplay(); 
                 document.getElementById('status-grid').textContent = this.canvas.config.showGrid ? 'ON' : 'OFF'; 
                 document.getElementById('status-snap').textContent = this.canvas.config.snapToGrid ? 'ON' : 'OFF';
-                
-                // ✅ Phase 1: Undo/Redo 상태 업데이트
+                document.getElementById('status-equipment').textContent = objectCount.equipment || objectCount.equipments || 0;
+                if (this.canvas.snapManager?.miceSnapPoints) {
+                    document.getElementById('status-mice-snap').textContent = this.canvas.snapManager.miceSnapPoints.isEnabled ? 'ON' : 'OFF';
+                }
                 if (this.commandManager) {
                     const historySize = this.commandManager.getHistorySize();
                     document.getElementById('status-undo').textContent = historySize.undo;
@@ -965,48 +841,45 @@
                 }
             }
             
-            // =====================================================
-            // ✅ Phase 1: Undo/Redo 실제 연동
-            // =====================================================
-            undo() { 
-                if (this.commandManager) {
-                    if (this.commandManager.canUndo()) {
-                        this.commandManager.undo();
-                        this.updateStatus();
-                        this.canvas.stage.batchDraw();
-                        this.showToast('↶ Undo', 'info');
+            undo() { if (this.commandManager) { if (this.commandManager.canUndo()) { this.commandManager.undo(); this.updateStatus(); this.canvas.stage.batchDraw(); this.showToast('↶ Undo', 'info'); } else { this.showToast('Undo할 항목 없음', 'info'); } } else { this.showToast('CommandManager 로드 안됨', 'error'); } }
+            redo() { if (this.commandManager) { if (this.commandManager.canRedo()) { this.commandManager.redo(); this.updateStatus(); this.canvas.stage.batchDraw(); this.showToast('↷ Redo', 'info'); } else { this.showToast('Redo할 항목 없음', 'info'); } } else { this.showToast('CommandManager 로드 안됨', 'error'); } }
+            
+            // ✅ Phase 2: 복제 기능 (Ctrl+D)
+            duplicateSelected() {
+                const selected = this.canvas.selectedObjects;
+                if (!selected || selected.length === 0) { this.showToast('선택된 객체 없음', 'info'); return; }
+                
+                const offset = 20;
+                const newShapes = [];
+                
+                selected.forEach(shape => {
+                    const componentData = shape.getAttr('componentData');
+                    const rotation = shape.rotation() || 0;
+                    
+                    if (componentData) {
+                        const newShape = this.createComponent(componentData, shape.x() + offset, shape.y() + offset);
+                        if (newShape) { newShape.rotation(rotation); newShapes.push(newShape); }
                     } else {
-                        this.showToast('Undo할 항목 없음', 'info');
+                        const clone = shape.clone({ x: shape.x() + offset, y: shape.y() + offset });
+                        clone.id(`clone-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+                        const layer = shape.getLayer();
+                        if (layer) { layer.add(clone); newShapes.push(clone); }
                     }
-                } else {
-                    this.showToast('CommandManager 로드 안됨', 'error');
+                });
+                
+                if (newShapes.length > 0) {
+                    this.canvas.deselectAll();
+                    newShapes.forEach((shape, i) => {
+                        this.canvas.selectObject(shape, i > 0);
+                        this.selectionTool?.attachShapeEvents?.(shape);
+                    });
+                    this.canvas.stage.batchDraw();
+                    this.updateObjectCount();
+                    this.showToast(`📋 ${newShapes.length}개 복제됨 (+${offset}px)`, 'success');
                 }
             }
             
-            redo() { 
-                if (this.commandManager) {
-                    if (this.commandManager.canRedo()) {
-                        this.commandManager.redo();
-                        this.updateStatus();
-                        this.canvas.stage.batchDraw();
-                        this.showToast('↷ Redo', 'info');
-                    } else {
-                        this.showToast('Redo할 항목 없음', 'info');
-                    }
-                } else {
-                    this.showToast('CommandManager 로드 안됨', 'error');
-                }
-            }
-            
-            saveLayout() { 
-                const layout = this.canvas.getCurrentLayout(); 
-                const blob = new Blob([JSON.stringify(layout, null, 2)], { type: 'application/json' }); 
-                const link = document.createElement('a'); 
-                link.href = URL.createObjectURL(blob); 
-                link.download = 'layout_' + Date.now() + '.json'; 
-                link.click(); 
-                this.showToast('저장 완료!', 'success'); 
-            }
+            saveLayout() { const layout = this.canvas.getCurrentLayout(); const blob = new Blob([JSON.stringify(layout, null, 2)], { type: 'application/json' }); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'layout_' + Date.now() + '.json'; link.click(); this.showToast('저장 완료!', 'success'); }
             
             loadSampleLayout() {
                 this.canvas.loadLayout({ room: { width: 30, height: 20, walls: [], offices: [] }, equipment: [
@@ -1048,9 +921,6 @@
             toggleShortcutsHelp() { this.shortcutsHelpVisible = !this.shortcutsHelpVisible; document.getElementById('shortcuts-help').classList.toggle('show', this.shortcutsHelpVisible); }
             showToast(message, type = 'info') { const toast = document.createElement('div'); toast.className = `toast ${type}`; toast.textContent = message; document.body.appendChild(toast); setTimeout(() => { toast.style.animation = 'slideIn 0.3s reverse'; setTimeout(() => toast.remove(), 300); }, 2000); }
         }
-        
-        // ✅ Phase 1: Command.js에서 MoveCommand 로드됨 (GitHub v1.0.1)
-        // ✅ Phase 1: CommandManager.js에서 CommandManager 로드됨 (GitHub v1.0.1)
         
         document.addEventListener('DOMContentLoaded', () => {
             console.log('✅ DOM 로드 완료');
