@@ -512,6 +512,105 @@
         const STATUS_HEIGHT = parseInt(rootStyles.getPropertyValue('--status-height')) || 30;
         
         // =====================================================
+        // ✅ 로컬 Command 클래스들 (외부 Command.js와 분리)
+        // =====================================================
+        
+        // LocalCreateCommand: 객체 생성 시 사용
+        class LocalCreateCommand {
+            constructor(canvas, shape, layer) {
+                this.canvas = canvas;
+                this.shape = shape;
+                this.layer = layer || canvas.layers.equipment;
+                this.executed = false;
+            }
+            
+            execute() {
+                if (!this.executed) {
+                    this.layer.add(this.shape);
+                    this.layer.batchDraw();
+                    this.executed = true;
+                } else {
+                    // Redo: 다시 추가
+                    this.layer.add(this.shape);
+                    this.layer.batchDraw();
+                }
+            }
+            
+            undo() {
+                this.shape.remove();
+                this.layer.batchDraw();
+                // 선택 해제
+                if (this.canvas.selectedObjects) {
+                    const idx = this.canvas.selectedObjects.indexOf(this.shape);
+                    if (idx > -1) this.canvas.selectedObjects.splice(idx, 1);
+                }
+            }
+        }
+        
+        // LocalDeleteCommand: 객체 삭제 시 사용
+        class LocalDeleteCommand {
+            constructor(canvas, shapes) {
+                this.canvas = canvas;
+                this.shapes = Array.isArray(shapes) ? [...shapes] : [shapes];
+                this.shapeData = this.shapes.map(s => ({
+                    shape: s,
+                    layer: s.getLayer(),
+                    parent: s.getParent()
+                }));
+            }
+            
+            execute() {
+                this.shapes.forEach(shape => {
+                    shape.remove();
+                });
+                if (this.canvas.selectedObjects) {
+                    this.canvas.selectedObjects = [];
+                }
+                this.canvas.stage.batchDraw();
+            }
+            
+            undo() {
+                this.shapeData.forEach(data => {
+                    if (data.layer) {
+                        data.layer.add(data.shape);
+                    }
+                });
+                this.canvas.stage.batchDraw();
+            }
+        }
+        
+        // LocalMoveCommand: 객체 이동 시 사용
+        class LocalMoveCommand {
+            constructor(shapes, dx, dy) {
+                this.shapes = Array.isArray(shapes) ? shapes : [shapes];
+                this.dx = dx;
+                this.dy = dy;
+            }
+            
+            execute() {
+                this.shapes.forEach(shape => {
+                    shape.x(shape.x() + this.dx);
+                    shape.y(shape.y() + this.dy);
+                });
+                if (this.shapes[0]?.getLayer()) {
+                    this.shapes[0].getLayer().batchDraw();
+                }
+            }
+            
+            undo() {
+                this.shapes.forEach(shape => {
+                    shape.x(shape.x() - this.dx);
+                    shape.y(shape.y() - this.dy);
+                });
+                if (this.shapes[0]?.getLayer()) {
+                    this.shapes[0].getLayer().batchDraw();
+                }
+            }
+        }
+        
+        console.log('✅ LocalCommand 클래스들 정의 완료 (LocalCreateCommand, LocalDeleteCommand, LocalMoveCommand)');
+        
+        // =====================================================
         // ✅ 무한 그리드를 위한 확장 ZoomController
         // =====================================================
         class InfiniteGridZoomController extends ZoomController {
@@ -864,10 +963,54 @@
                 const dirLabel = new Konva.Text({ x: -12, y: height / 2 - arrowLength - 18, text: 'Front', fontSize: 9, fill: '#ff4444', fontStyle: 'bold', name: 'directionLabel' });
                 group.add(rect); group.add(arrow); group.add(dirLabel);
                 group.setAttr('componentType', component.id); group.setAttr('componentData', component); group.setAttr('currentRotation', 0);
-                group.on('dragend', () => { if (this.canvas.config.snapToGrid) { const gridSize = this.canvas.config.gridSize; group.x(Math.round(group.x() / gridSize) * gridSize); group.y(Math.round(group.y() / gridSize) * gridSize); group.getLayer().batchDraw(); } });
+                
+                // ✅ Undo/Redo: 드래그 시작 시 초기 위치 저장
+                group.on('dragstart', () => { 
+                    group._dragStartPos = { x: group.x(), y: group.y() }; 
+                    console.log('📍 Drag Start:', group._dragStartPos);
+                });
+                
+                // ✅ Undo/Redo: 드래그 종료 시 LocalMoveCommand 등록
+                group.on('dragend', () => { 
+                    const startPos = group._dragStartPos;
+                    // Snap to grid
+                    if (this.canvas.config.snapToGrid) { 
+                        const gridSize = this.canvas.config.gridSize; 
+                        group.x(Math.round(group.x() / gridSize) * gridSize); 
+                        group.y(Math.round(group.y() / gridSize) * gridSize); 
+                        group.getLayer()?.batchDraw(); 
+                    }
+                    // ✅ LocalMoveCommand 등록 (Undo/Redo 지원)
+                    if (startPos && this.commandManager) {
+                        const dx = group.x() - startPos.x;
+                        const dy = group.y() - startPos.y;
+                        if (dx !== 0 || dy !== 0) {
+                            // 이미 이동된 상태 -> 되돌린 후 Command로 재실행
+                            group.x(startPos.x);
+                            group.y(startPos.y);
+                            const moveCommand = new LocalMoveCommand([group], dx, dy);
+                            this.commandManager.execute(moveCommand);
+                            console.log('✅ LocalMoveCommand 등록:', { dx, dy });
+                            this.updateStatus();
+                        }
+                    }
+                    delete group._dragStartPos;
+                });
+                
                 group.on('click tap', e => { e.cancelBubble = true; this.canvas.selectObject(group, e.evt.ctrlKey || e.evt.metaKey); });
                 const layer = component.id === 'equipment' ? this.canvas.layers.equipment : this.canvas.layers.room;
-                layer.add(group); layer.batchDraw();
+                
+                // ✅ LocalCreateCommand를 통해 생성 (Undo 가능)
+                if (this.commandManager) {
+                    const createCmd = new LocalCreateCommand(this.canvas, group, layer);
+                    this.commandManager.execute(createCmd);
+                    console.log('✅ LocalCreateCommand 등록:', id);
+                } else {
+                    // CommandManager 없으면 직접 추가
+                    layer.add(group); 
+                    layer.batchDraw();
+                }
+                
                 this.canvas.componentShapes?.set(id, group);
                 return group;
             }
@@ -985,11 +1128,11 @@
                     case 'arrowdown':  dy = step; break;
                 }
                 
-                // ✅ GitHub MoveCommand 사용 (targets, deltaX, deltaY)
-                if (this.commandManager && typeof MoveCommand !== 'undefined') {
-                    // MoveCommand가 execute()에서 이동을 처리함
-                    const moveCommand = new MoveCommand(selected, dx, dy);
+                // ✅ LocalMoveCommand 사용 (Undo/Redo 지원)
+                if (this.commandManager) {
+                    const moveCommand = new LocalMoveCommand(selected, dx, dy);
                     this.commandManager.execute(moveCommand);
+                    console.log('✅ LocalMoveCommand (Arrow):', { dx, dy });
                     
                     // Transformer 위치 갱신
                     if (this.canvas.transformer) {
@@ -1168,9 +1311,21 @@
                     this.showToast('선택된 객체 없음', 'info'); 
                     return; 
                 } 
-                const count = this.canvas.selectedObjects.length; 
-                this.canvas.deleteSelected(); 
-                this.updateObjectCount(); 
+                const count = this.canvas.selectedObjects.length;
+                const shapesToDelete = [...this.canvas.selectedObjects];
+                
+                // ✅ LocalDeleteCommand를 통해 삭제 (Undo 가능)
+                if (this.commandManager) {
+                    const deleteCmd = new LocalDeleteCommand(this.canvas, shapesToDelete);
+                    this.commandManager.execute(deleteCmd);
+                    console.log('✅ LocalDeleteCommand 등록:', count, '개');
+                } else {
+                    // CommandManager 없으면 직접 삭제
+                    this.canvas.deleteSelected(); 
+                }
+                
+                this.updateObjectCount();
+                this.updateStatus();
                 this.showToast(`${count}개 삭제됨`); 
             }
             deselectAll() { this.canvas.deselectAll(); this.propertyPanel?.hide(); this.updateStatus(); }
@@ -1210,6 +1365,9 @@
                     const historySize = this.commandManager.getHistorySize();
                     document.getElementById('status-undo').textContent = historySize.undo;
                     document.getElementById('status-redo').textContent = historySize.redo;
+                    // ✅ 버튼 활성화 상태 업데이트
+                    document.getElementById('btn-undo').disabled = !this.commandManager.canUndo();
+                    document.getElementById('btn-redo').disabled = !this.commandManager.canRedo();
                 }
             }
             
