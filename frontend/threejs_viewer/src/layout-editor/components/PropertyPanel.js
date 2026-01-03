@@ -1,8 +1,14 @@
 /**
- * PropertyPanel.js v2.1.0
+ * PropertyPanel.js v2.2.0
  * ========================
  * 
  * 선택된 객체의 속성을 표시하고 편집할 수 있는 패널
+ * 
+ * ✨ v2.2.0 수정 (삭제 버튼 수정 및 Command 통합):
+ * - ✅ 삭제 버튼 onclick → addEventListener 방식으로 변경
+ * - ✅ DeleteCommand 사용하여 Undo/Redo 지원
+ * - ✅ CommandManager 연동
+ * - ✅ 전역 변수 의존성 제거
  * 
  * ✨ v2.1.0 수정 (EditorStateManager 통합):
  * - ✅ deleteSelected()에서 StateManager 사용
@@ -41,10 +47,21 @@ class PropertyPanel {
         // LayoutEditorMain 참조 (에러 클릭 시 사용)
         this.layoutEditorMain = null;
         
+        // ✨ v2.2.0: CommandManager 참조
+        this.commandManager = null;
+        
         // 패널 초기 HTML
         this.initPanel();
         
-        console.log('[PropertyPanel] 초기화 완료 v2.1.0');
+        console.log('[PropertyPanel] 초기화 완료 v2.2.0');
+    }
+    
+    /**
+     * ✨ v2.2.0: CommandManager 설정
+     */
+    setCommandManager(commandManager) {
+        this.commandManager = commandManager;
+        console.log('[PropertyPanel] CommandManager 연결됨');
     }
     
     /**
@@ -58,7 +75,7 @@ class PropertyPanel {
                     <h3 style="margin: 0; color: #e74c3c; display: flex; align-items: center; gap: 8px;">
                         <span>🔴</span> Validation Errors
                     </h3>
-                    <button class="validation-close-btn" onclick="propertyPanel.hideValidationErrors()">✕</button>
+                    <button class="validation-close-btn" id="validation-close-btn">✕</button>
                 </div>
                 <div class="validation-errors-summary" id="validation-errors-summary"></div>
                 <div class="validation-errors-list" id="validation-errors-list"></div>
@@ -81,6 +98,12 @@ class PropertyPanel {
         
         // CSS 스타일 추가
         this.addValidationStyles();
+        
+        // ✨ v2.2.0: 검증 닫기 버튼 이벤트 등록
+        const closeBtn = this.container.querySelector('#validation-close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.hideValidationErrors());
+        }
     }
     
     /**
@@ -161,9 +184,9 @@ class PropertyPanel {
         // 위치 정보
         html += this.getPositionProperties(shape);
         
-        // 액션 버튼
+        // ✨ v2.2.0: 액션 버튼 (onclick 제거, data-action 사용)
         html += `<div class="property-actions" style="margin-top: 20px;">
-            <button class="property-btn property-btn-danger" onclick="propertyPanel.deleteSelected()">
+            <button class="property-btn property-btn-danger" id="delete-selected-btn" data-action="delete">
                 🗑️ 삭제
             </button>
         </div>`;
@@ -172,6 +195,9 @@ class PropertyPanel {
         
         // 이벤트 리스너 등록
         this.attachEventListeners(shape);
+        
+        // ✨ v2.2.0: 삭제 버튼 이벤트 리스너 등록
+        this.attachDeleteButtonListener();
     }
     
     /**
@@ -194,14 +220,39 @@ class PropertyPanel {
             <div class="property-value">${types.join(', ')}</div>
         </div>`;
         
-        // 액션 버튼
+        // ✨ v2.2.0: 액션 버튼 (onclick 제거, data-action 사용)
         html += `<div class="property-actions" style="margin-top: 20px;">
-            <button class="property-btn property-btn-danger" onclick="propertyPanel.deleteSelected()">
+            <button class="property-btn property-btn-danger" id="delete-selected-btn" data-action="delete">
                 🗑️ 선택된 객체 삭제 (${shapes.length}개)
             </button>
         </div>`;
         
         fieldsContainer.innerHTML = html;
+        
+        // ✨ v2.2.0: 삭제 버튼 이벤트 리스너 등록
+        this.attachDeleteButtonListener();
+    }
+    
+    /**
+     * ✨ v2.2.0: 삭제 버튼 이벤트 리스너 등록
+     * @private
+     */
+    attachDeleteButtonListener() {
+        const deleteBtn = this.container.querySelector('#delete-selected-btn');
+        if (deleteBtn) {
+            // 기존 이벤트 제거 후 새로 등록
+            deleteBtn.replaceWith(deleteBtn.cloneNode(true));
+            const newDeleteBtn = this.container.querySelector('#delete-selected-btn');
+            
+            newDeleteBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[PropertyPanel] 삭제 버튼 클릭됨');
+                this.deleteSelected();
+            });
+            
+            console.log('[PropertyPanel] 삭제 버튼 이벤트 리스너 등록됨');
+        }
     }
     
     /**
@@ -392,19 +443,49 @@ class PropertyPanel {
     }
     
     /**
-     * ✨ v2.1.0: 선택된 객체 삭제 (StateManager 사용)
+     * ✨ v2.2.0: 선택된 객체 삭제 (Command 패턴 통합)
      */
     deleteSelected() {
-        if (this.canvas && this.canvas.deleteSelected) {
-            // Canvas2DEditor의 deleteSelected() 호출 (StateManager 사용됨)
-            this.canvas.deleteSelected();
-        } else {
-            // Fallback: 직접 삭제 (Canvas2DEditor 없을 때)
-            this._deleteSelectedFallback();
+        console.log('[PropertyPanel] deleteSelected 호출됨');
+        console.log('[PropertyPanel] selectedObjects:', this.selectedObjects.length);
+        console.log('[PropertyPanel] canvas:', this.canvas ? 'exists' : 'null');
+        
+        if (this.selectedObjects.length === 0) {
+            console.warn('[PropertyPanel] 삭제할 객체가 없습니다');
+            return;
         }
         
+        // ✨ v2.2.0: CommandManager가 있고 DeleteCommand가 있으면 Command 패턴 사용
+        if (this.commandManager && window.DeleteCommand) {
+            console.log('[PropertyPanel] DeleteCommand 사용');
+            
+            const deleteCommand = new DeleteCommand(this.selectedObjects);
+            this.commandManager.execute(deleteCommand);
+            
+            // 선택 해제
+            if (this.canvas) {
+                this.canvas.deselectAll();
+            }
+            
+            this.hide();
+            console.log('[PropertyPanel] ✅ Command를 통한 삭제 완료');
+            return;
+        }
+        
+        // Canvas2DEditor의 deleteSelected() 사용
+        if (this.canvas && typeof this.canvas.deleteSelected === 'function') {
+            console.log('[PropertyPanel] canvas.deleteSelected() 호출');
+            this.canvas.deleteSelected();
+            this.hide();
+            console.log('[PropertyPanel] ✅ Canvas를 통한 삭제 완료');
+            return;
+        }
+        
+        // Fallback: 직접 삭제
+        console.log('[PropertyPanel] Fallback 삭제 실행');
+        this._deleteSelectedFallback();
         this.hide();
-        console.log('[PropertyPanel] ✅ 삭제 완료');
+        console.log('[PropertyPanel] ✅ Fallback 삭제 완료');
     }
     
     /**
@@ -424,12 +505,14 @@ class PropertyPanel {
         this.selectedObjects.forEach(shape => {
             const id = shape.id();
             
-            if (shape.name() === 'equipment' || shape.name().includes('equipment')) {
-                this.canvas.equipmentShapes.delete(id);
-            } else if (shape.name() === 'wall' || shape.name().includes('wall')) {
-                this.canvas.wallShapes.delete(id);
-            } else {
-                this.canvas.componentShapes.delete(id);
+            if (this.canvas) {
+                if (shape.name() === 'equipment' || shape.name().includes('equipment')) {
+                    this.canvas.equipmentShapes.delete(id);
+                } else if (shape.name() === 'wall' || shape.name().includes('wall')) {
+                    this.canvas.wallShapes.delete(id);
+                } else {
+                    this.canvas.componentShapes.delete(id);
+                }
             }
             
             shape.destroy();
@@ -438,11 +521,13 @@ class PropertyPanel {
         // ✨ v2.1.0: StateManager로 삭제 후 정리
         if (this.canvas?.stateManager) {
             this.canvas.stateManager.cleanupAfterDelete();
-        } else {
+        } else if (this.canvas) {
             this.canvas.deselectAll();
         }
         
-        this.canvas.stage.batchDraw();
+        if (this.canvas?.stage) {
+            this.canvas.stage.batchDraw();
+        }
     }
     
     /**
@@ -828,8 +913,8 @@ class PropertyPanel {
 }
 
 // CSS 스타일 추가 (기본 스타일)
-const style = document.createElement('style');
-style.textContent = `
+const propertyPanelStyle = document.createElement('style');
+propertyPanelStyle.textContent = `
     .property-section {
         margin: 15px 0;
         padding: 10px;
@@ -856,6 +941,7 @@ style.textContent = `
         border-radius: 4px;
         font-size: 14px;
         transition: border-color 0.3s;
+        box-sizing: border-box;
     }
     
     .property-input:focus {
@@ -890,10 +976,19 @@ style.textContent = `
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
     }
+    
+    .property-btn-danger:active {
+        transform: translateY(0);
+    }
 `;
-document.head.appendChild(style);
+document.head.appendChild(propertyPanelStyle);
 
 // 전역 객체 등록 (브라우저 환경)
 if (typeof module === 'undefined' && typeof window !== 'undefined') {
     window.PropertyPanel = PropertyPanel;
+}
+
+// CommonJS export (Node.js 환경)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = PropertyPanel;
 }

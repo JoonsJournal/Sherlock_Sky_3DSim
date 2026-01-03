@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Layout Editor - SHERLOCK_SKY_3DSIM (Phase 5)</title>
+    <title>Layout Editor - SHERLOCK_SKY_3DSIM (Phase 5.2)</title>
     
     <!-- Konva.js CDN -->
     <script src="https://unpkg.com/konva@9/konva.min.js"></script>
@@ -72,6 +72,10 @@
     <script src="../src/layout-editor/bootstrap/setupLayoutEvents.js"></script>
     <script src="../src/layout-editor/bootstrap/index.js"></script>
     
+    <!-- 🆕 Phase 5.2 NEW: AutoSave 모듈 (Bootstrap 뒤, App 앞) -->
+    <script src="../src/layout-editor/components/AutoSaveRecoveryDialog.js"></script>
+    <script src="../src/layout-editor/managers/AutoSaveManager.js"></script>
+    
     <!-- ✅ Phase 5.3: 외부 App 모듈 (Bootstrap 래퍼) -->
     <script src="../src/layout-editor/app/LayoutEditorApp.js"></script>
     
@@ -85,7 +89,7 @@
     <div id="loading-indicator"><div class="spinner"></div><div>Layout Editor 로딩 중...</div></div>
 
     <div class="header">
-        <h1>🏗️ Layout Editor - Phase 5 (Undo/Redo + JS 분리)</h1>
+        <h1>🏗️ Layout Editor - Phase 5.2 (AutoSave)</h1>
         <div class="header-actions">
             <button class="header-btn btn-secondary" id="btn-undo" disabled>↶ Undo</button>
             <button class="header-btn btn-secondary" id="btn-redo" disabled>↷ Redo</button>
@@ -171,7 +175,7 @@
         </div>
     </div>
 
-    <!-- ✅ Phase 3: 상태바 전체 업데이트 -->
+    <!-- ✅ Phase 3: 상태바 전체 업데이트 + AutoSave 상태 추가 -->
     <div class="status-bar">
         <span class="status-item">🔧 <span id="status-tool">선택</span></span>
         <span class="status-item zoom-display">🔍 <span id="status-zoom">100%</span></span>
@@ -184,6 +188,8 @@
         <span class="status-item">⚙️ Eq: <span id="status-equipment">0</span></span>
         <span class="status-item groups">📁 Groups: <span id="status-groups">0</span></span>
         <span class="status-item">✅ <span id="status-selected">0</span></span>
+        <!-- 🆕 AutoSave 상태 표시 -->
+        <span class="status-item autosave" id="status-autosave" title="AutoSave 상태">💾 <span id="status-autosave-text">Ready</span></span>
     </div>
 
     <!-- ✅ Phase 3: 단축키 도움말 전체 업데이트 -->
@@ -228,6 +234,12 @@
             <li><kbd>]</kbd> 앞으로 보내기</li>
             <li><kbd>⇧[</kbd> 맨 뒤로</li>
             <li><kbd>⇧]</kbd> 맨 앞으로</li>
+        </ul>
+        <!-- 🆕 Phase 5.2 AutoSave 단축키 -->
+        <div class="section-title">💾 Phase 5.2</div>
+        <ul>
+            <li><kbd>⌘S</kbd> 수동 저장</li>
+            <li>자동 저장: 5분/20회 변경</li>
         </ul>
     </div>
 
@@ -290,18 +302,83 @@
         </div>
     </div>
 
-    <!-- ✅ Phase 5: 초기화 스크립트 (LayoutEditorApp.js에서 로드됨) -->
+    <!-- ✅ Phase 5.2: 초기화 스크립트 (LayoutEditorApp.js + AutoSave) -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             console.log('✅ DOM 로드 완료');
+            
             try { 
-                window.editorApp = new LayoutEditorApp(); 
-            }
-            catch (error) { 
+                // 🆕 siteId 설정 (URL 파라미터 또는 기본값)
+                const urlParams = new URLSearchParams(window.location.search);
+                const siteId = urlParams.get('siteId') || 'korea_site1';
+                
+                // LayoutEditorApp 초기화 (AutoSave 옵션 포함)
+                window.editorApp = new LayoutEditorApp({
+                    siteId: siteId,
+                    autoSaveIntervalMs: 300000,      // 5분 (기본값)
+                    autoSaveChangeThreshold: 20      // 20개 변경 (기본값)
+                });
+                
+                console.log('✅ LayoutEditorApp 초기화 완료 - siteId:', siteId);
+                
+                // 🆕 AutoSave 상태 표시 업데이트
+                updateAutoSaveStatus();
+                
+            } catch (error) { 
                 console.error('❌ 초기화 실패:', error); 
-                document.getElementById('loading-indicator').innerHTML = `<div style="color: red;">❌ 로드 실패</div><div style="margin-top: 10px; font-size: 12px;">${error.message}</div>`; 
+                document.getElementById('loading-indicator').innerHTML = 
+                    `<div style="color: red;">❌ 로드 실패</div>` +
+                    `<div style="margin-top: 10px; font-size: 12px;">${error.message}</div>`; 
             }
         });
+        
+        // 🆕 AutoSave 상태 업데이트 함수
+        function updateAutoSaveStatus() {
+            const statusEl = document.getElementById('status-autosave-text');
+            if (!statusEl || !window.editorApp?.autoSaveManager) return;
+            
+            const status = window.editorApp.getAutoSaveStatus();
+            if (status) {
+                statusEl.textContent = status.isRunning 
+                    ? `${status.changeCount}/${status.changeThreshold}` 
+                    : 'OFF';
+            }
+        }
+        
+        // 🆕 AutoSave 상태 주기적 업데이트 (10초마다)
+        setInterval(updateAutoSaveStatus, 10000);
+        
+        // 🆕 콘솔 디버그 함수
+        window.debugAutoSave = function() {
+            const status = window.editorApp?.getAutoSaveStatus();
+            console.log('AutoSave Status:', status);
+            return status;
+        };
+        
+        window.triggerAutoSave = function() {
+            const result = window.editorApp?.triggerAutoSave();
+            console.log('Manual AutoSave:', result ? 'Success' : 'Failed');
+            return result;
+        };
+        
+        window.clearAutoSave = function() {
+            const siteId = window.editorApp?.siteId || 'korea_site1';
+            window.editorApp?.autoSaveManager?.clearAutoSave(siteId);
+            console.log('AutoSave cleared for:', siteId);
+        };
     </script>
+    
+    <!-- 🆕 AutoSave 상태바 스타일 -->
+    <style>
+        .status-item.autosave {
+            background: rgba(76, 175, 80, 0.2);
+            border-radius: 4px;
+            padding: 2px 8px;
+            cursor: pointer;
+        }
+        .status-item.autosave:hover {
+            background: rgba(76, 175, 80, 0.4);
+        }
+    </style>
 </body>
 </html>
