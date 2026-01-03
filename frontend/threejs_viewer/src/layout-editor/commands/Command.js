@@ -4,7 +4,7 @@
  * 
  * Command Pattern 기본 클래스 및 구체적인 Command 구현
  * 
- * @version 1.0.0 - Phase 1.5
+ * @version 1.0.1 - ES6 export 제거 (script 태그 호환성)
  * @module Command
  * 
  * 역할:
@@ -679,11 +679,11 @@ class ZIndexCommand extends Command {
 }
 
 // =====================================================
-// Exports
+// Exports - 전역 객체 방식 (script 태그 호환)
 // =====================================================
 
-// ✅ ES6 모듈 export
-if (typeof module === 'undefined') {
+// ✅ 전역 객체로 등록 (non-module 환경, script 태그)
+if (typeof window !== 'undefined') {
     window.Command = Command;
     window.MoveCommand = MoveCommand;
     window.ResizeCommand = ResizeCommand;
@@ -696,6 +696,7 @@ if (typeof module === 'undefined') {
     window.ZIndexCommand = ZIndexCommand;
 }
 
+// ✅ CommonJS export (Node.js 환경)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         Command,
@@ -711,15 +712,5 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-export {
-    Command,
-    MoveCommand,
-    ResizeCommand,
-    RotateCommand,
-    CreateCommand,
-    DeleteCommand,
-    PropertyChangeCommand,
-    MultiPropertyChangeCommand,
-    GroupCommand,
-    ZIndexCommand
-};
+// ❌ ES6 export 제거 - script 태그 호환성을 위해
+// export { Command, MoveCommand, ... };

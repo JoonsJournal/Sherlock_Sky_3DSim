@@ -4,7 +4,7 @@
  * 
  * Command 히스토리 관리 및 Undo/Redo 시스템
  * 
- * @version 1.0.0 - Phase 1.5
+ * @version 1.0.1 - ES6 export 제거 (script 태그 호환성)
  * @module CommandManager
  * 
  * 역할:
@@ -67,7 +67,7 @@ class CommandManager {
             this._setupKeyboardShortcuts();
         }
         
-        console.log('[CommandManager] 초기화 완료 v1.0.0');
+        console.log('[CommandManager] 초기화 완료 v1.0.1');
     }
     
     // =====================================================
@@ -597,13 +597,19 @@ class CommandManager {
     }
 }
 
-// ✅ ES6 모듈 export
-if (typeof module === 'undefined') {
+// =====================================================
+// Exports - 전역 객체 방식 (script 태그 호환)
+// =====================================================
+
+// ✅ 전역 객체로 등록 (non-module 환경, script 태그)
+if (typeof window !== 'undefined') {
     window.CommandManager = CommandManager;
 }
 
+// ✅ CommonJS export (Node.js 환경)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = CommandManager;
 }
 
-export { CommandManager };
+// ❌ ES6 export 제거 - script 태그 호환성을 위해
+// export { CommandManager };
