@@ -35,23 +35,23 @@ import {
 } from './core/config/constants.js';
 
 // Scene 관련 import
-import { SceneManager } from './scene/SceneManager.js';
-import { EquipmentLoader } from './scene/EquipmentLoader.js';
-import { Lighting } from './scene/Lighting.js';
+import { SceneManager } from './viewer3d/scene/SceneManager.js';
+import { EquipmentLoader } from './viewer3d/scene/EquipmentLoader.js';
+import { Lighting } from './viewer3d/scene/Lighting.js';
 
 // Controls import
-import { CameraControls } from './controls/CameraControls.js';
-import { CameraNavigator } from './controls/CameraNavigator.js';
-import { InteractionHandler } from './controls/InteractionHandler.js';
+import { CameraControls } from './viewer3d/controls/CameraControls.js';
+import { CameraNavigator } from './viewer3d/controls/CameraNavigator.js';
+import { InteractionHandler } from './viewer3d/controls/InteractionHandler.js';
 
 // Visualization import
-import { DataOverlay } from './visualization/DataOverlay.js';
-import { StatusVisualizer } from './visualization/StatusVisualizer.js';
+import { DataOverlay } from './viewer3d/visualization/DataOverlay.js';
+import { StatusVisualizer } from './viewer3d/visualization/StatusVisualizer.js';
 
 // Utils import
-import { memoryManager } from './utils/MemoryManager.js';
-import { PerformanceMonitor } from './utils/PerformanceMonitor.js';
-import { CONFIG, debugLog } from './utils/Config.js';
+import { memoryManager } from './core/utils/MemoryManager.js';
+import { PerformanceMonitor } from './core/utils/PerformanceMonitor.js';
+import { CONFIG, debugLog } from './core/utils/Config.js';
 
 // ============================================
 // ⭐ Phase 1.6: UI 컴포넌트 import (수정된 경로)

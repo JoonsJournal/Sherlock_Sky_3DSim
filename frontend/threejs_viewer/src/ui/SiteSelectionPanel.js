@@ -7,7 +7,7 @@
  */
 
 import { BasePanel } from '../core/base/BasePanel.js';
-import { connectionStore } from '../stores/ConnectionStore.js';
+import { connectionStore } from '../services/stores/ConnectionStore.js';
 import { toast } from './common/Toast.js';
 
 /**

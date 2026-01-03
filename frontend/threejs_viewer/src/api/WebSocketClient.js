@@ -3,7 +3,7 @@
  * 실시간 데이터 통신을 위한 WebSocket 클라이언트
  */
 
-import { debugLog } from '../utils/Config.js';
+import { debugLog } from '../core/utils/Config.js';
 import { ENV, buildWsUrl, isDevelopment } from '../config/environment.js';
 
 export class WebSocketClient {

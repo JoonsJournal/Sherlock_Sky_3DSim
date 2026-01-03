@@ -8,7 +8,7 @@
 
 import { BaseModal } from '../core/base/BaseModal.js';
 import { toast } from './common/Toast.js';
-import { debugLog } from '../utils/Config.js';
+import { debugLog } from '../core/utils/Config.js';
 
 /**
  * EquipmentEditModal
