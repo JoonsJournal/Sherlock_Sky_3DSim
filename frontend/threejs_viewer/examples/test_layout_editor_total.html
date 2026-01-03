@@ -55,11 +55,17 @@
     <!-- ✅ Phase 3: GroupingTool 추가 -->
     <script src="../src/layout-editor/tools/GroupingTool.js"></script>
     
-    <!-- ✅ Phase 5.1: Config + State 모듈 (App보다 먼저 로드) -->
+    <!-- ✅ Phase 5.1: Config + State 모듈 -->
     <script src="../src/layout-editor/config/LayoutEditorConfig.js"></script>
     <script src="../src/layout-editor/state/LayoutEditorState.js"></script>
     
-    <!-- ✅ Phase 5: 외부 App 모듈 (JS 분리) -->
+    <!-- ✅ Phase 5.2: Services 모듈 -->
+    <script src="../src/layout-editor/services/ComponentService.js"></script>
+    <script src="../src/layout-editor/services/KeyboardService.js"></script>
+    <script src="../src/layout-editor/services/ToolService.js"></script>
+    <script src="../src/layout-editor/services/UIService.js"></script>
+    
+    <!-- ✅ Phase 5.2: 외부 App 모듈 (오케스트레이션만) -->
     <script src="../src/layout-editor/app/LayoutEditorApp.js"></script>
     
     <!-- ✅ Phase 5: 외부 CSS 파일 로드 (기존 CSS 활용 + 신규) -->
