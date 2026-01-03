@@ -1,8 +1,10 @@
 /**
- * SmartGuideManager.js v1.1.0
+ * SmartGuideManager.js v1.1.1
  * ============================
  * 
- * 스마트 가이드 시스템 통합 관리자
+ * ✨ v1.1.1 수정:
+ * - ✅ setSnapEnabled(boolean) 메서드 추가 (외부 동기화용)
+ * - ✅ isSnapEnabled() 메서드 추가
  * 
  * ✨ v1.1.0 수정:
  * - ✅ Stage 좌표계 사용으로 변경 (getClientRect → getStageRect)
@@ -10,7 +12,7 @@
  * - ✅ _getStageRect() 헬퍼 메서드 추가
  * - ✅ 가이드라인이 올바른 위치에 표시되도록 수정
  * 
- * @version 1.1.0 - Phase 5.1
+ * @version 1.1.1 - Phase 5.1
  * @module SmartGuideManager
  * 
  * 역할:
@@ -45,7 +47,7 @@ class SmartGuideManager {
             
             // 스냅 설정
             snapEnabled: options.snapEnabled !== false,
-            snapThreshold: options.snapThreshold || 5, // 스냅 거리 (px)
+            snapThreshold: options.snapThreshold || 5,
             
             // 가이드라인 스타일
             lineColor: options.lineColor || '#667eea',
@@ -58,11 +60,11 @@ class SmartGuideManager {
             distanceFontSize: options.distanceFontSize || 10,
             
             // 정렬 타입 활성화
-            alignEdges: options.alignEdges !== false,    // 모서리 정렬
-            alignCenters: options.alignCenters !== false, // 중앙 정렬
-            alignSpacing: options.alignSpacing || false,  // 간격 정렬
+            alignEdges: options.alignEdges !== false,
+            alignCenters: options.alignCenters !== false,
+            alignSpacing: options.alignSpacing || false,
             
-            // 확장 범위 (Stage 밖으로 가이드라인 연장)
+            // 확장 범위
             extendLines: options.extendLines !== false,
             lineExtension: options.lineExtension || 1000
         };
@@ -77,7 +79,7 @@ class SmartGuideManager {
             vertical: null
         };
         
-        // 참조 객체들 (다른 객체들)
+        // 참조 객체들
         this.referenceObjects = [];
         
         // 콜백
@@ -87,7 +89,7 @@ class SmartGuideManager {
             onGuideHide: options.onGuideHide || null
         };
         
-        console.log('[SmartGuideManager] 초기화 완료 v1.1.0');
+        console.log('[SmartGuideManager] 초기화 완료 v1.1.1');
     }
     
     // =====================================================
@@ -95,7 +97,7 @@ class SmartGuideManager {
     // =====================================================
     
     /**
-     * ✨ v1.1.0: Stage 설정 (좌표 변환용)
+     * Stage 설정 (좌표 변환용)
      * @param {Konva.Stage} stage
      */
     setStage(stage) {
@@ -103,26 +105,21 @@ class SmartGuideManager {
     }
     
     /**
-     * ✨ v1.1.0: Shape의 Stage 좌표계 Rect 반환
-     * - getClientRect()는 Zoom/Pan이 적용된 Screen 좌표 반환
-     * - 이 메서드는 Stage 좌표계 (Zoom/Pan 미적용) 반환
+     * Shape의 Stage 좌표계 Rect 반환
      * @param {Konva.Shape} shape
      * @returns {Object} { x, y, width, height }
      */
     _getStageRect(shape) {
         if (!shape) return null;
         
-        // 방법 1: shape의 절대 위치와 크기 직접 계산 (권장)
         const absPos = shape.getAbsolutePosition();
         const size = shape.size ? shape.size() : { width: shape.width?.() || 0, height: shape.height?.() || 0 };
         
-        // Group인 경우 getClientRect 사용하되 Zoom 보정
         if (shape.nodeType === 'Group' || !size.width) {
             const clientRect = shape.getClientRect({ skipTransform: false });
             const zoom = this.stage?.scaleX() || 1;
             const stagePos = this.stage?.position() || { x: 0, y: 0 };
             
-            // Screen 좌표 → Stage 좌표 변환
             return {
                 x: (clientRect.x - stagePos.x) / zoom,
                 y: (clientRect.y - stagePos.y) / zoom,
@@ -131,7 +128,6 @@ class SmartGuideManager {
             };
         }
         
-        // 단일 Shape인 경우 직접 좌표 사용
         return {
             x: shape.x(),
             y: shape.y(),
@@ -141,7 +137,7 @@ class SmartGuideManager {
     }
     
     /**
-     * ✨ v1.1.0: Screen 좌표를 Stage 좌표로 변환
+     * Screen 좌표를 Stage 좌표로 변환
      * @param {number} screenX
      * @param {number} screenY
      * @returns {Object} { x, y }
@@ -166,19 +162,34 @@ class SmartGuideManager {
     
     enable() {
         this.config.enabled = true;
+        console.log('[SmartGuideManager] 가이드라인 활성화');
     }
     
     disable() {
         this.config.enabled = false;
         this.clearGuides();
+        console.log('[SmartGuideManager] 가이드라인 비활성화');
     }
     
     isEnabled() {
         return this.config.enabled;
     }
     
+    /**
+     * ✨ v1.1.1: Snap 활성화 설정 (외부 동기화용)
+     * @param {boolean} enabled
+     */
     setSnapEnabled(enabled) {
         this.config.snapEnabled = enabled;
+        console.log(`[SmartGuideManager] snapEnabled: ${enabled}`);
+    }
+    
+    /**
+     * ✨ v1.1.1: Snap 활성화 상태 조회
+     * @returns {boolean}
+     */
+    isSnapEnabled() {
+        return this.config.snapEnabled;
     }
     
     // =====================================================
@@ -212,7 +223,6 @@ class SmartGuideManager {
     
     /**
      * 드래그 중인 객체에 대한 가이드라인 업데이트
-     * ✨ v1.1.0: Stage 좌표계 사용으로 수정
      * @param {Konva.Shape} draggedObject - 드래그 중인 객체
      * @returns {Object} 스냅 조정값 { x: number, y: number }
      */
@@ -221,10 +231,8 @@ class SmartGuideManager {
             return { x: 0, y: 0 };
         }
         
-        // 기존 가이드라인 제거
         this.clearGuides();
         
-        // ✨ v1.1.0: Stage 좌표계 사용
         const dragRect = this._getStageRect(draggedObject);
         if (!dragRect) {
             return { x: 0, y: 0 };
@@ -232,15 +240,12 @@ class SmartGuideManager {
         
         const dragPoints = this._getAlignmentPoints(dragRect);
         
-        // 스냅 결과
         let snapX = null;
         let snapY = null;
         let snapDeltaX = 0;
         let snapDeltaY = 0;
         
-        // 각 참조 객체와 비교
         this.referenceObjects.forEach(refObject => {
-            // ✨ v1.1.0: Stage 좌표계 사용
             const refRect = this._getStageRect(refObject);
             if (!refRect) return;
             
@@ -248,7 +253,6 @@ class SmartGuideManager {
             
             // 수직 정렬선 체크 (X축)
             if (this.config.alignEdges) {
-                // 좌측 모서리
                 const leftSnap = this._checkAlignment(dragPoints.left, refPoints.left, 'vertical');
                 if (leftSnap) {
                     this._addGuideLine(leftSnap.position, 'vertical', refRect);
@@ -260,7 +264,6 @@ class SmartGuideManager {
                     }
                 }
                 
-                // 우측 모서리
                 const rightSnap = this._checkAlignment(dragPoints.right, refPoints.right, 'vertical');
                 if (rightSnap) {
                     this._addGuideLine(rightSnap.position, 'vertical', refRect);
@@ -289,7 +292,6 @@ class SmartGuideManager {
             
             // 수평 정렬선 체크 (Y축)
             if (this.config.alignEdges) {
-                // 상단 모서리
                 const topSnap = this._checkAlignment(dragPoints.top, refPoints.top, 'horizontal');
                 if (topSnap) {
                     this._addGuideLine(topSnap.position, 'horizontal', refRect);
@@ -301,7 +303,6 @@ class SmartGuideManager {
                     }
                 }
                 
-                // 하단 모서리
                 const bottomSnap = this._checkAlignment(dragPoints.bottom, refPoints.bottom, 'horizontal');
                 if (bottomSnap) {
                     this._addGuideLine(bottomSnap.position, 'horizontal', refRect);
@@ -329,16 +330,13 @@ class SmartGuideManager {
             }
         });
         
-        // 현재 스냅 상태 저장
         this.currentSnaps = {
             horizontal: snapY,
             vertical: snapX
         };
         
-        // 레이어 갱신
         this.uiLayer.batchDraw();
         
-        // 스냅 콜백
         if (this.callbacks.onSnap && (snapX || snapY)) {
             this.callbacks.onSnap({
                 x: snapX,
@@ -377,7 +375,7 @@ class SmartGuideManager {
      */
     _checkAlignment(dragValue, refValue, direction) {
         const delta = refValue - dragValue;
-        const threshold = this.config.snapThreshold * 2; // 표시용 threshold
+        const threshold = this.config.snapThreshold * 2;
         
         if (Math.abs(delta) < threshold) {
             return {
@@ -396,7 +394,6 @@ class SmartGuideManager {
     
     /**
      * 가이드라인 추가
-     * ✨ v1.1.0: Stage 좌표계 사용
      * @private
      */
     _addGuideLine(position, direction, refRect) {
@@ -405,7 +402,6 @@ class SmartGuideManager {
         let line;
         
         if (direction === 'vertical') {
-            // 수직선 (X 고정) - Stage 좌표계
             line = new Konva.Line({
                 points: [position, -extension, position, refRect.y + refRect.height + extension],
                 stroke: this.config.lineColor,
@@ -415,7 +411,6 @@ class SmartGuideManager {
                 name: 'smart-guide-line'
             });
         } else {
-            // 수평선 (Y 고정) - Stage 좌표계
             line = new Konva.Line({
                 points: [-extension, position, refRect.x + refRect.width + extension, position],
                 stroke: this.config.lineColor,

@@ -1187,15 +1187,25 @@ class Canvas2DEditor {
         return this.config.showGrid;
     }
 
+    /**
+     * ✨ v6.1.1: Snap 토글 (SmartGuideManager 동기화 추가)
+     */
     toggleSnapToGrid() {
         this.config.snapToGrid = !this.config.snapToGrid;
         
+        // SnapManager 동기화
         if (this.snapManager) {
             if (this.config.snapToGrid) {
                 this.snapManager.enable();
             } else {
                 this.snapManager.disable();
             }
+        }
+        
+        // ✨ v6.1.1: SmartGuideManager snapEnabled 동기화
+        if (this.smartGuideManager) {
+            this.smartGuideManager.setSnapEnabled(this.config.snapToGrid);
+            console.log('[Canvas2DEditor] SmartGuideManager snapEnabled:', this.config.snapToGrid);
         }
         
         console.log('[Canvas2DEditor] 스냅 토글:', this.config.snapToGrid);

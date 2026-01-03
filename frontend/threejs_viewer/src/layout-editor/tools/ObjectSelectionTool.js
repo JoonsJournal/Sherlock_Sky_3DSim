@@ -1,6 +1,11 @@
 /**
- * ObjectSelectionTool.js v5.0.1
+ * ObjectSelectionTool.js v5.1.0
  * ====================================================
+ * 
+ * ✨ v5.1.0 수정:
+ * - ✅ dragmove에서 config.snapToGrid 체크 추가
+ * - ✅ SmartGuide snap 적용 조건 수정
+ * - ✅ dragend에서 이중 Snap 방지
  * 
  * ✨ v5.0.1 수정:
  * - ✅ dragend에서 동적 Grid 크기 사용 (Zoom 레벨 연동)
@@ -12,34 +17,6 @@
  * - ✅ 드래그 완료 시 MoveCommand 생성 및 실행
  * - ✅ 다중 선택 드래그도 Command 기록
  * - ✅ 삭제 시 DeleteCommand 사용
- * 
- * ✨ v4.0.6 기능 유지:
- * - ✅ SmartGuideManager 연동 (드래그 시 정렬 가이드라인)
- * - ✅ 드래그 시작 시 참조 객체 설정
- * - ✅ 드래그 중 스냅 적용
- * - ✅ 드래그 종료 시 가이드라인 정리
- * 
- * ✨ v4.0.5 기능 유지:
- * - ✅ 부분 문자열 매칭으로 선택 로직 변경
- * - ✅ 'equipment component', 'partition component' 등 복합 이름 지원
- * 
- * ✨ v4.0.4 기능 유지:
- * - ✅ 박스 선택에서 Wall, Office, Partition도 선택 가능
- * - ✅ 여러 레이어(equipment, room) 검색
- * 
- * ✨ v4.0.3 기능 유지:
- * - ✅ WallDrawTool 활성화 시 박스 선택 비활성화
- * 
- * ✨ v4.0.2 기능 유지:
- * - ✅ 동적 좌표 표시 (Zoom 레벨 고려)
- * - ✅ ZoomController 통합
- * 
- * 📝 v3.2.9 기능 유지:
- * - ✅ macOS Escape 키 작동 (tabindex)
- * - ✅ Wall hover 시 점선 문제 해결
- * - ✅ Box Selection (Shift + Drag)
- * - ✅ Multi-select (Ctrl + Click)
- * - ✅ 모든 기존 기능 100% 호환
  * 
  * 위치: frontend/threejs_viewer/src/layout-editor/tools/ObjectSelectionTool.js
  */
@@ -62,10 +39,10 @@ class ObjectSelectionTool {
         this.selectionStartX = 0;
         this.selectionStartY = 0;
         this.isSelecting = false;
-        this.justFinishedBoxSelect = false;  // ✅ 박스 선택 방금 완료 플래그
+        this.justFinishedBoxSelect = false;
 
         // ✨ v5.0.0: 드래그 시작 위치 저장 (Undo용)
-        this._dragStartPositions = new Map();  // shape.id() => { x, y }
+        this._dragStartPositions = new Map();
         this._isDragging = false;
 
         // CSS 색상 참조 (안전 처리)
@@ -78,7 +55,7 @@ class ObjectSelectionTool {
         this.handleMouseMove = this.onMouseMove.bind(this);
         this.handleMouseUp = this.onMouseUp.bind(this);
         
-        console.log('[ObjectSelectionTool] 초기화 완료 v5.0.0 (Command 통합)');
+        console.log('[ObjectSelectionTool] 초기화 완료 v5.1.0 (Snap 수정)');
     }
 
     /**
@@ -95,21 +72,15 @@ class ObjectSelectionTool {
      * @returns {CommandManager|null}
      */
     getCommandManager() {
-        // 1. 직접 설정된 commandManager
         if (this.commandManager) {
             return this.commandManager;
         }
-        
-        // 2. editor.commandManager
         if (this.editor && this.editor.commandManager) {
             return this.editor.commandManager;
         }
-        
-        // 3. 전역 commandManager
         if (typeof window !== 'undefined' && window.commandManager) {
             return window.commandManager;
         }
-        
         return null;
     }
 
@@ -126,8 +97,7 @@ class ObjectSelectionTool {
     }
 
     /**
-     * ✨ v4.0.2: Zoom/Pan을 고려한 마우스 좌표 변환
-     * Stage의 scale과 position을 고려하여 실제 Canvas 좌표로 변환
+     * Zoom/Pan을 고려한 마우스 좌표 변환
      * @returns {Object} { x, y } - 변환된 좌표
      */
     getTransformedPointerPosition() {
@@ -138,13 +108,8 @@ class ObjectSelectionTool {
             return { x: 0, y: 0 };
         }
 
-        // Stage의 transform 정보
         const transform = stage.getAbsoluteTransform().copy();
-        
-        // Transform 역변환
         transform.invert();
-        
-        // 마우스 좌표를 Stage 좌표로 변환
         const transformedPoint = transform.point(pointer);
         
         return transformedPoint;
@@ -163,14 +128,13 @@ class ObjectSelectionTool {
         this.editor.stage.on('mousemove touchmove', this.handleMouseMove);
         this.editor.stage.on('mouseup touchend', this.handleMouseUp);
 
-        // ✅ stage의 기본 click 이벤트 오버라이드
         this.originalStageClickHandler = this.handleStageClick.bind(this);
-        this.editor.stage.off('click tap');  // 기존 핸들러 제거
+        this.editor.stage.off('click tap');
         this.editor.stage.on('click tap', this.originalStageClickHandler);
 
         this.attachEventListeners();
 
-        console.log('✅ ObjectSelectionTool activated (Shift+Drag mode) v5.0.0');
+        console.log('✅ ObjectSelectionTool activated v5.1.0');
     }
 
     deactivate() {
@@ -188,7 +152,6 @@ class ObjectSelectionTool {
         this.detachEventListeners();
         this.editor.deselectAll();
         
-        // ✨ v5.0.0: 드래그 상태 초기화
         this._dragStartPositions.clear();
         this._isDragging = false;
 
@@ -206,9 +169,6 @@ class ObjectSelectionTool {
 
         let totalShapes = 0;
         let draggableCount = 0;
-        let wallCount = 0;
-        let equipmentCount = 0;
-        let officeCount = 0;
 
         layers.forEach((layer, layerIndex) => {
             if (!layer) {
@@ -216,52 +176,19 @@ class ObjectSelectionTool {
                 return;
             }
             
-            console.log(`  ├─ Layer ${layerIndex}: ${layer.name() || 'unnamed'}`);
-            
             const shapes = layer.find('.equipment, .wall, .office, .partition');
-            console.log(`  │   └─ 찾은 shapes: ${shapes.length}개`);
             
-            shapes.forEach((shape, shapeIndex) => {
+            shapes.forEach((shape) => {
                 totalShapes++;
                 
-                const shapeName = shape.name();
-                const shapeId = shape.id();
-                const shapeClass = shape.className;
-                const isDraggable = shape.draggable();
-                
-                if (shapeName === 'wall') wallCount++;
-                if (shapeName === 'equipment') equipmentCount++;
-                if (shapeName === 'office') officeCount++;
-                
-                // Wall에 대해서만 상세 로그
-                if (shapeName === 'wall') {
-                    console.log(`  │   ├─ [${shapeIndex + 1}] Wall 발견!`);
-                    console.log(`  │   │   ├─ id: ${shapeId}`);
-                    console.log(`  │   │   ├─ name: ${shapeName}`);
-                    console.log(`  │   │   ├─ className: ${shapeClass}`);
-                    console.log(`  │   │   └─ draggable: ${isDraggable}`);
-                }
-                
-                if (isDraggable) {
+                if (shape.draggable()) {
                     draggableCount++;
-                    if (shapeName === 'wall') {
-                        console.log(`  │   │   └─ ✅ 이벤트 연결됨!`);
-                    }
                     this.attachShapeEvents(shape);
-                } else {
-                    if (shapeName === 'wall') {
-                        console.log(`  │   │   └─ ❌ draggable=false, 이벤트 연결 안됨!`);
-                    }
                 }
             });
         });
         
-        console.log('  └─ 이벤트 연결 완료!');
-        console.log(`      ├─ 총 shapes: ${totalShapes}개`);
-        console.log(`      ├─ draggable shapes: ${draggableCount}개`);
-        console.log(`      ├─ Equipment: ${equipmentCount}개`);
-        console.log(`      ├─ Wall: ${wallCount}개`);
-        console.log(`      └─ Office: ${officeCount}개`);
+        console.log(`  └─ 이벤트 연결 완료: ${draggableCount}/${totalShapes}개`);
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     }
 
@@ -311,10 +238,9 @@ class ObjectSelectionTool {
         shape.on('mouseenter', () => {
             if (!this.editor.selectedObjects.includes(shape)) {
                 if (shapeName === 'wall') {
-                    // ✅ v3.2.9: Wall hover 시 점선 문제 해결
                     shape.strokeWidth(6);
                     shape.stroke('#667eea');
-                    shape.dash(null);  // 점선 제거
+                    shape.dash(null);
                 } else {
                     const rect = shape.findOne('.componentRect');
                     if (rect) {
@@ -331,10 +257,9 @@ class ObjectSelectionTool {
         shape.on('mouseleave', () => {
             if (!this.editor.selectedObjects.includes(shape)) {
                 if (shapeName === 'wall') {
-                    // ✅ v3.2.9: Wall 원래 스타일로 복구
                     shape.strokeWidth(shape.getAttr('originalStrokeWidth') || 4);
                     shape.stroke(shape.getAttr('originalStroke') || '#888888');
-                    shape.dash(null);  // 점선 없이 유지
+                    shape.dash(null);
                 } else {
                     const rect = shape.findOne('.componentRect');
                     if (rect) {
@@ -353,10 +278,8 @@ class ObjectSelectionTool {
                 this.editor.selectObject(shape, false);
             }
             
-            // ✅ 드래그 시작 플래그
             this._isDragging = true;
             
-            // ✅ 선택된 모든 객체의 시작 위치 저장 (다중 선택 드래그 지원)
             this._dragStartPositions.clear();
             this.editor.selectedObjects.forEach(obj => {
                 this._dragStartPositions.set(obj.id() || obj._id, {
@@ -368,54 +291,61 @@ class ObjectSelectionTool {
             console.log('[ObjectSelectionTool] Drag start - 위치 저장:', 
                 this._dragStartPositions.size, '개 객체');
             
-            // ✅ v4.0.6: SmartGuideManager 참조 객체 설정
+            // SmartGuideManager 참조 객체 설정
             if (this.editor.smartGuideManager) {
                 const allShapes = this.editor.getAllSelectableShapes ? 
                     this.editor.getAllSelectableShapes() : [];
                 this.editor.smartGuideManager.setReferenceObjects(
                     allShapes, 
-                    this.editor.selectedObjects  // 현재 선택된 객체 제외
+                    this.editor.selectedObjects
                 );
             }
         });
 
-        // Drag move
+        // ✨ v5.1.0: Drag move - SmartGuide Snap 조건부 적용
         shape.on('dragmove', () => {
-            // ✨ v4.0.2: Zoom/Pan 고려한 좌표 표시
             this.updateCoordinates(shape);
             
-            // ✅ v4.0.6: SmartGuideManager 가이드라인 업데이트
+            // ✨ v5.1.0: SmartGuide 처리 (가이드라인 표시 + 조건부 Snap)
             if (this.editor.smartGuideManager) {
                 const snapDelta = this.editor.smartGuideManager.updateGuides(shape);
                 
-                // 스냅 적용
-                if (snapDelta.x !== 0 || snapDelta.y !== 0) {
+                // ✨ v5.1.0: Snap 적용 조건
+                // config.snapToGrid AND smartGuideManager.config.snapEnabled 둘 다 true일 때만
+                const smartGuideSnapActive = this.editor.config.snapToGrid && 
+                                            this.editor.smartGuideManager.config.snapEnabled;
+                
+                if (smartGuideSnapActive && (snapDelta.x !== 0 || snapDelta.y !== 0)) {
                     shape.x(shape.x() + snapDelta.x);
                     shape.y(shape.y() + snapDelta.y);
                 }
             }
         });
 
-        // ✨ v5.0.0: Drag end - MoveCommand 생성 및 실행
+        // ✨ v5.1.0: Drag end - Grid Snap (이중 Snap 방지)
         shape.on('dragend', () => {
-            // ✅ v4.0.6: SmartGuideManager 가이드라인 제거
+            // SmartGuide 가이드라인 제거
             if (this.editor.smartGuideManager) {
                 this.editor.smartGuideManager.clearGuides();
             }
             
-            // ✅ v5.0.1: Snap to Grid 적용 (동적 Grid 크기 지원)
-            if (this.editor.config.snapToGrid) {
-                // SnapManager 또는 GridSnap에서 현재 Grid 크기 가져오기 (Zoom 레벨 고려)
-                let gridSize = this.editor.config.gridSize;  // 기본값 (폴백)
+            // ✨ v5.1.0: Grid Snap 적용 조건
+            // SmartGuide Snap이 활성화되어 있으면 이미 적용됨 → Grid Snap 스킵
+            // SmartGuide Snap이 비활성화면 → Grid Snap 적용
+            const smartGuideSnapActive = this.editor.smartGuideManager?.config.snapEnabled && 
+                                        this.editor.config.snapToGrid;
+            
+            // Grid Snap 적용 (smartGuideSnapActive가 false일 때만)
+            if (this.editor.config.snapToGrid && !smartGuideSnapActive) {
+                let gridSize = this.editor.config.gridSize;
                 
-                // 우선순위: SnapManager.gridSnap > SnapManager.getCurrentGridSize > config.gridSize
                 if (this.editor.snapManager?.gridSnap?.getCurrentGridSize) {
                     gridSize = this.editor.snapManager.gridSnap.getCurrentGridSize();
                 } else if (this.editor.snapManager?.getCurrentGridSize) {
                     gridSize = this.editor.snapManager.getCurrentGridSize();
                 }
                 
-                console.log(`[ObjectSelectionTool] Snap Grid Size: ${gridSize}px`);
+                console.log(`[ObjectSelectionTool] Grid Snap 적용: ${gridSize}px`);
                 
                 this.editor.selectedObjects.forEach(obj => {
                     obj.x(Math.round(obj.x() / gridSize) * gridSize);
@@ -434,7 +364,6 @@ class ObjectSelectionTool {
             this.editor.stage.batchDraw();
             this.hideCoordinates();
             
-            // 드래그 상태 초기화
             this._isDragging = false;
         });
     }
@@ -452,9 +381,7 @@ class ObjectSelectionTool {
             return;
         }
         
-        // MoveCommand 클래스 확인
         const MoveCommandClass = window.MoveCommand;
-        const GroupCommandClass = window.GroupCommand;
         
         if (!MoveCommandClass) {
             console.warn('[ObjectSelectionTool] MoveCommand 클래스 없음 - Command 기록 생략');
@@ -469,7 +396,6 @@ class ObjectSelectionTool {
             return;
         }
         
-        // 이동량 계산 (첫 번째 객체 기준)
         const firstObj = selectedObjects[0];
         const firstId = firstObj.id() || firstObj._id;
         const startPos = this._dragStartPositions.get(firstId);
@@ -480,15 +406,12 @@ class ObjectSelectionTool {
             return;
         }
         
-        // 현재 위치 (Snap 적용 후)
         const currentX = firstObj.x();
         const currentY = firstObj.y();
         
-        // 이동량
         const deltaX = currentX - startPos.x;
         const deltaY = currentY - startPos.y;
         
-        // 이동이 없으면 Command 생성 안함
         if (Math.abs(deltaX) < 0.1 && Math.abs(deltaY) < 0.1) {
             console.log('[ObjectSelectionTool] 이동 없음 - Command 생략');
             this._dragStartPositions.clear();
@@ -501,8 +424,7 @@ class ObjectSelectionTool {
             deltaY: deltaY.toFixed(1)
         });
         
-        // ✅ 핵심: 원위치로 복원 후 Command 실행
-        // (Command.execute()가 실제 이동을 수행하도록)
+        // 원위치로 복원 후 Command 실행
         selectedObjects.forEach(obj => {
             const objId = obj.id() || obj._id;
             const objStartPos = this._dragStartPositions.get(objId);
@@ -512,13 +434,11 @@ class ObjectSelectionTool {
             }
         });
         
-        // MoveCommand 생성 및 실행
         const moveCommand = new MoveCommandClass(selectedObjects, deltaX, deltaY);
         cmdManager.execute(moveCommand);
         
         console.log('[ObjectSelectionTool] ✅ MoveCommand 실행 완료');
         
-        // 정리
         this._dragStartPositions.clear();
     }
 
@@ -529,7 +449,6 @@ class ObjectSelectionTool {
     onMouseDown(e) {
         if (e.evt.button !== 0) return;
         
-        // ✅ v4.0.3: WallDrawTool이 활성화되어 있으면 박스 선택 무시
         if (this.editor.wallDrawTool?.isActive) {
             console.log('🚫 WallDrawTool 활성화됨 - 박스 선택 무시');
             return;
@@ -537,20 +456,16 @@ class ObjectSelectionTool {
         
         const clickedOnEmpty = e.target === this.editor.stage;
         
-        // Shift 키를 눌렀을 때만 박스 선택 시작
         if (clickedOnEmpty && this.shiftKeyPressed) {
-            // ✅ Canvas2DEditor에게 박스 선택 중임을 알림
             this.editor._isBoxSelecting = true;
             
             this.isSelecting = true;
             
-            // ✨ v4.0.2: Zoom/Pan 고려한 좌표 변환
             const pos = this.getTransformedPointerPosition();
             
             this.selectionStartX = pos.x;
             this.selectionStartY = pos.y;
 
-            // 드래그 박스 생성
             this.selectionBox = new Konva.Rect({
                 x: this.selectionStartX,
                 y: this.selectionStartY,
@@ -565,7 +480,6 @@ class ObjectSelectionTool {
 
             this.editor.layers.ui.add(this.selectionBox);
             
-            // 선택 개수 라벨 생성
             this.selectionCountLabel = new Konva.Text({
                 x: this.selectionStartX + 5,
                 y: this.selectionStartY + 5,
@@ -580,14 +494,13 @@ class ObjectSelectionTool {
             this.editor.layers.ui.add(this.selectionCountLabel);
             this.editor.layers.ui.batchDraw();
             
-            console.log('✅ Shift+Drag 박스 선택 시작 (플래그 설정)');
+            console.log('✅ Shift+Drag 박스 선택 시작');
         }
     }
 
     onMouseMove(e) {
         if (!this.isSelecting) return;
 
-        // ✨ v4.0.2: Zoom/Pan 고려한 좌표 변환
         const pos = this.getTransformedPointerPosition();
         
         const width = pos.x - this.selectionStartX;
@@ -598,7 +511,6 @@ class ObjectSelectionTool {
         this.selectionBox.x(width < 0 ? pos.x : this.selectionStartX);
         this.selectionBox.y(height < 0 ? pos.y : this.selectionStartY);
 
-        // 실시간 선택 개수 업데이트
         const box = this.selectionBox.getClientRect();
         const count = this.countIntersectingShapes(box);
         
@@ -612,18 +524,16 @@ class ObjectSelectionTool {
     }
 
     /**
-     * 박스 내 객체 개수 계산 (Equipment + Wall + Office 등)
+     * 박스 내 객체 개수 계산
      */
     countIntersectingShapes(box) {
         let count = 0;
         
-        // ✅ v4.0.4: 여러 레이어에서 선택 가능한 객체 검색
         const layers = [
             this.editor.layers.equipment,
             this.editor.layers.room
         ];
         
-        // ✅ 부분 문자열 매칭 (equipment component, wall, partition component 등)
         const selectableKeywords = ['equipment', 'wall', 'office', 'partition', 'desk', 'pillar', 'component'];
         
         layers.forEach(layer => {
@@ -652,21 +562,15 @@ class ObjectSelectionTool {
 
         const box = this.selectionBox.getClientRect();
         
-        // Ctrl 키 누르지 않으면 기존 선택 해제
         if (!this.ctrlKeyPressed) {
             this.editor.deselectAll();
-            console.log('Deselected all (new selection)');
-        } else {
-            console.log('✅ Ctrl+Shift+Drag: 기존 선택 유지');
         }
 
-        // ✅ v4.0.4: 여러 레이어에서 박스 내 객체 선택
         const layers = [
             this.editor.layers.equipment,
             this.editor.layers.room
         ];
         
-        // ✅ 부분 문자열 매칭 (equipment component, wall, partition component 등)
         const selectableKeywords = ['equipment', 'wall', 'office', 'partition', 'desk', 'pillar', 'component'];
         let selectedCount = 0;
         
@@ -687,7 +591,6 @@ class ObjectSelectionTool {
             });
         });
 
-        // 정리
         if (this.selectionBox) {
             this.selectionBox.destroy();
             this.selectionBox = null;
@@ -703,14 +606,11 @@ class ObjectSelectionTool {
         const totalSelected = this.editor.selectedObjects.length;
         console.log(`✅ Shift+Drag 완료: ${selectedCount}개 추가 (총 ${totalSelected}개 선택)`);
 
-        // ✅ 박스 선택 방금 완료 플래그 설정
         this.justFinishedBoxSelect = true;
         
-        // ✅ Canvas2DEditor 플래그 해제 (약간의 지연)
         setTimeout(() => {
             this.editor._isBoxSelecting = false;
             this.justFinishedBoxSelect = false;
-            console.log('🔓 박스 선택 플래그 해제');
         }, 100);
     }
 
@@ -735,49 +635,35 @@ class ObjectSelectionTool {
         console.log('  ├─ e.keyCode:', e.keyCode);
         console.log('  └─ selectedObjects.length:', this.editor.selectedObjects.length);
 
-        // Shift 키
         if (e.key === 'Shift') {
             this.shiftKeyPressed = true;
             console.log('🔑 Shift 키 눌림');
         }
 
-        // Ctrl 키 (Windows) / Meta 키 (macOS)
         if (e.ctrlKey || e.metaKey) {
             this.ctrlKeyPressed = true;
             console.log('🔑 Ctrl 키 눌림');
         }
 
-        // Delete / Backspace 키
         if (e.key === 'Delete' || e.key === 'Backspace') {
             console.log('🗑️ Delete/Backspace 감지');
             if (this.editor.selectedObjects.length > 0) {
-                // ✨ v5.0.0: DeleteCommand 사용
                 this._deleteSelectedWithCommand();
             }
         }
 
-        // Escape 키 처리 (명확한 체크)
         console.log('🔍 Escape 키 체크 시작...');
         console.log('  ├─ e.key === "Escape"?', e.key === 'Escape');
-        console.log('  ├─ e.key 정확한 값:', JSON.stringify(e.key));
-        console.log('  └─ e.key.length:', e.key.length);
 
         if (e.key === 'Escape') {
             console.log('🚪 Escape 키 감지됨!');
-            console.log('  ├─ selectedObjects.length:', this.editor.selectedObjects.length);
-
             if (this.editor.selectedObjects.length > 0) {
-                console.log('  └─ deselectAll() 호출...');
                 this.editor.deselectAll();
-                console.log('  └─ deselectAll() 완료');
-            } else {
-                console.log('  └─ 선택된 객체 없음 - 아무 동작 안함');
             }
         } else {
             console.log('⚠️ Escape 키가 아님!');
         }
 
-        // Ctrl+A (전체 선택)
         if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
             e.preventDefault();
             this.selectAll();
@@ -811,7 +697,7 @@ class ObjectSelectionTool {
             return;
         }
         
-        const selectedObjects = [...this.editor.selectedObjects];  // 복사본
+        const selectedObjects = [...this.editor.selectedObjects];
         
         if (selectedObjects.length === 0) {
             return;
@@ -819,10 +705,8 @@ class ObjectSelectionTool {
         
         console.log('[ObjectSelectionTool] DeleteCommand 생성:', selectedObjects.length, '개 객체');
         
-        // 선택 해제 먼저
         this.editor.deselectAll();
         
-        // DeleteCommand 생성 및 실행
         const deleteCommand = new DeleteCommandClass(selectedObjects);
         cmdManager.execute(deleteCommand);
         
@@ -862,13 +746,11 @@ class ObjectSelectionTool {
     // =======================================
 
     handleStageClick(e) {
-        // ✅ 박스 선택 중이면 무시
         if (this.editor._isBoxSelecting || this.justFinishedBoxSelect) {
             console.log('🚫 박스 선택 중 - handleStageClick 무시');
             return;
         }
 
-        // Stage 빈 공간 클릭 → 선택 해제
         if (e.target === this.editor.stage) {
             if (!this.ctrlKeyPressed) {
                 this.editor.deselectAll();
@@ -883,7 +765,6 @@ class ObjectSelectionTool {
     updateCoordinates(shape) {
         const scale = this.editor.config.scale;
 
-        // ✨ v4.0.2: Zoom 레벨 고려한 좌표 표시
         const zoomController = this.editor.zoomController;
         let zoomLevel = 1;
         
@@ -902,13 +783,11 @@ class ObjectSelectionTool {
             this.coordLabel.destroyChildren();
         }
 
-        // 위치 계산 (Shape 위)
         const labelX = shape.x();
-        const labelY = shape.y() - 30 / zoomLevel;  // Zoom 레벨 고려
+        const labelY = shape.y() - 30 / zoomLevel;
 
         this.coordLabel.position({ x: labelX, y: labelY });
 
-        // 배경 Rect (Zoom 레벨 고려)
         this.coordLabel.add(new Konva.Rect({
             x: 0,
             y: 0,
@@ -924,7 +803,7 @@ class ObjectSelectionTool {
 
         this.coordLabel.add(new Konva.Text({
             text: `${x}m, ${y}m`,
-            fontSize: 12 / zoomLevel,  // Zoom 레벨 고려
+            fontSize: 12 / zoomLevel,
             padding: 5 / zoomLevel,
             fill: this.cssColors.coordText
         }));
