@@ -356,13 +356,13 @@ function toggleEditMode() {
     if (currentMode === APP_MODE.EQUIPMENT_EDIT) {
         appModeManager.switchMode(APP_MODE.MAIN_VIEWER);
         if (equipmentEditState) {
-            equipmentEditState.isEditMode = false;
+            equipmentEditState.disableEditMode();  // ✅ 올바른 메서드
         }
         updateEditButtonState(false);
     } else {
         appModeManager.switchMode(APP_MODE.EQUIPMENT_EDIT);
         if (equipmentEditState) {
-            equipmentEditState.isEditMode = true;
+            equipmentEditState.enableEditMode();   // ✅ 올바른 메서드
         }
         updateEditButtonState(true);
     }

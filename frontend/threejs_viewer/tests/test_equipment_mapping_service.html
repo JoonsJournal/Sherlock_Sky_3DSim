@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EquipmentMappingService Test</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 { color: #4CAF50; }
+        h2 { color: #2196F3; margin-top: 30px; }
+        .test-section {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+        .test-result {
+            padding: 8px 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .pass { background: rgba(76, 175, 80, 0.2); border-left: 4px solid #4CAF50; }
+        .fail { background: rgba(244, 67, 54, 0.2); border-left: 4px solid #f44336; }
+        .info { background: rgba(33, 150, 243, 0.2); border-left: 4px solid #2196F3; }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 4px;
+            font-size: 14px;
+        }
+        button:hover { background: #1976D2; }
+        button.success { background: #4CAF50; }
+        button.warning { background: #FF9800; }
+        button.danger { background: #f44336; }
+        #output {
+            background: #0f0f23;
+            padding: 16px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+        .controls { margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>🧪 EquipmentMappingService Test</h1>
+    <p>Backend 없이 Mock API로 테스트합니다.</p>
+
+    <div class="controls">
+        <button onclick="runAllTests()">▶️ Run All Tests</button>
+        <button onclick="clearOutput()" class="warning">🗑️ Clear</button>
+    </div>
+
+    <h2>1. Individual Tests</h2>
+    <div class="test-section">
+        <button onclick="testServiceInit()">1.1 Service Init</button>
+        <button onclick="testLoadEquipmentNames()">1.2 Load Equipment Names</button>
+        <button onclick="testSetMapping()">1.3 Set Mapping</button>
+        <button onclick="testValidateLocal()">1.4 Validate Local</button>
+        <button onclick="testGetCompletionStatus()">1.5 Completion Status</button>
+        <button onclick="testSaveMappings()">1.6 Save Mappings</button>
+        <button onclick="testSyncWithServer()">1.7 Sync with Server</button>
+    </div>
+
+    <h2>2. Test Output</h2>
+    <div id="output"></div>
+
+    <script type="module">
+        // ==========================================
+        // Mock Classes
+        // ==========================================
+
+        // Mock debugLog
+        window.debugLog = (...args) => console.log('[DEBUG]', ...args);
+
+        // Mock ApiClient
+        class MockApiClient {
+            constructor() {
+                this.mockEquipments = [
+                    { equipment_id: 1, equipment_name: 'Equipment A', equipment_code: 'EQ-A', line_name: 'Line 1' },
+                    { equipment_id: 2, equipment_name: 'Equipment B', equipment_code: 'EQ-B', line_name: 'Line 1' },
+                    { equipment_id: 3, equipment_name: 'Equipment C', equipment_code: 'EQ-C', line_name: 'Line 2' },
+                    { equipment_id: 4, equipment_name: 'Equipment D', equipment_code: 'EQ-D', line_name: 'Line 2' },
+                    { equipment_id: 5, equipment_name: 'Equipment E', equipment_code: 'EQ-E', line_name: 'Line 3' },
+                ];
+                this.mockMappings = {
+                    'EQ-01-01': { frontend_id: 'EQ-01-01', equipment_id: 1, equipment_name: 'Equipment A' },
+                    'EQ-01-02': { frontend_id: 'EQ-01-02', equipment_id: 2, equipment_name: 'Equipment B' },
+                };
+            }
+
+            async getEquipmentNames() {
+                await this._delay(100);
+                return this.mockEquipments;
+            }
+
+            async getEquipmentMappings() {
+                await this._delay(100);
+                return this.mockMappings;
+            }
+
+            async saveEquipmentMappings(data) {
+                await this._delay(200);
+                return { success: true, message: 'Saved', total: data.mappings?.length || 0 };
+            }
+
+            async validateEquipmentMapping(data) {
+                await this._delay(150);
+                const errors = [];
+                const warnings = [];
+                
+                // Check for duplicates
+                const idMap = new Map();
+                for (const m of (data.mappings || [])) {
+                    if (idMap.has(m.equipment_id)) {
+                        errors.push(`Duplicate: Equipment ID ${m.equipment_id}`);
+                    }
+                    idMap.set(m.equipment_id, m.frontend_id);
+                }
+
+                // Check missing
+                const mappedIds = new Set((data.mappings || []).map(m => m.equipment_id));
+                const missing = this.mockEquipments.filter(e => !mappedIds.has(e.equipment_id));
+                if (missing.length > 0) {
+                    warnings.push(`${missing.length} equipments not mapped`);
+                }
+
+                return {
+                    valid: errors.length === 0,
+                    errors,
+                    warnings,
+                    duplicates: {},
+                    missing: missing.map(m => `${m.equipment_id}: ${m.equipment_name}`)
+                };
+            }
+
+            _delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // Mock EquipmentEditState
+        class MockEditState {
+            constructor() {
+                this.mappings = {};
+                this.isDirty = false;
+            }
+
+            setMapping(frontendId, data) {
+                this.mappings[frontendId] = {
+                    frontend_id: frontendId,
+                    equipment_id: data.equipment_id,
+                    equipment_name: data.equipment_name,
+                    mapped_at: new Date().toISOString()
+                };
+                this.isDirty = true;
+                return true;
+            }
+
+            getMapping(frontendId) {
+                return this.mappings[frontendId] || null;
+            }
+
+            getAllMappings() {
+                return { ...this.mappings };
+            }
+
+            getMappingCount() {
+                return Object.keys(this.mappings).length;
+            }
+
+            findDuplicate(equipmentId) {
+                for (const [fid, m] of Object.entries(this.mappings)) {
+                    if (m.equipment_id === equipmentId) return fid;
+                }
+                return null;
+            }
+
+            toServerFormat() {
+                return Object.values(this.mappings);
+            }
+
+            loadFromServer(serverMappings, strategy = 'replace') {
+                if (strategy === 'replace') {
+                    this.mappings = { ...serverMappings };
+                } else if (strategy === 'merge') {
+                    this.mappings = { ...this.mappings, ...serverMappings };
+                }
+                this.isDirty = false;
+            }
+
+            compareWithServer(serverMappings) {
+                const localIds = new Set(Object.keys(this.mappings));
+                const serverIds = new Set(Object.keys(serverMappings));
+                const conflicts = [];
+                const localOnly = [];
+                const serverOnly = [];
+
+                localIds.forEach(id => {
+                    if (!serverIds.has(id)) localOnly.push(id);
+                });
+                serverIds.forEach(id => {
+                    if (!localIds.has(id)) serverOnly.push(id);
+                });
+
+                return {
+                    needsSync: localOnly.length > 0 || serverOnly.length > 0 || conflicts.length > 0,
+                    conflicts,
+                    localOnly,
+                    serverOnly
+                };
+            }
+        }
+
+        // ==========================================
+        // EquipmentMappingService (Inline for test)
+        // ==========================================
+
+        class EquipmentMappingService {
+            constructor(options = {}) {
+                this.apiClient = options.apiClient;
+                this.editState = options.editState;
+                this.equipmentNamesCache = null;
+                this.cacheTimestamp = null;
+                this.cacheDuration = 5 * 60 * 1000;
+                this.isLoading = false;
+                this.lastSyncTime = null;
+                this.lastError = null;
+            }
+
+            async loadEquipmentNames(forceRefresh = false) {
+                if (!forceRefresh && this._isCacheValid()) {
+                    return this.equipmentNamesCache;
+                }
+                this.isLoading = true;
+                try {
+                    const equipments = await this.apiClient.getEquipmentNames();
+                    this.equipmentNamesCache = equipments;
+                    this.cacheTimestamp = Date.now();
+                    return equipments;
+                } finally {
+                    this.isLoading = false;
+                }
+            }
+
+            _isCacheValid() {
+                if (!this.equipmentNamesCache || !this.cacheTimestamp) return false;
+                return (Date.now() - this.cacheTimestamp) < this.cacheDuration;
+            }
+
+            async loadMappings(mergeStrategy = 'replace') {
+                this.isLoading = true;
+                try {
+                    const serverMappings = await this.apiClient.getEquipmentMappings();
+                    if (this.editState) {
+                        this.editState.loadFromServer(serverMappings, mergeStrategy);
+                    }
+                    this.lastSyncTime = new Date();
+                    return serverMappings;
+                } finally {
+                    this.isLoading = false;
+                }
+            }
+
+            async saveMappings(validateFirst = true) {
+                if (!this.editState) throw new Error('EditState not initialized');
+                this.isLoading = true;
+                try {
+                    const mappingsArray = this.editState.toServerFormat();
+                    if (mappingsArray.length === 0) {
+                        return { success: true, message: 'No mappings to save', total: 0 };
+                    }
+                    if (validateFirst) {
+                        const validation = await this.validateMapping();
+                        if (!validation.valid) {
+                            return { success: false, message: 'Validation failed', validation };
+                        }
+                    }
+                    const result = await this.apiClient.saveEquipmentMappings({ mappings: mappingsArray });
+                    if (this.editState) this.editState.isDirty = false;
+                    this.lastSyncTime = new Date();
+                    return result;
+                } finally {
+                    this.isLoading = false;
+                }
+            }
+
+            async validateMapping() {
+                if (!this.editState) throw new Error('EditState not initialized');
+                const mappingsArray = this.editState.toServerFormat();
+                if (mappingsArray.length === 0) {
+                    return { valid: true, errors: [], warnings: ['No mappings to validate'], duplicates: {}, missing: [] };
+                }
+                return await this.apiClient.validateEquipmentMapping({ mappings: mappingsArray });
+            }
+
+            validateLocal() {
+                if (!this.editState) return { valid: false, errors: ['EditState not initialized'] };
+                const errors = [];
+                const warnings = [];
+                const mappings = this.editState.getAllMappings();
+                const equipmentIdMap = new Map();
+                for (const [frontendId, mapping] of Object.entries(mappings)) {
+                    const eqId = mapping.equipment_id;
+                    if (equipmentIdMap.has(eqId)) {
+                        errors.push(`Equipment ID ${eqId} is mapped to both ${equipmentIdMap.get(eqId)} and ${frontendId}`);
+                    } else {
+                        equipmentIdMap.set(eqId, frontendId);
+                    }
+                }
+                return { valid: errors.length === 0, errors, warnings, mappingCount: Object.keys(mappings).length };
+            }
+
+            async syncWithServer() {
+                if (!this.editState) throw new Error('EditState not initialized');
+                const serverMappings = await this.apiClient.getEquipmentMappings();
+                const comparison = this.editState.compareWithServer(serverMappings);
+                if (!comparison.needsSync) {
+                    return { success: true, action: 'none', message: 'Already in sync' };
+                }
+                return { success: true, action: 'review-needed', comparison };
+            }
+
+            async detectConflicts() {
+                const serverMappings = await this.apiClient.getEquipmentMappings();
+                return this.editState.compareWithServer(serverMappings);
+            }
+
+            getCompletionStatus(totalEquipments = 117) {
+                if (!this.editState) {
+                    return { total: totalEquipments, mapped: 0, unmapped: totalEquipments, percentage: 0, isComplete: false };
+                }
+                const mapped = this.editState.getMappingCount();
+                const unmapped = totalEquipments - mapped;
+                const percentage = Math.round((mapped / totalEquipments) * 100);
+                return { total: totalEquipments, mapped, unmapped, percentage, isComplete: mapped >= totalEquipments };
+            }
+
+            getStatus() {
+                return {
+                    isLoading: this.isLoading,
+                    lastSyncTime: this.lastSyncTime,
+                    lastError: this.lastError,
+                    cacheValid: this._isCacheValid(),
+                    mappingCount: this.editState?.getMappingCount() || 0,
+                    isDirty: this.editState?.isDirty || false
+                };
+            }
+        }
+
+        // ==========================================
+        // Test Setup
+        // ==========================================
+
+        let apiClient, editState, mappingService;
+
+        function initTestEnvironment() {
+            apiClient = new MockApiClient();
+            editState = new MockEditState();
+            mappingService = new EquipmentMappingService({
+                apiClient,
+                editState
+            });
+            log('✅ Test environment initialized', 'info');
+        }
+
+        // ==========================================
+        // Test Functions
+        // ==========================================
+
+        window.testServiceInit = async function() {
+            initTestEnvironment();
+            
+            const status = mappingService.getStatus();
+            assert(status !== null, 'Status should not be null');
+            assert(status.isLoading === false, 'isLoading should be false');
+            assert(status.mappingCount === 0, 'Initial mapping count should be 0');
+            
+            log('✅ Service initialization test passed', 'pass');
+        };
+
+        window.testLoadEquipmentNames = async function() {
+            initTestEnvironment();
+            
+            log('Loading equipment names...', 'info');
+            const equipments = await mappingService.loadEquipmentNames();
+            
+            assert(Array.isArray(equipments), 'Should return array');
+            assert(equipments.length === 5, `Should have 5 equipments, got ${equipments.length}`);
+            assert(equipments[0].equipment_name === 'Equipment A', 'First equipment should be Equipment A');
+            
+            // Test caching
+            const cached = await mappingService.loadEquipmentNames();
+            assert(cached === equipments, 'Should return cached data');
+            
+            log(`✅ Loaded ${equipments.length} equipments (cache working)`, 'pass');
+        };
+
+        window.testSetMapping = async function() {
+            initTestEnvironment();
+            
+            // Set mapping
+            const result = editState.setMapping('EQ-01-01', {
+                equipment_id: 1,
+                equipment_name: 'Equipment A'
+            });
+            
+            assert(result === true, 'setMapping should return true');
+            assert(editState.getMappingCount() === 1, 'Should have 1 mapping');
+            assert(editState.isDirty === true, 'Should be dirty');
+            
+            const mapping = editState.getMapping('EQ-01-01');
+            assert(mapping !== null, 'Mapping should exist');
+            assert(mapping.equipment_id === 1, 'Equipment ID should be 1');
+            
+            log('✅ Set mapping test passed', 'pass');
+        };
+
+        window.testValidateLocal = async function() {
+            initTestEnvironment();
+            
+            // Add valid mappings
+            editState.setMapping('EQ-01-01', { equipment_id: 1, equipment_name: 'Equipment A' });
+            editState.setMapping('EQ-01-02', { equipment_id: 2, equipment_name: 'Equipment B' });
+            
+            const result = mappingService.validateLocal();
+            assert(result.valid === true, 'Should be valid');
+            assert(result.errors.length === 0, 'Should have no errors');
+            
+            log('✅ Local validation passed (no duplicates)', 'pass');
+            
+            // Add duplicate
+            editState.mappings['EQ-01-03'] = { 
+                frontend_id: 'EQ-01-03', 
+                equipment_id: 1, // Duplicate!
+                equipment_name: 'Equipment A' 
+            };
+            
+            const result2 = mappingService.validateLocal();
+            assert(result2.valid === false, 'Should be invalid (duplicate)');
+            assert(result2.errors.length > 0, 'Should have errors');
+            
+            log(`✅ Local validation detected duplicate: ${result2.errors[0]}`, 'pass');
+        };
+
+        window.testGetCompletionStatus = async function() {
+            initTestEnvironment();
+            
+            // No mappings
+            let status = mappingService.getCompletionStatus(10);
+            assert(status.mapped === 0, 'Should have 0 mapped');
+            assert(status.percentage === 0, 'Percentage should be 0');
+            
+            // Add some mappings
+            editState.setMapping('EQ-01-01', { equipment_id: 1, equipment_name: 'A' });
+            editState.setMapping('EQ-01-02', { equipment_id: 2, equipment_name: 'B' });
+            editState.setMapping('EQ-01-03', { equipment_id: 3, equipment_name: 'C' });
+            
+            status = mappingService.getCompletionStatus(10);
+            assert(status.mapped === 3, `Should have 3 mapped, got ${status.mapped}`);
+            assert(status.percentage === 30, `Percentage should be 30, got ${status.percentage}`);
+            assert(status.isComplete === false, 'Should not be complete');
+            
+            log(`✅ Completion: ${status.mapped}/${status.total} (${status.percentage}%)`, 'pass');
+        };
+
+        window.testSaveMappings = async function() {
+            initTestEnvironment();
+            
+            // Add mappings
+            editState.setMapping('EQ-01-01', { equipment_id: 1, equipment_name: 'Equipment A' });
+            editState.setMapping('EQ-01-02', { equipment_id: 2, equipment_name: 'Equipment B' });
+            
+            log('Saving mappings to server...', 'info');
+            const result = await mappingService.saveMappings(true);
+            
+            assert(result.success === true, 'Save should succeed');
+            assert(editState.isDirty === false, 'Should not be dirty after save');
+            
+            log(`✅ Saved ${result.total} mappings`, 'pass');
+        };
+
+        window.testSyncWithServer = async function() {
+            initTestEnvironment();
+            
+            // Local has different data than server
+            editState.setMapping('EQ-01-03', { equipment_id: 3, equipment_name: 'Equipment C' });
+            
+            log('Syncing with server...', 'info');
+            const result = await mappingService.syncWithServer();
+            
+            assert(result.success === true, 'Sync should succeed');
+            
+            if (result.action === 'review-needed') {
+                log(`⚠️ Sync needs review: Local only: ${result.comparison.localOnly.length}, Server only: ${result.comparison.serverOnly.length}`, 'info');
+            } else {
+                log('✅ Already in sync', 'pass');
+            }
+            
+            log('✅ Sync test completed', 'pass');
+        };
+
+        window.runAllTests = async function() {
+            clearOutput();
+            log('🚀 Running all tests...\n', 'info');
+            
+            try {
+                await testServiceInit();
+                await testLoadEquipmentNames();
+                await testSetMapping();
+                await testValidateLocal();
+                await testGetCompletionStatus();
+                await testSaveMappings();
+                await testSyncWithServer();
+                
+                log('\n✅✅✅ All tests passed! ✅✅✅', 'pass');
+            } catch (error) {
+                log(`\n❌ Test failed: ${error.message}`, 'fail');
+                console.error(error);
+            }
+        };
+
+        // ==========================================
+        // Helpers
+        // ==========================================
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(`Assertion failed: ${message}`);
+            }
+        }
+
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            output.appendChild(div);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        window.clearOutput = function() {
+            document.getElementById('output').innerHTML = '';
+        };
+
+        // Initial setup
+        initTestEnvironment();
+        log('Ready to run tests. Click "Run All Tests" or individual test buttons.', 'info');
+    </script>
+</body>
+</html>

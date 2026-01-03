@@ -2,26 +2,32 @@
  * selection/index.js
  * ===================
  * 
- * Selection 모듈 export 정리
+ * Selection 모듈 통합 Export
  * 
- * @version 1.0.0 - Phase 1.5
+ * @version 1.1.0 - Phase 4
  * 
- * 위치: frontend/threejs_viewer/src/layout_editor/selection/index.js
+ * 위치: frontend/threejs_viewer/src/layout-editor/selection/index.js
  */
 
-// ES Module exports
-export { Selection2DManager } from './Selection2DManager.js';
-export { SelectionRenderer } from './SelectionRenderer.js';
-export { FenceSelection } from './FenceSelection.js';
-
-// 브라우저 환경에서 window 객체에 등록
+// 브라우저 환경에서 전역 객체 확인 및 export
 if (typeof window !== 'undefined') {
-    // 개별 클래스 접근용
-    window.SelectionModules = {
-        Selection2DManager: window.Selection2DManager,
-        SelectionRenderer: window.SelectionRenderer,
-        FenceSelection: window.FenceSelection
-    };
+    // Selection2DManager
+    if (typeof Selection2DManager !== 'undefined') {
+        window.Selection2DManager = Selection2DManager;
+    }
     
-    console.log('[selection/index.js] Selection 모듈 export 완료');
+    // SelectionRenderer
+    if (typeof SelectionRenderer !== 'undefined') {
+        window.SelectionRenderer = SelectionRenderer;
+    }
+    
+    // FenceSelection
+    if (typeof FenceSelection !== 'undefined') {
+        window.FenceSelection = FenceSelection;
+    }
 }
+
+// ES6 Module export (빌드 환경용)
+// export { Selection2DManager } from './Selection2DManager.js';
+// export { SelectionRenderer } from './SelectionRenderer.js';
+// export { FenceSelection } from './FenceSelection.js';
