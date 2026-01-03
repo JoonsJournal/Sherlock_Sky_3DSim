@@ -1,20 +1,26 @@
 /**
- * GridSnap.js
- * =============
+ * GridSnap.js v1.1.0
+ * ===================
  * 
  * 그리드 스냅 기능을 제공하는 모듈
  * 
- * @version 1.0.0 - Phase 1.5
+ * ✨ v1.1.0 수정:
+ * - ✅ 동적 Grid 기능 비활성화 (항상 10px 고정)
+ * - ✅ InfiniteGridZoomController와 동기화
+ * - ✅ getActualGridSize() 메서드 추가 - 실제 Grid 크기 반환
+ * - ✅ Zoom 레벨과 무관하게 일관된 Snap
+ * 
+ * @version 1.1.0 - Phase 5.1
  * @module GridSnap
  * 
  * 역할:
  * 1. 그리드 기반 스냅 계산
- * 2. 동적 그리드 크기 (Zoom 레벨 연동)
+ * 2. ✨ 고정 Grid 크기 (10px) - InfiniteGridZoomController와 일치
  * 3. 메이저/마이너 그리드 지원
  * 4. 그리드 렌더링
  * 5. 그리드 원점 오프셋
  * 
- * 위치: frontend/threejs_viewer/src/layout_editor/snap/GridSnap.js
+ * 위치: frontend/threejs_viewer/src/layout-editor/snap/GridSnap.js
  */
 
 class GridSnap {
@@ -24,22 +30,22 @@ class GridSnap {
     constructor(options = {}) {
         // 설정
         this.config = {
-            // 기본 그리드 크기
+            // ✨ v1.1.0: 기본 그리드 크기 (고정값, InfiniteGridZoomController와 동일)
             gridSize: options.gridSize || 10,
             
             // 메이저 그리드 간격 (gridSize의 배수)
             majorInterval: options.majorInterval || 10,
             
-            // 동적 그리드 (Zoom 연동)
-            dynamicGrid: options.dynamicGrid !== false,
+            // ✨ v1.1.0: 동적 그리드 비활성화 (기본값 false로 변경)
+            dynamicGrid: options.dynamicGrid || false,
             
-            // Zoom 레벨별 그리드 크기
+            // Zoom 레벨별 그리드 크기 (동적 Grid 비활성화 시 사용 안함)
             zoomLevels: options.zoomLevels || [
-                { zoom: 0.25, gridSize: 50 },
-                { zoom: 0.5, gridSize: 20 },
+                { zoom: 0.25, gridSize: 10 },  // ✨ 모두 10px로 고정
+                { zoom: 0.5, gridSize: 10 },
                 { zoom: 1, gridSize: 10 },
-                { zoom: 2, gridSize: 5 },
-                { zoom: 4, gridSize: 2 }
+                { zoom: 2, gridSize: 10 },
+                { zoom: 4, gridSize: 10 }
             ],
             
             // 그리드 원점 오프셋
@@ -68,7 +74,7 @@ class GridSnap {
         // 현재 Zoom 레벨
         this.currentZoom = 1;
         
-        // 현재 적용 중인 그리드 크기
+        // ✨ v1.1.0: 현재 적용 중인 그리드 크기 (항상 config.gridSize와 동일)
         this.currentGridSize = this.config.gridSize;
         
         // 레이어 참조
@@ -78,7 +84,7 @@ class GridSnap {
         this.gridLines = [];
         this.gridLabels = [];
         
-        console.log('[GridSnap] 초기화 완료 v1.0.0');
+        console.log('[GridSnap] 초기화 완료 v1.1.0 (고정 Grid: 10px)');
     }
     
     // =====================================================
@@ -87,12 +93,14 @@ class GridSnap {
     
     /**
      * 포인트를 그리드에 스냅
+     * ✨ v1.1.0: 항상 고정된 gridSize(10px) 사용
      * @param {number} x
      * @param {number} y
      * @returns {Object} { x, y, gridSize, snappedToMajor }
      */
     snapPoint(x, y) {
-        const gridSize = this.getCurrentGridSize();
+        // ✨ v1.1.0: 항상 고정된 Grid 크기 사용
+        const gridSize = this.config.gridSize;  // 항상 10px
         const majorSize = gridSize * this.config.majorInterval;
         
         // 오프셋 적용
@@ -110,7 +118,6 @@ class GridSnap {
             const minorSnapX = Math.round(offsetX / gridSize) * gridSize;
             const minorSnapY = Math.round(offsetY / gridSize) * gridSize;
             
-            // 메이저 그리드에 더 가까우면 메이저 사용
             const majorDistX = Math.abs(offsetX - majorSnapX);
             const minorDistX = Math.abs(offsetX - minorSnapX);
             const majorDistY = Math.abs(offsetY - majorSnapY);
@@ -176,7 +183,7 @@ class GridSnap {
      * @returns {number}
      */
     snapValue(value) {
-        const gridSize = this.getCurrentGridSize();
+        const gridSize = this.config.gridSize;  // ✨ 항상 고정값
         return Math.round(value / gridSize) * gridSize;
     }
     
@@ -187,7 +194,7 @@ class GridSnap {
      * @returns {Object} { width, height }
      */
     snapSize(width, height) {
-        const gridSize = this.getCurrentGridSize();
+        const gridSize = this.config.gridSize;  // ✨ 항상 고정값
         return {
             width: Math.round(width / gridSize) * gridSize,
             height: Math.round(height / gridSize) * gridSize
@@ -195,44 +202,53 @@ class GridSnap {
     }
     
     // =====================================================
-    // 동적 그리드 (Zoom 연동)
+    // Zoom 레벨 연동 (v1.1.0: 참조용으로만 사용)
     // =====================================================
     
     /**
      * Zoom 레벨 설정
+     * ✨ v1.1.0: Zoom 레벨만 저장, Grid 크기는 변경하지 않음
      * @param {number} zoom
      */
     setZoomLevel(zoom) {
         this.currentZoom = zoom;
         
-        if (this.config.dynamicGrid) {
-            this.currentGridSize = this._calculateGridSize(zoom);
-        }
+        // ✨ v1.1.0: 동적 Grid 비활성화 - Grid 크기 변경 안함
+        // 항상 config.gridSize (10px) 유지
+        this.currentGridSize = this.config.gridSize;
+        
+        console.log(`[GridSnap] Zoom: ${zoom.toFixed(2)}, Grid: ${this.currentGridSize}px (고정)`);
     }
     
     /**
      * Zoom 레벨에 따른 그리드 크기 계산
+     * ✨ v1.1.0: 항상 고정값 반환
      * @private
      */
     _calculateGridSize(zoom) {
-        const levels = this.config.zoomLevels;
-        
-        // 가장 가까운 레벨 찾기
-        for (let i = levels.length - 1; i >= 0; i--) {
-            if (zoom >= levels[i].zoom) {
-                return levels[i].gridSize;
-            }
-        }
-        
-        return levels[0].gridSize;
+        // ✨ v1.1.0: 동적 Grid 비활성화로 항상 고정값 반환
+        return this.config.gridSize;
     }
     
     /**
      * 현재 그리드 크기 반환
+     * ✨ v1.1.0: 항상 고정값 (10px) 반환
      * @returns {number}
      */
     getCurrentGridSize() {
-        return this.config.dynamicGrid ? this.currentGridSize : this.config.gridSize;
+        return this.config.gridSize;  // ✨ 항상 10px
+    }
+    
+    /**
+     * ✨ v1.1.0: 실제 Grid 크기 반환 (InfiniteGridZoomController와 동기화)
+     * @returns {number}
+     */
+    getActualGridSize() {
+        // 전역 참조에서 가져오기 시도
+        if (typeof window !== 'undefined' && window.currentGridSize) {
+            return window.currentGridSize;
+        }
+        return this.config.gridSize;
     }
     
     /**
@@ -240,7 +256,7 @@ class GridSnap {
      * @returns {number}
      */
     getMajorGridSize() {
-        return this.getCurrentGridSize() * this.config.majorInterval;
+        return this.config.gridSize * this.config.majorInterval;
     }
     
     // =====================================================
@@ -265,7 +281,7 @@ class GridSnap {
         
         this.clearGrid();
         
-        const gridSize = this.getCurrentGridSize();
+        const gridSize = this.config.gridSize;  // ✨ 항상 고정값
         const majorInterval = this.config.majorInterval;
         const colors = this.config.colors;
         
@@ -344,7 +360,7 @@ class GridSnap {
         }
         
         this.gridLayer.batchDraw();
-        console.log(`[GridSnap] 그리드 렌더링 완료 (gridSize: ${gridSize})`);
+        console.log(`[GridSnap] 그리드 렌더링 완료 (gridSize: ${gridSize}px - 고정)`);
     }
     
     /**
@@ -359,7 +375,6 @@ class GridSnap {
         this.gridLines = [];
         this.gridLabels = [];
         
-        // 배경도 제거
         const background = this.gridLayer.findOne('.grid-background');
         if (background) background.destroy();
     }
@@ -383,9 +398,8 @@ class GridSnap {
      */
     setGridSize(size) {
         this.config.gridSize = size;
-        if (!this.config.dynamicGrid) {
-            this.currentGridSize = size;
-        }
+        this.currentGridSize = size;
+        console.log(`[GridSnap] Grid 크기 설정: ${size}px`);
     }
     
     /**
@@ -437,6 +451,7 @@ class GridSnap {
     
     /**
      * 동적 그리드 설정
+     * ✨ v1.1.0: 기본적으로 비활성화됨
      * @param {boolean} enabled
      */
     setDynamicGrid(enabled) {
@@ -447,6 +462,8 @@ class GridSnap {
         } else {
             this.currentGridSize = this._calculateGridSize(this.currentZoom);
         }
+        
+        console.log(`[GridSnap] 동적 Grid: ${enabled ? '활성화' : '비활성화'}`);
     }
     
     /**
@@ -469,7 +486,7 @@ class GridSnap {
      * @returns {Object} { onVertical, onHorizontal, onMajor }
      */
     isOnGridLine(x, y, tolerance = 1) {
-        const gridSize = this.getCurrentGridSize();
+        const gridSize = this.config.gridSize;
         const majorSize = gridSize * this.config.majorInterval;
         
         const offsetX = x - this.config.originX;
@@ -505,7 +522,7 @@ class GridSnap {
      * @returns {Object} { x, y }
      */
     gridToPixel(gridX, gridY) {
-        const gridSize = this.getCurrentGridSize();
+        const gridSize = this.config.gridSize;
         return {
             x: gridX * gridSize + this.config.originX,
             y: gridY * gridSize + this.config.originY
@@ -519,7 +536,7 @@ class GridSnap {
      * @returns {Object} { x, y }
      */
     pixelToGrid(pixelX, pixelY) {
-        const gridSize = this.getCurrentGridSize();
+        const gridSize = this.config.gridSize;
         return {
             x: Math.floor((pixelX - this.config.originX) / gridSize),
             y: Math.floor((pixelY - this.config.originY) / gridSize)
@@ -591,4 +608,3 @@ if (typeof module === 'undefined' && typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = GridSnap;
 }
-

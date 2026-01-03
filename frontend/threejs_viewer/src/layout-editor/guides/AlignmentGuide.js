@@ -1,10 +1,15 @@
 /**
- * AlignmentGuide.js
- * ==================
+ * AlignmentGuide.js v1.1.0
+ * =========================
  * 
  * 객체 정렬 및 분배 기능을 제공하는 모듈
  * 
- * @version 1.0.0 - Phase 1.5
+ * ✨ v1.1.0 수정:
+ * - ✅ Stage 좌표계 사용으로 변경 (_getStageRect)
+ * - ✅ Zoom 레벨 고려한 좌표 계산
+ * - ✅ 정렬/분배 시 올바른 좌표계 사용
+ * 
+ * @version 1.1.0 - Phase 5.1
  * @module AlignmentGuide
  * 
  * 역할:
@@ -14,7 +19,7 @@
  * 4. 정렬 애니메이션
  * 5. 회전 정렬
  * 
- * 위치: frontend/threejs_viewer/src/layout_editor/guides/AlignmentGuide.js
+ * 위치: frontend/threejs_viewer/src/layout-editor/guides/AlignmentGuide.js
  */
 
 class AlignmentGuide {
@@ -54,7 +59,43 @@ class AlignmentGuide {
             onDistributeEnd: options.onDistributeEnd || null
         };
         
-        console.log('[AlignmentGuide] 초기화 완료 v1.0.0');
+        console.log('[AlignmentGuide] 초기화 완료 v1.1.0');
+    }
+    
+    // =====================================================
+    // ✨ v1.1.0: Stage 좌표계 변환
+    // =====================================================
+    
+    /**
+     * ✨ v1.1.0: Shape의 Stage 좌표계 Rect 반환
+     * @param {Konva.Shape} shape
+     * @returns {Object} { x, y, width, height }
+     */
+    _getStageRect(shape) {
+        if (!shape) return null;
+        
+        // Group인 경우
+        if (shape.nodeType === 'Group') {
+            const clientRect = shape.getClientRect({ skipTransform: false });
+            const zoom = this.stage?.scaleX() || 1;
+            const stagePos = this.stage?.position() || { x: 0, y: 0 };
+            
+            return {
+                x: (clientRect.x - stagePos.x) / zoom,
+                y: (clientRect.y - stagePos.y) / zoom,
+                width: clientRect.width / zoom,
+                height: clientRect.height / zoom
+            };
+        }
+        
+        // 단일 Shape
+        const size = shape.size ? shape.size() : { width: shape.width?.() || 0, height: shape.height?.() || 0 };
+        return {
+            x: shape.x(),
+            y: shape.y(),
+            width: size.width,
+            height: size.height
+        };
     }
     
     // =====================================================
@@ -63,6 +104,7 @@ class AlignmentGuide {
     
     /**
      * 객체 배열의 Bounding Box 계산
+     * ✨ v1.1.0: Stage 좌표계 사용
      * @param {Array<Konva.Shape>} objects
      * @returns {Object|null}
      */
@@ -73,7 +115,10 @@ class AlignmentGuide {
         let minY = Infinity, maxY = -Infinity;
         
         objects.forEach(shape => {
-            const rect = shape.getClientRect();
+            // ✨ v1.1.0: Stage 좌표계 사용
+            const rect = this._getStageRect(shape);
+            if (!rect) return;
+            
             minX = Math.min(minX, rect.x);
             maxX = Math.max(maxX, rect.x + rect.width);
             minY = Math.min(minY, rect.y);
@@ -93,11 +138,14 @@ class AlignmentGuide {
     
     /**
      * 단일 객체의 정렬 포인트 계산
+     * ✨ v1.1.0: Stage 좌표계 사용
      * @param {Konva.Shape} shape
      * @returns {Object}
      */
     getAlignmentPoints(shape) {
-        const rect = shape.getClientRect();
+        const rect = this._getStageRect(shape);
+        if (!rect) return null;
+        
         return {
             left: rect.x,
             right: rect.x + rect.width,
@@ -116,8 +164,6 @@ class AlignmentGuide {
     
     /**
      * 좌측 정렬
-     * @param {Array<Konva.Shape>} objects
-     * @returns {boolean}
      */
     alignLeft(objects) {
         if (!this._validateObjects(objects, 2)) return false;
@@ -127,7 +173,9 @@ class AlignmentGuide {
         const bbox = this.getBoundingBox(objects);
         
         objects.forEach(shape => {
-            const shapeRect = shape.getClientRect();
+            const shapeRect = this._getStageRect(shape);
+            if (!shapeRect) return;
+            
             const offsetX = shapeRect.x - shape.x();
             const newX = bbox.minX - offsetX;
             
@@ -143,8 +191,6 @@ class AlignmentGuide {
     
     /**
      * 우측 정렬
-     * @param {Array<Konva.Shape>} objects
-     * @returns {boolean}
      */
     alignRight(objects) {
         if (!this._validateObjects(objects, 2)) return false;
@@ -154,7 +200,9 @@ class AlignmentGuide {
         const bbox = this.getBoundingBox(objects);
         
         objects.forEach(shape => {
-            const shapeRect = shape.getClientRect();
+            const shapeRect = this._getStageRect(shape);
+            if (!shapeRect) return;
+            
             const newX = bbox.maxX - shapeRect.width - (shapeRect.x - shape.x());
             
             this._moveShape(shape, newX, shape.y());
@@ -169,8 +217,6 @@ class AlignmentGuide {
     
     /**
      * 상단 정렬
-     * @param {Array<Konva.Shape>} objects
-     * @returns {boolean}
      */
     alignTop(objects) {
         if (!this._validateObjects(objects, 2)) return false;
@@ -180,7 +226,9 @@ class AlignmentGuide {
         const bbox = this.getBoundingBox(objects);
         
         objects.forEach(shape => {
-            const shapeRect = shape.getClientRect();
+            const shapeRect = this._getStageRect(shape);
+            if (!shapeRect) return;
+            
             const offsetY = shapeRect.y - shape.y();
             const newY = bbox.minY - offsetY;
             
@@ -196,8 +244,6 @@ class AlignmentGuide {
     
     /**
      * 하단 정렬
-     * @param {Array<Konva.Shape>} objects
-     * @returns {boolean}
      */
     alignBottom(objects) {
         if (!this._validateObjects(objects, 2)) return false;
@@ -207,7 +253,9 @@ class AlignmentGuide {
         const bbox = this.getBoundingBox(objects);
         
         objects.forEach(shape => {
-            const shapeRect = shape.getClientRect();
+            const shapeRect = this._getStageRect(shape);
+            if (!shapeRect) return;
+            
             const newY = bbox.maxY - shapeRect.height - (shapeRect.y - shape.y());
             
             this._moveShape(shape, shape.x(), newY);
@@ -222,8 +270,6 @@ class AlignmentGuide {
     
     /**
      * 수평 중앙 정렬
-     * @param {Array<Konva.Shape>} objects
-     * @returns {boolean}
      */
     alignCenterHorizontal(objects) {
         if (!this._validateObjects(objects, 2)) return false;
@@ -233,7 +279,9 @@ class AlignmentGuide {
         const bbox = this.getBoundingBox(objects);
         
         objects.forEach(shape => {
-            const shapeRect = shape.getClientRect();
+            const shapeRect = this._getStageRect(shape);
+            if (!shapeRect) return;
+            
             const shapeCenterX = shapeRect.x + shapeRect.width / 2;
             const offsetX = shapeCenterX - shape.x();
             const newX = bbox.centerX - offsetX;
@@ -250,8 +298,6 @@ class AlignmentGuide {
     
     /**
      * 수직 중앙 정렬
-     * @param {Array<Konva.Shape>} objects
-     * @returns {boolean}
      */
     alignCenterVertical(objects) {
         if (!this._validateObjects(objects, 2)) return false;
@@ -261,7 +307,9 @@ class AlignmentGuide {
         const bbox = this.getBoundingBox(objects);
         
         objects.forEach(shape => {
-            const shapeRect = shape.getClientRect();
+            const shapeRect = this._getStageRect(shape);
+            if (!shapeRect) return;
+            
             const shapeCenterY = shapeRect.y + shapeRect.height / 2;
             const offsetY = shapeCenterY - shape.y();
             const newY = bbox.centerY - offsetY;
@@ -282,8 +330,6 @@ class AlignmentGuide {
     
     /**
      * 수평 균등 분배
-     * @param {Array<Konva.Shape>} objects
-     * @returns {boolean}
      */
     distributeHorizontal(objects) {
         if (!this._validateObjects(objects, 3)) return false;
@@ -292,16 +338,21 @@ class AlignmentGuide {
         
         // X 좌표 기준 정렬
         const sorted = [...objects].sort((a, b) => {
-            return a.getClientRect().x - b.getClientRect().x;
+            const rectA = this._getStageRect(a);
+            const rectB = this._getStageRect(b);
+            return (rectA?.x || 0) - (rectB?.x || 0);
         });
         
-        const firstRect = sorted[0].getClientRect();
-        const lastRect = sorted[sorted.length - 1].getClientRect();
+        const firstRect = this._getStageRect(sorted[0]);
+        const lastRect = this._getStageRect(sorted[sorted.length - 1]);
+        
+        if (!firstRect || !lastRect) return false;
         
         // 총 객체 너비 계산
         let totalWidth = 0;
         sorted.forEach(shape => {
-            totalWidth += shape.getClientRect().width;
+            const rect = this._getStageRect(shape);
+            if (rect) totalWidth += rect.width;
         });
         
         // 간격 계산
@@ -311,12 +362,14 @@ class AlignmentGuide {
         // 분배 적용
         let currentX = firstRect.x;
         sorted.forEach((shape, index) => {
+            const shapeRect = this._getStageRect(shape);
+            if (!shapeRect) return;
+            
             if (index === 0) {
-                currentX += shape.getClientRect().width + gap;
+                currentX += shapeRect.width + gap;
                 return;
             }
             
-            const shapeRect = shape.getClientRect();
             const offsetX = shapeRect.x - shape.x();
             const newX = currentX - offsetX;
             
@@ -333,8 +386,6 @@ class AlignmentGuide {
     
     /**
      * 수직 균등 분배
-     * @param {Array<Konva.Shape>} objects
-     * @returns {boolean}
      */
     distributeVertical(objects) {
         if (!this._validateObjects(objects, 3)) return false;
@@ -343,16 +394,21 @@ class AlignmentGuide {
         
         // Y 좌표 기준 정렬
         const sorted = [...objects].sort((a, b) => {
-            return a.getClientRect().y - b.getClientRect().y;
+            const rectA = this._getStageRect(a);
+            const rectB = this._getStageRect(b);
+            return (rectA?.y || 0) - (rectB?.y || 0);
         });
         
-        const firstRect = sorted[0].getClientRect();
-        const lastRect = sorted[sorted.length - 1].getClientRect();
+        const firstRect = this._getStageRect(sorted[0]);
+        const lastRect = this._getStageRect(sorted[sorted.length - 1]);
+        
+        if (!firstRect || !lastRect) return false;
         
         // 총 객체 높이 계산
         let totalHeight = 0;
         sorted.forEach(shape => {
-            totalHeight += shape.getClientRect().height;
+            const rect = this._getStageRect(shape);
+            if (rect) totalHeight += rect.height;
         });
         
         // 간격 계산
@@ -362,12 +418,14 @@ class AlignmentGuide {
         // 분배 적용
         let currentY = firstRect.y;
         sorted.forEach((shape, index) => {
+            const shapeRect = this._getStageRect(shape);
+            if (!shapeRect) return;
+            
             if (index === 0) {
-                currentY += shape.getClientRect().height + gap;
+                currentY += shapeRect.height + gap;
                 return;
             }
             
-            const shapeRect = shape.getClientRect();
             const offsetY = shapeRect.y - shape.y();
             const newY = currentY - offsetY;
             
@@ -386,16 +444,12 @@ class AlignmentGuide {
     // Room 기준 정렬
     // =====================================================
     
-    /**
-     * Room 중앙에 정렬
-     * @param {Array<Konva.Shape>} objects
-     * @param {Object} roomRect - { x, y, width, height }
-     * @returns {boolean}
-     */
     alignToRoomCenter(objects, roomRect) {
         if (!objects || objects.length === 0 || !roomRect) return false;
         
         const bbox = this.getBoundingBox(objects);
+        if (!bbox) return false;
+        
         const roomCenterX = roomRect.x + roomRect.width / 2;
         const roomCenterY = roomRect.y + roomRect.height / 2;
         
@@ -412,18 +466,13 @@ class AlignmentGuide {
         return true;
     }
     
-    /**
-     * Room 좌측에 정렬
-     * @param {Array<Konva.Shape>} objects
-     * @param {Object} roomRect
-     * @param {number} padding - 여백
-     * @returns {boolean}
-     */
     alignToRoomLeft(objects, roomRect, padding = 0) {
         if (!objects || objects.length === 0 || !roomRect) return false;
         
         objects.forEach(shape => {
-            const shapeRect = shape.getClientRect();
+            const shapeRect = this._getStageRect(shape);
+            if (!shapeRect) return;
+            
             const offsetX = shapeRect.x - shape.x();
             const newX = roomRect.x + padding - offsetX;
             
@@ -436,18 +485,13 @@ class AlignmentGuide {
         return true;
     }
     
-    /**
-     * Room 우측에 정렬
-     * @param {Array<Konva.Shape>} objects
-     * @param {Object} roomRect
-     * @param {number} padding
-     * @returns {boolean}
-     */
     alignToRoomRight(objects, roomRect, padding = 0) {
         if (!objects || objects.length === 0 || !roomRect) return false;
         
         objects.forEach(shape => {
-            const shapeRect = shape.getClientRect();
+            const shapeRect = this._getStageRect(shape);
+            if (!shapeRect) return;
+            
             const newX = roomRect.x + roomRect.width - shapeRect.width - padding - (shapeRect.x - shape.x());
             
             this._moveShape(shape, newX, shape.y());
@@ -463,23 +507,17 @@ class AlignmentGuide {
     // 미리보기
     // =====================================================
     
-    /**
-     * 정렬 미리보기 표시
-     * @param {Array<Konva.Shape>} objects
-     * @param {string} alignType
-     */
     showPreview(objects, alignType) {
         if (!this.config.previewEnabled) return;
         
         this.clearPreview();
         
-        // 미리보기 위치 계산
         const positions = this._calculateAlignPositions(objects, alignType);
         
-        // 미리보기 Shape 생성
         objects.forEach((shape, index) => {
             const pos = positions[index];
-            const rect = shape.getClientRect();
+            const rect = this._getStageRect(shape);
+            if (!rect) return;
             
             const preview = new Konva.Rect({
                 x: pos.x,
@@ -501,25 +539,23 @@ class AlignmentGuide {
         this.uiLayer.batchDraw();
     }
     
-    /**
-     * 미리보기 제거
-     */
     clearPreview() {
         this.previewShapes.forEach(shape => shape.destroy());
         this.previewShapes = [];
         this.uiLayer.batchDraw();
     }
     
-    /**
-     * 정렬 위치 계산 (미리보기용)
-     * @private
-     */
     _calculateAlignPositions(objects, alignType) {
         const bbox = this.getBoundingBox(objects);
         const positions = [];
         
         objects.forEach(shape => {
-            const rect = shape.getClientRect();
+            const rect = this._getStageRect(shape);
+            if (!rect) {
+                positions.push({ x: shape.x(), y: shape.y() });
+                return;
+            }
+            
             let newX = shape.x();
             let newY = shape.y();
             
@@ -554,10 +590,6 @@ class AlignmentGuide {
     // 헬퍼 메서드
     // =====================================================
     
-    /**
-     * 객체 배열 유효성 검사
-     * @private
-     */
     _validateObjects(objects, minCount) {
         if (!objects || objects.length < minCount) {
             console.warn(`[AlignmentGuide] ${minCount}개 이상의 객체가 필요합니다`);
@@ -566,10 +598,6 @@ class AlignmentGuide {
         return true;
     }
     
-    /**
-     * Shape 이동 (애니메이션 포함)
-     * @private
-     */
     _moveShape(shape, newX, newY) {
         if (this.config.animationEnabled) {
             shape.to({
@@ -584,31 +612,23 @@ class AlignmentGuide {
         }
     }
     
-    /**
-     * 정렬 완료 처리
-     * @private
-     */
     _finishAlign(objects) {
-        // 그리드 스냅
+        // 그리드 스냅 (항상 10px 고정값 사용)
         if (this.config.snapAfterAlign) {
+            const gridSize = window.currentGridSize || this.config.gridSize;
             objects.forEach(shape => {
-                const x = Math.round(shape.x() / this.config.gridSize) * this.config.gridSize;
-                const y = Math.round(shape.y() / this.config.gridSize) * this.config.gridSize;
+                const x = Math.round(shape.x() / gridSize) * gridSize;
+                const y = Math.round(shape.y() / gridSize) * gridSize;
                 shape.x(x);
                 shape.y(y);
             });
         }
         
-        // Stage 갱신
         if (this.stage) {
             this.stage.batchDraw();
         }
     }
     
-    /**
-     * 콜백 실행
-     * @private
-     */
     _triggerCallback(name, data) {
         if (this.callbacks[name]) {
             this.callbacks[name](data);
@@ -619,12 +639,6 @@ class AlignmentGuide {
     // 바로가기 메서드
     // =====================================================
     
-    /**
-     * 정렬 수행 (타입 지정)
-     * @param {Array<Konva.Shape>} objects
-     * @param {string} type - 'left', 'right', 'top', 'bottom', 'centerH', 'centerV'
-     * @returns {boolean}
-     */
     align(objects, type) {
         switch (type) {
             case 'left': return this.alignLeft(objects);
@@ -639,12 +653,6 @@ class AlignmentGuide {
         }
     }
     
-    /**
-     * 분배 수행 (타입 지정)
-     * @param {Array<Konva.Shape>} objects
-     * @param {string} type - 'horizontal', 'vertical'
-     * @returns {boolean}
-     */
     distribute(objects, type) {
         switch (type) {
             case 'horizontal': return this.distributeHorizontal(objects);
@@ -659,39 +667,20 @@ class AlignmentGuide {
     // 설정
     // =====================================================
     
-    /**
-     * 애니메이션 설정
-     * @param {boolean} enabled
-     * @param {number} duration
-     */
     setAnimation(enabled, duration = 200) {
         this.config.animationEnabled = enabled;
         this.config.animationDuration = duration;
     }
     
-    /**
-     * 미리보기 설정
-     * @param {boolean} enabled
-     */
     setPreviewEnabled(enabled) {
         this.config.previewEnabled = enabled;
     }
     
-    /**
-     * 그리드 스냅 설정
-     * @param {boolean} enabled
-     * @param {number} gridSize
-     */
     setSnapAfterAlign(enabled, gridSize = 10) {
         this.config.snapAfterAlign = enabled;
         this.config.gridSize = gridSize;
     }
     
-    /**
-     * 콜백 설정
-     * @param {string} name
-     * @param {Function} callback
-     */
     setCallback(name, callback) {
         if (this.callbacks.hasOwnProperty(name)) {
             this.callbacks[name] = callback;
@@ -702,20 +691,10 @@ class AlignmentGuide {
     // 상태 확인
     // =====================================================
     
-    /**
-     * 정렬 가능 여부 확인
-     * @param {Array<Konva.Shape>} objects
-     * @returns {boolean}
-     */
     canAlign(objects) {
         return objects && objects.length >= 2;
     }
     
-    /**
-     * 분배 가능 여부 확인
-     * @param {Array<Konva.Shape>} objects
-     * @returns {boolean}
-     */
     canDistribute(objects) {
         return objects && objects.length >= 3;
     }
@@ -724,16 +703,10 @@ class AlignmentGuide {
     // 정리
     // =====================================================
     
-    /**
-     * 전체 정리
-     */
     clear() {
         this.clearPreview();
     }
     
-    /**
-     * 파괴
-     */
     destroy() {
         this.clear();
         this.stage = null;
@@ -751,4 +724,3 @@ if (typeof module === 'undefined' && typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = AlignmentGuide;
 }
-
