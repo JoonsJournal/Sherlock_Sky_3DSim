@@ -1,8 +1,13 @@
 /**
- * WallDrawTool.js v2.0.0
+ * WallDrawTool.js v2.1.0
  * ======================
  * 
  * 벽을 직선으로 그릴 수 있는 도구
+ * 
+ * ✨ v2.1.0 수정 (Phase 5.2 - CoordinateTransformer 통합):
+ * - ✅ CoordinateTransformer 사용으로 좌표 변환 통일
+ * - ✅ getCanvasPos() → coordinateTransformer.getCanvasPosition() 교체
+ * - ✅ _initCoordinateTransformer() 메서드 추가
  * 
  * ✨ v2.0.0 수정 (Phase 5.1 - Tool-Command 통합):
  * - ✅ CommandManager 참조 추가
@@ -11,7 +16,7 @@
  * - ✅ 벽 생성 시 CreateCommand 사용
  * - ✅ Undo 시 벽 자동 삭제
  * 
- * @version 2.0.0
+ * @version 2.1.0
  * 
  * 위치: frontend/threejs_viewer/src/layout-editor/tools/WallDrawTool.js
  */
@@ -24,6 +29,10 @@ class WallDrawTool {
         
         // ✨ v2.0.0: CommandManager 참조
         this.commandManager = null;
+        
+        // ✨ v2.1.0: CoordinateTransformer 초기화
+        this.coordinateTransformer = null;
+        this._initCoordinateTransformer();
         
         // 그리기 상태
         this.startPoint = null;
@@ -43,7 +52,27 @@ class WallDrawTool {
         this.onMouseUp = this.onMouseUp.bind(this);
         this.onKeyDown = this.onKeyDown.bind(this);
         
-        console.log('[WallDrawTool] 초기화 완료 v2.0.0 (Command 통합)');
+        console.log('[WallDrawTool] 초기화 완료 v2.1.0 (CoordinateTransformer 통합)');
+    }
+    
+    // =====================================================
+    // ✨ v2.1.0: CoordinateTransformer 초기화
+    // =====================================================
+    
+    /**
+     * CoordinateTransformer 초기화
+     * @private
+     */
+    _initCoordinateTransformer() {
+        const TransformerClass = window.CoordinateTransformer || 
+            (typeof CoordinateTransformer !== 'undefined' ? CoordinateTransformer : null);
+        
+        if (TransformerClass && this.canvas?.stage) {
+            this.coordinateTransformer = new TransformerClass(this.canvas.stage);
+            console.log('[WallDrawTool] CoordinateTransformer 초기화 완료');
+        } else {
+            console.warn('[WallDrawTool] CoordinateTransformer를 찾을 수 없습니다. 기본 좌표 변환 사용.');
+        }
     }
     
     // =====================================================
@@ -140,7 +169,7 @@ class WallDrawTool {
             return;
         }
         
-        // Zoom/Pan이 적용된 캔버스 좌표 가져오기
+        // ✨ v2.1.0: CoordinateTransformer 사용
         const pos = this.getCanvasPos();
         
         // Snap to Grid 적용
@@ -177,7 +206,7 @@ class WallDrawTool {
     onMouseMove(e) {
         if (!this.isActive || !this.isDrawing || !this.tempLine) return;
         
-        // Zoom/Pan이 적용된 캔버스 좌표 가져오기
+        // ✨ v2.1.0: CoordinateTransformer 사용
         const currentPos = this.getCanvasPos();
         
         // Snap to Grid 적용
@@ -203,7 +232,7 @@ class WallDrawTool {
     onMouseUp(e) {
         if (!this.isActive || !this.isDrawing) return;
         
-        // Zoom/Pan이 적용된 캔버스 좌표 가져오기
+        // ✨ v2.1.0: CoordinateTransformer 사용
         const endPoint = this.getCanvasPos();
         
         // Snap to Grid 적용
@@ -372,13 +401,25 @@ class WallDrawTool {
     }
     
     // =====================================================
-    // 좌표 변환 유틸리티
+    // ✨ v2.1.0: 좌표 변환 (CoordinateTransformer 사용)
     // =====================================================
     
     /**
      * 캔버스 좌표 가져오기 (Zoom/Pan 변환 적용)
+     * @returns {Object} { x, y }
      */
     getCanvasPos() {
+        // ✨ v2.1.0: CoordinateTransformer 사용
+        if (this.coordinateTransformer) {
+            return this.coordinateTransformer.getCanvasPosition();
+        }
+        
+        // Static 메서드 사용 (폴백)
+        if (window.CoordinateTransformer) {
+            return window.CoordinateTransformer.getPointerPosition(this.canvas.stage);
+        }
+        
+        // 최종 폴백: 직접 변환
         const stage = this.canvas.stage;
         const pointerPos = stage.getPointerPosition();
         
@@ -454,7 +495,15 @@ class WallDrawTool {
      */
     destroy() {
         this.deactivate();
+        
+        if (this.coordinateTransformer) {
+            this.coordinateTransformer.destroy();
+            this.coordinateTransformer = null;
+        }
+        
         this.commandManager = null;
+        this.canvas = null;
+        
         console.log('[WallDrawTool] 파괴 완료');
     }
 }
@@ -469,4 +518,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = WallDrawTool;
 }
 
-console.log('✅ WallDrawTool.js 로드 완료 v2.0.0 (Command 통합)');
+console.log('✅ WallDrawTool.js 로드 완료 v2.1.0 (CoordinateTransformer 통합)');

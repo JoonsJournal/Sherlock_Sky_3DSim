@@ -5,8 +5,14 @@
  * Canvas2DEditor에서 분리된 이벤트 처리 모듈
  * 마우스, 키보드, Drag & Drop 이벤트 처리
  * 
- * @version 1.0.0 - Phase 1.5
+ * @version 1.1.0 - Phase 5.2: CoordinateTransformer 통합
  * @module CanvasEventHandler
+ * 
+ * ✨ v1.1.0 수정:
+ * - ✅ CoordinateTransformer 사용으로 좌표 변환 통일
+ * - ✅ getTransformedPointerPosition() → coordinateTransformer.getCanvasPosition() 교체
+ * - ✅ _initCoordinateTransformer() 메서드 추가
+ * - ✅ Drop 이벤트에서 clientToCanvas() 사용
  * 
  * 역할:
  * 1. Stage 기본 이벤트 리스너 설정
@@ -14,7 +20,7 @@
  * 3. Drag & Drop 처리 (ComponentPalette 연동)
  * 4. 컨텍스트 메뉴 방지
  * 
- * 위치: frontend/threejs_viewer/src/layout_editor/canvas/CanvasEventHandler.js
+ * 위치: frontend/threejs_viewer/src/layout-editor/canvas/CanvasEventHandler.js
  */
 
 class CanvasEventHandler {
@@ -34,6 +40,10 @@ class CanvasEventHandler {
         this.isPanning = false;
         this.lastPanPos = { x: 0, y: 0 };
         
+        // ✨ v1.1.0: CoordinateTransformer 초기화
+        this.coordinateTransformer = null;
+        this._initCoordinateTransformer();
+        
         // 이벤트 핸들러 바인딩 (제거 시 필요)
         this.boundHandlers = {
             onMouseDown: this.onMouseDown.bind(this),
@@ -50,7 +60,27 @@ class CanvasEventHandler {
         // Drop Zone 활성화 여부
         this.dropZoneEnabled = false;
         
-        console.log('[CanvasEventHandler] 초기화 완료 v1.0.0');
+        console.log('[CanvasEventHandler] 초기화 완료 v1.1.0 (CoordinateTransformer 통합)');
+    }
+    
+    // =====================================================
+    // ✨ v1.1.0: CoordinateTransformer 초기화
+    // =====================================================
+    
+    /**
+     * CoordinateTransformer 초기화
+     * @private
+     */
+    _initCoordinateTransformer() {
+        const TransformerClass = window.CoordinateTransformer || 
+            (typeof CoordinateTransformer !== 'undefined' ? CoordinateTransformer : null);
+        
+        if (TransformerClass && this.stage) {
+            this.coordinateTransformer = new TransformerClass(this.stage);
+            console.log('[CanvasEventHandler] CoordinateTransformer 초기화 완료');
+        } else {
+            console.warn('[CanvasEventHandler] CoordinateTransformer를 찾을 수 없습니다. 기본 좌표 변환 사용.');
+        }
     }
     
     // =====================================================
@@ -266,15 +296,32 @@ class CanvasEventHandler {
             const component = JSON.parse(data);
             console.log('[CanvasEventHandler] Drop 감지:', component.name);
             
-            // Canvas 좌표 계산
-            const rect = this.stage.container().getBoundingClientRect();
-            const stagePos = this.stage.position();
-            const scale = this.stage.scaleX();
+            // ✨ v1.1.0: CoordinateTransformer 사용하여 좌표 변환
+            let x, y;
             
-            const x = (e.clientX - rect.left - stagePos.x) / scale;
-            const y = (e.clientY - rect.top - stagePos.y) / scale;
+            if (this.coordinateTransformer) {
+                const canvasPos = this.coordinateTransformer.clientToCanvas(e.clientX, e.clientY);
+                x = canvasPos.x;
+                y = canvasPos.y;
+            } else if (window.CoordinateTransformer) {
+                // Static 메서드로 계산 (폴백)
+                const rect = this.stage.container().getBoundingClientRect();
+                const stagePos = this.stage.position();
+                const scale = this.stage.scaleX();
+                
+                x = (e.clientX - rect.left - stagePos.x) / scale;
+                y = (e.clientY - rect.top - stagePos.y) / scale;
+            } else {
+                // 기존 방식 (최종 폴백)
+                const rect = this.stage.container().getBoundingClientRect();
+                const stagePos = this.stage.position();
+                const scale = this.stage.scaleX();
+                
+                x = (e.clientX - rect.left - stagePos.x) / scale;
+                y = (e.clientY - rect.top - stagePos.y) / scale;
+            }
             
-            console.log('[CanvasEventHandler] Drop 위치:', { x, y });
+            console.log('[CanvasEventHandler] Drop 위치 (변환됨):', { x, y });
             
             // Editor에 컴포넌트 생성 요청
             if (this.editor && typeof this.editor.createComponentFromType === 'function') {
@@ -306,7 +353,7 @@ class CanvasEventHandler {
     }
     
     // =====================================================
-    // 유틸리티
+    // ✨ v1.1.0: 좌표 변환 (CoordinateTransformer 사용)
     // =====================================================
     
     /**
@@ -314,6 +361,17 @@ class CanvasEventHandler {
      * @returns {Object} { x, y }
      */
     getTransformedPointerPosition() {
+        // ✨ v1.1.0: CoordinateTransformer 사용
+        if (this.coordinateTransformer) {
+            return this.coordinateTransformer.getCanvasPosition();
+        }
+        
+        // Static 메서드 사용 (폴백)
+        if (window.CoordinateTransformer) {
+            return window.CoordinateTransformer.getPointerPosition(this.stage);
+        }
+        
+        // 최종 폴백: 직접 변환
         const pointer = this.stage.getPointerPosition();
         
         if (!pointer) {
@@ -325,6 +383,28 @@ class CanvasEventHandler {
         transform.invert();
         
         return transform.point(pointer);
+    }
+    
+    /**
+     * Client 좌표를 Canvas 좌표로 변환
+     * @param {number} clientX - MouseEvent.clientX
+     * @param {number} clientY - MouseEvent.clientY
+     * @returns {Object} { x, y }
+     */
+    clientToCanvas(clientX, clientY) {
+        if (this.coordinateTransformer) {
+            return this.coordinateTransformer.clientToCanvas(clientX, clientY);
+        }
+        
+        // 폴백
+        const rect = this.stage.container().getBoundingClientRect();
+        const stagePos = this.stage.position();
+        const scale = this.stage.scaleX();
+        
+        return {
+            x: (clientX - rect.left - stagePos.x) / scale,
+            y: (clientY - rect.top - stagePos.y) / scale
+        };
     }
     
     /**
@@ -365,6 +445,11 @@ class CanvasEventHandler {
     destroy() {
         this.removeAllListeners();
         
+        if (this.coordinateTransformer) {
+            this.coordinateTransformer.destroy();
+            this.coordinateTransformer = null;
+        }
+        
         this.stage = null;
         this.editor = null;
         this.boundHandlers = null;
@@ -383,8 +468,9 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = CanvasEventHandler;
 }
 
-// export { CanvasEventHandler };
 // 전역 객체 등록 (브라우저 환경)
 if (typeof module === 'undefined' && typeof window !== 'undefined') {
     window.CanvasEventHandler = CanvasEventHandler;
 }
+
+console.log('✅ CanvasEventHandler.js v1.1.0 로드 완료 (CoordinateTransformer 통합)');

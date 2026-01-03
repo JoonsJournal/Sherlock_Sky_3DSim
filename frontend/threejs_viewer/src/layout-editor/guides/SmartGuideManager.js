@@ -1,6 +1,12 @@
 /**
- * SmartGuideManager.js v1.1.1
+ * SmartGuideManager.js v1.2.0
  * ============================
+ * 
+ * ✨ v1.2.0 수정 (Phase 5.2 - CoordinateTransformer 통합):
+ * - ✅ CoordinateTransformer 사용으로 좌표 변환 통일
+ * - ✅ _screenToStage() → coordinateTransformer.screenToCanvas() 교체
+ * - ✅ _getStageRect() → coordinateTransformer.getShapeStageRect() 교체
+ * - ✅ _initCoordinateTransformer() 메서드 추가
  * 
  * ✨ v1.1.1 수정:
  * - ✅ setSnapEnabled(boolean) 메서드 추가 (외부 동기화용)
@@ -12,7 +18,7 @@
  * - ✅ _getStageRect() 헬퍼 메서드 추가
  * - ✅ 가이드라인이 올바른 위치에 표시되도록 수정
  * 
- * @version 1.1.1 - Phase 5.1
+ * @version 1.2.0 - Phase 5.2
  * @module SmartGuideManager
  * 
  * 역할:
@@ -37,8 +43,12 @@ class SmartGuideManager {
         
         this.uiLayer = uiLayer;
         
-        // ✨ v1.1.0: Stage 참조 저장 (좌표 변환용)
+        // Stage 참조 저장 (좌표 변환용)
         this.stage = options.stage || null;
+        
+        // ✨ v1.2.0: CoordinateTransformer 초기화
+        this.coordinateTransformer = null;
+        this._initCoordinateTransformer();
         
         // 가이드라인 설정
         this.config = {
@@ -89,11 +99,31 @@ class SmartGuideManager {
             onGuideHide: options.onGuideHide || null
         };
         
-        console.log('[SmartGuideManager] 초기화 완료 v1.1.1');
+        console.log('[SmartGuideManager] 초기화 완료 v1.2.0 (CoordinateTransformer 통합)');
     }
     
     // =====================================================
-    // ✨ v1.1.0: Stage 설정 및 좌표 변환
+    // ✨ v1.2.0: CoordinateTransformer 초기화
+    // =====================================================
+    
+    /**
+     * CoordinateTransformer 초기화
+     * @private
+     */
+    _initCoordinateTransformer() {
+        const TransformerClass = window.CoordinateTransformer || 
+            (typeof CoordinateTransformer !== 'undefined' ? CoordinateTransformer : null);
+        
+        if (TransformerClass && this.stage) {
+            this.coordinateTransformer = new TransformerClass(this.stage);
+            console.log('[SmartGuideManager] CoordinateTransformer 초기화 완료');
+        } else {
+            console.warn('[SmartGuideManager] CoordinateTransformer를 찾을 수 없거나 Stage가 없습니다. 기본 좌표 변환 사용.');
+        }
+    }
+    
+    // =====================================================
+    // Stage 설정 및 좌표 변환
     // =====================================================
     
     /**
@@ -102,6 +132,14 @@ class SmartGuideManager {
      */
     setStage(stage) {
         this.stage = stage;
+        
+        // CoordinateTransformer도 업데이트
+        if (this.coordinateTransformer) {
+            this.coordinateTransformer.setStage(stage);
+        } else {
+            // Stage가 새로 설정되면 CoordinateTransformer 초기화 시도
+            this._initCoordinateTransformer();
+        }
     }
     
     /**
@@ -112,6 +150,12 @@ class SmartGuideManager {
     _getStageRect(shape) {
         if (!shape) return null;
         
+        // ✨ v1.2.0: CoordinateTransformer 사용
+        if (this.coordinateTransformer) {
+            return this.coordinateTransformer.getShapeStageRect(shape);
+        }
+        
+        // 폴백: 직접 계산
         const absPos = shape.getAbsolutePosition();
         const size = shape.size ? shape.size() : { width: shape.width?.() || 0, height: shape.height?.() || 0 };
         
@@ -143,6 +187,12 @@ class SmartGuideManager {
      * @returns {Object} { x, y }
      */
     _screenToStage(screenX, screenY) {
+        // ✨ v1.2.0: CoordinateTransformer 사용
+        if (this.coordinateTransformer) {
+            return this.coordinateTransformer.screenToCanvas(screenX, screenY);
+        }
+        
+        // 폴백: 직접 계산
         if (!this.stage) {
             return { x: screenX, y: screenY };
         }
@@ -154,6 +204,17 @@ class SmartGuideManager {
             x: (screenX - stagePos.x) / zoom,
             y: (screenY - stagePos.y) / zoom
         };
+    }
+    
+    /**
+     * 현재 Zoom 레벨 가져오기
+     * @returns {number}
+     */
+    _getZoomLevel() {
+        if (this.coordinateTransformer) {
+            return this.coordinateTransformer.getZoomLevel();
+        }
+        return this.stage?.scaleX() || 1;
     }
     
     // =====================================================
@@ -587,9 +648,16 @@ class SmartGuideManager {
     
     destroy() {
         this.clear();
+        
+        if (this.coordinateTransformer) {
+            this.coordinateTransformer.destroy();
+            this.coordinateTransformer = null;
+        }
+        
         this.uiLayer = null;
         this.stage = null;
         this.callbacks = {};
+        
         console.log('[SmartGuideManager] 파괴 완료');
     }
 }
@@ -602,3 +670,5 @@ if (typeof module === 'undefined' && typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = SmartGuideManager;
 }
+
+console.log('✅ SmartGuideManager.js v1.2.0 로드 완료 (CoordinateTransformer 통합)');

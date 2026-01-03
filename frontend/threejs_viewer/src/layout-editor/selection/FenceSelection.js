@@ -4,8 +4,13 @@
  * 
  * Shift+Drag 박스 선택 (Marquee Selection / Fence Selection) 구현
  * 
- * @version 1.0.0 - Phase 1.5
+ * @version 1.1.0 - Phase 5.2: CoordinateTransformer 통합
  * @module FenceSelection
+ * 
+ * ✨ v1.1.0 수정:
+ * - ✅ CoordinateTransformer 사용으로 좌표 변환 통일
+ * - ✅ getTransformedPointerPosition() → coordinateTransformer.getCanvasPosition() 교체
+ * - ✅ _initCoordinateTransformer() 메서드 추가
  * 
  * 역할:
  * 1. Shift+Drag로 선택 영역 그리기
@@ -13,7 +18,7 @@
  * 3. 실시간 선택 개수 표시
  * 4. Ctrl+Shift+Drag로 기존 선택에 추가
  * 
- * 위치: frontend/threejs_viewer/src/layout_editor/selection/FenceSelection.js
+ * 위치: frontend/threejs_viewer/src/layout-editor/selection/FenceSelection.js
  */
 
 class FenceSelection {
@@ -56,6 +61,10 @@ class FenceSelection {
         this.shiftKeyPressed = false;
         this.ctrlKeyPressed = false;
         
+        // ✨ v1.1.0: CoordinateTransformer 초기화
+        this.coordinateTransformer = null;
+        this._initCoordinateTransformer();
+        
         // 이벤트 핸들러 바인딩
         this.boundHandlers = {
             onKeyDown: this.onKeyDown.bind(this),
@@ -65,7 +74,27 @@ class FenceSelection {
             onMouseUp: this.onMouseUp.bind(this)
         };
         
-        console.log('[FenceSelection] 초기화 완료 v1.0.0');
+        console.log('[FenceSelection] 초기화 완료 v1.1.0 (CoordinateTransformer 통합)');
+    }
+    
+    // =====================================================
+    // ✨ v1.1.0: CoordinateTransformer 초기화
+    // =====================================================
+    
+    /**
+     * CoordinateTransformer 초기화
+     * @private
+     */
+    _initCoordinateTransformer() {
+        const TransformerClass = window.CoordinateTransformer || 
+            (typeof CoordinateTransformer !== 'undefined' ? CoordinateTransformer : null);
+        
+        if (TransformerClass && this.stage) {
+            this.coordinateTransformer = new TransformerClass(this.stage);
+            console.log('[FenceSelection] CoordinateTransformer 초기화 완료');
+        } else {
+            console.warn('[FenceSelection] CoordinateTransformer를 찾을 수 없습니다. 기본 좌표 변환 사용.');
+        }
     }
     
     // =====================================================
@@ -178,7 +207,7 @@ class FenceSelection {
     startSelection(e) {
         this.isSelecting = true;
         
-        // 변환된 좌표 (Zoom/Pan 고려)
+        // ✨ v1.1.0: CoordinateTransformer 사용
         const pos = this.getTransformedPointerPosition();
         
         this.startX = pos.x;
@@ -225,6 +254,7 @@ class FenceSelection {
     onMouseMove(e) {
         if (!this.isSelecting || !this.selectionBox) return;
         
+        // ✨ v1.1.0: CoordinateTransformer 사용
         const pos = this.getTransformedPointerPosition();
         
         const width = pos.x - this.startX;
@@ -371,13 +401,25 @@ class FenceSelection {
     }
     
     // =====================================================
-    // 유틸리티
+    // ✨ v1.1.0: 좌표 변환 (CoordinateTransformer 사용)
     // =====================================================
     
     /**
      * Zoom/Pan을 고려한 포인터 위치
+     * @returns {Object} { x, y }
      */
     getTransformedPointerPosition() {
+        // ✨ v1.1.0: CoordinateTransformer 사용
+        if (this.coordinateTransformer) {
+            return this.coordinateTransformer.getCanvasPosition();
+        }
+        
+        // Static 메서드 사용 (폴백)
+        if (window.CoordinateTransformer) {
+            return window.CoordinateTransformer.getPointerPosition(this.stage);
+        }
+        
+        // 최종 폴백: 직접 변환
         const pointer = this.stage.getPointerPosition();
         
         if (!pointer) {
@@ -459,10 +501,17 @@ class FenceSelection {
      */
     destroy() {
         this.deactivate();
+        
+        if (this.coordinateTransformer) {
+            this.coordinateTransformer.destroy();
+            this.coordinateTransformer = null;
+        }
+        
         this.stage = null;
         this.uiLayer = null;
         this.onSelectionComplete = null;
         this.getSelectableShapes = null;
+        
         console.log('[FenceSelection] 파괴 완료');
     }
 }
@@ -477,3 +526,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = FenceSelection;
 }
 
+console.log('✅ FenceSelection.js v1.1.0 로드 완료 (CoordinateTransformer 통합)');
