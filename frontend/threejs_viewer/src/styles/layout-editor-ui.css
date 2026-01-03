@@ -1,0 +1,895 @@
+/**
+ * layout-editor-ui.css
+ * ====================
+ * Layout Editor 전용 UI 스타일
+ * 
+ * ✅ 기존 CSS 활용:
+ *   - layout_editor.css (CSS 변수, 애니메이션, 유틸리티)
+ *   - canvas-editor.css (Canvas 관련 스타일)
+ * 
+ * ✅ 신규 추가:
+ *   - Header, Toolbar, Submenu, Property Panel
+ *   - Align Popup, Shortcuts Help
+ *   - Status Bar 확장, Modal/Toast 간소화
+ * 
+ * 📁 위치: frontend/threejs_viewer/src/styles/layout-editor-ui.css
+ * 📋 의존성: layout_editor.css, canvas-editor.css
+ */
+
+/* ============================================
+   CSS 변수 확장 (Layout Editor 전용)
+   기존 layout_editor.css, canvas-editor.css와 통합
+   ============================================ */
+:root {
+    /* Layout 크기 변수 */
+    --toolbar-width: 60px;
+    --toolbar-expanded-width: 270px;
+    --submenu-width: 210px;
+    --property-panel-width: 260px;
+    --header-height: 48px;
+    --status-height: 30px;
+    --btn-size: 44px;
+    
+    /* Theme Colors (canvas-editor.css와 통합) */
+    --primary-color: #667eea;
+    --primary-dark: #764ba2;
+    --success-color: #27ae60;
+    --danger-color: #e74c3c;
+    --info-color: #3498db;
+    --warning-color: #f39c12;
+    
+    /* Canvas Colors (canvas-editor.css 오버라이드) */
+    --canvas-equipment-default: #4a90e2;
+    --canvas-equipment-selected: #FF6600;
+    --canvas-equipment-hover: #00BFFF;
+    --canvas-equipment-stroke: #2c3e50;
+    --canvas-transformer-border: #667eea;
+    --canvas-bg: #f0f0f0;
+    --canvas-grid-minor: #d8d8d8;
+    --canvas-grid-major: #b0b0b0;
+    --canvas-grid-label: #888888;
+    --canvas-selection-stroke: #FF6600;
+    
+    /* Toolbar Colors */
+    --toolbar-bg: #2c3e50;
+    --toolbar-btn-bg: #34495e;
+    --toolbar-btn-hover: var(--primary-color);
+    
+    /* Status Bar Colors */
+    --status-bg: #34495e;
+    --status-history: #9b59b6;
+    --status-mice: #e67e22;
+    --status-groups: #16a085;
+}
+
+/* ============================================
+   기본 리셋
+   ============================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--canvas-bg);
+    overflow: hidden;
+}
+
+/* ============================================
+   Header
+   ============================================ */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    z-index: 200;
+}
+
+.header h1 {
+    font-size: 16px;
+    margin: 0;
+    font-weight: 600;
+}
+
+.header-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.header-btn {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.header-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--success-color);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #229954;
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================
+   Layout Container
+   ============================================ */
+.layout-container {
+    display: flex;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    bottom: var(--status-height);
+}
+
+/* ============================================
+   Toolbar Container
+   ============================================ */
+.toolbar-container {
+    width: var(--toolbar-width);
+    display: flex;
+    flex-shrink: 0;
+    transition: width 0.3s ease;
+    z-index: 10;
+}
+
+.toolbar-container.expanded {
+    width: var(--toolbar-expanded-width);
+}
+
+/* ============================================
+   Toolbar
+   ============================================ */
+.toolbar {
+    width: var(--toolbar-width);
+    min-width: var(--toolbar-width);
+    background: var(--toolbar-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+    gap: 2px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Toolbar Scrollbar */
+.toolbar::-webkit-scrollbar {
+    width: 3px;
+}
+
+.toolbar::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 2px;
+}
+
+/* ============================================
+   Toolbar Buttons
+   ============================================ */
+.toolbar-btn {
+    width: var(--btn-size);
+    height: var(--btn-size);
+    background: var(--toolbar-btn-bg);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.toolbar-btn:hover {
+    background: var(--toolbar-btn-hover);
+    transform: scale(1.05);
+}
+
+.toolbar-btn.active {
+    background: var(--primary-color);
+    box-shadow: 0 0 10px rgba(102, 126, 234, 0.6);
+}
+
+/* Button Variants */
+.toolbar-btn.zoom {
+    background: var(--success-color);
+    font-size: 18px;
+}
+
+.toolbar-btn.zoom:hover {
+    background: #229954;
+}
+
+.toolbar-btn.zoom.reset {
+    background: var(--info-color);
+}
+
+.toolbar-btn.danger {
+    background: #c0392b;
+}
+
+.toolbar-btn.danger:hover {
+    background: var(--danger-color);
+}
+
+.toolbar-btn.group {
+    background: var(--status-groups);
+}
+
+.toolbar-btn.group:hover {
+    background: #1abc9c;
+}
+
+/* Toolbar Button Tooltip */
+.toolbar-btn::after {
+    content: attr(title);
+    position: absolute;
+    left: calc(var(--btn-size) + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 1000;
+}
+
+.toolbar-btn:hover::after {
+    opacity: 1;
+}
+
+/* Toolbar Divider */
+.toolbar-divider {
+    width: 32px;
+    height: 2px;
+    background: #4a5c6a;
+    margin: 4px 0;
+    flex-shrink: 0;
+}
+
+/* ============================================
+   Component Submenu
+   ============================================ */
+.component-submenu {
+    width: 0;
+    background: white;
+    overflow: hidden;
+    transition: width 0.3s ease;
+    box-shadow: 2px 0 15px rgba(0, 0, 0, 0.15);
+}
+
+.toolbar-container.expanded .component-submenu {
+    width: var(--submenu-width);
+}
+
+.submenu-content {
+    width: var(--submenu-width);
+    min-width: var(--submenu-width);
+}
+
+.submenu-header {
+    padding: 12px 14px;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.submenu-item {
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    transition: background 0.2s ease;
+}
+
+.submenu-item:hover {
+    background: #f0f4ff;
+}
+
+.submenu-item:active {
+    background: var(--primary-color);
+    color: white;
+}
+
+.submenu-item-icon {
+    font-size: 18px;
+    width: 26px;
+    text-align: center;
+}
+
+.submenu-item-info {
+    flex: 1;
+}
+
+.submenu-item-name {
+    font-weight: 600;
+    font-size: 12px;
+    color: #2c3e50;
+}
+
+.submenu-item-size {
+    font-size: 10px;
+    color: #999;
+    margin-top: 1px;
+}
+
+.submenu-item:active .submenu-item-name,
+.submenu-item:active .submenu-item-size {
+    color: white;
+}
+
+/* ============================================
+   Align Popup
+   ============================================ */
+.align-popup {
+    display: none;
+    position: fixed;
+    left: 70px;
+    top: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    padding: 8px;
+    z-index: 1000;
+    min-width: 180px;
+}
+
+.align-popup.show {
+    display: block;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.align-popup-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--primary-color);
+    padding: 4px 8px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 6px;
+}
+
+.align-popup-section {
+    margin-bottom: 8px;
+}
+
+.align-popup-section-title {
+    font-size: 10px;
+    color: #999;
+    padding: 4px 8px;
+    text-transform: uppercase;
+}
+
+.align-popup-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 12px;
+    color: #333;
+    transition: all 0.2s ease;
+}
+
+.align-popup-btn:hover {
+    background: #f0f4ff;
+    color: var(--primary-color);
+}
+
+.align-popup-btn .icon {
+    font-size: 14px;
+    width: 20px;
+    text-align: center;
+}
+
+.align-popup-btn .shortcut {
+    margin-left: auto;
+    font-size: 9px;
+    color: #aaa;
+    background: #f0f0f0;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+/* ============================================
+   Canvas Area
+   ============================================ */
+.canvas-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--canvas-bg);
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+}
+
+#canvas-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: var(--canvas-bg);
+}
+
+/* Drop Guide */
+.drop-guide {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(52, 152, 219, 0.95);
+    color: white;
+    padding: 16px 32px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 1000;
+    display: none;
+}
+
+.drop-guide.visible {
+    display: block;
+}
+
+/* ============================================
+   Property Panel
+   ============================================ */
+.property-panel {
+    width: var(--property-panel-width);
+    flex-shrink: 0;
+    background: white;
+    border-left: 2px solid #e0e0e0;
+    overflow-y: auto;
+}
+
+.property-panel::-webkit-scrollbar {
+    width: 5px;
+}
+
+.property-panel::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+
+.property-panel-content {
+    padding: 14px;
+}
+
+.property-panel-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.property-panel-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 120px;
+    color: #999;
+}
+
+.property-panel-empty-icon {
+    font-size: 36px;
+    margin-bottom: 6px;
+}
+
+/* ============================================
+   Status Bar
+   ============================================ */
+.status-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--status-height);
+    background: var(--status-bg);
+    color: white;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-size: 12px;
+    gap: 16px;
+    z-index: 100;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.status-item.zoom-display {
+    background: var(--success-color);
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.status-item.history {
+    background: var(--status-history);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.status-item.mice {
+    background: var(--status-mice);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.status-item.groups {
+    background: var(--status-groups);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+/* ============================================
+   Modal (간소화 - 기존 modal.css 보완)
+   ============================================ */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    padding: 24px;
+    border-radius: 10px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    min-width: 320px;
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        transform: translateY(-30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-content h2 {
+    margin: 0 0 16px 0;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.form-group {
+    margin: 12px 0;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 4px;
+    color: #555;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 8px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 13px;
+    transition: border-color 0.2s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.modal-actions button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+/* ============================================
+   Toast (간소화 - 기존 toast.css 보완)
+   ============================================ */
+.toast {
+    position: fixed;
+    bottom: 45px;
+    right: 16px;
+    background: #2c3e50;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 6px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    z-index: 2000;
+    animation: slideIn 0.3s ease-out;
+    font-size: 12px;
+}
+
+.toast.success {
+    background: var(--success-color);
+}
+
+.toast.error {
+    background: var(--danger-color);
+}
+
+.toast.info {
+    background: var(--info-color);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ============================================
+   Shortcuts Help
+   ============================================ */
+.shortcuts-help {
+    position: fixed;
+    bottom: 45px;
+    left: 16px;
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 11px;
+    z-index: 100;
+    display: none;
+    max-width: 280px;
+}
+
+.shortcuts-help.show {
+    display: block;
+    animation: fadeInUp 0.2s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.shortcuts-help h4 {
+    margin: 0 0 8px 0;
+    color: var(--primary-color);
+    font-size: 12px;
+}
+
+.shortcuts-help ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    columns: 2;
+    column-gap: 20px;
+}
+
+.shortcuts-help li {
+    margin: 3px 0;
+    break-inside: avoid;
+}
+
+.shortcuts-help kbd {
+    background: #444;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-right: 6px;
+    font-size: 10px;
+    font-family: monospace;
+}
+
+.shortcuts-help .section-title {
+    color: var(--status-history);
+    font-weight: 600;
+    margin-top: 8px;
+    margin-bottom: 4px;
+    column-span: all;
+}
+
+/* ============================================
+   Loading Indicator
+   ============================================ */
+#loading-indicator {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 24px 40px;
+    border-radius: 10px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    z-index: 9999;
+    text-align: center;
+}
+
+#loading-indicator .spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid #e0e0e0;
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 12px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============================================
+   반응형 디자인
+   ============================================ */
+@media (max-width: 1024px) {
+    .toolbar {
+        width: 60px !important;
+    }
+    
+    .property-panel {
+        width: 250px !important;
+    }
+    
+    .toolbar-btn {
+        width: 45px !important;
+        height: 45px !important;
+        font-size: 18px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .property-panel {
+        position: absolute !important;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        z-index: 1000;
+    }
+    
+    .property-panel.active {
+        transform: translateX(0);
+    }
+    
+    .header h1 {
+        font-size: 14px !important;
+    }
+    
+    .header-btn {
+        padding: 5px 10px !important;
+        font-size: 12px !important;
+    }
+    
+    .shortcuts-help {
+        max-width: 250px;
+    }
+    
+    .shortcuts-help ul {
+        columns: 1;
+    }
+}
+
+/* ============================================
+   Print 스타일
+   ============================================ */
+@media print {
+    .toolbar,
+    .toolbar-container,
+    .property-panel,
+    .header,
+    .status-bar,
+    .modal,
+    .shortcuts-help {
+        display: none !important;
+    }
+    
+    .canvas-area {
+        margin: 0 !important;
+        position: static !important;
+    }
+    
+    body {
+        background: white !important;
+        overflow: visible !important;
+    }
+}

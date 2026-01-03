@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layout Editor - SHERLOCK_SKY_3DSIM (Phase 5)</title>
+    
+    <!-- Konva.js CDN -->
+    <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+    
+    <!-- ✅ 전역 객체 방식으로 로드 (의존성 순서 중요) -->
+    <script src="../src/layout-editor/canvas/LayerManager.js"></script>
+    <script src="../src/layout-editor/canvas/CanvasRenderer.js"></script>
+    <script src="../src/layout-editor/canvas/CanvasEventHandler.js"></script>
+    
+    <!-- ✅ Handle 모듈 (PowerPoint 스타일 8개 핸들 + 회전) -->
+    <script src="../src/layout-editor/handles/ResizeHandle.js"></script>
+    <script src="../src/layout-editor/handles/RotateHandle.js"></script>
+    <script src="../src/layout-editor/handles/HandleManager.js"></script>
+    
+    <!-- ✅ Smart Guides 모듈 (정렬 가이드라인) -->
+    <script src="../src/layout-editor/guides/AlignmentGuide.js"></script>
+    <script src="../src/layout-editor/guides/DistributionGuide.js"></script>
+    <script src="../src/layout-editor/guides/SmartGuideManager.js"></script>
+    
+    <!-- ✅ Snap 모듈 (MICE 스냅 포인트) -->
+    <script src="../src/layout-editor/snap/GridSnap.js"></script>
+    <script src="../src/layout-editor/snap/MICESnapPoints.js"></script>
+    <script src="../src/layout-editor/snap/SnapManager.js"></script>
+    
+    <!-- ✅ Selection 모듈 (Window/Crossing 박스 선택) -->
+    <script src="../src/layout-editor/selection/SelectionRenderer.js"></script>
+    <script src="../src/layout-editor/selection/Selection2DManager.js"></script>
+    <script src="../src/layout-editor/selection/FenceSelection.js"></script>
+    
+    <!-- ✅ Phase 1: Command 모듈 (ES6 export 제거됨, script 태그 로드 가능) -->
+    <script src="../src/layout-editor/commands/Command.js"></script>
+    <script src="../src/layout-editor/commands/CommandManager.js"></script>
+    
+    <!-- ✅ Export 모듈 추가 -->
+    <script src="../src/layout-editor/export/LayoutExporter.js"></script>
+
+    <script src="../src/layout-editor/components/Canvas2DEditor.js"></script>
+    <script src="../src/layout-editor/controllers/ZoomController.js"></script>
+    <!-- ✅ Phase 5: InfiniteGridZoomController (외부 모듈) -->
+    <script src="../src/layout-editor/controllers/InfiniteGridZoomController.js"></script>
+    
+    <script src="../src/layout-editor/tools/ObjectSelectionTool.js"></script>
+    <script src="../src/layout-editor/tools/AlignmentTool.js"></script>
+    <script src="../src/layout-editor/tools/WallDrawTool.js"></script>
+    <script src="../src/layout-editor/tools/EquipmentArrayTool.js"></script>
+    <script src="../src/layout-editor/managers/RoomSizeManager.js"></script>
+    <script src="../src/layout-editor/components/PropertyPanel.js"></script>
+    
+    <!-- ✅ Phase 3: GroupingTool 추가 -->
+    <script src="../src/layout-editor/tools/GroupingTool.js"></script>
+    
+    <!-- ✅ Phase 5: 외부 App 모듈 (JS 분리) -->
+    <script src="../src/layout-editor/app/LayoutEditorApp.js"></script>
+    
+    <!-- ✅ Phase 5: 외부 CSS 파일 로드 (기존 CSS 활용 + 신규) -->
+    <link rel="stylesheet" href="../src/styles/layout_editor.css">
+    <link rel="stylesheet" href="../src/styles/canvas-editor.css">
+    <link rel="stylesheet" href="../src/styles/layout-editor-ui.css">
+</head>
+
+<body>
+    <div id="loading-indicator"><div class="spinner"></div><div>Layout Editor 로딩 중...</div></div>
+
+    <div class="header">
+        <h1>🏗️ Layout Editor - Phase 5 (Undo/Redo + JS 분리)</h1>
+        <div class="header-actions">
+            <button class="header-btn btn-secondary" id="btn-undo" disabled>↶ Undo</button>
+            <button class="header-btn btn-secondary" id="btn-redo" disabled>↷ Redo</button>
+            <button class="header-btn btn-secondary" id="btn-help">❓</button>
+            <button class="header-btn btn-secondary" id="btn-export-png">🖼️ PNG</button>
+            <button class="header-btn btn-primary" id="btn-save">💾 Save</button>
+        </div>
+    </div>
+
+    <div class="layout-container">
+        <div class="toolbar-container" id="toolbar-container">
+            <div class="toolbar">
+                <button class="toolbar-btn active" id="tool-select" title="선택 (V)">👆</button>
+                <button class="toolbar-btn" id="tool-room" title="Room Size">📐</button>
+                <button class="toolbar-btn" id="tool-wall" title="벽 그리기 (W)">🧱</button>
+                <button class="toolbar-btn" id="component-btn" title="컴포넌트 (C)">🎨</button>
+                <div class="toolbar-divider"></div>
+                <button class="toolbar-btn" id="tool-grid" title="Grid (G)">🔲</button>
+                <button class="toolbar-btn" id="tool-snap" title="Snap (S)">🧲</button>
+                <div class="toolbar-divider"></div>
+                <button class="toolbar-btn zoom" id="tool-zoom-in" title="Zoom In (+)">➕</button>
+                <button class="toolbar-btn zoom" id="tool-zoom-out" title="Zoom Out (-)">➖</button>
+                <button class="toolbar-btn zoom reset" id="tool-zoom-reset" title="Reset (0)">🎯</button>
+                <div class="toolbar-divider"></div>
+                <button class="toolbar-btn" id="tool-select-all" title="전체선택 (⌘A)">✅</button>
+                <button class="toolbar-btn danger" id="tool-delete" title="삭제 (Del)">🗑️</button>
+                <button class="toolbar-btn" id="tool-deselect" title="해제 (Esc)">❌</button>
+                <div class="toolbar-divider"></div>
+                <button class="toolbar-btn" id="align-btn" title="정렬 (L)">📏</button>
+                <button class="toolbar-btn" id="tool-rotate" title="회전 (R)">🔄</button>
+                <div class="toolbar-divider"></div>
+                <!-- ✅ Phase 3: Equipment Array + 그룹화 버튼 -->
+                <button class="toolbar-btn" id="tool-eq-array" title="Equipment Array (A)">🏭</button>
+                <button class="toolbar-btn group" id="tool-group" title="그룹화 (⌘G)">📦</button>
+                <button class="toolbar-btn group" id="tool-ungroup" title="그룹해제 (⇧⌘G)">📤</button>
+                <div class="toolbar-divider"></div>
+                <button class="toolbar-btn" id="tool-sample" title="샘플 로드">📁</button>
+            </div>
+            <div class="component-submenu" id="component-submenu">
+                <div class="submenu-content">
+                    <div class="submenu-header">🎨 Components</div>
+                    <div class="submenu-item" draggable="true" data-component="equipment"><span class="submenu-item-icon">⚙️</span><div class="submenu-item-info"><div class="submenu-item-name">Equipment</div><div class="submenu-item-size">1.5 × 3.0m</div></div></div>
+                    <div class="submenu-item" draggable="true" data-component="partition"><span class="submenu-item-icon">🚪</span><div class="submenu-item-info"><div class="submenu-item-name">Partition</div><div class="submenu-item-size">3.0 × 2.5m</div></div></div>
+                    <div class="submenu-item" draggable="true" data-component="desk"><span class="submenu-item-icon">🪑</span><div class="submenu-item-info"><div class="submenu-item-name">Desk</div><div class="submenu-item-size">1.6 × 0.8m</div></div></div>
+                    <div class="submenu-item" draggable="true" data-component="pillar"><span class="submenu-item-icon">🏛️</span><div class="submenu-item-info"><div class="submenu-item-name">Pillar</div><div class="submenu-item-size">0.3 × 0.3m</div></div></div>
+                    <div class="submenu-item" draggable="true" data-component="office"><span class="submenu-item-icon">🏢</span><div class="submenu-item-info"><div class="submenu-item-name">Office</div><div class="submenu-item-size">12 × 20m</div></div></div>
+                </div>
+            </div>
+        </div>
+        <div class="canvas-area">
+            <div id="canvas-container"></div>
+            <div class="drop-guide" id="drop-guide">📦 드롭하여 생성!</div>
+        </div>
+        <div class="property-panel" id="property-panel">
+            <div class="property-panel-content">
+                <div class="property-panel-header">📋 속성</div>
+                <div class="property-panel-empty"><div class="property-panel-empty-icon">👆</div><div>객체를 선택하세요</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="align-popup" id="align-popup">
+        <div class="align-popup-header">📐 정렬 & 회전</div>
+        <div class="align-popup-section">
+            <div class="align-popup-section-title">정렬</div>
+            <button class="align-popup-btn" id="align-left"><span class="icon">⬅️</span> 좌측</button>
+            <button class="align-popup-btn" id="align-right"><span class="icon">➡️</span> 우측</button>
+            <button class="align-popup-btn" id="align-top"><span class="icon">⬆️</span> 상단</button>
+            <button class="align-popup-btn" id="align-bottom"><span class="icon">⬇️</span> 하단</button>
+            <button class="align-popup-btn" id="align-center-h"><span class="icon">↔️</span> 수평중앙</button>
+            <button class="align-popup-btn" id="align-center-v"><span class="icon">↕️</span> 수직중앙</button>
+        </div>
+        <div class="align-popup-section">
+            <div class="align-popup-section-title">분배</div>
+            <button class="align-popup-btn" id="distribute-h"><span class="icon">⇔</span> 수평분배</button>
+            <button class="align-popup-btn" id="distribute-v"><span class="icon">⇕</span> 수직분배</button>
+        </div>
+        <div class="align-popup-section">
+            <div class="align-popup-section-title">회전</div>
+            <button class="align-popup-btn" id="rotate-cw"><span class="icon">🔃</span> 90° CW<span class="shortcut">R</span></button>
+            <button class="align-popup-btn" id="rotate-ccw"><span class="icon">🔄</span> 90° CCW<span class="shortcut">⇧R</span></button>
+            <button class="align-popup-btn" id="rotate-reset"><span class="icon">↩️</span> 초기화</button>
+        </div>
+    </div>
+
+    <!-- ✅ Phase 3: 상태바 전체 업데이트 -->
+    <div class="status-bar">
+        <span class="status-item">🔧 <span id="status-tool">선택</span></span>
+        <span class="status-item zoom-display">🔍 <span id="status-zoom">100%</span></span>
+        <span class="status-item history">↶ <span id="status-undo">0</span> / ↷ <span id="status-redo">0</span></span>
+        <span class="status-item">Grid: <span id="status-grid">ON</span></span>
+        <span class="status-item">Snap: <span id="status-snap">ON</span></span>
+        <span class="status-item mice">🎪 MICE: <span id="status-mice-snap">OFF</span></span>
+        <span class="status-item guides">📏 Guides: <span id="status-smart-guides">ON</span></span>
+        <span class="status-item">📦 <span id="status-objects">0</span></span>
+        <span class="status-item">⚙️ Eq: <span id="status-equipment">0</span></span>
+        <span class="status-item groups">📁 Groups: <span id="status-groups">0</span></span>
+        <span class="status-item">✅ <span id="status-selected">0</span></span>
+    </div>
+
+    <!-- ✅ Phase 3: 단축키 도움말 전체 업데이트 -->
+    <div class="shortcuts-help" id="shortcuts-help">
+        <h4>⌨️ 단축키</h4>
+        <ul>
+            <li><kbd>V</kbd> 선택</li>
+            <li><kbd>W</kbd> 벽</li>
+            <li><kbd>C</kbd> 컴포넌트</li>
+            <li><kbd>G</kbd> Grid</li>
+            <li><kbd>S</kbd> Snap</li>
+            <li><kbd>M</kbd> MICE Snap</li>
+            <li><kbd>R</kbd> 회전</li>
+            <li><kbd>L</kbd> 정렬</li>
+            <li><kbd>Del</kbd> 삭제</li>
+            <li><kbd>⌘A</kbd> 전체선택</li>
+            <li><kbd>⌘Z</kbd> Undo</li>
+            <li><kbd>⌘Y</kbd> Redo</li>
+            <li><kbd>⌘D</kbd> 복제</li>
+            <li><kbd>Esc</kbd> 해제</li>
+        </ul>
+        <div class="section-title">🎯 이동 (Phase 1)</div>
+        <ul>
+            <li><kbd>↑↓←→</kbd> 1px 이동</li>
+            <li><kbd>⇧+방향</kbd> 10px 이동</li>
+        </ul>
+        <div class="section-title">📋 Phase 2</div>
+        <ul>
+            <li><kbd>⌘D</kbd> 복제 (+20px)</li>
+            <li><kbd>M</kbd> MICE Snap</li>
+        </ul>
+        <div class="section-title">🏭 Phase 3</div>
+        <ul>
+            <li><kbd>A</kbd> Equipment Array</li>
+            <li><kbd>⌘G</kbd> 그룹화</li>
+            <li><kbd>⇧⌘G</kbd> 그룹 해제</li>
+        </ul>
+        <div class="section-title">✨ Phase 4</div>
+        <ul>
+            <li><kbd>H</kbd> Smart Guides</li>
+            <li><kbd>[</kbd> 뒤로 보내기</li>
+            <li><kbd>]</kbd> 앞으로 보내기</li>
+            <li><kbd>⇧[</kbd> 맨 뒤로</li>
+            <li><kbd>⇧]</kbd> 맨 앞으로</li>
+        </ul>
+    </div>
+
+    <div class="modal" id="room-size-modal">
+        <div class="modal-content">
+            <h2>📐 Room Size 설정</h2>
+            <div class="form-group"><label>Width (m)</label><input type="number" id="room-width" value="130" min="10" step="1"></div>
+            <div class="form-group"><label>Depth (m)</label><input type="number" id="room-depth" value="90" min="10" step="1"></div>
+            <div class="form-group"><label>Height (m)</label><input type="number" id="room-height" value="3" min="2" step="0.1"></div>
+            <div class="modal-actions"><button class="btn-secondary" id="room-cancel">취소</button><button class="btn-primary" id="room-apply">적용</button></div>
+        </div>
+    </div>
+
+    <!-- ✅ Phase 3: Equipment Array 설정 모달 -->
+    <div class="modal" id="eq-array-modal">
+        <div class="modal-content" style="min-width: 400px;">
+            <h2>🏭 Equipment Array 설정</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label>Rows (행)</label>
+                    <input type="number" id="eq-array-rows" value="6" min="1" max="20" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Cols (열)</label>
+                    <input type="number" id="eq-array-cols" value="26" min="1" max="50" step="1">
+                </div>
+                <div class="form-group">
+                    <label>장비 폭 (m)</label>
+                    <input type="number" id="eq-array-width" value="1.5" min="0.5" max="5" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>장비 깊이 (m)</label>
+                    <input type="number" id="eq-array-depth" value="3.0" min="0.5" max="10" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>장비 간격 (m)</label>
+                    <input type="number" id="eq-array-spacing" value="0.3" min="0" max="2" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label>복도 열 위치</label>
+                    <input type="text" id="eq-array-corridor-cols" value="13" placeholder="예: 13 또는 10,20">
+                </div>
+                <div class="form-group">
+                    <label>복도 열 폭 (m)</label>
+                    <input type="number" id="eq-array-corridor-col-width" value="3.0" min="1" max="10" step="0.5">
+                </div>
+                <div class="form-group">
+                    <label>복도 행 위치</label>
+                    <input type="text" id="eq-array-corridor-rows" value="3" placeholder="예: 3 또는 2,4">
+                </div>
+                <div class="form-group">
+                    <label>복도 행 폭 (m)</label>
+                    <input type="number" id="eq-array-corridor-row-width" value="2.0" min="1" max="10" step="0.5">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" id="eq-array-cancel">취소</button>
+                <button class="btn-primary" id="eq-array-apply">생성</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ Phase 5: 초기화 스크립트 (LayoutEditorApp.js에서 로드됨) -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('✅ DOM 로드 완료');
+            try { 
+                window.editorApp = new LayoutEditorApp(); 
+            }
+            catch (error) { 
+                console.error('❌ 초기화 실패:', error); 
+                document.getElementById('loading-indicator').innerHTML = `<div style="color: red;">❌ 로드 실패</div><div style="margin-top: 10px; font-size: 12px;">${error.message}</div>`; 
+            }
+        });
+    </script>
+</body>
+</html>
