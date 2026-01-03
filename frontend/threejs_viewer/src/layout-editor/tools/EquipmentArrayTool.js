@@ -5,7 +5,17 @@
  * 복도를 고려하여 26×6 설비 배열 생성 및 관리
  * 
  * @module EquipmentArrayTool
- * @version 1.2.1 - Phase 3.2: Command Pattern 적용 + API 호환성 수정
+ * @version 1.3.0 - Phase 5.2: CoordinateTransformer 통합
+ * 
+ * 변경사항 (v1.3.0):
+ * - ✅ CoordinateTransformer 사용으로 Zoom/Pan 좌표 변환 지원
+ * - ✅ getCanvasPosition() 메서드 추가
+ * - ✅ 모든 포인터 좌표 참조를 변환된 좌표로 교체
+ * 
+ * 변경사항 (v1.2.2):
+ * - 배열 그룹 이동 시 MoveCommand 등록 (Undo/Redo 지원)
+ * - dragstart/dragend 이벤트에서 위치 변경 추적
+ * - setupMoveListener() 메서드 추가
  * 
  * 변경사항 (v1.2.1):
  * - startArrayPlacement() 메서드 추가 (UIService 호환)
@@ -30,6 +40,10 @@ class EquipmentArrayTool {
         this.startPoint = null;
         this.config = null;
         
+        // ✨ v1.3.0: CoordinateTransformer 초기화
+        this.coordinateTransformer = null;
+        this._initCoordinateTransformer();
+        
         // 기본 설비 크기 설정
         this.defaultEquipmentSize = {
             width: 1.4,  // 미터
@@ -45,11 +59,58 @@ class EquipmentArrayTool {
 
         this.previewGroup = null;
 
-        console.log('[EquipmentArrayTool] Initialized v1.2.1 (Command Pattern + API 호환)');
+        console.log('[EquipmentArrayTool] Initialized v1.3.0 (CoordinateTransformer 통합)');
         
         if (!this.commandManager) {
             console.warn('[EquipmentArrayTool] CommandManager가 없습니다. Undo/Redo가 작동하지 않습니다.');
         }
+    }
+
+    /**
+     * ✨ v1.3.0: CoordinateTransformer 초기화
+     * @private
+     */
+    _initCoordinateTransformer() {
+        // CoordinateTransformer 클래스 확인
+        const TransformerClass = window.CoordinateTransformer || 
+            (typeof CoordinateTransformer !== 'undefined' ? CoordinateTransformer : null);
+        
+        if (TransformerClass && this.canvas?.stage) {
+            this.coordinateTransformer = new TransformerClass(this.canvas.stage);
+            console.log('[EquipmentArrayTool] CoordinateTransformer 초기화 완료');
+        } else {
+            console.warn('[EquipmentArrayTool] CoordinateTransformer를 찾을 수 없습니다. 기본 좌표 사용.');
+        }
+    }
+
+    /**
+     * ✨ v1.3.0: Zoom/Pan을 고려한 캔버스 좌표 가져오기
+     * @returns {Object} { x, y } 변환된 캔버스 좌표
+     */
+    getCanvasPosition() {
+        // CoordinateTransformer 사용
+        if (this.coordinateTransformer) {
+            return this.coordinateTransformer.getCanvasPosition();
+        }
+        
+        // Static 메서드 사용 (폴백)
+        if (window.CoordinateTransformer) {
+            return window.CoordinateTransformer.getPointerPosition(this.canvas.stage);
+        }
+        
+        // 최종 폴백: 직접 변환
+        const stage = this.canvas.stage;
+        const pointer = stage.getPointerPosition();
+        
+        if (!pointer) {
+            return { x: 0, y: 0 };
+        }
+        
+        // Stage의 transform 역변환
+        const transform = stage.getAbsoluteTransform().copy();
+        transform.invert();
+        
+        return transform.point(pointer);
     }
 
     /**
@@ -137,12 +198,24 @@ class EquipmentArrayTool {
 
         this.canvas.stage.container().style.cursor = 'crosshair';
 
+        // ✨ v1.3.0: 좌표 변환된 위치 사용
         this.handlers.click = (e) => {
-            const pos = this.canvas.stage.getPointerPosition();
+            // ✨ 변환된 캔버스 좌표 사용 (Zoom/Pan 고려)
+            const pos = this.getCanvasPosition();
             
             if (!this.startPoint) {
-                this.startPoint = { x: pos.x, y: pos.y };
-                console.log('[EquipmentArrayTool] Start point set:', this.startPoint);
+                // 그리드 스냅 적용 (옵션)
+                let snappedPos = pos;
+                if (this.canvas.config?.snapToGrid) {
+                    const gridSize = this.canvas.config.gridSize || 10;
+                    snappedPos = {
+                        x: Math.round(pos.x / gridSize) * gridSize,
+                        y: Math.round(pos.y / gridSize) * gridSize
+                    };
+                }
+                
+                this.startPoint = snappedPos;
+                console.log('[EquipmentArrayTool] Start point set (transformed):', this.startPoint);
                 
                 this.createArray(this.startPoint);
                 this.deactivate();
@@ -298,12 +371,8 @@ class EquipmentArrayTool {
             console.log(`[EquipmentArrayTool] Array created directly (${equipmentCount} equipment) - No Undo support`);
         }
 
-        // 드래그 종료 시 그리드 스냅
-        arrayGroup.on('dragend', () => {
-            if (this.canvas.snapToGrid) {
-                this.canvas.snapToGrid(arrayGroup);
-            }
-        });
+        // ✨ v1.2.2: 이동 리스너 설정 (MoveCommand 등록)
+        this.setupMoveListener(arrayGroup);
 
         // 개별 분리 리스너 설정
         this.setupDetachListener(arrayGroup);
@@ -324,6 +393,58 @@ class EquipmentArrayTool {
         });
 
         return arrayGroup;
+    }
+
+    /**
+     * ✨ v1.2.2: 이동 리스너 설정 (MoveCommand 등록)
+     * @param {Konva.Group} group - 대상 그룹
+     */
+    setupMoveListener(group) {
+        // 드래그 시작 시 위치 저장
+        group.on('dragstart', () => {
+            group._dragStartPos = {
+                x: group.x(),
+                y: group.y()
+            };
+            console.log('[EquipmentArrayTool] 📍 Drag start:', group._dragStartPos);
+        });
+
+        // 드래그 종료 시 MoveCommand 생성
+        group.on('dragend', () => {
+            const startPos = group._dragStartPos;
+            
+            // 그리드 스냅 적용
+            if (this.canvas.config?.snapToGrid) {
+                const gridSize = this.canvas.config.gridSize || 10;
+                group.x(Math.round(group.x() / gridSize) * gridSize);
+                group.y(Math.round(group.y() / gridSize) * gridSize);
+            }
+            
+            // 이동량 계산
+            const dx = group.x() - startPos.x;
+            const dy = group.y() - startPos.y;
+            
+            // 실제로 이동했을 때만 Command 등록
+            if ((dx !== 0 || dy !== 0) && this.commandManager && window.MoveCommand) {
+                // 위치를 원래대로 되돌린 후 MoveCommand로 재실행
+                group.x(startPos.x);
+                group.y(startPos.y);
+                
+                const moveCommand = new window.MoveCommand([group], dx, dy);
+                this.commandManager.execute(moveCommand, true);
+                
+                console.log('[EquipmentArrayTool] ✅ MoveCommand registered:', { dx, dy });
+            } else if (dx !== 0 || dy !== 0) {
+                // CommandManager 없으면 그냥 이동 완료
+                console.log('[EquipmentArrayTool] Moved directly (no Undo):', { dx, dy });
+            }
+            
+            // 임시 데이터 정리
+            delete group._dragStartPos;
+            
+            // 화면 갱신
+            this.canvas.layers.equipment.batchDraw();
+        });
     }
 
     /**
@@ -502,13 +623,10 @@ class EquipmentArrayTool {
                 equipment.position(absPos);
                 equipment.draggable(true);
                 
-                // 3. 이벤트 재설정
-                equipment.on('dragend', () => {
-                    if (this.canvas.snapToGrid) {
-                        this.canvas.snapToGrid(equipment);
-                    }
-                });
-
+                // 3. 분리된 설비에도 이동 리스너 설정
+                this.setupMoveListener(equipment);
+                
+                // 4. 이벤트 재설정
                 equipment.off('click');
                 equipment.on('click', (e) => {
                     e.cancelBubble = true;
@@ -538,11 +656,8 @@ class EquipmentArrayTool {
             equipment.position(absPos);
             equipment.draggable(true);
             
-            equipment.on('dragend', () => {
-                if (this.canvas.snapToGrid) {
-                    this.canvas.snapToGrid(equipment);
-                }
-            });
+            // 분리된 설비에도 이동 리스너 설정
+            this.setupMoveListener(equipment);
 
             equipment.off('click');
             equipment.on('click', (e) => {
@@ -648,6 +763,8 @@ class EquipmentArrayTool {
                 this.canvas.layers.equipment.add(newGroup);
                 this.canvas.layers.equipment.batchDraw();
                 
+                // ✨ v1.2.2: 새 그룹에도 이동 리스너 설정
+                this.setupMoveListener(newGroup);
                 this.setupDetachListener(newGroup);
                 
                 this.commandManager.commitTransaction();
@@ -673,6 +790,8 @@ class EquipmentArrayTool {
             this.canvas.layers.equipment.add(newGroup);
             this.canvas.layers.equipment.batchDraw();
             
+            // ✨ v1.2.2: 새 그룹에도 이동 리스너 설정
+            this.setupMoveListener(newGroup);
             this.setupDetachListener(newGroup);
             console.log(`[EquipmentArrayTool] ${equipments.length} equipments grouped directly - No Undo support`);
         }
@@ -696,6 +815,23 @@ class EquipmentArrayTool {
     getConfig() {
         return this.config ? { ...this.config } : null;
     }
+
+    /**
+     * 파괴
+     */
+    destroy() {
+        this.deactivate();
+        
+        if (this.coordinateTransformer) {
+            this.coordinateTransformer.destroy();
+            this.coordinateTransformer = null;
+        }
+        
+        this.canvas = null;
+        this.commandManager = null;
+        
+        console.log('[EquipmentArrayTool] 파괴 완료');
+    }
 }
 
 // =====================================================
@@ -710,4 +846,4 @@ if (typeof window !== 'undefined') {
     window.EquipmentArrayTool = EquipmentArrayTool;
 }
 
-console.log('✅ EquipmentArrayTool.js v1.2.1 로드 완료');
+console.log('✅ EquipmentArrayTool.js v1.3.0 로드 완료 (CoordinateTransformer 통합)');

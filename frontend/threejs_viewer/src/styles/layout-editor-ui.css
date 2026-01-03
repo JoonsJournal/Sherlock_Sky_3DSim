@@ -3,22 +3,13 @@
  * ====================
  * Layout Editor 전용 UI 스타일
  * 
- * ✅ 기존 CSS 활용:
- *   - layout_editor.css (CSS 변수, 애니메이션, 유틸리티)
- *   - canvas-editor.css (Canvas 관련 스타일)
- * 
- * ✅ 신규 추가:
- *   - Header, Toolbar, Submenu, Property Panel
- *   - Align Popup, Shortcuts Help
- *   - Status Bar 확장, Modal/Toast 간소화
+ * @version 1.1.0 - Modal 버튼 스타일 수정 (취소 버튼 표시)
  * 
  * 📁 위치: frontend/threejs_viewer/src/styles/layout-editor-ui.css
- * 📋 의존성: layout_editor.css, canvas-editor.css
  */
 
 /* ============================================
    CSS 변수 확장 (Layout Editor 전용)
-   기존 layout_editor.css, canvas-editor.css와 통합
    ============================================ */
 :root {
     /* Layout 크기 변수 */
@@ -30,7 +21,7 @@
     --status-height: 30px;
     --btn-size: 44px;
     
-    /* Theme Colors (canvas-editor.css와 통합) */
+    /* Theme Colors */
     --primary-color: #667eea;
     --primary-dark: #764ba2;
     --success-color: #27ae60;
@@ -38,7 +29,7 @@
     --info-color: #3498db;
     --warning-color: #f39c12;
     
-    /* Canvas Colors (canvas-editor.css 오버라이드) */
+    /* Canvas Colors */
     --canvas-equipment-default: #4a90e2;
     --canvas-equipment-selected: #FF6600;
     --canvas-equipment-hover: #00BFFF;
@@ -122,21 +113,22 @@ body {
     cursor: not-allowed;
 }
 
-.btn-primary {
+/* ✅ 헤더용 버튼 스타일 */
+.header .btn-primary {
     background: var(--success-color);
     color: white;
 }
 
-.btn-primary:hover:not(:disabled) {
+.header .btn-primary:hover:not(:disabled) {
     background: #229954;
 }
 
-.btn-secondary {
+.header .btn-secondary {
     background: rgba(255, 255, 255, 0.2);
     color: white;
 }
 
-.btn-secondary:hover:not(:disabled) {
+.header .btn-secondary:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.3);
 }
 
@@ -183,7 +175,6 @@ body {
     overflow-x: hidden;
 }
 
-/* Toolbar Scrollbar */
 .toolbar::-webkit-scrollbar {
     width: 3px;
 }
@@ -223,7 +214,6 @@ body {
     box-shadow: 0 0 10px rgba(102, 126, 234, 0.6);
 }
 
-/* Button Variants */
 .toolbar-btn.zoom {
     background: var(--success-color);
     font-size: 18px;
@@ -253,7 +243,6 @@ body {
     background: #1abc9c;
 }
 
-/* Toolbar Button Tooltip */
 .toolbar-btn::after {
     content: attr(title);
     position: absolute;
@@ -276,7 +265,6 @@ body {
     opacity: 1;
 }
 
-/* Toolbar Divider */
 .toolbar-divider {
     width: 32px;
     height: 2px;
@@ -466,7 +454,6 @@ body {
     background: var(--canvas-bg);
 }
 
-/* Drop Guide */
 .drop-guide {
     position: absolute;
     top: 50%;
@@ -588,7 +575,7 @@ body {
 }
 
 /* ============================================
-   Modal (간소화 - 기존 modal.css 보완)
+   Modal
    ============================================ */
 .modal {
     display: none;
@@ -676,8 +663,27 @@ body {
     transition: all 0.2s ease;
 }
 
+/* ✅ v1.1.0: 모달 내부 버튼 스타일 (취소 버튼이 보이도록) */
+.modal-actions .btn-secondary {
+    background: #95a5a6;
+    color: white;
+}
+
+.modal-actions .btn-secondary:hover {
+    background: #7f8c8d;
+}
+
+.modal-actions .btn-primary {
+    background: var(--success-color);
+    color: white;
+}
+
+.modal-actions .btn-primary:hover {
+    background: #229954;
+}
+
 /* ============================================
-   Toast (간소화 - 기존 toast.css 보완)
+   Toast
    ============================================ */
 .toast {
     position: fixed;
