@@ -1,8 +1,14 @@
 /**
- * PropertyPanel.js v2.0.0
+ * PropertyPanel.js v2.0.1
  * ========================
  * 
  * 선택된 객체의 속성을 표시하고 편집할 수 있는 패널
+ * 
+ * ✨ v2.0.1 신규 (Canvas2DEditor 호환성):
+ * - clearProperties() - 패널 숨김 별칭
+ * - showProperties(shape) - 단일 객체 표시 별칭
+ * - showMultipleProperties(shapes) - 다중 객체 표시 별칭
+ * - deleteSelected() - Canvas2DEditor에 위임 (중복 제거)
  * 
  * ✨ v2.0.0 신규 기능 (Phase 3.2):
  * - ✅ showValidationErrors() - 검증 에러 목록 표시
@@ -14,7 +20,7 @@
  * - ✅ 값 변경 → 실시간 Canvas 업데이트
  * - ✅ 다중 선택 시 공통 속성 표시
  * 
- * 위치: frontend/threejs_viewer/src/layout_editor/components/PropertyPanel.js
+ * 위치: frontend/threejs_viewer/src/layout-editor/components/PropertyPanel.js
  */
 
 class PropertyPanel {
@@ -39,7 +45,7 @@ class PropertyPanel {
         // 패널 초기 HTML
         this.initPanel();
         
-        console.log('[PropertyPanel] 초기화 완료 v2.0.0');
+        console.log('[PropertyPanel] 초기화 완료 v2.0.1');
     }
     
     /**
@@ -392,31 +398,37 @@ class PropertyPanel {
     }
     
     /**
-     * 선택된 객체 삭제
+     * ✅ v2.0.1 수정: 선택된 객체 삭제 (Canvas2DEditor에 위임)
      */
     deleteSelected() {
-        if (this.selectedObjects.length === 0) return;
-        
-        console.log('[PropertyPanel] 선택된 객체 삭제:', this.selectedObjects.length, '개');
-        
-        this.selectedObjects.forEach(shape => {
-            const id = shape.id();
+        if (this.canvas && this.canvas.deleteSelected) {
+            // Canvas2DEditor의 deleteSelected() 호출 (중복 제거)
+            this.canvas.deleteSelected();
+        } else {
+            // Fallback: 직접 삭제 (Canvas2DEditor 없을 때)
+            if (this.selectedObjects.length === 0) return;
             
-            if (shape.name() === 'equipment' || shape.name().includes('equipment')) {
-                this.canvas.equipmentShapes.delete(id);
-            } else if (shape.name() === 'wall' || shape.name().includes('wall')) {
-                this.canvas.wallShapes.delete(id);
-            } else {
-                this.canvas.componentShapes.delete(id);
-            }
+            console.log('[PropertyPanel] Fallback 삭제:', this.selectedObjects.length, '개');
             
-            shape.destroy();
-        });
+            this.selectedObjects.forEach(shape => {
+                const id = shape.id();
+                
+                if (shape.name() === 'equipment' || shape.name().includes('equipment')) {
+                    this.canvas.equipmentShapes.delete(id);
+                } else if (shape.name() === 'wall' || shape.name().includes('wall')) {
+                    this.canvas.wallShapes.delete(id);
+                } else {
+                    this.canvas.componentShapes.delete(id);
+                }
+                
+                shape.destroy();
+            });
+            
+            this.canvas.deselectAll();
+            this.canvas.stage.batchDraw();
+        }
         
-        this.canvas.deselectAll();
-        this.canvas.stage.batchDraw();
         this.hide();
-        
         console.log('[PropertyPanel] ✅ 삭제 완료');
     }
     
@@ -814,6 +826,44 @@ class PropertyPanel {
         
         document.head.appendChild(style);
     }
+
+    // =====================================================
+    // ✅ v2.0.1 추가: Canvas2DEditor 호환용 별칭 메서드
+    // =====================================================
+
+    /**
+     * Canvas2DEditor.updatePropertyPanel() 호환용
+     * 선택 해제 시 패널 숨김
+     */
+    clearProperties() {
+        this.hide();
+    }
+
+    /**
+     * Canvas2DEditor.updatePropertyPanel() 호환용
+     * 단일 객체 속성 표시
+     * @param {Konva.Shape} shape - 선택된 Shape
+     */
+    showProperties(shape) {
+        if (!shape) {
+            this.hide();
+            return;
+        }
+        this.show([shape]);
+    }
+
+    /**
+     * Canvas2DEditor.updatePropertyPanel() 호환용
+     * 다중 객체 속성 표시
+     * @param {Array<Konva.Shape>} shapes - 선택된 Shape 배열
+     */
+    showMultipleProperties(shapes) {
+        if (!shapes || shapes.length === 0) {
+            this.hide();
+            return;
+        }
+        this.show(shapes);
+    }
 }
 
 // CSS 스타일 추가 (기존 v1.0 스타일)
@@ -881,6 +931,7 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
 // 전역 객체 등록 (브라우저 환경)
 if (typeof module === 'undefined' && typeof window !== 'undefined') {
     window.PropertyPanel = PropertyPanel;

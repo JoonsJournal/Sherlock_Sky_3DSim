@@ -5,7 +5,7 @@
  * Canvas2DEditor에서 분리된 레이어 관리 모듈
  * Konva.Layer 생성/관리 및 Shape 저장소(Map) 관리
  * 
- * @version 1.0.0 - Phase 1.5
+ * @version 1.0.1 - clearAll() 메서드 추가
  * @module LayerManager
  * 
  * 역할:
@@ -13,7 +13,10 @@
  * 2. Equipment, Wall, Component Shape 저장소 관리
  * 3. 레이어별 렌더링 제어
  * 
- * 위치: frontend/threejs_viewer/src/layout_editor/canvas/LayerManager.js
+ * ✨ v1.0.1 변경사항:
+ * - clearAll() 메서드 추가 (Canvas2DEditor.clearLayout() 호환)
+ * 
+ * 위치: frontend/threejs_viewer/src/layout-editor/canvas/LayerManager.js
  */
 
 class LayerManager {
@@ -40,7 +43,7 @@ class LayerManager {
         this.wallShapes = new Map();
         this.componentShapes = new Map();
         
-        console.log('[LayerManager] 초기화 완료 v1.0.0');
+        console.log('[LayerManager] 초기화 완료 v1.0.1');
     }
     
     // =====================================================
@@ -126,6 +129,16 @@ class LayerManager {
         this.layers.ui.batchDraw();
         
         console.log('[LayerManager] 모든 레이어 클리어 (background 제외)');
+    }
+
+    /**
+     * ✅ v1.0.1 추가: 전체 정리 (레이어 + Shape Maps)
+     * Canvas2DEditor.clearLayout()에서 호출됨
+     */
+    clearAll() {
+        this.clearAllLayers();
+        this.clearAllShapes();
+        console.log('[LayerManager] 전체 정리 완료 (clearAll)');
     }
     
     /**
