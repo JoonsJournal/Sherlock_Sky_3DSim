@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Layout Editor - SHERLOCK_SKY_3DSIM (Phase 3)</title>
+    <title>Layout Editor - SHERLOCK_SKY_3DSIM (Phase 4)</title>
     
     <!-- Konva.js CDN -->
     <script src="https://unpkg.com/konva@9/konva.min.js"></script>
@@ -164,13 +164,13 @@
         
         /* Tooltip */
         .toolbar-btn::after {
-            content: attr(data-tooltip);
+            content: attr(title);
             position: absolute; left: calc(var(--btn-size) + 8px); top: 50%; transform: translateY(-50%);
             background: rgba(0,0,0,0.9); color: white; padding: 6px 10px; border-radius: 5px;
             font-size: 11px; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 1000;
         }
         .toolbar-btn:hover::after { opacity: 1; }
-        .toolbar-container.expanded .toolbar-btn::after { display: none; }
+        /* .toolbar-container.expanded .toolbar-btn::after { display: none; } */
         
         .toolbar-divider { width: 32px; height: 2px; background: #4a5c6a; margin: 4px 0; flex-shrink: 0; }
         
@@ -290,11 +290,12 @@
     <div id="loading-indicator"><div class="spinner"></div><div>Layout Editor 로딩 중...</div></div>
 
     <div class="header">
-        <h1>🏗️ Layout Editor - Phase 3 (Equipment Array + 그룹화)</h1>
+        <h1>🏗️ Layout Editor - Phase 4 (Smart Guides + Layer Order + Export)</h1>
         <div class="header-actions">
             <button class="header-btn btn-secondary" id="btn-undo" disabled>↶ Undo</button>
             <button class="header-btn btn-secondary" id="btn-redo" disabled>↷ Redo</button>
             <button class="header-btn btn-secondary" id="btn-help">❓</button>
+            <button class="header-btn btn-secondary" id="btn-export-png">🖼️ PNG</button>
             <button class="header-btn btn-primary" id="btn-save">💾 Save</button>
         </div>
     </div>
@@ -302,31 +303,31 @@
     <div class="layout-container">
         <div class="toolbar-container" id="toolbar-container">
             <div class="toolbar">
-                <button class="toolbar-btn active" id="tool-select" data-tooltip="선택 (V)">👆</button>
-                <button class="toolbar-btn" id="tool-room" data-tooltip="Room Size">📐</button>
-                <button class="toolbar-btn" id="tool-wall" data-tooltip="벽 그리기 (W)">🧱</button>
-                <button class="toolbar-btn" id="component-btn" data-tooltip="컴포넌트 (C)">🎨</button>
+                <button class="toolbar-btn active" id="tool-select" title="선택 (V)">👆</button>
+                <button class="toolbar-btn" id="tool-room" title="Room Size">📐</button>
+                <button class="toolbar-btn" id="tool-wall" title="벽 그리기 (W)">🧱</button>
+                <button class="toolbar-btn" id="component-btn" title="컴포넌트 (C)">🎨</button>
                 <div class="toolbar-divider"></div>
-                <button class="toolbar-btn" id="tool-grid" data-tooltip="Grid (G)">🔲</button>
-                <button class="toolbar-btn" id="tool-snap" data-tooltip="Snap (S)">🧲</button>
+                <button class="toolbar-btn" id="tool-grid" title="Grid (G)">🔲</button>
+                <button class="toolbar-btn" id="tool-snap" title="Snap (S)">🧲</button>
                 <div class="toolbar-divider"></div>
-                <button class="toolbar-btn zoom" id="tool-zoom-in" data-tooltip="Zoom In (+)">➕</button>
-                <button class="toolbar-btn zoom" id="tool-zoom-out" data-tooltip="Zoom Out (-)">➖</button>
-                <button class="toolbar-btn zoom reset" id="tool-zoom-reset" data-tooltip="Reset (0)">🎯</button>
+                <button class="toolbar-btn zoom" id="tool-zoom-in" title="Zoom In (+)">➕</button>
+                <button class="toolbar-btn zoom" id="tool-zoom-out" title="Zoom Out (-)">➖</button>
+                <button class="toolbar-btn zoom reset" id="tool-zoom-reset" title="Reset (0)">🎯</button>
                 <div class="toolbar-divider"></div>
-                <button class="toolbar-btn" id="tool-select-all" data-tooltip="전체선택 (⌘A)">✅</button>
-                <button class="toolbar-btn danger" id="tool-delete" data-tooltip="삭제 (Del)">🗑️</button>
-                <button class="toolbar-btn" id="tool-deselect" data-tooltip="해제 (Esc)">❌</button>
+                <button class="toolbar-btn" id="tool-select-all" title="전체선택 (⌘A)">✅</button>
+                <button class="toolbar-btn danger" id="tool-delete" title="삭제 (Del)">🗑️</button>
+                <button class="toolbar-btn" id="tool-deselect" title="해제 (Esc)">❌</button>
                 <div class="toolbar-divider"></div>
-                <button class="toolbar-btn" id="align-btn" data-tooltip="정렬 (L)">📏</button>
-                <button class="toolbar-btn" id="tool-rotate" data-tooltip="회전 (R)">🔄</button>
+                <button class="toolbar-btn" id="align-btn" title="정렬 (L)">📏</button>
+                <button class="toolbar-btn" id="tool-rotate" title="회전 (R)">🔄</button>
                 <div class="toolbar-divider"></div>
                 <!-- ✅ Phase 3: Equipment Array + 그룹화 버튼 -->
-                <button class="toolbar-btn" id="tool-eq-array" data-tooltip="Equipment Array (A)">🏭</button>
-                <button class="toolbar-btn group" id="tool-group" data-tooltip="그룹화 (⌘G)">📦</button>
-                <button class="toolbar-btn group" id="tool-ungroup" data-tooltip="그룹해제 (⇧⌘G)">📤</button>
+                <button class="toolbar-btn" id="tool-eq-array" title="Equipment Array (A)">🏭</button>
+                <button class="toolbar-btn group" id="tool-group" title="그룹화 (⌘G)">📦</button>
+                <button class="toolbar-btn group" id="tool-ungroup" title="그룹해제 (⇧⌘G)">📤</button>
                 <div class="toolbar-divider"></div>
-                <button class="toolbar-btn" id="tool-sample" data-tooltip="샘플 로드">📁</button>
+                <button class="toolbar-btn" id="tool-sample" title="샘플 로드">📁</button>
             </div>
             <div class="component-submenu" id="component-submenu">
                 <div class="submenu-content">
@@ -383,6 +384,7 @@
         <span class="status-item">Grid: <span id="status-grid">ON</span></span>
         <span class="status-item">Snap: <span id="status-snap">ON</span></span>
         <span class="status-item mice">🎪 MICE: <span id="status-mice-snap">OFF</span></span>
+        <span class="status-item guides">📏 Guides: <span id="status-smart-guides">ON</span></span>
         <span class="status-item">📦 <span id="status-objects">0</span></span>
         <span class="status-item">⚙️ Eq: <span id="status-equipment">0</span></span>
         <span class="status-item groups">📁 Groups: <span id="status-groups">0</span></span>
@@ -423,6 +425,14 @@
             <li><kbd>A</kbd> Equipment Array</li>
             <li><kbd>⌘G</kbd> 그룹화</li>
             <li><kbd>⇧⌘G</kbd> 그룹 해제</li>
+        </ul>
+        <div class="section-title">✨ Phase 4</div>
+        <ul>
+            <li><kbd>H</kbd> Smart Guides</li>
+            <li><kbd>[</kbd> 뒤로 보내기</li>
+            <li><kbd>]</kbd> 앞으로 보내기</li>
+            <li><kbd>⇧[</kbd> 맨 뒤로</li>
+            <li><kbd>⇧]</kbd> 맨 앞으로</li>
         </ul>
     </div>
 
@@ -726,8 +736,8 @@
                 setInterval(() => this.updateStatus(), 500);
                 
                 document.getElementById('loading-indicator').style.display = 'none';
-                console.log('✅ Layout Editor 초기화 완료 (Phase 3)');
-                this.showToast('Layout Editor 준비 완료! (Phase 3)', 'success');
+                console.log('✅ Layout Editor 초기화 완료 (Phase 4)');
+                this.showToast('Layout Editor 준비 완료! (Phase 4)', 'success');
             }
             
             // =====================================================
@@ -782,6 +792,7 @@
                 document.getElementById('btn-redo').addEventListener('click', () => this.redo());
                 document.getElementById('btn-help').addEventListener('click', () => this.toggleShortcutsHelp());
                 document.getElementById('btn-save').addEventListener('click', () => this.saveLayout());
+                document.getElementById('btn-export-png').addEventListener('click', () => this.exportPNG());
                 document.getElementById('tool-select').addEventListener('click', () => this.activateTool('select'));
                 document.getElementById('tool-room').addEventListener('click', () => this.showRoomSizeModal());
                 document.getElementById('tool-wall').addEventListener('click', () => this.activateTool('wall'));
@@ -923,6 +934,8 @@
                         case 's': this.toggleSnap(); break;
                         // ✅ Phase 2: MICE Snap 토글 (M)
                         case 'm': this.toggleMICESnap(); break;
+                        // ✅ Phase 4: Smart Guides 토글 (H)
+                        case 'h': this.toggleSmartGuides(); break;
                         case 'l': this.toggleAlignPopup(); break;
                         case 'r': e.preventDefault(); if (e.shiftKey) this.rotateCCW(); else this.rotateCW(); break;
                         case '=': case '+': this.zoomIn(); break;
@@ -931,6 +944,9 @@
                         case 'delete': case 'backspace': this.deleteSelected(); break;
                         // ✅ Phase 3: Equipment Array 단축키 (A)
                         case 'a': if (!e.ctrlKey && !e.metaKey) this.showEquipmentArrayModal(); break;
+                        // ✅ Phase 4: 레이어 순서 ([ / ])
+                        case '[': e.shiftKey ? this.sendToBack() : this.sendBackward(); break;
+                        case ']': e.shiftKey ? this.bringToFront() : this.bringForward(); break;
                         case 'escape': 
                             this.deselectAll(); 
                             if (this.componentSubmenuVisible) this.toggleComponentSubmenu(); 
@@ -1041,6 +1057,95 @@
                 }
             }
             
+            // =====================================================
+            // ✅ Phase 4: Smart Guides 토글
+            // =====================================================
+            toggleSmartGuides() {
+                const sgm = this.canvas.smartGuideManager;
+                if (sgm) {
+                    if (sgm.isEnabled()) {
+                        sgm.disable();
+                        document.getElementById('status-smart-guides').textContent = 'OFF';
+                        this.showToast('📏 Smart Guides: OFF', 'info');
+                    } else {
+                        sgm.enable();
+                        document.getElementById('status-smart-guides').textContent = 'ON';
+                        this.showToast('📏 Smart Guides: ON', 'info');
+                    }
+                } else {
+                    this.showToast('SmartGuideManager 로드 안됨', 'error');
+                }
+            }
+            
+            // =====================================================
+            // ✅ Phase 4: 레이어 순서 조절
+            // =====================================================
+            bringForward() {
+                const selected = this.canvas.selectedObjects;
+                if (!selected || selected.length === 0) { this.showToast('선택된 객체 없음', 'info'); return; }
+                selected.forEach(shape => shape.moveUp());
+                this.canvas.stage.batchDraw();
+                this.showToast('↑ 앞으로', 'success');
+            }
+            
+            sendBackward() {
+                const selected = this.canvas.selectedObjects;
+                if (!selected || selected.length === 0) { this.showToast('선택된 객체 없음', 'info'); return; }
+                selected.forEach(shape => shape.moveDown());
+                this.canvas.stage.batchDraw();
+                this.showToast('↓ 뒤로', 'success');
+            }
+            
+            bringToFront() {
+                const selected = this.canvas.selectedObjects;
+                if (!selected || selected.length === 0) { this.showToast('선택된 객체 없음', 'info'); return; }
+                selected.forEach(shape => shape.moveToTop());
+                this.canvas.stage.batchDraw();
+                this.showToast('⬆️ 맨 앞으로', 'success');
+            }
+            
+            sendToBack() {
+                const selected = this.canvas.selectedObjects;
+                if (!selected || selected.length === 0) { this.showToast('선택된 객체 없음', 'info'); return; }
+                selected.forEach(shape => shape.moveToBottom());
+                this.canvas.stage.batchDraw();
+                this.showToast('⬇️ 맨 뒤로', 'success');
+            }
+            
+            // =====================================================
+            // ✅ Phase 4: Export PNG/SVG (Konva 내장 기능 활용)
+            // =====================================================
+            exportPNG() {
+                try {
+                    const dataURL = this.canvas.stage.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
+                    const link = document.createElement('a');
+                    link.href = dataURL;
+                    link.download = `layout_${Date.now()}.png`;
+                    link.click();
+                    this.showToast('🖼️ PNG 저장 완료!', 'success');
+                } catch (error) {
+                    console.error('[Export PNG Error]', error);
+                    this.showToast('PNG 저장 실패: ' + error.message, 'error');
+                }
+            }
+            
+            exportSVG() {
+                try {
+                    // SVG는 toDataURL로 직접 지원되지 않아 간단한 workaround
+                    const dataURL = this.canvas.stage.toDataURL({ mimeType: 'image/png' });
+                    // 실제 SVG 변환은 canvg 등 외부 라이브러리 필요
+                    // 여기서는 PNG로 대체하고 안내
+                    const link = document.createElement('a');
+                    link.href = dataURL;
+                    link.download = `layout_${Date.now()}.png`;
+                    link.click();
+                    this.showToast('📐 이미지 저장 완료 (SVG는 별도 변환 필요)', 'info');
+                } catch (error) {
+                    console.error('[Export SVG Error]', error);
+                    this.showToast('저장 실패: ' + error.message, 'error');
+                }
+            }
+            
             zoomIn() { 
                 this.zoomController?.zoomIn(); 
                 this.zoomController?.updateGrid?.();
@@ -1094,6 +1199,11 @@
                 // ✅ Phase 3: 그룹 수 표시
                 const groupCount = this.groupingTool?.getGroupCount?.() || 0;
                 document.getElementById('status-groups').textContent = groupCount;
+                
+                // ✅ Phase 4: Smart Guides 상태
+                if (this.canvas.smartGuideManager) {
+                    document.getElementById('status-smart-guides').textContent = this.canvas.smartGuideManager.isEnabled?.() ? 'ON' : 'OFF';
+                }
                 
                 // ✅ Phase 1: Undo/Redo 상태 업데이트
                 if (this.commandManager) {
