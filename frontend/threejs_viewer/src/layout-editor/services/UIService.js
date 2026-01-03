@@ -3,6 +3,8 @@
  * =============
  * UI 관련 서비스 (모달, 토스트, 상태바, 팝업)
  * 
+ * @version 1.1.0 - Equipment Array 모달 input ID 수정
+ * 
  * 위치: frontend/threejs_viewer/src/layout-editor/services/UIService.js
  */
 
@@ -25,7 +27,7 @@ class UIService {
             loadingIndicator: 'loading-indicator'
         };
         
-        console.log('✅ UIService 초기화 완료');
+        console.log('✅ UIService 초기화 완료 v1.1.0');
     }
     
     // =====================================================
@@ -169,7 +171,7 @@ class UIService {
     }
     
     // =====================================================
-    // Equipment Array Modal
+    // Equipment Array Modal - ✅ v1.1.0: ID 수정
     // =====================================================
     
     showEquipmentArrayModal() {
@@ -180,17 +182,61 @@ class UIService {
         document.getElementById(this.domIds.eqArrayModal)?.classList.remove('active');
     }
     
+    /**
+     * ✅ v1.1.0: 모달 input ID 수정 - 전체 config 지원
+     */
     applyEquipmentArray() {
-        const rows = parseInt(document.getElementById('eq-rows')?.value) || 3;
-        const cols = parseInt(document.getElementById('eq-cols')?.value) || 5;
-        const spacingX = parseFloat(document.getElementById('eq-spacing-x')?.value) || 2.0;
-        const spacingY = parseFloat(document.getElementById('eq-spacing-y')?.value) || 3.5;
+        // ✅ 올바른 input ID 사용 (eq-array-xxx 형식)
+        const rows = parseInt(document.getElementById('eq-array-rows')?.value) || 6;
+        const cols = parseInt(document.getElementById('eq-array-cols')?.value) || 26;
+        const equipmentWidth = parseFloat(document.getElementById('eq-array-width')?.value) || 1.5;
+        const equipmentDepth = parseFloat(document.getElementById('eq-array-depth')?.value) || 3.0;
+        const spacing = parseFloat(document.getElementById('eq-array-spacing')?.value) || 0.3;
+        
+        // 복도 위치 파싱 (쉼표로 구분된 숫자들)
+        const corridorColsStr = document.getElementById('eq-array-corridor-cols')?.value || '13';
+        const corridorCols = corridorColsStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+        const corridorColWidth = parseFloat(document.getElementById('eq-array-corridor-col-width')?.value) || 3.0;
+        
+        const corridorRowsStr = document.getElementById('eq-array-corridor-rows')?.value || '3';
+        const corridorRows = corridorRowsStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+        const corridorRowWidth = parseFloat(document.getElementById('eq-array-corridor-row-width')?.value) || 2.0;
+        
+        // ✅ 전체 config 구성
+        const config = {
+            rows: rows,
+            cols: cols,
+            equipmentSize: {
+                width: equipmentWidth,
+                depth: equipmentDepth,
+                height: 2.0  // 기본 높이
+            },
+            spacing: spacing,
+            spacingX: spacing,
+            spacingY: spacing,
+            corridorCols: corridorCols,
+            corridorColWidth: corridorColWidth,
+            corridorRows: corridorRows,
+            corridorRowWidth: corridorRowWidth,
+            excludedPositions: []
+        };
+        
+        console.log('[UIService] Equipment Array Config:', config);
         
         this.closeEquipmentArrayModal();
         
         const eqArrayTool = this.toolService?.tools?.equipmentArray;
         if (eqArrayTool) {
-            eqArrayTool.startArrayPlacement({ rows, cols, spacingX, spacingY });
+            // ✅ startArrayPlacement 또는 activate 호출
+            if (typeof eqArrayTool.startArrayPlacement === 'function') {
+                eqArrayTool.startArrayPlacement(config);
+            } else if (typeof eqArrayTool.activate === 'function') {
+                eqArrayTool.activate(config);
+            } else {
+                this.showToast('EquipmentArrayTool 메서드 없음', 'error');
+                return false;
+            }
+            
             this.showToast(`클릭하여 ${rows}×${cols} 배열 시작점 지정`, 'info');
             return true;
         } else {
@@ -335,4 +381,4 @@ if (typeof window !== 'undefined') {
     window.UIService = UIService;
 }
 
-console.log('✅ UIService.js 로드 완료');
+console.log('✅ UIService.js 로드 완료 v1.1.0');

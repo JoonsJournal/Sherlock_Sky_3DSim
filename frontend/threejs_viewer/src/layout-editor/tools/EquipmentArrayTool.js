@@ -5,12 +5,13 @@
  * 복도를 고려하여 26×6 설비 배열 생성 및 관리
  * 
  * @module EquipmentArrayTool
- * @version 1.2.0 - Phase 3.2: Command Pattern 적용 (GroupCommand로 Undo/Redo 지원)
+ * @version 1.2.1 - Phase 3.2: Command Pattern 적용 + API 호환성 수정
  * 
- * 변경사항 (v1.2.0):
+ * 변경사항 (v1.2.1):
+ * - startArrayPlacement() 메서드 추가 (UIService 호환)
+ * - 간단한 config 형식 지원 ({ rows, cols, spacingX, spacingY })
  * - 설비 배열 생성 시 여러 CreateCommand를 GroupCommand로 묶음
  * - 한 번의 Undo로 전체 배열 삭제 가능
- * - detachFromGroup에서도 Command 패턴 적용
  * 
  * 위치: frontend/threejs_viewer/src/layout-editor/tools/EquipmentArrayTool.js
  */
@@ -18,16 +19,23 @@
 class EquipmentArrayTool {
     /**
      * @param {Canvas2DEditor} canvas2DEditor - 캔버스 에디터 인스턴스
-     * @param {CommandManager} commandManager - Command 관리자 (optional, canvas에서 가져올 수도 있음)
+     * @param {CommandManager} commandManager - Command 관리자 (optional)
      */
     constructor(canvas2DEditor, commandManager = null) {
         this.canvas = canvas2DEditor;
         // CommandManager는 직접 전달받거나 canvas에서 참조
-        this.commandManager = commandManager || canvas2DEditor.commandManager || null;
+        this.commandManager = commandManager || canvas2DEditor?.commandManager || null;
         
         this.isActive = false;
         this.startPoint = null;
         this.config = null;
+        
+        // 기본 설비 크기 설정
+        this.defaultEquipmentSize = {
+            width: 1.4,  // 미터
+            depth: 1.8,  // 미터
+            height: 2.0  // 미터
+        };
         
         this.handlers = {
             click: null,
@@ -37,7 +45,7 @@ class EquipmentArrayTool {
 
         this.previewGroup = null;
 
-        console.log('[EquipmentArrayTool] Initialized v1.2.0 (Command Pattern 지원)');
+        console.log('[EquipmentArrayTool] Initialized v1.2.1 (Command Pattern + API 호환)');
         
         if (!this.commandManager) {
             console.warn('[EquipmentArrayTool] CommandManager가 없습니다. Undo/Redo가 작동하지 않습니다.');
@@ -53,11 +61,78 @@ class EquipmentArrayTool {
         console.log('[EquipmentArrayTool] CommandManager 설정됨');
     }
 
+    /**
+     * ✨ v1.2.1: UIService 호환 메서드
+     * 배열 배치 시작 (간단한 config 형식 지원)
+     * @param {Object} simpleConfig - { rows, cols, spacingX, spacingY }
+     */
+    startArrayPlacement(simpleConfig) {
+        console.log('[EquipmentArrayTool] startArrayPlacement called with:', simpleConfig);
+        
+        // 간단한 config를 전체 config로 변환
+        const fullConfig = this.normalizeConfig(simpleConfig);
+        
+        // activate 호출
+        this.activate(fullConfig);
+    }
+
+    /**
+     * ✨ v1.2.1: 간단한 config를 전체 config 형식으로 변환
+     * @param {Object} simpleConfig - { rows, cols, spacingX, spacingY } 또는 전체 config
+     * @returns {Object} 전체 config
+     */
+    normalizeConfig(simpleConfig) {
+        // 이미 전체 config 형식인 경우 그대로 반환
+        if (simpleConfig.equipmentSize && simpleConfig.corridorCols) {
+            return simpleConfig;
+        }
+
+        const {
+            rows = 6,
+            cols = 26,
+            spacingX = 0.5,
+            spacingY = 0.5,
+            spacing = 0.5,
+            equipmentWidth = this.defaultEquipmentSize.width,
+            equipmentDepth = this.defaultEquipmentSize.depth,
+            equipmentHeight = this.defaultEquipmentSize.height,
+            corridorCols = [13],      // 기본: 13열 뒤에 복도
+            corridorColWidth = 3.0,   // 복도 폭 (미터)
+            corridorRows = [3],       // 기본: 3행 뒤에 복도
+            corridorRowWidth = 3.0,
+            excludedPositions = []
+        } = simpleConfig;
+
+        return {
+            rows,
+            cols,
+            equipmentSize: {
+                width: equipmentWidth,
+                depth: equipmentDepth,
+                height: equipmentHeight
+            },
+            spacing: spacing || spacingX,  // spacingX를 기본 spacing으로 사용
+            spacingX,
+            spacingY,
+            corridorCols: Array.isArray(corridorCols) ? corridorCols : [corridorCols],
+            corridorColWidth,
+            corridorRows: Array.isArray(corridorRows) ? corridorRows : [corridorRows],
+            corridorRowWidth,
+            excludedPositions
+        };
+    }
+
+    /**
+     * 도구 활성화
+     * @param {Object} config - 전체 config 또는 간단한 config
+     */
     activate(config) {
-        console.log('[EquipmentArrayTool] Activating with config:', config);
+        // config 정규화
+        this.config = this.normalizeConfig(config);
+        
+        console.log('[EquipmentArrayTool] Activating with normalized config:', this.config);
         
         this.isActive = true;
-        this.config = config;
         this.startPoint = null;
 
         this.canvas.stage.container().style.cursor = 'crosshair';
@@ -76,7 +151,8 @@ class EquipmentArrayTool {
 
         this.handlers.mousemove = (e) => {
             if (!this.startPoint) {
-                // 미리보기 (선택사항)
+                // 미리보기 표시 (선택사항)
+                this.showPreview(e);
             }
         };
 
@@ -91,7 +167,16 @@ class EquipmentArrayTool {
         this.canvas.stage.on('mousemove', this.handlers.mousemove);
         window.addEventListener('keydown', this.handlers.keydown);
 
-        console.log('[EquipmentArrayTool] Activated');
+        console.log('[EquipmentArrayTool] Activated - Click to place array');
+    }
+
+    /**
+     * 미리보기 표시 (선택사항)
+     * @param {Event} e - 마우스 이벤트
+     */
+    showPreview(e) {
+        // 미리보기 구현 (필요시)
+        // 현재는 커서만 crosshair로 변경
     }
 
     deactivate() {
@@ -135,6 +220,8 @@ class EquipmentArrayTool {
             cols,
             equipmentSize,
             spacing,
+            spacingX,
+            spacingY,
             corridorCols,
             corridorColWidth,
             corridorRows,
@@ -142,7 +229,7 @@ class EquipmentArrayTool {
             excludedPositions
         } = this.config;
 
-        // ✨ v1.2.0: 배열 그룹 생성 (아직 레이어에 추가하지 않음)
+        // 배열 그룹 생성
         const arrayGroup = new Konva.Group({
             x: startPoint.x,
             y: startPoint.y,
@@ -157,6 +244,8 @@ class EquipmentArrayTool {
             cols,
             equipmentSize,
             spacing,
+            spacingX,
+            spacingY,
             corridorCols,
             corridorColWidth,
             corridorRows,
@@ -164,14 +253,12 @@ class EquipmentArrayTool {
             rotation: 0
         });
 
-        // ✨ v1.2.0: CreateCommand들을 저장할 배열
-        const createCommands = [];
         let equipmentCount = 0;
 
         // 개별 설비 생성
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
-                if (this.isExcluded(row, col, excludedPositions)) {
+                if (this.isExcluded(row, col, excludedPositions || [])) {
                     console.log(`[EquipmentArrayTool] Position (${row}, ${col}) excluded`);
                     continue;
                 }
@@ -196,13 +283,13 @@ class EquipmentArrayTool {
             // GroupCommand로 감싸서 설명 추가
             const groupCommand = new window.GroupCommand(
                 [createArrayCommand],
-                `Create Equipment Array (${equipmentCount} items)`
+                `Create Equipment Array ${rows}×${cols} (${equipmentCount} items)`
             );
             
             // CommandManager를 통해 실행 (Undo/Redo 지원)
             this.commandManager.execute(groupCommand, true);
             
-            console.log(`[EquipmentArrayTool] Array created via Command Pattern (${equipmentCount} equipment)`);
+            console.log(`[EquipmentArrayTool] ✅ Array created via Command Pattern (${equipmentCount} equipment)`);
         } else {
             // CommandManager가 없는 경우 직접 추가 (기존 방식)
             this.canvas.layers.equipment.add(arrayGroup);
@@ -213,7 +300,9 @@ class EquipmentArrayTool {
 
         // 드래그 종료 시 그리드 스냅
         arrayGroup.on('dragend', () => {
-            this.canvas.snapToGrid(arrayGroup);
+            if (this.canvas.snapToGrid) {
+                this.canvas.snapToGrid(arrayGroup);
+            }
         });
 
         // 개별 분리 리스너 설정
@@ -247,36 +336,41 @@ class EquipmentArrayTool {
         const {
             equipmentSize,
             spacing,
+            spacingX,
+            spacingY,
             corridorCols,
             corridorColWidth,
             corridorRows,
             corridorRowWidth
         } = this.config;
 
-        const scale = this.canvas.config.scale;
+        const scale = this.canvas.config?.scale || 20; // 기본 스케일
 
         // 픽셀 단위 변환
         const equipWidthPx = equipmentSize.width * scale;
         const equipDepthPx = equipmentSize.depth * scale;
-        const spacingPx = spacing * scale;
+        
+        // spacingX/spacingY가 있으면 사용, 없으면 spacing 사용
+        const spacingXPx = (spacingX || spacing || 0.5) * scale;
+        const spacingYPx = (spacingY || spacing || 0.5) * scale;
 
         let x = 0;
         let y = 0;
 
         // X 좌표 계산 (Col)
         for (let c = 0; c < col; c++) {
-            x += equipWidthPx + spacingPx;
+            x += equipWidthPx + spacingXPx;
             
-            if (corridorCols.includes(c + 1)) {
+            if (corridorCols && corridorCols.includes(c + 1)) {
                 x += corridorColWidth * scale;
             }
         }
 
         // Y 좌표 계산 (Row)
         for (let r = 0; r < row; r++) {
-            y += equipDepthPx + spacingPx;
+            y += equipDepthPx + spacingYPx;
             
-            if (corridorRows.includes(r + 1)) {
+            if (corridorRows && corridorRows.includes(r + 1)) {
                 y += corridorRowWidth * scale;
             }
         }
@@ -285,11 +379,14 @@ class EquipmentArrayTool {
     }
 
     isExcluded(row, col, excludedPositions) {
+        if (!excludedPositions || !Array.isArray(excludedPositions)) {
+            return false;
+        }
         return excludedPositions.some(pos => pos.row === row && pos.col === col);
     }
 
     createEquipment(row, col, position, equipmentSize) {
-        const scale = this.canvas.config.scale;
+        const scale = this.canvas.config?.scale || 20;
         
         const widthPx = equipmentSize.width * scale;
         const depthPx = equipmentSize.depth * scale;
@@ -306,18 +403,23 @@ class EquipmentArrayTool {
         equipGroup.setAttr('equipmentData', {
             row,
             col,
-            id: `EQ-${String(row + 1).padStart(2, '0')}-${String(col + 1).padStart(2, '0')}`,
+            id: `EQ-${String(row + 1).padStart(2, '0')}-${String(col + 1).padStart(2, '00')}`,
             size: equipmentSize,
             rotation: 0
         });
+
+        // 색상 설정 (canvas에서 가져오거나 기본값 사용)
+        const fillColor = this.canvas.cssColors?.equipmentDefault || '#4a90d9';
+        const strokeColor = this.canvas.cssColors?.equipmentStroke || '#2d5a87';
+        const hoverColor = this.canvas.cssColors?.equipmentHover || '#5ba3ec';
 
         const rect = new Konva.Rect({
             x: 0,
             y: 0,
             width: widthPx,
             height: depthPx,
-            fill: this.canvas.cssColors.equipmentDefault,
-            stroke: this.canvas.cssColors.equipmentStroke,
+            fill: fillColor,
+            stroke: strokeColor,
             strokeWidth: 1,
             name: 'equipmentRect'
         });
@@ -328,7 +430,7 @@ class EquipmentArrayTool {
             width: widthPx,
             height: depthPx,
             text: `${row + 1}-${col + 1}`,
-            fontSize: 10,
+            fontSize: Math.min(10, widthPx / 3),
             fontFamily: 'Arial',
             fill: '#ffffff',
             align: 'center',
@@ -338,16 +440,16 @@ class EquipmentArrayTool {
 
         // 호버 이벤트
         equipGroup.on('mouseenter', () => {
-            if (!this.canvas.selectedObjects.includes(equipGroup)) {
-                rect.fill(this.canvas.cssColors.equipmentHover);
+            if (!this.canvas.selectedObjects?.includes(equipGroup)) {
+                rect.fill(hoverColor);
                 this.canvas.layers.equipment.batchDraw();
             }
             this.canvas.stage.container().style.cursor = 'pointer';
         });
 
         equipGroup.on('mouseleave', () => {
-            if (!this.canvas.selectedObjects.includes(equipGroup)) {
-                rect.fill(this.canvas.cssColors.equipmentDefault);
+            if (!this.canvas.selectedObjects?.includes(equipGroup)) {
+                rect.fill(fillColor);
                 this.canvas.layers.equipment.batchDraw();
             }
             this.canvas.stage.container().style.cursor = 'default';
@@ -367,7 +469,7 @@ class EquipmentArrayTool {
         arrayGroup.on('click', (e) => {
             const target = e.target.getParent();
             
-            if (e.evt.shiftKey && target.name() === 'equipment') {
+            if (e.evt.shiftKey && target && target.name() === 'equipment') {
                 e.cancelBubble = true;
                 
                 console.log('[EquipmentArrayTool] Detaching equipment:', target.getAttr('equipmentData'));
@@ -402,7 +504,9 @@ class EquipmentArrayTool {
                 
                 // 3. 이벤트 재설정
                 equipment.on('dragend', () => {
-                    this.canvas.snapToGrid(equipment);
+                    if (this.canvas.snapToGrid) {
+                        this.canvas.snapToGrid(equipment);
+                    }
                 });
 
                 equipment.off('click');
@@ -410,9 +514,9 @@ class EquipmentArrayTool {
                     e.cancelBubble = true;
                     
                     if (e.evt.ctrlKey || e.evt.metaKey) {
-                        this.canvas.selectMultiple(equipment);
+                        this.canvas.selectMultiple?.(equipment);
                     } else {
-                        this.canvas.selectObject(equipment, false);
+                        this.canvas.selectObject?.(equipment, false);
                     }
                 });
 
@@ -421,7 +525,7 @@ class EquipmentArrayTool {
                 // 트랜잭션 커밋
                 this.commandManager.commitTransaction();
                 
-                console.log('[EquipmentArrayTool] Equipment detached via Command Pattern');
+                console.log('[EquipmentArrayTool] ✅ Equipment detached via Command Pattern');
             } catch (error) {
                 // 오류 시 롤백
                 this.commandManager.rollbackTransaction();
@@ -435,7 +539,9 @@ class EquipmentArrayTool {
             equipment.draggable(true);
             
             equipment.on('dragend', () => {
-                this.canvas.snapToGrid(equipment);
+                if (this.canvas.snapToGrid) {
+                    this.canvas.snapToGrid(equipment);
+                }
             });
 
             equipment.off('click');
@@ -443,9 +549,9 @@ class EquipmentArrayTool {
                 e.cancelBubble = true;
                 
                 if (e.evt.ctrlKey || e.evt.metaKey) {
-                    this.canvas.selectMultiple(equipment);
+                    this.canvas.selectMultiple?.(equipment);
                 } else {
-                    this.canvas.selectObject(equipment, false);
+                    this.canvas.selectObject?.(equipment, false);
                 }
             });
 
@@ -480,7 +586,7 @@ class EquipmentArrayTool {
             );
             
             this.commandManager.execute(groupCommand, true);
-            console.log(`[EquipmentArrayTool] Array deleted via Command Pattern (${equipmentCount} equipment)`);
+            console.log(`[EquipmentArrayTool] ✅ Array deleted via Command Pattern (${equipmentCount} equipment)`);
         } else {
             // 직접 삭제
             arrayGroup.destroy();
@@ -545,7 +651,7 @@ class EquipmentArrayTool {
                 this.setupDetachListener(newGroup);
                 
                 this.commandManager.commitTransaction();
-                console.log(`[EquipmentArrayTool] ${equipments.length} equipments grouped via Command Pattern`);
+                console.log(`[EquipmentArrayTool] ✅ ${equipments.length} equipments grouped via Command Pattern`);
             } catch (error) {
                 this.commandManager.rollbackTransaction();
                 console.error('[EquipmentArrayTool] Grouping failed:', error);
@@ -573,6 +679,23 @@ class EquipmentArrayTool {
 
         return newGroup;
     }
+
+    /**
+     * 기본 설비 크기 설정
+     * @param {Object} size - { width, depth, height }
+     */
+    setDefaultEquipmentSize(size) {
+        this.defaultEquipmentSize = { ...this.defaultEquipmentSize, ...size };
+        console.log('[EquipmentArrayTool] Default equipment size updated:', this.defaultEquipmentSize);
+    }
+
+    /**
+     * 현재 설정 반환
+     * @returns {Object}
+     */
+    getConfig() {
+        return this.config ? { ...this.config } : null;
+    }
 }
 
 // =====================================================
@@ -586,3 +709,5 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof window !== 'undefined') {
     window.EquipmentArrayTool = EquipmentArrayTool;
 }
+
+console.log('✅ EquipmentArrayTool.js v1.2.1 로드 완료');
