@@ -1,7 +1,14 @@
 /**
- * ToolService.js
- * ===============
+ * ToolService.js v2.0.0
+ * =====================
  * 도구 초기화 및 관리 서비스
+ * 
+ * ✨ v2.0.0 수정 (Phase 5.1 - Tool-Command 통합):
+ * - ✅ CommandManager 참조 추가
+ * - ✅ ObjectSelectionTool에 CommandManager 연결
+ * - ✅ WallDrawTool에 CommandManager 연결 (향후 확장)
+ * - ✅ AlignmentTool에 CommandManager 연결 (향후 확장)
+ * - ✅ EquipmentArrayTool에 CommandManager 연결 (향후 확장)
  * 
  * 위치: frontend/threejs_viewer/src/layout-editor/services/ToolService.js
  */
@@ -12,6 +19,9 @@ class ToolService {
         this.state = options.state || window.layoutEditorState;
         this.onToolChanged = options.onToolChanged || (() => {});
         this.onToast = options.onToast || (() => {});
+        
+        // ✨ v2.0.0: CommandManager 참조
+        this.commandManager = options.commandManager || null;
         
         // 도구 인스턴스
         this.tools = {
@@ -29,7 +39,57 @@ class ToolService {
         // PropertyPanel
         this.propertyPanel = null;
         
-        console.log('✅ ToolService 초기화 완료');
+        console.log('✅ ToolService 초기화 완료 v2.0.0');
+    }
+    
+    /**
+     * ✨ v2.0.0: CommandManager 설정 (외부에서 주입)
+     */
+    setCommandManager(commandManager) {
+        this.commandManager = commandManager;
+        
+        // 이미 초기화된 Tool들에 CommandManager 전달
+        this._injectCommandManagerToTools();
+        
+        console.log('[ToolService] CommandManager 설정 완료');
+    }
+    
+    /**
+     * ✨ v2.0.0: 모든 Tool에 CommandManager 주입
+     * @private
+     */
+    _injectCommandManagerToTools() {
+        if (!this.commandManager) return;
+        
+        // ObjectSelectionTool
+        if (this.tools.selection?.setCommandManager) {
+            this.tools.selection.setCommandManager(this.commandManager);
+            console.log('  ✓ ObjectSelectionTool ← CommandManager 연결');
+        }
+        
+        // WallDrawTool (향후 setCommandManager 메서드 추가 시)
+        if (this.tools.wall?.setCommandManager) {
+            this.tools.wall.setCommandManager(this.commandManager);
+            console.log('  ✓ WallDrawTool ← CommandManager 연결');
+        }
+        
+        // AlignmentTool (향후 setCommandManager 메서드 추가 시)
+        if (this.tools.alignment?.setCommandManager) {
+            this.tools.alignment.setCommandManager(this.commandManager);
+            console.log('  ✓ AlignmentTool ← CommandManager 연결');
+        }
+        
+        // EquipmentArrayTool (향후 setCommandManager 메서드 추가 시)
+        if (this.tools.equipmentArray?.setCommandManager) {
+            this.tools.equipmentArray.setCommandManager(this.commandManager);
+            console.log('  ✓ EquipmentArrayTool ← CommandManager 연결');
+        }
+        
+        // GroupingTool (향후 setCommandManager 메서드 추가 시)
+        if (this.tools.grouping?.setCommandManager) {
+            this.tools.grouping.setCommandManager(this.commandManager);
+            console.log('  ✓ GroupingTool ← CommandManager 연결');
+        }
     }
     
     /**
@@ -44,6 +104,11 @@ class ToolService {
         this.initEquipmentArrayTool();
         this.initRoomSizeManager();
         this.initPropertyPanel();
+        
+        // ✨ v2.0.0: 이미 CommandManager가 있으면 주입
+        if (this.commandManager) {
+            this._injectCommandManagerToTools();
+        }
         
         console.log('✅ 모든 도구 초기화 완료');
         return this.tools;
@@ -81,6 +146,12 @@ class ToolService {
     initSelectionTool() {
         if (typeof ObjectSelectionTool !== 'undefined') {
             this.tools.selection = new ObjectSelectionTool(this.canvas);
+            
+            // ✨ v2.0.0: CommandManager 즉시 연결 (있으면)
+            if (this.commandManager && this.tools.selection.setCommandManager) {
+                this.tools.selection.setCommandManager(this.commandManager);
+            }
+            
             this.tools.selection.activate();
             console.log('  ✓ ObjectSelectionTool');
         }
@@ -94,6 +165,12 @@ class ToolService {
         if (typeof WallDrawTool !== 'undefined') {
             this.tools.wall = new WallDrawTool(this.canvas);
             this.canvas.setWallDrawTool(this.tools.wall);
+            
+            // ✨ v2.0.0: CommandManager 연결 (메서드 있으면)
+            if (this.commandManager && this.tools.wall.setCommandManager) {
+                this.tools.wall.setCommandManager(this.commandManager);
+            }
+            
             console.log('  ✓ WallDrawTool');
         }
         return this.tools.wall;
@@ -105,6 +182,12 @@ class ToolService {
     initAlignmentTool() {
         if (typeof AlignmentTool !== 'undefined') {
             this.tools.alignment = new AlignmentTool(this.canvas);
+            
+            // ✨ v2.0.0: CommandManager 연결 (메서드 있으면)
+            if (this.commandManager && this.tools.alignment.setCommandManager) {
+                this.tools.alignment.setCommandManager(this.commandManager);
+            }
+            
             console.log('  ✓ AlignmentTool');
         }
         return this.tools.alignment;
@@ -116,6 +199,12 @@ class ToolService {
     initGroupingTool() {
         if (typeof GroupingTool !== 'undefined') {
             this.tools.grouping = new GroupingTool(this.canvas);
+            
+            // ✨ v2.0.0: CommandManager 연결 (메서드 있으면)
+            if (this.commandManager && this.tools.grouping.setCommandManager) {
+                this.tools.grouping.setCommandManager(this.commandManager);
+            }
+            
             console.log('  ✓ GroupingTool');
         }
         return this.tools.grouping;
@@ -128,6 +217,12 @@ class ToolService {
         if (typeof EquipmentArrayTool !== 'undefined') {
             this.tools.equipmentArray = new EquipmentArrayTool(this.canvas);
             this.canvas.equipmentArrayTool = this.tools.equipmentArray;
+            
+            // ✨ v2.0.0: CommandManager 연결 (메서드 있으면)
+            if (this.commandManager && this.tools.equipmentArray.setCommandManager) {
+                this.tools.equipmentArray.setCommandManager(this.commandManager);
+            }
+            
             console.log('  ✓ EquipmentArrayTool');
         }
         return this.tools.equipmentArray;
@@ -451,6 +546,13 @@ class ToolService {
     getPropertyPanel() {
         return this.propertyPanel;
     }
+    
+    /**
+     * ✨ v2.0.0: CommandManager 가져오기
+     */
+    getCommandManager() {
+        return this.commandManager;
+    }
 }
 
 // 전역 노출
@@ -458,4 +560,4 @@ if (typeof window !== 'undefined') {
     window.ToolService = ToolService;
 }
 
-console.log('✅ ToolService.js 로드 완료');
+console.log('✅ ToolService.js 로드 완료 v2.0.0');

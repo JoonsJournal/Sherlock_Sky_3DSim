@@ -1,25 +1,32 @@
 /**
- * ObjectSelectionTool.js v4.0.6 (3.2.9 기반)
+ * ObjectSelectionTool.js v5.0.0
  * ====================================================
  * 
- * ✨ v4.0.6 수정:
+ * ✨ v5.0.0 수정 (Phase 5.1 - Tool-Command 통합):
+ * - ✅ CommandManager 연동으로 Undo/Redo 지원
+ * - ✅ 드래그 시작 시 원래 위치 저장 (_dragStartPositions)
+ * - ✅ 드래그 완료 시 MoveCommand 생성 및 실행
+ * - ✅ 다중 선택 드래그도 Command 기록
+ * - ✅ 삭제 시 DeleteCommand 사용
+ * 
+ * ✨ v4.0.6 기능 유지:
  * - ✅ SmartGuideManager 연동 (드래그 시 정렬 가이드라인)
  * - ✅ 드래그 시작 시 참조 객체 설정
  * - ✅ 드래그 중 스냅 적용
  * - ✅ 드래그 종료 시 가이드라인 정리
  * 
- * ✨ v4.0.5 수정:
+ * ✨ v4.0.5 기능 유지:
  * - ✅ 부분 문자열 매칭으로 선택 로직 변경
  * - ✅ 'equipment component', 'partition component' 등 복합 이름 지원
  * 
- * ✨ v4.0.4 기능:
+ * ✨ v4.0.4 기능 유지:
  * - ✅ 박스 선택에서 Wall, Office, Partition도 선택 가능
  * - ✅ 여러 레이어(equipment, room) 검색
  * 
- * ✨ v4.0.3 기능:
+ * ✨ v4.0.3 기능 유지:
  * - ✅ WallDrawTool 활성화 시 박스 선택 비활성화
  * 
- * ✨ v4.0.2 기능:
+ * ✨ v4.0.2 기능 유지:
  * - ✅ 동적 좌표 표시 (Zoom 레벨 고려)
  * - ✅ ZoomController 통합
  * 
@@ -38,6 +45,9 @@ class ObjectSelectionTool {
         this.editor = canvas2DEditor;
         this.isActive = false;
         
+        // ✨ v5.0.0: CommandManager 참조
+        this.commandManager = null;
+        
         // 키 상태
         this.ctrlKeyPressed = false;
         this.shiftKeyPressed = false;
@@ -50,6 +60,10 @@ class ObjectSelectionTool {
         this.isSelecting = false;
         this.justFinishedBoxSelect = false;  // ✅ 박스 선택 방금 완료 플래그
 
+        // ✨ v5.0.0: 드래그 시작 위치 저장 (Undo용)
+        this._dragStartPositions = new Map();  // shape.id() => { x, y }
+        this._isDragging = false;
+
         // CSS 색상 참조 (안전 처리)
         this.cssColors = this.editor.cssColors || this.getDefaultColors();
 
@@ -59,6 +73,40 @@ class ObjectSelectionTool {
         this.handleMouseDown = this.onMouseDown.bind(this);
         this.handleMouseMove = this.onMouseMove.bind(this);
         this.handleMouseUp = this.onMouseUp.bind(this);
+        
+        console.log('[ObjectSelectionTool] 초기화 완료 v5.0.0 (Command 통합)');
+    }
+
+    /**
+     * ✨ v5.0.0: CommandManager 설정
+     * @param {CommandManager} commandManager
+     */
+    setCommandManager(commandManager) {
+        this.commandManager = commandManager;
+        console.log('[ObjectSelectionTool] CommandManager 설정 완료');
+    }
+
+    /**
+     * ✨ v5.0.0: CommandManager 가져오기 (여러 소스에서 시도)
+     * @returns {CommandManager|null}
+     */
+    getCommandManager() {
+        // 1. 직접 설정된 commandManager
+        if (this.commandManager) {
+            return this.commandManager;
+        }
+        
+        // 2. editor.commandManager
+        if (this.editor && this.editor.commandManager) {
+            return this.editor.commandManager;
+        }
+        
+        // 3. 전역 commandManager
+        if (typeof window !== 'undefined' && window.commandManager) {
+            return window.commandManager;
+        }
+        
+        return null;
     }
 
     /**
@@ -118,7 +166,7 @@ class ObjectSelectionTool {
 
         this.attachEventListeners();
 
-        console.log('✅ ObjectSelectionTool activated (Shift+Drag mode)');
+        console.log('✅ ObjectSelectionTool activated (Shift+Drag mode) v5.0.0');
     }
 
     deactivate() {
@@ -135,6 +183,10 @@ class ObjectSelectionTool {
 
         this.detachEventListeners();
         this.editor.deselectAll();
+        
+        // ✨ v5.0.0: 드래그 상태 초기화
+        this._dragStartPositions.clear();
+        this._isDragging = false;
 
         console.log('✅ ObjectSelectionTool deactivated');
     }
@@ -291,11 +343,26 @@ class ObjectSelectionTool {
             document.body.style.cursor = 'default';
         });
 
-        // Drag start
-        shape.on('dragstart', () => {
+        // ✨ v5.0.0: Drag start - 원래 위치 저장
+        shape.on('dragstart', (e) => {
             if (!this.editor.selectedObjects.includes(shape)) {
                 this.editor.selectObject(shape, false);
             }
+            
+            // ✅ 드래그 시작 플래그
+            this._isDragging = true;
+            
+            // ✅ 선택된 모든 객체의 시작 위치 저장 (다중 선택 드래그 지원)
+            this._dragStartPositions.clear();
+            this.editor.selectedObjects.forEach(obj => {
+                this._dragStartPositions.set(obj.id() || obj._id, {
+                    x: obj.x(),
+                    y: obj.y()
+                });
+            });
+            
+            console.log('[ObjectSelectionTool] Drag start - 위치 저장:', 
+                this._dragStartPositions.size, '개 객체');
             
             // ✅ v4.0.6: SmartGuideManager 참조 객체 설정
             if (this.editor.smartGuideManager) {
@@ -306,8 +373,6 @@ class ObjectSelectionTool {
                     this.editor.selectedObjects  // 현재 선택된 객체 제외
                 );
             }
-            
-            console.log('Drag start:', shape.id());
         });
 
         // Drag move
@@ -327,34 +392,119 @@ class ObjectSelectionTool {
             }
         });
 
-        // Drag end
+        // ✨ v5.0.0: Drag end - MoveCommand 생성 및 실행
         shape.on('dragend', () => {
             // ✅ v4.0.6: SmartGuideManager 가이드라인 제거
             if (this.editor.smartGuideManager) {
                 this.editor.smartGuideManager.clearGuides();
             }
             
-            // Snap to Grid
+            // ✅ Snap to Grid 적용
             if (this.editor.config.snapToGrid) {
                 const gridSize = this.editor.config.gridSize;
-                shape.x(Math.round(shape.x() / gridSize) * gridSize);
-                shape.y(Math.round(shape.y() / gridSize) * gridSize);
-                shape.getLayer().batchDraw();
-
-                if (this.editor.transformer) {
-                    this.editor.transformer.forceUpdate();
-                }
+                this.editor.selectedObjects.forEach(obj => {
+                    obj.x(Math.round(obj.x() / gridSize) * gridSize);
+                    obj.y(Math.round(obj.y() / gridSize) * gridSize);
+                });
             }
-
-            this.savePositions();
-
-            console.log('Drag end:', shape.id(), 'Position:', {
-                x: Math.round(shape.x() / this.editor.config.scale * 10) / 10,
-                y: Math.round(shape.y() / this.editor.config.scale * 10) / 10
-            });
-
+            
+            // ✨ v5.0.0: Command 생성 및 실행
+            this._createMoveCommand();
+            
+            // Transformer 업데이트
+            if (this.editor.transformer) {
+                this.editor.transformer.forceUpdate();
+            }
+            
+            this.editor.stage.batchDraw();
             this.hideCoordinates();
+            
+            // 드래그 상태 초기화
+            this._isDragging = false;
         });
+    }
+
+    /**
+     * ✨ v5.0.0: 드래그 완료 후 MoveCommand 생성
+     * @private
+     */
+    _createMoveCommand() {
+        const cmdManager = this.getCommandManager();
+        
+        if (!cmdManager) {
+            console.warn('[ObjectSelectionTool] CommandManager 없음 - Command 기록 생략');
+            this._dragStartPositions.clear();
+            return;
+        }
+        
+        // MoveCommand 클래스 확인
+        const MoveCommandClass = window.MoveCommand;
+        const GroupCommandClass = window.GroupCommand;
+        
+        if (!MoveCommandClass) {
+            console.warn('[ObjectSelectionTool] MoveCommand 클래스 없음 - Command 기록 생략');
+            this._dragStartPositions.clear();
+            return;
+        }
+        
+        const selectedObjects = this.editor.selectedObjects;
+        
+        if (selectedObjects.length === 0) {
+            this._dragStartPositions.clear();
+            return;
+        }
+        
+        // 이동량 계산 (첫 번째 객체 기준)
+        const firstObj = selectedObjects[0];
+        const firstId = firstObj.id() || firstObj._id;
+        const startPos = this._dragStartPositions.get(firstId);
+        
+        if (!startPos) {
+            console.warn('[ObjectSelectionTool] 시작 위치 정보 없음');
+            this._dragStartPositions.clear();
+            return;
+        }
+        
+        // 현재 위치 (Snap 적용 후)
+        const currentX = firstObj.x();
+        const currentY = firstObj.y();
+        
+        // 이동량
+        const deltaX = currentX - startPos.x;
+        const deltaY = currentY - startPos.y;
+        
+        // 이동이 없으면 Command 생성 안함
+        if (Math.abs(deltaX) < 0.1 && Math.abs(deltaY) < 0.1) {
+            console.log('[ObjectSelectionTool] 이동 없음 - Command 생략');
+            this._dragStartPositions.clear();
+            return;
+        }
+        
+        console.log('[ObjectSelectionTool] MoveCommand 생성:', {
+            objects: selectedObjects.length,
+            deltaX: deltaX.toFixed(1),
+            deltaY: deltaY.toFixed(1)
+        });
+        
+        // ✅ 핵심: 원위치로 복원 후 Command 실행
+        // (Command.execute()가 실제 이동을 수행하도록)
+        selectedObjects.forEach(obj => {
+            const objId = obj.id() || obj._id;
+            const objStartPos = this._dragStartPositions.get(objId);
+            if (objStartPos) {
+                obj.x(objStartPos.x);
+                obj.y(objStartPos.y);
+            }
+        });
+        
+        // MoveCommand 생성 및 실행
+        const moveCommand = new MoveCommandClass(selectedObjects, deltaX, deltaY);
+        cmdManager.execute(moveCommand);
+        
+        console.log('[ObjectSelectionTool] ✅ MoveCommand 실행 완료');
+        
+        // 정리
+        this._dragStartPositions.clear();
     }
 
     // =======================================
@@ -586,7 +736,8 @@ class ObjectSelectionTool {
         if (e.key === 'Delete' || e.key === 'Backspace') {
             console.log('🗑️ Delete/Backspace 감지');
             if (this.editor.selectedObjects.length > 0) {
-                this.editor.deleteSelected();
+                // ✨ v5.0.0: DeleteCommand 사용
+                this._deleteSelectedWithCommand();
             }
         }
 
@@ -629,6 +780,38 @@ class ObjectSelectionTool {
             this.ctrlKeyPressed = false;
             console.log('🔓 Ctrl 키 해제');
         }
+    }
+
+    /**
+     * ✨ v5.0.0: DeleteCommand를 사용한 삭제
+     * @private
+     */
+    _deleteSelectedWithCommand() {
+        const cmdManager = this.getCommandManager();
+        const DeleteCommandClass = window.DeleteCommand;
+        
+        if (!cmdManager || !DeleteCommandClass) {
+            console.warn('[ObjectSelectionTool] CommandManager 또는 DeleteCommand 없음 - 직접 삭제');
+            this.editor.deleteSelected();
+            return;
+        }
+        
+        const selectedObjects = [...this.editor.selectedObjects];  // 복사본
+        
+        if (selectedObjects.length === 0) {
+            return;
+        }
+        
+        console.log('[ObjectSelectionTool] DeleteCommand 생성:', selectedObjects.length, '개 객체');
+        
+        // 선택 해제 먼저
+        this.editor.deselectAll();
+        
+        // DeleteCommand 생성 및 실행
+        const deleteCommand = new DeleteCommandClass(selectedObjects);
+        cmdManager.execute(deleteCommand);
+        
+        console.log('[ObjectSelectionTool] ✅ DeleteCommand 실행 완료');
     }
 
     // =======================================
@@ -757,6 +940,7 @@ class ObjectSelectionTool {
 
     destroy() {
         this.deactivate();
+        this._dragStartPositions.clear();
         console.log('✅ ObjectSelectionTool destroyed');
     }
 }

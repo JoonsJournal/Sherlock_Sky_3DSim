@@ -1,7 +1,12 @@
 /**
- * initLayoutServices.js
- * =====================
+ * initLayoutServices.js v2.0.0
+ * ============================
  * Layout Editor 서비스 초기화
+ * 
+ * ✨ v2.0.0 수정 (Phase 5.1 - Tool-Command 통합):
+ * - ✅ ToolService에 CommandManager 전달
+ * - ✅ initToolService에서 commandManager 옵션 추가
+ * - ✅ Tools에 CommandManager 자동 연결
  * 
  * main.js bootstrap 패턴 적용
  * 
@@ -71,25 +76,41 @@ function initCommandManager() {
             if (state?.updateHistory) {
                 state.updateHistory(historyState);
             }
-            // DOM 직접 업데이트
-            const undoBtn = document.getElementById('btn-undo');
-            const redoBtn = document.getElementById('btn-redo');
-            if (undoBtn) undoBtn.disabled = !historyState.canUndo;
-            if (redoBtn) redoBtn.disabled = !historyState.canRedo;
             
-            const undoStatus = document.getElementById('status-undo');
-            const redoStatus = document.getElementById('status-redo');
-            if (undoStatus) undoStatus.textContent = historyState.undoCount;
-            if (redoStatus) redoStatus.textContent = historyState.redoCount;
+            // ✨ v2.0.0: DOM 업데이트 (Undo/Redo 버튼 + Status Bar)
+            updateUndoRedoUI(historyState);
         }
     });
+    
+    // ✨ v2.0.0: 전역 참조 저장 (폴백용)
+    window.commandManager = commandManager;
     
     console.log('  ✓ CommandManager');
     return commandManager;
 }
 
 /**
+ * ✨ v2.0.0: Undo/Redo UI 업데이트 헬퍼
+ */
+function updateUndoRedoUI(historyState) {
+    // Header 버튼 활성화/비활성화
+    const undoBtn = document.getElementById('btn-undo');
+    const redoBtn = document.getElementById('btn-redo');
+    if (undoBtn) undoBtn.disabled = !historyState.canUndo;
+    if (redoBtn) redoBtn.disabled = !historyState.canRedo;
+    
+    // Status Bar 업데이트
+    const undoStatus = document.getElementById('status-undo');
+    const redoStatus = document.getElementById('status-redo');
+    if (undoStatus) undoStatus.textContent = historyState.undoCount;
+    if (redoStatus) redoStatus.textContent = historyState.redoCount;
+    
+    console.log(`[History] Undo: ${historyState.undoCount}, Redo: ${historyState.redoCount}`);
+}
+
+/**
  * ToolService 초기화
+ * ✨ v2.0.0: commandManager 옵션 추가
  */
 function initToolService(canvas, options = {}) {
     if (typeof ToolService === 'undefined') {
@@ -100,11 +121,19 @@ function initToolService(canvas, options = {}) {
     const toolService = new ToolService(canvas, {
         state: window.layoutEditorState,
         onToolChanged: options.onToolChanged || ((tool) => console.log(`🔧 Tool: ${tool}`)),
-        onToast: options.onToast || (() => {})
+        onToast: options.onToast || (() => {}),
+        // ✨ v2.0.0: CommandManager 전달
+        commandManager: options.commandManager || null
     });
     
     toolService.initAllTools();
-    console.log('  ✓ ToolService');
+    
+    // ✨ v2.0.0: CommandManager가 나중에 전달된 경우 연결
+    if (options.commandManager && !toolService.commandManager) {
+        toolService.setCommandManager(options.commandManager);
+    }
+    
+    console.log('  ✓ ToolService (with CommandManager)');
     return toolService;
 }
 
@@ -147,10 +176,42 @@ function initKeyboardService(canvas, commandManager) {
 }
 
 /**
+ * ✨ v2.0.0: Header 버튼 이벤트 설정
+ */
+function setupHeaderButtonEvents(commandManager, canvas) {
+    // Undo 버튼
+    const undoBtn = document.getElementById('btn-undo');
+    if (undoBtn) {
+        undoBtn.addEventListener('click', () => {
+            if (commandManager?.undo()) {
+                canvas.transformer?.forceUpdate?.();
+                canvas.stage?.batchDraw();
+                console.log('[Header] Undo 실행');
+            }
+        });
+    }
+    
+    // Redo 버튼
+    const redoBtn = document.getElementById('btn-redo');
+    if (redoBtn) {
+        redoBtn.addEventListener('click', () => {
+            if (commandManager?.redo()) {
+                canvas.transformer?.forceUpdate?.();
+                canvas.stage?.batchDraw();
+                console.log('[Header] Redo 실행');
+            }
+        });
+    }
+    
+    console.log('  ✓ Header Undo/Redo 버튼 이벤트');
+}
+
+/**
  * 모든 서비스 초기화 (통합)
+ * ✨ v2.0.0: Tool-Command 연결 강화
  */
 function initLayoutServices(options = {}) {
-    console.log('🔧 Layout Services 초기화 시작...');
+    console.log('🔧 Layout Services 초기화 시작 v2.0.0...');
     
     // 1. Canvas 초기화
     const canvas = initCanvas(options.containerId);
@@ -159,10 +220,11 @@ function initLayoutServices(options = {}) {
     const commandManager = initCommandManager();
     canvas.commandManager = commandManager;
     
-    // 3. ToolService 초기화
+    // 3. ToolService 초기화 (CommandManager 전달!)
     const toolService = initToolService(canvas, {
         onToolChanged: options.onToolChanged,
-        onToast: options.onToast
+        onToast: options.onToast,
+        commandManager: commandManager  // ✨ v2.0.0: 핵심!
     });
     
     // 4. ComponentService 초기화
@@ -175,7 +237,10 @@ function initLayoutServices(options = {}) {
     // 5. KeyboardService 초기화
     const keyboardService = initKeyboardService(canvas, commandManager);
     
-    console.log('✅ Layout Services 초기화 완료');
+    // 6. ✨ v2.0.0: Header 버튼 이벤트 설정
+    setupHeaderButtonEvents(commandManager, canvas);
+    
+    console.log('✅ Layout Services 초기화 완료 v2.0.0');
     
     return {
         canvas,
@@ -195,6 +260,8 @@ if (typeof window !== 'undefined') {
     window.initComponentService = initComponentService;
     window.initKeyboardService = initKeyboardService;
     window.calculateCanvasSize = calculateCanvasSize;
+    window.updateUndoRedoUI = updateUndoRedoUI;
+    window.setupHeaderButtonEvents = setupHeaderButtonEvents;
 }
 
-console.log('✅ initLayoutServices.js 로드 완료');
+console.log('✅ initLayoutServices.js 로드 완료 v2.0.0');
