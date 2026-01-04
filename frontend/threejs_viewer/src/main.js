@@ -4,8 +4,8 @@
  * 
  * 메인 애플리케이션 진입점 (리팩토링 버전)
  * 
- * @version 3.1.0
- * @description Phase 4-1 - PerformanceMonitor & AdaptivePerformance 연결 완료
+ * @version 3.2.0
+ * @description Phase 4-1 - Monitoring Mode 통계 패널 및 미연결 설비 안내 기능 추가
  * 
  * 역할: 오케스트레이션만 담당
  * - Bootstrap 모듈들 호출
@@ -201,6 +201,9 @@ function init() {
         
         interactionHandler.setEditMode(equipmentEditState);
         interactionHandler.setEditModal(equipmentEditModal);
+        
+        // ⭐ InteractionHandler에 MonitoringService 연결 (미연결 설비 클릭 안내용)
+        interactionHandler.setMonitoringService(services.monitoring.monitoringService);
         
         // 6. 이벤트 리스너 설정
         const eventHandlers = {
