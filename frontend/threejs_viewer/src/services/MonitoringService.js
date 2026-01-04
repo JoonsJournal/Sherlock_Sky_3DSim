@@ -1,8 +1,8 @@
 /**
- * MonitoringService.js - v2.4-DEBUG
+ * MonitoringService.js - v2.5-DEBUG
  * 실시간 설비 모니터링 서비스
  * 
- * ⭐ 디버그 버전: createStatusPanel 비활성화하여 원인 파악
+ * ⭐ 디버그: applyUnmappedEquipmentStyle만 활성화
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
  */
@@ -53,7 +53,7 @@ export class MonitoringService {
     
     /**
      * 모니터링 시작
-     * ⭐ v2.4-DEBUG: 최소한의 코드만 실행하여 원인 파악
+     * ⭐ v2.5-DEBUG: applyUnmappedEquipmentStyle만 활성화
      */
     async start() {
         if (this.isActive) {
@@ -61,17 +61,18 @@ export class MonitoringService {
             return;
         }
         
-        console.log('🔴🔴🔴 DEBUG MonitoringService.start() - 최소 버전!');
+        console.log('🔴🔴🔴 DEBUG MonitoringService.start() - applyUnmappedEquipmentStyle만 테스트!');
         
         debugLog('🟢 Starting monitoring mode...');
         this.isActive = true;
         
         try {
-            // ⭐ 1. 미연결 설비 비활성화 표시 - 일단 비활성화!
-            console.log('🔴 DEBUG: applyUnmappedEquipmentStyle - 건너뜀! (테스트)');
-            // this.applyUnmappedEquipmentStyle();
+            // ⭐ 1. 미연결 설비 비활성화 표시 - 활성화!
+            console.log('🔴 DEBUG: applyUnmappedEquipmentStyle - 실행!');
+            this.applyUnmappedEquipmentStyle();
+            console.log('🔴 DEBUG: applyUnmappedEquipmentStyle - 완료!');
             
-            // ⭐ 2. 통계 패널 표시 - 일단 비활성화!
+            // ⭐ 2. 통계 패널 표시 - 비활성화
             console.log('🔴 DEBUG: createStatusPanel - 건너뜀! (테스트)');
             // this.createStatusPanel();
             
@@ -87,8 +88,8 @@ export class MonitoringService {
             console.log('🔴 DEBUG: startBatchProcessing - 건너뜀! (테스트)');
             // this.startBatchProcessing();
             
-            console.log('🔴🔴🔴 DEBUG MonitoringService.start() 완료! (아무것도 안함)');
-            debugLog('✅ Monitoring mode started (minimal)');
+            console.log('🔴🔴🔴 DEBUG MonitoringService.start() 완료!');
+            debugLog('✅ Monitoring mode started');
             
         } catch (error) {
             console.error('❌ Failed to start monitoring:', error);
@@ -100,14 +101,15 @@ export class MonitoringService {
      * 모니터링 중지
      */
     stop() {
-        console.log('🔴🔴🔴 DEBUG MonitoringService.stop() - 최소 버전!');
+        console.log('🔴🔴🔴 DEBUG MonitoringService.stop()!');
         
         debugLog('🔴 Stopping monitoring mode...');
         this.isActive = false;
         
-        // ⭐ 비활성화 표시 해제 - 건너뜀
-        console.log('🔴 DEBUG: resetEquipmentStyle - 건너뜀! (테스트)');
-        // this.resetEquipmentStyle();
+        // ⭐ 비활성화 표시 해제 - 활성화!
+        console.log('🔴 DEBUG: resetEquipmentStyle - 실행!');
+        this.resetEquipmentStyle();
+        console.log('🔴 DEBUG: resetEquipmentStyle - 완료!');
         
         // ⭐ 통계 패널 제거 - 건너뜀
         console.log('🔴 DEBUG: removeStatusPanel - 건너뜀! (테스트)');
@@ -267,12 +269,13 @@ export class MonitoringService {
         debugLog(`🌫️ Unmapped equipment disabled: ${result.unmapped}개`);
         debugLog(`✅ Mapped equipment active: ${result.mapped}개`);
         
-        if (result.unmapped > 0) {
-            this.showToast(
-                `⚠️ ${result.unmapped}개 설비가 DB에 연결되지 않음`, 
-                'warning'
-            );
-        }
+        // Toast 비활성화 (테스트용)
+        // if (result.unmapped > 0) {
+        //     this.showToast(
+        //         `⚠️ ${result.unmapped}개 설비가 DB에 연결되지 않음`, 
+        //         'warning'
+        //     );
+        // }
     }
     
     resetEquipmentStyle() {
