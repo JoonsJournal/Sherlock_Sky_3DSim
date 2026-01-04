@@ -2,8 +2,8 @@
  * EquipmentLoader.js
  * 설비 모델 로딩 및 배열 생성 (equipment1.js 직접 사용, LOD 제거)
  * 
- * @version 2.2.0
- * @description Monitoring Mode 비활성화 표시 수정 - 투명도 완전 제거, 색상만 변경
+ * @version 2.2.1-DEBUG
+ * @description 디버그 코드 추가 - 문제 원인 파악용
  */
 
 import * as THREE from 'three';
@@ -486,7 +486,7 @@ export class EquipmentLoader {
 
     // ============================================
     // ⭐ Phase 2.5: Monitoring Mode - 미연결 설비 비활성화 표시
-    // ⭐ v2.2: 투명도 완전 제거! 색상만 변경 (렌더링 문제 해결)
+    // ⭐ v2.2.1-DEBUG: 디버그 코드 추가
     // ============================================
     
     /**
@@ -541,9 +541,7 @@ export class EquipmentLoader {
     /**
      * 🌫️ 설비를 비활성화 상태로 표시 (회색만 적용 - 투명도 사용 안함!)
      * 
-     * ⭐ v2.2: transparent/opacity 완전 제거
-     * - Three.js의 투명 렌더링 순서 문제 해결
-     * - 색상만 변경하여 미연결 설비 표시
+     * ⭐ v2.2.1-DEBUG: 디버그 로그 추가
      * 
      * @param {string} equipmentId - 설비 ID (예: 'EQ-01-01')
      * @param {boolean} disabled - 비활성화 여부
@@ -552,7 +550,7 @@ export class EquipmentLoader {
     setEquipmentDisabled(equipmentId, disabled, options = {}) {
         const equipment = this.equipmentMap.get(equipmentId);
         if (!equipment) {
-            return; // 조용히 무시 (로그 제거)
+            return; // 조용히 무시
         }
         
         const {
@@ -562,15 +560,28 @@ export class EquipmentLoader {
         // 원본 상태 저장
         this.storeOriginalMaterials(equipment);
         
+        // 🔴 DEBUG: 첫 번째 설비만 상세 로그
+        const isFirstEquipment = equipmentId === 'EQ-01-01';
+        
         if (disabled) {
             // 🌫️ 비활성화 스타일 적용 (색상만 변경!)
+            let meshCount = 0;
             equipment.traverse((child) => {
                 if (child.isMesh && child.material) {
                     const mat = child.material;
                     
-                    // ⭐ 투명도 설정 완전 제거! (렌더링 문제 방지)
-                    // mat.transparent = true;  // ❌ 제거!
-                    // mat.opacity = opacity;   // ❌ 제거!
+                    // 🔴 DEBUG LOG
+                    if (isFirstEquipment && meshCount === 0) {
+                        console.log('🔴 DEBUG setEquipmentDisabled:', {
+                            equipmentId,
+                            disabled,
+                            grayColor: grayColor.toString(16),
+                            beforeColor: mat.color ? mat.color.getHexString() : 'none',
+                            materialType: mat.type,
+                            transparent: mat.transparent,
+                            opacity: mat.opacity
+                        });
+                    }
                     
                     // 회색조 처리 (색상만 변경)
                     if (mat.color) {
@@ -584,6 +595,16 @@ export class EquipmentLoader {
                     }
                     
                     mat.needsUpdate = true;
+                    meshCount++;
+                    
+                    // 🔴 DEBUG LOG
+                    if (isFirstEquipment && meshCount === 1) {
+                        console.log('🔴 DEBUG after setHex:', {
+                            afterColor: mat.color ? mat.color.getHexString() : 'none',
+                            transparent: mat.transparent,
+                            opacity: mat.opacity
+                        });
+                    }
                 }
             });
             
@@ -602,12 +623,28 @@ export class EquipmentLoader {
      * @returns {Object} { mapped: number, unmapped: number }
      */
     applyMonitoringModeVisibility(mappings, options = {}) {
+        // 🔴 DEBUG: 함수 호출 확인
+        console.log('🔴🔴🔴 DEBUG applyMonitoringModeVisibility 호출됨!');
+        console.log('🔴 mappings:', mappings);
+        console.log('🔴 mappings keys count:', Object.keys(mappings).length);
+        console.log('🔴 options:', options);
+        console.log('🔴 equipmentArray length:', this.equipmentArray.length);
+        
         let mappedCount = 0;
         let unmappedCount = 0;
         
-        this.equipmentArray.forEach(equipment => {
+        this.equipmentArray.forEach((equipment, index) => {
             const id = equipment.userData.id;
             const isMapped = id in mappings;
+            
+            // 🔴 DEBUG: 처음 3개만 로그
+            if (index < 3) {
+                console.log(`🔴 DEBUG equipment[${index}]:`, {
+                    id,
+                    isMapped,
+                    willDisable: !isMapped
+                });
+            }
             
             if (isMapped) {
                 // 매핑된 설비: 정상 표시
@@ -620,6 +657,10 @@ export class EquipmentLoader {
             }
         });
         
+        // 🔴 DEBUG: 결과 로그
+        console.log('🔴🔴🔴 DEBUG applyMonitoringModeVisibility 완료!');
+        console.log(`🔴 결과: mapped=${mappedCount}, unmapped=${unmappedCount}`);
+        
         debugLog(`📊 Monitoring visibility applied: ${mappedCount} mapped, ${unmappedCount} unmapped`);
         
         return { mapped: mappedCount, unmapped: unmappedCount };
@@ -629,6 +670,9 @@ export class EquipmentLoader {
      * 🔄 모든 설비 활성화 상태로 복원 (Monitoring Mode 종료 시)
      */
     resetAllEquipmentVisibility() {
+        // 🔴 DEBUG
+        console.log('🔴🔴🔴 DEBUG resetAllEquipmentVisibility 호출됨!');
+        
         this.equipmentArray.forEach(equipment => {
             this.restoreOriginalMaterials(equipment);
         });
