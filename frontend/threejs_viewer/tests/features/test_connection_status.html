@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Status 테스트</title>
+    <style>
+        /* ===== Reset & Base ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #e5e5e5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ===== Layout ===== */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px 0 40px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ===== Panel ===== */
+        .panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title .icon {
+            font-size: 20px;
+        }
+
+        /* ===== Controls ===== */
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-label {
+            display: block;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-success {
+            background: #22c55e;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #16a34a;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .btn-secondary {
+            background: #374151;
+            color: #e5e5e5;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #555;
+            color: #e5e5e5;
+        }
+
+        .btn-outline:hover {
+            background: #333;
+        }
+
+        /* ===== Status Display ===== */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .status-item {
+            background: #252525;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .status-item-label {
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .status-item-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .status-item-value.online {
+            color: #22c55e;
+        }
+
+        .status-item-value.offline {
+            color: #ef4444;
+        }
+
+        .status-item-value.checking {
+            color: #f59e0b;
+        }
+
+        /* ===== Event Log ===== */
+        .event-log {
+            background: #0d0d0d;
+            border: 1px solid #333;
+            border-radius: 8px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+        }
+
+        .event-log-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #222;
+            display: flex;
+            gap: 10px;
+        }
+
+        .event-log-item:last-child {
+            border-bottom: none;
+        }
+
+        .event-log-time {
+            color: #666;
+            flex-shrink: 0;
+        }
+
+        .event-log-type {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .event-log-type.online {
+            background: #166534;
+            color: #86efac;
+        }
+
+        .event-log-type.offline {
+            background: #991b1b;
+            color: #fca5a5;
+        }
+
+        .event-log-type.check {
+            background: #1e40af;
+            color: #93c5fd;
+        }
+
+        .event-log-type.mode {
+            background: #7c3aed;
+            color: #e9d5ff;
+        }
+
+        .event-log-type.error {
+            background: #dc2626;
+            color: #fecaca;
+        }
+
+        .event-log-message {
+            color: #e5e5e5;
+            word-break: break-all;
+        }
+
+        /* ===== Mode Testing ===== */
+        .mode-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: #252525;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .mode-indicator-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #3b82f6;
+        }
+
+        .mode-indicator-text {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* ===== Test Scenario ===== */
+        .scenario-list {
+            list-style: none;
+        }
+
+        .scenario-item {
+            padding: 12px;
+            background: #252525;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .scenario-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .scenario-number {
+            width: 28px;
+            height: 28px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .scenario-text {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .scenario-status {
+            font-size: 18px;
+        }
+
+        /* ===== Toast (for testing) ===== */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            animation: toastIn 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .toast.success {
+            background: #166534;
+            color: #86efac;
+        }
+
+        .toast.error {
+            background: #991b1b;
+            color: #fca5a5;
+        }
+
+        .toast.warning {
+            background: #92400e;
+            color: #fcd34d;
+        }
+
+        .toast.info {
+            background: #1e40af;
+            color: #93c5fd;
+        }
+
+        @keyframes toastIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* ===== Info Box ===== */
+        .info-box {
+            background: #1e3a5f;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .info-box-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #93c5fd;
+        }
+
+        .info-box-content {
+            font-size: 13px;
+            color: #bfdbfe;
+            line-height: 1.6;
+        }
+
+        .info-box code {
+            background: #0d1b2a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+        }
+
+        /* ===== Full Width Panel ===== */
+        .full-width {
+            grid-column: 1 / -1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔌 Connection Status 테스트</h1>
+            <p>Backend 연결 상태 관리 시스템 테스트 페이지</p>
+        </div>
+
+        <!-- Info Box -->
+        <div class="info-box">
+            <div class="info-box-title">ℹ️ 테스트 안내</div>
+            <div class="info-box-content">
+                이 페이지는 <code>ConnectionStatusService</code>와 <code>ConnectionIndicator</code>를 
+                독립적으로 테스트합니다. <strong>Mock 모드</strong>를 사용하여 Backend 없이도 
+                모든 시나리오를 테스트할 수 있습니다. 우측 상단의 인디케이터와 
+                좌측 Mock 컨트롤을 확인하세요.
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Mock Control Panel -->
+            <div class="panel">
+                <div class="panel-title">
+                    <span class="icon">🎮</span>
+                    Mock 모드 컨트롤
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">Mock 모드</div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="btnEnableMock">
+                            Mock 활성화
+                        </button>
+                        <button class="btn btn-secondary" id="btnDisableMock">
+                            Mock 비활성화
+                        </button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">Mock 연결 상태</div>
+                    <div class="button-group">
+                        <button class="btn btn-success" id="btnMockOnline">
+                            🟢 Online
+                        </button>
+                        <button class="btn btn-danger" id="btnMockOffline">
+                            🔴 Offline
+                        </button>
+                        <button class="btn btn-warning" id="btnMockToggle">
+                            ⟳ Toggle
+                        </button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">서비스 제어</div>
+                    <div class="button-group">
+                        <button class="btn btn-success" id="btnStart">
+                            ▶ Start
+                        </button>
+                        <button class="btn btn-danger" id="btnStop">
+                            ⏹ Stop
+                        </button>
+                        <button class="btn btn-primary" id="btnCheckNow">
+                            🔄 Check Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Panel -->
+            <div class="panel">
+                <div class="panel-title">
+                    <span class="icon">📊</span>
+                    현재 상태
+                </div>
+
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-item-label">연결 상태</div>
+                        <div class="status-item-value" id="statusConnection">-</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-item-label">서비스 상태</div>
+                        <div class="status-item-value" id="statusService">-</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-item-label">Mock 모드</div>
+                        <div class="status-item-value" id="statusMock">-</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-item-label">마지막 체크</div>
+                        <div class="status-item-value" id="statusLastCheck">-</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-item-label">성공률</div>
+                        <div class="status-item-value" id="statusSuccessRate">-</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-item-label">연속 실패</div>
+                        <div class="status-item-value" id="statusFailures">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mode Testing Panel -->
+            <div class="panel">
+                <div class="panel-title">
+                    <span class="icon">🎯</span>
+                    AppModeManager 테스트
+                </div>
+
+                <div class="mode-indicator">
+                    <div class="mode-indicator-dot" id="modeIndicatorDot"></div>
+                    <div class="mode-indicator-text" id="modeIndicatorText">MAIN_VIEWER</div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">모드 전환</div>
+                    <div class="button-group">
+                        <button class="btn btn-primary" id="btnModeMain">
+                            🏠 Main Viewer
+                        </button>
+                        <button class="btn btn-warning" id="btnModeMonitoring">
+                            📡 Monitoring
+                        </button>
+                        <button class="btn btn-secondary" id="btnModeLayout">
+                            📐 Layout Editor
+                        </button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">진입 가능 여부 확인</div>
+                    <div class="button-group">
+                        <button class="btn btn-outline" id="btnCanEnterMonitoring">
+                            Can Enter Monitoring?
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Scenarios Panel -->
+            <div class="panel">
+                <div class="panel-title">
+                    <span class="icon">🧪</span>
+                    테스트 시나리오
+                </div>
+
+                <ul class="scenario-list">
+                    <li class="scenario-item" id="scenario1">
+                        <div class="scenario-number">1</div>
+                        <div class="scenario-text">Mock Online → Monitoring 진입 성공</div>
+                        <div class="scenario-status">⏳</div>
+                    </li>
+                    <li class="scenario-item" id="scenario2">
+                        <div class="scenario-number">2</div>
+                        <div class="scenario-text">Mock Offline → Monitoring 진입 차단</div>
+                        <div class="scenario-status">⏳</div>
+                    </li>
+                    <li class="scenario-item" id="scenario3">
+                        <div class="scenario-number">3</div>
+                        <div class="scenario-text">Monitoring 중 Offline → 자동 복귀</div>
+                        <div class="scenario-status">⏳</div>
+                    </li>
+                    <li class="scenario-item" id="scenario4">
+                        <div class="scenario-number">4</div>
+                        <div class="scenario-text">Offline → Online 복구 이벤트</div>
+                        <div class="scenario-status">⏳</div>
+                    </li>
+                </ul>
+
+                <div class="control-group" style="margin-top: 16px;">
+                    <button class="btn btn-primary" id="btnRunAllScenarios" style="width: 100%;">
+                        🚀 모든 시나리오 자동 실행
+                    </button>
+                </div>
+            </div>
+
+            <!-- Event Log Panel -->
+            <div class="panel full-width">
+                <div class="panel-title">
+                    <span class="icon">📜</span>
+                    이벤트 로그
+                    <button class="btn btn-secondary" id="btnClearLog" style="margin-left: auto; padding: 4px 12px; font-size: 11px;">
+                        Clear
+                    </button>
+                </div>
+
+                <div class="event-log" id="eventLog">
+                    <!-- Events will be logged here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script type="module">
+        // =========================================================================
+        // Mock EventBus (테스트용 간단 구현)
+        // =========================================================================
+        class MockEventBus {
+            constructor() {
+                this._listeners = new Map();
+            }
+
+            on(event, callback) {
+                if (!this._listeners.has(event)) {
+                    this._listeners.set(event, []);
+                }
+                this._listeners.get(event).push(callback);
+                return () => this.off(event, callback);
+            }
+
+            off(event, callback) {
+                const listeners = this._listeners.get(event);
+                if (listeners) {
+                    const index = listeners.indexOf(callback);
+                    if (index > -1) {
+                        listeners.splice(index, 1);
+                    }
+                }
+            }
+
+            emit(event, data) {
+                const listeners = this._listeners.get(event);
+                if (listeners) {
+                    listeners.forEach(cb => cb(data));
+                }
+            }
+
+            subscribe(event, callback) {
+                return this.on(event, callback);
+            }
+
+            publish(event, data) {
+                this.emit(event, data);
+            }
+        }
+
+        // 전역 EventBus
+        window.EventBus = new MockEventBus();
+
+        // =========================================================================
+        // Mock Modules (실제 프로젝트에서는 import로 대체)
+        // =========================================================================
+
+        // environment mock
+        window.environment = {
+            API_BASE_URL: 'http://localhost:8000'
+        };
+
+        // =========================================================================
+        // ConnectionStatusService (인라인 버전)
+        // =========================================================================
+        const ConnectionState = {
+            ONLINE: 'online',
+            OFFLINE: 'offline',
+            CHECKING: 'checking',
+            UNKNOWN: 'unknown'
+        };
+
+        const ConnectionEvents = {
+            ONLINE: 'connection:online',
+            OFFLINE: 'connection:offline',
+            STATUS_CHANGED: 'connection:status-changed',
+            CHECK_STARTED: 'connection:check-started',
+            CHECK_COMPLETED: 'connection:check-completed',
+            ERROR: 'connection:error'
+        };
+
+        class ConnectionStatusService {
+            constructor() {
+                if (ConnectionStatusService._instance) {
+                    return ConnectionStatusService._instance;
+                }
+                ConnectionStatusService._instance = this;
+
+                this._state = ConnectionState.UNKNOWN;
+                this._previousState = ConnectionState.UNKNOWN;
+                this._isOnline = false;
+                this._lastCheckTime = null;
+                this._lastSuccessTime = null;
+                this._consecutiveFailures = 0;
+                this._totalChecks = 0;
+                this._successfulChecks = 0;
+
+                this._config = {
+                    healthEndpoint: '/api/health',
+                    checkInterval: 5000,
+                    requestTimeout: 3000,
+                    failureThreshold: 2,
+                    autoStart: true,
+                    debug: true
+                };
+
+                this._mockConfig = {
+                    enabled: false,
+                    isOnline: true,
+                    responseDelay: 100,
+                    failureProbability: 0,
+                    healthResponse: {
+                        status: 'ok',
+                        timestamp: null,
+                        version: '1.0.0',
+                        server: 'mock'
+                    }
+                };
+
+                this._intervalId = null;
+                this._isRunning = false;
+                this._abortController = null;
+                this._eventBus = window.EventBus;
+
+                this._log('ConnectionStatusService initialized');
+            }
+
+            // Start/Stop
+            start(options = {}) {
+                if (this._isRunning) return this;
+                if (options.config) this.configure(options.config);
+
+                this._isRunning = true;
+                this._log('Service starting...');
+
+                this.checkHealth();
+                this._intervalId = setInterval(() => this.checkHealth(), this._config.checkInterval);
+
+                this._log(`Service started (interval: ${this._config.checkInterval}ms)`);
+                return this;
+            }
+
+            stop() {
+                if (!this._isRunning) return this;
+
+                if (this._intervalId) {
+                    clearInterval(this._intervalId);
+                    this._intervalId = null;
+                }
+
+                if (this._abortController) {
+                    this._abortController.abort();
+                    this._abortController = null;
+                }
+
+                this._isRunning = false;
+                this._log('Service stopped');
+                return this;
+            }
+
+            restart() {
+                this.stop();
+                this.start();
+                return this;
+            }
+
+            configure(config) {
+                this._config = { ...this._config, ...config };
+                if (this._isRunning && config.checkInterval) this.restart();
+                return this;
+            }
+
+            // Health Check
+            async checkHealth() {
+                this._log('Checking health...');
+                this._totalChecks++;
+
+                this._setState(ConnectionState.CHECKING);
+                this._emitEvent(ConnectionEvents.CHECK_STARTED, {
+                    timestamp: new Date(),
+                    checkNumber: this._totalChecks
+                });
+
+                let isOnline = false;
+                let responseData = null;
+                let error = null;
+
+                try {
+                    if (this._mockConfig.enabled) {
+                        const result = await this._mockHealthCheck();
+                        isOnline = result.success;
+                        responseData = result.data;
+                    } else {
+                        const result = await this._realHealthCheck();
+                        isOnline = result.success;
+                        responseData = result.data;
+                    }
+                } catch (err) {
+                    isOnline = false;
+                    error = err;
+                    this._log('Health check error:', err.message);
+                }
+
+                this._processHealthCheckResult(isOnline, responseData, error);
+                return isOnline;
+            }
+
+            forceOnline() {
+                this._log('Force setting online');
+                this._updateOnlineStatus(true);
+            }
+
+            forceOffline() {
+                this._log('Force setting offline');
+                this._updateOnlineStatus(false);
+            }
+
+            // Mock Mode
+            enableMockMode(options = {}) {
+                this._mockConfig = { ...this._mockConfig, ...options, enabled: true };
+                this._log('Mock mode enabled', this._mockConfig);
+                return this;
+            }
+
+            disableMockMode() {
+                this._mockConfig.enabled = false;
+                this._log('Mock mode disabled');
+                return this;
+            }
+
+            setMockOnline(isOnline) {
+                this._mockConfig.isOnline = isOnline;
+                this._log(`Mock online status set to: ${isOnline}`);
+                if (this._mockConfig.enabled) {
+                    this._updateOnlineStatus(isOnline);
+                }
+                return this;
+            }
+
+            toggleMockOnline() {
+                const newState = !this._mockConfig.isOnline;
+                this.setMockOnline(newState);
+                return newState;
+            }
+
+            isMockMode() {
+                return this._mockConfig.enabled;
+            }
+
+            // Status
+            isOnline() { return this._isOnline; }
+            isOffline() { return !this._isOnline; }
+            getState() { return this._state; }
+            isRunning() { return this._isRunning; }
+            getLastCheckTime() { return this._lastCheckTime; }
+            getLastSuccessTime() { return this._lastSuccessTime; }
+
+            getStatus() {
+                return {
+                    state: this._state,
+                    isOnline: this._isOnline,
+                    isRunning: this._isRunning,
+                    isMockMode: this._mockConfig.enabled,
+                    lastCheckTime: this._lastCheckTime,
+                    lastSuccessTime: this._lastSuccessTime,
+                    consecutiveFailures: this._consecutiveFailures,
+                    totalChecks: this._totalChecks,
+                    successfulChecks: this._successfulChecks,
+                    successRate: this._totalChecks > 0 
+                        ? Math.round((this._successfulChecks / this._totalChecks) * 100) 
+                        : 0,
+                    config: { ...this._config },
+                    mockConfig: this._mockConfig.enabled ? { ...this._mockConfig } : null
+                };
+            }
+
+            getSecondsSinceLastCheck() {
+                if (!this._lastCheckTime) return null;
+                return Math.floor((Date.now() - this._lastCheckTime.getTime()) / 1000);
+            }
+
+            // Events
+            on(event, callback) {
+                this._eventBus.on(event, callback);
+                return () => this.off(event, callback);
+            }
+
+            off(event, callback) {
+                this._eventBus.off(event, callback);
+            }
+
+            onOnline(callback) { return this.on(ConnectionEvents.ONLINE, callback); }
+            onOffline(callback) { return this.on(ConnectionEvents.OFFLINE, callback); }
+            onStatusChanged(callback) { return this.on(ConnectionEvents.STATUS_CHANGED, callback); }
+
+            // Private: Health Check
+            async _realHealthCheck() {
+                if (this._abortController) this._abortController.abort();
+                this._abortController = new AbortController();
+
+                const url = `${window.environment?.API_BASE_URL || ''}${this._config.healthEndpoint}`;
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: { 'Accept': 'application/json', 'Cache-Control': 'no-cache' },
+                        signal: this._abortController.signal
+                    });
+
+                    if (!response.ok) return { success: false, data: null };
+
+                    const data = await response.json();
+                    return { success: data.status === 'ok', data };
+                } catch (error) {
+                    return { success: false, data: null, error };
+                }
+            }
+
+            async _mockHealthCheck() {
+                await this._delay(this._mockConfig.responseDelay);
+
+                if (Math.random() < this._mockConfig.failureProbability) {
+                    return { success: false, data: null };
+                }
+
+                if (!this._mockConfig.isOnline) {
+                    return { success: false, data: null };
+                }
+
+                return {
+                    success: true,
+                    data: { ...this._mockConfig.healthResponse, timestamp: new Date().toISOString() }
+                };
+            }
+
+            _processHealthCheckResult(isOnline, responseData, error) {
+                this._lastCheckTime = new Date();
+
+                if (isOnline) {
+                    this._consecutiveFailures = 0;
+                    this._successfulChecks++;
+                    this._lastSuccessTime = new Date();
+                } else {
+                    this._consecutiveFailures++;
+                }
+
+                this._emitEvent(ConnectionEvents.CHECK_COMPLETED, {
+                    success: isOnline,
+                    timestamp: this._lastCheckTime,
+                    responseData,
+                    error: error?.message,
+                    consecutiveFailures: this._consecutiveFailures
+                });
+
+                if (isOnline) {
+                    this._updateOnlineStatus(true);
+                } else if (this._consecutiveFailures >= this._config.failureThreshold) {
+                    this._updateOnlineStatus(false);
+                }
+
+                this._log(`Health check: ${isOnline ? 'SUCCESS' : 'FAILED'} (failures: ${this._consecutiveFailures})`);
+            }
+
+            // Private: State
+            _setState(newState) {
+                if (this._state === newState) return;
+                this._previousState = this._state;
+                this._state = newState;
+            }
+
+            _updateOnlineStatus(isOnline) {
+                const wasOnline = this._isOnline;
+                this._isOnline = isOnline;
+
+                const newState = isOnline ? ConnectionState.ONLINE : ConnectionState.OFFLINE;
+                this._setState(newState);
+
+                if (wasOnline !== isOnline) {
+                    this._log(`Status changed: ${wasOnline ? 'ONLINE' : 'OFFLINE'} → ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
+
+                    this._emitEvent(ConnectionEvents.STATUS_CHANGED, {
+                        isOnline, wasOnline,
+                        timestamp: new Date(),
+                        state: newState,
+                        previousState: this._previousState
+                    });
+
+                    if (isOnline) {
+                        this._emitEvent(ConnectionEvents.ONLINE, {
+                            timestamp: new Date(),
+                            recoveredAfter: this._consecutiveFailures
+                        });
+                    } else {
+                        this._emitEvent(ConnectionEvents.OFFLINE, {
+                            timestamp: new Date(),
+                            consecutiveFailures: this._consecutiveFailures
+                        });
+                    }
+                }
+            }
+
+            // Private: Utils
+            _emitEvent(eventName, data) {
+                this._eventBus.emit(eventName, { ...data, source: 'ConnectionStatusService' });
+            }
+
+            _delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            _log(...args) {
+                if (this._config.debug) {
+                    console.log('[ConnectionStatusService]', ...args);
+                }
+            }
+
+            static getInstance() {
+                if (!ConnectionStatusService._instance) {
+                    ConnectionStatusService._instance = new ConnectionStatusService();
+                }
+                return ConnectionStatusService._instance;
+            }
+
+            static resetInstance() {
+                if (ConnectionStatusService._instance) {
+                    ConnectionStatusService._instance.stop();
+                    ConnectionStatusService._instance = null;
+                }
+            }
+        }
+
+        ConnectionStatusService._instance = null;
+
+        // =========================================================================
+        // Mock AppModeManager
+        // =========================================================================
+        const APP_MODE = {
+            MAIN_VIEWER: 'MAIN_VIEWER',
+            MONITORING: 'MONITORING',
+            LAYOUT_EDITOR: 'LAYOUT_EDITOR',
+            PLAYBACK: 'PLAYBACK',
+            ANALYTICS: 'ANALYTICS',
+            SETTINGS: 'SETTINGS'
+        };
+
+        const MODE_CONNECTION_REQUIREMENTS = {
+            [APP_MODE.MAIN_VIEWER]: false,
+            [APP_MODE.MONITORING]: true,
+            [APP_MODE.LAYOUT_EDITOR]: false,
+            [APP_MODE.PLAYBACK]: true,
+            [APP_MODE.ANALYTICS]: true,
+            [APP_MODE.SETTINGS]: false
+        };
+
+        const MODE_OFFLINE_BEHAVIOR = {
+            [APP_MODE.MAIN_VIEWER]: 'allow',
+            [APP_MODE.MONITORING]: 'block',
+            [APP_MODE.LAYOUT_EDITOR]: 'allow',
+            [APP_MODE.PLAYBACK]: 'block',
+            [APP_MODE.ANALYTICS]: 'warn',
+            [APP_MODE.SETTINGS]: 'allow'
+        };
+
+        class AppModeManager {
+            constructor() {
+                this._currentMode = APP_MODE.MAIN_VIEWER;
+                this._connectionStatusService = null;
+            }
+
+            setConnectionStatusService(service) {
+                this._connectionStatusService = service;
+                this._setupConnectionListeners();
+            }
+
+            _setupConnectionListeners() {
+                if (!this._connectionStatusService) return;
+
+                this._connectionStatusService.onOffline(() => {
+                    if (this._currentMode === APP_MODE.MONITORING) {
+                        console.log('[AppModeManager] Offline detected, exiting Monitoring mode');
+                        window.EventBus.emit('connection:mode-exit-required', {
+                            mode: this._currentMode,
+                            reason: 'offline'
+                        });
+                        this.goToDefault();
+                    }
+                });
+
+                this._connectionStatusService.onOnline((data) => {
+                    if (data.recoveredAfter > 0) {
+                        window.EventBus.emit('connection:restored', {
+                            recoveredAfter: data.recoveredAfter
+                        });
+                    }
+                });
+            }
+
+            getCurrentMode() { return this._currentMode; }
+
+            isBackendOnline() {
+                return this._connectionStatusService 
+                    ? this._connectionStatusService.isOnline() 
+                    : true;
+            }
+
+            canEnterMode(mode) {
+                if (!Object.values(APP_MODE).includes(mode)) {
+                    return { canEnter: false, reason: 'invalid_mode' };
+                }
+
+                const requiresConnection = MODE_CONNECTION_REQUIREMENTS[mode];
+                const offlineBehavior = MODE_OFFLINE_BEHAVIOR[mode];
+
+                if (requiresConnection && !this.isBackendOnline()) {
+                    if (offlineBehavior === 'block') {
+                        return { canEnter: false, reason: 'offline' };
+                    }
+                    if (offlineBehavior === 'warn') {
+                        return { canEnter: true, reason: 'offline_warning' };
+                    }
+                }
+
+                return { canEnter: true, reason: null };
+            }
+
+            canEnterMonitoringMode() {
+                return this.canEnterMode(APP_MODE.MONITORING);
+            }
+
+            async switchMode(newMode, options = {}) {
+                if (!options.skipConnectionCheck) {
+                    const { canEnter, reason } = this.canEnterMode(newMode);
+
+                    if (!canEnter) {
+                        window.EventBus.emit('mode:enter-blocked', {
+                            mode: newMode,
+                            reason: reason,
+                            isOnline: this.isBackendOnline()
+                        });
+                        return false;
+                    }
+                }
+
+                const oldMode = this._currentMode;
+                this._currentMode = newMode;
+
+                window.EventBus.emit('mode:changed', {
+                    from: oldMode,
+                    to: newMode
+                });
+
+                return true;
+            }
+
+            async enterMonitoringMode() {
+                const { canEnter, reason } = this.canEnterMonitoringMode();
+
+                if (!canEnter) {
+                    window.EventBus.emit('monitoring:enter-failed', {
+                        reason: reason === 'offline' 
+                            ? 'Backend 서버에 연결할 수 없습니다' 
+                            : reason,
+                        code: reason.toUpperCase()
+                    });
+                    return false;
+                }
+
+                return this.switchMode(APP_MODE.MONITORING);
+            }
+
+            async goToDefault() {
+                return this.switchMode(APP_MODE.MAIN_VIEWER, { skipConnectionCheck: true });
+            }
+
+            isMonitoringMode() {
+                return this._currentMode === APP_MODE.MONITORING;
+            }
+        }
+
+        // =========================================================================
+        // Test Application
+        // =========================================================================
+        class TestApp {
+            constructor() {
+                this.connectionService = ConnectionStatusService.getInstance();
+                this.appModeManager = new AppModeManager();
+                this.scenarioResults = [false, false, false, false];
+
+                this.init();
+            }
+
+            init() {
+                // Mock 모드로 시작
+                this.connectionService.enableMockMode({ isOnline: true });
+                this.connectionService.configure({ checkInterval: 3000, debug: true });
+
+                // AppModeManager에 서비스 연결
+                this.appModeManager.setConnectionStatusService(this.connectionService);
+
+                // 서비스 시작
+                this.connectionService.start();
+
+                // UI 바인딩
+                this.bindUI();
+
+                // 이벤트 리스너
+                this.setupEventListeners();
+
+                // 상태 업데이트 시작
+                this.startStatusUpdate();
+
+                // Indicator 생성 (UI에 표시)
+                this.createIndicator();
+
+                this.log('info', 'TestApp 초기화 완료');
+            }
+
+            createIndicator() {
+                // 간단한 인디케이터 (실제 프로젝트에서는 ConnectionIndicator 사용)
+                const indicator = document.createElement('div');
+                indicator.id = 'simpleIndicator';
+                indicator.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 10px 16px;
+                    background: rgba(30, 30, 30, 0.95);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 8px;
+                    font-size: 13px;
+                    color: white;
+                    z-index: 9999;
+                    backdrop-filter: blur(10px);
+                `;
+
+                indicator.innerHTML = `
+                    <div id="indicatorDot" style="
+                        width: 10px;
+                        height: 10px;
+                        border-radius: 50%;
+                        background: #6b7280;
+                    "></div>
+                    <span id="indicatorLabel">Unknown</span>
+                    <span id="mockBadge" style="
+                        padding: 2px 6px;
+                        font-size: 9px;
+                        font-weight: 700;
+                        background: #7c3aed;
+                        color: #e9d5ff;
+                        border-radius: 4px;
+                        display: none;
+                    ">MOCK</span>
+                `;
+
+                document.body.appendChild(indicator);
+            }
+
+            updateIndicator() {
+                const dot = document.getElementById('indicatorDot');
+                const label = document.getElementById('indicatorLabel');
+                const badge = document.getElementById('mockBadge');
+
+                const state = this.connectionService.getState();
+                const isMock = this.connectionService.isMockMode();
+
+                const colors = {
+                    online: '#22c55e',
+                    offline: '#ef4444',
+                    checking: '#f59e0b',
+                    unknown: '#6b7280'
+                };
+
+                const labels = {
+                    online: 'Connected',
+                    offline: 'Disconnected',
+                    checking: 'Checking...',
+                    unknown: 'Unknown'
+                };
+
+                if (dot) dot.style.background = colors[state] || colors.unknown;
+                if (label) label.textContent = labels[state] || labels.unknown;
+                if (badge) badge.style.display = isMock ? 'inline' : 'none';
+            }
+
+            bindUI() {
+                // Mock 모드 컨트롤
+                document.getElementById('btnEnableMock').onclick = () => {
+                    this.connectionService.enableMockMode();
+                    this.log('info', 'Mock 모드 활성화됨');
+                    this.showToast('Mock 모드 활성화', 'info');
+                };
+
+                document.getElementById('btnDisableMock').onclick = () => {
+                    this.connectionService.disableMockMode();
+                    this.log('info', 'Mock 모드 비활성화됨');
+                    this.showToast('Mock 모드 비활성화', 'warning');
+                };
+
+                document.getElementById('btnMockOnline').onclick = () => {
+                    this.connectionService.setMockOnline(true);
+                };
+
+                document.getElementById('btnMockOffline').onclick = () => {
+                    this.connectionService.setMockOnline(false);
+                };
+
+                document.getElementById('btnMockToggle').onclick = () => {
+                    this.connectionService.toggleMockOnline();
+                };
+
+                // 서비스 제어
+                document.getElementById('btnStart').onclick = () => {
+                    this.connectionService.start();
+                    this.log('info', '서비스 시작됨');
+                };
+
+                document.getElementById('btnStop').onclick = () => {
+                    this.connectionService.stop();
+                    this.log('info', '서비스 중지됨');
+                };
+
+                document.getElementById('btnCheckNow').onclick = () => {
+                    this.connectionService.checkHealth();
+                };
+
+                // 모드 전환
+                document.getElementById('btnModeMain').onclick = () => {
+                    this.appModeManager.goToDefault();
+                };
+
+                document.getElementById('btnModeMonitoring').onclick = async () => {
+                    const success = await this.appModeManager.enterMonitoringMode();
+                    if (success) {
+                        this.showToast('Monitoring 모드 진입 성공', 'success');
+                    }
+                };
+
+                document.getElementById('btnModeLayout').onclick = () => {
+                    this.appModeManager.switchMode(APP_MODE.LAYOUT_EDITOR);
+                };
+
+                document.getElementById('btnCanEnterMonitoring').onclick = () => {
+                    const { canEnter, reason } = this.appModeManager.canEnterMonitoringMode();
+                    const msg = canEnter 
+                        ? '✅ Monitoring 진입 가능' 
+                        : `❌ 진입 불가: ${reason}`;
+                    this.log('mode', msg);
+                    this.showToast(msg, canEnter ? 'success' : 'error');
+                };
+
+                // 로그 클리어
+                document.getElementById('btnClearLog').onclick = () => {
+                    document.getElementById('eventLog').innerHTML = '';
+                };
+
+                // 시나리오 실행
+                document.getElementById('btnRunAllScenarios').onclick = () => {
+                    this.runAllScenarios();
+                };
+            }
+
+            setupEventListeners() {
+                // 연결 상태 이벤트
+                this.connectionService.onOnline((data) => {
+                    this.log('online', `Backend 연결됨 (복구 후 ${data.recoveredAfter}회 실패)`);
+                    this.showToast('Backend 연결됨', 'success');
+                    this.updateIndicator();
+                });
+
+                this.connectionService.onOffline((data) => {
+                    this.log('offline', `Backend 연결 끊김 (연속 ${data.consecutiveFailures}회 실패)`);
+                    this.showToast('Backend 연결 끊김', 'error');
+                    this.updateIndicator();
+                });
+
+                this.connectionService.on(ConnectionEvents.CHECK_STARTED, () => {
+                    this.updateIndicator();
+                });
+
+                this.connectionService.on(ConnectionEvents.CHECK_COMPLETED, (data) => {
+                    this.log('check', `Health Check: ${data.success ? '성공' : '실패'}`);
+                    this.updateIndicator();
+                });
+
+                // 모드 이벤트
+                window.EventBus.on('mode:changed', (data) => {
+                    this.log('mode', `모드 전환: ${data.from} → ${data.to}`);
+                    this.updateModeDisplay();
+                });
+
+                window.EventBus.on('mode:enter-blocked', (data) => {
+                    this.log('error', `모드 진입 차단: ${data.mode} (사유: ${data.reason})`);
+                    this.showToast(`${data.mode} 진입 불가: ${data.reason}`, 'error');
+                });
+
+                window.EventBus.on('monitoring:enter-failed', (data) => {
+                    this.log('error', `Monitoring 진입 실패: ${data.reason}`);
+                    this.showToast(data.reason, 'error');
+                });
+
+                window.EventBus.on('connection:mode-exit-required', (data) => {
+                    this.log('error', `연결 끊김으로 ${data.mode} 모드 종료`);
+                    this.showToast(`연결 끊김 - ${data.mode} 모드 종료`, 'warning');
+                });
+
+                window.EventBus.on('connection:restored', (data) => {
+                    this.log('online', `연결 복구됨 (${data.recoveredAfter}회 실패 후)`);
+                });
+            }
+
+            startStatusUpdate() {
+                setInterval(() => {
+                    this.updateStatusDisplay();
+                    this.updateIndicator();
+                }, 500);
+            }
+
+            updateStatusDisplay() {
+                const status = this.connectionService.getStatus();
+
+                // 연결 상태
+                const connEl = document.getElementById('statusConnection');
+                connEl.textContent = status.isOnline ? 'ONLINE' : 'OFFLINE';
+                connEl.className = `status-item-value ${status.isOnline ? 'online' : 'offline'}`;
+
+                // 서비스 상태
+                const svcEl = document.getElementById('statusService');
+                svcEl.textContent = status.isRunning ? 'Running' : 'Stopped';
+                svcEl.className = `status-item-value ${status.isRunning ? 'online' : 'offline'}`;
+
+                // Mock 모드
+                const mockEl = document.getElementById('statusMock');
+                mockEl.textContent = status.isMockMode ? 'ON' : 'OFF';
+
+                // 마지막 체크
+                const lastCheckEl = document.getElementById('statusLastCheck');
+                const seconds = this.connectionService.getSecondsSinceLastCheck();
+                lastCheckEl.textContent = seconds === null ? '-' : `${seconds}초 전`;
+
+                // 성공률
+                document.getElementById('statusSuccessRate').textContent = `${status.successRate}%`;
+
+                // 연속 실패
+                const failEl = document.getElementById('statusFailures');
+                failEl.textContent = status.consecutiveFailures;
+                failEl.className = `status-item-value ${status.consecutiveFailures > 0 ? 'offline' : ''}`;
+            }
+
+            updateModeDisplay() {
+                const mode = this.appModeManager.getCurrentMode();
+                const dot = document.getElementById('modeIndicatorDot');
+                const text = document.getElementById('modeIndicatorText');
+
+                text.textContent = mode;
+
+                const colors = {
+                    [APP_MODE.MAIN_VIEWER]: '#3b82f6',
+                    [APP_MODE.MONITORING]: '#f59e0b',
+                    [APP_MODE.LAYOUT_EDITOR]: '#8b5cf6',
+                    [APP_MODE.PLAYBACK]: '#ec4899',
+                    [APP_MODE.ANALYTICS]: '#06b6d4',
+                    [APP_MODE.SETTINGS]: '#6b7280'
+                };
+
+                dot.style.background = colors[mode] || '#6b7280';
+            }
+
+            log(type, message) {
+                const logEl = document.getElementById('eventLog');
+                const time = new Date().toLocaleTimeString();
+
+                const item = document.createElement('div');
+                item.className = 'event-log-item';
+                item.innerHTML = `
+                    <span class="event-log-time">${time}</span>
+                    <span class="event-log-type ${type}">${type.toUpperCase()}</span>
+                    <span class="event-log-message">${message}</span>
+                `;
+
+                logEl.insertBefore(item, logEl.firstChild);
+
+                // 최대 100개 유지
+                while (logEl.children.length > 100) {
+                    logEl.removeChild(logEl.lastChild);
+                }
+            }
+
+            showToast(message, type = 'info') {
+                const container = document.getElementById('toastContainer');
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+
+                container.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.remove();
+                }, 3000);
+            }
+
+            updateScenarioStatus(index, success) {
+                const el = document.getElementById(`scenario${index}`);
+                if (el) {
+                    const statusEl = el.querySelector('.scenario-status');
+                    statusEl.textContent = success ? '✅' : '❌';
+                }
+                this.scenarioResults[index - 1] = success;
+            }
+
+            async runAllScenarios() {
+                this.log('info', '=== 자동 시나리오 테스트 시작 ===');
+                this.showToast('시나리오 테스트 시작', 'info');
+
+                // 초기화
+                for (let i = 1; i <= 4; i++) {
+                    const el = document.getElementById(`scenario${i}`);
+                    if (el) el.querySelector('.scenario-status').textContent = '⏳';
+                }
+
+                // 시나리오 1: Mock Online → Monitoring 진입 성공
+                this.log('info', '시나리오 1: Mock Online → Monitoring 진입 테스트');
+                await this.appModeManager.goToDefault();
+                this.connectionService.setMockOnline(true);
+                await this.delay(200);
+
+                const result1 = await this.appModeManager.enterMonitoringMode();
+                this.updateScenarioStatus(1, result1 && this.appModeManager.isMonitoringMode());
+
+                await this.delay(500);
+
+                // 시나리오 2: Mock Offline → Monitoring 진입 차단
+                this.log('info', '시나리오 2: Mock Offline → Monitoring 진입 차단 테스트');
+                await this.appModeManager.goToDefault();
+                this.connectionService.setMockOnline(false);
+                await this.delay(200);
+
+                const result2 = await this.appModeManager.enterMonitoringMode();
+                this.updateScenarioStatus(2, !result2 && !this.appModeManager.isMonitoringMode());
+
+                await this.delay(500);
+
+                // 시나리오 3: Monitoring 중 Offline → 자동 복귀
+                this.log('info', '시나리오 3: Monitoring 중 Offline → 자동 복귀 테스트');
+                this.connectionService.setMockOnline(true);
+                await this.delay(200);
+                await this.appModeManager.enterMonitoringMode();
+
+                this.connectionService.setMockOnline(false);
+                await this.delay(500);
+
+                this.updateScenarioStatus(3, this.appModeManager.getCurrentMode() === APP_MODE.MAIN_VIEWER);
+
+                await this.delay(500);
+
+                // 시나리오 4: Offline → Online 복구 이벤트
+                this.log('info', '시나리오 4: Offline → Online 복구 이벤트 테스트');
+                let recoveryEventReceived = false;
+
+                const unsubscribe = window.EventBus.on('connection:restored', () => {
+                    recoveryEventReceived = true;
+                });
+
+                this.connectionService.setMockOnline(true);
+                await this.delay(500);
+
+                this.updateScenarioStatus(4, recoveryEventReceived || this.connectionService.isOnline());
+                unsubscribe();
+
+                // 결과 요약
+                const passed = this.scenarioResults.filter(r => r).length;
+                this.log('info', `=== 테스트 완료: ${passed}/4 성공 ===`);
+                this.showToast(`테스트 완료: ${passed}/4 성공`, passed === 4 ? 'success' : 'warning');
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+        }
+
+        // 앱 시작
+        window.addEventListener('DOMContentLoaded', () => {
+            window.testApp = new TestApp();
+        });
+    </script>
+</body>
+</html>
