@@ -1,8 +1,8 @@
 /**
- * MonitoringService.js - v2.5-DEBUG
+ * MonitoringService.js - v2.6-DEBUG
  * 실시간 설비 모니터링 서비스
  * 
- * ⭐ 디버그: applyUnmappedEquipmentStyle만 활성화
+ * ⭐ 디버그: createStatusPanel만 활성화하여 테스트
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
  */
@@ -53,7 +53,7 @@ export class MonitoringService {
     
     /**
      * 모니터링 시작
-     * ⭐ v2.5-DEBUG: applyUnmappedEquipmentStyle만 활성화
+     * ⭐ v2.6-DEBUG: createStatusPanel만 활성화하여 테스트
      */
     async start() {
         if (this.isActive) {
@@ -61,20 +61,20 @@ export class MonitoringService {
             return;
         }
         
-        console.log('🔴🔴🔴 DEBUG MonitoringService.start() - applyUnmappedEquipmentStyle만 테스트!');
+        console.log('🔴🔴🔴 DEBUG MonitoringService.start() - createStatusPanel만 테스트!');
         
         debugLog('🟢 Starting monitoring mode...');
         this.isActive = true;
         
         try {
-            // ⭐ 1. 미연결 설비 비활성화 표시 - 활성화!
-            console.log('🔴 DEBUG: applyUnmappedEquipmentStyle - 실행!');
-            this.applyUnmappedEquipmentStyle();
-            console.log('🔴 DEBUG: applyUnmappedEquipmentStyle - 완료!');
+            // ⭐ 1. 미연결 설비 비활성화 표시 - 건너뜀
+            console.log('🔴 DEBUG: applyUnmappedEquipmentStyle - 건너뜀! (테스트)');
+            // this.applyUnmappedEquipmentStyle();
             
-            // ⭐ 2. 통계 패널 표시 - 비활성화
-            console.log('🔴 DEBUG: createStatusPanel - 건너뜀! (테스트)');
-            // this.createStatusPanel();
+            // ⭐ 2. 통계 패널 표시 - 활성화!
+            console.log('🔴 DEBUG: createStatusPanel - 실행!');
+            this.createStatusPanel();
+            console.log('🔴 DEBUG: createStatusPanel - 완료!');
             
             // 3. 초기 상태 로드 - 건너뜀
             console.log('🔴 DEBUG: loadInitialStatus - 건너뜀! (테스트)');
@@ -106,14 +106,14 @@ export class MonitoringService {
         debugLog('🔴 Stopping monitoring mode...');
         this.isActive = false;
         
-        // ⭐ 비활성화 표시 해제 - 활성화!
-        console.log('🔴 DEBUG: resetEquipmentStyle - 실행!');
-        this.resetEquipmentStyle();
-        console.log('🔴 DEBUG: resetEquipmentStyle - 완료!');
+        // ⭐ 비활성화 표시 해제 - 건너뜀
+        console.log('🔴 DEBUG: resetEquipmentStyle - 건너뜀! (테스트)');
+        // this.resetEquipmentStyle();
         
-        // ⭐ 통계 패널 제거 - 건너뜀
-        console.log('🔴 DEBUG: removeStatusPanel - 건너뜀! (테스트)');
-        // this.removeStatusPanel();
+        // ⭐ 통계 패널 제거 - 활성화!
+        console.log('🔴 DEBUG: removeStatusPanel - 실행!');
+        this.removeStatusPanel();
+        console.log('🔴 DEBUG: removeStatusPanel - 완료!');
         
         // WebSocket 연결 종료
         if (this.ws) {
@@ -136,19 +136,30 @@ export class MonitoringService {
     // ============================================
     
     createStatusPanel() {
+        console.log('🔴 DEBUG createStatusPanel() 시작');
+        
+        // 이미 존재하면 제거
         this.removeStatusPanel();
+        console.log('🔴 DEBUG: 기존 패널 제거 완료');
         
         const panel = document.createElement('div');
         panel.id = 'monitoring-status-panel';
         panel.className = 'status-panel';
+        console.log('🔴 DEBUG: panel 요소 생성 완료');
         
+        // 통계 계산
         this.updateStats();
+        console.log('🔴 DEBUG: updateStats 완료');
         
         panel.innerHTML = this.getStatusPanelHTML();
+        console.log('🔴 DEBUG: innerHTML 설정 완료');
         
         document.body.appendChild(panel);
+        console.log('🔴 DEBUG: document.body에 추가 완료');
+        
         this.statusPanelElement = panel;
         
+        console.log('🔴 DEBUG createStatusPanel() 완료');
         debugLog('📊 Status panel created');
     }
     
@@ -199,16 +210,23 @@ export class MonitoringService {
     }
     
     removeStatusPanel() {
+        console.log('🔴 DEBUG removeStatusPanel() 시작');
+        
         if (this.statusPanelElement) {
             this.statusPanelElement.remove();
             this.statusPanelElement = null;
+            console.log('🔴 DEBUG: statusPanelElement 제거됨');
             debugLog('📊 Status panel removed');
         }
         
+        // ID로도 한번 더 확인해서 제거
         const existingPanel = document.getElementById('monitoring-status-panel');
         if (existingPanel) {
             existingPanel.remove();
+            console.log('🔴 DEBUG: ID로 찾은 패널 제거됨');
         }
+        
+        console.log('🔴 DEBUG removeStatusPanel() 완료');
     }
     
     getStats() {
@@ -268,14 +286,6 @@ export class MonitoringService {
         
         debugLog(`🌫️ Unmapped equipment disabled: ${result.unmapped}개`);
         debugLog(`✅ Mapped equipment active: ${result.mapped}개`);
-        
-        // Toast 비활성화 (테스트용)
-        // if (result.unmapped > 0) {
-        //     this.showToast(
-        //         `⚠️ ${result.unmapped}개 설비가 DB에 연결되지 않음`, 
-        //         'warning'
-        //     );
-        // }
     }
     
     resetEquipmentStyle() {
