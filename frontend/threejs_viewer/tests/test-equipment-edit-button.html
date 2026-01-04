@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EquipmentEditButton 테스트 - Step 1-3</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e5e5e5;
+            padding: 20px;
+        }
+
+        .test-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #60a5fa;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #9ca3af;
+            margin-bottom: 30px;
+        }
+
+        /* 테스트 섹션 */
+        .test-section {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .test-section h2 {
+            font-size: 16px;
+            color: #60a5fa;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* 상태 표시 패널 */
+        .status-panel {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .status-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .status-card .label {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 8px;
+        }
+
+        .status-card .value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .status-card .value.online {
+            color: #22c55e;
+        }
+
+        .status-card .value.offline {
+            color: #ef4444;
+        }
+
+        .status-card .value.checking {
+            color: #f59e0b;
+        }
+
+        .status-card .value.enabled {
+            color: #22c55e;
+        }
+
+        .status-card .value.disabled {
+            color: #ef4444;
+        }
+
+        /* 컨트롤 버튼들 */
+        .control-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .control-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .control-btn.online {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+        }
+
+        .control-btn.offline {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .control-btn.toggle {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+        }
+
+        .control-btn.shortcut {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .control-btn.reset {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: white;
+        }
+
+        /* 실제 Edit 버튼 (index.html 시뮬레이션) */
+        .edit-button-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        .floating-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .floating-btn:hover:not(.eeb-disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+
+        .floating-btn.active {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        }
+
+        .floating-btn.eeb-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .floating-btn .eeb-status-indicator {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid #1a1a2e;
+        }
+
+        .floating-btn .eeb-status-indicator--online {
+            background: #22c55e;
+        }
+
+        .floating-btn .eeb-status-indicator--offline {
+            background: #ef4444;
+        }
+
+        .floating-btn .eeb-status-indicator--checking {
+            background: #f59e0b;
+        }
+
+        @keyframes eeb-pulse-warning {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+        }
+
+        .floating-btn.eeb-offline-warning {
+            animation: eeb-pulse-warning 2s ease-in-out infinite;
+        }
+
+        .button-label {
+            font-size: 14px;
+            color: #9ca3af;
+        }
+
+        /* 로그 패널 */
+        .log-panel {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            padding: 6px 10px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .log-entry .time {
+            color: #6b7280;
+            white-space: nowrap;
+        }
+
+        .log-entry .message {
+            flex: 1;
+        }
+
+        .log-entry.info {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 3px solid #3b82f6;
+        }
+
+        .log-entry.success {
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 3px solid #22c55e;
+        }
+
+        .log-entry.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid #f59e0b;
+        }
+
+        .log-entry.error {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+        }
+
+        .clear-log-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #9ca3af;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .clear-log-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Toast Container */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            animation: toast-in 0.3s ease;
+            max-width: 350px;
+        }
+
+        @keyframes toast-in {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .toast.success {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+        }
+
+        .toast.warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .toast.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .toast.info {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        /* 테스트 체크리스트 */
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+
+        .checklist li {
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checklist li .check {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #4b5563;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .checklist li.passed .check {
+            background: #22c55e;
+            border-color: #22c55e;
+            color: white;
+        }
+
+        .checklist li.failed .check {
+            background: #ef4444;
+            border-color: #ef4444;
+            color: white;
+        }
+
+        /* 키보드 힌트 */
+        .keyboard-hint {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .keyboard-hint kbd {
+            padding: 2px 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+            font-family: monospace;
+            color: #60a5fa;
+        }
+
+        /* 자동 테스트 진행 바 */
+        .auto-test-progress {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .auto-test-progress .bar {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 EquipmentEditButton 테스트</h1>
+        <p class="subtitle">Step 1-3: ConnectionStatusService 연동 테스트</p>
+
+        <!-- 상태 표시 -->
+        <div class="test-section">
+            <h2>📊 현재 상태</h2>
+            <div class="status-panel">
+                <div class="status-card">
+                    <div class="label">Connection Status</div>
+                    <div class="value" id="connectionStatus">--</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Button Enabled</div>
+                    <div class="value" id="buttonEnabled">--</div>
+                </div>
+                <div class="status-card">
+                    <div class="label">Edit Mode Active</div>
+                    <div class="value" id="editModeActive">--</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mock 컨트롤 -->
+        <div class="test-section">
+            <h2>🎮 Mock 컨트롤</h2>
+            <div class="control-panel">
+                <button class="control-btn online" onclick="setMockOnline()">
+                    🟢 Set Online
+                </button>
+                <button class="control-btn offline" onclick="setMockOffline()">
+                    🔴 Set Offline
+                </button>
+                <button class="control-btn toggle" onclick="toggleMockStatus()">
+                    🔄 Toggle Status
+                </button>
+                <button class="control-btn shortcut" onclick="simulateEKey()">
+                    ⌨️ Simulate 'E' Key
+                </button>
+                <button class="control-btn reset" onclick="resetTest()">
+                    ↺ Reset
+                </button>
+            </div>
+            <div class="keyboard-hint">
+                💡 실제 <kbd>E</kbd> 키를 눌러도 테스트 가능합니다
+            </div>
+        </div>
+
+        <!-- Edit 버튼 시뮬레이션 -->
+        <div class="test-section">
+            <h2>🖱️ Edit 버튼 (index.html 시뮬레이션)</h2>
+            <div class="edit-button-container">
+                <button id="editBtn" class="floating-btn" title="Equipment Edit Mode (E)">
+                    ✏️
+                </button>
+                <div class="button-label">
+                    <strong>#editBtn</strong> - 클릭하거나 E 키를 눌러 테스트
+                </div>
+            </div>
+        </div>
+
+        <!-- 자동 테스트 -->
+        <div class="test-section">
+            <h2>🤖 자동 테스트</h2>
+            <div class="control-panel">
+                <button class="control-btn toggle" onclick="runAutoTest()">
+                    ▶️ 자동 테스트 실행
+                </button>
+            </div>
+            <ul class="checklist" id="testChecklist">
+                <li id="test1">
+                    <span class="check"></span>
+                    <span>Mock Online → 버튼 활성화</span>
+                </li>
+                <li id="test2">
+                    <span class="check"></span>
+                    <span>Online 상태에서 버튼 클릭 → Edit 모드 토글</span>
+                </li>
+                <li id="test3">
+                    <span class="check"></span>
+                    <span>Mock Offline → 버튼 비활성화</span>
+                </li>
+                <li id="test4">
+                    <span class="check"></span>
+                    <span>Offline 상태에서 버튼 클릭 → 경고 메시지</span>
+                </li>
+                <li id="test5">
+                    <span class="check"></span>
+                    <span>Offline 상태에서 'E' 키 → 경고 메시지</span>
+                </li>
+                <li id="test6">
+                    <span class="check"></span>
+                    <span>실시간 상태 전환 (Online ↔ Offline)</span>
+                </li>
+            </ul>
+            <div class="auto-test-progress">
+                <div class="bar" id="testProgressBar"></div>
+            </div>
+        </div>
+
+        <!-- 로그 패널 -->
+        <div class="test-section">
+            <h2>📜 이벤트 로그</h2>
+            <div class="log-panel" id="logPanel">
+                <!-- 로그 엔트리들 -->
+            </div>
+            <button class="clear-log-btn" onclick="clearLog()">🗑️ 로그 지우기</button>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- 스크립트 -->
+    <script type="module">
+        // =========================================================
+        // Mock 구현 (실제 모듈을 로드하지 않고 독립 테스트)
+        // =========================================================
+
+        // 간단한 EventBus Mock
+        class MockEventBus {
+            constructor() {
+                this._listeners = {};
+            }
+
+            on(event, callback) {
+                if (!this._listeners[event]) {
+                    this._listeners[event] = [];
+                }
+                this._listeners[event].push(callback);
+                return () => this.off(event, callback);
+            }
+
+            off(event, callback) {
+                if (this._listeners[event]) {
+                    this._listeners[event] = this._listeners[event].filter(cb => cb !== callback);
+                }
+            }
+
+            emit(event, data) {
+                if (this._listeners[event]) {
+                    this._listeners[event].forEach(cb => cb(data));
+                }
+            }
+        }
+
+        const eventBus = new MockEventBus();
+        window.eventBus = eventBus;
+
+        // ConnectionStatusService Mock
+        class MockConnectionStatusService {
+            constructor() {
+                this._isOnline = true;
+                this._state = 'online';
+                this._listeners = {
+                    online: [],
+                    offline: [],
+                    statusChanged: []
+                };
+            }
+
+            static _instance = null;
+            static getInstance() {
+                if (!MockConnectionStatusService._instance) {
+                    MockConnectionStatusService._instance = new MockConnectionStatusService();
+                }
+                return MockConnectionStatusService._instance;
+            }
+
+            isOnline() {
+                return this._isOnline;
+            }
+
+            getState() {
+                return this._state;
+            }
+
+            setOnline(online) {
+                const wasOnline = this._isOnline;
+                this._isOnline = online;
+                this._state = online ? 'online' : 'offline';
+
+                if (wasOnline !== online) {
+                    const data = { isOnline: online, wasOnline, recoveredAfter: wasOnline ? 0 : 1 };
+                    
+                    if (online) {
+                        this._listeners.online.forEach(cb => cb(data));
+                    } else {
+                        this._listeners.offline.forEach(cb => cb(data));
+                    }
+                    
+                    this._listeners.statusChanged.forEach(cb => cb(data));
+                }
+            }
+
+            onOnline(callback) {
+                this._listeners.online.push(callback);
+                return () => {
+                    this._listeners.online = this._listeners.online.filter(cb => cb !== callback);
+                };
+            }
+
+            onOffline(callback) {
+                this._listeners.offline.push(callback);
+                return () => {
+                    this._listeners.offline = this._listeners.offline.filter(cb => cb !== callback);
+                };
+            }
+
+            onStatusChanged(callback) {
+                this._listeners.statusChanged.push(callback);
+                return () => {
+                    this._listeners.statusChanged = this._listeners.statusChanged.filter(cb => cb !== callback);
+                };
+            }
+
+            configure() {}
+            start() {}
+            stop() {}
+        }
+
+        window.MockConnectionStatusService = MockConnectionStatusService;
+
+        // Toast Mock
+        const toast = {
+            show(message, type = 'info', duration = 3000) {
+                const container = document.getElementById('toastContainer');
+                const toastEl = document.createElement('div');
+                toastEl.className = `toast ${type}`;
+                toastEl.textContent = message;
+                container.appendChild(toastEl);
+
+                addLog(`Toast [${type}]: ${message}`, type);
+
+                setTimeout(() => {
+                    toastEl.style.animation = 'toast-in 0.3s ease reverse';
+                    setTimeout(() => toastEl.remove(), 300);
+                }, duration);
+            },
+            success(msg, duration) { this.show(msg, 'success', duration); },
+            warning(msg, duration) { this.show(msg, 'warning', duration); },
+            error(msg, duration) { this.show(msg, 'error', duration); },
+            info(msg, duration) { this.show(msg, 'info', duration); }
+        };
+
+        window.toast = toast;
+
+        // =========================================================
+        // EquipmentEditButton (실제 코드와 동일한 로직)
+        // =========================================================
+
+        class EquipmentEditButton {
+            constructor(options = {}) {
+                this._options = {
+                    createButton: options.createButton ?? true,
+                    buttonId: options.buttonId || 'editBtn',
+                    onEditRequest: options.onEditRequest || null
+                };
+
+                this._element = null;
+                this._statusIndicator = null;
+                this._connectionService = MockConnectionStatusService.getInstance();
+                this._isEnabled = false;
+                this._isEditModeActive = false;
+                this._unsubscribers = [];
+
+                this._init();
+            }
+
+            _init() {
+                this._injectStyles();
+                
+                if (!this._options.createButton) {
+                    this._takeoverExistingButton();
+                }
+
+                this._bindEvents();
+                this._updateButtonState();
+            }
+
+            _injectStyles() {
+                // 스타일은 HTML에 이미 포함됨
+            }
+
+            _takeoverExistingButton() {
+                this._element = document.getElementById(this._options.buttonId);
+                
+                if (!this._element) {
+                    addLog(`기존 버튼을 찾을 수 없음: #${this._options.buttonId}`, 'error');
+                    return;
+                }
+
+                addLog(`기존 버튼 인계: #${this._options.buttonId}`, 'info');
+                this._addStatusIndicator();
+                
+                const computedStyle = window.getComputedStyle(this._element);
+                if (computedStyle.position === 'static') {
+                    this._element.style.position = 'relative';
+                }
+            }
+
+            _addStatusIndicator() {
+                if (!this._element) return;
+
+                this._statusIndicator = this._element.querySelector('.eeb-status-indicator');
+                
+                if (!this._statusIndicator) {
+                    this._statusIndicator = document.createElement('span');
+                    this._statusIndicator.className = 'eeb-status-indicator';
+                    this._element.appendChild(this._statusIndicator);
+                }
+            }
+
+            _bindEvents() {
+                const unsubOnline = this._connectionService.onOnline(() => {
+                    this._onConnectionOnline();
+                });
+                this._unsubscribers.push(unsubOnline);
+
+                const unsubOffline = this._connectionService.onOffline(() => {
+                    this._onConnectionOffline();
+                });
+                this._unsubscribers.push(unsubOffline);
+
+                const unsubStatusChanged = this._connectionService.onStatusChanged(() => {
+                    this._updateButtonState();
+                });
+                this._unsubscribers.push(unsubStatusChanged);
+
+                if (this._element) {
+                    this._boundClickHandler = (e) => this._handleClick(e);
+                    this._element.addEventListener('click', this._boundClickHandler, true);
+                }
+
+                const shortcutHandler = () => this._handleShortcut();
+                eventBus.on('shortcut:equipmentEdit', shortcutHandler);
+                this._unsubscribers.push(() => eventBus.off('shortcut:equipmentEdit', shortcutHandler));
+            }
+
+            _onConnectionOnline() {
+                addLog('Backend 연결됨 - 버튼 활성화', 'success');
+                this._setEnabled(true);
+                toast.success('Backend 연결됨 - Equipment Edit 사용 가능');
+            }
+
+            _onConnectionOffline() {
+                addLog('Backend 연결 끊김 - 버튼 비활성화', 'warning');
+                this._setEnabled(false);
+                
+                if (this._isEditModeActive) {
+                    toast.warning('⚠️ Backend 연결이 끊겼습니다. 변경사항이 저장되지 않을 수 있습니다.');
+                }
+            }
+
+            _handleClick(e) {
+                addLog('버튼 클릭 감지', 'info');
+
+                if (!this._isEnabled) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    this._showOfflineMessage();
+                    return;
+                }
+
+                if (this._options.onEditRequest) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this._options.onEditRequest();
+                }
+            }
+
+            _handleShortcut() {
+                addLog("'E' 키 단축키 감지", 'info');
+
+                if (!this._isEnabled) {
+                    this._showOfflineMessage();
+                    return;
+                }
+
+                if (this._options.onEditRequest) {
+                    this._options.onEditRequest();
+                } else {
+                    eventBus.emit('equipment:edit:toggle', {});
+                }
+            }
+
+            _showOfflineMessage() {
+                addLog('오프라인 메시지 표시', 'warning');
+                toast.warning('🔌 Backend 서버에 연결되어 있지 않습니다.\nEquipment Edit 모드를 사용하려면 서버 연결이 필요합니다.', 4000);
+                
+                if (this._element) {
+                    this._element.classList.add('eeb-offline-warning');
+                    setTimeout(() => {
+                        this._element.classList.remove('eeb-offline-warning');
+                    }, 2000);
+                }
+            }
+
+            _setEnabled(enabled) {
+                this._isEnabled = enabled;
+                this._updateButtonState();
+            }
+
+            _updateButtonState() {
+                if (!this._element) return;
+
+                const isOnline = this._connectionService.isOnline();
+                this._isEnabled = isOnline;
+
+                this._element.classList.toggle('eeb-disabled', !isOnline);
+
+                if (this._statusIndicator) {
+                    this._statusIndicator.className = 'eeb-status-indicator';
+                    
+                    const state = this._connectionService.getState();
+                    if (state === 'checking') {
+                        this._statusIndicator.classList.add('eeb-status-indicator--checking');
+                    } else if (isOnline) {
+                        this._statusIndicator.classList.add('eeb-status-indicator--online');
+                    } else {
+                        this._statusIndicator.classList.add('eeb-status-indicator--offline');
+                    }
+                }
+
+                if (isOnline) {
+                    this._element.title = 'Equipment Edit Mode (E)';
+                } else {
+                    this._element.title = '⚠️ Backend 연결 필요 - Equipment Edit Mode (E)';
+                }
+
+                updateStatusDisplay();
+            }
+
+            setEditModeActive(active) {
+                this._isEditModeActive = active;
+                
+                if (this._element) {
+                    this._element.classList.toggle('active', active);
+                }
+
+                updateStatusDisplay();
+            }
+
+            isEnabled() {
+                return this._isEnabled;
+            }
+
+            isEditModeActive() {
+                return this._isEditModeActive;
+            }
+
+            triggerEdit() {
+                if (this._isEnabled) {
+                    if (this._options.onEditRequest) {
+                        this._options.onEditRequest();
+                    }
+                    return true;
+                } else {
+                    this._showOfflineMessage();
+                    return false;
+                }
+            }
+        }
+
+        // =========================================================
+        // 테스트 로직
+        // =========================================================
+
+        let equipmentEditButton = null;
+        let isEditModeActive = false;
+
+        // Edit Mode 토글 함수
+        function toggleEditMode() {
+            isEditModeActive = !isEditModeActive;
+            equipmentEditButton.setEditModeActive(isEditModeActive);
+            addLog(`Edit Mode ${isEditModeActive ? '활성화' : '비활성화'}`, isEditModeActive ? 'success' : 'info');
+            updateStatusDisplay();
+        }
+
+        // 초기화
+        function initialize() {
+            addLog('테스트 초기화 시작...', 'info');
+
+            // EquipmentEditButton 생성 (기존 버튼 인계)
+            equipmentEditButton = new EquipmentEditButton({
+                createButton: false,
+                buttonId: 'editBtn',
+                onEditRequest: toggleEditMode
+            });
+
+            // 키보드 이벤트 리스너
+            document.addEventListener('keydown', (e) => {
+                if (e.key.toLowerCase() === 'e' && 
+                    e.target.tagName !== 'INPUT' && 
+                    e.target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    eventBus.emit('shortcut:equipmentEdit', { key: 'e' });
+                }
+            });
+
+            addLog('테스트 초기화 완료', 'success');
+            updateStatusDisplay();
+        }
+
+        // 상태 표시 업데이트
+        function updateStatusDisplay() {
+            const connectionService = MockConnectionStatusService.getInstance();
+            
+            // Connection Status
+            const statusEl = document.getElementById('connectionStatus');
+            const isOnline = connectionService.isOnline();
+            statusEl.textContent = isOnline ? 'ONLINE' : 'OFFLINE';
+            statusEl.className = `value ${isOnline ? 'online' : 'offline'}`;
+
+            // Button Enabled
+            const enabledEl = document.getElementById('buttonEnabled');
+            const isEnabled = equipmentEditButton?.isEnabled() ?? false;
+            enabledEl.textContent = isEnabled ? 'YES' : 'NO';
+            enabledEl.className = `value ${isEnabled ? 'enabled' : 'disabled'}`;
+
+            // Edit Mode Active
+            const editModeEl = document.getElementById('editModeActive');
+            editModeEl.textContent = isEditModeActive ? 'YES' : 'NO';
+            editModeEl.className = `value ${isEditModeActive ? 'enabled' : 'disabled'}`;
+        }
+
+        // 로그 추가
+        function addLog(message, type = 'info') {
+            const logPanel = document.getElementById('logPanel');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `
+                <span class="time">${time}</span>
+                <span class="message">${message}</span>
+            `;
+            
+            logPanel.insertBefore(entry, logPanel.firstChild);
+
+            // 최대 50개 로그 유지
+            while (logPanel.children.length > 50) {
+                logPanel.removeChild(logPanel.lastChild);
+            }
+        }
+
+        // 로그 지우기
+        window.clearLog = function() {
+            document.getElementById('logPanel').innerHTML = '';
+            addLog('로그 초기화됨', 'info');
+        };
+
+        // Mock 상태 설정
+        window.setMockOnline = function() {
+            addLog('Mock 상태를 Online으로 설정', 'info');
+            MockConnectionStatusService.getInstance().setOnline(true);
+        };
+
+        window.setMockOffline = function() {
+            addLog('Mock 상태를 Offline으로 설정', 'info');
+            MockConnectionStatusService.getInstance().setOnline(false);
+        };
+
+        window.toggleMockStatus = function() {
+            const service = MockConnectionStatusService.getInstance();
+            const newStatus = !service.isOnline();
+            addLog(`Mock 상태 토글: ${newStatus ? 'Online' : 'Offline'}`, 'info');
+            service.setOnline(newStatus);
+        };
+
+        window.simulateEKey = function() {
+            addLog("'E' 키 시뮬레이션", 'info');
+            eventBus.emit('shortcut:equipmentEdit', { key: 'e' });
+        };
+
+        window.resetTest = function() {
+            addLog('테스트 리셋', 'info');
+            isEditModeActive = false;
+            MockConnectionStatusService.getInstance().setOnline(true);
+            equipmentEditButton.setEditModeActive(false);
+            
+            // 체크리스트 리셋
+            document.querySelectorAll('.checklist li').forEach(li => {
+                li.classList.remove('passed', 'failed');
+            });
+            document.getElementById('testProgressBar').style.width = '0%';
+            
+            updateStatusDisplay();
+        };
+
+        // 자동 테스트
+        window.runAutoTest = async function() {
+            addLog('🤖 자동 테스트 시작...', 'info');
+            
+            const tests = [
+                { id: 'test1', name: 'Mock Online → 버튼 활성화', fn: testOnlineEnabled },
+                { id: 'test2', name: 'Online 클릭 → Edit 모드 토글', fn: testOnlineClick },
+                { id: 'test3', name: 'Mock Offline → 버튼 비활성화', fn: testOfflineDisabled },
+                { id: 'test4', name: 'Offline 클릭 → 경고', fn: testOfflineClick },
+                { id: 'test5', name: "Offline 'E' 키 → 경고", fn: testOfflineEKey },
+                { id: 'test6', name: '실시간 상태 전환', fn: testRealTimeToggle }
+            ];
+
+            let passed = 0;
+            
+            for (let i = 0; i < tests.length; i++) {
+                const test = tests[i];
+                const progress = ((i + 1) / tests.length) * 100;
+                document.getElementById('testProgressBar').style.width = `${progress}%`;
+                
+                await delay(500);
+                
+                try {
+                    const result = await test.fn();
+                    const li = document.getElementById(test.id);
+                    
+                    if (result) {
+                        li.classList.add('passed');
+                        li.querySelector('.check').textContent = '✓';
+                        addLog(`✅ ${test.name} - PASSED`, 'success');
+                        passed++;
+                    } else {
+                        li.classList.add('failed');
+                        li.querySelector('.check').textContent = '✗';
+                        addLog(`❌ ${test.name} - FAILED`, 'error');
+                    }
+                } catch (error) {
+                    const li = document.getElementById(test.id);
+                    li.classList.add('failed');
+                    li.querySelector('.check').textContent = '✗';
+                    addLog(`❌ ${test.name} - ERROR: ${error.message}`, 'error');
+                }
+                
+                await delay(300);
+            }
+
+            addLog(`🏁 자동 테스트 완료: ${passed}/${tests.length} 통과`, passed === tests.length ? 'success' : 'warning');
+        };
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // 테스트 케이스들
+        async function testOnlineEnabled() {
+            MockConnectionStatusService.getInstance().setOnline(true);
+            await delay(100);
+            return equipmentEditButton.isEnabled() === true;
+        }
+
+        async function testOnlineClick() {
+            MockConnectionStatusService.getInstance().setOnline(true);
+            isEditModeActive = false;
+            equipmentEditButton.setEditModeActive(false);
+            await delay(100);
+            
+            // 버튼 클릭 시뮬레이션
+            document.getElementById('editBtn').click();
+            await delay(100);
+            
+            return isEditModeActive === true;
+        }
+
+        async function testOfflineDisabled() {
+            MockConnectionStatusService.getInstance().setOnline(false);
+            await delay(100);
+            return equipmentEditButton.isEnabled() === false;
+        }
+
+        async function testOfflineClick() {
+            MockConnectionStatusService.getInstance().setOnline(false);
+            await delay(100);
+            
+            const beforeActive = isEditModeActive;
+            document.getElementById('editBtn').click();
+            await delay(100);
+            
+            // 오프라인에서는 Edit 모드가 변경되지 않아야 함
+            return isEditModeActive === beforeActive;
+        }
+
+        async function testOfflineEKey() {
+            MockConnectionStatusService.getInstance().setOnline(false);
+            isEditModeActive = false;
+            equipmentEditButton.setEditModeActive(false);
+            await delay(100);
+            
+            eventBus.emit('shortcut:equipmentEdit', { key: 'e' });
+            await delay(100);
+            
+            // 오프라인에서는 Edit 모드가 변경되지 않아야 함
+            return isEditModeActive === false;
+        }
+
+        async function testRealTimeToggle() {
+            // Online → Offline → Online 전환 테스트
+            MockConnectionStatusService.getInstance().setOnline(true);
+            await delay(200);
+            const step1 = equipmentEditButton.isEnabled() === true;
+            
+            MockConnectionStatusService.getInstance().setOnline(false);
+            await delay(200);
+            const step2 = equipmentEditButton.isEnabled() === false;
+            
+            MockConnectionStatusService.getInstance().setOnline(true);
+            await delay(200);
+            const step3 = equipmentEditButton.isEnabled() === true;
+            
+            return step1 && step2 && step3;
+        }
+
+        // 초기화 실행
+        initialize();
+    </script>
+</body>
+</html>
