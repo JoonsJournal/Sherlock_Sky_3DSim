@@ -1,6 +1,9 @@
 /**
  * EquipmentLoader.js
  * 설비 모델 로딩 및 배열 생성 (equipment1.js 직접 사용, LOD 제거)
+ * 
+ * @version 2.2.0
+ * @description Monitoring Mode 비활성화 표시 수정 - 투명도 완전 제거, 색상만 변경
  */
 
 import * as THREE from 'three';
@@ -419,7 +422,7 @@ export class EquipmentLoader {
         return rate;
     }
 
-// =========================================================
+    // =========================================================
     // ✨ Phase 4: 동적 CONFIG 적용
     // =========================================================
     
@@ -482,169 +485,166 @@ export class EquipmentLoader {
     }
 
     // ============================================
-        // ⭐ Phase 2.5: Monitoring Mode - 미연결 설비 비활성화 표시
-        // ============================================
+    // ⭐ Phase 2.5: Monitoring Mode - 미연결 설비 비활성화 표시
+    // ⭐ v2.2: 투명도 완전 제거! 색상만 변경 (렌더링 문제 해결)
+    // ============================================
+    
+    /**
+     * 설비의 원본 Material 상태 저장
+     * @param {THREE.Group} equipment - 설비 객체
+     */
+    storeOriginalMaterials(equipment) {
+        if (equipment.userData._originalMaterials) return; // 이미 저장됨
         
-        /**
-         * 설비의 원본 Material 상태 저장
-         * @param {THREE.Group} equipment - 설비 객체
-         */
-        storeOriginalMaterials(equipment) {
-            if (equipment.userData._originalMaterials) return; // 이미 저장됨
-            
-            const originals = [];
-            equipment.traverse((child) => {
-                if (child.isMesh && child.material) {
-                    const matData = {
-                        mesh: child,
-                        opacity: child.material.opacity,
-                        transparent: child.material.transparent,
-                        color: child.material.color ? child.material.color.clone() : null,
-                        emissive: child.material.emissive ? child.material.emissive.clone() : null,
-                        emissiveIntensity: child.material.emissiveIntensity || 0
-                    };
-                    originals.push(matData);
+        const originals = [];
+        equipment.traverse((child) => {
+            if (child.isMesh && child.material) {
+                const matData = {
+                    mesh: child,
+                    color: child.material.color ? child.material.color.clone() : null,
+                    emissive: child.material.emissive ? child.material.emissive.clone() : null,
+                    emissiveIntensity: child.material.emissiveIntensity || 0
+                };
+                originals.push(matData);
+            }
+        });
+        
+        equipment.userData._originalMaterials = originals;
+    }
+    
+    /**
+     * 설비의 원본 Material 상태 복원
+     * @param {THREE.Group} equipment - 설비 객체
+     */
+    restoreOriginalMaterials(equipment) {
+        const originals = equipment.userData._originalMaterials;
+        if (!originals) return;
+        
+        originals.forEach((data) => {
+            if (data.mesh && data.mesh.material) {
+                const mat = data.mesh.material;
+                // ⭐ 색상만 복원 (투명도 관련 제거)
+                if (data.color && mat.color) {
+                    mat.color.copy(data.color);
                 }
-            });
-            
-            equipment.userData._originalMaterials = originals;
+                if (data.emissive && mat.emissive) {
+                    mat.emissive.copy(data.emissive);
+                }
+                mat.emissiveIntensity = data.emissiveIntensity;
+                mat.needsUpdate = true;
+            }
+        });
+        
+        equipment.userData._isDisabled = false;
+    }
+    
+    /**
+     * 🌫️ 설비를 비활성화 상태로 표시 (회색만 적용 - 투명도 사용 안함!)
+     * 
+     * ⭐ v2.2: transparent/opacity 완전 제거
+     * - Three.js의 투명 렌더링 순서 문제 해결
+     * - 색상만 변경하여 미연결 설비 표시
+     * 
+     * @param {string} equipmentId - 설비 ID (예: 'EQ-01-01')
+     * @param {boolean} disabled - 비활성화 여부
+     * @param {Object} options - 옵션 { grayColor: 0x555555 }
+     */
+    setEquipmentDisabled(equipmentId, disabled, options = {}) {
+        const equipment = this.equipmentMap.get(equipmentId);
+        if (!equipment) {
+            return; // 조용히 무시 (로그 제거)
         }
         
-        /**
-         * 설비의 원본 Material 상태 복원
-         * @param {THREE.Group} equipment - 설비 객체
-         */
-        restoreOriginalMaterials(equipment) {
-            const originals = equipment.userData._originalMaterials;
-            if (!originals) return;
-            
-            originals.forEach((data) => {
-                if (data.mesh && data.mesh.material) {
-                    const mat = data.mesh.material;
-                    mat.opacity = data.opacity;
-                    mat.transparent = data.transparent;
-                    if (data.color && mat.color) {
-                        mat.color.copy(data.color);
+        const {
+            grayColor = 0x555555    // 어두운 회색 (미연결 표시)
+        } = options;
+        
+        // 원본 상태 저장
+        this.storeOriginalMaterials(equipment);
+        
+        if (disabled) {
+            // 🌫️ 비활성화 스타일 적용 (색상만 변경!)
+            equipment.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    const mat = child.material;
+                    
+                    // ⭐ 투명도 설정 완전 제거! (렌더링 문제 방지)
+                    // mat.transparent = true;  // ❌ 제거!
+                    // mat.opacity = opacity;   // ❌ 제거!
+                    
+                    // 회색조 처리 (색상만 변경)
+                    if (mat.color) {
+                        mat.color.setHex(grayColor);
                     }
-                    if (data.emissive && mat.emissive) {
-                        mat.emissive.copy(data.emissive);
+                    
+                    // 발광 제거
+                    if (mat.emissive) {
+                        mat.emissive.setHex(0x000000);
+                        mat.emissiveIntensity = 0;
                     }
-                    mat.emissiveIntensity = data.emissiveIntensity;
+                    
                     mat.needsUpdate = true;
                 }
             });
             
-            equipment.userData._isDisabled = false;
+            equipment.userData._isDisabled = true;
+            
+        } else {
+            // 원본 상태 복원
+            this.restoreOriginalMaterials(equipment);
         }
+    }
+    
+    /**
+     * 🎯 Monitoring Mode용: 매핑 상태에 따라 설비 활성화/비활성화
+     * @param {Object} mappings - EquipmentEditState.mappings
+     * @param {Object} options - 비활성화 옵션 (색상만)
+     * @returns {Object} { mapped: number, unmapped: number }
+     */
+    applyMonitoringModeVisibility(mappings, options = {}) {
+        let mappedCount = 0;
+        let unmappedCount = 0;
         
-        /**
-         * 🌫️ 설비를 비활성화 상태로 표시 (회색 + 반투명)
-         * @param {string} equipmentId - 설비 ID (예: 'EQ-01-01')
-         * @param {boolean} disabled - 비활성화 여부
-         * @param {Object} options - 옵션 { opacity: 0.3, grayScale: true }
-         */
-        setEquipmentDisabled(equipmentId, disabled, options = {}) {
-            const equipment = this.equipmentMap.get(equipmentId);
-            if (!equipment) {
-                debugLog(`⚠️ Equipment not found: ${equipmentId}`);
-                return;
-            }
+        this.equipmentArray.forEach(equipment => {
+            const id = equipment.userData.id;
+            const isMapped = id in mappings;
             
-            const {
-                opacity = 0.3,          // 투명도 (0~1)
-                grayScale = true,       // 회색조 적용
-                grayColor = 0x888888    // 회색 색상
-            } = options;
-            
-            // 원본 상태 저장
-            this.storeOriginalMaterials(equipment);
-            
-            if (disabled) {
-                // 🌫️ 비활성화 스타일 적용
-                equipment.traverse((child) => {
-                    if (child.isMesh && child.material) {
-                        const mat = child.material;
-                        
-                        // 반투명 처리
-                        mat.transparent = true;
-                        mat.opacity = opacity;
-                        
-                        // 회색조 처리
-                        if (grayScale && mat.color) {
-                            mat.color.setHex(grayColor);
-                        }
-                        
-                        // 발광 제거
-                        if (mat.emissive) {
-                            mat.emissive.setHex(0x000000);
-                            mat.emissiveIntensity = 0;
-                        }
-                        
-                        mat.needsUpdate = true;
-                    }
-                });
-                
-                equipment.userData._isDisabled = true;
-                debugLog(`🌫️ Equipment disabled: ${equipmentId}`);
-                
+            if (isMapped) {
+                // 매핑된 설비: 정상 표시
+                this.setEquipmentDisabled(id, false);
+                mappedCount++;
             } else {
-                // 원본 상태 복원
-                this.restoreOriginalMaterials(equipment);
-                debugLog(`✅ Equipment enabled: ${equipmentId}`);
+                // 미매핑 설비: 비활성화 표시 (회색만!)
+                this.setEquipmentDisabled(id, true, options);
+                unmappedCount++;
             }
-        }
+        });
         
-        /**
-         * 🎯 Monitoring Mode용: 매핑 상태에 따라 설비 활성화/비활성화
-         * @param {Object} mappings - EquipmentEditState.mappings
-         * @param {Object} options - 비활성화 옵션
-         * @returns {Object} { mapped: number, unmapped: number }
-         */
-        applyMonitoringModeVisibility(mappings, options = {}) {
-            let mappedCount = 0;
-            let unmappedCount = 0;
-            
-            this.equipmentArray.forEach(equipment => {
-                const id = equipment.userData.id;
-                const isMapped = id in mappings;
-                
-                if (isMapped) {
-                    // 매핑된 설비: 정상 표시
-                    this.setEquipmentDisabled(id, false);
-                    mappedCount++;
-                } else {
-                    // 미매핑 설비: 비활성화 표시
-                    this.setEquipmentDisabled(id, true, options);
-                    unmappedCount++;
-                }
-            });
-            
-            debugLog(`📊 Monitoring visibility applied: ${mappedCount} mapped, ${unmappedCount} unmapped`);
-            
-            return { mapped: mappedCount, unmapped: unmappedCount };
-        }
+        debugLog(`📊 Monitoring visibility applied: ${mappedCount} mapped, ${unmappedCount} unmapped`);
         
-        /**
-         * 🔄 모든 설비 활성화 상태로 복원 (Monitoring Mode 종료 시)
-         */
-        resetAllEquipmentVisibility() {
-            this.equipmentArray.forEach(equipment => {
-                this.restoreOriginalMaterials(equipment);
-            });
-            
-            debugLog(`✅ All equipment visibility reset`);
-        }
+        return { mapped: mappedCount, unmapped: unmappedCount };
+    }
+    
+    /**
+     * 🔄 모든 설비 활성화 상태로 복원 (Monitoring Mode 종료 시)
+     */
+    resetAllEquipmentVisibility() {
+        this.equipmentArray.forEach(equipment => {
+            this.restoreOriginalMaterials(equipment);
+        });
         
-        /**
-         * 특정 설비가 비활성화 상태인지 확인
-         * @param {string} equipmentId - 설비 ID
-         * @returns {boolean}
-         */
-        isEquipmentDisabled(equipmentId) {
-            const equipment = this.equipmentMap.get(equipmentId);
-            return equipment?.userData._isDisabled === true;
-        }
-
+        debugLog(`✅ All equipment visibility reset`);
+    }
+    
+    /**
+     * 특정 설비가 비활성화 상태인지 확인
+     * @param {string} equipmentId - 설비 ID
+     * @returns {boolean}
+     */
+    isEquipmentDisabled(equipmentId) {
+        const equipment = this.equipmentMap.get(equipmentId);
+        return equipment?.userData._isDisabled === true;
+    }
 
     /**
      * 설비 메모리 정리
