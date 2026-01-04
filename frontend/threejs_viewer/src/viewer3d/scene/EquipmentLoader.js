@@ -2,8 +2,8 @@
  * EquipmentLoader.js
  * 설비 모델 로딩 및 배열 생성 (equipment1.js 직접 사용, LOD 제거)
  * 
- * @version 2.2.2-DEBUG
- * @description 심층 디버깅 - 설비 사라짐 문제 원인 파악
+ * @version 2.2.3-DEBUG
+ * @description 색상 테스트 - 빨간색으로 변경하여 설비 존재 확인
  */
 
 import * as THREE from 'three';
@@ -486,46 +486,8 @@ export class EquipmentLoader {
 
     // ============================================
     // ⭐ Phase 2.5: Monitoring Mode - 미연결 설비 비활성화 표시
-    // ⭐ v2.2.2-DEBUG: 심층 디버깅
+    // ⭐ v2.2.3-DEBUG: 빨간색으로 테스트
     // ============================================
-    
-    /**
-     * 🔴 DEBUG: 설비 상태 전체 검사
-     */
-    debugEquipmentState(label = '') {
-        const eq = this.equipmentArray[0];
-        if (!eq) {
-            console.log(`🔴 DEBUG ${label}: equipmentArray가 비어있음!`);
-            return;
-        }
-        
-        console.log(`🔴🔴🔴 DEBUG ${label} - 첫 번째 설비 상태 검사:`);
-        console.log('  - id:', eq.userData?.id);
-        console.log('  - visible:', eq.visible);
-        console.log('  - position:', eq.position.toArray());
-        console.log('  - scale:', eq.scale.toArray());
-        console.log('  - parent:', eq.parent ? eq.parent.type : 'null');
-        console.log('  - inScene:', this.scene.children.includes(eq));
-        
-        // mesh 검사
-        let meshCount = 0;
-        eq.traverse((child) => {
-            if (child.isMesh) {
-                meshCount++;
-                if (meshCount === 1) {
-                    console.log('  - 첫번째 Mesh:');
-                    console.log('    - visible:', child.visible);
-                    console.log('    - material.visible:', child.material?.visible);
-                    console.log('    - material.opacity:', child.material?.opacity);
-                    console.log('    - material.transparent:', child.material?.transparent);
-                    console.log('    - material.color:', child.material?.color?.getHexString());
-                    console.log('    - material.side:', child.material?.side);
-                    console.log('    - geometry.boundingBox:', child.geometry?.boundingBox);
-                }
-            }
-        });
-        console.log('  - 총 mesh 개수:', meshCount);
-    }
     
     /**
      * 설비의 원본 Material 상태 저장
@@ -577,9 +539,9 @@ export class EquipmentLoader {
     }
     
     /**
-     * 🌫️ 설비를 비활성화 상태로 표시 (회색만 적용 - 투명도 사용 안함!)
+     * 🌫️ 설비를 비활성화 상태로 표시
      * 
-     * ⭐ v2.2.2-DEBUG: 심층 디버깅
+     * ⭐ v2.2.3-DEBUG: 빨간색으로 테스트하여 설비 존재 확인
      * 
      * @param {string} equipmentId - 설비 ID (예: 'EQ-01-01')
      * @param {boolean} disabled - 비활성화 여부
@@ -591,78 +553,40 @@ export class EquipmentLoader {
             return; // 조용히 무시
         }
         
-        const {
-            grayColor = 0x555555    // 어두운 회색 (미연결 표시)
-        } = options;
+        // 🔴 DEBUG: 빨간색으로 테스트! (회색 대신)
+        const testColor = 0xFF0000;  // 밝은 빨간색
         
         // 원본 상태 저장
         this.storeOriginalMaterials(equipment);
         
-        // 🔴 DEBUG: 첫 번째 설비만 상세 로그
+        // 🔴 DEBUG 로그
         const isFirstEquipment = equipmentId === 'EQ-01-01';
+        if (isFirstEquipment) {
+            console.log('🔴🔴🔴 DEBUG: 빨간색(0xFF0000)으로 테스트 중!');
+        }
         
         if (disabled) {
-            // 🔴 DEBUG: 변경 전 상태
-            if (isFirstEquipment) {
-                console.log('🔴 DEBUG [BEFORE] setEquipmentDisabled:');
-                console.log('  - equipment.visible:', equipment.visible);
-                console.log('  - equipment.scale:', equipment.scale.toArray());
-                console.log('  - equipment.position:', equipment.position.toArray());
-            }
-            
-            // 🌫️ 비활성화 스타일 적용 (색상만 변경!)
-            let meshCount = 0;
+            // 🌫️ 비활성화 스타일 적용
             equipment.traverse((child) => {
                 if (child.isMesh && child.material) {
                     const mat = child.material;
                     
-                    // 🔴 DEBUG: 첫 번째 mesh 상세 로그
-                    if (isFirstEquipment && meshCount === 0) {
-                        console.log('🔴 DEBUG [BEFORE] 첫 번째 Mesh:');
-                        console.log('  - child.visible:', child.visible);
-                        console.log('  - mat.visible:', mat.visible);
-                        console.log('  - mat.color:', mat.color?.getHexString());
-                        console.log('  - mat.opacity:', mat.opacity);
-                        console.log('  - mat.transparent:', mat.transparent);
-                        console.log('  - mat.side:', mat.side);
-                        console.log('  - mat.depthTest:', mat.depthTest);
-                        console.log('  - mat.depthWrite:', mat.depthWrite);
-                    }
-                    
-                    // 회색조 처리 (색상만 변경)
+                    // 🔴 DEBUG: 빨간색으로 변경!
                     if (mat.color) {
-                        mat.color.setHex(grayColor);
+                        mat.color.setHex(testColor);
                     }
                     
-                    // 발광 제거
+                    // 발광도 빨간색으로!
                     if (mat.emissive) {
-                        mat.emissive.setHex(0x000000);
-                        mat.emissiveIntensity = 0;
+                        mat.emissive.setHex(0x330000);
+                        mat.emissiveIntensity = 0.3;
                     }
                     
                     mat.needsUpdate = true;
-                    meshCount++;
-                    
-                    // 🔴 DEBUG: 첫 번째 mesh 변경 후 상태
-                    if (isFirstEquipment && meshCount === 1) {
-                        console.log('🔴 DEBUG [AFTER] 첫 번째 Mesh:');
-                        console.log('  - child.visible:', child.visible);
-                        console.log('  - mat.visible:', mat.visible);
-                        console.log('  - mat.color:', mat.color?.getHexString());
-                        console.log('  - mat.opacity:', mat.opacity);
-                        console.log('  - mat.transparent:', mat.transparent);
-                    }
                 }
             });
             
             equipment.userData._isDisabled = true;
-            
-            // 🔴 DEBUG: 변경 후 상태
-            if (isFirstEquipment) {
-                console.log('🔴 DEBUG [AFTER] setEquipmentDisabled:');
-                console.log('  - equipment.visible:', equipment.visible);
-                console.log('  - meshCount:', meshCount);
-            }
             
         } else {
             // 원본 상태 복원
@@ -678,13 +602,8 @@ export class EquipmentLoader {
      */
     applyMonitoringModeVisibility(mappings, options = {}) {
         // 🔴 DEBUG: 함수 호출 확인
-        console.log('🔴🔴🔴 DEBUG applyMonitoringModeVisibility 호출됨!');
-        console.log('🔴 mappings keys count:', Object.keys(mappings).length);
-        console.log('🔴 options:', options);
-        console.log('🔴 equipmentArray length:', this.equipmentArray.length);
-        
-        // 🔴 DEBUG: 변경 전 상태 확인
-        this.debugEquipmentState('BEFORE applyMonitoringModeVisibility');
+        console.log('🔴🔴🔴 DEBUG applyMonitoringModeVisibility - 빨간색 테스트!');
+        console.log('🔴 설비 117개를 빨간색(0xFF0000)으로 변경합니다...');
         
         let mappedCount = 0;
         let unmappedCount = 0;
@@ -698,23 +617,16 @@ export class EquipmentLoader {
                 this.setEquipmentDisabled(id, false);
                 mappedCount++;
             } else {
-                // 미매핑 설비: 비활성화 표시 (회색만!)
+                // 미매핑 설비: 빨간색으로 표시 (테스트!)
                 this.setEquipmentDisabled(id, true, options);
                 unmappedCount++;
             }
         });
         
-        // 🔴 DEBUG: 변경 후 상태 확인
-        this.debugEquipmentState('AFTER applyMonitoringModeVisibility');
-        
-        // 🔴 DEBUG: Scene 상태 확인
-        console.log('🔴 DEBUG Scene children count:', this.scene.children.length);
-        const equipmentInScene = this.scene.children.filter(c => c.userData?.type === 'equipment').length;
-        console.log('🔴 DEBUG Equipment in scene:', equipmentInScene);
-        
         // 🔴 DEBUG: 결과 로그
-        console.log('🔴🔴🔴 DEBUG applyMonitoringModeVisibility 완료!');
-        console.log(`🔴 결과: mapped=${mappedCount}, unmapped=${unmappedCount}`);
+        console.log('🔴🔴🔴 DEBUG 완료!');
+        console.log(`🔴 결과: ${unmappedCount}개 설비가 빨간색으로 변경됨`);
+        console.log('🔴 만약 설비가 안 보인다면, 색상 문제가 아니라 다른 문제입니다!');
         
         debugLog(`📊 Monitoring visibility applied: ${mappedCount} mapped, ${unmappedCount} unmapped`);
         
@@ -725,15 +637,11 @@ export class EquipmentLoader {
      * 🔄 모든 설비 활성화 상태로 복원 (Monitoring Mode 종료 시)
      */
     resetAllEquipmentVisibility() {
-        // 🔴 DEBUG
-        console.log('🔴🔴🔴 DEBUG resetAllEquipmentVisibility 호출됨!');
-        this.debugEquipmentState('BEFORE resetAllEquipmentVisibility');
+        console.log('🔴 DEBUG resetAllEquipmentVisibility - 원래 색상으로 복원');
         
         this.equipmentArray.forEach(equipment => {
             this.restoreOriginalMaterials(equipment);
         });
-        
-        this.debugEquipmentState('AFTER resetAllEquipmentVisibility');
         
         debugLog(`✅ All equipment visibility reset`);
     }
