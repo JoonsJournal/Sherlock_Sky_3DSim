@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoSave System Test - Sherlock Sky 3DSim</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e5e5e5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #ffffff;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #9ca3af;
+            margin-bottom: 30px;
+        }
+
+        /* Status Panel */
+        .status-panel {
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-panel h2 {
+            font-size: 16px;
+            color: #9ca3af;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .status-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .status-item-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .status-item-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .status-item-value.success { color: #22c55e; }
+        .status-item-value.warning { color: #f59e0b; }
+        .status-item-value.error { color: #ef4444; }
+        .status-item-value.info { color: #3b82f6; }
+
+        /* Control Panel */
+        .control-panel {
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .control-panel h2 {
+            font-size: 16px;
+            color: #9ca3af;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group h3 {
+            font-size: 14px;
+            color: #d4d4d4;
+            margin-bottom: 10px;
+        }
+
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-success {
+            background: #22c55e;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #16a34a;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #d4d4d4;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Event Log */
+        .event-log {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .event-log h2 {
+            font-size: 16px;
+            color: #9ca3af;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .event-log-content {
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            gap: 10px;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #6b7280;
+            flex-shrink: 0;
+        }
+
+        .log-type {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .log-type.started { background: #22c55e33; color: #86efac; }
+        .log-type.stopped { background: #ef444433; color: #fca5a5; }
+        .log-type.dirty { background: #f59e0b33; color: #fcd34d; }
+        .log-type.saving { background: #3b82f633; color: #93c5fd; }
+        .log-type.complete { background: #22c55e33; color: #86efac; }
+        .log-type.error { background: #ef444433; color: #fca5a5; }
+        .log-type.recovery { background: #8b5cf633; color: #c4b5fd; }
+
+        .log-message {
+            color: #d4d4d4;
+            word-break: break-all;
+        }
+
+        /* Data Editor */
+        .data-editor {
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .data-editor h2 {
+            font-size: 16px;
+            color: #9ca3af;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .editor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .editor-field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .editor-field label {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .editor-field input,
+        .editor-field textarea {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 10px;
+            color: #ffffff;
+            font-size: 14px;
+        }
+
+        .editor-field input:focus,
+        .editor-field textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .editor-field textarea {
+            min-height: 100px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+        }
+
+        /* Toast Container */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            animation: slideIn 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast-success {
+            background: rgba(34, 197, 94, 0.9);
+            color: white;
+        }
+
+        .toast-warning {
+            background: rgba(245, 158, 11, 0.9);
+            color: white;
+        }
+
+        .toast-error {
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+        }
+
+        .toast-info {
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+        }
+
+        /* Indicator Placeholder */
+        .indicator-placeholder {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 9998;
+        }
+
+        /* Instructions */
+        .instructions {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .instructions h2 {
+            font-size: 16px;
+            color: #93c5fd;
+            margin-bottom: 10px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            color: #d4d4d4;
+            line-height: 1.8;
+        }
+
+        .instructions code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        /* Timer Display */
+        .timer-display {
+            font-size: 48px;
+            font-weight: 700;
+            text-align: center;
+            color: #3b82f6;
+            font-family: monospace;
+            margin: 20px 0;
+        }
+
+        /* Storage Info */
+        .storage-info {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 AutoSave System Test</h1>
+        <p class="subtitle">AutoSaveManager, AutoSaveIndicator, RecoveryDialog 통합 테스트</p>
+
+        <!-- Instructions -->
+        <div class="instructions">
+            <h2>📋 테스트 방법</h2>
+            <ol>
+                <li><strong>자동 저장 테스트:</strong> 데이터를 변경하고 30초 대기 또는 5회 변경 후 자동 저장 확인</li>
+                <li><strong>수동 저장:</strong> 우측 하단 AutoSave Indicator의 "Save" 버튼 클릭</li>
+                <li><strong>복구 테스트:</strong> 데이터 변경 후 <code>Ctrl+Shift+R</code>로 새로고침 → 복구 다이얼로그 확인</li>
+                <li><strong>브라우저 닫기 테스트:</strong> 데이터 변경 후 탭 닫기 → 다시 열기 → 복구 다이얼로그 확인</li>
+            </ol>
+        </div>
+
+        <!-- Status Panel -->
+        <div class="status-panel">
+            <h2>📊 현재 상태</h2>
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-item-label">AutoSave 상태</div>
+                    <div class="status-item-value" id="status-autosave">대기 중</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-item-label">Dirty 상태</div>
+                    <div class="status-item-value" id="status-dirty">Clean</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-item-label">변경 횟수</div>
+                    <div class="status-item-value info" id="status-changes">0</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-item-label">마지막 저장</div>
+                    <div class="status-item-value" id="status-last-save">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-item-label">다음 저장까지</div>
+                    <div class="status-item-value info" id="status-next-save">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-item-label">LocalStorage</div>
+                    <div class="status-item-value" id="status-storage">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timer Display -->
+        <div class="timer-display" id="countdown-timer">30</div>
+
+        <!-- Data Editor -->
+        <div class="data-editor">
+            <h2>✏️ 테스트 데이터 (편집하면 Dirty 상태로 변경)</h2>
+            <div class="editor-grid">
+                <div class="editor-field">
+                    <label>룸 너비</label>
+                    <input type="number" id="room-width" value="3000" data-field="roomWidth">
+                </div>
+                <div class="editor-field">
+                    <label>룸 높이</label>
+                    <input type="number" id="room-height" value="1500" data-field="roomHeight">
+                </div>
+                <div class="editor-field">
+                    <label>설비 개수</label>
+                    <input type="number" id="equipment-count" value="117" data-field="equipmentCount">
+                </div>
+                <div class="editor-field">
+                    <label>사이트 ID</label>
+                    <input type="text" id="site-id" value="korea_site1" data-field="siteId">
+                </div>
+                <div class="editor-field" style="grid-column: span 2;">
+                    <label>메모 (여러 줄)</label>
+                    <textarea id="memo" data-field="memo">테스트 메모입니다.
+자동 저장이 잘 작동하는지 확인해보세요.</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <h2>🎮 컨트롤</h2>
+            
+            <div class="control-group">
+                <h3>AutoSave 관리</h3>
+                <div class="button-row">
+                    <button class="btn btn-success" onclick="startAutoSave()">▶️ 시작</button>
+                    <button class="btn btn-danger" onclick="stopAutoSave()">⏹️ 중지</button>
+                    <button class="btn btn-primary" onclick="saveNow()">💾 즉시 저장</button>
+                    <button class="btn btn-warning" onclick="markDirty()">📝 Dirty 표시</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>복구 테스트</h3>
+                <div class="button-row">
+                    <button class="btn btn-primary" onclick="showRecoveryDialog()">🔄 복구 다이얼로그 표시</button>
+                    <button class="btn btn-secondary" onclick="checkRecoveryData()">🔍 복구 데이터 확인</button>
+                    <button class="btn btn-danger" onclick="clearAllAutoSave()">🗑️ 모든 AutoSave 삭제</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <h3>디버그</h3>
+                <div class="button-row">
+                    <button class="btn btn-secondary" onclick="printStorageStatus()">📋 Storage 상태 출력</button>
+                    <button class="btn btn-secondary" onclick="printAutoSaveStatus()">📋 AutoSave 상태 출력</button>
+                    <button class="btn btn-secondary" onclick="clearEventLog()">🧹 로그 지우기</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Log -->
+        <div class="event-log">
+            <h2>
+                📜 이벤트 로그
+                <span class="storage-info" id="log-count">0 entries</span>
+            </h2>
+            <div class="event-log-content" id="event-log">
+                <div class="log-entry">
+                    <span class="log-time">--:--:--</span>
+                    <span class="log-type started">INIT</span>
+                    <span class="log-message">이벤트 로그 시작...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Indicator Placeholder -->
+    <div class="indicator-placeholder" id="indicator-container"></div>
+
+    <!-- ES6 Module Script -->
+    <script type="module">
+        // =================================================================
+        // Imports
+        // =================================================================
+        import { eventBus } from '../src/core/managers/EventBus.js';
+        import { storageService } from '../src/core/storage/index.js';
+        import AutoSaveIndicator from '../src/ui/AutoSaveIndicator.js';
+        import RecoveryDialog from '../src/ui/RecoveryDialog.js';
+
+        // =================================================================
+        // 전역 변수
+        // =================================================================
+        let autoSaveInstance = null;
+        let countdownInterval = null;
+        let lastSaveTime = null;
+        const NAMESPACE = 'layout';
+        const SITE_ID = 'test_site';
+        const AUTOSAVE_INTERVAL = 30000; // 30초
+        const CHANGE_THRESHOLD = 5;
+
+        // =================================================================
+        // 테스트 데이터
+        // =================================================================
+        const testData = {
+            roomConfig: {
+                width: 3000,
+                height: 1500
+            },
+            equipmentCount: 117,
+            siteId: 'korea_site1',
+            memo: '테스트 메모입니다.\n자동 저장이 잘 작동하는지 확인해보세요.',
+            objects: [],
+            walls: []
+        };
+
+        // =================================================================
+        // 데이터 Getter
+        // =================================================================
+        function getData() {
+            return {
+                roomConfig: {
+                    width: parseInt(document.getElementById('room-width').value) || 3000,
+                    height: parseInt(document.getElementById('room-height').value) || 1500
+                },
+                equipmentCount: parseInt(document.getElementById('equipment-count').value) || 117,
+                siteId: document.getElementById('site-id').value || 'test_site',
+                memo: document.getElementById('memo').value || '',
+                savedTimestamp: new Date().toISOString()
+            };
+        }
+
+        // =================================================================
+        // AutoSave 초기화
+        // =================================================================
+        function initAutoSave() {
+            // AutoSave 등록
+            autoSaveInstance = storageService.autoSave.register(NAMESPACE, SITE_ID, {
+                getData: getData,
+                intervalMs: AUTOSAVE_INTERVAL,
+                changeThreshold: CHANGE_THRESHOLD,
+                onSave: (data) => {
+                    lastSaveTime = new Date();
+                    showToast('💾 자동 저장 완료!', 'success');
+                    updateStatus();
+                },
+                onError: (error) => {
+                    showToast('❌ 저장 실패: ' + error.message, 'error');
+                }
+            });
+
+            log('started', `AutoSave 등록 완료 - interval: ${AUTOSAVE_INTERVAL/1000}초, threshold: ${CHANGE_THRESHOLD}회`);
+        }
+
+        // =================================================================
+        // AutoSave Indicator 초기화
+        // =================================================================
+        function initIndicator() {
+            const indicator = new AutoSaveIndicator({
+                container: '#indicator-container',
+                position: 'custom',
+                namespace: NAMESPACE,
+                showSaveButton: true,
+                showTooltip: true,
+                onManualSave: () => {
+                    saveNow();
+                }
+            });
+
+            log('started', 'AutoSaveIndicator 초기화 완료');
+        }
+
+        // =================================================================
+        // 이벤트 구독
+        // =================================================================
+        function setupEventListeners() {
+            // AutoSave 이벤트 구독
+            eventBus.on('autosave:started', (data) => {
+                log('started', `AutoSave 시작 - ${data.namespace}/${data.identifier}`);
+                updateStatus();
+                startCountdown();
+            });
+
+            eventBus.on('autosave:stopped', (data) => {
+                log('stopped', `AutoSave 중지 - ${data.namespace}/${data.identifier}`);
+                updateStatus();
+                stopCountdown();
+            });
+
+            eventBus.on('autosave:dirty', (data) => {
+                log('dirty', `Dirty 상태 변경 - isDirty: ${data.isDirty}, count: ${data.changeCount}`);
+                updateStatus();
+            });
+
+            eventBus.on('autosave:saving', (data) => {
+                log('saving', `저장 시작 - trigger: ${data.trigger}`);
+                updateStatus();
+            });
+
+            eventBus.on('autosave:complete', (data) => {
+                log('complete', `저장 완료 - ${data.timestamp}`);
+                lastSaveTime = new Date(data.timestamp);
+                updateStatus();
+                resetCountdown();
+            });
+
+            eventBus.on('autosave:error', (data) => {
+                log('error', `저장 실패 - ${data.error}`);
+                updateStatus();
+            });
+
+            eventBus.on('autosave:recovery', (data) => {
+                log('recovery', `복구 데이터 발견 - ${data.namespace}/${data.identifier}`);
+            });
+
+            // 수동 저장 요청 이벤트
+            eventBus.on('autosave:manual-save-requested', (data) => {
+                log('saving', `수동 저장 요청 - ${data.namespace}`);
+                if (autoSaveInstance) {
+                    autoSaveInstance.saveNow('manual');
+                }
+            });
+
+            // Recovery 이벤트
+            eventBus.on('recovery:recover-requested', (data) => {
+                log('recovery', `복구 요청 - ${data.items.length}개 항목`);
+                data.items.forEach(item => {
+                    applyRecoveryData(item);
+                });
+            });
+
+            eventBus.on('recovery:discard-completed', (data) => {
+                log('stopped', `복구 데이터 삭제 - ${data.items.length}개 항목`);
+            });
+
+            // 입력 필드 변경 감지
+            document.querySelectorAll('[data-field]').forEach(input => {
+                input.addEventListener('input', () => {
+                    if (autoSaveInstance) {
+                        autoSaveInstance.markDirty();
+                    }
+                });
+            });
+
+            log('started', '이벤트 리스너 설정 완료');
+        }
+
+        // =================================================================
+        // 복구 데이터 적용
+        // =================================================================
+        function applyRecoveryData(item) {
+            const data = item.data;
+            if (!data) return;
+
+            if (data.roomConfig) {
+                document.getElementById('room-width').value = data.roomConfig.width || 3000;
+                document.getElementById('room-height').value = data.roomConfig.height || 1500;
+            }
+            if (data.equipmentCount !== undefined) {
+                document.getElementById('equipment-count').value = data.equipmentCount;
+            }
+            if (data.siteId) {
+                document.getElementById('site-id').value = data.siteId;
+            }
+            if (data.memo) {
+                document.getElementById('memo').value = data.memo;
+            }
+
+            showToast('✅ 데이터 복구 완료!', 'success');
+            log('recovery', '복구 데이터 UI에 적용 완료');
+        }
+
+        // =================================================================
+        // 카운트다운 타이머
+        // =================================================================
+        let countdownSeconds = AUTOSAVE_INTERVAL / 1000;
+
+        function startCountdown() {
+            countdownSeconds = AUTOSAVE_INTERVAL / 1000;
+            updateCountdownDisplay();
+
+            if (countdownInterval) clearInterval(countdownInterval);
+            
+            countdownInterval = setInterval(() => {
+                countdownSeconds--;
+                if (countdownSeconds < 0) countdownSeconds = AUTOSAVE_INTERVAL / 1000;
+                updateCountdownDisplay();
+            }, 1000);
+        }
+
+        function stopCountdown() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            document.getElementById('countdown-timer').textContent = '--';
+        }
+
+        function resetCountdown() {
+            countdownSeconds = AUTOSAVE_INTERVAL / 1000;
+            updateCountdownDisplay();
+        }
+
+        function updateCountdownDisplay() {
+            document.getElementById('countdown-timer').textContent = countdownSeconds;
+            document.getElementById('status-next-save').textContent = `${countdownSeconds}초`;
+        }
+
+        // =================================================================
+        // 상태 업데이트
+        // =================================================================
+        function updateStatus() {
+            const status = autoSaveInstance?.getStatus();
+            
+            // AutoSave 상태
+            const autoSaveStatus = document.getElementById('status-autosave');
+            if (status?.isRunning) {
+                autoSaveStatus.textContent = '실행 중';
+                autoSaveStatus.className = 'status-item-value success';
+            } else {
+                autoSaveStatus.textContent = '중지됨';
+                autoSaveStatus.className = 'status-item-value error';
+            }
+
+            // Dirty 상태
+            const dirtyStatus = document.getElementById('status-dirty');
+            if (status?.isDirty) {
+                dirtyStatus.textContent = 'Dirty';
+                dirtyStatus.className = 'status-item-value warning';
+            } else {
+                dirtyStatus.textContent = 'Clean';
+                dirtyStatus.className = 'status-item-value success';
+            }
+
+            // 변경 횟수
+            document.getElementById('status-changes').textContent = 
+                `${status?.changeCount || 0} / ${CHANGE_THRESHOLD}`;
+
+            // 마지막 저장
+            if (lastSaveTime) {
+                const ago = Math.floor((Date.now() - lastSaveTime.getTime()) / 1000);
+                document.getElementById('status-last-save').textContent = 
+                    ago < 60 ? `${ago}초 전` : `${Math.floor(ago/60)}분 전`;
+            }
+
+            // Storage 사용량
+            const storageInfo = storageService.getUsageInfo();
+            document.getElementById('status-storage').textContent = 
+                `${storageInfo.itemCount}개 / ${(storageInfo.usedBytes / 1024).toFixed(1)}KB`;
+        }
+
+        // =================================================================
+        // 로깅
+        // =================================================================
+        function log(type, message) {
+            const logContainer = document.getElementById('event-log');
+            const now = new Date().toLocaleTimeString();
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-time">${now}</span>
+                <span class="log-type ${type}">${type.toUpperCase()}</span>
+                <span class="log-message">${message}</span>
+            `;
+            
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+
+            // 로그 카운트 업데이트
+            const count = logContainer.querySelectorAll('.log-entry').length;
+            document.getElementById('log-count').textContent = `${count} entries`;
+        }
+
+        // =================================================================
+        // Toast
+        // =================================================================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // =================================================================
+        // 전역 함수 (버튼 onclick용)
+        // =================================================================
+        window.startAutoSave = function() {
+            if (autoSaveInstance) {
+                autoSaveInstance.start();
+                showToast('▶️ AutoSave 시작됨', 'success');
+            }
+        };
+
+        window.stopAutoSave = function() {
+            if (autoSaveInstance) {
+                autoSaveInstance.stop();
+                showToast('⏹️ AutoSave 중지됨', 'warning');
+            }
+        };
+
+        window.saveNow = function() {
+            if (autoSaveInstance) {
+                autoSaveInstance.saveNow('manual');
+            }
+        };
+
+        window.markDirty = function() {
+            if (autoSaveInstance) {
+                autoSaveInstance.markDirty();
+                showToast('📝 Dirty 상태로 표시됨', 'info');
+            }
+        };
+
+        window.showRecoveryDialog = function() {
+            const dialog = new RecoveryDialog({
+                autoCheck: false,
+                showPreview: true,
+                namespaces: ['layout', 'equipment'],
+                onRecover: (items) => {
+                    items.forEach(item => applyRecoveryData(item));
+                }
+            });
+            dialog.checkAndShow();
+        };
+
+        window.checkRecoveryData = function() {
+            const data = storageService.autoSave.checkRecovery(NAMESPACE, SITE_ID);
+            if (data) {
+                console.log('복구 데이터:', data);
+                showToast('🔍 복구 데이터 발견! 콘솔 확인', 'info');
+                log('recovery', `복구 데이터 발견: ${JSON.stringify(data._autoSave)}`);
+            } else {
+                showToast('복구 데이터 없음', 'warning');
+                log('recovery', '복구 데이터 없음');
+            }
+        };
+
+        window.clearAllAutoSave = function() {
+            if (confirm('모든 AutoSave 데이터를 삭제하시겠습니까?')) {
+                storageService.autoSave.clearRecovery(NAMESPACE, SITE_ID);
+                // equipment도 삭제
+                storageService.autoSave.clearRecovery('equipment', SITE_ID);
+                showToast('🗑️ AutoSave 데이터 삭제됨', 'warning');
+                log('stopped', '모든 AutoSave 데이터 삭제됨');
+            }
+        };
+
+        window.printStorageStatus = function() {
+            const status = storageService.getStatusReport();
+            console.log('📋 Storage Status:', status);
+            log('started', `Storage: ${status.storage.itemCount}개, ${(status.storage.usedBytes/1024).toFixed(1)}KB`);
+        };
+
+        window.printAutoSaveStatus = function() {
+            const status = autoSaveInstance?.getStatus();
+            console.log('📋 AutoSave Status:', status);
+            if (status) {
+                log('started', `AutoSave: running=${status.isRunning}, dirty=${status.isDirty}, changes=${status.changeCount}`);
+            }
+        };
+
+        window.clearEventLog = function() {
+            const logContainer = document.getElementById('event-log');
+            logContainer.innerHTML = '';
+            document.getElementById('log-count').textContent = '0 entries';
+            log('started', '로그 초기화됨');
+        };
+
+        // =================================================================
+        // 전역 노출 (디버깅용)
+        // =================================================================
+        window.testAutoSave = {
+            instance: () => autoSaveInstance,
+            storageService,
+            eventBus,
+            getData,
+            NAMESPACE,
+            SITE_ID
+        };
+
+        // =================================================================
+        // 초기화
+        // =================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            log('started', '페이지 로드 완료');
+            
+            // 초기화
+            initAutoSave();
+            initIndicator();
+            setupEventListeners();
+            
+            // 복구 다이얼로그 자동 확인 (500ms 후)
+            setTimeout(() => {
+                const recoveryDialog = new RecoveryDialog({
+                    autoCheck: true,
+                    showPreview: true,
+                    namespaces: ['layout', 'equipment'],
+                    onRecover: (items) => {
+                        items.forEach(item => applyRecoveryData(item));
+                    }
+                });
+            }, 500);
+            
+            // 상태 주기적 업데이트
+            setInterval(updateStatus, 1000);
+            
+            // AutoSave 시작
+            autoSaveInstance.start();
+            
+            console.log('✅ AutoSave Test 초기화 완료');
+            console.log('💡 디버그: window.testAutoSave 사용 가능');
+        });
+    </script>
+</body>
+</html>

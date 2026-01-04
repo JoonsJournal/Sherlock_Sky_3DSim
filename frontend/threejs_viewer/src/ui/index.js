@@ -2,8 +2,9 @@
  * ui/index.js
  * UI 모듈 통합 export
  * 
- * @version 1.3.0
+ * @version 1.4.0
  * @changelog
+ * - v1.4.0: FileControls export 추가
  * - v1.3.0: RecoveryDialog export 추가
  * - v1.2.0: AutoSaveIndicator export 추가
  * - v1.1.0: EquipmentEditButton, ConnectionIndicator export 추가
@@ -18,12 +19,17 @@ export { EquipmentEditModal } from './EquipmentEditModal.js';
 // =========================================================
 // Dialogs
 // =========================================================
-export { default as RecoveryDialog } from './RecoveryDialog.js';  // 🆕 추가
+export { default as RecoveryDialog } from './RecoveryDialog.js';
 
 // =========================================================
 // Buttons / Controllers
 // =========================================================
 export { EquipmentEditButton } from './EquipmentEditButton.js';
+
+// =========================================================
+// File Management
+// =========================================================
+export { default as FileControls } from './FileControls.js';  // 🆕 추가
 
 // =========================================================
 // Indicators
@@ -47,10 +53,3 @@ export * from './common/index.js';
 // Debug Components
 // =========================================================
 export * from './debug/index.js';
-
-// =========================================================
-// Legacy (하위 호환성 - 추후 제거 예정)
-// =========================================================
-// ToastNotification은 Toast로 대체됨
-// import { ToastNotification } from './ToastNotification.js';
-// export { ToastNotification };
