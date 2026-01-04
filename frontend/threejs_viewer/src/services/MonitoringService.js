@@ -1,8 +1,11 @@
 /**
- * MonitoringService.js - 수정 버전
+ * MonitoringService.js - v2.0
  * 실시간 설비 모니터링 서비스
  * 
- * ⭐ 추가 기능: Monitoring Mode에서 DB 미연결 설비 비활성화 표시
+ * ⭐ 추가 기능: 
+ * - Monitoring Mode에서 DB 미연결 설비 비활성화 표시
+ * - 통계 패널 표시 (연결/미연결 개수, 완료율)
+ * - 미연결 설비 클릭 시 안내 메시지
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
  */
@@ -43,7 +46,18 @@ export class MonitoringService {
             grayColor: 0x666666  // 회색 색상
         };
         
-        debugLog('MonitoringService initialized (with disabled equipment support)');
+        // ⭐ 통계 패널 요소
+        this.statusPanelElement = null;
+        
+        // ⭐ 현재 통계
+        this.currentStats = {
+            mapped: 0,
+            unmapped: 0,
+            total: 0,
+            rate: 0
+        };
+        
+        debugLog('MonitoringService initialized (with status panel & unmapped notification)');
     }
     
     /**
@@ -71,13 +85,16 @@ export class MonitoringService {
             // ⭐ 1. 미연결 설비 비활성화 표시 적용
             this.applyUnmappedEquipmentStyle();
             
-            // 2. 초기 상태 로드 (REST API)
+            // ⭐ 2. 통계 패널 표시
+            this.createStatusPanel();
+            
+            // 3. 초기 상태 로드 (REST API)
             await this.loadInitialStatus();
             
-            // 3. WebSocket 연결
+            // 4. WebSocket 연결
             this.connectWebSocket();
             
-            // 4. 배치 처리 타이머 시작
+            // 5. 배치 처리 타이머 시작
             this.startBatchProcessing();
             
             debugLog('✅ Monitoring mode started');
@@ -98,6 +115,9 @@ export class MonitoringService {
         // ⭐ 1. 비활성화 표시 해제 (모든 설비 원래대로)
         this.resetEquipmentStyle();
         
+        // ⭐ 2. 통계 패널 제거
+        this.removeStatusPanel();
+        
         // WebSocket 연결 종료
         if (this.ws) {
             this.ws.close();
@@ -114,7 +134,149 @@ export class MonitoringService {
     }
     
     // ============================================
-    // ⭐ 미연결 설비 비활성화 표시 (NEW)
+    // ⭐ 통계 패널 관리 (NEW)
+    // ============================================
+    
+    /**
+     * ⭐ 통계 패널 생성
+     */
+    createStatusPanel() {
+        // 이미 존재하면 제거
+        this.removeStatusPanel();
+        
+        const panel = document.createElement('div');
+        panel.id = 'monitoring-status-panel';
+        panel.className = 'status-panel';
+        
+        // 통계 계산
+        this.updateStats();
+        
+        panel.innerHTML = this.getStatusPanelHTML();
+        
+        document.body.appendChild(panel);
+        this.statusPanelElement = panel;
+        
+        debugLog('📊 Status panel created');
+    }
+    
+    /**
+     * ⭐ 통계 패널 HTML 생성
+     */
+    getStatusPanelHTML() {
+        const { mapped, unmapped, rate } = this.currentStats;
+        
+        return `
+            <div class="status-item">
+                <span class="status-icon connected">✅</span>
+                <span class="status-value">${mapped}개 연결</span>
+            </div>
+            <div class="status-divider">|</div>
+            <div class="status-item">
+                <span class="status-icon disconnected">⚠️</span>
+                <span class="status-value">${unmapped}개 미연결</span>
+            </div>
+            <div class="status-divider">|</div>
+            <div class="status-item">
+                <span class="status-icon">📊</span>
+                <span class="status-value">${rate}% 완료</span>
+            </div>
+        `;
+    }
+    
+    /**
+     * ⭐ 통계 업데이트
+     */
+    updateStats() {
+        if (!this.equipmentLoader || !this.equipmentEditState) {
+            return;
+        }
+        
+        const totalEquipment = this.equipmentLoader.equipmentArray?.length || 0;
+        const mappedCount = this.equipmentEditState.getMappingCount() || 0;
+        const unmappedCount = totalEquipment - mappedCount;
+        const rate = totalEquipment > 0 ? Math.round((mappedCount / totalEquipment) * 100) : 0;
+        
+        this.currentStats = {
+            mapped: mappedCount,
+            unmapped: unmappedCount,
+            total: totalEquipment,
+            rate: rate
+        };
+    }
+    
+    /**
+     * ⭐ 통계 패널 업데이트
+     */
+    updateStatusPanel() {
+        if (!this.statusPanelElement) return;
+        
+        this.updateStats();
+        this.statusPanelElement.innerHTML = this.getStatusPanelHTML();
+    }
+    
+    /**
+     * ⭐ 통계 패널 제거
+     */
+    removeStatusPanel() {
+        if (this.statusPanelElement) {
+            this.statusPanelElement.remove();
+            this.statusPanelElement = null;
+            debugLog('📊 Status panel removed');
+        }
+        
+        // ID로도 한번 더 확인해서 제거
+        const existingPanel = document.getElementById('monitoring-status-panel');
+        if (existingPanel) {
+            existingPanel.remove();
+        }
+    }
+    
+    /**
+     * ⭐ 현재 통계 반환
+     */
+    getStats() {
+        this.updateStats();
+        return { ...this.currentStats };
+    }
+    
+    // ============================================
+    // ⭐ 미연결 설비 클릭 안내 (NEW)
+    // ============================================
+    
+    /**
+     * ⭐ 설비가 매핑되었는지 확인하고 안내 메시지 표시
+     * @param {string} frontendId - 설비 ID
+     * @returns {boolean} 매핑 여부
+     */
+    checkAndNotifyUnmapped(frontendId) {
+        if (!this.isActive) return true; // Monitoring Mode가 아니면 패스
+        
+        const isMapped = this.isEquipmentMapped(frontendId);
+        
+        if (!isMapped) {
+            this.showUnmappedNotification(frontendId);
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * ⭐ 미연결 설비 안내 표시
+     */
+    showUnmappedNotification(frontendId) {
+        // Toast 메시지 표시
+        this.showToast(
+            `⚠️ "${frontendId}"는 DB에 연결되지 않았습니다.\nEdit Mode (E키)에서 매핑해주세요.`,
+            'warning',
+            5000
+        );
+        
+        debugLog(`⚠️ Unmapped equipment clicked: ${frontendId}`);
+    }
+    
+    // ============================================
+    // ⭐ 미연결 설비 비활성화 표시
     // ============================================
     
     /**
@@ -132,10 +294,18 @@ export class MonitoringService {
             this.disabledOptions
         );
         
+        // 통계 업데이트
+        this.currentStats.mapped = result.mapped;
+        this.currentStats.unmapped = result.unmapped;
+        this.currentStats.total = result.mapped + result.unmapped;
+        this.currentStats.rate = this.currentStats.total > 0 
+            ? Math.round((result.mapped / this.currentStats.total) * 100) 
+            : 0;
+        
         debugLog(`🌫️ Unmapped equipment disabled: ${result.unmapped}개`);
         debugLog(`✅ Mapped equipment active: ${result.mapped}개`);
         
-        // Toast 알림 (옵션)
+        // Toast 알림
         if (result.unmapped > 0) {
             this.showToast(
                 `⚠️ ${result.unmapped}개 설비가 DB에 연결되지 않음`, 
@@ -167,26 +337,43 @@ export class MonitoringService {
         // 활성 상태면 즉시 재적용
         if (this.isActive) {
             this.applyUnmappedEquipmentStyle();
+            this.updateStatusPanel();
         }
     }
     
     /**
-     * Toast 메시지 표시 (선택적)
+     * Toast 메시지 표시
      */
-    showToast(message, type = 'info') {
-        const toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) return;
+    showToast(message, type = 'info', duration = 5000) {
+        // 기존 toast 시스템 사용 시도
+        if (window.toast?.show) {
+            window.toast.show(message.replace(/\n/g, ' '), type);
+            return;
+        }
+        
+        // Fallback: 직접 생성
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container';
+            document.body.appendChild(toastContainer);
+        }
         
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
-        toast.textContent = message;
+        toast.innerHTML = message.replace(/\n/g, '<br>');
         toastContainer.appendChild(toast);
         
-        setTimeout(() => toast.remove(), 5000);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100px)';
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
     }
     
     // ============================================
-    // 기존 메서드들 (수정 없음)
+    // 기존 메서드들
     // ============================================
     
     /**
@@ -415,7 +602,8 @@ export class MonitoringService {
             cacheSize: this.statusCache.size,
             queueLength: this.updateQueue.length,
             // ⭐ 추가 정보
-            mappedCount: this.equipmentEditState?.getMappingCount() || 0
+            mappedCount: this.equipmentEditState?.getMappingCount() || 0,
+            stats: this.currentStats
         };
     }
     
