@@ -666,7 +666,6 @@ class SmartGuideManager {
 if (typeof module === 'undefined' && typeof window !== 'undefined') {
     window.SmartGuideManager = SmartGuideManager;
 }
-
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = SmartGuideManager;
 }
