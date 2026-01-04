@@ -2,8 +2,9 @@
  * ui/index.js
  * UI 모듈 통합 export
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @changelog
+ * - v1.2.0: AutoSaveIndicator export 추가
  * - v1.1.0: EquipmentEditButton, ConnectionIndicator export 추가
  */
 
@@ -16,12 +17,13 @@ export { EquipmentEditModal } from './EquipmentEditModal.js';
 // =========================================================
 // Buttons / Controllers
 // =========================================================
-export { EquipmentEditButton } from './EquipmentEditButton.js';  // 🆕 추가
+export { EquipmentEditButton } from './EquipmentEditButton.js';
 
 // =========================================================
 // Indicators
 // =========================================================
-export { default as ConnectionIndicator } from './ConnectionIndicator.js';  // 🆕 추가
+export { default as ConnectionIndicator } from './ConnectionIndicator.js';
+export { default as AutoSaveIndicator, SaveState } from './AutoSaveIndicator.js';  // 🆕 추가
 
 // =========================================================
 // Panels
