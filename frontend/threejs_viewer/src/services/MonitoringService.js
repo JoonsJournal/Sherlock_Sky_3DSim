@@ -1,8 +1,8 @@
 /**
- * MonitoringService.js - v2.6-DEBUG
+ * MonitoringService.js - v2.7-DEBUG
  * 실시간 설비 모니터링 서비스
  * 
- * ⭐ 디버그: createStatusPanel만 활성화하여 테스트
+ * ⭐ 디버그: applyUnmappedEquipmentStyle + createStatusPanel 둘 다 활성화
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
  */
@@ -53,7 +53,7 @@ export class MonitoringService {
     
     /**
      * 모니터링 시작
-     * ⭐ v2.6-DEBUG: createStatusPanel만 활성화하여 테스트
+     * ⭐ v2.7-DEBUG: 둘 다 활성화!
      */
     async start() {
         if (this.isActive) {
@@ -61,15 +61,16 @@ export class MonitoringService {
             return;
         }
         
-        console.log('🔴🔴🔴 DEBUG MonitoringService.start() - createStatusPanel만 테스트!');
+        console.log('🔴🔴🔴 DEBUG MonitoringService.start() - 둘 다 활성화!');
         
         debugLog('🟢 Starting monitoring mode...');
         this.isActive = true;
         
         try {
-            // ⭐ 1. 미연결 설비 비활성화 표시 - 건너뜀
-            console.log('🔴 DEBUG: applyUnmappedEquipmentStyle - 건너뜀! (테스트)');
-            // this.applyUnmappedEquipmentStyle();
+            // ⭐ 1. 미연결 설비 비활성화 표시 - 활성화!
+            console.log('🔴 DEBUG: applyUnmappedEquipmentStyle - 실행!');
+            this.applyUnmappedEquipmentStyle();
+            console.log('🔴 DEBUG: applyUnmappedEquipmentStyle - 완료!');
             
             // ⭐ 2. 통계 패널 표시 - 활성화!
             console.log('🔴 DEBUG: createStatusPanel - 실행!');
@@ -106,9 +107,10 @@ export class MonitoringService {
         debugLog('🔴 Stopping monitoring mode...');
         this.isActive = false;
         
-        // ⭐ 비활성화 표시 해제 - 건너뜀
-        console.log('🔴 DEBUG: resetEquipmentStyle - 건너뜀! (테스트)');
-        // this.resetEquipmentStyle();
+        // ⭐ 비활성화 표시 해제 - 활성화!
+        console.log('🔴 DEBUG: resetEquipmentStyle - 실행!');
+        this.resetEquipmentStyle();
+        console.log('🔴 DEBUG: resetEquipmentStyle - 완료!');
         
         // ⭐ 통계 패널 제거 - 활성화!
         console.log('🔴 DEBUG: removeStatusPanel - 실행!');
