@@ -342,6 +342,6 @@ if (typeof window !== 'undefined') {
     window.AutoSaveManager = AutoSaveManager;
 }
 
-// ES6 Module export
-export { AutoSaveManager };
-export default AutoSaveManager;
+// // ES6 Module export
+// export { AutoSaveManager };
+// export default AutoSaveManager;
