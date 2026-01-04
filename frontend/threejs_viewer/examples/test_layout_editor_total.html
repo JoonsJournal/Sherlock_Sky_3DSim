@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Layout Editor - SHERLOCK_SKY_3DSIM (Phase 5.2)</title>
+    <title>Layout Editor - SHERLOCK_SKY_3DSIM (Phase 5.2 + Storage Module)</title>
     
     <!-- Konva.js CDN -->
     <script src="https://unpkg.com/konva@9/konva.min.js"></script>
@@ -75,9 +75,42 @@
     <script src="../src/layout-editor/bootstrap/setupLayoutEvents.js"></script>
     <script src="../src/layout-editor/bootstrap/index.js"></script>
     
-    <!-- 🆕 Phase 5.2 NEW: AutoSave 모듈 (Bootstrap 뒤, App 앞) -->
+    <!-- 🆕 Phase 5.2: AutoSave Recovery Dialog (일반 스크립트) -->
     <script src="../src/layout-editor/components/AutoSaveRecoveryDialog.js"></script>
-    <script src="../src/layout-editor/managers/AutoSaveManager.js"></script>
+    
+    <!-- ============================================
+         🆕 Phase 2: Storage 모듈 (ES6 Module)
+         - EventBus, Storage 관련 모듈 순서대로 로드
+         - window 전역에 등록됨
+    ============================================ -->
+    <script type="module">
+        // 1. EventBus (Storage 모듈에서 사용)
+        import '../src/core/managers/EventBus.js';
+        
+        // 2. Storage Utils
+        import '../src/core/storage/utils/StorageKeys.js';
+        
+        // 3. Serializers
+        import '../src/core/storage/serializers/JsonSerializer.js';
+        
+        // 4. Storage Managers
+        import '../src/core/storage/managers/LocalStorageManager.js';
+        import '../src/core/storage/managers/AutoSaveManager.js';
+        
+        // 5. Storage Service (Facade)
+        import '../src/core/storage/StorageService.js';
+        
+        // 6. Layout Editor AutoSaveManager (공통 모듈 사용 래퍼)
+        import '../src/layout-editor/managers/AutoSaveManager.js';
+        
+        console.log('✅ Storage 모듈 로드 완료');
+        console.log('   - window.eventBus:', typeof window.eventBus);
+        console.log('   - window.storageService:', typeof window.storageService);
+        console.log('   - window.AutoSaveManager:', typeof window.AutoSaveManager);
+        
+        // Storage 모듈 로드 완료 이벤트 발생
+        window.dispatchEvent(new CustomEvent('storage-modules-loaded'));
+    </script>
     
     <!-- ✅ Phase 5.3: 외부 App 모듈 (Bootstrap 래퍼) -->
     <script src="../src/layout-editor/app/LayoutEditorApp.js"></script>
@@ -92,7 +125,7 @@
     <div id="loading-indicator"><div class="spinner"></div><div>Layout Editor 로딩 중...</div></div>
 
     <div class="header">
-        <h1>🏗️ Layout Editor - Phase 5.2 (AutoSave)</h1>
+        <h1>🏗️ Layout Editor - Phase 5.2 (AutoSave + Storage Module)</h1>
         <div class="header-actions">
             <button class="header-btn btn-secondary" id="btn-undo" disabled>↶ Undo</button>
             <button class="header-btn btn-secondary" id="btn-redo" disabled>↷ Redo</button>
@@ -305,13 +338,55 @@
         </div>
     </div>
 
-    <!-- ✅ Phase 5.2: 초기화 스크립트 (LayoutEditorApp.js + AutoSave) -->
+    <!-- ============================================
+         🆕 Phase 2: 초기화 스크립트
+         Storage 모듈 로드 완료 후 LayoutEditorApp 초기화
+    ============================================ -->
     <script>
+        // Storage 모듈 로드 완료 플래그
+        let storageModulesLoaded = false;
+        let domLoaded = false;
+        
+        // Storage 모듈 로드 완료 이벤트 리스너
+        window.addEventListener('storage-modules-loaded', () => {
+            console.log('📦 Storage 모듈 로드 이벤트 수신');
+            storageModulesLoaded = true;
+            tryInitialize();
+        });
+        
+        // DOM 로드 완료 이벤트 리스너
         document.addEventListener('DOMContentLoaded', () => {
             console.log('✅ DOM 로드 완료');
+            domLoaded = true;
+            tryInitialize();
+        });
+        
+        // 두 조건 모두 충족 시 초기화
+        function tryInitialize() {
+            // 두 조건 모두 충족되지 않으면 대기
+            if (!storageModulesLoaded || !domLoaded) {
+                console.log('⏳ 초기화 대기 중...', { 
+                    storage: storageModulesLoaded, 
+                    dom: domLoaded 
+                });
+                return;
+            }
             
+            console.log('🚀 모든 조건 충족 - 초기화 시작');
+            initializeEditor();
+        }
+        
+        // Editor 초기화 함수
+        function initializeEditor() {
             try { 
-                // 🆕 siteId 설정 (URL 파라미터 또는 기본값)
+                // 🆕 Storage 모듈 상태 확인
+                console.log('📦 Storage 모듈 상태:');
+                console.log('   - window.eventBus:', typeof window.eventBus);
+                console.log('   - window.storageService:', typeof window.storageService);
+                console.log('   - window.AutoSaveManager:', typeof window.AutoSaveManager);
+                console.log('   - window.localStorageManager:', typeof window.localStorageManager);
+                
+                // siteId 설정 (URL 파라미터 또는 기본값)
                 const urlParams = new URLSearchParams(window.location.search);
                 const siteId = urlParams.get('siteId') || 'korea_site1';
                 
@@ -324,8 +399,20 @@
                 
                 console.log('✅ LayoutEditorApp 초기화 완료 - siteId:', siteId);
                 
-                // 🆕 AutoSave 상태 표시 업데이트
+                // AutoSave 상태 표시 업데이트
                 updateAutoSaveStatus();
+                
+                // AutoSave 이벤트 구독 (상태바 업데이트)
+                if (window.eventBus) {
+                    window.eventBus.on('autosave:dirty', updateAutoSaveStatus);
+                    window.eventBus.on('autosave:complete', () => {
+                        updateAutoSaveStatus();
+                        showAutoSaveToast('💾 자동 저장됨');
+                    });
+                    window.eventBus.on('autosave:error', (data) => {
+                        showAutoSaveToast('❌ 자동 저장 실패: ' + data.error, 'error');
+                    });
+                }
                 
             } catch (error) { 
                 console.error('❌ 초기화 실패:', error); 
@@ -333,29 +420,94 @@
                     `<div style="color: red;">❌ 로드 실패</div>` +
                     `<div style="margin-top: 10px; font-size: 12px;">${error.message}</div>`; 
             }
-        });
-        
-        // 🆕 AutoSave 상태 업데이트 함수
-        function updateAutoSaveStatus() {
-            const statusEl = document.getElementById('status-autosave-text');
-            if (!statusEl || !window.editorApp?.autoSaveManager) return;
-            
-            const status = window.editorApp.getAutoSaveStatus();
-            if (status) {
-                statusEl.textContent = status.isRunning 
-                    ? `${status.changeCount}/${status.changeThreshold}` 
-                    : 'OFF';
-            }
         }
         
-        // 🆕 AutoSave 상태 주기적 업데이트 (10초마다)
+        // AutoSave 상태 업데이트 함수
+        function updateAutoSaveStatus() {
+            const statusEl = document.getElementById('status-autosave-text');
+            if (!statusEl) return;
+            
+            // LayoutEditorApp의 AutoSaveManager 사용
+            if (window.editorApp?.autoSaveManager) {
+                const status = window.editorApp.getAutoSaveStatus();
+                if (status) {
+                    statusEl.textContent = status.isRunning 
+                        ? `${status.changeCount}/${status.changeThreshold}` 
+                        : 'OFF';
+                    return;
+                }
+            }
+            
+            // StorageService의 AutoSaveManager 사용 (fallback)
+            if (window.storageService) {
+                const statuses = window.storageService.autoSave.getAllStatus();
+                const layoutStatus = statuses.find(s => s.namespace === 'layout');
+                if (layoutStatus) {
+                    statusEl.textContent = layoutStatus.isRunning 
+                        ? `${layoutStatus.changeCount}/${layoutStatus.config.changeThreshold}` 
+                        : 'OFF';
+                    return;
+                }
+            }
+            
+            statusEl.textContent = 'Ready';
+        }
+        
+        // AutoSave Toast 표시
+        function showAutoSaveToast(message, type = 'success') {
+            const colors = { 
+                success: '#4CAF50', 
+                error: '#f44336', 
+                warning: '#ff9800', 
+                info: '#2196F3' 
+            };
+            
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 60px;
+                right: 20px;
+                padding: 10px 20px;
+                border-radius: 4px;
+                color: white;
+                font-size: 13px;
+                z-index: 10001;
+                background: ${colors[type] || colors.info};
+                animation: slideIn 0.3s ease;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+        
+        // AutoSave 상태 주기적 업데이트 (10초마다)
         setInterval(updateAutoSaveStatus, 10000);
         
-        // 🆕 콘솔 디버그 함수
+        // 콘솔 디버그 함수
         window.debugAutoSave = function() {
-            const status = window.editorApp?.getAutoSaveStatus();
-            console.log('AutoSave Status:', status);
-            return status;
+            console.log('=== AutoSave Debug ===');
+            
+            // LayoutEditorApp AutoSave
+            const appStatus = window.editorApp?.getAutoSaveStatus();
+            console.log('LayoutEditorApp AutoSave:', appStatus);
+            
+            // StorageService AutoSave
+            if (window.storageService) {
+                const allStatus = window.storageService.autoSave.getAllStatus();
+                console.log('StorageService AutoSave:', allStatus);
+                
+                const storageInfo = window.storageService.getUsageInfo();
+                console.log('Storage Usage:', storageInfo);
+            }
+            
+            return { app: appStatus, storage: window.storageService?.getStatusReport() };
         };
         
         window.triggerAutoSave = function() {
@@ -366,8 +518,22 @@
         
         window.clearAutoSave = function() {
             const siteId = window.editorApp?.siteId || 'korea_site1';
+            
+            // LayoutEditorApp AutoSave 삭제
             window.editorApp?.autoSaveManager?.clearAutoSave(siteId);
+            
+            // StorageService AutoSave 삭제
+            window.storageService?.autoSave.clearRecovery('layout', siteId);
+            
             console.log('AutoSave cleared for:', siteId);
+        };
+        
+        // Storage 디버그
+        window.debugStorage = function() {
+            if (window.storageService) {
+                return window.storageService.getStatusReport();
+            }
+            return null;
         };
     </script>
     
@@ -381,6 +547,17 @@
         }
         .status-item.autosave:hover {
             background: rgba(76, 175, 80, 0.4);
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
     </style>
 </body>
