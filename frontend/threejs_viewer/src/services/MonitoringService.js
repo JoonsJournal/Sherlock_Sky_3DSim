@@ -1,8 +1,8 @@
 /**
- * MonitoringService.js - v2.7-DEBUG
+ * MonitoringService.js - v2.3.0
  * 실시간 설비 모니터링 서비스
  * 
- * ⭐ 디버그: applyUnmappedEquipmentStyle + createStatusPanel 둘 다 활성화
+ * ⭐ 최종 버전: 미연결 설비 비활성화 표시 + 통계 패널
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
  */
@@ -29,8 +29,9 @@ export class MonitoringService {
         this.batchInterval = 1000;
         this.batchTimer = null;
         
+        // ⭐ 미연결 설비 색상 옵션
         this.disabledOptions = {
-            grayColor: 0x555555
+            grayColor: 0x444444  // 어두운 회색 (바닥과 구별)
         };
         
         this.statusPanelElement = null;
@@ -53,7 +54,6 @@ export class MonitoringService {
     
     /**
      * 모니터링 시작
-     * ⭐ v2.7-DEBUG: 둘 다 활성화!
      */
     async start() {
         if (this.isActive) {
@@ -61,40 +61,32 @@ export class MonitoringService {
             return;
         }
         
-        console.log('🔴🔴🔴 DEBUG MonitoringService.start() - 둘 다 활성화!');
-        
         debugLog('🟢 Starting monitoring mode...');
         this.isActive = true;
         
         try {
-            // ⭐ 1. 미연결 설비 비활성화 표시 - 활성화!
-            console.log('🔴 DEBUG: applyUnmappedEquipmentStyle - 실행!');
+            // 1. 미연결 설비 비활성화 표시 적용
             this.applyUnmappedEquipmentStyle();
-            console.log('🔴 DEBUG: applyUnmappedEquipmentStyle - 완료!');
             
-            // ⭐ 2. 통계 패널 표시 - 활성화!
-            console.log('🔴 DEBUG: createStatusPanel - 실행!');
+            // 2. 통계 패널 표시
             this.createStatusPanel();
-            console.log('🔴 DEBUG: createStatusPanel - 완료!');
             
-            // 3. 초기 상태 로드 - 건너뜀
-            console.log('🔴 DEBUG: loadInitialStatus - 건너뜀! (테스트)');
-            // await this.loadInitialStatus();
+            // 3. 초기 상태 로드 (REST API) - 실패해도 계속 진행
+            await this.loadInitialStatus().catch(err => {
+                debugLog(`⚠️ loadInitialStatus failed: ${err.message}`);
+            });
             
-            // 4. WebSocket 연결 - 건너뜀
-            console.log('🔴 DEBUG: connectWebSocket - 건너뜀! (테스트)');
-            // this.connectWebSocket();
+            // 4. WebSocket 연결 - 실패해도 계속 진행
+            this.connectWebSocket();
             
-            // 5. 배치 처리 타이머 - 건너뜀
-            console.log('🔴 DEBUG: startBatchProcessing - 건너뜀! (테스트)');
-            // this.startBatchProcessing();
+            // 5. 배치 처리 타이머 시작
+            this.startBatchProcessing();
             
-            console.log('🔴🔴🔴 DEBUG MonitoringService.start() 완료!');
             debugLog('✅ Monitoring mode started');
             
         } catch (error) {
             console.error('❌ Failed to start monitoring:', error);
-            this.isActive = false;
+            // 에러가 나도 isActive는 유지 (UI 표시를 위해)
         }
     }
     
@@ -102,20 +94,14 @@ export class MonitoringService {
      * 모니터링 중지
      */
     stop() {
-        console.log('🔴🔴🔴 DEBUG MonitoringService.stop()!');
-        
         debugLog('🔴 Stopping monitoring mode...');
         this.isActive = false;
         
-        // ⭐ 비활성화 표시 해제 - 활성화!
-        console.log('🔴 DEBUG: resetEquipmentStyle - 실행!');
+        // 1. 비활성화 표시 해제
         this.resetEquipmentStyle();
-        console.log('🔴 DEBUG: resetEquipmentStyle - 완료!');
         
-        // ⭐ 통계 패널 제거 - 활성화!
-        console.log('🔴 DEBUG: removeStatusPanel - 실행!');
+        // 2. 통계 패널 제거
         this.removeStatusPanel();
-        console.log('🔴 DEBUG: removeStatusPanel - 완료!');
         
         // WebSocket 연결 종료
         if (this.ws) {
@@ -129,7 +115,6 @@ export class MonitoringService {
             this.batchTimer = null;
         }
         
-        console.log('🔴🔴🔴 DEBUG MonitoringService.stop() 완료!');
         debugLog('✅ Monitoring mode stopped');
     }
     
@@ -138,30 +123,18 @@ export class MonitoringService {
     // ============================================
     
     createStatusPanel() {
-        console.log('🔴 DEBUG createStatusPanel() 시작');
-        
-        // 이미 존재하면 제거
         this.removeStatusPanel();
-        console.log('🔴 DEBUG: 기존 패널 제거 완료');
         
         const panel = document.createElement('div');
         panel.id = 'monitoring-status-panel';
         panel.className = 'status-panel';
-        console.log('🔴 DEBUG: panel 요소 생성 완료');
         
-        // 통계 계산
         this.updateStats();
-        console.log('🔴 DEBUG: updateStats 완료');
-        
         panel.innerHTML = this.getStatusPanelHTML();
-        console.log('🔴 DEBUG: innerHTML 설정 완료');
         
         document.body.appendChild(panel);
-        console.log('🔴 DEBUG: document.body에 추가 완료');
-        
         this.statusPanelElement = panel;
         
-        console.log('🔴 DEBUG createStatusPanel() 완료');
         debugLog('📊 Status panel created');
     }
     
@@ -212,23 +185,16 @@ export class MonitoringService {
     }
     
     removeStatusPanel() {
-        console.log('🔴 DEBUG removeStatusPanel() 시작');
-        
         if (this.statusPanelElement) {
             this.statusPanelElement.remove();
             this.statusPanelElement = null;
-            console.log('🔴 DEBUG: statusPanelElement 제거됨');
             debugLog('📊 Status panel removed');
         }
         
-        // ID로도 한번 더 확인해서 제거
         const existingPanel = document.getElementById('monitoring-status-panel');
         if (existingPanel) {
             existingPanel.remove();
-            console.log('🔴 DEBUG: ID로 찾은 패널 제거됨');
         }
-        
-        console.log('🔴 DEBUG removeStatusPanel() 완료');
     }
     
     getStats() {
@@ -255,7 +221,7 @@ export class MonitoringService {
     
     showUnmappedNotification(frontendId) {
         this.showToast(
-            `⚠️ "${frontendId}"는 DB에 연결되지 않았습니다.\nEdit Mode (E키)에서 매핑해주세요.`,
+            `⚠️ "${frontendId}"는 DB에 연결되지 않았습니다. Edit Mode (E키)에서 매핑해주세요.`,
             'warning',
             5000
         );
@@ -288,6 +254,14 @@ export class MonitoringService {
         
         debugLog(`🌫️ Unmapped equipment disabled: ${result.unmapped}개`);
         debugLog(`✅ Mapped equipment active: ${result.mapped}개`);
+        
+        // Toast 알림 (미연결이 있을 때만)
+        if (result.unmapped > 0) {
+            this.showToast(
+                `⚠️ ${result.unmapped}개 설비가 DB에 연결되지 않음`, 
+                'warning'
+            );
+        }
     }
     
     resetEquipmentStyle() {
@@ -336,42 +310,33 @@ export class MonitoringService {
     }
     
     // ============================================
-    // 기존 메서드들
+    // API 및 WebSocket
     // ============================================
     
     async loadInitialStatus() {
         debugLog('📡 Loading initial equipment status...');
         
-        try {
-            const response = await fetch(`${this.apiBaseUrl}/status`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            if (!data.equipment || !Array.isArray(data.equipment)) {
-                throw new Error('Invalid response format');
-            }
-            
-            debugLog(`✅ Loaded ${data.equipment.length} equipment status`);
-            
-            data.equipment.forEach(item => {
-                if (item.frontend_id && item.status) {
-                    if (this.isEquipmentMapped(item.frontend_id)) {
-                        this.updateEquipmentStatus(item.frontend_id, item.status);
-                    }
-                }
-            });
-            
-        } catch (error) {
-            console.error('❌ Failed to load initial status:', error);
-            if (error.message.includes('Failed to fetch')) {
-                debugLog('⚠️ Using dummy data for development');
-                this.loadDummyStatus();
-            }
+        const response = await fetch(`${this.apiBaseUrl}/status`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
+        const data = await response.json();
+        
+        if (!data.equipment || !Array.isArray(data.equipment)) {
+            throw new Error('Invalid response format');
+        }
+        
+        debugLog(`✅ Loaded ${data.equipment.length} equipment status`);
+        
+        data.equipment.forEach(item => {
+            if (item.frontend_id && item.status) {
+                if (this.isEquipmentMapped(item.frontend_id)) {
+                    this.updateEquipmentStatus(item.frontend_id, item.status);
+                }
+            }
+        });
     }
     
     isEquipmentMapped(frontendId) {
@@ -424,14 +389,7 @@ export class MonitoringService {
                 if (this.isEquipmentMapped(data.frontend_id)) {
                     debugLog(`📊 Status update: ${data.frontend_id} -> ${data.status}`);
                     this.updateEquipmentStatus(data.frontend_id, data.status);
-                } else {
-                    debugLog(`⏭️ Skipping unmapped equipment: ${data.frontend_id}`);
                 }
-                
-            } else if (data.type === 'heartbeat') {
-                // ignore
-            } else {
-                debugLog('⚠️ Unknown message type:', data.type);
             }
             
         } catch (error) {
@@ -489,27 +447,6 @@ export class MonitoringService {
         debugLog(`🧪 Test status change: ${frontendId} -> ${status}`);
         this.updateEquipmentStatus(frontendId, status);
         this.flushUpdateQueue();
-    }
-    
-    loadDummyStatus() {
-        debugLog('🧪 Loading dummy status data...');
-        
-        const mappings = this.equipmentEditState?.getAllMappings() || {};
-        const mappedIds = Object.keys(mappings);
-        
-        if (mappedIds.length === 0) {
-            debugLog('⚠️ No mapped equipment found');
-            return;
-        }
-        
-        const statuses = ['RUN', 'IDLE', 'STOP'];
-        mappedIds.slice(0, 10).forEach(frontendId => {
-            const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-            this.updateEquipmentStatus(frontendId, randomStatus);
-        });
-        
-        this.flushUpdateQueue();
-        debugLog('✅ Dummy status loaded for mapped equipment');
     }
     
     getConnectionStatus() {

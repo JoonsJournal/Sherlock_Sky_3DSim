@@ -2,8 +2,8 @@
  * EquipmentLoader.js
  * 설비 모델 로딩 및 배열 생성 (equipment1.js 직접 사용, LOD 제거)
  * 
- * @version 2.2.3-DEBUG
- * @description 색상 테스트 - 빨간색으로 변경하여 설비 존재 확인
+ * @version 2.3.0
+ * @description Monitoring Mode 미연결 설비 비활성화 표시 (최종 버전)
  */
 
 import * as THREE from 'three';
@@ -486,7 +486,7 @@ export class EquipmentLoader {
 
     // ============================================
     // ⭐ Phase 2.5: Monitoring Mode - 미연결 설비 비활성화 표시
-    // ⭐ v2.2.3-DEBUG: 빨간색으로 테스트
+    // ⭐ v2.3.0: 최종 버전 (어두운 회색 + 빨간 emissive)
     // ============================================
     
     /**
@@ -523,7 +523,7 @@ export class EquipmentLoader {
         originals.forEach((data) => {
             if (data.mesh && data.mesh.material) {
                 const mat = data.mesh.material;
-                // ⭐ 색상만 복원 (투명도 관련 제거)
+                // 색상 복원
                 if (data.color && mat.color) {
                     mat.color.copy(data.color);
                 }
@@ -541,11 +541,11 @@ export class EquipmentLoader {
     /**
      * 🌫️ 설비를 비활성화 상태로 표시
      * 
-     * ⭐ v2.2.3-DEBUG: 빨간색으로 테스트하여 설비 존재 확인
+     * ⭐ v2.3.0: 어두운 회색 + 약한 빨간 emissive (구별 용이)
      * 
      * @param {string} equipmentId - 설비 ID (예: 'EQ-01-01')
      * @param {boolean} disabled - 비활성화 여부
-     * @param {Object} options - 옵션 { grayColor: 0x555555 }
+     * @param {Object} options - 옵션 { grayColor: 0x444444 }
      */
     setEquipmentDisabled(equipmentId, disabled, options = {}) {
         const equipment = this.equipmentMap.get(equipmentId);
@@ -553,17 +553,11 @@ export class EquipmentLoader {
             return; // 조용히 무시
         }
         
-        // 🔴 DEBUG: 빨간색으로 테스트! (회색 대신)
-        const testColor = 0xFF0000;  // 밝은 빨간색
+        // ⭐ 최종 색상: 어두운 회색 (바닥과 구별되도록)
+        const grayColor = options.grayColor || 0x444444;
         
         // 원본 상태 저장
         this.storeOriginalMaterials(equipment);
-        
-        // 🔴 DEBUG 로그
-        const isFirstEquipment = equipmentId === 'EQ-01-01';
-        if (isFirstEquipment) {
-            console.log('🔴🔴🔴 DEBUG: 빨간색(0xFF0000)으로 테스트 중!');
-        }
         
         if (disabled) {
             // 🌫️ 비활성화 스타일 적용
@@ -571,15 +565,15 @@ export class EquipmentLoader {
                 if (child.isMesh && child.material) {
                     const mat = child.material;
                     
-                    // 🔴 DEBUG: 빨간색으로 변경!
+                    // 어두운 회색으로 변경
                     if (mat.color) {
-                        mat.color.setHex(testColor);
+                        mat.color.setHex(grayColor);
                     }
                     
-                    // 발광도 빨간색으로!
+                    // ⭐ 약한 빨간 emissive로 "미연결" 느낌
                     if (mat.emissive) {
                         mat.emissive.setHex(0x330000);
-                        mat.emissiveIntensity = 0.3;
+                        mat.emissiveIntensity = 0.2;
                     }
                     
                     mat.needsUpdate = true;
@@ -597,18 +591,14 @@ export class EquipmentLoader {
     /**
      * 🎯 Monitoring Mode용: 매핑 상태에 따라 설비 활성화/비활성화
      * @param {Object} mappings - EquipmentEditState.mappings
-     * @param {Object} options - 비활성화 옵션 (색상만)
+     * @param {Object} options - 비활성화 옵션 { grayColor }
      * @returns {Object} { mapped: number, unmapped: number }
      */
     applyMonitoringModeVisibility(mappings, options = {}) {
-        // 🔴 DEBUG: 함수 호출 확인
-        console.log('🔴🔴🔴 DEBUG applyMonitoringModeVisibility - 빨간색 테스트!');
-        console.log('🔴 설비 117개를 빨간색(0xFF0000)으로 변경합니다...');
-        
         let mappedCount = 0;
         let unmappedCount = 0;
         
-        this.equipmentArray.forEach((equipment, index) => {
+        this.equipmentArray.forEach((equipment) => {
             const id = equipment.userData.id;
             const isMapped = id in mappings;
             
@@ -617,16 +607,11 @@ export class EquipmentLoader {
                 this.setEquipmentDisabled(id, false);
                 mappedCount++;
             } else {
-                // 미매핑 설비: 빨간색으로 표시 (테스트!)
+                // 미매핑 설비: 회색 + 빨간 emissive
                 this.setEquipmentDisabled(id, true, options);
                 unmappedCount++;
             }
         });
-        
-        // 🔴 DEBUG: 결과 로그
-        console.log('🔴🔴🔴 DEBUG 완료!');
-        console.log(`🔴 결과: ${unmappedCount}개 설비가 빨간색으로 변경됨`);
-        console.log('🔴 만약 설비가 안 보인다면, 색상 문제가 아니라 다른 문제입니다!');
         
         debugLog(`📊 Monitoring visibility applied: ${mappedCount} mapped, ${unmappedCount} unmapped`);
         
@@ -637,8 +622,6 @@ export class EquipmentLoader {
      * 🔄 모든 설비 활성화 상태로 복원 (Monitoring Mode 종료 시)
      */
     resetAllEquipmentVisibility() {
-        console.log('🔴 DEBUG resetAllEquipmentVisibility - 원래 색상으로 복원');
-        
         this.equipmentArray.forEach(equipment => {
             this.restoreOriginalMaterials(equipment);
         });
