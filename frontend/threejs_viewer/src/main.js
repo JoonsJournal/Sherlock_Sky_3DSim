@@ -4,10 +4,11 @@
  * 
  * 메인 애플리케이션 진입점 (리팩토링 버전)
  * 
- * @version 3.3.0
- * @description Phase 4-1 + Equipment Edit Button 연동
+ * @version 3.4.0
+ * @description Phase 4-1 + Equipment Edit Button + AutoSave 연동
  * 
  * @changelog
+ * - v3.4.0: StorageService AutoSave 연동, Equipment 복구 다이얼로그
  * - v3.3.0: EquipmentEditButton 연동, ConnectionStatus 체크 추가
  * 
  * 위치: frontend/threejs_viewer/src/main.js
@@ -37,7 +38,7 @@ import {
     togglePerformanceMonitorUI,
     toggleDebugPanel,
     toast,
-    connectEquipmentEditButton,  // 🆕 추가
+    connectEquipmentEditButton,
     
     // Events
     setupUIEventListeners,
@@ -60,6 +61,9 @@ import { setupGlobalDebugFunctions, exposeGlobalObjects } from './core/utils/Glo
 import { layout2DTo3DConverter } from './services/converter/Layout2DTo3DConverter.js';
 import { roomParamsAdapter } from './services/converter/RoomParamsAdapter.js';
 
+// 🆕 Storage Service import
+import { storageService } from './core/storage/index.js';
+
 // ============================================
 // 전역 상태
 // ============================================
@@ -73,6 +77,10 @@ const services = {
     ui: null,
     monitoring: null
 };
+
+// 🆕 Site ID (URL 파라미터 또는 기본값)
+const urlParams = new URLSearchParams(window.location.search);
+const SITE_ID = urlParams.get('siteId') || 'default_site';
 
 // ============================================
 // 모드 토글 함수
@@ -88,7 +96,7 @@ function toggleEditMode() {
         }
         updateButtonState('editBtn', false);
         
-        // 🆕 EquipmentEditButton 상태 동기화
+        // EquipmentEditButton 상태 동기화
         if (services.ui?.equipmentEditButton) {
             services.ui.equipmentEditButton.setEditModeActive(false);
         }
@@ -99,7 +107,7 @@ function toggleEditMode() {
         }
         updateButtonState('editBtn', true);
         
-        // 🆕 EquipmentEditButton 상태 동기화
+        // EquipmentEditButton 상태 동기화
         if (services.ui?.equipmentEditButton) {
             services.ui.equipmentEditButton.setEditModeActive(true);
         }
@@ -175,11 +183,170 @@ function toggleAdaptivePerformance() {
 }
 
 // ============================================
+// 🆕 Equipment AutoSave 복구 다이얼로그
+// ============================================
+
+function showEquipmentRecoveryDialog(recoveryData) {
+    const autoSaveMeta = recoveryData._autoSave;
+    const savedAt = autoSaveMeta?.savedAt ? new Date(autoSaveMeta.savedAt) : new Date();
+    const mappingCount = recoveryData.mappingCount || Object.keys(recoveryData.mappings || {}).length;
+    
+    // 시간 경과 계산
+    const diffMs = Date.now() - savedAt.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    let timeAgo = '방금 전';
+    if (diffMins >= 60) {
+        timeAgo = `${diffHours}시간 전`;
+    } else if (diffMins >= 1) {
+        timeAgo = `${diffMins}분 전`;
+    }
+    
+    // 다이얼로그 생성
+    const dialog = document.createElement('div');
+    dialog.id = 'equipment-recovery-dialog';
+    dialog.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        animation: fadeIn 0.3s ease;
+    `;
+    
+    dialog.innerHTML = `
+        <div style="
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 420px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        ">
+            <h3 style="margin: 0 0 16px 0; color: #2c3e50; font-size: 18px;">
+                🔄 저장되지 않은 Equipment 매핑 발견
+            </h3>
+            
+            <div style="
+                background: #f8f9fa;
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 20px;
+            ">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: #6c757d;">저장 시간:</span>
+                    <span style="color: #2c3e50; font-weight: 500;">${savedAt.toLocaleString()}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: #6c757d;">경과 시간:</span>
+                    <span style="color: #e67e22; font-weight: 500;">${timeAgo}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #6c757d;">매핑 수:</span>
+                    <span style="color: #27ae60; font-weight: 500;">${mappingCount}개</span>
+                </div>
+            </div>
+            
+            <p style="color: #6c757d; font-size: 14px; margin-bottom: 20px;">
+                이전 세션에서 자동 저장된 Equipment 매핑 데이터가 있습니다.
+                복구하시겠습니까?
+            </p>
+            
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button id="recovery-discard-btn" style="
+                    padding: 10px 20px;
+                    border: 1px solid #dee2e6;
+                    background: white;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    color: #6c757d;
+                ">삭제</button>
+                <button id="recovery-apply-btn" style="
+                    padding: 10px 20px;
+                    border: none;
+                    background: #3498db;
+                    color: white;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                ">복구</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(dialog);
+    
+    // 이벤트 핸들러
+    document.getElementById('recovery-apply-btn').onclick = () => {
+        if (services.ui?.equipmentEditState) {
+            services.ui.equipmentEditState.applyAutoSaveRecovery(recoveryData);
+            services.ui.equipmentEditState.clearAutoSaveRecovery(storageService);
+            toast?.show('✅ Equipment 매핑 복구 완료!', 'success');
+        }
+        dialog.remove();
+    };
+    
+    document.getElementById('recovery-discard-btn').onclick = () => {
+        if (services.ui?.equipmentEditState) {
+            services.ui.equipmentEditState.clearAutoSaveRecovery(storageService);
+            toast?.show('AutoSave 데이터 삭제됨', 'info');
+        }
+        dialog.remove();
+    };
+}
+
+// ============================================
+// 🆕 Equipment AutoSave 초기화
+// ============================================
+
+function initEquipmentAutoSave(equipmentEditState) {
+    if (!equipmentEditState) {
+        console.warn('[main.js] EquipmentEditState가 없습니다. AutoSave 건너뜀.');
+        return;
+    }
+    
+    // 1. 복구 데이터 확인
+    const recoveryData = equipmentEditState.checkAutoSaveRecovery(storageService);
+    
+    if (recoveryData) {
+        // 복구 다이얼로그 표시
+        showEquipmentRecoveryDialog(recoveryData);
+    }
+    
+    // 2. AutoSave 초기화
+    equipmentEditState.initAutoSave(storageService, SITE_ID);
+    
+    // 3. AutoSave 이벤트 구독 (상태바 등 UI 업데이트용)
+    eventBus.on('autosave:complete', (data) => {
+        if (data.namespace === 'equipment') {
+            console.log('[Equipment AutoSave] 저장 완료:', data.timestamp);
+        }
+    });
+    
+    eventBus.on('autosave:error', (data) => {
+        if (data.namespace === 'equipment') {
+            console.error('[Equipment AutoSave] 저장 실패:', data.error);
+            toast?.show('⚠️ Equipment AutoSave 실패', 'warning');
+        }
+    });
+    
+    console.log(`✅ Equipment AutoSave 초기화 완료 - siteId: ${SITE_ID}`);
+}
+
+// ============================================
 // 메인 초기화
 // ============================================
 
 function init() {
     console.log('🚀 Sherlock Sky 3DSim 초기화...');
+    console.log(`📍 Site ID: ${SITE_ID}`);
     
     try {
         // 1. Core 매니저 초기화
@@ -188,7 +355,7 @@ function init() {
         // 2. 3D 씬 초기화
         services.scene = initScene();
         
-        // 3. UI 컴포넌트 초기화 (🔄 toggleEditMode 전달하지 않음 - 나중에 연결)
+        // 3. UI 컴포넌트 초기화
         services.ui = initUIComponents();
         
         // 4. Monitoring 서비스 초기화
@@ -196,7 +363,7 @@ function init() {
             services.scene.sceneManager.scene,
             services.scene.equipmentLoader,
             services.ui.equipmentEditState,
-            services.ui.connectionStatusService  // 🆕 ConnectionStatusService 전달
+            services.ui.connectionStatusService
         );
         
         // Core 매니저에 monitoringService 재등록
@@ -210,10 +377,13 @@ function init() {
         interactionHandler.setEditModal(equipmentEditModal);
         interactionHandler.setMonitoringService(services.monitoring.monitoringService);
         
-        // 🆕 6. EquipmentEditButton 연동
+        // 6. EquipmentEditButton 연동
         connectEquipmentEditButton(equipmentEditButton, toggleEditMode);
         
-        // 7. 이벤트 리스너 설정
+        // 🆕 7. Equipment AutoSave 초기화
+        initEquipmentAutoSave(equipmentEditState);
+        
+        // 8. 이벤트 리스너 설정
         const eventHandlers = {
             toggleEditMode,
             toggleMonitoringMode,
@@ -243,13 +413,13 @@ function init() {
             signalTowerManager: services.monitoring.signalTowerManager
         });
         
-        // 8. LayoutEditorMain 연결
+        // 9. LayoutEditorMain 연결
         setupLayoutEditorMainConnection(sceneManager);
         
-        // 9. PreviewGenerator 초기화
+        // 10. PreviewGenerator 초기화
         previewGenerator = initPreviewGenerator();
         
-        // 10. 전역 디버그 함수 설정
+        // 11. 전역 디버그 함수 설정
         setupGlobalDebugFunctions({
             sceneManager,
             equipmentLoader,
@@ -263,10 +433,10 @@ function init() {
             services.scene.adaptivePerformance.setupGlobalCommands();
         }
         
-        // 11. 애니메이션 시작
+        // 12. 애니메이션 시작
         animate();
         
-        // 12. 전역 객체 노출
+        // 13. 전역 객체 노출
         exposeGlobalObjects({
             // Scene
             sceneManager,
@@ -283,11 +453,11 @@ function init() {
             connectionModal: services.ui.connectionModal,
             equipmentEditState,
             equipmentEditModal,
-            equipmentEditButton,  // 🆕 추가
+            equipmentEditButton,
             apiClient: services.ui.apiClient,
             toast,
             
-            // Connection Status 🆕
+            // Connection Status
             connectionStatusService: services.ui.connectionStatusService,
             connectionIndicator: services.ui.connectionIndicator,
             
@@ -307,17 +477,21 @@ function init() {
             roomParamsAdapter,
             previewGenerator,
             
+            // 🆕 Storage
+            storageService,
+            
             // 함수 노출
             toggleAdaptivePerformance,
-            toggleEditMode  // 🆕 추가
+            toggleEditMode
         });
         
-        // 13. 초기화 완료
+        // 14. 초기화 완료
         hideLoadingStatus(3000);
         
         eventBus.emit(EVENT_NAME.APP_INITIALIZED, {
             timestamp: Date.now(),
-            mode: appModeManager.getCurrentMode()
+            mode: appModeManager.getCurrentMode(),
+            siteId: SITE_ID
         });
         
         if (CONFIG.DEBUG_MODE) {
@@ -331,6 +505,7 @@ function init() {
         console.log('💡 키보드 단축키: D=디버그, P=성능, H=헬퍼, G=그리드, M=모니터링, E=편집');
         console.log('💡 AdaptivePerformance: toggleAdaptivePerformance() 또는 A키로 ON/OFF');
         console.log('💡 Equipment Edit: Backend 연결 시에만 E키 또는 버튼 사용 가능');
+        console.log('💡 Equipment AutoSave: 30초마다 자동 저장, 5회 변경 시 즉시 저장');
         
     } catch (error) {
         console.error('❌ 초기화 중 오류 발생:', error);
@@ -426,6 +601,11 @@ function showInitError(error) {
 // ============================================
 
 function handleCleanup() {
+    // 🆕 Equipment AutoSave 중지
+    if (services.ui?.equipmentEditState) {
+        services.ui.equipmentEditState.stopAutoSave();
+    }
+    
     cleanup({
         animationFrameId,
         performanceMonitor: services.scene?.performanceMonitor,
@@ -438,7 +618,7 @@ function handleCleanup() {
         interactionHandler: services.scene?.interactionHandler,
         cameraNavigator: services.scene?.cameraNavigator,
         equipmentEditState: services.ui?.equipmentEditState,
-        equipmentEditButton: services.ui?.equipmentEditButton,  // 🆕 추가
+        equipmentEditButton: services.ui?.equipmentEditButton,
         connectionModal: services.ui?.connectionModal,
         equipmentEditModal: services.ui?.equipmentEditModal
     });

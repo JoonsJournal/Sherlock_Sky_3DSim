@@ -1,6 +1,6 @@
 /**
- * EquipmentEditState.js (Enhanced Version)
- * 설비 편집 상태 관리 - 개선 버전
+ * EquipmentEditState.js (Enhanced Version + AutoSave Integration)
+ * 설비 편집 상태 관리 - AutoSave 연동 버전
  * 
  * Features:
  * - 편집 모드 ON/OFF 상태 관리
@@ -12,12 +12,15 @@
  * - 서버 동기화 및 충돌 해결
  * - 강화된 에러 처리
  * - 디버깅 유틸리티
+ * - 🆕 StorageService AutoSave 연동
+ * 
+ * @version 1.2.0
  */
 
 import { debugLog } from '../core/utils/Config.js';
 
 export class EquipmentEditState {
-    constructor() {
+    constructor(options = {}) {
         // 편집 모드 여부
         this.editModeEnabled = false;
         
@@ -31,7 +34,17 @@ export class EquipmentEditState {
         this.storageKey = 'sherlock_equipment_mappings';
         
         // 버전 정보
-        this.version = '1.1.0';
+        this.version = '1.2.0';
+        
+        // 🆕 AutoSave 관련
+        this._autoSaveInstance = null;
+        this._siteId = options.siteId || 'default_site';
+        this._autoSaveEnabled = options.autoSaveEnabled ?? true;
+        this._autoSaveIntervalMs = options.autoSaveIntervalMs || 30000;  // 30초
+        this._autoSaveChangeThreshold = options.autoSaveChangeThreshold || 5;  // 5회 변경
+        
+        // 🆕 변경 카운트 (AutoSave 트리거용)
+        this._changeCount = 0;
         
         // 초기 로드
         this.load();
@@ -40,7 +53,177 @@ export class EquipmentEditState {
         this.handleStorageChange = this.handleStorageChange.bind(this);
         window.addEventListener('storage', this.handleStorageChange);
         
-        debugLog(`✨ EquipmentEditState initialized (v${this.version})`);
+        debugLog(`✨ EquipmentEditState initialized (v${this.version}) - AutoSave: ${this._autoSaveEnabled ? 'ON' : 'OFF'}`);
+    }
+    
+    // ==========================================
+    // 🆕 AutoSave 관련 메서드
+    // ==========================================
+    
+    /**
+     * 🆕 AutoSave 초기화 (StorageService 사용)
+     * @param {Object} storageService - StorageService 인스턴스
+     * @param {string} siteId - 사이트 ID
+     */
+    initAutoSave(storageService, siteId = null) {
+        if (!storageService) {
+            console.warn('[EquipmentEditState] StorageService가 없습니다. AutoSave 비활성화.');
+            return;
+        }
+        
+        if (!this._autoSaveEnabled) {
+            console.log('[EquipmentEditState] AutoSave가 비활성화되어 있습니다.');
+            return;
+        }
+        
+        if (siteId) {
+            this._siteId = siteId;
+        }
+        
+        // AutoSave 등록
+        this._autoSaveInstance = storageService.autoSave.register('equipment', this._siteId, {
+            getData: () => this.getAutoSaveData(),
+            intervalMs: this._autoSaveIntervalMs,
+            changeThreshold: this._autoSaveChangeThreshold,
+            onSave: (data) => {
+                console.log('[EquipmentEditState] AutoSave 완료:', data._autoSave);
+                this.dispatchEvent('autosave-complete', { data });
+            },
+            onError: (error) => {
+                console.error('[EquipmentEditState] AutoSave 실패:', error);
+                this.dispatchEvent('autosave-error', { error: error.message });
+            }
+        });
+        
+        // AutoSave 시작
+        this._autoSaveInstance.start();
+        
+        console.log(`[EquipmentEditState] AutoSave 초기화 완료 - siteId: ${this._siteId}, interval: ${this._autoSaveIntervalMs}ms`);
+    }
+    
+    /**
+     * 🆕 AutoSave 중지
+     */
+    stopAutoSave() {
+        if (this._autoSaveInstance) {
+            this._autoSaveInstance.stop();
+            console.log('[EquipmentEditState] AutoSave 중지됨');
+        }
+    }
+    
+    /**
+     * 🆕 AutoSave 데이터 반환 (getData 콜백용)
+     * @returns {Object}
+     */
+    getAutoSaveData() {
+        return {
+            mappings: { ...this.mappings },
+            editModeEnabled: this.editModeEnabled,
+            mappingCount: this.getMappingCount(),
+            statistics: this.getStatistics(),
+            savedAt: new Date().toISOString()
+        };
+    }
+    
+    /**
+     * 🆕 AutoSave 복구 데이터 확인
+     * @param {Object} storageService - StorageService 인스턴스
+     * @returns {Object|null}
+     */
+    checkAutoSaveRecovery(storageService) {
+        if (!storageService) return null;
+        
+        const recoveryData = storageService.autoSave.checkRecovery('equipment', this._siteId);
+        
+        if (recoveryData) {
+            console.log('[EquipmentEditState] AutoSave 복구 데이터 발견:', {
+                savedAt: recoveryData._autoSave?.savedAt,
+                mappingCount: recoveryData.mappingCount
+            });
+        }
+        
+        return recoveryData;
+    }
+    
+    /**
+     * 🆕 AutoSave 복구 적용
+     * @param {Object} recoveryData - 복구 데이터
+     * @returns {boolean}
+     */
+    applyAutoSaveRecovery(recoveryData) {
+        if (!recoveryData || !recoveryData.mappings) {
+            console.error('[EquipmentEditState] 유효하지 않은 복구 데이터');
+            return false;
+        }
+        
+        try {
+            // 매핑 데이터 복구
+            this.mappings = { ...recoveryData.mappings };
+            
+            // localStorage에도 저장
+            this.save();
+            
+            console.log(`[EquipmentEditState] AutoSave 복구 적용 완료: ${this.getMappingCount()}개 매핑`);
+            
+            this.dispatchEvent('mappings-recovered', {
+                count: this.getMappingCount(),
+                source: 'autosave'
+            });
+            
+            return true;
+        } catch (error) {
+            console.error('[EquipmentEditState] AutoSave 복구 실패:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * 🆕 AutoSave 복구 데이터 삭제
+     * @param {Object} storageService - StorageService 인스턴스
+     */
+    clearAutoSaveRecovery(storageService) {
+        if (storageService) {
+            storageService.autoSave.clearRecovery('equipment', this._siteId);
+            console.log('[EquipmentEditState] AutoSave 복구 데이터 삭제됨');
+        }
+    }
+    
+    /**
+     * 🆕 변경 알림 (AutoSave에 dirty 알림)
+     * @private
+     */
+    _notifyChange() {
+        this.isDirty = true;
+        this._changeCount++;
+        
+        // AutoSave에 변경 알림
+        if (this._autoSaveInstance) {
+            this._autoSaveInstance.markDirty();
+        }
+        
+        debugLog(`[EquipmentEditState] 변경 감지 - count: ${this._changeCount}`);
+    }
+    
+    /**
+     * 🆕 AutoSave 상태 조회
+     * @returns {Object|null}
+     */
+    getAutoSaveStatus() {
+        if (this._autoSaveInstance) {
+            return this._autoSaveInstance.getStatus();
+        }
+        return null;
+    }
+    
+    /**
+     * 🆕 즉시 AutoSave 트리거
+     * @returns {Promise<boolean>}
+     */
+    async triggerAutoSave() {
+        if (this._autoSaveInstance) {
+            return this._autoSaveInstance.saveNow('manual');
+        }
+        return false;
     }
     
     // ==========================================
@@ -120,7 +303,8 @@ export class EquipmentEditState {
             mapped_at: new Date().toISOString() // 매핑 시간 기록
         };
         
-        this.isDirty = true;
+        // 🆕 변경 알림 (AutoSave)
+        this._notifyChange();
         this.save();
         
         debugLog(`🔗 Mapping set: ${frontendId} → ${dbEquipment.equipment_name}`);
@@ -143,7 +327,9 @@ export class EquipmentEditState {
         if (frontendId in this.mappings) {
             const removed = this.mappings[frontendId];
             delete this.mappings[frontendId];
-            this.isDirty = true;
+            
+            // 🆕 변경 알림 (AutoSave)
+            this._notifyChange();
             this.save();
             
             debugLog(`🗑️ Mapping removed: ${frontendId}`);
@@ -431,6 +617,7 @@ export class EquipmentEditState {
         
         this.mappings = {};
         this.isDirty = false;
+        this._changeCount = 0;
         this.save();
         debugLog('🗑️ All mappings cleared');
         this.dispatchEvent('mappings-reset');
@@ -493,7 +680,10 @@ export class EquipmentEditState {
                 return;
         }
         
+        // 🆕 변경 알림
+        this._notifyChange();
         this.save();
+        
         debugLog(`📥 Mappings loaded from server (${mergeStrategy}): ${Object.keys(this.mappings).length}개`);
         this.dispatchEvent('mappings-loaded', { 
             strategy: mergeStrategy,
@@ -563,7 +753,9 @@ export class EquipmentEditState {
         console.log('Edit Mode:', this.editModeEnabled);
         console.log('Mapping Count:', this.getMappingCount());
         console.log('Is Dirty:', this.isDirty);
+        console.log('Change Count:', this._changeCount);
         console.log('Completion Rate:', this.getCompletionRate() + '%');
+        console.log('AutoSave Status:', this.getAutoSaveStatus());
         console.log('Statistics:', this.getStatistics());
         console.table(Object.values(this.mappings).slice(0, 20)); // 처음 20개만 표시
         console.groupEnd();
@@ -593,7 +785,11 @@ export class EquipmentEditState {
             const data = JSON.parse(jsonStr);
             if (data.mappings && this.validateMappingData(data.mappings)) {
                 this.mappings = data.mappings;
+                
+                // 🆕 변경 알림
+                this._notifyChange();
                 this.save();
+                
                 debugLog(`📥 Mappings imported from JSON: ${Object.keys(this.mappings).length}개`);
                 this.dispatchEvent('mappings-imported', {
                     count: Object.keys(this.mappings).length,
@@ -665,6 +861,9 @@ export class EquipmentEditState {
      * 리소스 정리 (인스턴스 파괴)
      */
     destroy() {
+        // AutoSave 중지
+        this.stopAutoSave();
+        
         window.removeEventListener('storage', this.handleStorageChange);
         debugLog('🧹 EquipmentEditState destroyed');
     }
