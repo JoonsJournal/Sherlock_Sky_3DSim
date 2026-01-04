@@ -2,7 +2,9 @@
  * ui/index.js
  * UI 모듈 통합 export
  * 
- * @version 1.0.0
+ * @version 1.1.0
+ * @changelog
+ * - v1.1.0: EquipmentEditButton, ConnectionIndicator export 추가
  */
 
 // =========================================================
@@ -10,6 +12,16 @@
 // =========================================================
 export { ConnectionModal } from './ConnectionModal.js';
 export { EquipmentEditModal } from './EquipmentEditModal.js';
+
+// =========================================================
+// Buttons / Controllers
+// =========================================================
+export { EquipmentEditButton } from './EquipmentEditButton.js';  // 🆕 추가
+
+// =========================================================
+// Indicators
+// =========================================================
+export { default as ConnectionIndicator } from './ConnectionIndicator.js';  // 🆕 추가
 
 // =========================================================
 // Panels

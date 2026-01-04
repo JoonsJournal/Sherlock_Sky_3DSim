@@ -8,8 +8,11 @@
  * - Edit 모드 이벤트
  * - Layout 이벤트
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @module EventBootstrap
+ * 
+ * @changelog
+ * - v1.1.0: 'E' 키 처리를 EquipmentEditButton으로 이관 (EventBus 통해)
  * 
  * 위치: frontend/threejs_viewer/src/bootstrap/EventBootstrap.js
  */
@@ -20,6 +23,7 @@ import { debugLog } from '../core/utils/Config.js';
 import { toast } from '../ui/common/Toast.js';
 import { layout2DTo3DConverter } from '../services/converter/Layout2DTo3DConverter.js';
 import { roomParamsAdapter } from '../services/converter/RoomParamsAdapter.js';
+import { eventBus } from '../core/managers/EventBus.js';  // 🆕 추가
 
 /**
  * UI 버튼 이벤트 리스너 설정
@@ -36,11 +40,25 @@ export function setupUIEventListeners(handlers) {
         connectionModal
     } = handlers;
     
-    // Edit Button
+    // 🔄 Edit Button - EquipmentEditButton이 관리하므로 여기서는 등록하지 않음
+    // (EquipmentEditButton이 capture 모드로 먼저 처리하고, 온라인일 때만 이벤트 전파)
+    // 대신 eventBus를 통해 연결
     const editBtn = document.getElementById('editBtn');
     if (editBtn) {
-        editBtn.addEventListener('click', toggleEditMode);
+        // EquipmentEditButton이 처리하지 않은 경우를 위한 폴백
+        // (EquipmentEditButton이 초기화되지 않았을 때)
+        editBtn.addEventListener('click', (e) => {
+            // EquipmentEditButton이 이벤트를 중단하지 않았다면 실행
+            if (!e.defaultPrevented) {
+                toggleEditMode();
+            }
+        });
     }
+    
+    // 🆕 EventBus를 통한 Edit 토글 요청 처리
+    eventBus.on('equipment:edit:toggle', () => {
+        toggleEditMode();
+    });
     
     // Monitoring Button
     const monitoringBtn = document.getElementById('monitoringBtn');
@@ -68,6 +86,7 @@ export function setupKeyboardShortcuts(handlers) {
         toggleConnectionModal,
         toggleDebugPanel,
         togglePerformanceMonitor,
+        toggleAdaptivePerformance,  // 🆕 추가
         sceneManager,
         connectionModal,
         updateConnectionButtonState
@@ -123,9 +142,18 @@ export function setupKeyboardShortcuts(handlers) {
                 toggleMonitoringMode();
                 break;
             case 'e':
+                // 🔄 v1.1.0: EventBus를 통해 EquipmentEditButton으로 전달
                 e.stopPropagation();
                 e.preventDefault();
-                toggleEditMode();
+                eventBus.emit('shortcut:equipmentEdit', { key: 'e' });
+                break;
+            case 'a':
+                // 🆕 AdaptivePerformance 토글 (A 키)
+                e.stopPropagation();
+                e.preventDefault();
+                if (toggleAdaptivePerformance) {
+                    toggleAdaptivePerformance();
+                }
                 break;
             case 'escape':
                 e.stopPropagation();

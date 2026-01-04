@@ -55,3 +55,20 @@ export {
     cleanup,
     disposeComponent
 } from './CleanupManager.js';
+
+// UIBootstrap.js에서 export
+export {
+    initUIComponents,
+    initMonitoringServices,
+    initConnectionStatus,
+    initEquipmentEditButton,
+    connectEquipmentEditButton,  // 🆕 추가
+    togglePerformanceMonitorUI,
+    toggleDebugPanel,
+    toggleConnectionIndicator,
+    toast,
+    ConnectionStatusService,
+    ConnectionIndicator,
+    ConnectionEvents,
+    EquipmentEditButton  // 🆕 추가
+} from './UIBootstrap.js';

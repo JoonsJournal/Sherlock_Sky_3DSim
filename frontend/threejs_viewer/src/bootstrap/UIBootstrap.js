@@ -3,23 +3,19 @@
  * ==============
  * 
  * UI 컴포넌트 초기화 담당
- * - ConnectionModal
- * - EquipmentEditModal
- * - ApiClient
- * - EquipmentEditState
- * - MonitoringService
- * - SignalTowerManager
- * - ConnectionStatusService (🆕 추가)
- * - ConnectionIndicator (🆕 추가)
  * 
  * @version 1.1.0
  * @module UIBootstrap
+ * 
+ * @changelog
+ * - v1.1.0: EquipmentEditButton 초기화 - 기존 #editBtn 인계 방식
  * 
  * 위치: frontend/threejs_viewer/src/bootstrap/UIBootstrap.js
  */
 
 import { ConnectionModal } from '../ui/ConnectionModal.js';
 import { EquipmentEditModal } from '../ui/EquipmentEditModal.js';
+import { EquipmentEditButton } from '../ui/EquipmentEditButton.js';
 import { toast } from '../ui/common/Toast.js';
 import { DebugPanel } from '../ui/debug/DebugPanel.js';
 import { PerformanceMonitorUI } from '../ui/debug/PerformanceMonitorUI.js';
@@ -30,17 +26,16 @@ import { ApiClient } from '../api/ApiClient.js';
 import { MonitoringService } from '../services/MonitoringService.js';
 import { SignalTowerManager } from '../services/SignalTowerManager.js';
 
-// 🆕 Connection Status 관련 import
+// Connection Status 관련 import
 import ConnectionStatusService, { ConnectionEvents } from '../services/ConnectionStatusService.js';
 import ConnectionIndicator from '../ui/ConnectionIndicator.js';
 
+// EventBus import
+import { eventBus } from '../core/managers/EventBus.js';
+
 /**
- * 🆕 Connection Status 서비스 및 UI 초기화
+ * Connection Status 서비스 및 UI 초기화
  * @param {Object} options - 초기화 옵션
- * @param {boolean} options.mockMode - Mock 모드 활성화 여부 (개발용)
- * @param {boolean} options.showMockControls - Mock 컨트롤 표시 여부
- * @param {string} options.indicatorPosition - 인디케이터 위치
- * @param {boolean} options.autoStart - 자동 시작 여부
  * @returns {Object} { connectionStatusService, connectionIndicator }
  */
 export function initConnectionStatus(options = {}) {
@@ -57,18 +52,15 @@ export function initConnectionStatus(options = {}) {
         debug = false
     } = options;
     
-    // ConnectionStatusService 인스턴스 가져오기
     const connectionStatusService = ConnectionStatusService.getInstance();
     
-    // 서비스 설정
     connectionStatusService.configure({
         debug: debug,
-        checkInterval: 5000,      // 5초마다 체크
-        requestTimeout: 3000,     // 3초 타임아웃
-        failureThreshold: 2       // 2회 실패 시 오프라인 판정
+        checkInterval: 5000,
+        requestTimeout: 3000,
+        failureThreshold: 2
     });
     
-    // Mock 모드 설정 (개발/테스트용)
     if (mockMode) {
         connectionStatusService.enableMockMode({
             isOnline: mockOnline,
@@ -77,7 +69,6 @@ export function initConnectionStatus(options = {}) {
         console.log('  ⚠️ Mock 모드 활성화됨');
     }
     
-    // ConnectionIndicator UI 생성
     const connectionIndicator = new ConnectionIndicator({
         position: indicatorPosition,
         offsetX: indicatorOffsetX,
@@ -90,13 +81,11 @@ export function initConnectionStatus(options = {}) {
     });
     console.log('  ✅ ConnectionIndicator UI 생성 완료');
     
-    // 서비스 자동 시작
     if (autoStart) {
         connectionStatusService.start();
         console.log('  ✅ ConnectionStatusService 시작됨');
     }
     
-    // 상태 변경 로깅 (디버그용)
     if (debug) {
         connectionStatusService.onStatusChanged((data) => {
             console.log(`[ConnectionStatus] 상태 변경: ${data.wasOnline ? 'ONLINE' : 'OFFLINE'} → ${data.isOnline ? 'ONLINE' : 'OFFLINE'}`);
@@ -112,9 +101,43 @@ export function initConnectionStatus(options = {}) {
 }
 
 /**
+ * 🆕 Equipment Edit Button 초기화 (기존 버튼 인계 방식)
+ * @param {Object} options - 초기화 옵션
+ * @param {Object} options.equipmentEditModal - EquipmentEditModal 인스턴스
+ * @param {Function} options.onEditRequest - Edit 요청 콜백 (toggleEditMode)
+ * @returns {Object} { equipmentEditButton }
+ */
+export function initEquipmentEditButton(options = {}) {
+    console.log('🛠️ Equipment Edit Button 초기화 시작...');
+    
+    const {
+        equipmentEditModal = null,
+        onEditRequest = null
+    } = options;
+    
+    // 🔑 핵심: 기존 #editBtn 버튼을 인계받음
+    const equipmentEditButton = new EquipmentEditButton({
+        createButton: false,           // 새 버튼 생성하지 않음
+        buttonId: 'editBtn',          // 기존 버튼 ID
+        equipmentEditModal: equipmentEditModal,
+        onEditRequest: onEditRequest,  // main.js의 toggleEditMode 연결
+        showTooltip: true
+    });
+    
+    console.log('  ✅ EquipmentEditButton 생성 완료 (기존 #editBtn 인계)');
+    
+    console.log('✅ Equipment Edit Button 초기화 완료');
+    
+    return {
+        equipmentEditButton
+    };
+}
+
+/**
  * UI 컴포넌트 초기화
  * @param {Object} options - 초기화 옵션
  * @param {Object} options.connectionOptions - Connection Status 옵션
+ * @param {Function} options.toggleEditMode - Edit 모드 토글 함수 (main.js에서 전달)
  * @returns {Object} 초기화된 UI 컴포넌트들
  */
 export function initUIComponents(options = {}) {
@@ -139,9 +162,15 @@ export function initUIComponents(options = {}) {
     });
     console.log('  ✅ EquipmentEditModal 초기화 완료');
     
-    // 🆕 Connection Status 초기화
+    // Connection Status 초기화
     const connectionOptions = options.connectionOptions || {};
     const { connectionStatusService, connectionIndicator } = initConnectionStatus(connectionOptions);
+    
+    // 🆕 Equipment Edit Button 초기화 (toggleEditMode는 나중에 main.js에서 설정)
+    const { equipmentEditButton } = initEquipmentEditButton({
+        equipmentEditModal: equipmentEditModal,
+        onEditRequest: options.toggleEditMode || null
+    });
     
     console.log('✅ UI 컴포넌트 초기화 완료');
     
@@ -151,45 +180,34 @@ export function initUIComponents(options = {}) {
         equipmentEditState,
         equipmentEditModal,
         toast,
-        // 🆕 Connection Status 관련
         connectionStatusService,
-        connectionIndicator
+        connectionIndicator,
+        equipmentEditButton
     };
 }
 
 /**
  * Monitoring 서비스 초기화
- * @param {Object} scene - THREE.Scene
- * @param {Object} equipmentLoader - EquipmentLoader 인스턴스
- * @param {Object} equipmentEditState - EquipmentEditState 인스턴스 (⭐ 추가)
- * @param {Object} connectionStatusService - ConnectionStatusService 인스턴스 (🆕 추가)
- * @returns {Object} 초기화된 모니터링 서비스들
  */
 export function initMonitoringServices(scene, equipmentLoader, equipmentEditState = null, connectionStatusService = null) {
     console.log('📡 Monitoring 서비스 초기화 시작...');
     
-    // Signal Tower Manager 초기화
     const signalTowerManager = new SignalTowerManager(scene, equipmentLoader);
-    
-    // 기존 equipment1.js의 경광등 램프들을 찾아서 초기화
     const lightCount = signalTowerManager.initializeAllLights();
     console.log(`  ✅ SignalTowerManager 초기화 완료: ${lightCount}개 설비의 경광등 연결`);
     
-    // ⭐ Monitoring Service 초기화 - equipmentLoader, equipmentEditState 전달
     const monitoringService = new MonitoringService(
         signalTowerManager,
-        equipmentLoader,        // ⭐ 추가
-        equipmentEditState      // ⭐ 추가
+        equipmentLoader,
+        equipmentEditState
     );
     console.log('  ✅ MonitoringService 초기화 완료');
     
-    // 🆕 Connection Status와 Monitoring Service 연동
     if (connectionStatusService) {
         _setupMonitoringConnectionIntegration(monitoringService, connectionStatusService);
         console.log('  ✅ MonitoringService ↔ ConnectionStatus 연동 완료');
     }
     
-    // ⭐ 매핑 통계 출력
     if (equipmentEditState) {
         const mappingCount = equipmentEditState.getMappingCount();
         console.log(`  📊 현재 매핑된 설비: ${mappingCount}개`);
@@ -204,30 +222,23 @@ export function initMonitoringServices(scene, equipmentLoader, equipmentEditStat
 }
 
 /**
- * 🆕 Monitoring Service와 Connection Status 연동 설정
  * @private
- * @param {MonitoringService} monitoringService 
- * @param {ConnectionStatusService} connectionStatusService 
  */
 function _setupMonitoringConnectionIntegration(monitoringService, connectionStatusService) {
-    // 오프라인 시 Monitoring 모드 자동 종료
     connectionStatusService.onOffline(() => {
         if (monitoringService.isActive && monitoringService.isActive()) {
             console.warn('[Monitoring] Backend 연결 끊김 - Monitoring 모드 종료');
             
-            // Toast 알림
             if (typeof toast !== 'undefined' && toast.show) {
                 toast.show('Backend 연결이 끊겼습니다. Monitoring 모드를 종료합니다.', 'warning');
             }
             
-            // Monitoring 모드 종료 (해당 메서드가 있는 경우)
             if (typeof monitoringService.stop === 'function') {
                 monitoringService.stop();
             }
         }
     });
     
-    // 온라인 복구 시 알림
     connectionStatusService.onOnline((data) => {
         if (data.recoveredAfter > 0) {
             console.log(`[Monitoring] Backend 연결 복구됨 (${data.recoveredAfter}회 실패 후)`);
@@ -240,30 +251,49 @@ function _setupMonitoringConnectionIntegration(monitoringService, connectionStat
 }
 
 /**
- * 🆕 Connection Status 단독 초기화 (필요 시 별도 호출용)
- * main.js에서 initUIComponents 없이 Connection만 초기화할 때 사용
- * @param {Object} options - 옵션
- * @returns {Object} { connectionStatusService, connectionIndicator }
+ * 🆕 Equipment Edit Button과 Selection 연동 설정
+ * @param {EquipmentEditButton} equipmentEditButton
+ * @param {Function} toggleEditMode - main.js의 toggleEditMode 함수
  */
+export function connectEquipmentEditButton(equipmentEditButton, toggleEditMode) {
+    if (!equipmentEditButton) {
+        console.warn('[UIBootstrap] EquipmentEditButton이 없습니다.');
+        return;
+    }
+    
+    // Edit 요청 콜백 설정
+    equipmentEditButton.setOnEditRequest(() => {
+        toggleEditMode();
+    });
+    
+    // 설비 선택 이벤트 연동
+    eventBus.on('equipment:selected', (data) => {
+        equipmentEditButton.setCurrentEquipment(data.equipment);
+    });
+    
+    eventBus.on('equipment:deselected', () => {
+        equipmentEditButton.setCurrentEquipment(null);
+    });
+    
+    // Edit 모드 상태 동기화
+    window.addEventListener('edit-mode-changed', (e) => {
+        equipmentEditButton.setEditModeActive(e.detail.enabled);
+    });
+    
+    console.log('[UIBootstrap] EquipmentEditButton 연동 완료');
+}
+
+// Legacy 함수들
 export function initConnectionStatusStandalone(options = {}) {
     return initConnectionStatus(options);
 }
 
-/**
- * 🆕 Connection Indicator 토글
- * @param {ConnectionIndicator} indicator - ConnectionIndicator 인스턴스
- */
 export function toggleConnectionIndicator(indicator) {
     if (indicator) {
         indicator.toggle();
     }
 }
 
-/**
- * 성능 모니터 UI 생성/토글
- * @param {Object} performanceMonitorUI - 기존 인스턴스 (있으면)
- * @returns {Object} PerformanceMonitorUI 인스턴스
- */
 export function togglePerformanceMonitorUI(performanceMonitorUI) {
     if (!performanceMonitorUI) {
         const container = document.createElement('div');
@@ -281,9 +311,6 @@ export function togglePerformanceMonitorUI(performanceMonitorUI) {
     return performanceMonitorUI;
 }
 
-/**
- * 디버그 패널 토글
- */
 export function toggleDebugPanel() {
     const panel = document.getElementById('debugControls');
     const button = document.getElementById('debugToggle');
@@ -299,12 +326,12 @@ export function toggleDebugPanel() {
     }
 }
 
-// 🆕 Connection 관련 export 추가
 export { 
     toast, 
     DebugPanel, 
     PerformanceMonitorUI,
     ConnectionStatusService,
     ConnectionIndicator,
-    ConnectionEvents
+    ConnectionEvents,
+    EquipmentEditButton
 };

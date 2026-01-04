@@ -2,8 +2,11 @@
  * shortcuts.js
  * 키보드 단축키 정의
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description 컨텍스트별 단축키 매핑
+ * 
+ * @changelog
+ * - v1.1.0: MICE 스냅 'e' → 'n'으로 변경, 'e'를 Equipment Edit로 할당
  */
 
 import { KEYBOARD_CONTEXT } from './constants.js';
@@ -50,7 +53,10 @@ export const SHORTCUTS_VIEWER_3D = Object.freeze({
     'd': { action: 'toggle:debug', description: '디버그 패널 토글' },
     
     // 모드 전환
-    'tab': { action: 'mode:toggle', description: '모드 전환 (Viewer ↔ Monitoring)' }
+    'tab': { action: 'mode:toggle', description: '모드 전환 (Viewer ↔ Monitoring)' },
+    
+    // 🆕 Equipment Edit (v1.1.0 추가)
+    'e': { action: 'equipmentEdit', description: 'Equipment Edit 모드' }
 });
 
 // =====================================================
@@ -107,12 +113,14 @@ export const SHORTCUTS_EDITOR_2D = Object.freeze({
 // =====================================================
 // MICE 스냅 키 (2D Editor에서 Hold 방식)
 // =====================================================
+// 🔄 v1.1.0 변경: 'e' (endpoint) → 'n' (node/endpoint)
+// 이유: 'e' 키를 Equipment Edit 단축키로 사용하기 위함
 
 export const MICE_SNAP_KEYS = Object.freeze({
     'm': { type: 'midpoint', description: '중점 스냅', icon: '◇', color: '#00FFFF' },
     'i': { type: 'intersection', description: '교차점 스냅', icon: '✕', color: '#FFFF00' },
     'c': { type: 'center', description: '중심 스냅', icon: '○', color: '#FF00FF' },
-    'e': { type: 'endpoint', description: '끝점 스냅', icon: '■', color: '#00FF00' }
+    'n': { type: 'endpoint', description: '끝점 스냅 (Node)', icon: '■', color: '#00FF00' }  // 🔄 'e' → 'n'
 });
 
 // =====================================================

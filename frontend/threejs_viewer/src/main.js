@@ -4,13 +4,11 @@
  * 
  * 메인 애플리케이션 진입점 (리팩토링 버전)
  * 
- * @version 3.2.0
- * @description Phase 4-1 - Monitoring Mode 통계 패널 및 미연결 설비 안내 기능 추가
+ * @version 3.3.0
+ * @description Phase 4-1 + Equipment Edit Button 연동
  * 
- * 역할: 오케스트레이션만 담당
- * - Bootstrap 모듈들 호출
- * - 애니메이션 루프
- * - 전역 객체 관리
+ * @changelog
+ * - v3.3.0: EquipmentEditButton 연동, ConnectionStatus 체크 추가
  * 
  * 위치: frontend/threejs_viewer/src/main.js
  */
@@ -39,6 +37,7 @@ import {
     togglePerformanceMonitorUI,
     toggleDebugPanel,
     toast,
+    connectEquipmentEditButton,  // 🆕 추가
     
     // Events
     setupUIEventListeners,
@@ -88,12 +87,22 @@ function toggleEditMode() {
             services.ui.equipmentEditState.disableEditMode();
         }
         updateButtonState('editBtn', false);
+        
+        // 🆕 EquipmentEditButton 상태 동기화
+        if (services.ui?.equipmentEditButton) {
+            services.ui.equipmentEditButton.setEditModeActive(false);
+        }
     } else {
         appModeManager.switchMode(APP_MODE.EQUIPMENT_EDIT);
         if (services.ui?.equipmentEditState) {
             services.ui.equipmentEditState.enableEditMode();
         }
         updateButtonState('editBtn', true);
+        
+        // 🆕 EquipmentEditButton 상태 동기화
+        if (services.ui?.equipmentEditButton) {
+            services.ui.equipmentEditButton.setEditModeActive(true);
+        }
     }
 }
 
@@ -132,7 +141,7 @@ function toggleFullscreen() {
 }
 
 // ============================================
-// ⭐ AdaptivePerformance ON/OFF 토글
+// AdaptivePerformance ON/OFF 토글
 // ============================================
 function toggleAdaptivePerformance() {
     const adaptivePerformance = services.scene?.adaptivePerformance;
@@ -149,14 +158,11 @@ function toggleAdaptivePerformance() {
         return false;
     }
     
-    // ON/OFF 토글
     const newState = !adaptivePerformance.adjustmentEnabled;
     adaptivePerformance.setEnabled(newState);
     
-    // 버튼 상태 업데이트
     updateButtonState('adaptiveBtn', newState);
     
-    // 토스트 알림
     if (newState) {
         toast?.show('✅ AdaptivePerformance ON', 'success');
         console.log('✅ AdaptivePerformance ON - 자동 품질 조정 활성화');
@@ -182,14 +188,15 @@ function init() {
         // 2. 3D 씬 초기화
         services.scene = initScene();
         
-        // 3. UI 컴포넌트 초기화
+        // 3. UI 컴포넌트 초기화 (🔄 toggleEditMode 전달하지 않음 - 나중에 연결)
         services.ui = initUIComponents();
         
         // 4. Monitoring 서비스 초기화
         services.monitoring = initMonitoringServices(
             services.scene.sceneManager.scene,
             services.scene.equipmentLoader,
-            services.ui.equipmentEditState
+            services.ui.equipmentEditState,
+            services.ui.connectionStatusService  // 🆕 ConnectionStatusService 전달
         );
         
         // Core 매니저에 monitoringService 재등록
@@ -197,21 +204,22 @@ function init() {
         
         // 5. InteractionHandler 연결
         const { interactionHandler, sceneManager, equipmentLoader } = services.scene;
-        const { equipmentEditState, equipmentEditModal } = services.ui;
+        const { equipmentEditState, equipmentEditModal, equipmentEditButton } = services.ui;
         
         interactionHandler.setEditMode(equipmentEditState);
         interactionHandler.setEditModal(equipmentEditModal);
-        
-        // ⭐ InteractionHandler에 MonitoringService 연결 (미연결 설비 클릭 안내용)
         interactionHandler.setMonitoringService(services.monitoring.monitoringService);
         
-        // 6. 이벤트 리스너 설정
+        // 🆕 6. EquipmentEditButton 연동
+        connectEquipmentEditButton(equipmentEditButton, toggleEditMode);
+        
+        // 7. 이벤트 리스너 설정
         const eventHandlers = {
             toggleEditMode,
             toggleMonitoringMode,
             toggleConnectionModal,
             toggleDebugPanel,
-            toggleAdaptivePerformance,  // ⭐ 추가
+            toggleAdaptivePerformance,
             togglePerformanceMonitor: () => {
                 performanceMonitorUI = togglePerformanceMonitorUI(performanceMonitorUI);
             },
@@ -235,13 +243,13 @@ function init() {
             signalTowerManager: services.monitoring.signalTowerManager
         });
         
-        // 7. LayoutEditorMain 연결
+        // 8. LayoutEditorMain 연결
         setupLayoutEditorMainConnection(sceneManager);
         
-        // 8. PreviewGenerator 초기화
+        // 9. PreviewGenerator 초기화
         previewGenerator = initPreviewGenerator();
         
-        // 9. 전역 디버그 함수 설정
+        // 10. 전역 디버그 함수 설정
         setupGlobalDebugFunctions({
             sceneManager,
             equipmentLoader,
@@ -251,15 +259,14 @@ function init() {
             toggleMonitoringMode
         });
         
-        // ⭐ AdaptivePerformance 전역 명령어 설정
         if (services.scene.adaptivePerformance) {
             services.scene.adaptivePerformance.setupGlobalCommands();
         }
         
-        // 10. 애니메이션 시작
+        // 11. 애니메이션 시작
         animate();
         
-        // 11. 전역 객체 노출
+        // 12. 전역 객체 노출
         exposeGlobalObjects({
             // Scene
             sceneManager,
@@ -270,14 +277,19 @@ function init() {
             dataOverlay: services.scene.dataOverlay,
             statusVisualizer: services.scene.statusVisualizer,
             performanceMonitor: services.scene.performanceMonitor,
-            adaptivePerformance: services.scene.adaptivePerformance,  // ⭐ 추가
+            adaptivePerformance: services.scene.adaptivePerformance,
             
             // UI
             connectionModal: services.ui.connectionModal,
             equipmentEditState,
             equipmentEditModal,
+            equipmentEditButton,  // 🆕 추가
             apiClient: services.ui.apiClient,
             toast,
+            
+            // Connection Status 🆕
+            connectionStatusService: services.ui.connectionStatusService,
+            connectionIndicator: services.ui.connectionIndicator,
             
             // Monitoring
             monitoringService: services.monitoring.monitoringService,
@@ -295,11 +307,12 @@ function init() {
             roomParamsAdapter,
             previewGenerator,
             
-            // ⭐ 함수 노출
-            toggleAdaptivePerformance
+            // 함수 노출
+            toggleAdaptivePerformance,
+            toggleEditMode  // 🆕 추가
         });
         
-        // 12. 초기화 완료
+        // 13. 초기화 완료
         hideLoadingStatus(3000);
         
         eventBus.emit(EVENT_NAME.APP_INITIALIZED, {
@@ -307,7 +320,6 @@ function init() {
             mode: appModeManager.getCurrentMode()
         });
         
-        // 디버그 모드일 때 메모리 정보
         if (CONFIG.DEBUG_MODE) {
             setTimeout(() => {
                 memoryManager.logMemoryInfo(sceneManager.renderer);
@@ -318,6 +330,7 @@ function init() {
         console.log('💡 콘솔에서 debugHelp() 입력으로 사용 가능한 명령어 확인');
         console.log('💡 키보드 단축키: D=디버그, P=성능, H=헬퍼, G=그리드, M=모니터링, E=편집');
         console.log('💡 AdaptivePerformance: toggleAdaptivePerformance() 또는 A키로 ON/OFF');
+        console.log('💡 Equipment Edit: Backend 연결 시에만 E키 또는 버튼 사용 가능');
         
     } catch (error) {
         console.error('❌ 초기화 중 오류 발생:', error);
@@ -338,41 +351,34 @@ function animate() {
         statusVisualizer, 
         sceneManager, 
         performanceMonitor,
-        adaptivePerformance  // ⭐ 추가
+        adaptivePerformance
     } = services.scene || {};
     const { signalTowerManager } = services.monitoring || {};
     
-    // 카메라 컨트롤 업데이트
     if (cameraControls) {
         cameraControls.update();
     }
     
-    // 상태 시각화 애니메이션
     if (statusVisualizer) {
         statusVisualizer.animateErrorStatus();
     }
     
-    // Signal Tower 애니메이션
     if (signalTowerManager) {
         signalTowerManager.animate(0.016);
     }
     
-    // 씬 렌더링
     if (sceneManager) {
         sceneManager.render();
     }
     
-    // ⭐ PerformanceMonitor 업데이트 (FPS 계산 - 필수!)
     if (performanceMonitor) {
         performanceMonitor.update();
     }
     
-    // ⭐ AdaptivePerformance 업데이트 (자동 품질 조정)
     if (adaptivePerformance) {
         adaptivePerformance.update();
     }
     
-    // 성능 모니터 UI 업데이트
     if (performanceMonitorUI?.isVisible?.()) {
         performanceMonitorUI.recordFrame();
         if (sceneManager?.renderer) {
@@ -423,7 +429,7 @@ function handleCleanup() {
     cleanup({
         animationFrameId,
         performanceMonitor: services.scene?.performanceMonitor,
-        adaptivePerformance: services.scene?.adaptivePerformance,  // ⭐ 추가
+        adaptivePerformance: services.scene?.adaptivePerformance,
         performanceMonitorUI,
         previewGenerator,
         sceneManager: services.scene?.sceneManager,
@@ -432,12 +438,12 @@ function handleCleanup() {
         interactionHandler: services.scene?.interactionHandler,
         cameraNavigator: services.scene?.cameraNavigator,
         equipmentEditState: services.ui?.equipmentEditState,
+        equipmentEditButton: services.ui?.equipmentEditButton,  // 🆕 추가
         connectionModal: services.ui?.connectionModal,
         equipmentEditModal: services.ui?.equipmentEditModal
     });
 }
 
-// 페이지 언로드 시 정리
 window.addEventListener('beforeunload', handleCleanup);
 
 // ============================================
