@@ -1,8 +1,8 @@
 /**
- * MonitoringService.js - v2.3-DEBUG
+ * MonitoringService.js - v2.4-DEBUG
  * 실시간 설비 모니터링 서비스
  * 
- * ⭐ 디버그 버전: 렌더링 문제 추적
+ * ⭐ 디버그 버전: createStatusPanel 비활성화하여 원인 파악
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
  */
@@ -12,40 +12,29 @@ import { debugLog } from '../core/utils/Config.js';
 export class MonitoringService {
     constructor(signalTowerManager, equipmentLoader = null, equipmentEditState = null) {
         this.signalTowerManager = signalTowerManager;
-        
-        // ⭐ 새로 추가: EquipmentLoader & EditState 참조
         this.equipmentLoader = equipmentLoader;
         this.equipmentEditState = equipmentEditState;
         
-        // Backend API 엔드포인트
         this.apiBaseUrl = 'http://localhost:8000/api/monitoring';
         this.wsUrl = 'ws://localhost:8000/api/monitoring/stream';
         
-        // WebSocket 연결
         this.ws = null;
         this.isActive = false;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
-        this.reconnectDelay = 3000; // 3초
+        this.reconnectDelay = 3000;
         
-        // 상태 캐시 (중복 업데이트 방지)
         this.statusCache = new Map();
-        
-        // 업데이트 큐 (배치 처리)
         this.updateQueue = [];
-        this.batchInterval = 1000; // 1초마다 배치 처리
+        this.batchInterval = 1000;
         this.batchTimer = null;
         
-        // ⭐ v2.2: 비활성화 표시 옵션 (투명도 제거! 색상만 사용)
         this.disabledOptions = {
-            grayColor: 0x555555  // 어두운 회색 (미연결 설비 표시)
-            // opacity 제거됨 - Three.js 렌더링 문제 방지
+            grayColor: 0x555555
         };
         
-        // ⭐ 통계 패널 요소
         this.statusPanelElement = null;
         
-        // ⭐ 현재 통계
         this.currentStats = {
             mapped: 0,
             unmapped: 0,
@@ -53,12 +42,9 @@ export class MonitoringService {
             rate: 0
         };
         
-        debugLog('MonitoringService initialized (with status panel & unmapped notification)');
+        debugLog('MonitoringService initialized');
     }
     
-    /**
-     * ⭐ 의존성 주입 (나중에 설정하는 경우)
-     */
     setDependencies(equipmentLoader, equipmentEditState) {
         this.equipmentLoader = equipmentLoader;
         this.equipmentEditState = equipmentEditState;
@@ -67,6 +53,7 @@ export class MonitoringService {
     
     /**
      * 모니터링 시작
+     * ⭐ v2.4-DEBUG: 최소한의 코드만 실행하여 원인 파악
      */
     async start() {
         if (this.isActive) {
@@ -74,57 +61,37 @@ export class MonitoringService {
             return;
         }
         
-        // 🔴 DEBUG: 시작 전 상태
-        console.log('🔴🔴🔴 DEBUG MonitoringService.start() 호출됨!');
-        console.log('🔴 DEBUG: Scene children (시작 전):', this.equipmentLoader?.scene?.children?.length);
+        console.log('🔴🔴🔴 DEBUG MonitoringService.start() - 최소 버전!');
         
         debugLog('🟢 Starting monitoring mode...');
         this.isActive = true;
         
         try {
-            // ⭐ 1. 미연결 설비 비활성화 표시 적용
-            console.log('🔴 DEBUG: Step 1 - applyUnmappedEquipmentStyle 시작');
-            this.applyUnmappedEquipmentStyle();
-            console.log('🔴 DEBUG: Step 1 - applyUnmappedEquipmentStyle 완료');
-            console.log('🔴 DEBUG: Scene children (Step 1 후):', this.equipmentLoader?.scene?.children?.length);
+            // ⭐ 1. 미연결 설비 비활성화 표시 - 일단 비활성화!
+            console.log('🔴 DEBUG: applyUnmappedEquipmentStyle - 건너뜀! (테스트)');
+            // this.applyUnmappedEquipmentStyle();
             
-            // ⭐ 2. 통계 패널 표시
-            console.log('🔴 DEBUG: Step 2 - createStatusPanel 시작');
-            this.createStatusPanel();
-            console.log('🔴 DEBUG: Step 2 - createStatusPanel 완료');
+            // ⭐ 2. 통계 패널 표시 - 일단 비활성화!
+            console.log('🔴 DEBUG: createStatusPanel - 건너뜀! (테스트)');
+            // this.createStatusPanel();
             
-            // 3. 초기 상태 로드 (REST API)
-            console.log('🔴 DEBUG: Step 3 - loadInitialStatus 시작');
-            await this.loadInitialStatus();
-            console.log('🔴 DEBUG: Step 3 - loadInitialStatus 완료');
-            console.log('🔴 DEBUG: Scene children (Step 3 후):', this.equipmentLoader?.scene?.children?.length);
+            // 3. 초기 상태 로드 - 건너뜀
+            console.log('🔴 DEBUG: loadInitialStatus - 건너뜀! (테스트)');
+            // await this.loadInitialStatus();
             
-            // 4. WebSocket 연결
-            console.log('🔴 DEBUG: Step 4 - connectWebSocket 시작');
-            this.connectWebSocket();
-            console.log('🔴 DEBUG: Step 4 - connectWebSocket 완료');
+            // 4. WebSocket 연결 - 건너뜀
+            console.log('🔴 DEBUG: connectWebSocket - 건너뜀! (테스트)');
+            // this.connectWebSocket();
             
-            // 5. 배치 처리 타이머 시작
-            console.log('🔴 DEBUG: Step 5 - startBatchProcessing 시작');
-            this.startBatchProcessing();
-            console.log('🔴 DEBUG: Step 5 - startBatchProcessing 완료');
+            // 5. 배치 처리 타이머 - 건너뜀
+            console.log('🔴 DEBUG: startBatchProcessing - 건너뜀! (테스트)');
+            // this.startBatchProcessing();
             
-            // 🔴 DEBUG: 최종 상태
-            console.log('🔴🔴🔴 DEBUG MonitoringService.start() 완료!');
-            console.log('🔴 DEBUG: Scene children (최종):', this.equipmentLoader?.scene?.children?.length);
-            
-            // 🔴 DEBUG: 첫 번째 설비 상태 확인
-            const firstEq = this.equipmentLoader?.equipmentArray?.[0];
-            if (firstEq) {
-                console.log('🔴 DEBUG: 첫 번째 설비 visible:', firstEq.visible);
-                console.log('🔴 DEBUG: 첫 번째 설비 parent:', firstEq.parent?.type);
-            }
-            
-            debugLog('✅ Monitoring mode started');
+            console.log('🔴🔴🔴 DEBUG MonitoringService.start() 완료! (아무것도 안함)');
+            debugLog('✅ Monitoring mode started (minimal)');
             
         } catch (error) {
             console.error('❌ Failed to start monitoring:', error);
-            console.error('🔴 DEBUG: 에러 발생!', error.stack);
             this.isActive = false;
         }
     }
@@ -133,20 +100,18 @@ export class MonitoringService {
      * 모니터링 중지
      */
     stop() {
-        console.log('🔴🔴🔴 DEBUG MonitoringService.stop() 호출됨!');
+        console.log('🔴🔴🔴 DEBUG MonitoringService.stop() - 최소 버전!');
         
         debugLog('🔴 Stopping monitoring mode...');
         this.isActive = false;
         
-        // ⭐ 1. 비활성화 표시 해제 (모든 설비 원래대로)
-        console.log('🔴 DEBUG: resetEquipmentStyle 시작');
-        this.resetEquipmentStyle();
-        console.log('🔴 DEBUG: resetEquipmentStyle 완료');
+        // ⭐ 비활성화 표시 해제 - 건너뜀
+        console.log('🔴 DEBUG: resetEquipmentStyle - 건너뜀! (테스트)');
+        // this.resetEquipmentStyle();
         
-        // ⭐ 2. 통계 패널 제거
-        console.log('🔴 DEBUG: removeStatusPanel 시작');
-        this.removeStatusPanel();
-        console.log('🔴 DEBUG: removeStatusPanel 완료');
+        // ⭐ 통계 패널 제거 - 건너뜀
+        console.log('🔴 DEBUG: removeStatusPanel - 건너뜀! (테스트)');
+        // this.removeStatusPanel();
         
         // WebSocket 연결 종료
         if (this.ws) {
@@ -165,21 +130,16 @@ export class MonitoringService {
     }
     
     // ============================================
-    // ⭐ 통계 패널 관리 (NEW)
+    // 통계 패널 관리
     // ============================================
     
-    /**
-     * ⭐ 통계 패널 생성
-     */
     createStatusPanel() {
-        // 이미 존재하면 제거
         this.removeStatusPanel();
         
         const panel = document.createElement('div');
         panel.id = 'monitoring-status-panel';
         panel.className = 'status-panel';
         
-        // 통계 계산
         this.updateStats();
         
         panel.innerHTML = this.getStatusPanelHTML();
@@ -190,9 +150,6 @@ export class MonitoringService {
         debugLog('📊 Status panel created');
     }
     
-    /**
-     * ⭐ 통계 패널 HTML 생성
-     */
     getStatusPanelHTML() {
         const { mapped, unmapped, rate } = this.currentStats;
         
@@ -214,9 +171,6 @@ export class MonitoringService {
         `;
     }
     
-    /**
-     * ⭐ 통계 업데이트
-     */
     updateStats() {
         if (!this.equipmentLoader || !this.equipmentEditState) {
             return;
@@ -235,9 +189,6 @@ export class MonitoringService {
         };
     }
     
-    /**
-     * ⭐ 통계 패널 업데이트
-     */
     updateStatusPanel() {
         if (!this.statusPanelElement) return;
         
@@ -245,9 +196,6 @@ export class MonitoringService {
         this.statusPanelElement.innerHTML = this.getStatusPanelHTML();
     }
     
-    /**
-     * ⭐ 통계 패널 제거
-     */
     removeStatusPanel() {
         if (this.statusPanelElement) {
             this.statusPanelElement.remove();
@@ -255,32 +203,23 @@ export class MonitoringService {
             debugLog('📊 Status panel removed');
         }
         
-        // ID로도 한번 더 확인해서 제거
         const existingPanel = document.getElementById('monitoring-status-panel');
         if (existingPanel) {
             existingPanel.remove();
         }
     }
     
-    /**
-     * ⭐ 현재 통계 반환
-     */
     getStats() {
         this.updateStats();
         return { ...this.currentStats };
     }
     
     // ============================================
-    // ⭐ 미연결 설비 클릭 안내 (NEW)
+    // 미연결 설비 클릭 안내
     // ============================================
     
-    /**
-     * ⭐ 설비가 매핑되었는지 확인하고 안내 메시지 표시
-     * @param {string} frontendId - 설비 ID
-     * @returns {boolean} 매핑 여부
-     */
     checkAndNotifyUnmapped(frontendId) {
-        if (!this.isActive) return true; // Monitoring Mode가 아니면 패스
+        if (!this.isActive) return true;
         
         const isMapped = this.isEquipmentMapped(frontendId);
         
@@ -292,11 +231,7 @@ export class MonitoringService {
         return true;
     }
     
-    /**
-     * ⭐ 미연결 설비 안내 표시
-     */
     showUnmappedNotification(frontendId) {
-        // Toast 메시지 표시
         this.showToast(
             `⚠️ "${frontendId}"는 DB에 연결되지 않았습니다.\nEdit Mode (E키)에서 매핑해주세요.`,
             'warning',
@@ -307,12 +242,9 @@ export class MonitoringService {
     }
     
     // ============================================
-    // ⭐ 미연결 설비 비활성화 표시
+    // 미연결 설비 비활성화 표시
     // ============================================
     
-    /**
-     * ⭐ Monitoring Mode 시작 시: 미연결 설비 비활성화 스타일 적용
-     */
     applyUnmappedEquipmentStyle() {
         if (!this.equipmentLoader || !this.equipmentEditState) {
             debugLog('⚠️ EquipmentLoader or EditState not available');
@@ -325,7 +257,6 @@ export class MonitoringService {
             this.disabledOptions
         );
         
-        // 통계 업데이트
         this.currentStats.mapped = result.mapped;
         this.currentStats.unmapped = result.unmapped;
         this.currentStats.total = result.mapped + result.unmapped;
@@ -336,7 +267,6 @@ export class MonitoringService {
         debugLog(`🌫️ Unmapped equipment disabled: ${result.unmapped}개`);
         debugLog(`✅ Mapped equipment active: ${result.mapped}개`);
         
-        // Toast 알림
         if (result.unmapped > 0) {
             this.showToast(
                 `⚠️ ${result.unmapped}개 설비가 DB에 연결되지 않음`, 
@@ -345,9 +275,6 @@ export class MonitoringService {
         }
     }
     
-    /**
-     * ⭐ Monitoring Mode 종료 시: 모든 설비 원래 상태로 복원
-     */
     resetEquipmentStyle() {
         if (!this.equipmentLoader) {
             debugLog('⚠️ EquipmentLoader not available');
@@ -358,31 +285,21 @@ export class MonitoringService {
         debugLog('✅ All equipment styles reset');
     }
     
-    /**
-     * ⭐ 비활성화 옵션 설정
-     * @param {Object} options - { grayColor } (투명도 옵션 제거됨)
-     */
     setDisabledOptions(options) {
         this.disabledOptions = { ...this.disabledOptions, ...options };
         
-        // 활성 상태면 즉시 재적용
         if (this.isActive) {
             this.applyUnmappedEquipmentStyle();
             this.updateStatusPanel();
         }
     }
     
-    /**
-     * Toast 메시지 표시
-     */
     showToast(message, type = 'info', duration = 5000) {
-        // 기존 toast 시스템 사용 시도
         if (window.toast?.show) {
             window.toast.show(message.replace(/\n/g, ' '), type);
             return;
         }
         
-        // Fallback: 직접 생성
         let toastContainer = document.getElementById('toast-container');
         if (!toastContainer) {
             toastContainer = document.createElement('div');
@@ -407,9 +324,6 @@ export class MonitoringService {
     // 기존 메서드들
     // ============================================
     
-    /**
-     * 초기 상태 로드 (REST API)
-     */
     async loadInitialStatus() {
         debugLog('📡 Loading initial equipment status...');
         
@@ -428,10 +342,8 @@ export class MonitoringService {
             
             debugLog(`✅ Loaded ${data.equipment.length} equipment status`);
             
-            // 각 설비 상태 업데이트 (매핑된 것만)
             data.equipment.forEach(item => {
                 if (item.frontend_id && item.status) {
-                    // ⭐ 매핑된 설비만 상태 업데이트
                     if (this.isEquipmentMapped(item.frontend_id)) {
                         this.updateEquipmentStatus(item.frontend_id, item.status);
                     }
@@ -440,7 +352,6 @@ export class MonitoringService {
             
         } catch (error) {
             console.error('❌ Failed to load initial status:', error);
-            // 개발 환경에서는 더미 데이터 사용
             if (error.message.includes('Failed to fetch')) {
                 debugLog('⚠️ Using dummy data for development');
                 this.loadDummyStatus();
@@ -448,17 +359,11 @@ export class MonitoringService {
         }
     }
     
-    /**
-     * ⭐ 설비가 매핑되었는지 확인
-     */
     isEquipmentMapped(frontendId) {
-        if (!this.equipmentEditState) return true; // fallback
+        if (!this.equipmentEditState) return true;
         return this.equipmentEditState.isComplete(frontendId);
     }
     
-    /**
-     * WebSocket 연결
-     */
     connectWebSocket() {
         debugLog(`📡 Connecting to WebSocket: ${this.wsUrl}`);
         
@@ -481,7 +386,6 @@ export class MonitoringService {
             this.ws.onclose = () => {
                 debugLog('🔴 WebSocket closed');
                 
-                // 자동 재연결 (모니터링 활성화 상태일 때만)
                 if (this.isActive && this.reconnectAttempts < this.maxReconnectAttempts) {
                     this.reconnectAttempts++;
                     debugLog(`🔄 Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
@@ -497,15 +401,11 @@ export class MonitoringService {
         }
     }
     
-    /**
-     * WebSocket 메시지 처리
-     */
     handleWebSocketMessage(event) {
         try {
             const data = JSON.parse(event.data);
             
             if (data.type === 'equipment_status') {
-                // ⭐ 매핑된 설비만 상태 변경
                 if (this.isEquipmentMapped(data.frontend_id)) {
                     debugLog(`📊 Status update: ${data.frontend_id} -> ${data.status}`);
                     this.updateEquipmentStatus(data.frontend_id, data.status);
@@ -514,8 +414,7 @@ export class MonitoringService {
                 }
                 
             } else if (data.type === 'heartbeat') {
-                // 하트비트 (무시)
-                
+                // ignore
             } else {
                 debugLog('⚠️ Unknown message type:', data.type);
             }
@@ -525,20 +424,14 @@ export class MonitoringService {
         }
     }
     
-    /**
-     * 설비 상태 업데이트
-     */
     updateEquipmentStatus(frontendId, status) {
-        // 캐시 확인 (중복 업데이트 방지)
         const cached = this.statusCache.get(frontendId);
         if (cached === status) {
-            return; // 변경 없음
+            return;
         }
         
-        // 캐시 업데이트
         this.statusCache.set(frontendId, status);
         
-        // 업데이트 큐에 추가
         this.updateQueue.push({
             frontendId: frontendId,
             status: status,
@@ -546,9 +439,6 @@ export class MonitoringService {
         });
     }
     
-    /**
-     * 배치 처리 시작
-     */
     startBatchProcessing() {
         if (this.batchTimer) {
             clearInterval(this.batchTimer);
@@ -561,9 +451,6 @@ export class MonitoringService {
         debugLog('⏱️ Batch processing started');
     }
     
-    /**
-     * 업데이트 큐 플러시 (배치 처리)
-     */
     flushUpdateQueue() {
         if (this.updateQueue.length === 0) {
             return;
@@ -571,7 +458,6 @@ export class MonitoringService {
         
         debugLog(`🔄 Processing ${this.updateQueue.length} status updates...`);
         
-        // SignalTowerManager를 통해 실제 3D 객체 업데이트
         this.updateQueue.forEach(update => {
             if (this.signalTowerManager) {
                 this.signalTowerManager.updateStatus(
@@ -581,28 +467,18 @@ export class MonitoringService {
             }
         });
         
-        // 큐 초기화
         this.updateQueue = [];
     }
     
-    /**
-     * 테스트용 상태 변경
-     * @param {string} frontendId - 설비 Frontend ID (예: 'EQ-01-01')
-     * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP')
-     */
     testStatusChange(frontendId, status) {
         debugLog(`🧪 Test status change: ${frontendId} -> ${status}`);
         this.updateEquipmentStatus(frontendId, status);
-        this.flushUpdateQueue(); // 즉시 적용
+        this.flushUpdateQueue();
     }
     
-    /**
-     * 개발용 더미 데이터 로드 (매핑된 것만)
-     */
     loadDummyStatus() {
         debugLog('🧪 Loading dummy status data...');
         
-        // 매핑된 설비 목록 가져오기
         const mappings = this.equipmentEditState?.getAllMappings() || {};
         const mappedIds = Object.keys(mappings);
         
@@ -611,9 +487,8 @@ export class MonitoringService {
             return;
         }
         
-        // 매핑된 설비에만 랜덤 상태 적용
         const statuses = ['RUN', 'IDLE', 'STOP'];
-        mappedIds.slice(0, 10).forEach(frontendId => { // 처음 10개만
+        mappedIds.slice(0, 10).forEach(frontendId => {
             const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
             this.updateEquipmentStatus(frontendId, randomStatus);
         });
@@ -622,9 +497,6 @@ export class MonitoringService {
         debugLog('✅ Dummy status loaded for mapped equipment');
     }
     
-    /**
-     * 현재 연결 상태 확인
-     */
     getConnectionStatus() {
         return {
             isActive: this.isActive,
@@ -632,15 +504,11 @@ export class MonitoringService {
             reconnectAttempts: this.reconnectAttempts,
             cacheSize: this.statusCache.size,
             queueLength: this.updateQueue.length,
-            // ⭐ 추가 정보
             mappedCount: this.equipmentEditState?.getMappingCount() || 0,
             stats: this.currentStats
         };
     }
     
-    /**
-     * 메모리 정리
-     */
     dispose() {
         debugLog('MonitoringService 메모리 정리 시작...');
         
