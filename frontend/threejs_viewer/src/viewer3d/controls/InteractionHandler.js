@@ -2,8 +2,10 @@
  * InteractionHandler.js
  * 마우스 및 키보드 상호작용 처리
  * 
- * @version 2.4.0
- * @description 호버/선택 기능, Edit Mode 지원
+ * @version 2.5.0
+ * @description 호버/선택 기능, Edit Mode 지원, Monitoring Mode 미연결 설비 안내
+ * 
+ * 📁 위치: frontend/threejs_viewer/src/viewer3d/controls/InteractionHandler.js
  */
 
 import * as THREE from 'three';
@@ -36,6 +38,9 @@ export class InteractionHandler {
         this.statusVisualizer = null;
         this.editState = null;
         this.editModal = null;
+        
+        // ⭐ Monitoring 서비스 참조 (미연결 설비 안내용)
+        this.monitoringService = null;
         
         this.init();
     }
@@ -70,6 +75,14 @@ export class InteractionHandler {
     
     setEditModal(editModal) {
         this.editModal = editModal;
+    }
+    
+    /**
+     * ⭐ MonitoringService 설정 (미연결 설비 안내용)
+     */
+    setMonitoringService(monitoringService) {
+        this.monitoringService = monitoringService;
+        debugLog('🔗 MonitoringService connected to InteractionHandler');
     }
     
     /**
@@ -160,12 +173,25 @@ export class InteractionHandler {
             
             if (!this.equipmentArray.includes(targetEquipment)) return;
             
+            const frontendId = targetEquipment.userData?.id;
+            
             // Edit Mode
             if (this.editState && this.editState.editModeEnabled) {
                 if (this.editModal) {
                     this.editModal.open(targetEquipment);
                 }
                 return;
+            }
+            
+            // ⭐ Monitoring Mode: 미연결 설비 클릭 시 안내
+            if (this.monitoringService?.isActive) {
+                const isMapped = this.monitoringService.checkAndNotifyUnmapped(frontendId);
+                
+                if (!isMapped) {
+                    // 미연결 설비는 선택하지 않고 안내만 표시
+                    debugLog(`⚠️ Unmapped equipment clicked: ${frontendId}`);
+                    return;
+                }
             }
             
             if (this.currentHoveredEquipment === targetEquipment) {
