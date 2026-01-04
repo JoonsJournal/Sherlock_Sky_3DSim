@@ -9,8 +9,10 @@
  * @location frontend/threejs_viewer/src/services/ConnectionStatusService.js
  */
 
-import { EventBus } from '../core/managers/EventBus.js';
-import { environment } from '../config/environment.js';
+// ⚠️ 수정: eventBus (소문자)로 import
+import { eventBus } from '../core/managers/EventBus.js';
+// ⚠️ 수정: ENV로 import (environment → ENV)
+import { ENV } from '../config/environment.js';
 
 /**
  * 연결 상태 열거형
@@ -60,7 +62,7 @@ class ConnectionStatusService {
         // ===== 설정 =====
         this._config = {
             // Health Check 엔드포인트
-            healthEndpoint: '/api/health',
+            healthEndpoint: '/health',
             
             // 체크 주기 (밀리초)
             checkInterval: 5000,  // 5초
@@ -106,8 +108,8 @@ class ConnectionStatusService {
         this._isRunning = false;
         this._abortController = null;
 
-        // ===== 이벤트 버스 =====
-        this._eventBus = EventBus.getInstance ? EventBus.getInstance() : EventBus;
+        // ⚠️ 수정: eventBus 인스턴스 직접 사용
+        this._eventBus = eventBus;
 
         // ===== 초기화 로그 =====
         this._log('ConnectionStatusService initialized');
@@ -423,14 +425,7 @@ class ConnectionStatusService {
      * @returns {Function} 구독 해제 함수
      */
     on(event, callback) {
-        if (this._eventBus.on) {
-            this._eventBus.on(event, callback);
-        } else if (this._eventBus.subscribe) {
-            this._eventBus.subscribe(event, callback);
-        }
-        
-        // 구독 해제 함수 반환
-        return () => this.off(event, callback);
+        return this._eventBus.on(event, callback);
     }
 
     /**
@@ -439,11 +434,7 @@ class ConnectionStatusService {
      * @param {Function} callback - 콜백 함수
      */
     off(event, callback) {
-        if (this._eventBus.off) {
-            this._eventBus.off(event, callback);
-        } else if (this._eventBus.unsubscribe) {
-            this._eventBus.unsubscribe(event, callback);
-        }
+        this._eventBus.off(event, callback);
     }
 
     /**
@@ -488,7 +479,10 @@ class ConnectionStatusService {
         }
         this._abortController = new AbortController();
 
-        const baseUrl = environment?.API_BASE_URL || '';
+        // ⚠️ 수정: ENV 사용 (environment → ENV)
+        const baseUrl = (typeof ENV !== 'undefined' && ENV?.API_BASE_URL) 
+            ? ENV.API_BASE_URL 
+            : 'http://localhost:8000/api';
         const url = `${baseUrl}${this._config.healthEndpoint}`;
 
         try {
@@ -498,11 +492,7 @@ class ConnectionStatusService {
                     'Accept': 'application/json',
                     'Cache-Control': 'no-cache'
                 },
-                signal: this._abortController.signal,
-                // 타임아웃 구현
-                ...(this._config.requestTimeout && {
-                    signal: AbortSignal.timeout(this._config.requestTimeout)
-                })
+                signal: this._abortController.signal
             });
 
             if (!response.ok) {
@@ -653,11 +643,7 @@ class ConnectionStatusService {
             source: 'ConnectionStatusService'
         };
 
-        if (this._eventBus.emit) {
-            this._eventBus.emit(eventName, eventData);
-        } else if (this._eventBus.publish) {
-            this._eventBus.publish(eventName, eventData);
-        }
+        this._eventBus.emit(eventName, eventData);
 
         this._log(`Event emitted: ${eventName}`, eventData);
     }
