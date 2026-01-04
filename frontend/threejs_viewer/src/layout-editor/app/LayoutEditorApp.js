@@ -128,9 +128,9 @@ class LayoutEditorApp {
             changeThreshold: options.autoSaveChangeThreshold || 20,
             
             getLayoutData: () => {
-                if (this.canvas && typeof this.canvas.getCurrentLayout === 'function') {
-                    return this.canvas.getCurrentLayout();
-                }
+                if (this.canvas && typeof this.canvas.exportLayoutData === 'function') {
+                    return this.canvas.exportLayoutData();
+                }           
                 return null;
             },
             

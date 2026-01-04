@@ -69,9 +69,10 @@ export function initUIComponents() {
  * Monitoring 서비스 초기화
  * @param {Object} scene - THREE.Scene
  * @param {Object} equipmentLoader - EquipmentLoader 인스턴스
+ * @param {Object} equipmentEditState - EquipmentEditState 인스턴스 (⭐ 추가)
  * @returns {Object} 초기화된 모니터링 서비스들
  */
-export function initMonitoringServices(scene, equipmentLoader) {
+export function initMonitoringServices(scene, equipmentLoader, equipmentEditState = null) {
     console.log('📡 Monitoring 서비스 초기화 시작...');
     
     // Signal Tower Manager 초기화
@@ -81,9 +82,19 @@ export function initMonitoringServices(scene, equipmentLoader) {
     const lightCount = signalTowerManager.initializeAllLights();
     console.log(`  ✅ SignalTowerManager 초기화 완료: ${lightCount}개 설비의 경광등 연결`);
     
-    // Monitoring Service 초기화
-    const monitoringService = new MonitoringService(signalTowerManager);
+    // ⭐ Monitoring Service 초기화 - equipmentLoader, equipmentEditState 전달
+    const monitoringService = new MonitoringService(
+        signalTowerManager,
+        equipmentLoader,        // ⭐ 추가
+        equipmentEditState      // ⭐ 추가
+    );
     console.log('  ✅ MonitoringService 초기화 완료');
+    
+    // ⭐ 매핑 통계 출력
+    if (equipmentEditState) {
+        const mappingCount = equipmentEditState.getMappingCount();
+        console.log(`  📊 현재 매핑된 설비: ${mappingCount}개`);
+    }
     
     console.log('✅ Monitoring 서비스 초기화 완료');
     

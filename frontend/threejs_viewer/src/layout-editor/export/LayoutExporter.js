@@ -352,7 +352,10 @@ class LayoutExporter {
             
             let x, y, width, height;
             
-            if (shape.className === 'Line') {
+            // ✅ v1.0.1: shape 타입 안전 확인
+            const shapeClassName = shape.className || shape.getClassName?.() || '';
+            
+            if (shapeClassName === 'Line') {
                 // Line 타입 (Partition 등)
                 const points = shape.points();
                 if (points && points.length >= 4) {
@@ -367,17 +370,47 @@ class LayoutExporter {
                             x: Math.round((points[2] - centerX) / scale * 100) / 100,
                             z: Math.round((points[3] - centerY) / scale * 100) / 100
                         },
-                        thickness: Math.round(shape.strokeWidth() / scale * 100) / 100,
-                        color: shape.stroke(),
+                        thickness: Math.round((shape.strokeWidth?.() || 5) / scale * 100) / 100,
+                        color: shape.stroke?.() || '#888888',
                         ...componentData
                     });
                 }
+            } else if (shapeClassName === 'Group') {
+                // ✅ v1.0.1: Group 타입 처리
+                x = shape.x?.() || 0;
+                y = shape.y?.() || 0;
+                
+                // Group 내부의 Rect 찾기
+                const innerRect = shape.findOne?.('Rect') || shape.findOne?.('.equipmentRect');
+                if (innerRect) {
+                    width = innerRect.width?.() || 0;
+                    height = innerRect.height?.() || 0;
+                } else {
+                    // getClientRect로 크기 추정
+                    const clientRect = shape.getClientRect?.({ skipTransform: true }) || {};
+                    width = clientRect.width || 100;
+                    height = clientRect.height || 100;
+                }
+                
+                components.push({
+                    id: id,
+                    type: componentType || 'component',
+                    position: {
+                        x: Math.round((x + width / 2 - centerX) / scale * 100) / 100,
+                        z: Math.round((y + height / 2 - centerY) / scale * 100) / 100
+                    },
+                    width: Math.round(width / scale * 100) / 100,
+                    depth: Math.round(height / scale * 100) / 100,
+                    rotation: shape.rotation?.() || 0,
+                    color: shape.getAttr?.('fill') || innerRect?.fill?.() || null,
+                    ...componentData
+                });
             } else {
                 // Rect 타입 (Desk, Pillar 등)
-                x = shape.x();
-                y = shape.y();
-                width = shape.width();
-                height = shape.height();
+                x = shape.x?.() || 0;
+                y = shape.y?.() || 0;
+                width = shape.width?.() || 0;
+                height = shape.height?.() || 0;
                 
                 components.push({
                     id: id,
@@ -388,8 +421,8 @@ class LayoutExporter {
                     },
                     width: Math.round(width / scale * 100) / 100,
                     depth: Math.round(height / scale * 100) / 100,
-                    rotation: shape.rotation() || 0,
-                    color: shape.fill(),
+                    rotation: shape.rotation?.() || 0,
+                    color: typeof shape.fill === 'function' ? shape.fill() : (shape.getAttr?.('fill') || null),
                     ...componentData
                 });
             }

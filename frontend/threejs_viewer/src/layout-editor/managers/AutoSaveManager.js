@@ -7,7 +7,7 @@
  * - 시간 기반: 5분(300초) 경과
  * - 변경 기반: 20개 Command 누적
  * 
- * @version 1.0.0
+ * @version 1.0.2
  * @phase 5.2
  */
 
@@ -35,6 +35,7 @@ class AutoSaveManager {
         this._isRunning = false;
         this._currentSiteId = null;
         this._boundOnCommandExecute = this._onCommandExecute.bind(this);
+        this._originalOnExecute = null;  // 기존 콜백 저장용
         
         // localStorage key prefix
         this.STORAGE_KEY_PREFIX = 'layout_autosave_';
@@ -259,7 +260,7 @@ class AutoSaveManager {
     }
     
     /**
-     * CommandManager 구독
+     * CommandManager 구독 (v1.0.2: 체인 연결 방식)
      * @private
      */
     _subscribeToCommandManager() {
@@ -268,28 +269,30 @@ class AutoSaveManager {
             return;
         }
         
-        // CommandManager에 콜백 등록
-        if (typeof this.commandManager.onExecute === 'function') {
-            // onExecute가 함수인 경우 (setter 방식)
-            this.commandManager.onExecute = this._boundOnCommandExecute;
-        } else if (typeof this.commandManager.addExecuteListener === 'function') {
-            // addExecuteListener 방식
-            this.commandManager.addExecuteListener(this._boundOnCommandExecute);
-        } else if (this.commandManager.callbacks) {
-            // callbacks 배열 방식
-            if (!this.commandManager.callbacks.onExecute) {
-                this.commandManager.callbacks.onExecute = [];
-            }
-            this.commandManager.callbacks.onExecute.push(this._boundOnCommandExecute);
-        } else {
-            console.warn('[AutoSaveManager] CommandManager 구독 방식을 찾을 수 없습니다.');
+        // 기존 onExecute 콜백 저장 (체인 연결을 위해)
+        this._originalOnExecute = this.commandManager.callbacks?.onExecute || null;
+        
+        // 새 콜백으로 교체 (체인 연결)
+        if (this.commandManager.callbacks) {
+            this.commandManager.callbacks.onExecute = (command) => {
+                // 1. 기존 콜백 먼저 호출
+                if (typeof this._originalOnExecute === 'function') {
+                    try {
+                        this._originalOnExecute(command);
+                    } catch (e) {
+                        console.error('[AutoSaveManager] 기존 onExecute 콜백 오류:', e);
+                    }
+                }
+                // 2. AutoSave 콜백 호출
+                this._boundOnCommandExecute(command);
+            };
         }
         
         console.log('[AutoSaveManager] CommandManager 구독 완료');
     }
     
     /**
-     * CommandManager 구독 해제
+     * CommandManager 구독 해제 (v1.0.2: 원본 복원)
      * @private
      */
     _unsubscribeFromCommandManager() {
@@ -297,13 +300,10 @@ class AutoSaveManager {
             return;
         }
         
-        if (typeof this.commandManager.removeExecuteListener === 'function') {
-            this.commandManager.removeExecuteListener(this._boundOnCommandExecute);
-        } else if (this.commandManager.callbacks && this.commandManager.callbacks.onExecute) {
-            const idx = this.commandManager.callbacks.onExecute.indexOf(this._boundOnCommandExecute);
-            if (idx > -1) {
-                this.commandManager.callbacks.onExecute.splice(idx, 1);
-            }
+        // 원래 콜백 복원
+        if (this.commandManager.callbacks && this._originalOnExecute !== undefined) {
+            this.commandManager.callbacks.onExecute = this._originalOnExecute;
+            this._originalOnExecute = null;
         }
         
         console.log('[AutoSaveManager] CommandManager 구독 해제');
@@ -333,6 +333,7 @@ class AutoSaveManager {
         this.commandManager = null;
         this.onAutoSave = null;
         this.getLayoutData = null;
+        this._originalOnExecute = null;
         console.log('[AutoSaveManager] disposed');
     }
 }
@@ -342,6 +343,4 @@ if (typeof window !== 'undefined') {
     window.AutoSaveManager = AutoSaveManager;
 }
 
-// // ES6 Module export
-// export { AutoSaveManager };
-// export default AutoSaveManager;
+console.log('✅ AutoSaveManager.js v1.0.2 로드 완료');

@@ -188,7 +188,8 @@ function init() {
         // 4. Monitoring 서비스 초기화
         services.monitoring = initMonitoringServices(
             services.scene.sceneManager.scene,
-            services.scene.equipmentLoader
+            services.scene.equipmentLoader,
+            services.ui.equipmentEditState
         );
         
         // Core 매니저에 monitoringService 재등록
