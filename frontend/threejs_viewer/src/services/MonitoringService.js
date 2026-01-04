@@ -1,5 +1,5 @@
 /**
- * MonitoringService.js - v2.0
+ * MonitoringService.js - v2.1
  * 실시간 설비 모니터링 서비스
  * 
  * ⭐ 추가 기능: 
@@ -39,11 +39,11 @@ export class MonitoringService {
         this.batchInterval = 1000; // 1초마다 배치 처리
         this.batchTimer = null;
         
-        // ⭐ 비활성화 표시 옵션
+        // ⭐ 비활성화 표시 옵션 (투명도 0.6으로 수정 - 잘 보이도록)
         this.disabledOptions = {
-            opacity: 0.25,       // 미연결 설비 투명도
+            opacity: 0.6,        // 미연결 설비 투명도 (0.25 → 0.6으로 변경)
             grayScale: true,     // 회색조 적용
-            grayColor: 0x666666  // 회색 색상
+            grayColor: 0x888888  // 회색 색상 (좀 더 밝게)
         };
         
         // ⭐ 통계 패널 요소
