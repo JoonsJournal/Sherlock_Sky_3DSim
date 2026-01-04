@@ -1,15 +1,8 @@
 /**
- * MonitoringService.js - v2.2
+ * MonitoringService.js - v2.3-DEBUG
  * 실시간 설비 모니터링 서비스
  * 
- * ⭐ 추가 기능: 
- * - Monitoring Mode에서 DB 미연결 설비 비활성화 표시 (색상만 변경)
- * - 통계 패널 표시 (연결/미연결 개수, 완료율)
- * - 미연결 설비 클릭 시 안내 메시지
- * 
- * ⭐ v2.2 변경사항:
- * - 투명도(opacity) 옵션 완전 제거 (Three.js 렌더링 문제 해결)
- * - 색상만 변경하여 미연결 설비 표시
+ * ⭐ 디버그 버전: 렌더링 문제 추적
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
  */
@@ -81,29 +74,57 @@ export class MonitoringService {
             return;
         }
         
+        // 🔴 DEBUG: 시작 전 상태
+        console.log('🔴🔴🔴 DEBUG MonitoringService.start() 호출됨!');
+        console.log('🔴 DEBUG: Scene children (시작 전):', this.equipmentLoader?.scene?.children?.length);
+        
         debugLog('🟢 Starting monitoring mode...');
         this.isActive = true;
         
         try {
             // ⭐ 1. 미연결 설비 비활성화 표시 적용
+            console.log('🔴 DEBUG: Step 1 - applyUnmappedEquipmentStyle 시작');
             this.applyUnmappedEquipmentStyle();
+            console.log('🔴 DEBUG: Step 1 - applyUnmappedEquipmentStyle 완료');
+            console.log('🔴 DEBUG: Scene children (Step 1 후):', this.equipmentLoader?.scene?.children?.length);
             
             // ⭐ 2. 통계 패널 표시
+            console.log('🔴 DEBUG: Step 2 - createStatusPanel 시작');
             this.createStatusPanel();
+            console.log('🔴 DEBUG: Step 2 - createStatusPanel 완료');
             
             // 3. 초기 상태 로드 (REST API)
+            console.log('🔴 DEBUG: Step 3 - loadInitialStatus 시작');
             await this.loadInitialStatus();
+            console.log('🔴 DEBUG: Step 3 - loadInitialStatus 완료');
+            console.log('🔴 DEBUG: Scene children (Step 3 후):', this.equipmentLoader?.scene?.children?.length);
             
             // 4. WebSocket 연결
+            console.log('🔴 DEBUG: Step 4 - connectWebSocket 시작');
             this.connectWebSocket();
+            console.log('🔴 DEBUG: Step 4 - connectWebSocket 완료');
             
             // 5. 배치 처리 타이머 시작
+            console.log('🔴 DEBUG: Step 5 - startBatchProcessing 시작');
             this.startBatchProcessing();
+            console.log('🔴 DEBUG: Step 5 - startBatchProcessing 완료');
+            
+            // 🔴 DEBUG: 최종 상태
+            console.log('🔴🔴🔴 DEBUG MonitoringService.start() 완료!');
+            console.log('🔴 DEBUG: Scene children (최종):', this.equipmentLoader?.scene?.children?.length);
+            
+            // 🔴 DEBUG: 첫 번째 설비 상태 확인
+            const firstEq = this.equipmentLoader?.equipmentArray?.[0];
+            if (firstEq) {
+                console.log('🔴 DEBUG: 첫 번째 설비 visible:', firstEq.visible);
+                console.log('🔴 DEBUG: 첫 번째 설비 parent:', firstEq.parent?.type);
+            }
             
             debugLog('✅ Monitoring mode started');
             
         } catch (error) {
             console.error('❌ Failed to start monitoring:', error);
+            console.error('🔴 DEBUG: 에러 발생!', error.stack);
             this.isActive = false;
         }
     }
@@ -112,14 +133,20 @@ export class MonitoringService {
      * 모니터링 중지
      */
     stop() {
+        console.log('🔴🔴🔴 DEBUG MonitoringService.stop() 호출됨!');
+        
         debugLog('🔴 Stopping monitoring mode...');
         this.isActive = false;
         
         // ⭐ 1. 비활성화 표시 해제 (모든 설비 원래대로)
+        console.log('🔴 DEBUG: resetEquipmentStyle 시작');
         this.resetEquipmentStyle();
+        console.log('🔴 DEBUG: resetEquipmentStyle 완료');
         
         // ⭐ 2. 통계 패널 제거
+        console.log('🔴 DEBUG: removeStatusPanel 시작');
         this.removeStatusPanel();
+        console.log('🔴 DEBUG: removeStatusPanel 완료');
         
         // WebSocket 연결 종료
         if (this.ws) {
@@ -133,6 +160,7 @@ export class MonitoringService {
             this.batchTimer = null;
         }
         
+        console.log('🔴🔴🔴 DEBUG MonitoringService.stop() 완료!');
         debugLog('✅ Monitoring mode stopped');
     }
     
@@ -380,7 +408,7 @@ export class MonitoringService {
     // ============================================
     
     /**
-     * 초기 설비 상태 로드 (REST API)
+     * 초기 상태 로드 (REST API)
      */
     async loadInitialStatus() {
         debugLog('📡 Loading initial equipment status...');
