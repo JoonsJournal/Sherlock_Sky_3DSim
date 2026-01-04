@@ -1,11 +1,15 @@
 /**
- * MonitoringService.js - v2.1
+ * MonitoringService.js - v2.2
  * 실시간 설비 모니터링 서비스
  * 
  * ⭐ 추가 기능: 
- * - Monitoring Mode에서 DB 미연결 설비 비활성화 표시
+ * - Monitoring Mode에서 DB 미연결 설비 비활성화 표시 (색상만 변경)
  * - 통계 패널 표시 (연결/미연결 개수, 완료율)
  * - 미연결 설비 클릭 시 안내 메시지
+ * 
+ * ⭐ v2.2 변경사항:
+ * - 투명도(opacity) 옵션 완전 제거 (Three.js 렌더링 문제 해결)
+ * - 색상만 변경하여 미연결 설비 표시
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
  */
@@ -39,11 +43,10 @@ export class MonitoringService {
         this.batchInterval = 1000; // 1초마다 배치 처리
         this.batchTimer = null;
         
-        // ⭐ 비활성화 표시 옵션 (투명도 0.6으로 수정 - 잘 보이도록)
+        // ⭐ v2.2: 비활성화 표시 옵션 (투명도 제거! 색상만 사용)
         this.disabledOptions = {
-            opacity: 0.6,        // 미연결 설비 투명도 (0.25 → 0.6으로 변경)
-            grayScale: true,     // 회색조 적용
-            grayColor: 0x888888  // 회색 색상 (좀 더 밝게)
+            grayColor: 0x555555  // 어두운 회색 (미연결 설비 표시)
+            // opacity 제거됨 - Three.js 렌더링 문제 방지
         };
         
         // ⭐ 통계 패널 요소
@@ -329,7 +332,7 @@ export class MonitoringService {
     
     /**
      * ⭐ 비활성화 옵션 설정
-     * @param {Object} options - { opacity, grayScale, grayColor }
+     * @param {Object} options - { grayColor } (투명도 옵션 제거됨)
      */
     setDisabledOptions(options) {
         this.disabledOptions = { ...this.disabledOptions, ...options };
