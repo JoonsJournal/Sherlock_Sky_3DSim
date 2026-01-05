@@ -7,7 +7,9 @@
  * 사용법: <link rel="stylesheet" href="styles/main.css">
  * 
  * 작성일: 2026-01-02
- * 수정일: 2026-01-04 (Monitoring Mode 통계 패널 스타일 개선)
+ * 수정일: 2026-01-06 (테마 통일 - Phase 1)
+ *   - Toast 중복 스타일 제거 (_toast.css로 통합)
+ *   - 신규 컴포넌트 CSS import 준비
  */
 
 /* =============================================
@@ -29,6 +31,26 @@
 @import './components/_toast.css';
 
 /* =============================================
+   신규 컴포넌트 CSS (Phase 2~7에서 추가 예정)
+   ============================================= */
+/* Phase 3: Modal 시스템 */
+@import './components/_equipment-edit-modal.css';
+@import './components/_recovery-dialog.css';
+
+/* Phase 4: Indicator 시스템 */
+/* @import './components/_connection-indicator.css'; */
+/* @import './components/_autosave-indicator.css'; */
+
+/* Phase 5: Panel 시스템 */
+/* @import './components/_connection-panels.css'; */
+
+/* Phase 6: 공통 UI 컴포넌트 */
+/* @import './components/_common-ui.css'; */
+
+/* Phase 7: 기타 */
+/* @import './components/_file-controls.css'; */
+
+/* =============================================
    Page Styles (페이지별)
    - 3D Viewer, Layout Editor
    ============================================= */
@@ -45,17 +67,17 @@
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(30, 30, 30, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
+    background: var(--overlay-bg-primary);
+    border: 1px solid var(--overlay-border-light);
+    border-radius: var(--radius-lg);
     padding: 12px 24px;
     display: flex;
     gap: 12px;
     align-items: center;
     backdrop-filter: blur(10px);
-    z-index: 1000;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    z-index: var(--z-overlay-indicator);
+    box-shadow: var(--shadow-overlay);
+    font-family: var(--font-family);
 }
 
 .status-item {
@@ -69,28 +91,28 @@
 }
 
 .status-icon.connected {
-    color: #4caf50;
+    color: var(--status-success);
 }
 
 .status-icon.disconnected {
-    color: #ff9800;
+    color: var(--status-warning);
 }
 
 .status-label {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 12px;
+    color: var(--overlay-text-muted);
+    font-size: var(--font-size-sm);
 }
 
 .status-value {
-    color: #fff;
+    color: var(--overlay-text-primary);
     font-weight: 600;
-    font-size: 14px;
+    font-size: var(--font-size-base);
 }
 
 /* ⭐ 구분자 스타일 */
 .status-divider {
-    color: rgba(255, 255, 255, 0.3);
-    font-size: 14px;
+    color: var(--overlay-border-default);
+    font-size: var(--font-size-base);
     margin: 0 4px;
 }
 
@@ -106,21 +128,21 @@
     position: relative;
     width: 120px;
     height: 6px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--overlay-border-light);
     border-radius: 3px;
     overflow: hidden;
 }
 
 .progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, #4caf50, #8bc34a);
+    background: linear-gradient(90deg, var(--status-success), #8bc34a);
     border-radius: 3px;
-    transition: width 0.3s ease;
+    transition: width var(--transition-slow);
 }
 
 .progress-text {
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--overlay-text-muted);
     white-space: nowrap;
 }
 
@@ -133,15 +155,15 @@
     pointer-events: none;
     user-select: none;
     white-space: nowrap;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: var(--font-family);
 }
 
 .equipment-label.unmapped {
     background: rgba(255, 87, 34, 0.9);
     color: white;
     padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
     font-weight: bold;
     animation: pulse-warning 2s ease-in-out infinite;
 }
@@ -170,79 +192,43 @@
 
 /* ============================================
    Toast Messages
+   ============================================
+   
+   ⚠️ 제거됨 (2026-01-06)
+   - Toast 스타일은 _toast.css로 통합
+   - 이전 코드와의 충돌 방지를 위해 주석 처리
+   
+   중복되었던 스타일:
+   - .toast-container
+   - .toast
+   - .toast-info / .toast-success / .toast-warning / .toast-error
+   - @keyframes toast-in
+   
    ============================================ */
-
-.toast-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 10000;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.toast {
-    padding: 12px 20px;
-    border-radius: 8px;
-    color: white;
-    font-size: 14px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    animation: toast-in 0.3s ease-out;
-    max-width: 350px;
-    transition: opacity 0.3s, transform 0.3s;
-}
-
-.toast-info {
-    background: rgba(33, 150, 243, 0.95);
-}
-
-.toast-success {
-    background: rgba(76, 175, 80, 0.95);
-}
-
-.toast-warning {
-    background: rgba(255, 152, 0, 0.95);
-}
-
-.toast-error {
-    background: rgba(244, 67, 54, 0.95);
-}
-
-@keyframes toast-in {
-    from { 
-        opacity: 0; 
-        transform: translateX(100px); 
-    }
-    to { 
-        opacity: 1; 
-        transform: translateX(0); 
-    }
-}
 
 
 /* ============================================
-   Legend Panel (Optional)
+   Legend Panel (Monitoring Mode)
    ============================================ */
 
 .monitoring-legend {
     position: fixed;
     top: 100px;
     left: 20px;
-    background: rgba(30, 30, 30, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+    background: var(--overlay-bg-primary);
+    border: 1px solid var(--overlay-border-light);
+    border-radius: var(--radius-md);
     padding: 12px;
     z-index: 100;
 }
 
 .legend-title {
-    color: #fff;
-    font-size: 12px;
+    color: var(--overlay-text-primary);
+    font-size: var(--font-size-sm);
     font-weight: bold;
     margin-bottom: 8px;
     padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--overlay-border-light);
 }
 
 .legend-item {
@@ -250,8 +236,8 @@
     align-items: center;
     gap: 8px;
     margin: 6px 0;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.8);
+    font-size: var(--font-size-xs);
+    color: var(--overlay-text-secondary);
 }
 
 .legend-color {
@@ -261,7 +247,7 @@
 }
 
 .legend-color.connected {
-    background: #4caf50;
+    background: var(--status-success);
     box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
 }
 

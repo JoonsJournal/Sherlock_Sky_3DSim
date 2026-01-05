@@ -1,0 +1,461 @@
+/**
+ * _equipment-edit-modal.css
+ * =========================
+ * EquipmentEditModal 전용 스타일 - 라이트 테마
+ * 
+ * 구조:
+ * - 정보 박스: 연한 회색 배경
+ * - 검색 입력: 라이트 테마
+ * - 장비 목록: 흰색 배경 + 호버/선택 상태
+ * - 검증 상태: 상태별 배경색
+ * 
+ * 작성일: 2026-01-06
+ */
+
+/* =============================================
+   Equipment Edit Modal 컨테이너
+   ============================================= */
+.equipment-edit-modal .modal-content {
+    max-width: 700px;
+}
+
+.equipment-edit-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg, 24px);
+}
+
+/* =============================================
+   섹션 제목
+   ============================================= */
+.edit-section h3 {
+    font-size: var(--font-size-base, 14px);
+    font-weight: 600;
+    color: var(--theme-text-primary, #212529);
+    margin: 0 0 var(--spacing-sm, 8px) 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* =============================================
+   Info Box - 라이트 테마
+   ============================================= */
+.equip-edit__info-box {
+    background: var(--theme-bg-secondary, #f8f9fa);
+    border: 1px solid var(--theme-border-default, #dee2e6);
+    border-radius: var(--radius-md, 8px);
+    padding: var(--spacing-md, 16px);
+}
+
+.equip-edit__info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-xs, 4px) 0;
+}
+
+.equip-edit__info-row:not(:last-child) {
+    margin-bottom: var(--spacing-sm, 8px);
+    padding-bottom: var(--spacing-sm, 8px);
+    border-bottom: 1px solid var(--theme-border-light, #e9ecef);
+}
+
+.equip-edit__info-label {
+    font-size: var(--font-size-sm, 12px);
+    color: var(--theme-text-muted, #6c757d);
+    font-weight: 500;
+}
+
+.equip-edit__info-value {
+    font-size: var(--font-size-base, 14px);
+    color: var(--theme-text-primary, #212529);
+    font-weight: 500;
+}
+
+.equip-edit__info-value--success {
+    color: var(--status-success, #28a745);
+}
+
+.equip-edit__info-value--muted {
+    color: var(--theme-text-muted, #6c757d);
+}
+
+/* =============================================
+   검색 박스 - 라이트 테마
+   ============================================= */
+.equip-edit__search-box {
+    display: flex;
+    gap: var(--spacing-sm, 8px);
+    margin-bottom: var(--spacing-md, 16px);
+}
+
+.equip-edit__search-input {
+    flex: 1;
+    padding: 10px 14px;
+    background: var(--theme-bg-primary, #ffffff);
+    border: 1px solid var(--theme-border-default, #dee2e6);
+    border-radius: var(--radius-md, 8px);
+    color: var(--theme-text-primary, #212529);
+    font-size: var(--font-size-base, 14px);
+    transition: border-color var(--transition-fast, 150ms),
+                box-shadow var(--transition-fast, 150ms);
+}
+
+.equip-edit__search-input::placeholder {
+    color: var(--theme-text-hint, #adb5bd);
+}
+
+.equip-edit__search-input:focus {
+    outline: none;
+    border-color: var(--interactive-primary, #2196F3);
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.equip-edit__search-clear {
+    padding: 10px 14px;
+    background: var(--theme-bg-secondary, #f8f9fa);
+    border: 1px solid var(--theme-border-default, #dee2e6);
+    border-radius: var(--radius-md, 8px);
+    color: var(--theme-text-muted, #6c757d);
+    cursor: pointer;
+    transition: all var(--transition-fast, 150ms);
+}
+
+.equip-edit__search-clear:hover {
+    background: var(--theme-bg-hover, #e9ecef);
+    color: var(--theme-text-primary, #212529);
+}
+
+/* =============================================
+   장비 목록 컨테이너
+   ============================================= */
+.equip-edit__list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--theme-border-default, #dee2e6);
+    border-radius: var(--radius-md, 8px);
+    background: var(--theme-bg-primary, #ffffff);
+}
+
+.equip-edit__list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.equip-edit__list::-webkit-scrollbar-track {
+    background: var(--theme-bg-secondary, #f8f9fa);
+}
+
+.equip-edit__list::-webkit-scrollbar-thumb {
+    background: var(--theme-border-dark, #ced4da);
+    border-radius: 3px;
+}
+
+/* =============================================
+   장비 아이템 - 라이트 테마
+   ============================================= */
+.equip-edit__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--theme-bg-primary, #ffffff);
+    border-bottom: 1px solid var(--theme-border-light, #e9ecef);
+    cursor: pointer;
+    transition: background-color var(--transition-fast, 150ms);
+}
+
+.equip-edit__item:last-child {
+    border-bottom: none;
+}
+
+.equip-edit__item:hover {
+    background: var(--theme-bg-hover, #e9ecef);
+}
+
+.equip-edit__item.equip-edit__item--selected {
+    background: var(--theme-bg-active, #e3f2fd);
+    border-left: 3px solid var(--interactive-primary, #2196F3);
+}
+
+.equip-edit__item.equip-edit__item--assigned {
+    background: var(--status-warning-bg, #fff3cd);
+    opacity: 0.85;
+}
+
+.equip-edit__item.equip-edit__item--current {
+    background: var(--status-success-bg, #d4edda);
+    border-left: 3px solid var(--status-success, #28a745);
+}
+
+/* 장비 아이템 내용 */
+.equip-edit__item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.equip-edit__item-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.equip-edit__item-name {
+    font-size: var(--font-size-base, 14px);
+    font-weight: 500;
+    color: var(--theme-text-primary, #212529);
+}
+
+.equip-edit__item-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 10px;
+    text-transform: uppercase;
+}
+
+.equip-edit__item-badge--assigned {
+    background: var(--status-info-bg, #d1ecf1);
+    color: var(--status-info-text, #0c5460);
+}
+
+.equip-edit__item-badge--current {
+    background: var(--status-success-bg, #d4edda);
+    color: var(--status-success-text, #155724);
+}
+
+.equip-edit__item-details {
+    display: flex;
+    gap: 16px;
+    font-size: var(--font-size-sm, 12px);
+    color: var(--theme-text-muted, #6c757d);
+}
+
+.equip-edit__item-detail {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.equip-edit__item-assigned-to {
+    color: var(--status-error, #dc3545);
+    font-weight: 500;
+}
+
+/* 선택 버튼 */
+.equip-edit__item-select-btn {
+    padding: 8px 16px;
+    font-size: var(--font-size-sm, 12px);
+    font-weight: 500;
+    border: none;
+    border-radius: var(--radius-sm, 4px);
+    cursor: pointer;
+    transition: all var(--transition-fast, 150ms);
+}
+
+.equip-edit__item-select-btn--primary {
+    background: var(--interactive-primary, #2196F3);
+    color: #ffffff;
+}
+
+.equip-edit__item-select-btn--primary:hover:not(:disabled) {
+    background: var(--interactive-primary-hover, #1976D2);
+}
+
+.equip-edit__item-select-btn--success {
+    background: var(--status-success, #28a745);
+    color: #ffffff;
+}
+
+.equip-edit__item-select-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* =============================================
+   빈 상태 / 로딩 상태
+   ============================================= */
+.equip-edit__empty,
+.equip-edit__loading {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--theme-text-muted, #6c757d);
+    font-size: var(--font-size-base, 14px);
+}
+
+.equip-edit__error {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--status-error, #dc3545);
+    font-size: var(--font-size-base, 14px);
+}
+
+/* =============================================
+   검증 상태 - 라이트 테마
+   ============================================= */
+.equip-edit__validation {
+    padding: var(--spacing-md, 16px);
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid;
+}
+
+.equip-edit__validation--valid {
+    background: var(--status-success-bg, #d4edda);
+    border-color: var(--status-success-border, #c3e6cb);
+}
+
+.equip-edit__validation--invalid {
+    background: var(--status-error-bg, #f8d7da);
+    border-color: var(--status-error-border, #f5c6cb);
+}
+
+.equip-edit__validation-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.equip-edit__validation-icon {
+    font-size: 18px;
+}
+
+.equip-edit__validation-title {
+    font-weight: 600;
+    font-size: var(--font-size-base, 14px);
+}
+
+.equip-edit__validation--valid .equip-edit__validation-title {
+    color: var(--status-success-text, #155724);
+}
+
+.equip-edit__validation--invalid .equip-edit__validation-title {
+    color: var(--status-error-text, #721c24);
+}
+
+.equip-edit__validation-source {
+    font-size: var(--font-size-sm, 12px);
+    color: var(--theme-text-muted, #6c757d);
+}
+
+.equip-edit__validation-errors,
+.equip-edit__validation-warnings {
+    margin-top: var(--spacing-sm, 8px);
+}
+
+.equip-edit__validation-errors-title {
+    color: var(--status-error, #dc3545);
+    font-weight: 500;
+    font-size: var(--font-size-sm, 12px);
+    margin-bottom: 4px;
+}
+
+.equip-edit__validation-warnings-title {
+    color: var(--status-warning-text, #856404);
+    font-weight: 500;
+    font-size: var(--font-size-sm, 12px);
+    margin-bottom: 4px;
+}
+
+.equip-edit__validation-list {
+    margin: 0;
+    padding-left: 20px;
+    font-size: var(--font-size-sm, 12px);
+}
+
+.equip-edit__validation-list li {
+    margin-bottom: 2px;
+}
+
+.equip-edit__validation--invalid .equip-edit__validation-list {
+    color: var(--status-error-text, #721c24);
+}
+
+/* =============================================
+   진행 상황 표시
+   ============================================= */
+.equip-edit__progress {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm, 8px) 0;
+}
+
+.equip-edit__progress-text {
+    font-size: var(--font-size-sm, 12px);
+    color: var(--theme-text-muted, #6c757d);
+}
+
+.equip-edit__progress-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 14px;
+    background: var(--status-success, #28a745);
+    color: #ffffff;
+    font-size: var(--font-size-sm, 12px);
+    font-weight: 500;
+    border-radius: var(--radius-sm, 4px);
+}
+
+.equip-edit__sync-status {
+    font-size: var(--font-size-xs, 11px);
+    color: var(--theme-text-hint, #adb5bd);
+}
+
+.equip-edit__sync-status--dirty {
+    color: var(--status-warning, #ffc107);
+}
+
+.equip-edit__sync-status--synced {
+    color: var(--status-success, #28a745);
+}
+
+/* =============================================
+   푸터 버튼 레이아웃
+   ============================================= */
+.equip-edit__footer {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.equip-edit__footer-left,
+.equip-edit__footer-right {
+    display: flex;
+    gap: var(--spacing-sm, 8px);
+}
+
+/* =============================================
+   반응형
+   ============================================= */
+@media (max-width: 600px) {
+    .equip-edit__item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .equip-edit__item-select-btn {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .equip-edit__footer {
+        flex-direction: column;
+        gap: var(--spacing-md, 16px);
+    }
+    
+    .equip-edit__footer-left,
+    .equip-edit__footer-right {
+        width: 100%;
+        justify-content: stretch;
+    }
+    
+    .equip-edit__footer-left button,
+    .equip-edit__footer-right button {
+        flex: 1;
+    }
+}

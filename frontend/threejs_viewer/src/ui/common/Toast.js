@@ -2,40 +2,40 @@
  * Toast.js
  * Toast 알림 컴포넌트
  * 
- * @version 2.1.0
- * @description BaseComponent 상속, 통합 Toast 시스템
+ * @version 3.0.0
+ * @description 
+ *   - BaseComponent 상속
+ *   - 인라인 스타일 제거 → CSS 클래스 기반
+ *   - 라이트 테마 적용 (_toast.css 연동)
  * 
  * @changelog
+ * - v3.0.0: 인라인 스타일 완전 제거, CSS 클래스 기반으로 전환 (2026-01-06)
  * - v2.1.0: mount() 오버라이드 - innerHTML 대신 appendChild 사용 (DOM 파괴 방지)
  * - v2.0.0: BaseComponent 상속, 통합 Toast 시스템
  */
 
 import { BaseComponent } from '../../core/base/BaseComponent.js';
-import { SOLID_EDGE_COLORS, EQUIPMENT_STATUS_COLORS } from '../../core/config/theme.js';
 
 /**
  * Toast 타입별 설정
+ * 색상은 CSS에서 처리, 여기서는 아이콘과 기본 duration만 정의
  */
 const TOAST_CONFIG = {
     success: {
         icon: '✅',
-        color: EQUIPMENT_STATUS_COLORS.RUNNING,
-        duration: 3000
+        defaultDuration: 3000
     },
     error: {
         icon: '❌',
-        color: EQUIPMENT_STATUS_COLORS.ALARM,
-        duration: 5000
+        defaultDuration: 5000
     },
     warning: {
         icon: '⚠️',
-        color: EQUIPMENT_STATUS_COLORS.IDLE,
-        duration: 4000
+        defaultDuration: 4000
     },
     info: {
         icon: 'ℹ️',
-        color: SOLID_EDGE_COLORS.HIGHLIGHT,
-        duration: 3000
+        defaultDuration: 3000
     }
 };
 
@@ -54,6 +54,10 @@ export class Toast extends BaseComponent {
         this._toasts = new Map();
         this._toastIdCounter = 0;
         
+        // 설정
+        this._maxToasts = options.maxToasts || 5;
+        this._showProgress = options.showProgress ?? true;
+        
         // 컨테이너가 없으면 body에 마운트
         if (!this.container) {
             this.container = document.body;
@@ -68,7 +72,7 @@ export class Toast extends BaseComponent {
     }
     
     /**
-     * 🔧 마운트 오버라이드 - innerHTML 대신 appendChild 사용
+     * 마운트 오버라이드 - innerHTML 대신 appendChild 사용
      * @param {HTMLElement} container - 마운트할 컨테이너 (선택)
      * @returns {Toast} this
      */
@@ -86,19 +90,19 @@ export class Toast extends BaseComponent {
             return this;
         }
         
-        // 🔧 핵심 수정: 기존 요소 확인 또는 새로 생성
+        // 기존 요소 확인 또는 새로 생성
         let existingElement = document.getElementById(this.id);
         
         if (existingElement) {
             // 기존 요소가 있으면 재사용
             this.element = existingElement;
         } else {
-            // 새 요소 생성 (innerHTML 대신 createElement 사용!)
+            // 새 요소 생성 (innerHTML 대신 createElement 사용)
             this.element = document.createElement('div');
             this.element.id = this.id;
             this.element.className = 'toast-container';
             
-            // 💡 appendChild 사용 - 기존 DOM 보존!
+            // appendChild 사용 - 기존 DOM 보존
             this.container.appendChild(this.element);
         }
         
@@ -112,21 +116,11 @@ export class Toast extends BaseComponent {
     
     /**
      * 마운트 후 처리
+     * 스타일은 CSS에서 처리하므로 여기서는 아무것도 안 함
      */
     onMount() {
-        // 스타일 적용
-        if (this.element) {
-            Object.assign(this.element.style, {
-                position: 'fixed',
-                top: '20px',
-                right: '20px',
-                zIndex: '10000',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px',
-                pointerEvents: 'none'
-            });
-        }
+        // CSS에서 모든 스타일 처리
+        // this.element에 추가 설정 필요 없음
     }
     
     /**
@@ -134,72 +128,70 @@ export class Toast extends BaseComponent {
      * @param {string} message - 메시지
      * @param {string} type - 타입 ('success' | 'error' | 'warning' | 'info')
      * @param {number} duration - 표시 시간 (ms), 0이면 자동 닫기 안함
+     * @param {Object} options - 추가 옵션
      * @returns {string} Toast ID
      */
-    show(message, type = 'info', duration = null) {
+    show(message, type = 'info', duration = null, options = {}) {
         if (!this._mounted) {
             this.mount();
         }
         
         const config = TOAST_CONFIG[type] || TOAST_CONFIG.info;
         const toastId = `toast-${++this._toastIdCounter}`;
-        const finalDuration = duration !== null ? duration : config.duration;
+        const finalDuration = duration !== null ? duration : config.defaultDuration;
         
-        // Toast 요소 생성
+        // 최대 개수 초과 시 가장 오래된 Toast 제거
+        if (this._toasts.size >= this._maxToasts) {
+            const oldestId = this._toasts.keys().next().value;
+            this.remove(oldestId);
+        }
+        
+        // Toast 요소 생성 - CSS 클래스만 사용
         const toast = document.createElement('div');
         toast.id = toastId;
         toast.className = `toast toast-${type}`;
-        toast.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            background: #2a2a2a;
-            border-left: 4px solid ${config.color};
-            border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            color: #ffffff;
-            font-size: 14px;
-            pointer-events: auto;
-            opacity: 0;
-            transform: translateX(100%);
-            transition: all 0.3s ease;
-            max-width: 400px;
-        `;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'polite');
         
-        toast.innerHTML = `
-            <span class="toast-icon" style="font-size: 18px;">${config.icon}</span>
-            <span class="toast-message" style="flex: 1;">${message}</span>
-            <button class="toast-close" style="
-                background: none;
-                border: none;
-                color: #888;
-                font-size: 18px;
-                cursor: pointer;
-                padding: 0 4px;
-                line-height: 1;
-            ">&times;</button>
-        `;
+        // Toast 내용 구성
+        toast.innerHTML = this._buildToastHTML(message, config, finalDuration, options);
         
         // 닫기 버튼 이벤트
         const closeBtn = toast.querySelector('.toast-close');
-        closeBtn.addEventListener('click', () => this.remove(toastId));
-        closeBtn.addEventListener('mouseenter', () => closeBtn.style.color = '#fff');
-        closeBtn.addEventListener('mouseleave', () => closeBtn.style.color = '#888');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.remove(toastId));
+        }
+        
+        // 액션 버튼 이벤트 (있는 경우)
+        if (options.actions) {
+            options.actions.forEach((action, index) => {
+                const btn = toast.querySelector(`[data-action-index="${index}"]`);
+                if (btn && action.onClick) {
+                    btn.addEventListener('click', () => {
+                        action.onClick();
+                        if (action.closeOnClick !== false) {
+                            this.remove(toastId);
+                        }
+                    });
+                }
+            });
+        }
         
         // 컨테이너에 추가
         this.element.appendChild(toast);
         
-        // 애니메이션 시작
+        // 애니메이션 시작 - CSS 클래스 추가
         requestAnimationFrame(() => {
-            toast.style.opacity = '1';
-            toast.style.transform = 'translateX(0)';
+            requestAnimationFrame(() => {
+                toast.classList.add('toast-show');
+            });
         });
         
         // Toast 정보 저장
         const toastInfo = {
             element: toast,
-            timer: null
+            timer: null,
+            duration: finalDuration
         };
         
         // 자동 제거 타이머
@@ -212,6 +204,54 @@ export class Toast extends BaseComponent {
         this._toasts.set(toastId, toastInfo);
         
         return toastId;
+    }
+    
+    /**
+     * Toast HTML 빌드
+     * @private
+     */
+    _buildToastHTML(message, config, duration, options) {
+        const { icon } = config;
+        const { title, actions } = options;
+        
+        let html = `
+            <span class="toast-icon">${options.icon || icon}</span>
+            <div class="toast-content">
+        `;
+        
+        if (title) {
+            html += `<div class="toast-title">${title}</div>`;
+        }
+        
+        html += `<span class="toast-message">${message}</span>`;
+        
+        // 액션 버튼
+        if (actions && actions.length > 0) {
+            html += '<div class="toast-actions">';
+            actions.forEach((action, index) => {
+                const btnClass = action.primary 
+                    ? 'toast-action-btn toast-action-btn-primary' 
+                    : 'toast-action-btn toast-action-btn-secondary';
+                html += `<button class="${btnClass}" data-action-index="${index}">${action.label}</button>`;
+            });
+            html += '</div>';
+        }
+        
+        html += '</div>';
+        
+        // 닫기 버튼
+        html += '<button class="toast-close" aria-label="닫기">&times;</button>';
+        
+        // 프로그레스 바
+        if (this._showProgress && duration > 0) {
+            html += `
+                <div class="toast-progress">
+                    <div class="toast-progress-bar" style="animation-duration: ${duration}ms;"></div>
+                </div>
+            `;
+        }
+        
+        return html;
     }
     
     /**
@@ -229,16 +269,23 @@ export class Toast extends BaseComponent {
             clearTimeout(timer);
         }
         
-        // 애니메이션 후 제거
-        element.style.opacity = '0';
-        element.style.transform = 'translateX(100%)';
+        // 숨김 클래스 추가
+        element.classList.remove('toast-show');
+        element.classList.add('toast-hide');
         
-        setTimeout(() => {
+        // 애니메이션 후 DOM에서 제거
+        const removeFromDOM = () => {
             if (element.parentNode) {
                 element.parentNode.removeChild(element);
             }
             this._toasts.delete(toastId);
-        }, 300);
+        };
+        
+        // transitionend 이벤트 또는 타임아웃
+        element.addEventListener('transitionend', removeFromDOM, { once: true });
+        
+        // 폴백 타이머 (트랜지션이 실행되지 않는 경우)
+        setTimeout(removeFromDOM, 350);
     }
     
     /**
@@ -250,36 +297,128 @@ export class Toast extends BaseComponent {
         });
     }
     
+    /**
+     * Toast 업데이트
+     * @param {string} toastId - Toast ID
+     * @param {Object} updates - 업데이트할 내용
+     */
+    update(toastId, updates) {
+        const toastInfo = this._toasts.get(toastId);
+        if (!toastInfo) return;
+        
+        const { element } = toastInfo;
+        
+        if (updates.message) {
+            const messageEl = element.querySelector('.toast-message');
+            if (messageEl) {
+                messageEl.textContent = updates.message;
+            }
+        }
+        
+        if (updates.title) {
+            const titleEl = element.querySelector('.toast-title');
+            if (titleEl) {
+                titleEl.textContent = updates.title;
+            }
+        }
+        
+        if (updates.type) {
+            // 기존 타입 클래스 제거
+            Object.keys(TOAST_CONFIG).forEach(type => {
+                element.classList.remove(`toast-${type}`);
+            });
+            // 새 타입 클래스 추가
+            element.classList.add(`toast-${updates.type}`);
+            
+            // 아이콘 업데이트
+            const iconEl = element.querySelector('.toast-icon');
+            if (iconEl) {
+                iconEl.textContent = TOAST_CONFIG[updates.type]?.icon || TOAST_CONFIG.info.icon;
+            }
+        }
+    }
+    
     // =========================================================
     // 편의 메서드
     // =========================================================
     
     /**
      * 성공 Toast
+     * @param {string} message - 메시지
+     * @param {number} duration - 표시 시간
+     * @param {Object} options - 추가 옵션
      */
-    success(message, duration) {
-        return this.show(message, 'success', duration);
+    success(message, duration, options = {}) {
+        return this.show(message, 'success', duration, options);
     }
     
     /**
      * 에러 Toast
+     * @param {string} message - 메시지
+     * @param {number} duration - 표시 시간
+     * @param {Object} options - 추가 옵션
      */
-    error(message, duration) {
-        return this.show(message, 'error', duration);
+    error(message, duration, options = {}) {
+        return this.show(message, 'error', duration, options);
     }
     
     /**
      * 경고 Toast
+     * @param {string} message - 메시지
+     * @param {number} duration - 표시 시간
+     * @param {Object} options - 추가 옵션
      */
-    warning(message, duration) {
-        return this.show(message, 'warning', duration);
+    warning(message, duration, options = {}) {
+        return this.show(message, 'warning', duration, options);
     }
     
     /**
      * 정보 Toast
+     * @param {string} message - 메시지
+     * @param {number} duration - 표시 시간
+     * @param {Object} options - 추가 옵션
      */
-    info(message, duration) {
-        return this.show(message, 'info', duration);
+    info(message, duration, options = {}) {
+        return this.show(message, 'info', duration, options);
+    }
+    
+    /**
+     * Promise 기반 Toast (로딩 → 성공/실패)
+     * @param {Promise} promise - 추적할 Promise
+     * @param {Object} messages - { loading, success, error }
+     * @returns {Promise} 원본 Promise
+     */
+    async promise(promise, messages = {}) {
+        const loadingMsg = messages.loading || 'Loading...';
+        const successMsg = messages.success || 'Success!';
+        const errorMsg = messages.error || 'Error occurred';
+        
+        const toastId = this.show(loadingMsg, 'info', 0, {
+            icon: '⏳'
+        });
+        
+        try {
+            const result = await promise;
+            this.update(toastId, {
+                message: typeof successMsg === 'function' ? successMsg(result) : successMsg,
+                type: 'success'
+            });
+            
+            // 성공 후 자동 제거
+            setTimeout(() => this.remove(toastId), TOAST_CONFIG.success.defaultDuration);
+            
+            return result;
+        } catch (error) {
+            this.update(toastId, {
+                message: typeof errorMsg === 'function' ? errorMsg(error) : errorMsg,
+                type: 'error'
+            });
+            
+            // 에러 후 자동 제거
+            setTimeout(() => this.remove(toastId), TOAST_CONFIG.error.defaultDuration);
+            
+            throw error;
+        }
     }
     
     /**
@@ -290,6 +429,10 @@ export class Toast extends BaseComponent {
         super.destroy();
     }
 }
+
+// =========================================================
+// 싱글톤 및 편의 함수
+// =========================================================
 
 // 싱글톤 인스턴스
 let toastInstance = null;
@@ -306,15 +449,27 @@ export function getToast() {
     return toastInstance;
 }
 
-// 편의 함수들
+/**
+ * Toast 싱글톤 리셋 (테스트용)
+ */
+export function resetToast() {
+    if (toastInstance) {
+        toastInstance.destroy();
+        toastInstance = null;
+    }
+}
+
+// 편의 함수들 - 기존 API 호환
 export const toast = {
-    show: (message, type, duration) => getToast().show(message, type, duration),
-    success: (message, duration) => getToast().success(message, duration),
-    error: (message, duration) => getToast().error(message, duration),
-    warning: (message, duration) => getToast().warning(message, duration),
-    info: (message, duration) => getToast().info(message, duration),
+    show: (message, type, duration, options) => getToast().show(message, type, duration, options),
+    success: (message, duration, options) => getToast().success(message, duration, options),
+    error: (message, duration, options) => getToast().error(message, duration, options),
+    warning: (message, duration, options) => getToast().warning(message, duration, options),
+    info: (message, duration, options) => getToast().info(message, duration, options),
     remove: (id) => getToast().remove(id),
-    removeAll: () => getToast().removeAll()
+    removeAll: () => getToast().removeAll(),
+    update: (id, updates) => getToast().update(id, updates),
+    promise: (promise, messages) => getToast().promise(promise, messages)
 };
 
 export default Toast;

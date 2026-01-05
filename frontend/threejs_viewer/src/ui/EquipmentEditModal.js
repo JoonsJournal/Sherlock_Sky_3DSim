@@ -2,12 +2,13 @@
  * EquipmentEditModal.js
  * 설비 편집 모달
  * 
- * @version 2.2.0
+ * @version 3.0.0
  * @description 
  *   - BaseModal 상속 적용
  *   - EquipmentMappingService 연동
  *   - 서버 저장/검증 기능 추가
- *   - 🆕 v2.2.0: line_name 저장 추가
+ *   - v2.2.0: line_name 저장 추가
+ *   - v3.0.0: 인라인 스타일 완전 제거, CSS 클래스 기반 (2026-01-06)
  */
 
 import { BaseModal } from '../core/base/BaseModal.js';
@@ -31,13 +32,14 @@ export class EquipmentEditModal extends BaseModal {
             title: '🛠️ Equipment Mapping Editor',
             size: 'lg',
             closeOnOverlay: true,
-            closeOnEsc: true
+            closeOnEsc: true,
+            className: 'equipment-edit-modal'
         });
         
         this.editState = options.editState;
         this.apiClient = options.apiClient;
         
-        // ⭐ MappingService 초기화
+        // MappingService 초기화
         this.mappingService = new EquipmentMappingService({
             apiClient: this.apiClient,
             editState: this.editState
@@ -48,7 +50,7 @@ export class EquipmentEditModal extends BaseModal {
         this.filteredEquipments = [];
         this.selectedEquipmentId = null;
         this.selectedEquipmentName = null;
-        this.selectedLineName = null;  // 🆕 v2.2.0
+        this.selectedLineName = null;
         
         // 검증 상태
         this.validationResult = null;
@@ -57,7 +59,7 @@ export class EquipmentEditModal extends BaseModal {
     }
     
     /**
-     * Modal Body 렌더링
+     * Modal Body 렌더링 - CSS 클래스 기반
      */
     renderBody() {
         return `
@@ -65,81 +67,56 @@ export class EquipmentEditModal extends BaseModal {
                 <!-- Selected Equipment Info -->
                 <div class="edit-section">
                     <h3>Selected Equipment</h3>
-                    <div class="info-box" style="
-                        background: #1a1a1a;
-                        border: 1px solid #333;
-                        border-radius: 4px;
-                        padding: 12px;
-                    ">
-                        <div class="info-row" style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span class="label" style="color: #888;">Frontend ID:</span>
-                            <span id="edit-frontend-id" class="value" style="color: #fff;">-</span>
+                    <div class="equip-edit__info-box">
+                        <div class="equip-edit__info-row">
+                            <span class="equip-edit__info-label">Frontend ID:</span>
+                            <span id="edit-frontend-id" class="equip-edit__info-value">-</span>
                         </div>
-                        <div class="info-row" style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <span class="label" style="color: #888;">Position:</span>
-                            <span id="edit-position" class="value" style="color: #fff;">-</span>
+                        <div class="equip-edit__info-row">
+                            <span class="equip-edit__info-label">Position:</span>
+                            <span id="edit-position" class="equip-edit__info-value">-</span>
                         </div>
-                        <div class="info-row" style="display: flex; justify-content: space-between;">
-                            <span class="label" style="color: #888;">Current Mapping:</span>
-                            <span id="edit-current-mapping" class="value" style="color: #fff;">Not Assigned</span>
+                        <div class="equip-edit__info-row">
+                            <span class="equip-edit__info-label">Current Mapping:</span>
+                            <span id="edit-current-mapping" class="equip-edit__info-value equip-edit__info-value--muted">Not Assigned</span>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Equipment Name Selection -->
-                <div class="edit-section" style="margin-top: 16px;">
+                <div class="edit-section">
                     <h3>Equipment Name</h3>
-                    <div class="search-box" style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <div class="equip-edit__search-box">
                         <input 
                             type="text" 
                             id="equipment-search" 
+                            class="equip-edit__search-input"
                             placeholder="Search equipment name..."
                             autocomplete="off"
-                            style="
-                                flex: 1;
-                                padding: 8px 12px;
-                                background: #1a1a1a;
-                                border: 1px solid #444;
-                                border-radius: 4px;
-                                color: #fff;
-                                font-size: 14px;
-                            "
                         >
-                        <button id="clear-search-btn" class="btn-icon" title="Clear" style="
-                            background: #333;
-                            border: 1px solid #444;
-                            color: #888;
-                            padding: 8px 12px;
-                            border-radius: 4px;
-                            cursor: pointer;
-                        ">✕</button>
+                        <button id="clear-search-btn" class="equip-edit__search-clear" title="Clear">✕</button>
                     </div>
                     
                     <!-- Equipment List -->
-                    <div class="equipment-list" id="equipment-list" style="
-                        max-height: 300px;
-                        overflow-y: auto;
-                        border: 1px solid #333;
-                        border-radius: 4px;
-                    ">
-                        <div class="loading" style="padding: 20px; text-align: center; color: #888;">
+                    <div class="equip-edit__list" id="equipment-list">
+                        <div class="equip-edit__loading">
                             Loading equipment list...
                         </div>
                     </div>
                 </div>
                 
                 <!-- Validation Status -->
-                <div class="edit-section" style="margin-top: 16px;">
-                    <div id="validation-status" style="display: none;">
+                <div class="edit-section">
+                    <div id="validation-status" class="equip-edit__validation-container" style="display: none;">
                         <!-- 검증 결과가 여기에 표시됨 -->
                     </div>
                 </div>
                 
                 <!-- Progress -->
-                <div class="edit-section" style="margin-top: 16px;">
-                    <div class="progress-info" style="display: flex; justify-content: space-between; align-items: center;">
-                        <span id="mapping-progress" style="color: #888;">0 / 0 Mapped</span>
-                        <span id="sync-status" style="color: #666; font-size: 12px;"></span>
+                <div class="edit-section">
+                    <div class="equip-edit__progress">
+                        <span id="mapping-progress" class="equip-edit__progress-text">0 / 0 Mapped</span>
+                        <span id="sync-status" class="equip-edit__sync-status"></span>
                     </div>
                 </div>
             </div>
@@ -147,12 +124,12 @@ export class EquipmentEditModal extends BaseModal {
     }
     
     /**
-     * Modal Footer 렌더링
+     * Modal Footer 렌더링 - CSS 클래스 기반
      */
     renderFooter() {
         return `
-            <div style="display: flex; justify-content: space-between; width: 100%;">
-                <div class="footer-left" style="display: flex; gap: 8px;">
+            <div class="equip-edit__footer">
+                <div class="equip-edit__footer-left">
                     <button id="btn-validate" class="btn-outline" title="Validate all mappings">
                         🔍 Validate
                     </button>
@@ -160,7 +137,7 @@ export class EquipmentEditModal extends BaseModal {
                         🔄 Sync
                     </button>
                 </div>
-                <div class="footer-right" style="display: flex; gap: 8px;">
+                <div class="equip-edit__footer-right">
                     <button class="btn-secondary modal-cancel-btn">Cancel</button>
                     <button id="btn-save-server" class="btn-success" title="Save to server">
                         💾 Save All
@@ -194,7 +171,7 @@ export class EquipmentEditModal extends BaseModal {
             });
         }
         
-        // ⭐ 검증 버튼
+        // 검증 버튼
         const validateBtn = this.$('#btn-validate');
         if (validateBtn) {
             this.addDomListener(validateBtn, 'click', () => {
@@ -202,7 +179,7 @@ export class EquipmentEditModal extends BaseModal {
             });
         }
         
-        // ⭐ 서버 동기화 버튼
+        // 서버 동기화 버튼
         const syncBtn = this.$('#btn-sync-server');
         if (syncBtn) {
             this.addDomListener(syncBtn, 'click', () => {
@@ -210,7 +187,7 @@ export class EquipmentEditModal extends BaseModal {
             });
         }
         
-        // ⭐ 서버 저장 버튼
+        // 서버 저장 버튼
         const saveBtn = this.$('#btn-save-server');
         if (saveBtn) {
             this.addDomListener(saveBtn, 'click', () => {
@@ -227,7 +204,7 @@ export class EquipmentEditModal extends BaseModal {
         this.currentEquipment = equipment;
         this.selectedEquipmentId = null;
         this.selectedEquipmentName = null;
-        this.selectedLineName = null;  // 🆕 v2.2.0
+        this.selectedLineName = null;
         this.validationResult = null;
         
         // BaseModal의 open 호출
@@ -253,7 +230,7 @@ export class EquipmentEditModal extends BaseModal {
         this.currentEquipment = null;
         this.selectedEquipmentId = null;
         this.selectedEquipmentName = null;
-        this.selectedLineName = null;  // 🆕 v2.2.0
+        this.selectedLineName = null;
         this.validationResult = null;
         
         // 검색 초기화
@@ -271,7 +248,6 @@ export class EquipmentEditModal extends BaseModal {
     
     /**
      * Confirm 버튼 클릭
-     * 🆕 v2.2.0: line_name도 함께 저장
      */
     onConfirm() {
         if (!this.selectedEquipmentId) {
@@ -279,14 +255,14 @@ export class EquipmentEditModal extends BaseModal {
             return;
         }
         
-        // 🆕 v2.2.0: 매핑 저장 (equipment_id, equipment_name, line_name 포함)
+        // 매핑 저장 (equipment_id, equipment_name, line_name 포함)
         this.editState.setMapping(this.currentEquipment.userData.id, {
             equipment_id: this.selectedEquipmentId,
             equipment_name: this.selectedEquipmentName,
-            line_name: this.selectedLineName  // 🆕 line_name 추가
+            line_name: this.selectedLineName
         });
         
-        // 🆕 v2.2.0: 토스트 메시지에 line_name 포함
+        // 토스트 메시지
         const lineInfo = this.selectedLineName ? ` (Line: ${this.selectedLineName})` : '';
         toast.success(`Mapped: ${this.currentEquipment.userData.id} → ${this.selectedEquipmentName}${lineInfo}`);
         
@@ -297,7 +273,7 @@ export class EquipmentEditModal extends BaseModal {
     }
     
     // ==========================================
-    // ⭐ 서버 연동 메서드 (신규)
+    // 서버 연동 메서드
     // ==========================================
     
     /**
@@ -365,7 +341,6 @@ export class EquipmentEditModal extends BaseModal {
             const conflicts = await this.mappingService.detectConflicts();
             
             if (conflicts.needsSync && conflicts.conflicts.length > 0) {
-                // 충돌이 있으면 사용자에게 확인
                 const choice = confirm(
                     `⚠️ ${conflicts.conflicts.length} conflicts detected.\n\n` +
                     `Local only: ${conflicts.localOnly.length}\n` +
@@ -411,7 +386,6 @@ export class EquipmentEditModal extends BaseModal {
             return;
         }
         
-        // 저장 확인
         const confirmed = confirm(
             `💾 Save ${mappingCount} mappings to server?\n\n` +
             `This will overwrite existing server data.`
@@ -426,13 +400,12 @@ export class EquipmentEditModal extends BaseModal {
                 saveBtn.innerHTML = '💾 Saving...';
             }
             
-            const result = await this.mappingService.saveMappings(true); // 검증 후 저장
+            const result = await this.mappingService.saveMappings(true);
             
             if (result.success) {
                 toast.success(`✅ Saved ${result.total || mappingCount} mappings to server`);
                 this._updateSyncStatus();
             } else {
-                // 검증 실패
                 if (result.validation) {
                     this._displayValidationResult(result.validation, 'server');
                 }
@@ -452,7 +425,7 @@ export class EquipmentEditModal extends BaseModal {
     }
     
     /**
-     * 검증 결과 표시
+     * 검증 결과 표시 - CSS 클래스 기반
      * @param {Object} result - 검증 결과
      * @param {string} source - 'local' | 'server'
      */
@@ -462,31 +435,25 @@ export class EquipmentEditModal extends BaseModal {
         
         validationStatus.style.display = 'block';
         
-        const statusColor = result.valid ? '#4CAF50' : '#f44336';
+        const validClass = result.valid ? 'equip-edit__validation--valid' : 'equip-edit__validation--invalid';
         const statusIcon = result.valid ? '✅' : '❌';
+        const statusText = result.valid ? 'Validation Passed' : 'Validation Failed';
         
         let html = `
-            <div style="
-                background: ${result.valid ? 'rgba(76, 175, 80, 0.1)' : 'rgba(244, 67, 54, 0.1)'};
-                border: 1px solid ${statusColor};
-                border-radius: 4px;
-                padding: 12px;
-            ">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                    <span style="font-size: 18px;">${statusIcon}</span>
-                    <span style="color: ${statusColor}; font-weight: bold;">
-                        ${result.valid ? 'Validation Passed' : 'Validation Failed'}
-                    </span>
-                    <span style="color: #666; font-size: 12px;">(${source})</span>
+            <div class="equip-edit__validation ${validClass}">
+                <div class="equip-edit__validation-header">
+                    <span class="equip-edit__validation-icon">${statusIcon}</span>
+                    <span class="equip-edit__validation-title">${statusText}</span>
+                    <span class="equip-edit__validation-source">(${source})</span>
                 </div>
         `;
         
         // 에러 표시
         if (result.errors && result.errors.length > 0) {
             html += `
-                <div style="margin-top: 8px;">
-                    <div style="color: #f44336; font-weight: 500; margin-bottom: 4px;">Errors:</div>
-                    <ul style="margin: 0; padding-left: 20px; color: #ff6b6b; font-size: 12px;">
+                <div class="equip-edit__validation-errors">
+                    <div class="equip-edit__validation-errors-title">Errors:</div>
+                    <ul class="equip-edit__validation-list">
                         ${result.errors.slice(0, 5).map(e => `<li>${e}</li>`).join('')}
                         ${result.errors.length > 5 ? `<li>... and ${result.errors.length - 5} more</li>` : ''}
                     </ul>
@@ -497,9 +464,9 @@ export class EquipmentEditModal extends BaseModal {
         // 경고 표시
         if (result.warnings && result.warnings.length > 0) {
             html += `
-                <div style="margin-top: 8px;">
-                    <div style="color: #FFC107; font-weight: 500; margin-bottom: 4px;">Warnings:</div>
-                    <ul style="margin: 0; padding-left: 20px; color: #ffd54f; font-size: 12px;">
+                <div class="equip-edit__validation-warnings">
+                    <div class="equip-edit__validation-warnings-title">Warnings:</div>
+                    <ul class="equip-edit__validation-list">
                         ${result.warnings.map(w => `<li>${w}</li>`).join('')}
                     </ul>
                 </div>
@@ -521,22 +488,20 @@ export class EquipmentEditModal extends BaseModal {
         
         if (status.lastSyncTime) {
             const timeAgo = this._formatTimeAgo(status.lastSyncTime);
-            syncStatus.innerHTML = `
-                <span style="color: ${status.isDirty ? '#FFC107' : '#4CAF50'};">
-                    ${status.isDirty ? '⚠️ Unsaved changes' : '✅ Synced'} • Last sync: ${timeAgo}
-                </span>
-            `;
+            const statusClass = status.isDirty ? 'equip-edit__sync-status--dirty' : 'equip-edit__sync-status--synced';
+            const statusIcon = status.isDirty ? '⚠️' : '✅';
+            const statusText = status.isDirty ? 'Unsaved changes' : 'Synced';
+            
+            syncStatus.className = `equip-edit__sync-status ${statusClass}`;
+            syncStatus.textContent = `${statusIcon} ${statusText} • Last sync: ${timeAgo}`;
         } else {
-            syncStatus.innerHTML = `
-                <span style="color: #888;">Not synced with server</span>
-            `;
+            syncStatus.className = 'equip-edit__sync-status';
+            syncStatus.textContent = 'Not synced with server';
         }
     }
     
     /**
      * 시간 포맷팅
-     * @param {Date} date
-     * @returns {string}
      */
     _formatTimeAgo(date) {
         const seconds = Math.floor((new Date() - new Date(date)) / 1000);
@@ -553,7 +518,6 @@ export class EquipmentEditModal extends BaseModal {
     
     /**
      * 설비 정보 표시
-     * 🆕 v2.2.0: line_name 표시 추가
      */
     _displayEquipmentInfo() {
         const frontendIdEl = this.$('#edit-frontend-id');
@@ -569,23 +533,21 @@ export class EquipmentEditModal extends BaseModal {
         }
         
         if (positionEl) {
-            const pos = this.currentEquipment.position;
             positionEl.textContent = `Row ${userData.row || '-'}, Col ${userData.col || '-'}`;
         }
         
         if (currentMappingEl) {
             const mapping = this.editState?.getMapping(userData.id);
             if (mapping) {
-                // 🆕 v2.2.0: line_name 표시 추가
-                const lineInfo = mapping.line_name ? `<br><span style="color: #888; font-size: 11px;">Line: ${mapping.line_name}</span>` : '';
+                const lineInfo = mapping.line_name ? ` | Line: ${mapping.line_name}` : '';
                 currentMappingEl.innerHTML = `
-                    <span style="color: #4CAF50;">${mapping.equipment_name}</span>
-                    <span style="color: #666; font-size: 12px;">(ID: ${mapping.equipment_id})</span>
-                    ${lineInfo}
+                    <span class="equip-edit__info-value--success">${mapping.equipment_name}</span>
+                    <span class="equip-edit__info-value--muted"> (ID: ${mapping.equipment_id}${lineInfo})</span>
                 `;
+                currentMappingEl.classList.remove('equip-edit__info-value--muted');
             } else {
                 currentMappingEl.textContent = 'Not Assigned';
-                currentMappingEl.style.color = '#888';
+                currentMappingEl.classList.add('equip-edit__info-value--muted');
             }
         }
     }
@@ -597,10 +559,9 @@ export class EquipmentEditModal extends BaseModal {
         const listContainer = this.$('#equipment-list');
         if (!listContainer) return;
         
-        listContainer.innerHTML = '<div class="loading" style="padding: 20px; text-align: center; color: #888;">Loading equipment list...</div>';
+        listContainer.innerHTML = '<div class="equip-edit__loading">Loading equipment list...</div>';
         
         try {
-            // ⭐ MappingService 통해 로드 (캐싱 적용)
             const equipments = await this.mappingService.loadEquipmentNames();
             
             this.availableEquipments = equipments;
@@ -610,20 +571,20 @@ export class EquipmentEditModal extends BaseModal {
             
         } catch (error) {
             console.error('Failed to load equipment list:', error);
-            listContainer.innerHTML = '<div class="error" style="padding: 20px; text-align: center; color: #f44336;">Failed to load equipment list</div>';
+            listContainer.innerHTML = '<div class="equip-edit__error">Failed to load equipment list</div>';
             toast.error('Failed to load equipment list');
         }
     }
     
     /**
-     * Equipment 목록 렌더링
+     * Equipment 목록 렌더링 - CSS 클래스 기반
      */
     _renderEquipmentList() {
         const listContainer = this.$('#equipment-list');
         if (!listContainer) return;
         
         if (this.filteredEquipments.length === 0) {
-            listContainer.innerHTML = '<div class="no-results" style="padding: 20px; text-align: center; color: #888;">No equipment found</div>';
+            listContainer.innerHTML = '<div class="equip-edit__empty">No equipment found</div>';
             return;
         }
         
@@ -631,59 +592,57 @@ export class EquipmentEditModal extends BaseModal {
         
         this.filteredEquipments.forEach(equipment => {
             const item = document.createElement('div');
-            item.className = 'equipment-item';
             
             // 이미 할당되었는지 확인
             const assignedTo = this.editState.findDuplicate(equipment.equipment_id);
             const isAssigned = assignedTo !== null;
             const isCurrent = assignedTo === this.currentEquipment?.userData.id;
             
-            item.style.cssText = `
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 10px 12px;
-                border-bottom: 1px solid #333;
-                background: ${isAssigned && !isCurrent ? '#2a2020' : 'transparent'};
-                cursor: pointer;
-            `;
+            // CSS 클래스 설정
+            let itemClass = 'equip-edit__item';
+            if (isCurrent) {
+                itemClass += ' equip-edit__item--current';
+            } else if (isAssigned) {
+                itemClass += ' equip-edit__item--assigned';
+            }
+            item.className = itemClass;
+            
+            // 배지 결정
+            let badgeHtml = '';
+            if (isCurrent) {
+                badgeHtml = '<span class="equip-edit__item-badge equip-edit__item-badge--current">Current</span>';
+            } else if (isAssigned) {
+                badgeHtml = '<span class="equip-edit__item-badge equip-edit__item-badge--assigned">Assigned</span>';
+            }
+            
+            // 버튼 클래스 결정
+            const btnClass = isCurrent 
+                ? 'equip-edit__item-select-btn equip-edit__item-select-btn--success' 
+                : 'equip-edit__item-select-btn equip-edit__item-select-btn--primary';
+            const btnText = isCurrent ? '✓ Current' : 'Select';
+            const btnDisabled = isAssigned && !isCurrent ? 'disabled' : '';
             
             item.innerHTML = `
-                <div class="equipment-item-content" style="flex: 1;">
-                    <div class="equipment-item-header" style="display: flex; align-items: center; gap: 8px;">
-                        <span class="equipment-name" style="color: #fff; font-weight: 500;">${equipment.equipment_name}</span>
-                        ${isAssigned ? `<span class="badge badge-info" style="
-                            background: #2196F3;
-                            color: #fff;
-                            padding: 2px 6px;
-                            border-radius: 4px;
-                            font-size: 10px;
-                        ">Assigned</span>` : ''}
+                <div class="equip-edit__item-content">
+                    <div class="equip-edit__item-header">
+                        <span class="equip-edit__item-name">${equipment.equipment_name}</span>
+                        ${badgeHtml}
                     </div>
-                    <div class="equipment-item-details" style="display: flex; gap: 12px; margin-top: 4px; font-size: 12px; color: #888;">
-                        <span class="equipment-id">ID: ${equipment.equipment_id}</span>
-                        <span class="equipment-line">Line: ${equipment.line_name || 'N/A'}</span>
-                        ${isAssigned && !isCurrent ? `<span class="assigned-to" style="color: #f44336;">→ ${assignedTo}</span>` : ''}
+                    <div class="equip-edit__item-details">
+                        <span class="equip-edit__item-detail">ID: ${equipment.equipment_id}</span>
+                        <span class="equip-edit__item-detail">Line: ${equipment.line_name || 'N/A'}</span>
+                        ${isAssigned && !isCurrent ? `<span class="equip-edit__item-assigned-to">→ ${assignedTo}</span>` : ''}
                     </div>
                 </div>
-                <button class="btn-select" data-equipment-id="${equipment.equipment_id}" 
-                    ${isAssigned && !isCurrent ? 'disabled' : ''}
-                    style="
-                        padding: 6px 12px;
-                        background: ${isCurrent ? '#4CAF50' : '#2196F3'};
-                        color: #fff;
-                        border: none;
-                        border-radius: 4px;
-                        cursor: ${isAssigned && !isCurrent ? 'not-allowed' : 'pointer'};
-                        opacity: ${isAssigned && !isCurrent ? '0.5' : '1'};
-                        font-size: 12px;
-                    ">
-                    ${isCurrent ? '✓ Current' : 'Select'}
+                <button class="equip-edit__item-select-btn ${btnClass}" 
+                    data-equipment-id="${equipment.equipment_id}"
+                    ${btnDisabled}>
+                    ${btnText}
                 </button>
             `;
             
             // Select 버튼 이벤트
-            const selectBtn = item.querySelector('.btn-select');
+            const selectBtn = item.querySelector('.equip-edit__item-select-btn');
             selectBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (!isAssigned || isCurrent) {
@@ -693,23 +652,12 @@ export class EquipmentEditModal extends BaseModal {
                 }
             });
             
-            // 호버 효과
-            item.addEventListener('mouseenter', () => {
-                if (!isAssigned || isCurrent) {
-                    item.style.background = '#333';
-                }
-            });
-            item.addEventListener('mouseleave', () => {
-                item.style.background = isAssigned && !isCurrent ? '#2a2020' : 'transparent';
-            });
-            
             listContainer.appendChild(item);
         });
     }
     
     /**
      * Equipment 필터링
-     * @param {string} searchTerm - 검색어
      */
     filterEquipments(searchTerm) {
         const term = searchTerm.toLowerCase().trim();
@@ -729,88 +677,11 @@ export class EquipmentEditModal extends BaseModal {
     
     /**
      * Equipment 선택
-     * 🆕 v2.2.0: line_name도 저장
-     * @param {Object} equipment - 선택된 설비
      */
     _selectEquipment(equipment) {
         this.selectedEquipmentId = equipment.equipment_id;
         this.selectedEquipmentName = equipment.equipment_name;
-        this.selectedLineName = equipment.line_name || null;  // 🆕 v2.2.0
+        this.selectedLineName = equipment.line_name || null;
         
         // Confirm 버튼 활성화
         this.setConfirmEnabled(true);
-        
-        // 🆕 v2.2.0: Confirm 버튼 텍스트에 line_name 포함
-        const lineInfo = this.selectedLineName ? ` (${this.selectedLineName})` : '';
-        this.setConfirmText(`Confirm: ${equipment.equipment_name}${lineInfo}`);
-        
-        // 목록에서 선택 표시
-        const listContainer = this.$('#equipment-list');
-        if (listContainer) {
-            listContainer.querySelectorAll('.equipment-item').forEach(item => {
-                item.classList.remove('selected');
-                item.style.borderLeft = 'none';
-            });
-            
-            const selectedItem = listContainer.querySelector(`[data-equipment-id="${equipment.equipment_id}"]`)?.closest('.equipment-item');
-            if (selectedItem) {
-                selectedItem.classList.add('selected');
-                selectedItem.style.borderLeft = '3px solid #2196F3';
-            }
-        }
-        
-        debugLog(`✅ Selected: ${equipment.equipment_name} (ID: ${equipment.equipment_id}, Line: ${equipment.line_name || 'N/A'})`);
-    }
-    
-    /**
-     * 중복 할당 확인
-     * @param {Object} equipment - 선택하려는 설비
-     * @param {string} assignedTo - 이미 할당된 Frontend ID
-     */
-    _confirmDuplicateOverride(equipment, assignedTo) {
-        const confirmed = confirm(
-            `⚠️ ${equipment.equipment_name} is already assigned to ${assignedTo}.\n\n` +
-            `Do you want to remove the existing mapping and assign it to ${this.currentEquipment.userData.id}?`
-        );
-        
-        if (confirmed) {
-            // 기존 매핑 제거
-            delete this.editState.mappings[assignedTo];
-            
-            // 새로 선택
-            this._selectEquipment(equipment);
-            
-            // 목록 다시 렌더링
-            this._renderEquipmentList();
-            
-            toast.warning(`Removed mapping from ${assignedTo}`);
-        }
-    }
-    
-    /**
-     * 진행 상황 업데이트
-     */
-    _updateProgress() {
-        const completion = this.mappingService.getCompletionStatus();
-        
-        const progressEl = this.$('#mapping-progress');
-        if (!progressEl) return;
-        
-        progressEl.textContent = `${completion.mapped} / ${completion.total} Mapped (${completion.percentage}%)`;
-        
-        if (completion.isComplete) {
-            progressEl.innerHTML = `
-                <span class="badge badge-success" style="
-                    background: #4CAF50;
-                    color: #fff;
-                    padding: 4px 12px;
-                    border-radius: 4px;
-                ">
-                    ✓ All Equipment Mapped (${completion.total} / ${completion.total})
-                </span>
-            `;
-        }
-    }
-}
-
-export default EquipmentEditModal;

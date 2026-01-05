@@ -9,9 +9,82 @@
  * - 모드별 UI 색상
  * 
  * 작성일: 2026-01-02
+ * 수정일: 2026-01-06 (테마 통일 - 라이트 테마 기준)
  */
 
 :root {
+    /* =============================================
+       🎨 통합 테마 시스템 (v2.0)
+       - 기본: 라이트 테마
+       - 오버레이 UI: 다크 반투명
+       ============================================= */
+
+    /* ----- 라이트 테마 (Modal, Panel 내부) ----- */
+    --theme-bg-primary: #ffffff;
+    --theme-bg-secondary: #f8f9fa;
+    --theme-bg-tertiary: #f0f2f5;
+    --theme-bg-hover: #e9ecef;
+    --theme-bg-active: #e3f2fd;
+    --theme-bg-selected: #e8f4fd;
+    
+    --theme-text-primary: #212529;
+    --theme-text-secondary: #495057;
+    --theme-text-muted: #6c757d;
+    --theme-text-hint: #adb5bd;
+    
+    --theme-border-light: #e9ecef;
+    --theme-border-default: #dee2e6;
+    --theme-border-dark: #ced4da;
+    --theme-border-focus: #80bdff;
+    
+    /* ----- 다크 오버레이 (3D 씬 위 Overlay, Indicator) ----- */
+    --overlay-bg-primary: rgba(30, 30, 30, 0.95);
+    --overlay-bg-secondary: rgba(40, 40, 40, 0.95);
+    --overlay-bg-hover: rgba(50, 50, 50, 0.98);
+    --overlay-bg-backdrop: rgba(0, 0, 0, 0.5);
+    
+    --overlay-text-primary: #ffffff;
+    --overlay-text-secondary: #e5e5e5;
+    --overlay-text-muted: #9ca3af;
+    
+    --overlay-border-light: rgba(255, 255, 255, 0.1);
+    --overlay-border-default: rgba(255, 255, 255, 0.15);
+    --overlay-border-dark: rgba(255, 255, 255, 0.2);
+
+    /* ----- 상태 색상 (공통) ----- */
+    --status-success: #28a745;
+    --status-success-bg: #d4edda;
+    --status-success-border: #c3e6cb;
+    --status-success-text: #155724;
+    
+    --status-error: #dc3545;
+    --status-error-bg: #f8d7da;
+    --status-error-border: #f5c6cb;
+    --status-error-text: #721c24;
+    
+    --status-warning: #ffc107;
+    --status-warning-bg: #fff3cd;
+    --status-warning-border: #ffeeba;
+    --status-warning-text: #856404;
+    
+    --status-info: #17a2b8;
+    --status-info-bg: #d1ecf1;
+    --status-info-border: #bee5eb;
+    --status-info-text: #0c5460;
+
+    /* ----- 인터랙티브 색상 ----- */
+    --interactive-primary: #2196F3;
+    --interactive-primary-hover: #1976D2;
+    --interactive-primary-active: #1565C0;
+    
+    --interactive-secondary: #6c757d;
+    --interactive-secondary-hover: #5a6268;
+    --interactive-secondary-active: #4e555b;
+    
+    --interactive-danger: #dc3545;
+    --interactive-danger-hover: #c82333;
+    --interactive-danger-active: #bd2130;
+
     /* =============================================
        SOLID EDGE 객체 상태 색상
        ============================================= */
@@ -77,6 +150,9 @@
     /* =============================================
        애니메이션 타이밍
        ============================================= */
+    --transition-fast: 150ms ease-out;
+    --transition-normal: 200ms ease-out;
+    --transition-slow: 300ms ease-in-out;
     --transition-hover: 150ms ease-out;
     --transition-hover-out: 200ms ease-out;
     --transition-select: 200ms ease-out;
@@ -134,7 +210,9 @@
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
     --shadow-md: 0 4px 15px rgba(0, 0, 0, 0.15);
     --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.3);
+    --shadow-xl: 0 10px 40px rgba(0, 0, 0, 0.2);
     --shadow-primary: 0 4px 12px rgba(102, 126, 234, 0.4);
+    --shadow-overlay: 0 8px 32px rgba(0, 0, 0, 0.4);
 
     /* =============================================
        간격 (Spacing)
@@ -157,7 +235,7 @@
     /* =============================================
        폰트
        ============================================= */
-    --font-family: 'Segoe UI', Arial, sans-serif;
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'Consolas', 'Monaco', monospace;
     --font-size-xs: 11px;
     --font-size-sm: 12px;
@@ -168,15 +246,19 @@
     --font-size-2xl: 24px;
 
     /* =============================================
-       Z-Index 레이어
+       Z-Index 레이어 (정리됨)
        ============================================= */
     --z-base: 1;
     --z-dropdown: 100;
     --z-sticky: 200;
     --z-fixed: 300;
+    --z-overlay-indicator: 1000;   /* ConnectionIndicator, AutoSaveIndicator */
+    --z-tooltip: 1001;
+    --z-context-menu: 1002;
     --z-modal-backdrop: 9998;
     --z-modal: 9999;
     --z-toast: 10000;
+    --z-recovery-dialog: 10001;
 
     /* =============================================
        레거시 호환 변수 (기존 코드 지원)
