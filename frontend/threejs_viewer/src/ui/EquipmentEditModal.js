@@ -685,3 +685,69 @@ export class EquipmentEditModal extends BaseModal {
         
         // Confirm 버튼 활성화
         this.setConfirmEnabled(true);
+        
+        // Confirm 버튼 텍스트 업데이트
+        const lineInfo = this.selectedLineName ? ` (${this.selectedLineName})` : '';
+        this.setConfirmText(`Confirm: ${equipment.equipment_name}${lineInfo}`);
+        
+        // 목록에서 선택 표시
+        const listContainer = this.$('#equipment-list');
+        if (listContainer) {
+            listContainer.querySelectorAll('.equip-edit__item').forEach(item => {
+                item.classList.remove('equip-edit__item--selected');
+            });
+            
+            const selectedItem = listContainer.querySelector(`[data-equipment-id="${equipment.equipment_id}"]`)?.closest('.equip-edit__item');
+            if (selectedItem) {
+                selectedItem.classList.add('equip-edit__item--selected');
+            }
+        }
+        
+        debugLog(`✅ Selected: ${equipment.equipment_name} (ID: ${equipment.equipment_id}, Line: ${equipment.line_name || 'N/A'})`);
+    }
+    
+    /**
+     * 중복 할당 확인
+     */
+    _confirmDuplicateOverride(equipment, assignedTo) {
+        const confirmed = confirm(
+            `⚠️ ${equipment.equipment_name} is already assigned to ${assignedTo}.\n\n` +
+            `Do you want to remove the existing mapping and assign it to ${this.currentEquipment.userData.id}?`
+        );
+        
+        if (confirmed) {
+            // 기존 매핑 제거
+            delete this.editState.mappings[assignedTo];
+            
+            // 새로 선택
+            this._selectEquipment(equipment);
+            
+            // 목록 다시 렌더링
+            this._renderEquipmentList();
+            
+            toast.warning(`Removed mapping from ${assignedTo}`);
+        }
+    }
+    
+    /**
+     * 진행 상황 업데이트
+     */
+    _updateProgress() {
+        const completion = this.mappingService.getCompletionStatus();
+        
+        const progressEl = this.$('#mapping-progress');
+        if (!progressEl) return;
+        
+        if (completion.isComplete) {
+            progressEl.innerHTML = `
+                <span class="equip-edit__progress-badge">
+                    ✓ All Equipment Mapped (${completion.total} / ${completion.total})
+                </span>
+            `;
+        } else {
+            progressEl.textContent = `${completion.mapped} / ${completion.total} Mapped (${completion.percentage}%)`;
+        }
+    }
+}
+
+export default EquipmentEditModal;
