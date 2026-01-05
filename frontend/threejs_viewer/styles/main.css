@@ -38,8 +38,8 @@
 @import './components/_recovery-dialog.css';
 
 /* Phase 4: Indicator 시스템 */
-/* @import './components/_connection-indicator.css'; */
-/* @import './components/_autosave-indicator.css'; */
+@import './components/_connection-indicator.css'; 
+@import './components/_autosave-indicator.css'; 
 
 /* Phase 5: Panel 시스템 */
 /* @import './components/_connection-panels.css'; */

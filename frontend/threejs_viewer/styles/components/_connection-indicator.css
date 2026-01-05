@@ -1,0 +1,333 @@
+/**
+ * _connection-indicator.css
+ * =========================
+ * ConnectionIndicator 전용 스타일 - 다크 테마 (3D 씬 위 표시)
+ * 
+ * ConnectionIndicator.js의 _injectStyles() 내용을
+ * CSS 파일로 분리 + CSS 변수 적용
+ * 
+ * 작성일: 2026-01-06
+ */
+
+/* =============================================
+   Connection Indicator Base
+   ============================================= */
+.connection-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--overlay-bg-primary, rgba(30, 30, 30, 0.95));
+    border: 1px solid var(--overlay-border-light, rgba(255, 255, 255, 0.1));
+    border-radius: var(--radius-md, 8px);
+    font-family: var(--font-family);
+    font-size: var(--font-size-sm, 13px);
+    color: var(--overlay-text-primary, #ffffff);
+    cursor: default;
+    user-select: none;
+    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-overlay, 0 4px 12px rgba(0, 0, 0, 0.3));
+    transition: all 0.3s ease;
+}
+
+.connection-indicator:hover {
+    background: var(--overlay-bg-hover, rgba(40, 40, 40, 0.98));
+    border-color: var(--overlay-border-default, rgba(255, 255, 255, 0.2));
+}
+
+/* =============================================
+   Position Variants
+   ============================================= */
+.connection-indicator--fixed {
+    position: fixed;
+}
+
+.connection-indicator--top-right {
+    top: var(--ci-offset-y, 20px);
+    right: var(--ci-offset-x, 20px);
+}
+
+.connection-indicator--top-left {
+    top: var(--ci-offset-y, 20px);
+    left: var(--ci-offset-x, 20px);
+}
+
+.connection-indicator--bottom-right {
+    bottom: var(--ci-offset-y, 20px);
+    right: var(--ci-offset-x, 20px);
+}
+
+.connection-indicator--bottom-left {
+    bottom: var(--ci-offset-y, 20px);
+    left: var(--ci-offset-x, 20px);
+}
+
+/* =============================================
+   Size Variants
+   ============================================= */
+.connection-indicator--small {
+    padding: 4px 8px;
+    font-size: var(--font-size-xs, 11px);
+    gap: 6px;
+}
+
+.connection-indicator--small .connection-indicator__dot {
+    width: 8px;
+    height: 8px;
+}
+
+.connection-indicator--large {
+    padding: 12px 16px;
+    font-size: var(--font-size-base, 15px);
+    gap: 10px;
+}
+
+.connection-indicator--large .connection-indicator__dot {
+    width: 14px;
+    height: 14px;
+}
+
+/* =============================================
+   Indicator Dot
+   ============================================= */
+.connection-indicator__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--ci-color, #6b7280);
+    position: relative;
+    flex-shrink: 0;
+}
+
+.connection-indicator__dot::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: var(--ci-pulse-color, #9ca3af);
+    opacity: 0;
+    animation: none;
+}
+
+/* Animate 활성화 시 */
+.connection-indicator--animate .connection-indicator__dot--online::before {
+    animation: ci-pulse 2s ease-in-out infinite;
+}
+
+.connection-indicator--animate .connection-indicator__dot--checking::before {
+    animation: ci-pulse 1s ease-in-out infinite;
+}
+
+.connection-indicator--animate .connection-indicator__dot--offline::before {
+    animation: ci-pulse-warning 1.5s ease-in-out infinite;
+}
+
+@keyframes ci-pulse {
+    0%, 100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+        opacity: 0.4;
+        transform: translate(-50%, -50%) scale(1.8);
+    }
+}
+
+@keyframes ci-pulse-warning {
+    0%, 100% {
+        opacity: 0.2;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: translate(-50%, -50%) scale(2);
+    }
+}
+
+/* =============================================
+   Label
+   ============================================= */
+.connection-indicator__label {
+    color: var(--overlay-text-secondary, #e5e5e5);
+    white-space: nowrap;
+}
+
+.connection-indicator__label--online {
+    color: #86efac;
+}
+
+.connection-indicator__label--offline {
+    color: #fca5a5;
+}
+
+.connection-indicator__label--checking {
+    color: #fcd34d;
+}
+
+.connection-indicator__label--unknown {
+    color: var(--overlay-text-muted, #9ca3af);
+}
+
+/* =============================================
+   Tooltip
+   ============================================= */
+.connection-indicator__tooltip {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 220px;
+    padding: 12px;
+    background: rgba(20, 20, 20, 0.98);
+    border: 1px solid var(--overlay-border-default, rgba(255, 255, 255, 0.15));
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--font-size-sm, 12px);
+    color: #d4d4d4;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: all 0.2s ease;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    z-index: 1;
+}
+
+.connection-indicator:hover .connection-indicator__tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.connection-indicator__tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.connection-indicator__tooltip-row:last-child {
+    border-bottom: none;
+}
+
+.connection-indicator__tooltip-label {
+    color: var(--overlay-text-muted, #9ca3af);
+}
+
+.connection-indicator__tooltip-value {
+    color: var(--overlay-text-primary, #ffffff);
+    font-weight: 500;
+}
+
+.connection-indicator__tooltip-value--success {
+    color: #86efac;
+}
+
+.connection-indicator__tooltip-value--error {
+    color: #fca5a5;
+}
+
+/* =============================================
+   Mock Controls
+   ============================================= */
+.connection-indicator__mock-controls {
+    display: flex;
+    gap: 4px;
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid var(--overlay-border-light, rgba(255, 255, 255, 0.1));
+}
+
+.connection-indicator__mock-btn {
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    border: none;
+    border-radius: var(--radius-sm, 4px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.connection-indicator__mock-btn--on {
+    background: #166534;
+    color: #86efac;
+}
+
+.connection-indicator__mock-btn--on:hover {
+    background: #15803d;
+}
+
+.connection-indicator__mock-btn--off {
+    background: #991b1b;
+    color: #fca5a5;
+}
+
+.connection-indicator__mock-btn--off:hover {
+    background: #b91c1c;
+}
+
+.connection-indicator__mock-btn--toggle {
+    background: #1e40af;
+    color: #93c5fd;
+}
+
+.connection-indicator__mock-btn--toggle:hover {
+    background: #1d4ed8;
+}
+
+/* =============================================
+   Mock Mode Badge
+   ============================================= */
+.connection-indicator__mock-badge {
+    padding: 2px 6px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: #7c3aed;
+    color: #e9d5ff;
+    border-radius: var(--radius-sm, 4px);
+    margin-left: 4px;
+}
+
+/* =============================================
+   Hidden State
+   ============================================= */
+.connection-indicator--hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* =============================================
+   접근성 - 포커스
+   ============================================= */
+.connection-indicator__mock-btn:focus {
+    outline: 2px solid var(--interactive-primary, #2196F3);
+    outline-offset: 2px;
+}
+
+/* =============================================
+   애니메이션 감소 선호 시
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+    .connection-indicator {
+        transition: none;
+    }
+    
+    .connection-indicator__dot::before {
+        animation: none !important;
+    }
+    
+    .connection-indicator__tooltip {
+        transition: opacity 0.15s ease;
+        transform: none;
+    }
+    
+    .connection-indicator:hover .connection-indicator__tooltip {
+        transform: none;
+    }
+}

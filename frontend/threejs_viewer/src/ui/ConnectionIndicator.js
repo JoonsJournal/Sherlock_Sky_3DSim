@@ -7,6 +7,11 @@
  * - 호버 시 상세 정보 툴팁 표시
  * - Mock 모드 테스트 컨트롤 (개발 모드)
  * 
+ * @version 2.0.0
+ * @description
+ *   - v1.0.0: 초기 버전
+ *   - v2.0.0: _injectStyles() 제거, CSS 파일 분리 (_connection-indicator.css)
+ * 
  * @location frontend/threejs_viewer/src/ui/ConnectionIndicator.js
  */
 
@@ -20,28 +25,28 @@ import ConnectionStatusService, {
  */
 const STATUS_CONFIG = {
     [ConnectionState.ONLINE]: {
-        color: '#22c55e',        // 초록색
+        color: '#22c55e',
         pulseColor: '#4ade80',
         icon: '●',
         label: 'Connected',
         description: 'Backend 서버에 연결됨'
     },
     [ConnectionState.OFFLINE]: {
-        color: '#ef4444',        // 빨간색
+        color: '#ef4444',
         pulseColor: '#f87171',
         icon: '●',
         label: 'Disconnected',
         description: 'Backend 서버에 연결할 수 없음'
     },
     [ConnectionState.CHECKING]: {
-        color: '#f59e0b',        // 노란색
+        color: '#f59e0b',
         pulseColor: '#fbbf24',
         icon: '◐',
         label: 'Checking...',
         description: '연결 상태 확인 중'
     },
     [ConnectionState.UNKNOWN]: {
-        color: '#6b7280',        // 회색
+        color: '#6b7280',
         pulseColor: '#9ca3af',
         icon: '○',
         label: 'Unknown',
@@ -109,297 +114,10 @@ class ConnectionIndicator {
      * @private
      */
     _init() {
-        this._injectStyles();
+        // 스타일은 CSS 파일에서 로드됨 (_connection-indicator.css)
         this._createElement();
         this._bindEvents();
         this._updateDisplay();
-    }
-
-    /**
-     * 스타일 주입
-     * @private
-     */
-    _injectStyles() {
-        const styleId = 'connection-indicator-styles';
-        
-        // 이미 주입된 경우 스킵
-        if (document.getElementById(styleId)) return;
-
-        const styles = document.createElement('style');
-        styles.id = styleId;
-        styles.textContent = `
-            /* ===== Connection Indicator Base ===== */
-            .connection-indicator {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                padding: 8px 12px;
-                background: rgba(30, 30, 30, 0.95);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 8px;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                font-size: 13px;
-                color: #ffffff;
-                cursor: default;
-                user-select: none;
-                backdrop-filter: blur(10px);
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-                transition: all 0.3s ease;
-            }
-
-            .connection-indicator:hover {
-                background: rgba(40, 40, 40, 0.98);
-                border-color: rgba(255, 255, 255, 0.2);
-            }
-
-            /* ===== Position Variants ===== */
-            .connection-indicator--fixed {
-                position: fixed;
-            }
-
-            .connection-indicator--top-right {
-                top: var(--ci-offset-y, 20px);
-                right: var(--ci-offset-x, 20px);
-            }
-
-            .connection-indicator--top-left {
-                top: var(--ci-offset-y, 20px);
-                left: var(--ci-offset-x, 20px);
-            }
-
-            .connection-indicator--bottom-right {
-                bottom: var(--ci-offset-y, 20px);
-                right: var(--ci-offset-x, 20px);
-            }
-
-            .connection-indicator--bottom-left {
-                bottom: var(--ci-offset-y, 20px);
-                left: var(--ci-offset-x, 20px);
-            }
-
-            /* ===== Size Variants ===== */
-            .connection-indicator--small {
-                padding: 4px 8px;
-                font-size: 11px;
-                gap: 6px;
-            }
-
-            .connection-indicator--small .connection-indicator__dot {
-                width: 8px;
-                height: 8px;
-            }
-
-            .connection-indicator--large {
-                padding: 12px 16px;
-                font-size: 15px;
-                gap: 10px;
-            }
-
-            .connection-indicator--large .connection-indicator__dot {
-                width: 14px;
-                height: 14px;
-            }
-
-            /* ===== Indicator Dot ===== */
-            .connection-indicator__dot {
-                width: 10px;
-                height: 10px;
-                border-radius: 50%;
-                background-color: var(--ci-color, #6b7280);
-                position: relative;
-                flex-shrink: 0;
-            }
-
-            .connection-indicator__dot::before {
-                content: '';
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                width: 100%;
-                height: 100%;
-                border-radius: 50%;
-                background-color: var(--ci-pulse-color, #9ca3af);
-                opacity: 0;
-                animation: none;
-            }
-
-            .connection-indicator--animate .connection-indicator__dot--online::before {
-                animation: ci-pulse 2s ease-in-out infinite;
-            }
-
-            .connection-indicator--animate .connection-indicator__dot--checking::before {
-                animation: ci-pulse 1s ease-in-out infinite;
-            }
-
-            .connection-indicator--animate .connection-indicator__dot--offline::before {
-                animation: ci-pulse-warning 1.5s ease-in-out infinite;
-            }
-
-            @keyframes ci-pulse {
-                0%, 100% {
-                    opacity: 0;
-                    transform: translate(-50%, -50%) scale(1);
-                }
-                50% {
-                    opacity: 0.4;
-                    transform: translate(-50%, -50%) scale(1.8);
-                }
-            }
-
-            @keyframes ci-pulse-warning {
-                0%, 100% {
-                    opacity: 0.2;
-                    transform: translate(-50%, -50%) scale(1);
-                }
-                50% {
-                    opacity: 0.6;
-                    transform: translate(-50%, -50%) scale(2);
-                }
-            }
-
-            /* ===== Label ===== */
-            .connection-indicator__label {
-                color: #e5e5e5;
-                white-space: nowrap;
-            }
-
-            .connection-indicator__label--online {
-                color: #86efac;
-            }
-
-            .connection-indicator__label--offline {
-                color: #fca5a5;
-            }
-
-            .connection-indicator__label--checking {
-                color: #fcd34d;
-            }
-
-            /* ===== Tooltip ===== */
-            .connection-indicator__tooltip {
-                position: absolute;
-                top: calc(100% + 8px);
-                right: 0;
-                min-width: 220px;
-                padding: 12px;
-                background: rgba(20, 20, 20, 0.98);
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                border-radius: 8px;
-                font-size: 12px;
-                color: #d4d4d4;
-                opacity: 0;
-                visibility: hidden;
-                transform: translateY(-4px);
-                transition: all 0.2s ease;
-                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-                z-index: 1;
-            }
-
-            .connection-indicator:hover .connection-indicator__tooltip {
-                opacity: 1;
-                visibility: visible;
-                transform: translateY(0);
-            }
-
-            .connection-indicator__tooltip-row {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 4px 0;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            }
-
-            .connection-indicator__tooltip-row:last-child {
-                border-bottom: none;
-            }
-
-            .connection-indicator__tooltip-label {
-                color: #9ca3af;
-            }
-
-            .connection-indicator__tooltip-value {
-                color: #ffffff;
-                font-weight: 500;
-            }
-
-            .connection-indicator__tooltip-value--success {
-                color: #86efac;
-            }
-
-            .connection-indicator__tooltip-value--error {
-                color: #fca5a5;
-            }
-
-            /* ===== Mock Controls ===== */
-            .connection-indicator__mock-controls {
-                display: flex;
-                gap: 4px;
-                margin-left: 8px;
-                padding-left: 8px;
-                border-left: 1px solid rgba(255, 255, 255, 0.1);
-            }
-
-            .connection-indicator__mock-btn {
-                padding: 4px 8px;
-                font-size: 10px;
-                font-weight: 600;
-                text-transform: uppercase;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-            }
-
-            .connection-indicator__mock-btn--on {
-                background: #166534;
-                color: #86efac;
-            }
-
-            .connection-indicator__mock-btn--on:hover {
-                background: #15803d;
-            }
-
-            .connection-indicator__mock-btn--off {
-                background: #991b1b;
-                color: #fca5a5;
-            }
-
-            .connection-indicator__mock-btn--off:hover {
-                background: #b91c1c;
-            }
-
-            .connection-indicator__mock-btn--toggle {
-                background: #1e40af;
-                color: #93c5fd;
-            }
-
-            .connection-indicator__mock-btn--toggle:hover {
-                background: #1d4ed8;
-            }
-
-            /* ===== Mock Mode Badge ===== */
-            .connection-indicator__mock-badge {
-                padding: 2px 6px;
-                font-size: 9px;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                background: #7c3aed;
-                color: #e9d5ff;
-                border-radius: 4px;
-                margin-left: 4px;
-            }
-
-            /* ===== Hidden State ===== */
-            .connection-indicator--hidden {
-                opacity: 0;
-                visibility: hidden;
-                pointer-events: none;
-            }
-        `;
-
-        document.head.appendChild(styles);
     }
 
     /**
@@ -482,8 +200,6 @@ class ConnectionIndicator {
             html += `<span class="connection-indicator__label">Unknown</span>`;
         }
 
-        // Mock 모드 뱃지 (동적으로 추가됨)
-        
         // Mock 컨트롤
         if (this._options.showMockControls) {
             html += `
@@ -739,8 +455,7 @@ class ConnectionIndicator {
      * @private
      */
     _onCheckStarted() {
-        // 체크 중 상태로 일시적 변경 (원한다면)
-        // this._updateDisplay(); // ConnectionStatusService에서 이미 처리
+        // ConnectionStatusService에서 이미 처리됨
     }
 
     /**
@@ -911,3 +626,5 @@ export default ConnectionIndicator;
 
 // Named export
 export { ConnectionIndicator, STATUS_CONFIG };
+
+console.log('✅ ConnectionIndicator.js v2.0.0 로드 완료');

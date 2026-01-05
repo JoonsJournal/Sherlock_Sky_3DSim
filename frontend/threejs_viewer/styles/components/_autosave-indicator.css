@@ -1,0 +1,408 @@
+/**
+ * _autosave-indicator.css
+ * =======================
+ * AutoSaveIndicator 전용 스타일 - 다크 테마 (3D 씬 위 표시)
+ * 
+ * AutoSaveIndicator.js의 _injectStyles() 내용을
+ * CSS 파일로 분리 + CSS 변수 적용
+ * 
+ * 작성일: 2026-01-06
+ */
+
+/* =============================================
+   AutoSave Indicator Base
+   ============================================= */
+.autosave-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--overlay-bg-primary, rgba(30, 30, 30, 0.95));
+    border: 1px solid var(--overlay-border-light, rgba(255, 255, 255, 0.1));
+    border-radius: var(--radius-md, 8px);
+    font-family: var(--font-family);
+    font-size: var(--font-size-sm, 13px);
+    color: var(--overlay-text-primary, #ffffff);
+    cursor: default;
+    user-select: none;
+    backdrop-filter: blur(10px);
+    box-shadow: var(--shadow-overlay, 0 4px 12px rgba(0, 0, 0, 0.3));
+    transition: all 0.3s ease;
+}
+
+.autosave-indicator:hover {
+    background: var(--overlay-bg-hover, rgba(40, 40, 40, 0.98));
+    border-color: var(--overlay-border-default, rgba(255, 255, 255, 0.2));
+}
+
+/* =============================================
+   Position Variants
+   ============================================= */
+.autosave-indicator--fixed {
+    position: fixed;
+}
+
+.autosave-indicator--top-right {
+    top: var(--asi-offset-y, 60px);
+    right: var(--asi-offset-x, 20px);
+}
+
+.autosave-indicator--top-left {
+    top: var(--asi-offset-y, 60px);
+    left: var(--asi-offset-x, 20px);
+}
+
+.autosave-indicator--bottom-right {
+    bottom: var(--asi-offset-y, 60px);
+    right: var(--asi-offset-x, 20px);
+}
+
+.autosave-indicator--bottom-left {
+    bottom: var(--asi-offset-y, 60px);
+    left: var(--asi-offset-x, 20px);
+}
+
+/* =============================================
+   Size Variants
+   ============================================= */
+.autosave-indicator--small {
+    padding: 4px 8px;
+    font-size: var(--font-size-xs, 11px);
+    gap: 6px;
+}
+
+.autosave-indicator--small .autosave-indicator__dot {
+    width: 8px;
+    height: 8px;
+}
+
+.autosave-indicator--large {
+    padding: 12px 16px;
+    font-size: var(--font-size-base, 15px);
+    gap: 10px;
+}
+
+.autosave-indicator--large .autosave-indicator__dot {
+    width: 14px;
+    height: 14px;
+}
+
+/* =============================================
+   Indicator Dot
+   ============================================= */
+.autosave-indicator__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--asi-color, #6b7280);
+    position: relative;
+    flex-shrink: 0;
+}
+
+.autosave-indicator__dot::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: var(--asi-color, #6b7280);
+    opacity: 0;
+    animation: none;
+}
+
+/* Animate 활성화 시 - 상태별 애니메이션 */
+.autosave-indicator--animate .autosave-indicator__dot--dirty::before {
+    animation: asi-pulse-warning 1.5s ease-in-out infinite;
+}
+
+.autosave-indicator--animate .autosave-indicator__dot--saving::before {
+    animation: asi-pulse 0.8s ease-in-out infinite;
+}
+
+.autosave-indicator--animate .autosave-indicator__dot--saved::before {
+    animation: asi-pulse-success 2s ease-in-out 1;
+}
+
+.autosave-indicator--animate .autosave-indicator__dot--error::before {
+    animation: asi-pulse-error 1s ease-in-out infinite;
+}
+
+@keyframes asi-pulse {
+    0%, 100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: translate(-50%, -50%) scale(2);
+    }
+}
+
+@keyframes asi-pulse-warning {
+    0%, 100% {
+        opacity: 0.3;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: translate(-50%, -50%) scale(1.8);
+    }
+}
+
+@keyframes asi-pulse-success {
+    0% {
+        opacity: 0.8;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(2.5);
+    }
+}
+
+@keyframes asi-pulse-error {
+    0%, 100% {
+        opacity: 0.4;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: translate(-50%, -50%) scale(2);
+    }
+}
+
+/* =============================================
+   Label
+   ============================================= */
+.autosave-indicator__label {
+    color: var(--overlay-text-secondary, #e5e5e5);
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.autosave-indicator__label--idle {
+    color: var(--overlay-text-muted, #9ca3af);
+}
+
+.autosave-indicator__label--dirty {
+    color: #fcd34d;
+}
+
+.autosave-indicator__label--saving {
+    color: #93c5fd;
+}
+
+.autosave-indicator__label--saved {
+    color: #86efac;
+}
+
+.autosave-indicator__label--error {
+    color: #fca5a5;
+}
+
+/* =============================================
+   Time Display
+   ============================================= */
+.autosave-indicator__time {
+    color: var(--overlay-text-muted, #9ca3af);
+    font-size: var(--font-size-xs, 11px);
+    white-space: nowrap;
+}
+
+/* =============================================
+   Save Button
+   ============================================= */
+.autosave-indicator__save-btn {
+    padding: 4px 10px;
+    font-size: var(--font-size-xs, 11px);
+    font-weight: 600;
+    text-transform: uppercase;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(59, 130, 246, 0.3);
+    color: #93c5fd;
+    border-radius: var(--radius-sm, 4px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 4px;
+}
+
+.autosave-indicator__save-btn:hover:not(:disabled) {
+    background: rgba(59, 130, 246, 0.5);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.autosave-indicator__save-btn:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.autosave-indicator__save-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.autosave-indicator__save-btn--dirty {
+    background: rgba(245, 158, 11, 0.4);
+    color: #fcd34d;
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
+.autosave-indicator__save-btn--dirty:hover:not(:disabled) {
+    background: rgba(245, 158, 11, 0.6);
+}
+
+/* =============================================
+   Tooltip
+   ============================================= */
+.autosave-indicator__tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    right: 0;
+    min-width: 200px;
+    padding: 12px;
+    background: rgba(20, 20, 20, 0.98);
+    border: 1px solid var(--overlay-border-default, rgba(255, 255, 255, 0.15));
+    border-radius: var(--radius-md, 8px);
+    font-size: var(--font-size-sm, 12px);
+    color: #d4d4d4;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition: all 0.2s ease;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    z-index: 1;
+}
+
+.autosave-indicator:hover .autosave-indicator__tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.autosave-indicator__tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.autosave-indicator__tooltip-row:last-child {
+    border-bottom: none;
+}
+
+.autosave-indicator__tooltip-label {
+    color: var(--overlay-text-muted, #9ca3af);
+}
+
+.autosave-indicator__tooltip-value {
+    color: var(--overlay-text-primary, #ffffff);
+    font-weight: 500;
+}
+
+.autosave-indicator__tooltip-value--success {
+    color: #86efac;
+}
+
+.autosave-indicator__tooltip-value--warning {
+    color: #fcd34d;
+}
+
+.autosave-indicator__tooltip-value--error {
+    color: #fca5a5;
+}
+
+/* =============================================
+   Change Count Badge
+   ============================================= */
+.autosave-indicator__badge {
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(245, 158, 11, 0.3);
+    color: #fcd34d;
+    border-radius: 10px;
+    margin-left: 4px;
+}
+
+/* =============================================
+   Namespace Badge
+   ============================================= */
+.autosave-indicator__namespace {
+    padding: 2px 6px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: rgba(99, 102, 241, 0.3);
+    color: #a5b4fc;
+    border-radius: var(--radius-sm, 4px);
+    margin-right: 4px;
+}
+
+/* =============================================
+   Saving Spinner
+   ============================================= */
+.autosave-indicator__saving-spinner {
+    width: 10px;
+    height: 10px;
+    border: 2px solid rgba(59, 130, 246, 0.3);
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: asi-spin 0.8s linear infinite;
+}
+
+@keyframes asi-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* =============================================
+   Hidden State
+   ============================================= */
+.autosave-indicator--hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* =============================================
+   접근성 - 포커스
+   ============================================= */
+.autosave-indicator__save-btn:focus {
+    outline: 2px solid var(--interactive-primary, #2196F3);
+    outline-offset: 2px;
+}
+
+/* =============================================
+   애니메이션 감소 선호 시
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+    .autosave-indicator {
+        transition: none;
+    }
+    
+    .autosave-indicator__dot::before {
+        animation: none !important;
+    }
+    
+    .autosave-indicator__saving-spinner {
+        animation: none;
+        border-color: #3b82f6;
+    }
+    
+    .autosave-indicator__tooltip {
+        transition: opacity 0.15s ease;
+        transform: none;
+    }
+    
+    .autosave-indicator:hover .autosave-indicator__tooltip {
+        transform: none;
+    }
+    
+    .autosave-indicator__save-btn:active:not(:disabled) {
+        transform: none;
+    }
+}
