@@ -1,9 +1,12 @@
 /**
- * MonitoringService.js - v2.4.0
+ * MonitoringService.js - v3.0.0
  * 실시간 설비 모니터링 서비스
  * 
- * ⭐ v2.4.0: equipment_id → frontend_id 변환 로직 추가
- *            WebSocket subscribe 메시지 전송 추가
+ * ⭐ v3.0.0: SignalTower 연동 강화
+ * - 초기화 흐름 개선 (모든 램프 OFF → 미매핑 DISABLED → REST API로 상태 로드)
+ * - 새 매핑 이벤트 처리 (mapping-changed)
+ * - SignalTower 미매핑 설비 DISABLED 처리
+ * - API URL 수정: /equipment/{frontend_id}/live
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
  */
@@ -30,7 +33,7 @@ export class MonitoringService {
         this.batchInterval = 1000;
         this.batchTimer = null;
         
-        // ⭐ 미연결 설비 색상 옵션
+        // 미연결 설비 색상 옵션
         this.disabledOptions = {
             grayColor: 0x444444  // 어두운 회색 (바닥과 구별)
         };
@@ -44,17 +47,27 @@ export class MonitoringService {
             rate: 0
         };
         
-        debugLog('MonitoringService initialized (v2.4.0)');
+        // ⭐ v3.0.0: EventBus 참조 (있으면 사용)
+        this.eventBus = null;
+        
+        // ⭐ v3.0.0: 이벤트 핸들러 바인딩 (제거 시 필요)
+        this._boundHandleMappingChanged = this.handleMappingChanged.bind(this);
+        
+        debugLog('MonitoringService initialized (v3.0.0)');
     }
     
-    setDependencies(equipmentLoader, equipmentEditState) {
+    /**
+     * 의존성 설정
+     */
+    setDependencies(equipmentLoader, equipmentEditState, eventBus = null) {
         this.equipmentLoader = equipmentLoader;
         this.equipmentEditState = equipmentEditState;
+        this.eventBus = eventBus;
         debugLog('MonitoringService dependencies set');
     }
     
     /**
-     * 모니터링 시작
+     * ⭐ v3.0.0: 모니터링 시작 (개선된 흐름)
      */
     async start() {
         if (this.isActive) {
@@ -62,34 +75,62 @@ export class MonitoringService {
             return;
         }
         
-        debugLog('🟢 Starting monitoring mode...');
+        debugLog('🟢 Starting monitoring mode (v3.0.0)...');
         this.isActive = true;
         
         try {
-            // 1. 미연결 설비 비활성화 표시 적용
-            this.applyUnmappedEquipmentStyle();
-            
-            // 2. 통계 패널 표시
-            this.createStatusPanel();
-            
-            // 3. SignalTower 램프 초기화
+            // ============================================
+            // 1️⃣ SignalTower 모든 램프 초기화 (OFF 상태)
+            // ============================================
             if (this.signalTowerManager) {
                 this.signalTowerManager.initializeAllLights();
-                debugLog('🚨 SignalTower lights initialized');
+                debugLog('🚨 Step 1: SignalTower lights initialized (all OFF)');
             }
             
-            // 4. 초기 상태 로드 (REST API) - 실패해도 계속 진행
+            // ============================================
+            // 2️⃣ 미매핑 설비 처리
+            // ============================================
+            // 2-1. 설비 모델 회색 처리
+            this.applyUnmappedEquipmentStyle();
+            debugLog('🌫️ Step 2-1: Unmapped equipment model grayed out');
+            
+            // 2-2. SignalTower 램프 DISABLED 처리
+            this.applyUnmappedSignalTowerStyle();
+            debugLog('🌫️ Step 2-2: Unmapped SignalTower lamps disabled');
+            
+            // ============================================
+            // 3️⃣ 통계 패널 표시
+            // ============================================
+            this.createStatusPanel();
+            debugLog('📊 Step 3: Status panel created');
+            
+            // ============================================
+            // 4️⃣ REST API로 초기 상태 로드
+            // ============================================
             await this.loadInitialStatus().catch(err => {
-                debugLog(`⚠️ loadInitialStatus failed: ${err.message}`);
+                debugLog(`⚠️ Step 4: loadInitialStatus failed: ${err.message}`);
             });
+            debugLog('📡 Step 4: Initial status loaded');
             
-            // 5. WebSocket 연결 - 실패해도 계속 진행
+            // ============================================
+            // 5️⃣ WebSocket 연결 + Subscribe
+            // ============================================
             this.connectWebSocket();
+            debugLog('🔌 Step 5: WebSocket connecting...');
             
-            // 6. 배치 처리 타이머 시작
+            // ============================================
+            // 6️⃣ 배치 처리 타이머 시작
+            // ============================================
             this.startBatchProcessing();
+            debugLog('⏱️ Step 6: Batch processing started');
             
-            debugLog('✅ Monitoring mode started');
+            // ============================================
+            // 7️⃣ 이벤트 리스너 등록 (새 매핑 감지)
+            // ============================================
+            this.registerEventListeners();
+            debugLog('📡 Step 7: Event listeners registered');
+            
+            debugLog('✅ Monitoring mode started successfully (v3.0.0)');
             
         } catch (error) {
             console.error('❌ Failed to start monitoring:', error);
@@ -104,25 +145,238 @@ export class MonitoringService {
         debugLog('🔴 Stopping monitoring mode...');
         this.isActive = false;
         
-        // 1. 비활성화 표시 해제
+        // 1. 이벤트 리스너 해제
+        this.unregisterEventListeners();
+        
+        // 2. 비활성화 표시 해제
         this.resetEquipmentStyle();
         
-        // 2. 통계 패널 제거
+        // 3. 통계 패널 제거
         this.removeStatusPanel();
         
-        // WebSocket 연결 종료
+        // 4. WebSocket 연결 종료
         if (this.ws) {
             this.ws.close();
             this.ws = null;
         }
         
-        // 배치 처리 타이머 중지
+        // 5. 배치 처리 타이머 중지
         if (this.batchTimer) {
             clearInterval(this.batchTimer);
             this.batchTimer = null;
         }
         
         debugLog('✅ Monitoring mode stopped');
+    }
+    
+    // ============================================
+    // ⭐ v3.0.0: SignalTower 미매핑 설비 처리
+    // ============================================
+    
+    /**
+     * ⭐ v3.0.0: 미매핑 설비의 SignalTower 램프 DISABLED 처리
+     */
+    applyUnmappedSignalTowerStyle() {
+        if (!this.signalTowerManager || !this.equipmentLoader || !this.equipmentEditState) {
+            debugLog('⚠️ Dependencies not ready for SignalTower style');
+            return;
+        }
+        
+        const equipmentArray = this.equipmentLoader.getAllEquipment();
+        const unmappedIds = [];
+        const mappedIds = [];
+        
+        equipmentArray.forEach(equipment => {
+            const frontendId = equipment.userData.id;
+            const isMapped = this.equipmentEditState.isComplete(frontendId);
+            
+            if (isMapped) {
+                mappedIds.push(frontendId);
+            } else {
+                unmappedIds.push(frontendId);
+            }
+        });
+        
+        // 미매핑 설비 램프 DISABLED
+        if (unmappedIds.length > 0) {
+            this.signalTowerManager.disableUnmappedEquipment(unmappedIds);
+        }
+        
+        debugLog(`🚨 SignalTower: ${mappedIds.length} mapped, ${unmappedIds.length} disabled`);
+    }
+    
+    // ============================================
+    // ⭐ v3.0.0: 이벤트 리스너 (새 매핑 감지)
+    // ============================================
+    
+    /**
+     * ⭐ v3.0.0: 이벤트 리스너 등록
+     */
+    registerEventListeners() {
+        // EventBus 사용 (있으면)
+        if (this.eventBus) {
+            this.eventBus.on('mapping-changed', this._boundHandleMappingChanged);
+            this.eventBus.on('mapping-created', this._boundHandleMappingChanged);
+            debugLog('📡 EventBus listeners registered');
+        }
+        
+        // DOM CustomEvent도 지원 (fallback)
+        window.addEventListener('mapping-changed', this._boundHandleMappingChanged);
+        window.addEventListener('mapping-created', this._boundHandleMappingChanged);
+        debugLog('📡 Window event listeners registered');
+    }
+    
+    /**
+     * ⭐ v3.0.0: 이벤트 리스너 해제
+     */
+    unregisterEventListeners() {
+        if (this.eventBus) {
+            this.eventBus.off('mapping-changed', this._boundHandleMappingChanged);
+            this.eventBus.off('mapping-created', this._boundHandleMappingChanged);
+        }
+        
+        window.removeEventListener('mapping-changed', this._boundHandleMappingChanged);
+        window.removeEventListener('mapping-created', this._boundHandleMappingChanged);
+        debugLog('📡 Event listeners unregistered');
+    }
+    
+    /**
+     * ⭐ v3.0.0: 새 매핑 발생 시 처리
+     * @param {Object|CustomEvent} eventOrData - 이벤트 또는 데이터 객체
+     */
+    async handleMappingChanged(eventOrData) {
+        // CustomEvent인 경우 detail에서 데이터 추출
+        const data = eventOrData.detail || eventOrData;
+        
+        // EquipmentEditState에서 발행하는 이벤트 형식 (camelCase)
+        const { frontendId, equipmentId, equipment_id } = data;
+        
+        // equipment_id 우선 사용 (두 가지 형식 지원: camelCase, snake_case)
+        const eqId = equipmentId || equipment_id;
+        
+        if (!frontendId) {
+            debugLog('⚠️ Invalid mapping-changed event data (no frontendId):', data);
+            return;
+        }
+        
+        debugLog(`🆕 New mapping detected: ${frontendId} -> equipment_id: ${eqId}`);
+        
+        try {
+            // ============================================
+            // 1️⃣ 설비 모델 회색 해제 (원래 색상 복원)
+            // ============================================
+            if (this.equipmentLoader) {
+                this.equipmentLoader.restoreEquipmentStyle(frontendId);
+                debugLog(`✅ ${frontendId} model style restored`);
+            }
+            
+            // ============================================
+            // 2️⃣ SignalTower 램프 DISABLED 해제 (OFF 상태로)
+            // ============================================
+            if (this.signalTowerManager) {
+                this.signalTowerManager.clearDisabledState(frontendId);
+                debugLog(`✅ ${frontendId} SignalTower enabled`);
+            }
+            
+            // ============================================
+            // 3️⃣ REST API로 해당 설비 최신 Status 조회
+            // ⭐ v3.0.0: Frontend ID로 /equipment/{id}/live API 호출
+            // ============================================
+            const status = await this.fetchSingleEquipmentStatus(frontendId);
+            
+            if (status) {
+                // ============================================
+                // 4️⃣ 해당 Status에 맞는 램프 ON
+                // ============================================
+                if (this.signalTowerManager) {
+                    this.signalTowerManager.updateStatus(frontendId, status);
+                    debugLog(`✅ ${frontendId} lamp set to ${status}`);
+                }
+                
+                // 캐시 업데이트
+                this.statusCache.set(frontendId, status);
+            }
+            
+            // ============================================
+            // 5️⃣ WebSocket Subscribe 목록에 추가
+            // ============================================
+            if (eqId) {
+                this.sendSubscribeForNewMapping(eqId);
+                debugLog(`✅ ${frontendId} subscribed to WebSocket (equipment_id: ${eqId})`);
+            }
+            
+            // ============================================
+            // 6️⃣ 통계 패널 업데이트
+            // ============================================
+            this.updateStatusPanel();
+            
+            // Toast 알림
+            this.showToast(`✅ ${frontendId} 연결됨 (Status: ${status || 'Unknown'})`, 'success');
+            
+        } catch (error) {
+            console.error(`❌ Failed to handle new mapping for ${frontendId}:`, error);
+            this.showToast(`⚠️ ${frontendId} 연결 처리 실패`, 'error');
+        }
+    }
+    
+    /**
+     * ⭐ v3.0.0: 특정 설비의 최신 Status 조회
+     * Backend API: GET /api/monitoring/equipment/{frontend_id}/live
+     * 
+     * @param {string} frontendId - Frontend ID (예: 'EQ-01-01')
+     * @returns {Promise<string|null>} Status ('RUN', 'IDLE', 'STOP') 또는 null
+     */
+    async fetchSingleEquipmentStatus(frontendId) {
+        try {
+            // ⭐ v3.0.0: 올바른 API 엔드포인트 사용
+            const response = await fetch(`${this.apiBaseUrl}/equipment/${frontendId}/live`);
+            
+            if (!response.ok) {
+                debugLog(`⚠️ Failed to fetch status for: ${frontendId} (HTTP ${response.status})`);
+                return null;
+            }
+            
+            const data = await response.json();
+            
+            // Backend 응답 형식: { equipment_id, status: {...}, production: {...}, timestamp }
+            // status 객체 내부에서 현재 상태 추출
+            if (data.status) {
+                // status가 객체인 경우 (예: { status: 'RUN', temperature: 25.5, ... })
+                if (typeof data.status === 'object' && data.status.status) {
+                    return data.status.status;
+                }
+                // status가 문자열인 경우
+                if (typeof data.status === 'string') {
+                    return data.status;
+                }
+            }
+            
+            debugLog(`⚠️ Could not extract status from response for: ${frontendId}`);
+            return null;
+            
+        } catch (error) {
+            console.error(`❌ Error fetching status for ${frontendId}:`, error);
+            return null;
+        }
+    }
+    
+    /**
+     * ⭐ v3.0.0: 새 매핑된 설비를 WebSocket Subscribe에 추가
+     * @param {number} equipmentId - Equipment ID (DB ID)
+     */
+    sendSubscribeForNewMapping(equipmentId) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            debugLog('⚠️ WebSocket not ready for subscribe');
+            return;
+        }
+        
+        const subscribeMessage = {
+            action: 'subscribe',
+            equipment_ids: [equipmentId]
+        };
+        
+        this.ws.send(JSON.stringify(subscribeMessage));
+        debugLog(`📡 Subscribed to new equipment_id: ${equipmentId}`);
     }
     
     // ============================================
@@ -148,6 +402,27 @@ export class MonitoringService {
     getStatusPanelHTML() {
         const { mapped, unmapped, rate } = this.currentStats;
         
+        // ⭐ v3.0.0: SignalTower 통계 추가
+        let signalTowerStats = '';
+        if (this.signalTowerManager) {
+            const stats = this.signalTowerManager.getStatusStatistics();
+            signalTowerStats = `
+                <div class="status-divider">|</div>
+                <div class="status-item">
+                    <span class="status-icon" style="color: #00ff00;">●</span>
+                    <span class="status-value">${stats.RUN}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-icon" style="color: #ffff00;">●</span>
+                    <span class="status-value">${stats.IDLE}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-icon" style="color: #ff0000;">●</span>
+                    <span class="status-value">${stats.STOP}</span>
+                </div>
+            `;
+        }
+        
         return `
             <div class="status-item">
                 <span class="status-icon connected">✅</span>
@@ -163,6 +438,7 @@ export class MonitoringService {
                 <span class="status-icon">📊</span>
                 <span class="status-value">${rate}% 완료</span>
             </div>
+            ${signalTowerStats}
         `;
     }
     
@@ -337,7 +613,7 @@ export class MonitoringService {
         
         debugLog(`✅ Loaded ${data.equipment.length} equipment status`);
         
-        // 🆕 v2.4.0: REST API 응답에서 frontend_id 또는 equipment_id 사용
+        // REST API 응답에서 frontend_id 또는 equipment_id 사용
         data.equipment.forEach(item => {
             let frontendId = null;
             
@@ -364,7 +640,7 @@ export class MonitoringService {
     }
     
     /**
-     * 🆕 v2.4.0: 매핑된 모든 equipment_id 목록 반환
+     * 매핑된 모든 equipment_id 목록 반환
      * @returns {number[]} Equipment ID 배열
      */
     getMappedEquipmentIds() {
@@ -384,7 +660,7 @@ export class MonitoringService {
                 debugLog('✅ WebSocket connected');
                 this.reconnectAttempts = 0;
                 
-                // 🆕 v2.4.0: 연결 후 subscribe 메시지 전송
+                // 연결 후 subscribe 메시지 전송
                 this.sendSubscribeMessage();
             };
             
@@ -415,7 +691,7 @@ export class MonitoringService {
     }
     
     /**
-     * 🆕 v2.4.0: WebSocket subscribe 메시지 전송
+     * WebSocket subscribe 메시지 전송
      * 매핑된 모든 equipment_id를 구독 요청
      */
     sendSubscribeMessage() {
@@ -441,7 +717,7 @@ export class MonitoringService {
     }
     
     /**
-     * 🆕 v2.4.0: WebSocket 메시지 핸들러 (equipment_id → frontend_id 변환)
+     * WebSocket 메시지 핸들러 (equipment_id → frontend_id 변환)
      */
     handleWebSocketMessage(event) {
         try {
@@ -464,7 +740,7 @@ export class MonitoringService {
                 return;
             }
             
-            // 🆕 v2.4.0: equipment_status 처리 - equipment_id → frontend_id 변환
+            // equipment_status 처리 - equipment_id → frontend_id 변환
             if (data.type === 'equipment_status') {
                 let frontendId = null;
                 
@@ -539,6 +815,9 @@ export class MonitoringService {
             }
         });
         
+        // ⭐ v3.0.0: 배치 처리 후 패널 업데이트
+        this.updateStatusPanel();
+        
         this.updateQueue = [];
     }
     
@@ -554,7 +833,7 @@ export class MonitoringService {
     }
     
     /**
-     * 🆕 v2.4.0: 테스트용: equipment_id로 상태 변경
+     * 테스트용: equipment_id로 상태 변경
      * @param {number} equipmentId - Equipment ID (예: 75)
      * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP')
      */
@@ -571,6 +850,20 @@ export class MonitoringService {
         this.flushUpdateQueue();
     }
     
+    /**
+     * ⭐ v3.0.0: 테스트용: 새 매핑 이벤트 시뮬레이션
+     * @param {string} frontendId - Frontend ID
+     * @param {number} equipmentId - Equipment ID
+     */
+    testNewMapping(frontendId, equipmentId) {
+        debugLog(`🧪 Simulating new mapping: ${frontendId} -> ${equipmentId}`);
+        
+        this.handleMappingChanged({
+            frontendId: frontendId,
+            equipmentId: equipmentId
+        });
+    }
+    
     getConnectionStatus() {
         return {
             isActive: this.isActive,
@@ -580,16 +873,17 @@ export class MonitoringService {
             queueLength: this.updateQueue.length,
             mappedCount: this.equipmentEditState?.getMappingCount() || 0,
             subscribedEquipmentIds: this.getMappedEquipmentIds().length,
-            stats: this.currentStats
+            stats: this.currentStats,
+            signalTowerStats: this.signalTowerManager?.getStatusStatistics() || null
         };
     }
     
     /**
-     * 🆕 v2.4.0: 디버그 정보 출력
+     * 디버그 정보 출력
      */
     debugPrintStatus() {
         console.group('🔧 MonitoringService Debug Info');
-        console.log('Version: 2.4.0');
+        console.log('Version: 3.0.0');
         console.log('Connection Status:', this.getConnectionStatus());
         console.log('Status Cache:', Object.fromEntries(this.statusCache));
         console.log('Update Queue:', this.updateQueue);
@@ -600,6 +894,10 @@ export class MonitoringService {
                     Object.entries(this.equipmentEditState.getEquipmentIdIndex()).slice(0, 10)
                 )
             );
+        }
+        
+        if (this.signalTowerManager) {
+            this.signalTowerManager.debugPrintStatus();
         }
         
         console.groupEnd();

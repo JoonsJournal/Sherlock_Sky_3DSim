@@ -2,8 +2,10 @@
  * EquipmentLoader.js
  * 설비 모델 로딩 및 배열 생성 (equipment1.js 직접 사용, LOD 제거)
  * 
- * @version 2.3.0
- * @description Monitoring Mode 미연결 설비 비활성화 표시 (최종 버전)
+ * @version 2.4.0
+ * @description 
+ * - Monitoring Mode 미연결 설비 비활성화 표시 (최종 버전)
+ * - ⭐ v2.4.0: restoreEquipmentStyle() 편의 메서드 추가
  */
 
 import * as THREE from 'three';
@@ -487,6 +489,7 @@ export class EquipmentLoader {
     // ============================================
     // ⭐ Phase 2.5: Monitoring Mode - 미연결 설비 비활성화 표시
     // ⭐ v2.3.0: 최종 버전 (어두운 회색 + 빨간 emissive)
+    // ⭐ v2.4.0: restoreEquipmentStyle() 편의 메서드 추가
     // ============================================
     
     /**
@@ -586,6 +589,17 @@ export class EquipmentLoader {
             // 원본 상태 복원
             this.restoreOriginalMaterials(equipment);
         }
+    }
+    
+    /**
+     * ⭐ v2.4.0: 단일 설비 스타일 복원 (Monitoring Mode 새 매핑용)
+     * MonitoringService에서 호출하는 편의 메서드
+     * 
+     * @param {string} equipmentId - 설비 ID (예: 'EQ-01-01')
+     */
+    restoreEquipmentStyle(equipmentId) {
+        this.setEquipmentDisabled(equipmentId, false);
+        debugLog(`✅ Equipment style restored: ${equipmentId}`);
     }
     
     /**
