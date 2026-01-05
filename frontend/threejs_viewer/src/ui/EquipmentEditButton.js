@@ -7,8 +7,9 @@
  * - EquipmentEditModal 열기 기능
  * - 기존 HTML 버튼 인계 지원 (createButton: false)
  * 
- * @version 1.1.0
+ * @version 2.0.0
  * @location frontend/threejs_viewer/src/ui/EquipmentEditButton.js
+ * @modified 2026-01-06 (Phase 7 - _injectStyles() 제거, CSS 파일 분리)
  */
 
 import ConnectionStatusService, { ConnectionEvents } from '../services/ConnectionStatusService.js';
@@ -30,6 +31,8 @@ class EquipmentEditButton {
      * @param {boolean} options.showTooltip - 툴팁 표시 여부
      * @param {boolean} options.createButton - 버튼 DOM 생성 여부 (false면 기존 버튼 사용)
      * @param {string} options.buttonId - 버튼 ID (기존 버튼 사용 시 해당 ID)
+     * @param {string} options.size - 버튼 크기 ('sm', 'md', 'lg')
+     * @param {boolean} options.iconOnly - 아이콘만 표시
      */
     constructor(options = {}) {
         this._options = {
@@ -40,7 +43,9 @@ class EquipmentEditButton {
             showTooltip: options.showTooltip ?? true,
             createButton: options.createButton ?? true,
             buttonId: options.buttonId || 'equipment-edit-btn',
-            zIndex: options.zIndex || 1000
+            zIndex: options.zIndex || 1000,
+            size: options.size || 'md',
+            iconOnly: options.iconOnly || false
         };
 
         // DOM 요소
@@ -74,8 +79,6 @@ class EquipmentEditButton {
      * @private
      */
     _init() {
-        this._injectStyles();
-        
         if (this._options.createButton) {
             this._createElement();
         } else {
@@ -85,126 +88,6 @@ class EquipmentEditButton {
 
         this._bindEvents();
         this._updateButtonState();
-    }
-
-    /**
-     * 스타일 주입
-     * @private
-     */
-    _injectStyles() {
-        const styleId = 'equipment-edit-button-styles';
-        
-        if (document.getElementById(styleId)) return;
-
-        const styles = document.createElement('style');
-        styles.id = styleId;
-        styles.textContent = `
-            /* ===== Equipment Edit Button Status Indicator ===== */
-            .floating-btn .eeb-status-indicator {
-                position: absolute;
-                top: -4px;
-                right: -4px;
-                width: 10px;
-                height: 10px;
-                border-radius: 50%;
-                border: 2px solid #1a1a1a;
-                transition: background-color 0.3s ease;
-            }
-
-            .floating-btn .eeb-status-indicator--online {
-                background: #22c55e;
-            }
-
-            .floating-btn .eeb-status-indicator--offline {
-                background: #ef4444;
-            }
-
-            .floating-btn .eeb-status-indicator--checking {
-                background: #f59e0b;
-            }
-
-            /* Disabled State for existing floating-btn */
-            .floating-btn.eeb-disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-            }
-
-            .floating-btn.eeb-disabled:hover {
-                transform: none;
-                box-shadow: none;
-            }
-
-            /* Pulse Animation for Offline Warning */
-            @keyframes eeb-pulse-warning {
-                0%, 100% {
-                    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-                }
-                50% {
-                    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
-                }
-            }
-
-            .floating-btn.eeb-offline-warning {
-                animation: eeb-pulse-warning 2s ease-in-out infinite;
-            }
-
-            /* ===== Standalone Equipment Edit Button ===== */
-            .equipment-edit-btn {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                gap: 8px;
-                padding: 10px 16px;
-                min-width: 44px;
-                min-height: 44px;
-                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                border-radius: 8px;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                font-size: 14px;
-                font-weight: 600;
-                color: #ffffff;
-                cursor: pointer;
-                user-select: none;
-                transition: all 0.2s ease;
-                box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-                position: relative;
-            }
-
-            .equipment-edit-btn:hover:not(:disabled) {
-                background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-                transform: translateY(-1px);
-                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-            }
-
-            .equipment-edit-btn:disabled {
-                background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
-                color: #9ca3af;
-                cursor: not-allowed;
-                box-shadow: none;
-                opacity: 0.7;
-            }
-
-            .equipment-edit-btn__icon {
-                font-size: 18px;
-                line-height: 1;
-            }
-
-            .equipment-edit-btn__label {
-                white-space: nowrap;
-            }
-
-            .equipment-edit-btn__shortcut {
-                padding: 2px 6px;
-                font-size: 10px;
-                font-weight: 700;
-                background: rgba(255, 255, 255, 0.2);
-                border-radius: 4px;
-                margin-left: 4px;
-            }
-        `;
-
-        document.head.appendChild(styles);
     }
 
     /**
@@ -220,10 +103,6 @@ class EquipmentEditButton {
         }
 
         console.log(`[EquipmentEditButton] 기존 버튼 인계: #${this._options.buttonId}`);
-
-        // 기존 클릭 이벤트 제거를 위해 클론 교체 (이벤트 리스너 제거)
-        // 주의: 이 방식은 모든 이벤트를 제거하므로 필요한 경우만 사용
-        // 대신, 새 클릭 핸들러에서 조건 체크 후 기존 동작 수행
         
         // 상태 인디케이터 추가
         this._addStatusIndicator();
@@ -244,8 +123,17 @@ class EquipmentEditButton {
 
         this._element = document.createElement('button');
         this._element.id = this._options.buttonId;
-        this._element.className = 'equipment-edit-btn';
         this._element.type = 'button';
+        
+        // 클래스 생성
+        const classes = ['equipment-edit-btn'];
+        if (this._options.size !== 'md') {
+            classes.push(`equipment-edit-btn--${this._options.size}`);
+        }
+        if (this._options.iconOnly) {
+            classes.push('equipment-edit-btn--icon-only');
+        }
+        this._element.className = classes.join(' ');
 
         this._element.innerHTML = `
             <span class="equipment-edit-btn__icon">🛠️</span>
@@ -400,7 +288,6 @@ class EquipmentEditButton {
             this._options.onEditRequest(this._currentEquipment);
         } else {
             // 버튼 클릭 시뮬레이션 (기존 핸들러 트리거)
-            // 주의: 이 경우 _handleClick이 다시 호출될 수 있으므로 플래그 사용
             this._triggerButtonClick();
         }
     }
@@ -615,7 +502,7 @@ class EquipmentEditButton {
 
         // CSS 클래스 정리
         if (this._element) {
-            this._element.classList.remove('eeb-disabled', 'eeb-offline-warning');
+            this._element.classList.remove('eeb-disabled', 'eeb-offline-warning', 'active');
         }
 
         // 새로 생성한 버튼인 경우만 DOM 제거

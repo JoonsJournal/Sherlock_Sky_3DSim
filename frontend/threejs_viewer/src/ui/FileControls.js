@@ -7,8 +7,9 @@
  * - 드래그앤드롭 영역
  * - 최근 파일 목록
  * 
- * @version 1.0.0
+ * @version 2.0.0
  * @location frontend/threejs_viewer/src/ui/FileControls.js
+ * @modified 2026-01-06 (Phase 7 - _injectStyles() 제거, CSS 파일 분리)
  */
 
 import { eventBus } from '../core/managers/EventBus.js';
@@ -58,432 +59,14 @@ class FileControls {
         this._isDragging = false;
         this._dropZoneHandler = null;
 
-        // 스타일 주입
-        this._injectStyles();
+        // 임시 저장 (Import 미리보기용)
+        this._pendingImportData = null;
 
         // 초기화
         this._createElement();
         this._bindEvents();
 
         console.log('✅ FileControls initialized');
-    }
-
-    // =========================================================================
-    // 스타일 주입
-    // =========================================================================
-
-    /**
-     * 스타일 주입
-     * @private
-     */
-    _injectStyles() {
-        const styleId = 'file-controls-styles';
-        
-        if (document.getElementById(styleId)) return;
-
-        const styles = document.createElement('style');
-        styles.id = styleId;
-        styles.textContent = `
-            /* ===== File Controls Base ===== */
-            .file-controls {
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                font-size: 14px;
-            }
-
-            .file-controls--dark {
-                --fc-bg: rgba(30, 30, 30, 0.95);
-                --fc-bg-hover: rgba(40, 40, 40, 0.98);
-                --fc-border: rgba(255, 255, 255, 0.1);
-                --fc-border-hover: rgba(255, 255, 255, 0.2);
-                --fc-text: #e5e5e5;
-                --fc-text-muted: #9ca3af;
-                --fc-primary: #3b82f6;
-                --fc-success: #22c55e;
-                --fc-warning: #f59e0b;
-                --fc-danger: #ef4444;
-            }
-
-            .file-controls--light {
-                --fc-bg: rgba(255, 255, 255, 0.95);
-                --fc-bg-hover: rgba(245, 245, 245, 0.98);
-                --fc-border: rgba(0, 0, 0, 0.1);
-                --fc-border-hover: rgba(0, 0, 0, 0.2);
-                --fc-text: #1f2937;
-                --fc-text-muted: #6b7280;
-                --fc-primary: #2563eb;
-                --fc-success: #16a34a;
-                --fc-warning: #d97706;
-                --fc-danger: #dc2626;
-            }
-
-            .file-controls--fixed {
-                position: fixed;
-                z-index: var(--fc-z-index, 1000);
-            }
-
-            /* ===== Main Panel ===== */
-            .file-controls__panel {
-                background: var(--fc-bg);
-                border: 1px solid var(--fc-border);
-                border-radius: 12px;
-                padding: 16px;
-                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-                backdrop-filter: blur(10px);
-                min-width: 280px;
-            }
-
-            .file-controls__header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 16px;
-                padding-bottom: 12px;
-                border-bottom: 1px solid var(--fc-border);
-            }
-
-            .file-controls__title {
-                font-size: 16px;
-                font-weight: 600;
-                color: var(--fc-text);
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .file-controls__close {
-                background: none;
-                border: none;
-                color: var(--fc-text-muted);
-                cursor: pointer;
-                padding: 4px;
-                font-size: 18px;
-                line-height: 1;
-                transition: color 0.2s;
-            }
-
-            .file-controls__close:hover {
-                color: var(--fc-text);
-            }
-
-            /* ===== Button Group ===== */
-            .file-controls__buttons {
-                display: flex;
-                gap: 10px;
-                margin-bottom: 16px;
-            }
-
-            .file-controls__btn {
-                flex: 1;
-                padding: 12px 16px;
-                font-size: 14px;
-                font-weight: 500;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 8px;
-            }
-
-            .file-controls__btn--save {
-                background: var(--fc-success);
-                border: none;
-                color: white;
-            }
-
-            .file-controls__btn--save:hover {
-                background: #16a34a;
-                transform: translateY(-1px);
-            }
-
-            .file-controls__btn--load {
-                background: var(--fc-primary);
-                border: none;
-                color: white;
-            }
-
-            .file-controls__btn--load:hover {
-                background: #2563eb;
-                transform: translateY(-1px);
-            }
-
-            .file-controls__btn:active {
-                transform: translateY(0);
-            }
-
-            .file-controls__btn:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-                transform: none;
-            }
-
-            /* ===== Drop Zone ===== */
-            .file-controls__drop-zone {
-                border: 2px dashed var(--fc-border);
-                border-radius: 10px;
-                padding: 24px;
-                text-align: center;
-                transition: all 0.3s ease;
-                margin-bottom: 16px;
-                cursor: pointer;
-            }
-
-            .file-controls__drop-zone:hover {
-                border-color: var(--fc-primary);
-                background: rgba(59, 130, 246, 0.05);
-            }
-
-            .file-controls__drop-zone.drag-over {
-                border-color: var(--fc-success);
-                background: rgba(34, 197, 94, 0.1);
-                border-style: solid;
-            }
-
-            .file-controls__drop-zone-icon {
-                font-size: 36px;
-                margin-bottom: 8px;
-            }
-
-            .file-controls__drop-zone-text {
-                color: var(--fc-text-muted);
-                font-size: 13px;
-            }
-
-            .file-controls__drop-zone-text strong {
-                color: var(--fc-primary);
-            }
-
-            /* ===== Recent Files ===== */
-            .file-controls__recent {
-                margin-top: 16px;
-                padding-top: 16px;
-                border-top: 1px solid var(--fc-border);
-            }
-
-            .file-controls__recent-header {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 10px;
-            }
-
-            .file-controls__recent-title {
-                font-size: 12px;
-                font-weight: 600;
-                color: var(--fc-text-muted);
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-
-            .file-controls__recent-clear {
-                font-size: 11px;
-                color: var(--fc-text-muted);
-                background: none;
-                border: none;
-                cursor: pointer;
-                padding: 2px 6px;
-                border-radius: 4px;
-                transition: all 0.2s;
-            }
-
-            .file-controls__recent-clear:hover {
-                background: rgba(239, 68, 68, 0.1);
-                color: var(--fc-danger);
-            }
-
-            .file-controls__recent-list {
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-                max-height: 150px;
-                overflow-y: auto;
-            }
-
-            .file-controls__recent-item {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                padding: 8px 10px;
-                background: rgba(255, 255, 255, 0.03);
-                border-radius: 6px;
-                cursor: pointer;
-                transition: background 0.2s;
-            }
-
-            .file-controls__recent-item:hover {
-                background: rgba(255, 255, 255, 0.08);
-            }
-
-            .file-controls__recent-icon {
-                font-size: 16px;
-                flex-shrink: 0;
-            }
-
-            .file-controls__recent-icon--export {
-                color: var(--fc-success);
-            }
-
-            .file-controls__recent-icon--import {
-                color: var(--fc-primary);
-            }
-
-            .file-controls__recent-info {
-                flex: 1;
-                min-width: 0;
-            }
-
-            .file-controls__recent-name {
-                font-size: 12px;
-                color: var(--fc-text);
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            .file-controls__recent-meta {
-                font-size: 10px;
-                color: var(--fc-text-muted);
-            }
-
-            .file-controls__recent-empty {
-                text-align: center;
-                padding: 20px;
-                color: var(--fc-text-muted);
-                font-size: 12px;
-            }
-
-            /* ===== Status Message ===== */
-            .file-controls__status {
-                padding: 10px;
-                border-radius: 6px;
-                font-size: 12px;
-                margin-top: 12px;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            }
-
-            .file-controls__status--success {
-                background: rgba(34, 197, 94, 0.1);
-                color: var(--fc-success);
-            }
-
-            .file-controls__status--error {
-                background: rgba(239, 68, 68, 0.1);
-                color: var(--fc-danger);
-            }
-
-            .file-controls__status--info {
-                background: rgba(59, 130, 246, 0.1);
-                color: var(--fc-primary);
-            }
-
-            /* ===== Toggle Button (for fixed position) ===== */
-            .file-controls__toggle {
-                position: fixed;
-                padding: 12px 16px;
-                background: var(--fc-bg);
-                border: 1px solid var(--fc-border);
-                border-radius: 8px;
-                color: var(--fc-text);
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: 500;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                transition: all 0.2s;
-                z-index: var(--fc-z-index, 1000);
-            }
-
-            .file-controls__toggle:hover {
-                background: var(--fc-bg-hover);
-                border-color: var(--fc-border-hover);
-            }
-
-            /* ===== Hidden File Input ===== */
-            .file-controls__file-input {
-                display: none;
-            }
-
-            /* ===== Animations ===== */
-            @keyframes fc-slide-in {
-                from {
-                    opacity: 0;
-                    transform: translateY(10px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-            }
-
-            .file-controls__panel {
-                animation: fc-slide-in 0.3s ease;
-            }
-
-            /* ===== Import Preview ===== */
-            .file-controls__preview {
-                background: rgba(0, 0, 0, 0.2);
-                border-radius: 8px;
-                padding: 12px;
-                margin-top: 12px;
-            }
-
-            .file-controls__preview-title {
-                font-size: 12px;
-                font-weight: 600;
-                color: var(--fc-text-muted);
-                margin-bottom: 8px;
-            }
-
-            .file-controls__preview-row {
-                display: flex;
-                justify-content: space-between;
-                font-size: 12px;
-                padding: 4px 0;
-            }
-
-            .file-controls__preview-label {
-                color: var(--fc-text-muted);
-            }
-
-            .file-controls__preview-value {
-                color: var(--fc-text);
-                font-weight: 500;
-            }
-
-            .file-controls__preview-actions {
-                display: flex;
-                gap: 8px;
-                margin-top: 12px;
-            }
-
-            .file-controls__preview-btn {
-                flex: 1;
-                padding: 8px 12px;
-                font-size: 12px;
-                border-radius: 6px;
-                cursor: pointer;
-                transition: all 0.2s;
-            }
-
-            .file-controls__preview-btn--apply {
-                background: var(--fc-success);
-                border: none;
-                color: white;
-            }
-
-            .file-controls__preview-btn--cancel {
-                background: transparent;
-                border: 1px solid var(--fc-border);
-                color: var(--fc-text-muted);
-            }
-        `;
-
-        document.head.appendChild(styles);
     }
 
     // =========================================================================
@@ -760,7 +343,7 @@ class FileControls {
                     </div>
                 ` : ''}
                 ${preview.warnings.length > 0 ? `
-                    <div class="file-controls__status file-controls__status--info" style="margin-top: 8px;">
+                    <div class="file-controls__status file-controls__status--info">
                         ⚠️ ${preview.warnings[0]}
                     </div>
                 ` : ''}
@@ -879,7 +462,7 @@ class FileControls {
         // 3초 후 자동 제거
         setTimeout(() => {
             const status = container.querySelector('.file-controls__status');
-            if (status && !status.classList.contains('file-controls__preview')) {
+            if (status && !container.querySelector('.file-controls__preview')) {
                 status.remove();
             }
         }, 3000);
@@ -972,6 +555,18 @@ class FileControls {
     }
 
     /**
+     * 테마 변경
+     * @param {string} theme - 'dark' 또는 'light'
+     */
+    setTheme(theme) {
+        if (this._element) {
+            this._element.classList.remove('file-controls--dark', 'file-controls--light');
+            this._element.classList.add(`file-controls--${theme}`);
+        }
+        this._options.theme = theme;
+    }
+
+    /**
      * DOM 요소 반환
      */
     getElement() {
@@ -996,6 +591,7 @@ class FileControls {
         this._dropZone = null;
         this._recentFilesPanel = null;
         this._fileInput = null;
+        this._pendingImportData = null;
 
         console.log('[FileControls] destroyed');
     }
@@ -1012,4 +608,4 @@ if (typeof window !== 'undefined') {
     window.FileControls = FileControls;
 }
 
-console.log('✅ FileControls.js v1.0.0 로드 완료');
+console.log('✅ FileControls.js v2.0.0 로드 완료');

@@ -48,7 +48,8 @@
 @import './components/_common-ui.css';
 
 /* Phase 7: 기타 */
-/* @import './components/_file-controls.css'; */
+@import './components/_file-controls.css';
+@import './components/_equipment-edit-button.css';
 
 /* =============================================
    Page Styles (페이지별)
