@@ -2,75 +2,12 @@
  * Button.js
  * 공통 버튼 컴포넌트
  * 
- * @version 1.0.0
+ * @version 2.0.0
  * @description 재사용 가능한 버튼 컴포넌트
+ * @modified 2026-01-06 (Phase 6 - 인라인 스타일 제거, CSS 클래스 기반)
  */
 
 import { BaseComponent } from '../../core/base/BaseComponent.js';
-import { SOLID_EDGE_COLORS } from '../../core/config/theme.js';
-
-/**
- * 버튼 타입별 스타일
- */
-const BUTTON_STYLES = {
-    primary: {
-        background: '#2196F3',
-        color: '#ffffff',
-        border: 'none',
-        hoverBackground: '#1976D2'
-    },
-    secondary: {
-        background: '#424242',
-        color: '#ffffff',
-        border: '1px solid #616161',
-        hoverBackground: '#616161'
-    },
-    danger: {
-        background: '#f44336',
-        color: '#ffffff',
-        border: 'none',
-        hoverBackground: '#d32f2f'
-    },
-    success: {
-        background: '#4CAF50',
-        color: '#ffffff',
-        border: 'none',
-        hoverBackground: '#388E3C'
-    },
-    ghost: {
-        background: 'transparent',
-        color: '#ffffff',
-        border: '1px solid #616161',
-        hoverBackground: 'rgba(255, 255, 255, 0.1)'
-    },
-    icon: {
-        background: 'transparent',
-        color: '#888888',
-        border: 'none',
-        hoverBackground: 'rgba(255, 255, 255, 0.1)'
-    }
-};
-
-/**
- * 버튼 크기별 스타일
- */
-const BUTTON_SIZES = {
-    sm: {
-        padding: '4px 8px',
-        fontSize: '12px',
-        minWidth: '60px'
-    },
-    md: {
-        padding: '8px 16px',
-        fontSize: '14px',
-        minWidth: '80px'
-    },
-    lg: {
-        padding: '12px 24px',
-        fontSize: '16px',
-        minWidth: '100px'
-    }
-};
 
 /**
  * Button 컴포넌트
@@ -84,6 +21,7 @@ export class Button extends BaseComponent {
      * @param {string} options.icon - 아이콘 (선택)
      * @param {boolean} options.disabled - 비활성화 여부
      * @param {boolean} options.loading - 로딩 상태
+     * @param {boolean} options.overlay - 오버레이 테마 사용 여부 (3D 씬 위)
      * @param {Function} options.onClick - 클릭 핸들러
      */
     constructor(options = {}) {
@@ -95,44 +33,66 @@ export class Button extends BaseComponent {
         this.icon = options.icon || '';
         this.disabled = options.disabled || false;
         this.loading = options.loading || false;
+        this.overlay = options.overlay || false;
         this.onClick = options.onClick || null;
         this.title = options.title || '';
+        this.className = options.className || '';
+    }
+    
+    /**
+     * 클래스명 생성
+     */
+    _getClassNames() {
+        const classes = ['btn'];
+        
+        // 타입 클래스
+        if (this.type === 'icon') {
+            classes.push('btn-icon');
+            if (this.overlay) {
+                classes.push('btn-icon--overlay');
+            }
+        } else {
+            const typeClass = `btn-${this.type}`;
+            classes.push(this.overlay ? `${typeClass}--overlay` : typeClass);
+        }
+        
+        // 크기 클래스 (icon 타입이 아닌 경우)
+        if (this.type !== 'icon') {
+            classes.push(`btn--${this.size}`);
+        } else if (this.size !== 'md') {
+            classes.push(`btn-icon--${this.size}`);
+        }
+        
+        // 상태 클래스
+        if (this.disabled) {
+            classes.push('btn--disabled');
+        }
+        
+        if (this.loading) {
+            classes.push('btn--loading');
+        }
+        
+        // 추가 클래스
+        if (this.className) {
+            classes.push(this.className);
+        }
+        
+        return classes.join(' ');
     }
     
     /**
      * 렌더링
      */
     render() {
-        const style = BUTTON_STYLES[this.type] || BUTTON_STYLES.primary;
-        const size = BUTTON_SIZES[this.size] || BUTTON_SIZES.md;
-        
-        const buttonStyle = `
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: ${size.padding};
-            font-size: ${size.fontSize};
-            min-width: ${this.type === 'icon' ? 'auto' : size.minWidth};
-            background: ${style.background};
-            color: ${style.color};
-            border: ${style.border};
-            border-radius: 4px;
-            cursor: ${this.disabled ? 'not-allowed' : 'pointer'};
-            opacity: ${this.disabled ? '0.5' : '1'};
-            transition: all 0.2s ease;
-            font-family: inherit;
-            outline: none;
-        `;
+        const classNames = this._getClassNames();
         
         const content = this.loading 
-            ? '<span class="btn-spinner">⏳</span>' 
-            : `${this.icon ? `<span class="btn-icon">${this.icon}</span>` : ''}${this.text ? `<span class="btn-text">${this.text}</span>` : ''}`;
+            ? '<span class="btn__spinner">⏳</span>' 
+            : `${this.icon ? `<span class="btn__icon">${this.icon}</span>` : ''}${this.text ? `<span class="btn__text">${this.text}</span>` : ''}`;
         
         return `
             <button 
-                class="btn btn-${this.type} btn-${this.size}" 
-                style="${buttonStyle}"
+                class="${classNames}" 
                 ${this.disabled || this.loading ? 'disabled' : ''}
                 ${this.title ? `title="${this.title}"` : ''}
             >
@@ -146,19 +106,6 @@ export class Button extends BaseComponent {
      */
     onMount() {
         if (!this.element) return;
-        
-        const style = BUTTON_STYLES[this.type] || BUTTON_STYLES.primary;
-        
-        // 호버 이벤트
-        this.addDomListener(this.element, 'mouseenter', () => {
-            if (!this.disabled && !this.loading) {
-                this.element.style.background = style.hoverBackground;
-            }
-        });
-        
-        this.addDomListener(this.element, 'mouseleave', () => {
-            this.element.style.background = style.background;
-        });
         
         // 클릭 이벤트
         if (this.onClick) {
@@ -177,8 +124,7 @@ export class Button extends BaseComponent {
         this.disabled = disabled;
         if (this.element) {
             this.element.disabled = disabled;
-            this.element.style.opacity = disabled ? '0.5' : '1';
-            this.element.style.cursor = disabled ? 'not-allowed' : 'pointer';
+            this.element.classList.toggle('btn--disabled', disabled);
         }
     }
     
@@ -187,8 +133,17 @@ export class Button extends BaseComponent {
      */
     setLoading(loading) {
         this.loading = loading;
-        if (this._mounted) {
-            this.update({});
+        if (this.element) {
+            this.element.classList.toggle('btn--loading', loading);
+            this.element.disabled = loading || this.disabled;
+            
+            // 컨텐츠 업데이트
+            if (loading) {
+                this.element.innerHTML = '<span class="btn__spinner">⏳</span>';
+            } else {
+                const content = `${this.icon ? `<span class="btn__icon">${this.icon}</span>` : ''}${this.text ? `<span class="btn__text">${this.text}</span>` : ''}`;
+                this.element.innerHTML = content;
+            }
         }
     }
     
@@ -197,9 +152,36 @@ export class Button extends BaseComponent {
      */
     setText(text) {
         this.text = text;
-        const textEl = this.element?.querySelector('.btn-text');
+        const textEl = this.element?.querySelector('.btn__text');
         if (textEl) {
             textEl.textContent = text;
+        }
+    }
+    
+    /**
+     * 아이콘 변경
+     */
+    setIcon(icon) {
+        this.icon = icon;
+        const iconEl = this.element?.querySelector('.btn__icon');
+        if (iconEl) {
+            iconEl.textContent = icon;
+        }
+    }
+    
+    /**
+     * 타입 변경
+     */
+    setType(type) {
+        if (this.element) {
+            // 기존 타입 클래스 제거
+            const oldTypeClass = this.overlay ? `btn-${this.type}--overlay` : `btn-${this.type}`;
+            this.element.classList.remove(oldTypeClass);
+            
+            // 새 타입 클래스 추가
+            this.type = type;
+            const newTypeClass = this.overlay ? `btn-${type}--overlay` : `btn-${type}`;
+            this.element.classList.add(newTypeClass);
         }
     }
 }

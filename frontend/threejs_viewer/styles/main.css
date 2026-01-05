@@ -45,7 +45,7 @@
 @import './components/_connection-panels.css';
 
 /* Phase 6: 공통 UI 컴포넌트 */
-/* @import './components/_common-ui.css'; */
+@import './components/_common-ui.css';
 
 /* Phase 7: 기타 */
 /* @import './components/_file-controls.css'; */

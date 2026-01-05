@@ -2,8 +2,9 @@
  * ContextMenu.js
  * 컨텍스트 메뉴 (우클릭 메뉴) 컴포넌트
  * 
- * @version 1.0.0
+ * @version 2.0.0
  * @description 재사용 가능한 컨텍스트 메뉴
+ * @modified 2026-01-06 (Phase 6 - 인라인 스타일 제거, CSS 클래스 기반)
  */
 
 import { BaseComponent } from '../../core/base/BaseComponent.js';
@@ -28,7 +29,7 @@ function getContextMenuContainer() {
 export class ContextMenu extends BaseComponent {
     /**
      * @param {Object} options
-     * @param {Array} options.items - 메뉴 항목 [{label, icon?, action?, disabled?, divider?, submenu?}]
+     * @param {Array} options.items - 메뉴 항목 [{label, icon?, action?, disabled?, divider?, submenu?, shortcut?}]
      */
     constructor(options = {}) {
         super({
@@ -49,17 +50,7 @@ export class ContextMenu extends BaseComponent {
      */
     render() {
         return `
-            <div class="context-menu" style="
-                position: fixed;
-                min-width: 160px;
-                background: #2a2a2a;
-                border: 1px solid #444;
-                border-radius: 4px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-                z-index: 10002;
-                display: none;
-                padding: 4px 0;
-            ">
+            <div class="context-menu">
                 ${this._renderItems(this.items)}
             </div>
         `;
@@ -71,32 +62,18 @@ export class ContextMenu extends BaseComponent {
     _renderItems(items) {
         return items.map((item, index) => {
             if (item.divider) {
-                return `<div class="context-menu-divider" style="
-                    height: 1px;
-                    background: #444;
-                    margin: 4px 8px;
-                "></div>`;
+                return '<div class="context-menu__divider"></div>';
             }
             
             const hasSubmenu = item.submenu && item.submenu.length > 0;
+            const disabledClass = item.disabled ? 'context-menu__item--disabled' : '';
             
             return `
-                <div class="context-menu-item ${item.disabled ? 'disabled' : ''}"
-                     data-index="${index}"
-                     style="
-                         display: flex;
-                         align-items: center;
-                         gap: 10px;
-                         padding: 8px 12px;
-                         cursor: ${item.disabled ? 'not-allowed' : 'pointer'};
-                         color: ${item.disabled ? '#666' : '#fff'};
-                         font-size: 13px;
-                         position: relative;
-                     ">
-                    ${item.icon ? `<span class="menu-icon" style="width: 16px; text-align: center;">${item.icon}</span>` : '<span style="width: 16px;"></span>'}
-                    <span class="menu-label" style="flex: 1;">${item.label}</span>
-                    ${item.shortcut ? `<span class="menu-shortcut" style="color: #888; font-size: 11px;">${item.shortcut}</span>` : ''}
-                    ${hasSubmenu ? '<span class="menu-arrow">▶</span>' : ''}
+                <div class="context-menu__item ${disabledClass}" data-index="${index}">
+                    <span class="context-menu__icon">${item.icon || ''}</span>
+                    <span class="context-menu__label">${item.label}</span>
+                    ${item.shortcut ? `<span class="context-menu__shortcut">${item.shortcut}</span>` : ''}
+                    ${hasSubmenu ? '<span class="context-menu__arrow">▶</span>' : ''}
                 </div>
             `;
         }).join('');
@@ -110,25 +87,10 @@ export class ContextMenu extends BaseComponent {
         
         // 항목 클릭
         this.addDomListener(this.element, 'click', (e) => {
-            const item = e.target.closest('.context-menu-item');
-            if (item && !item.classList.contains('disabled')) {
+            const item = e.target.closest('.context-menu__item');
+            if (item && !item.classList.contains('context-menu__item--disabled')) {
                 const index = parseInt(item.dataset.index);
                 this._onItemClick(index);
-            }
-        });
-        
-        // 호버 효과
-        this.addDomListener(this.element, 'mouseover', (e) => {
-            const item = e.target.closest('.context-menu-item');
-            if (item && !item.classList.contains('disabled')) {
-                item.style.background = '#3a3a3a';
-            }
-        });
-        
-        this.addDomListener(this.element, 'mouseout', (e) => {
-            const item = e.target.closest('.context-menu-item');
-            if (item) {
-                item.style.background = 'transparent';
             }
         });
     }
@@ -169,7 +131,6 @@ export class ContextMenu extends BaseComponent {
         this._position = { x, y };
         
         // 화면 경계 체크
-        const menuRect = this.element.getBoundingClientRect();
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         
@@ -188,7 +149,7 @@ export class ContextMenu extends BaseComponent {
         
         this.element.style.left = `${finalX}px`;
         this.element.style.top = `${finalY}px`;
-        this.element.style.display = 'block';
+        this.element.classList.add('context-menu--visible');
         
         this._visible = true;
         
@@ -204,7 +165,7 @@ export class ContextMenu extends BaseComponent {
      */
     hide() {
         if (this.element) {
-            this.element.style.display = 'none';
+            this.element.classList.remove('context-menu--visible');
         }
         this._visible = false;
         

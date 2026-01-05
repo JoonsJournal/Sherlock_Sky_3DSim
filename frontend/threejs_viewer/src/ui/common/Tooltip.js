@@ -2,14 +2,15 @@
  * Tooltip.js
  * 툴팁 컴포넌트
  * 
- * @version 1.0.0
+ * @version 2.0.0
  * @description 호버 시 표시되는 툴팁
+ * @modified 2026-01-06 (Phase 6 - 인라인 스타일 제거, CSS 클래스 기반)
  */
 
 import { BaseComponent } from '../../core/base/BaseComponent.js';
 
 /**
- * 툴팁 위치
+ * 툴팁 위치별 설정
  */
 const POSITIONS = {
     top: { transform: 'translateX(-50%) translateY(-100%)', offset: { x: 0, y: -8 } },
@@ -27,13 +28,6 @@ function getTooltipContainer() {
     if (!tooltipContainer) {
         tooltipContainer = document.createElement('div');
         tooltipContainer.id = 'tooltip-container';
-        tooltipContainer.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-            z-index: 10001;
-        `;
         document.body.appendChild(tooltipContainer);
     }
     return tooltipContainer;
@@ -73,28 +67,23 @@ export class Tooltip extends BaseComponent {
     }
     
     /**
+     * 클래스명 생성
+     */
+    _getClassNames() {
+        return [
+            'tooltip',
+            `tooltip--${this.position}`,
+            `tooltip--${this.theme}`,
+            this._visible ? 'tooltip--visible' : ''
+        ].filter(Boolean).join(' ');
+    }
+    
+    /**
      * 렌더링
      */
     render() {
-        const themeStyles = this.theme === 'dark' 
-            ? 'background: #1a1a1a; color: #fff; border: 1px solid #333;'
-            : 'background: #fff; color: #333; border: 1px solid #ddd;';
-        
         return `
-            <div class="tooltip tooltip-${this.position} tooltip-${this.theme}" 
-                 style="
-                     position: fixed;
-                     padding: 6px 10px;
-                     border-radius: 4px;
-                     font-size: 12px;
-                     max-width: 250px;
-                     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                     opacity: 0;
-                     visibility: hidden;
-                     transition: opacity 0.2s ease, visibility 0.2s ease;
-                     white-space: nowrap;
-                     ${themeStyles}
-                 ">
+            <div class="${this._getClassNames()}">
                 ${this.content}
             </div>
         `;
@@ -172,8 +161,7 @@ export class Tooltip extends BaseComponent {
         this.element.style.left = `${left}px`;
         this.element.style.top = `${top}px`;
         this.element.style.transform = posConfig.transform;
-        this.element.style.opacity = '1';
-        this.element.style.visibility = 'visible';
+        this.element.classList.add('tooltip--visible');
         
         this._visible = true;
     }
@@ -183,8 +171,7 @@ export class Tooltip extends BaseComponent {
      */
     hide() {
         if (this.element) {
-            this.element.style.opacity = '0';
-            this.element.style.visibility = 'hidden';
+            this.element.classList.remove('tooltip--visible');
         }
         this._visible = false;
     }
@@ -195,7 +182,29 @@ export class Tooltip extends BaseComponent {
     setContent(content) {
         this.content = content;
         if (this.element) {
-            this.element.innerHTML = content;
+            this.element.textContent = content;
+        }
+    }
+    
+    /**
+     * 위치 변경
+     */
+    setPosition(position) {
+        if (this.element) {
+            this.element.classList.remove(`tooltip--${this.position}`);
+            this.position = position;
+            this.element.classList.add(`tooltip--${position}`);
+        }
+    }
+    
+    /**
+     * 테마 변경
+     */
+    setTheme(theme) {
+        if (this.element) {
+            this.element.classList.remove(`tooltip--${this.theme}`);
+            this.theme = theme;
+            this.element.classList.add(`tooltip--${theme}`);
         }
     }
     

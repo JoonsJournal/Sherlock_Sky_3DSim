@@ -5,8 +5,10 @@
  * - 기본 버튼 (primary, secondary, danger 등)
  * - 아이콘 버튼 (connectionBtn, editBtn 등)
  * - 토글 버튼
+ * - 플로팅 버튼
  * 
  * 작성일: 2026-01-02
+ * 수정일: 2026-01-06 (Phase 6 - CSS 변수 적용, 버튼 상태 통합)
  */
 
 /* =============================================
@@ -22,87 +24,186 @@
     border-radius: var(--radius-md);
     font-size: var(--font-size-base);
     font-weight: 500;
+    font-family: inherit;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: var(--transition-fast);
     text-decoration: none;
+    outline: none;
 }
 
-.btn:disabled {
+.btn:focus-visible {
+    box-shadow: 0 0 0 3px var(--theme-border-focus);
+}
+
+.btn:disabled,
+.btn--disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
+.btn:disabled:hover,
+.btn--disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
 /* =============================================
-   버튼 변형 (Variants)
+   버튼 크기 (Sizes)
+   ============================================= */
+.btn--sm {
+    padding: 4px 8px;
+    font-size: var(--font-size-sm);
+    min-width: 60px;
+}
+
+.btn--md {
+    padding: 8px 16px;
+    font-size: var(--font-size-base);
+    min-width: 80px;
+}
+
+.btn--lg {
+    padding: 12px 24px;
+    font-size: var(--font-size-md);
+    min-width: 100px;
+}
+
+/* =============================================
+   버튼 변형 - 라이트 테마 (Modal, Panel 내부용)
    ============================================= */
 .btn-primary {
-    background: var(--gradient-primary);
-    color: var(--text-light);
+    background: var(--interactive-primary);
+    color: var(--theme-bg-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
+    background: var(--interactive-primary-hover);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-primary);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
 }
 
-.btn-primary:disabled {
-    background: #cccccc;
+.btn-primary:active:not(:disabled) {
+    background: var(--interactive-primary-active);
+    transform: translateY(0);
 }
 
 .btn-secondary {
-    background-color: var(--color-secondary);
-    color: var(--text-light);
+    background: var(--interactive-secondary);
+    color: var(--theme-bg-primary);
 }
 
 .btn-secondary:hover:not(:disabled) {
-    background-color: var(--color-secondary-dark);
+    background: var(--interactive-secondary-hover);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
 }
 
+.btn-secondary:active:not(:disabled) {
+    background: var(--interactive-secondary-active);
+    transform: translateY(0);
+}
+
 .btn-success {
-    background: var(--gradient-success);
-    color: var(--text-light);
+    background: var(--status-success);
+    color: var(--theme-bg-primary);
 }
 
 .btn-success:hover:not(:disabled) {
+    background: #229954;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(46, 204, 113, 0.4);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
 }
 
 .btn-danger {
-    background-color: var(--color-danger);
-    color: var(--text-light);
+    background: var(--interactive-danger);
+    color: var(--theme-bg-primary);
 }
 
 .btn-danger:hover:not(:disabled) {
-    background-color: #c82333;
+    background: var(--interactive-danger-hover);
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
 }
 
 .btn-warning {
-    background-color: var(--color-warning);
-    color: var(--text-dark);
+    background: var(--status-warning);
+    color: var(--theme-text-primary);
 }
 
 .btn-warning:hover:not(:disabled) {
-    background-color: #e0a800;
+    background: #e0a800;
+    transform: translateY(-2px);
+}
+
+/* Ghost 버튼 (라이트 테마) */
+.btn-ghost {
+    background: transparent;
+    color: var(--theme-text-primary);
+    border: 1px solid var(--theme-border-default);
+}
+
+.btn-ghost:hover:not(:disabled) {
+    background: var(--theme-bg-hover);
+    border-color: var(--theme-border-dark);
 }
 
 /* =============================================
-   아이콘 버튼 (작은 버튼)
+   버튼 변형 - 다크 오버레이 (3D 씬 위)
+   ============================================= */
+.btn-primary--overlay {
+    background: var(--interactive-primary);
+    color: var(--overlay-text-primary);
+}
+
+.btn-primary--overlay:hover:not(:disabled) {
+    background: var(--interactive-primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
+.btn-secondary--overlay {
+    background: var(--overlay-bg-secondary);
+    color: var(--overlay-text-primary);
+    border: 1px solid var(--overlay-border-light);
+}
+
+.btn-secondary--overlay:hover:not(:disabled) {
+    background: var(--overlay-bg-hover);
+    border-color: var(--overlay-border-default);
+}
+
+.btn-ghost--overlay {
+    background: transparent;
+    color: var(--overlay-text-primary);
+    border: 1px solid var(--overlay-border-light);
+}
+
+.btn-ghost--overlay:hover:not(:disabled) {
+    background: var(--overlay-bg-hover);
+}
+
+/* =============================================
+   아이콘 버튼 (라이트 테마)
    ============================================= */
 .btn-icon {
-    padding: 8px 12px;
-    background-color: var(--bg-secondary);
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: var(--theme-bg-secondary);
+    color: var(--theme-text-secondary);
+    border: 1px solid var(--theme-border-default);
     border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-fast);
 }
 
 .btn-icon:hover:not(:disabled) {
-    background-color: var(--border-light);
-    border-color: var(--border-dark);
+    background: var(--theme-bg-hover);
+    border-color: var(--theme-border-dark);
+    color: var(--theme-text-primary);
 }
 
 .btn-icon:disabled {
@@ -110,60 +211,91 @@
     cursor: not-allowed;
 }
 
+/* 아이콘 버튼 크기 변형 */
+.btn-icon--sm {
+    width: 24px;
+    height: 24px;
+    font-size: var(--font-size-sm);
+}
+
+.btn-icon--lg {
+    width: 40px;
+    height: 40px;
+    font-size: var(--font-size-lg);
+}
+
+/* 아이콘 버튼 (다크 오버레이) */
+.btn-icon--overlay {
+    background: transparent;
+    color: var(--overlay-text-muted);
+    border: none;
+}
+
+.btn-icon--overlay:hover:not(:disabled) {
+    background: var(--overlay-bg-hover);
+    color: var(--overlay-text-primary);
+}
+
 /* =============================================
-   연결/해제 버튼
+   연결/해제/재시도 버튼
    ============================================= */
 .btn-disconnect {
     padding: 4px 12px;
-    background-color: var(--color-danger);
-    color: var(--text-light);
+    background: var(--status-error);
+    color: var(--overlay-text-primary);
     border: none;
     border-radius: var(--radius-sm);
     font-size: var(--font-size-sm);
     font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-fast);
 }
 
 .btn-disconnect:hover {
-    background-color: #c82333;
+    background: var(--interactive-danger-hover);
     transform: scale(1.05);
 }
 
 .btn-retry {
     padding: 4px 12px;
-    background-color: var(--color-warning);
-    color: var(--text-dark);
+    background: var(--status-warning);
+    color: var(--theme-text-primary);
     border: none;
     border-radius: var(--radius-sm);
     font-size: var(--font-size-sm);
     font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-fast);
 }
 
 .btn-retry:hover {
-    background-color: #e0a800;
+    background: #e0a800;
     transform: scale(1.05);
 }
 
 .btn-select {
     padding: 8px 16px;
-    background: #3498db;
-    color: var(--text-light);
+    background: var(--interactive-primary);
+    color: var(--overlay-text-primary);
     border: none;
     border-radius: var(--radius-sm);
     font-weight: 500;
     white-space: nowrap;
+    cursor: pointer;
+    transition: var(--transition-fast);
 }
 
 .btn-select:hover:not(:disabled) {
-    background: #2980b9;
+    background: var(--interactive-primary-hover);
 }
 
 .btn-select:disabled {
-    background: #bdc3c7;
+    background: var(--theme-border-dark);
     cursor: not-allowed;
 }
 
 /* =============================================
-   플로팅 원형 버튼 (공통 베이스)
+   플로팅 원형 버튼 (3D 씬 위)
    ============================================= */
 .floating-btn {
     position: absolute;
@@ -175,29 +307,30 @@
     cursor: pointer;
     z-index: var(--z-fixed);
     box-shadow: var(--shadow-md);
-    transition: all 0.3s ease;
-    color: var(--text-light);
+    transition: var(--transition-normal);
+    color: var(--overlay-text-primary);
 }
 
 .floating-btn:hover {
     transform: scale(1.1);
 }
 
-/* 툴팁 (::after) */
+/* 플로팅 버튼 툴팁 */
 .floating-btn::after {
     position: absolute;
     left: 60px;
     top: 50%;
     transform: translateY(-50%);
-    background: var(--bg-dark);
-    color: var(--text-light);
+    background: var(--overlay-bg-primary);
+    color: var(--overlay-text-primary);
     padding: 8px 12px;
     border-radius: var(--radius-md);
     font-size: var(--font-size-sm);
     white-space: nowrap;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s ease;
+    transition: var(--transition-fast);
+    border: 1px solid var(--overlay-border-light);
 }
 
 .floating-btn:hover::after {
@@ -210,21 +343,21 @@
 #connectionBtn {
     top: 10px;
     left: 10px;
-    background: rgba(52, 152, 219, 0.9);
+    background: rgba(33, 150, 243, 0.9);
 }
 
 #connectionBtn:hover {
-    background: rgba(41, 128, 185, 0.9);
+    background: rgba(25, 118, 210, 0.95);
 }
 
 #connectionBtn.connected {
-    background: rgba(46, 204, 113, 0.9);
-    box-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
+    background: rgba(40, 167, 69, 0.9);
+    box-shadow: 0 0 20px rgba(40, 167, 69, 0.5);
 }
 
 #connectionBtn.connecting {
-    background: rgba(241, 196, 15, 0.9);
-    animation: pulse 1.5s ease-in-out infinite;
+    background: rgba(255, 193, 7, 0.9);
+    animation: btn-pulse 1.5s ease-in-out infinite;
 }
 
 #connectionBtn::after {
@@ -237,11 +370,11 @@
 #editBtn {
     top: 70px;
     left: 10px;
-    background: rgba(52, 152, 219, 0.9);
+    background: rgba(33, 150, 243, 0.9);
 }
 
 #editBtn:hover {
-    background: rgba(41, 128, 185, 0.9);
+    background: rgba(25, 118, 210, 0.95);
 }
 
 #editBtn.active {
@@ -259,17 +392,17 @@
 #monitoringBtn {
     top: 130px;
     left: 10px;
-    background: rgba(52, 152, 219, 0.9);
+    background: rgba(33, 150, 243, 0.9);
 }
 
 #monitoringBtn:hover {
-    background: rgba(41, 128, 185, 0.9);
+    background: rgba(25, 118, 210, 0.95);
 }
 
 #monitoringBtn.active {
     background: rgba(231, 76, 60, 0.9);
     box-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
-    animation: pulse 2s ease-in-out infinite;
+    animation: btn-pulse 2s ease-in-out infinite;
 }
 
 #monitoringBtn::after {
@@ -287,12 +420,12 @@
 }
 
 #previewBtn:hover {
-    background: rgba(142, 68, 173, 0.9);
+    background: rgba(142, 68, 173, 0.95);
 }
 
 #previewBtn.active {
-    background: rgba(46, 204, 113, 0.9);
-    box-shadow: 0 0 20px rgba(46, 204, 113, 0.5);
+    background: rgba(40, 167, 69, 0.9);
+    box-shadow: 0 0 20px rgba(40, 167, 69, 0.5);
 }
 
 #previewBtn::after {
@@ -305,11 +438,11 @@
 #debugToggle {
     bottom: 20px;
     left: 20px;
-    background: rgba(52, 152, 219, 0.9);
+    background: rgba(33, 150, 243, 0.9);
 }
 
 #debugToggle:hover {
-    background: rgba(41, 128, 185, 0.9);
+    background: rgba(25, 118, 210, 0.95);
 }
 
 #debugToggle.active {
@@ -322,36 +455,106 @@
    ============================================= */
 .preview-view-btn {
     padding: 8px 16px;
-    background: #f0f0f0;
-    border: 1px solid #ddd;
+    background: var(--theme-bg-secondary);
+    border: 1px solid var(--theme-border-default);
     border-radius: var(--radius-md);
     font-size: var(--font-size-sm);
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s ease;
-    color: var(--text-secondary);
+    transition: var(--transition-fast);
+    color: var(--theme-text-secondary);
 }
 
 .preview-view-btn:hover {
-    background: #e0e0e0;
-    border-color: var(--mode-layout);
-    color: var(--mode-layout);
+    background: var(--theme-bg-hover);
+    border-color: var(--interactive-primary);
+    color: var(--interactive-primary);
 }
 
-.preview-view-btn:active {
-    background: var(--mode-layout);
-    color: var(--text-light);
-    border-color: var(--mode-layout);
+.preview-view-btn:active,
+.preview-view-btn.active {
+    background: var(--interactive-primary);
+    color: var(--theme-bg-primary);
+    border-color: var(--interactive-primary);
+}
+
+/* =============================================
+   버튼 내부 요소
+   ============================================= */
+.btn__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn__text {
+    display: inline-block;
+}
+
+.btn__spinner {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+}
+
+/* =============================================
+   로딩 상태 버튼
+   ============================================= */
+.btn--loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.btn--loading .btn__text {
+    visibility: hidden;
+}
+
+.btn--loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* =============================================
+   버튼 그룹
+   ============================================= */
+.btn-group {
+    display: inline-flex;
+}
+
+.btn-group .btn {
+    border-radius: 0;
+}
+
+.btn-group .btn:first-child {
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.btn-group .btn:last-child {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.btn-group .btn:not(:last-child) {
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* =============================================
    애니메이션
    ============================================= */
-@keyframes pulse {
+@keyframes btn-pulse {
     0%, 100% {
         opacity: 1;
     }
     50% {
         opacity: 0.7;
     }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
