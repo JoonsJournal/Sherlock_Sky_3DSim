@@ -2,11 +2,12 @@
  * EquipmentEditModal.js
  * 설비 편집 모달
  * 
- * @version 2.1.0
+ * @version 2.2.0
  * @description 
  *   - BaseModal 상속 적용
  *   - EquipmentMappingService 연동
  *   - 서버 저장/검증 기능 추가
+ *   - 🆕 v2.2.0: line_name 저장 추가
  */
 
 import { BaseModal } from '../core/base/BaseModal.js';
@@ -47,6 +48,7 @@ export class EquipmentEditModal extends BaseModal {
         this.filteredEquipments = [];
         this.selectedEquipmentId = null;
         this.selectedEquipmentName = null;
+        this.selectedLineName = null;  // 🆕 v2.2.0
         
         // 검증 상태
         this.validationResult = null;
@@ -225,6 +227,7 @@ export class EquipmentEditModal extends BaseModal {
         this.currentEquipment = equipment;
         this.selectedEquipmentId = null;
         this.selectedEquipmentName = null;
+        this.selectedLineName = null;  // 🆕 v2.2.0
         this.validationResult = null;
         
         // BaseModal의 open 호출
@@ -250,6 +253,7 @@ export class EquipmentEditModal extends BaseModal {
         this.currentEquipment = null;
         this.selectedEquipmentId = null;
         this.selectedEquipmentName = null;
+        this.selectedLineName = null;  // 🆕 v2.2.0
         this.validationResult = null;
         
         // 검색 초기화
@@ -267,6 +271,7 @@ export class EquipmentEditModal extends BaseModal {
     
     /**
      * Confirm 버튼 클릭
+     * 🆕 v2.2.0: line_name도 함께 저장
      */
     onConfirm() {
         if (!this.selectedEquipmentId) {
@@ -274,13 +279,18 @@ export class EquipmentEditModal extends BaseModal {
             return;
         }
         
-        // 매핑 저장
+        // 🆕 v2.2.0: 매핑 저장 (equipment_id, equipment_name, line_name 포함)
         this.editState.setMapping(this.currentEquipment.userData.id, {
             equipment_id: this.selectedEquipmentId,
-            equipment_name: this.selectedEquipmentName
+            equipment_name: this.selectedEquipmentName,
+            line_name: this.selectedLineName  // 🆕 line_name 추가
         });
         
-        toast.success(`Mapped: ${this.currentEquipment.userData.id} → ${this.selectedEquipmentName}`);
+        // 🆕 v2.2.0: 토스트 메시지에 line_name 포함
+        const lineInfo = this.selectedLineName ? ` (Line: ${this.selectedLineName})` : '';
+        toast.success(`Mapped: ${this.currentEquipment.userData.id} → ${this.selectedEquipmentName}${lineInfo}`);
+        
+        debugLog(`🔗 Mapping saved: ${this.currentEquipment.userData.id} → ID: ${this.selectedEquipmentId}, Name: ${this.selectedEquipmentName}, Line: ${this.selectedLineName || 'N/A'}`);
         
         // 모달 닫기
         this.close();
@@ -543,6 +553,7 @@ export class EquipmentEditModal extends BaseModal {
     
     /**
      * 설비 정보 표시
+     * 🆕 v2.2.0: line_name 표시 추가
      */
     _displayEquipmentInfo() {
         const frontendIdEl = this.$('#edit-frontend-id');
@@ -565,9 +576,12 @@ export class EquipmentEditModal extends BaseModal {
         if (currentMappingEl) {
             const mapping = this.editState?.getMapping(userData.id);
             if (mapping) {
+                // 🆕 v2.2.0: line_name 표시 추가
+                const lineInfo = mapping.line_name ? `<br><span style="color: #888; font-size: 11px;">Line: ${mapping.line_name}</span>` : '';
                 currentMappingEl.innerHTML = `
                     <span style="color: #4CAF50;">${mapping.equipment_name}</span>
                     <span style="color: #666; font-size: 12px;">(ID: ${mapping.equipment_id})</span>
+                    ${lineInfo}
                 `;
             } else {
                 currentMappingEl.textContent = 'Not Assigned';
@@ -647,7 +661,7 @@ export class EquipmentEditModal extends BaseModal {
                         ">Assigned</span>` : ''}
                     </div>
                     <div class="equipment-item-details" style="display: flex; gap: 12px; margin-top: 4px; font-size: 12px; color: #888;">
-                        <span class="equipment-code">Code: ${equipment.equipment_code || 'N/A'}</span>
+                        <span class="equipment-id">ID: ${equipment.equipment_id}</span>
                         <span class="equipment-line">Line: ${equipment.line_name || 'N/A'}</span>
                         ${isAssigned && !isCurrent ? `<span class="assigned-to" style="color: #f44336;">→ ${assignedTo}</span>` : ''}
                     </div>
@@ -705,7 +719,7 @@ export class EquipmentEditModal extends BaseModal {
         } else {
             this.filteredEquipments = this.availableEquipments.filter(eq => 
                 eq.equipment_name.toLowerCase().includes(term) ||
-                (eq.equipment_code && eq.equipment_code.toLowerCase().includes(term)) ||
+                (eq.equipment_id && eq.equipment_id.toString().includes(term)) ||
                 (eq.line_name && eq.line_name.toLowerCase().includes(term))
             );
         }
@@ -715,15 +729,20 @@ export class EquipmentEditModal extends BaseModal {
     
     /**
      * Equipment 선택
+     * 🆕 v2.2.0: line_name도 저장
      * @param {Object} equipment - 선택된 설비
      */
     _selectEquipment(equipment) {
         this.selectedEquipmentId = equipment.equipment_id;
         this.selectedEquipmentName = equipment.equipment_name;
+        this.selectedLineName = equipment.line_name || null;  // 🆕 v2.2.0
         
         // Confirm 버튼 활성화
         this.setConfirmEnabled(true);
-        this.setConfirmText(`Confirm: ${equipment.equipment_name}`);
+        
+        // 🆕 v2.2.0: Confirm 버튼 텍스트에 line_name 포함
+        const lineInfo = this.selectedLineName ? ` (${this.selectedLineName})` : '';
+        this.setConfirmText(`Confirm: ${equipment.equipment_name}${lineInfo}`);
         
         // 목록에서 선택 표시
         const listContainer = this.$('#equipment-list');
@@ -740,7 +759,7 @@ export class EquipmentEditModal extends BaseModal {
             }
         }
         
-        debugLog(`✅ Selected: ${equipment.equipment_name}`);
+        debugLog(`✅ Selected: ${equipment.equipment_name} (ID: ${equipment.equipment_id}, Line: ${equipment.line_name || 'N/A'})`);
     }
     
     /**

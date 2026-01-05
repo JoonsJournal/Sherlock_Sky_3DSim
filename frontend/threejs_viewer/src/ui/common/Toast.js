@@ -2,8 +2,12 @@
  * Toast.js
  * Toast 알림 컴포넌트
  * 
- * @version 2.0.0
+ * @version 2.1.0
  * @description BaseComponent 상속, 통합 Toast 시스템
+ * 
+ * @changelog
+ * - v2.1.0: mount() 오버라이드 - innerHTML 대신 appendChild 사용 (DOM 파괴 방지)
+ * - v2.0.0: BaseComponent 상속, 통합 Toast 시스템
  */
 
 import { BaseComponent } from '../../core/base/BaseComponent.js';
@@ -61,6 +65,49 @@ export class Toast extends BaseComponent {
      */
     render() {
         return `<div class="toast-container" id="${this.id}"></div>`;
+    }
+    
+    /**
+     * 🔧 마운트 오버라이드 - innerHTML 대신 appendChild 사용
+     * @param {HTMLElement} container - 마운트할 컨테이너 (선택)
+     * @returns {Toast} this
+     */
+    mount(container = null) {
+        if (this._mounted) {
+            return this;
+        }
+        
+        if (container) {
+            this.container = container;
+        }
+        
+        if (!this.container) {
+            console.error('[Toast] 컨테이너가 지정되지 않음');
+            return this;
+        }
+        
+        // 🔧 핵심 수정: 기존 요소 확인 또는 새로 생성
+        let existingElement = document.getElementById(this.id);
+        
+        if (existingElement) {
+            // 기존 요소가 있으면 재사용
+            this.element = existingElement;
+        } else {
+            // 새 요소 생성 (innerHTML 대신 createElement 사용!)
+            this.element = document.createElement('div');
+            this.element.id = this.id;
+            this.element.className = 'toast-container';
+            
+            // 💡 appendChild 사용 - 기존 DOM 보존!
+            this.container.appendChild(this.element);
+        }
+        
+        this._mounted = true;
+        
+        // 마운트 콜백
+        this.onMount();
+        
+        return this;
     }
     
     /**

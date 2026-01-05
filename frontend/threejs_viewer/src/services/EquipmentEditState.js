@@ -13,8 +13,9 @@
  * - 강화된 에러 처리
  * - 디버깅 유틸리티
  * - 🆕 StorageService AutoSave 연동
+ * - 🆕 v1.3.0: equipment_id 역방향 인덱스, line_name 저장
  * 
- * @version 1.2.0
+ * @version 1.3.0
  */
 
 import { debugLog } from '../core/utils/Config.js';
@@ -24,8 +25,12 @@ export class EquipmentEditState {
         // 편집 모드 여부
         this.editModeEnabled = false;
         
-        // 매핑 데이터: { 'EQ-01-01': { frontend_id, equipment_id, equipment_name, mapped_at }, ... }
+        // 매핑 데이터: { 'EQ-01-01': { frontend_id, equipment_id, equipment_name, line_name, mapped_at }, ... }
         this.mappings = {};
+        
+        // 🆕 v1.3.0: equipment_id → frontend_id 역방향 인덱스
+        // { 75: 'EQ-01-01', 76: 'EQ-02-01', ... }
+        this.equipmentIdIndex = {};
         
         // 변경 여부 (dirty flag)
         this.isDirty = false;
@@ -34,7 +39,7 @@ export class EquipmentEditState {
         this.storageKey = 'sherlock_equipment_mappings';
         
         // 버전 정보
-        this.version = '1.2.0';
+        this.version = '1.3.0';
         
         // 🆕 AutoSave 관련
         this._autoSaveInstance = null;
@@ -54,6 +59,51 @@ export class EquipmentEditState {
         window.addEventListener('storage', this.handleStorageChange);
         
         debugLog(`✨ EquipmentEditState initialized (v${this.version}) - AutoSave: ${this._autoSaveEnabled ? 'ON' : 'OFF'}`);
+    }
+    
+    // ==========================================
+    // 🆕 v1.3.0: Equipment ID 역방향 인덱스 관리
+    // ==========================================
+    
+    /**
+     * 🆕 역방향 인덱스 재구축
+     * mappings 데이터로부터 equipmentIdIndex 생성
+     */
+    rebuildEquipmentIdIndex() {
+        this.equipmentIdIndex = {};
+        
+        for (const [frontendId, mapping] of Object.entries(this.mappings)) {
+            if (mapping.equipment_id) {
+                this.equipmentIdIndex[mapping.equipment_id] = frontendId;
+            }
+        }
+        
+        debugLog(`🔄 Equipment ID Index rebuilt: ${Object.keys(this.equipmentIdIndex).length} entries`);
+    }
+    
+    /**
+     * 🆕 Equipment ID로 Frontend ID 조회 (인덱스 사용 - O(1))
+     * @param {number} equipmentId - DB Equipment ID
+     * @returns {string|null} Frontend ID (예: 'EQ-01-01')
+     */
+    getFrontendIdByEquipmentId(equipmentId) {
+        return this.equipmentIdIndex[equipmentId] || null;
+    }
+    
+    /**
+     * 🆕 Equipment ID 인덱스 전체 반환
+     * @returns {Object} { equipmentId: frontendId, ... }
+     */
+    getEquipmentIdIndex() {
+        return { ...this.equipmentIdIndex };
+    }
+    
+    /**
+     * 🆕 매핑된 모든 Equipment ID 목록 반환
+     * @returns {number[]} Equipment ID 배열
+     */
+    getAllEquipmentIds() {
+        return Object.keys(this.equipmentIdIndex).map(id => parseInt(id, 10));
     }
     
     // ==========================================
@@ -159,6 +209,9 @@ export class EquipmentEditState {
         try {
             // 매핑 데이터 복구
             this.mappings = { ...recoveryData.mappings };
+            
+            // 🆕 역방향 인덱스 재구축
+            this.rebuildEquipmentIdIndex();
             
             // localStorage에도 저장
             this.save();
@@ -267,8 +320,10 @@ export class EquipmentEditState {
     
     /**
      * 매핑 설정 (검증 강화)
+     * 🆕 v1.3.0: line_name 필드 추가
+     * 
      * @param {string} frontendId - Frontend 설비 ID ('EQ-01-01')
-     * @param {Object} dbEquipment - DB 설비 정보 { equipment_id, equipment_name }
+     * @param {Object} dbEquipment - DB 설비 정보 { equipment_id, equipment_name, line_name }
      * @returns {boolean} 성공 여부
      */
     setMapping(frontendId, dbEquipment) {
@@ -295,24 +350,35 @@ export class EquipmentEditState {
             return false;
         }
         
-        // 매핑 저장
+        // 🆕 기존 매핑이 있다면 역방향 인덱스에서 제거
+        const existingMapping = this.mappings[frontendId];
+        if (existingMapping && existingMapping.equipment_id) {
+            delete this.equipmentIdIndex[existingMapping.equipment_id];
+        }
+        
+        // 매핑 저장 (🆕 line_name 추가)
         this.mappings[frontendId] = {
             frontend_id: frontendId,
             equipment_id: dbEquipment.equipment_id,
             equipment_name: dbEquipment.equipment_name,
-            mapped_at: new Date().toISOString() // 매핑 시간 기록
+            line_name: dbEquipment.line_name || null,  // 🆕 line_name 저장
+            mapped_at: new Date().toISOString()
         };
+        
+        // 🆕 역방향 인덱스 업데이트
+        this.equipmentIdIndex[dbEquipment.equipment_id] = frontendId;
         
         // 🆕 변경 알림 (AutoSave)
         this._notifyChange();
         this.save();
         
-        debugLog(`🔗 Mapping set: ${frontendId} → ${dbEquipment.equipment_name}`);
+        debugLog(`🔗 Mapping set: ${frontendId} → ${dbEquipment.equipment_name} (ID: ${dbEquipment.equipment_id}, Line: ${dbEquipment.line_name || 'N/A'})`);
         
         this.dispatchEvent('mapping-changed', {
             frontendId,
             equipmentId: dbEquipment.equipment_id,
-            equipmentName: dbEquipment.equipment_name
+            equipmentName: dbEquipment.equipment_name,
+            lineName: dbEquipment.line_name
         });
         
         return true;
@@ -326,6 +392,12 @@ export class EquipmentEditState {
     removeMapping(frontendId) {
         if (frontendId in this.mappings) {
             const removed = this.mappings[frontendId];
+            
+            // 🆕 역방향 인덱스에서 제거
+            if (removed.equipment_id) {
+                delete this.equipmentIdIndex[removed.equipment_id];
+            }
+            
             delete this.mappings[frontendId];
             
             // 🆕 변경 알림 (AutoSave)
@@ -383,26 +455,19 @@ export class EquipmentEditState {
      * @returns {string|null} 이미 매핑된 Frontend ID (없으면 null)
      */
     findDuplicate(equipmentId) {
-        for (const [frontendId, mapping] of Object.entries(this.mappings)) {
-            if (mapping.equipment_id === equipmentId) {
-                return frontendId;
-            }
-        }
-        return null;
+        // 🆕 역방향 인덱스 사용 (O(1))
+        return this.equipmentIdIndex[equipmentId] || null;
     }
     
     /**
      * Equipment ID로 Frontend ID 찾기
      * @param {number} equipmentId - DB Equipment ID
      * @returns {string|null}
+     * @deprecated Use getFrontendIdByEquipmentId() instead
      */
     findFrontendIdByEquipmentId(equipmentId) {
-        for (const [frontendId, mapping] of Object.entries(this.mappings)) {
-            if (mapping.equipment_id === equipmentId) {
-                return frontendId;
-            }
-        }
-        return null;
+        // 🆕 역방향 인덱스 사용 (O(1))
+        return this.equipmentIdIndex[equipmentId] || null;
     }
     
     // ==========================================
@@ -486,9 +551,18 @@ export class EquipmentEditState {
     getStatistics() {
         const mappings = Object.values(this.mappings);
         
+        // 🆕 Line별 통계
+        const lineStats = {};
+        mappings.forEach(m => {
+            const lineName = m.line_name || 'Unknown';
+            lineStats[lineName] = (lineStats[lineName] || 0) + 1;
+        });
+        
         return {
             total: mappings.length,
             hasTimestamp: mappings.filter(m => m.mapped_at).length,
+            hasLineName: mappings.filter(m => m.line_name).length,  // 🆕
+            lineStats: lineStats,  // 🆕
             oldestMapping: mappings.reduce((oldest, m) => {
                 if (!oldest || (m.mapped_at && m.mapped_at < oldest)) {
                     return m.mapped_at;
@@ -566,11 +640,16 @@ export class EquipmentEditState {
                 // 데이터 무결성 검증
                 if (this.validateMappingData(parsed)) {
                     this.mappings = parsed;
+                    
+                    // 🆕 역방향 인덱스 재구축
+                    this.rebuildEquipmentIdIndex();
+                    
                     debugLog(`📂 Mappings loaded: ${Object.keys(this.mappings).length}개`);
                     return true;
                 } else {
                     console.warn('Invalid mapping data format, resetting');
                     this.mappings = {};
+                    this.equipmentIdIndex = {};
                     return false;
                 }
             }
@@ -578,6 +657,7 @@ export class EquipmentEditState {
         } catch (error) {
             console.error('Failed to load mappings:', error);
             this.mappings = {};
+            this.equipmentIdIndex = {};
             
             this.dispatchEvent('load-error', {
                 error: error.message
@@ -616,6 +696,7 @@ export class EquipmentEditState {
         }
         
         this.mappings = {};
+        this.equipmentIdIndex = {};  // 🆕 인덱스도 초기화
         this.isDirty = false;
         this._changeCount = 0;
         this.save();
@@ -638,6 +719,10 @@ export class EquipmentEditState {
             try {
                 const newMappings = JSON.parse(event.newValue);
                 this.mappings = newMappings;
+                
+                // 🆕 역방향 인덱스 재구축
+                this.rebuildEquipmentIdIndex();
+                
                 debugLog('🔄 Mappings synced from another tab');
                 this.dispatchEvent('mappings-synced', {
                     source: 'storage-event',
@@ -679,6 +764,9 @@ export class EquipmentEditState {
                 console.error('Invalid merge strategy:', mergeStrategy);
                 return;
         }
+        
+        // 🆕 역방향 인덱스 재구축
+        this.rebuildEquipmentIdIndex();
         
         // 🆕 변경 알림
         this._notifyChange();
@@ -734,7 +822,7 @@ export class EquipmentEditState {
     
     /**
      * 서버로 매핑 데이터 전송 형식으로 변환
-     * @returns {Array} [ { frontend_id, equipment_id, equipment_name }, ... ]
+     * @returns {Array} [ { frontend_id, equipment_id, equipment_name, line_name }, ... ]
      */
     toServerFormat() {
         return Object.values(this.mappings);
@@ -752,11 +840,15 @@ export class EquipmentEditState {
         console.log('Version:', this.version);
         console.log('Edit Mode:', this.editModeEnabled);
         console.log('Mapping Count:', this.getMappingCount());
+        console.log('Equipment ID Index Size:', Object.keys(this.equipmentIdIndex).length);
         console.log('Is Dirty:', this.isDirty);
         console.log('Change Count:', this._changeCount);
         console.log('Completion Rate:', this.getCompletionRate() + '%');
         console.log('AutoSave Status:', this.getAutoSaveStatus());
         console.log('Statistics:', this.getStatistics());
+        console.log('Equipment ID Index (first 10):', 
+            Object.fromEntries(Object.entries(this.equipmentIdIndex).slice(0, 10))
+        );
         console.table(Object.values(this.mappings).slice(0, 20)); // 처음 20개만 표시
         console.groupEnd();
     }
@@ -785,6 +877,9 @@ export class EquipmentEditState {
             const data = JSON.parse(jsonStr);
             if (data.mappings && this.validateMappingData(data.mappings)) {
                 this.mappings = data.mappings;
+                
+                // 🆕 역방향 인덱스 재구축
+                this.rebuildEquipmentIdIndex();
                 
                 // 🆕 변경 알림
                 this._notifyChange();

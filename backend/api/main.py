@@ -147,11 +147,12 @@ async def root():
     }
 
 
-@app.get("/health")
+@app.get("/api/health")
 async def health():
     """헬스 체크"""
     return {
-        "status": "healthy",
+        "status": "ok",
+		"message": "healthy",
         "timestamp": datetime.now().isoformat(),
         "monitoring_enabled": MONITORING_ENABLED
     }

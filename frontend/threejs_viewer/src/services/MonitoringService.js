@@ -1,8 +1,9 @@
 /**
- * MonitoringService.js - v2.3.0
+ * MonitoringService.js - v2.4.0
  * 실시간 설비 모니터링 서비스
  * 
- * ⭐ 최종 버전: 미연결 설비 비활성화 표시 + 통계 패널
+ * ⭐ v2.4.0: equipment_id → frontend_id 변환 로직 추가
+ *            WebSocket subscribe 메시지 전송 추가
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
  */
@@ -43,7 +44,7 @@ export class MonitoringService {
             rate: 0
         };
         
-        debugLog('MonitoringService initialized');
+        debugLog('MonitoringService initialized (v2.4.0)');
     }
     
     setDependencies(equipmentLoader, equipmentEditState) {
@@ -71,15 +72,21 @@ export class MonitoringService {
             // 2. 통계 패널 표시
             this.createStatusPanel();
             
-            // 3. 초기 상태 로드 (REST API) - 실패해도 계속 진행
+            // 3. SignalTower 램프 초기화
+            if (this.signalTowerManager) {
+                this.signalTowerManager.initializeAllLights();
+                debugLog('🚨 SignalTower lights initialized');
+            }
+            
+            // 4. 초기 상태 로드 (REST API) - 실패해도 계속 진행
             await this.loadInitialStatus().catch(err => {
                 debugLog(`⚠️ loadInitialStatus failed: ${err.message}`);
             });
             
-            // 4. WebSocket 연결 - 실패해도 계속 진행
+            // 5. WebSocket 연결 - 실패해도 계속 진행
             this.connectWebSocket();
             
-            // 5. 배치 처리 타이머 시작
+            // 6. 배치 처리 타이머 시작
             this.startBatchProcessing();
             
             debugLog('✅ Monitoring mode started');
@@ -330,10 +337,22 @@ export class MonitoringService {
         
         debugLog(`✅ Loaded ${data.equipment.length} equipment status`);
         
+        // 🆕 v2.4.0: REST API 응답에서 frontend_id 또는 equipment_id 사용
         data.equipment.forEach(item => {
-            if (item.frontend_id && item.status) {
-                if (this.isEquipmentMapped(item.frontend_id)) {
-                    this.updateEquipmentStatus(item.frontend_id, item.status);
+            let frontendId = null;
+            
+            // frontend_id가 있으면 사용
+            if (item.frontend_id) {
+                frontendId = item.frontend_id;
+            }
+            // equipment_id로 frontend_id 조회
+            else if (item.equipment_id && this.equipmentEditState) {
+                frontendId = this.equipmentEditState.getFrontendIdByEquipmentId(item.equipment_id);
+            }
+            
+            if (frontendId && item.status) {
+                if (this.isEquipmentMapped(frontendId)) {
+                    this.updateEquipmentStatus(frontendId, item.status);
                 }
             }
         });
@@ -342,6 +361,17 @@ export class MonitoringService {
     isEquipmentMapped(frontendId) {
         if (!this.equipmentEditState) return true;
         return this.equipmentEditState.isComplete(frontendId);
+    }
+    
+    /**
+     * 🆕 v2.4.0: 매핑된 모든 equipment_id 목록 반환
+     * @returns {number[]} Equipment ID 배열
+     */
+    getMappedEquipmentIds() {
+        if (!this.equipmentEditState) {
+            return [];
+        }
+        return this.equipmentEditState.getAllEquipmentIds();
     }
     
     connectWebSocket() {
@@ -353,6 +383,9 @@ export class MonitoringService {
             this.ws.onopen = () => {
                 debugLog('✅ WebSocket connected');
                 this.reconnectAttempts = 0;
+                
+                // 🆕 v2.4.0: 연결 후 subscribe 메시지 전송
+                this.sendSubscribeMessage();
             };
             
             this.ws.onmessage = (event) => {
@@ -381,14 +414,80 @@ export class MonitoringService {
         }
     }
     
+    /**
+     * 🆕 v2.4.0: WebSocket subscribe 메시지 전송
+     * 매핑된 모든 equipment_id를 구독 요청
+     */
+    sendSubscribeMessage() {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            debugLog('⚠️ WebSocket not ready for subscribe');
+            return;
+        }
+        
+        const equipmentIds = this.getMappedEquipmentIds();
+        
+        if (equipmentIds.length === 0) {
+            debugLog('⚠️ No mapped equipment to subscribe');
+            return;
+        }
+        
+        const subscribeMessage = {
+            action: 'subscribe',
+            equipment_ids: equipmentIds
+        };
+        
+        this.ws.send(JSON.stringify(subscribeMessage));
+        debugLog(`📡 Subscribe message sent: ${equipmentIds.length} equipment IDs`);
+    }
+    
+    /**
+     * 🆕 v2.4.0: WebSocket 메시지 핸들러 (equipment_id → frontend_id 변환)
+     */
     handleWebSocketMessage(event) {
         try {
             const data = JSON.parse(event.data);
             
+            // 연결 확인 메시지
+            if (data.type === 'connected') {
+                debugLog(`📡 WebSocket: ${data.message}`);
+                return;
+            }
+            
+            // 구독 확인 메시지
+            if (data.type === 'subscribed') {
+                debugLog(`📡 WebSocket subscribed: ${data.message}`);
+                return;
+            }
+            
+            // Pong 메시지 (heartbeat)
+            if (data.type === 'pong') {
+                return;
+            }
+            
+            // 🆕 v2.4.0: equipment_status 처리 - equipment_id → frontend_id 변환
             if (data.type === 'equipment_status') {
-                if (this.isEquipmentMapped(data.frontend_id)) {
-                    debugLog(`📊 Status update: ${data.frontend_id} -> ${data.status}`);
-                    this.updateEquipmentStatus(data.frontend_id, data.status);
+                let frontendId = null;
+                
+                // 1. frontend_id가 있으면 직접 사용 (향후 Backend 개선 시)
+                if (data.frontend_id) {
+                    frontendId = data.frontend_id;
+                }
+                // 2. equipment_id로 frontend_id 조회 (현재 방식)
+                else if (data.equipment_id && this.equipmentEditState) {
+                    frontendId = this.equipmentEditState.getFrontendIdByEquipmentId(data.equipment_id);
+                }
+                
+                if (!frontendId) {
+                    debugLog(`⚠️ No frontend_id found for equipment_id: ${data.equipment_id}`);
+                    return;
+                }
+                
+                // 매핑된 설비만 처리
+                if (this.isEquipmentMapped(frontendId)) {
+                    debugLog(`📊 Status update: ${frontendId} (equipment_id: ${data.equipment_id}) -> ${data.status}`);
+                    this.updateEquipmentStatus(frontendId, data.status);
+                } else {
+                    debugLog(`⚠️ Equipment not mapped: ${frontendId}`);
                 }
             }
             
@@ -443,8 +542,31 @@ export class MonitoringService {
         this.updateQueue = [];
     }
     
+    /**
+     * 테스트용: 특정 설비 상태 변경
+     * @param {string} frontendId - Frontend ID (예: 'EQ-01-01')
+     * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP')
+     */
     testStatusChange(frontendId, status) {
         debugLog(`🧪 Test status change: ${frontendId} -> ${status}`);
+        this.updateEquipmentStatus(frontendId, status);
+        this.flushUpdateQueue();
+    }
+    
+    /**
+     * 🆕 v2.4.0: 테스트용: equipment_id로 상태 변경
+     * @param {number} equipmentId - Equipment ID (예: 75)
+     * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP')
+     */
+    testStatusChangeByEquipmentId(equipmentId, status) {
+        const frontendId = this.equipmentEditState?.getFrontendIdByEquipmentId(equipmentId);
+        
+        if (!frontendId) {
+            console.warn(`⚠️ No mapping found for equipment_id: ${equipmentId}`);
+            return;
+        }
+        
+        debugLog(`🧪 Test status change by equipment_id: ${equipmentId} -> ${frontendId} -> ${status}`);
         this.updateEquipmentStatus(frontendId, status);
         this.flushUpdateQueue();
     }
@@ -457,8 +579,30 @@ export class MonitoringService {
             cacheSize: this.statusCache.size,
             queueLength: this.updateQueue.length,
             mappedCount: this.equipmentEditState?.getMappingCount() || 0,
+            subscribedEquipmentIds: this.getMappedEquipmentIds().length,
             stats: this.currentStats
         };
+    }
+    
+    /**
+     * 🆕 v2.4.0: 디버그 정보 출력
+     */
+    debugPrintStatus() {
+        console.group('🔧 MonitoringService Debug Info');
+        console.log('Version: 2.4.0');
+        console.log('Connection Status:', this.getConnectionStatus());
+        console.log('Status Cache:', Object.fromEntries(this.statusCache));
+        console.log('Update Queue:', this.updateQueue);
+        
+        if (this.equipmentEditState) {
+            console.log('Equipment ID Index (first 10):', 
+                Object.fromEntries(
+                    Object.entries(this.equipmentEditState.getEquipmentIdIndex()).slice(0, 10)
+                )
+            );
+        }
+        
+        console.groupEnd();
     }
     
     dispose() {
