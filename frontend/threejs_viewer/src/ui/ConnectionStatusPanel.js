@@ -2,8 +2,9 @@
  * ConnectionStatusPanel.js
  * Backend API 연결 상태 표시 패널
  * 
- * @version 2.0.0
- * @description BasePanel 상속 적용
+ * @version 2.1.0
+ * @description BasePanel 상속 적용, 인라인 스타일 제거
+ * @modified 2026-01-06 (Phase 5 - CSS 클래스 기반으로 전환)
  */
 
 import { BasePanel } from '../core/base/BasePanel.js';
@@ -36,36 +37,26 @@ export class ConnectionStatusPanel extends BasePanel {
     renderContent() {
         return `
             <div class="api-status-content">
-                <div class="status-indicator" style="
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    margin-bottom: 12px;
-                ">
-                    <span class="status-dot status-checking" style="
-                        width: 12px;
-                        height: 12px;
-                        border-radius: 50%;
-                        background: #888;
-                    "></span>
-                    <span class="status-text" style="font-weight: 500; color: #fff;">Checking...</span>
+                <div class="status-indicator">
+                    <span class="status-dot status-dot--checking"></span>
+                    <span class="status-text">Checking...</span>
                 </div>
-                <div class="status-details" style="font-size: 13px;">
-                    <div class="status-detail" style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                        <span class="detail-label" style="color: #888;">API URL:</span>
-                        <span class="detail-value" id="api-url" style="color: #fff;">-</span>
+                <div class="status-details">
+                    <div class="status-detail">
+                        <span class="detail-label">API URL:</span>
+                        <span class="detail-value" id="api-url">-</span>
                     </div>
-                    <div class="status-detail" style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                        <span class="detail-label" style="color: #888;">Response Time:</span>
-                        <span class="detail-value" id="response-time" style="color: #fff;">-</span>
+                    <div class="status-detail">
+                        <span class="detail-label">Response Time:</span>
+                        <span class="detail-value" id="response-time">-</span>
                     </div>
-                    <div class="status-detail" style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-                        <span class="detail-label" style="color: #888;">Last Check:</span>
-                        <span class="detail-value" id="last-check" style="color: #fff;">-</span>
+                    <div class="status-detail">
+                        <span class="detail-label">Last Check:</span>
+                        <span class="detail-value" id="last-check">-</span>
                     </div>
-                    <div class="status-detail" style="display: flex; justify-content: space-between;">
-                        <span class="detail-label" style="color: #888;">Retry Count:</span>
-                        <span class="detail-value" id="retry-count" style="color: #fff;">0</span>
+                    <div class="status-detail">
+                        <span class="detail-label">Retry Count:</span>
+                        <span class="detail-value" id="retry-count">0</span>
                     </div>
                 </div>
             </div>
@@ -86,22 +77,23 @@ export class ConnectionStatusPanel extends BasePanel {
 
         if (!statusDot || !statusText) return;
 
-        // 상태에 따라 색상 변경
+        // 상태 클래스 초기화
         statusDot.className = 'status-dot';
+        statusText.className = 'status-text';
         
         if (healthData.status === 'healthy') {
-            statusDot.style.background = '#4CAF50';
+            statusDot.classList.add('status-dot--connected');
+            statusText.classList.add('status-text--connected');
             statusText.textContent = 'Connected';
-            statusText.style.color = '#4CAF50';
             this.retryCount = 0;
         } else if (healthData.status === 'degraded') {
-            statusDot.style.background = '#FFC107';
+            statusDot.classList.add('status-dot--degraded');
+            statusText.classList.add('status-text--degraded');
             statusText.textContent = 'Degraded';
-            statusText.style.color = '#FFC107';
         } else {
-            statusDot.style.background = '#f44336';
+            statusDot.classList.add('status-dot--disconnected');
+            statusText.classList.add('status-text--disconnected');
             statusText.textContent = 'Disconnected';
-            statusText.style.color = '#f44336';
             this.retryCount++;
         }
 
@@ -123,13 +115,12 @@ export class ConnectionStatusPanel extends BasePanel {
         
         if (retryCountEl) {
             retryCountEl.textContent = `${this.retryCount}/${this.maxRetries}`;
+            retryCountEl.className = 'detail-value';
             
             // 최대 재시도 초과 시 경고
             if (this.retryCount >= this.maxRetries) {
                 statusText.textContent = 'Connection Lost';
-                retryCountEl.style.color = '#ff4444';
-            } else {
-                retryCountEl.style.color = '#fff';
+                retryCountEl.classList.add('detail-value--error');
             }
         }
     }
@@ -142,7 +133,7 @@ export class ConnectionStatusPanel extends BasePanel {
         const retryCountEl = this.$('#retry-count');
         if (retryCountEl) {
             retryCountEl.textContent = `0/${this.maxRetries}`;
-            retryCountEl.style.color = '#fff';
+            retryCountEl.className = 'detail-value';
         }
     }
 }

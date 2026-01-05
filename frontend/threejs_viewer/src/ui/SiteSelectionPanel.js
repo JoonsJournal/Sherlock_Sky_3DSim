@@ -2,8 +2,9 @@
  * SiteSelectionPanel.js
  * 사이트 선택 및 연결 관리 패널
  * 
- * @version 2.0.0
- * @description BasePanel 상속 적용
+ * @version 2.1.0
+ * @description BasePanel 상속 적용, 인라인 스타일 제거
+ * @modified 2026-01-06 (Phase 5 - CSS 클래스 기반으로 전환)
  */
 
 import { BasePanel } from '../core/base/BasePanel.js';
@@ -41,40 +42,15 @@ export class SiteSelectionPanel extends BasePanel {
         const autoConnect = connectionStore.getState().autoConnect;
         
         return `
-            <div class="panel-header" style="
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 12px;
-                border-bottom: 1px solid #333;
-            ">
-                <h3 style="margin: 0; font-size: 14px; color: #fff;">🔍 Site Connection</h3>
-                <div class="panel-actions" style="display: flex; align-items: center; gap: 12px;">
-                    <label class="auto-connect-label" style="
-                        display: flex;
-                        align-items: center;
-                        gap: 6px;
-                        font-size: 12px;
-                        color: #888;
-                        cursor: pointer;
-                    ">
+            <div class="panel-header">
+                <h3>🔍 Site Connection</h3>
+                <div class="panel-actions">
+                    <label class="auto-connect-label">
                         <input type="checkbox" id="auto-connect-checkbox" ${autoConnect ? 'checked' : ''}>
                         <span>Auto Connect</span>
                     </label>
-                    <button class="btn-icon" id="select-all-btn" title="Select All" style="
-                        background: transparent;
-                        border: none;
-                        color: #888;
-                        cursor: pointer;
-                        padding: 4px;
-                    ">☑️</button>
-                    <button class="btn-icon" id="deselect-all-btn" title="Deselect All" style="
-                        background: transparent;
-                        border: none;
-                        color: #888;
-                        cursor: pointer;
-                        padding: 4px;
-                    ">☐</button>
+                    <button class="btn-icon" id="select-all-btn" title="Select All">☑️</button>
+                    <button class="btn-icon" id="deselect-all-btn" title="Deselect All">☐</button>
                 </div>
             </div>
         `;
@@ -85,34 +61,15 @@ export class SiteSelectionPanel extends BasePanel {
      */
     renderContent() {
         return `
-            <div class="site-list" id="site-list" style="
-                max-height: 300px;
-                overflow-y: auto;
-                padding: 8px;
-            ">
-                <div class="loading-spinner" style="padding: 20px; text-align: center; color: #888;">
-                    Loading sites...
-                </div>
+            <div class="site-list" id="site-list">
+                <div class="loading-spinner-small"></div>
+                <span class="loading-text">Loading sites...</span>
             </div>
-            <div class="panel-footer" style="
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 12px;
-                border-top: 1px solid #333;
-            ">
+            <div class="panel-footer">
                 <div class="selection-info">
-                    <span id="selection-count" style="font-size: 12px; color: #888;">Selected: 0</span>
+                    <span id="selection-count">Selected: 0</span>
                 </div>
-                <button class="btn-primary" id="connect-btn" disabled style="
-                    padding: 8px 16px;
-                    background: #2196F3;
-                    color: #fff;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    opacity: 0.5;
-                ">
+                <button class="btn-connect" id="connect-btn" disabled>
                     🔌 Connect
                 </button>
             </div>
@@ -197,7 +154,7 @@ export class SiteSelectionPanel extends BasePanel {
         if (!siteList) return;
         
         if (this.profiles.length === 0) {
-            siteList.innerHTML = '<div class="no-sites" style="padding: 20px; text-align: center; color: #888;">No sites available</div>';
+            siteList.innerHTML = '<div class="no-sites">No sites available</div>';
             return;
         }
 
@@ -211,75 +168,46 @@ export class SiteSelectionPanel extends BasePanel {
             const isFailed = status.status === 'failed';
             const isSelected = this.selectedSites.includes(profile.id);
 
+            // 클래스 결정
+            const itemClasses = [
+                'site-item',
+                isSelected ? 'site-item--selected' : '',
+                isConnected ? 'site-item--connected' : ''
+            ].filter(Boolean).join(' ');
+
             return `
-                <div class="site-item ${isSelected ? 'selected' : ''} ${isConnected ? 'connected' : ''}" 
-                     data-site-id="${profile.id}"
-                     style="
-                         display: flex;
-                         align-items: center;
-                         gap: 12px;
-                         padding: 10px 12px;
-                         margin-bottom: 6px;
-                         background: ${isSelected ? '#2a3a4a' : '#1a1a1a'};
-                         border: 1px solid ${isConnected ? '#4CAF50' : isSelected ? '#2196F3' : '#333'};
-                         border-radius: 4px;
-                         cursor: pointer;
-                     ">
+                <div class="${itemClasses}" data-site-id="${profile.id}">
                     <div class="site-checkbox">
                         <input type="checkbox" 
                                id="site-${profile.id}" 
                                ${isSelected ? 'checked' : ''}
-                               ${isConnecting ? 'disabled' : ''}
-                               style="cursor: pointer;">
+                               ${isConnecting ? 'disabled' : ''}>
                     </div>
-                    <div class="site-info" style="flex: 1;">
-                        <div class="site-main" style="display: flex; align-items: center; gap: 8px;">
-                            <span class="site-name" style="color: #fff; font-weight: 500;">${profile.display_name}</span>
-                            <span class="site-region" style="color: #888; font-size: 12px;">${profile.region}</span>
+                    <div class="site-info">
+                        <div class="site-main">
+                            <span class="site-name">${profile.display_name}</span>
+                            <span class="site-region">${profile.region}</span>
                         </div>
-                        <div class="site-meta" style="font-size: 11px; color: #666; margin-top: 4px;">
+                        <div class="site-meta">
                             ${status.last_connected ? `
                                 <span class="last-connected">Last: ${new Date(status.last_connected).toLocaleString()}</span>
                             ` : ''}
                             ${status.response_time_ms ? `
-                                <span class="response-time" style="margin-left: 8px;">${status.response_time_ms}ms</span>
+                                <span class="response-time">${status.response_time_ms}ms</span>
                             ` : ''}
                         </div>
                     </div>
-                    <div class="site-status" style="display: flex; align-items: center; gap: 8px;">
+                    <div class="site-status">
                         ${isConnecting ? `
-                            <div class="loading-spinner-small" style="
-                                width: 16px;
-                                height: 16px;
-                                border: 2px solid #333;
-                                border-top: 2px solid #2196F3;
-                                border-radius: 50%;
-                                animation: spin 1s linear infinite;
-                            "></div>
+                            <div class="loading-spinner-small"></div>
                         ` : isConnected ? `
                             <span class="status-icon">✅</span>
-                            <button class="btn-disconnect" data-site-id="${profile.id}" style="
-                                padding: 4px 8px;
-                                background: #f44336;
-                                color: #fff;
-                                border: none;
-                                border-radius: 4px;
-                                font-size: 11px;
-                                cursor: pointer;
-                            ">Disconnect</button>
+                            <button class="btn-disconnect" data-site-id="${profile.id}">Disconnect</button>
                         ` : isFailed ? `
                             <span class="status-icon">❌</span>
-                            <button class="btn-retry" data-site-id="${profile.id}" style="
-                                padding: 4px 8px;
-                                background: #FFC107;
-                                color: #000;
-                                border: none;
-                                border-radius: 4px;
-                                font-size: 11px;
-                                cursor: pointer;
-                            ">Retry</button>
+                            <button class="btn-retry" data-site-id="${profile.id}">Retry</button>
                         ` : `
-                            <span class="status-icon" style="color: #888;">⚪</span>
+                            <span class="status-icon">⚪</span>
                         `}
                     </div>
                 </div>
@@ -332,6 +260,7 @@ export class SiteSelectionPanel extends BasePanel {
         
         connectionStore.setSelectedSites(this.selectedSites);
         this._updateSelectionUI();
+        this._renderSites(); // 스타일 업데이트를 위해 재렌더링
     }
     
     /**
@@ -371,8 +300,6 @@ export class SiteSelectionPanel extends BasePanel {
         if (connectBtn) {
             const isDisabled = this.selectedSites.length === 0 || this.isConnecting;
             connectBtn.disabled = isDisabled;
-            connectBtn.style.opacity = isDisabled ? '0.5' : '1';
-            connectBtn.style.cursor = isDisabled ? 'not-allowed' : 'pointer';
         }
     }
     

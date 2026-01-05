@@ -2,21 +2,24 @@
  * _panels.css
  * ===========
  * 모든 패널 스타일 통합
- * - Connection Panel (API Status, Site Selection, Database List)
+ * - 공통 패널 스타일
  * - Equipment Info Panel
  * - Debug Controls Panel
+ * - Equipment Edit Panel
  * 
- * 기존: src/styles/connection-panel.css + equipment-edit.css 일부 통합
+ * ⚠️ Connection 관련 패널 스타일은 _connection-panels.css로 분리
+ * 
  * 작성일: 2026-01-02
+ * 수정일: 2026-01-06 (Phase 5 - 클래스명 정리 + 라이트 테마 통일)
  */
 
 /* =============================================
-   패널 공통 스타일
+   패널 공통 스타일 (라이트 테마)
    ============================================= */
-.connection-panel {
-    background: var(--text-light);
+.panel {
+    background: var(--theme-bg-primary);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
     overflow: hidden;
 }
 
@@ -25,15 +28,15 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--spacing-md) var(--spacing-lg);
-    background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
-    border-bottom: 2px solid var(--border-color);
+    background: linear-gradient(90deg, var(--theme-bg-secondary) 0%, var(--theme-bg-tertiary) 100%);
+    border-bottom: 2px solid var(--theme-border-default);
 }
 
 .panel-header h3 {
     margin: 0;
     font-size: var(--font-size-lg);
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--theme-text-primary);
 }
 
 .panel-actions {
@@ -42,409 +45,100 @@
     gap: var(--spacing-sm);
 }
 
+.panel-body {
+    padding: var(--spacing-lg);
+}
+
 .panel-footer {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: var(--spacing-md) var(--spacing-lg);
-    background-color: var(--bg-secondary);
-    border-top: 1px solid var(--border-color);
+    background-color: var(--theme-bg-secondary);
+    border-top: 1px solid var(--theme-border-default);
 }
 
 /* =============================================
-   API Status Panel
+   패널 내 공통 요소
    ============================================= */
-.api-status-panel .api-status-content {
-    padding: var(--spacing-lg);
-}
-
-.status-indicator {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: var(--spacing-md);
-}
-
-.status-dot {
-    width: 16px;
-    height: 16px;
-    border-radius: var(--radius-full);
-    position: relative;
-}
-
-.status-dot.status-checking {
-    background-color: var(--color-warning);
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-.status-dot.status-connected {
-    background-color: var(--color-success);
-    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
-}
-
-.status-dot.status-warning {
-    background-color: var(--color-warning);
-    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2);
-}
-
-.status-dot.status-disconnected {
-    background-color: var(--color-danger);
-    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.2);
-}
-
-.status-text {
-    font-size: var(--font-size-md);
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.status-details {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-}
-
-.status-detail {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-}
-
-.detail-label {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-.detail-value {
-    font-size: var(--font-size-base);
-    color: var(--text-primary);
-    font-weight: 600;
-}
-
-/* =============================================
-   Site Selection Panel
-   ============================================= */
-.auto-connect-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: var(--font-size-base);
-    color: var(--text-secondary);
-    cursor: pointer;
-    user-select: none;
-}
-
-.auto-connect-label input[type="checkbox"] {
-    cursor: pointer;
-}
-
-.site-list {
-    padding: var(--spacing-md);
-    min-height: 200px;
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.site-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    border: 2px solid var(--border-light);
-    border-radius: var(--radius-md);
-    margin-bottom: 12px;
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-.site-item:hover {
-    border-color: var(--color-primary);
-    background-color: #f8f9ff;
-}
-
-.site-item.selected {
-    border-color: var(--color-primary);
-    background-color: #f0f3ff;
-}
-
-.site-item.connected {
-    background-color: #d4edda;
-    border-color: var(--color-success);
-}
-
-.site-checkbox input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-}
-
-.site-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
-}
-
-.site-main {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.site-name {
-    font-size: var(--font-size-md);
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.site-region {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    padding: 2px 8px;
-    background-color: var(--border-light);
-    border-radius: var(--radius-sm);
-}
-
-.site-meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-}
-
-.site-status {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.status-icon {
-    font-size: var(--font-size-xl);
-}
-
-.no-sites {
-    text-align: center;
-    padding: 40px var(--spacing-lg);
-    color: var(--text-secondary);
-}
-
-.selection-info {
-    font-size: var(--font-size-base);
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-/* =============================================
-   Database List Panel
-   ============================================= */
-.database-list {
-    padding: var(--spacing-md);
-    min-height: 200px;
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-.no-connection {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 60px var(--spacing-lg);
-    text-align: center;
-    color: var(--text-secondary);
-}
-
-.no-connection-icon {
-    font-size: 64px;
-    margin-bottom: var(--spacing-md);
-    opacity: 0.5;
-}
-
-.no-connection p {
-    margin: 0 0 var(--spacing-sm) 0;
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-}
-
-.no-connection small {
-    font-size: var(--font-size-base);
-    opacity: 0.8;
-}
-
-.database-item {
-    margin-bottom: var(--spacing-lg);
-}
-
-.database-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-}
-
-.database-header h4 {
+.panel__title {
     margin: 0;
     font-size: var(--font-size-lg);
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--theme-text-primary);
 }
 
-.database-stats {
-    display: flex;
-    gap: var(--spacing-md);
+.panel__subtitle {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--theme-text-muted);
 }
 
-.stat-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    font-size: var(--font-size-base);
+.panel__section {
+    margin-bottom: var(--spacing-lg);
 }
 
-.stat-label {
-    color: var(--text-secondary);
-}
-
-.stat-value {
+.panel__section-title {
+    font-size: var(--font-size-md);
     font-weight: 600;
-    color: var(--text-primary);
-}
-
-.connection-info {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm);
-    background: var(--bg-secondary);
-    border-radius: var(--radius-sm);
+    color: var(--theme-text-primary);
     margin-bottom: var(--spacing-sm);
-    font-size: var(--font-size-sm);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 2px solid var(--theme-border-default);
 }
 
-.info-label {
-    color: var(--text-secondary);
+.panel__divider {
+    height: 1px;
+    background: var(--theme-border-light);
+    margin: var(--spacing-md) 0;
 }
 
-.info-value {
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-/* Table List */
-.table-list {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-}
-
-.no-tables {
-    text-align: center;
-    padding: var(--spacing-lg);
-    color: var(--text-secondary);
-}
-
-.table-item {
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    transition: all 0.2s ease;
-}
-
-.table-item:hover {
-    border-color: var(--color-primary);
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
-}
-
-.table-item.expanded {
-    border-color: var(--color-primary);
-}
-
-.table-header {
-    display: flex;
+/* =============================================
+   아이콘 버튼 (패널용)
+   ============================================= */
+.btn-icon {
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 12px var(--spacing-md);
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--theme-text-muted);
+    font-size: var(--font-size-md);
     cursor: pointer;
-    background-color: var(--bg-secondary);
-    transition: background-color 0.2s ease;
+    transition: var(--transition-fast);
 }
 
-.table-header:hover {
-    background-color: var(--border-light);
+.btn-icon:hover {
+    background: var(--theme-bg-hover);
+    color: var(--theme-text-primary);
 }
 
-.table-info-main {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.btn-icon:active {
+    background: var(--theme-bg-active);
 }
 
-.expand-icon {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    transition: transform 0.2s ease;
+.btn-icon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
-.table-item.expanded .expand-icon {
-    transform: rotate(0deg);
+/* 오버레이용 아이콘 버튼 */
+.btn-icon--overlay {
+    color: var(--overlay-text-muted);
 }
 
-.table-name {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.table-rows {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-}
-
-.table-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.table-size {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    font-weight: 500;
-    padding: var(--spacing-xs) var(--spacing-sm);
-    background-color: var(--border-light);
-    border-radius: var(--radius-sm);
-}
-
-.table-schema {
-    font-size: var(--font-size-sm);
-    color: var(--text-secondary);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    background-color: var(--border-light);
-    border-radius: var(--radius-sm);
-}
-
-.table-details {
-    padding: var(--spacing-md);
-    background-color: var(--text-light);
-    border-top: 1px solid var(--border-color);
-}
-
-.table-detail-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--spacing-md);
-}
-
-.detail-item {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-xs);
+.btn-icon--overlay:hover {
+    background: var(--overlay-bg-hover);
+    color: var(--overlay-text-primary);
 }
 
 /* =============================================
    Equipment Info Panel (#equipmentInfo)
+   3D 씬 위 오버레이 (다크 테마)
    ============================================= */
 #equipmentInfo {
     position: absolute;
@@ -453,11 +147,12 @@
     width: 350px;
     max-height: 85vh;
     overflow-y: auto;
-    background: var(--bg-panel);
+    background: var(--overlay-bg-primary);
+    border: 1px solid var(--overlay-border-light);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     padding: var(--spacing-lg);
-    color: var(--text-dark);
+    color: var(--overlay-text-primary);
     display: none;
     z-index: var(--z-dropdown);
 }
@@ -480,9 +175,9 @@
 
 #equipmentInfo h2 {
     margin: 0 0 15px 0;
-    color: #3498db;
+    color: var(--interactive-primary);
     font-size: var(--font-size-xl);
-    border-bottom: 2px solid #3498db;
+    border-bottom: 2px solid var(--interactive-primary);
     padding-bottom: 10px;
 }
 
@@ -490,8 +185,8 @@
     position: absolute;
     top: 15px;
     right: 15px;
-    background: var(--color-danger);
-    color: var(--text-light);
+    background: var(--interactive-danger);
+    color: var(--overlay-text-primary);
     border: none;
     border-radius: var(--radius-full);
     width: 30px;
@@ -500,31 +195,32 @@
     font-size: var(--font-size-lg);
     line-height: 30px;
     text-align: center;
-    transition: background 0.3s;
+    transition: var(--transition-fast);
 }
 
 #equipmentInfo .close-btn:hover {
-    background: #c0392b;
+    background: var(--interactive-danger-hover);
 }
 
 #equipmentInfo .info-row {
     margin: 10px 0;
     padding: var(--spacing-sm);
-    background: var(--bg-secondary);
-    border-radius: 5px;
+    background: var(--overlay-bg-secondary);
+    border-radius: var(--radius-sm);
 }
 
 #equipmentInfo .info-label {
     font-weight: bold;
-    color: #555;
+    color: var(--overlay-text-muted);
     display: inline-block;
     width: 120px;
 }
 
 #equipmentInfo .info-value {
-    color: var(--text-dark);
+    color: var(--overlay-text-primary);
 }
 
+/* 장비 상태 표시 */
 #equipmentInfo .status-indicator {
     display: inline-block;
     width: 12px;
@@ -549,33 +245,35 @@
 
 /* 다중 선택 헤더 */
 #equipmentInfo .multi-select-header {
-    background: #e3f2fd !important;
-    border-left: 4px solid var(--mode-connection) !important;
+    background: var(--status-info-bg) !important;
+    border-left: 4px solid var(--interactive-primary) !important;
     margin-bottom: 15px !important;
     font-weight: bold;
-    color: #1976D2;
+    color: var(--interactive-primary);
 }
 
 /* 다중 선택 팁 */
 .multi-select-tip {
-    background: #e8f5e9;
-    border-left: 4px solid var(--equip-running);
+    background: var(--status-success-bg);
+    border-left: 4px solid var(--status-success);
     padding: var(--spacing-sm);
     margin-top: 10px;
     border-radius: var(--radius-sm);
     font-size: var(--font-size-sm);
-    color: #2e7d32;
+    color: var(--status-success-text);
 }
 
 /* =============================================
    Info Panel (#info) - 마우스 사용법
+   3D 씬 위 오버레이 (다크 테마)
    ============================================= */
 #info {
     position: absolute;
     top: 10px;
     right: 10px;
-    color: var(--text-light);
-    background: var(--bg-dark);
+    color: var(--overlay-text-primary);
+    background: var(--overlay-bg-primary);
+    border: 1px solid var(--overlay-border-light);
     padding: 15px;
     border-radius: var(--radius-md);
     font-size: var(--font-size-base);
@@ -585,22 +283,25 @@
 
 #info h3 {
     margin: 0 0 10px 0;
-    color: #3498db;
+    color: var(--interactive-primary);
 }
 
 #info p {
     margin: 5px 0;
+    color: var(--overlay-text-secondary);
 }
 
 /* =============================================
    Debug Controls Panel
+   3D 씬 위 오버레이 (다크 테마)
    ============================================= */
 #debugControls {
     position: absolute;
     bottom: 20px;
     left: 80px;
-    background: var(--bg-dark);
-    color: var(--text-light);
+    background: var(--overlay-bg-primary);
+    border: 1px solid var(--overlay-border-light);
+    color: var(--overlay-text-primary);
     padding: 15px;
     border-radius: var(--radius-md);
     font-size: var(--font-size-sm);
@@ -614,7 +315,7 @@
 
 #debugControls h4 {
     margin: 0 0 10px 0;
-    color: #3498db;
+    color: var(--interactive-primary);
     font-size: var(--font-size-base);
 }
 
@@ -623,34 +324,36 @@
     width: 100%;
     margin: 5px 0;
     padding: var(--spacing-sm);
-    background: #3498db;
-    color: var(--text-light);
+    background: var(--interactive-primary);
+    color: var(--overlay-text-primary);
     border: none;
     border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: background 0.3s;
+    transition: var(--transition-fast);
 }
 
 #debugControls button:hover {
-    background: #2980b9;
+    background: var(--interactive-primary-hover);
 }
 
 /* =============================================
    Loading Status
+   3D 씬 위 오버레이 (다크 테마)
    ============================================= */
 #loadingStatus {
     position: absolute;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.9);
-    color: var(--equip-running);
+    background: var(--overlay-bg-primary);
+    border: 1px solid var(--overlay-border-light);
+    color: var(--status-success);
     padding: 15px 30px;
     border-radius: 25px;
     font-size: var(--font-size-md);
     font-weight: bold;
     z-index: var(--z-dropdown);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-lg);
     animation: pulse 2s infinite;
 }
 
@@ -659,8 +362,8 @@
    ============================================= */
 .loading-spinner,
 .loading-spinner-small {
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid var(--color-primary);
+    border: 3px solid var(--theme-border-light);
+    border-top: 3px solid var(--interactive-primary);
     border-radius: var(--radius-full);
     animation: spin 1s linear infinite;
 }
@@ -677,13 +380,21 @@
     border-width: 2px;
 }
 
+/* 오버레이용 스피너 */
+.loading-spinner--overlay,
+.loading-spinner-small--overlay {
+    border-color: var(--overlay-border-light);
+    border-top-color: var(--interactive-primary);
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
 /* =============================================
-   Equipment Edit Panel Styles
+   Equipment Edit Panel Styles (라이트 테마)
+   모달 내부용
    ============================================= */
 .edit-section {
     margin-bottom: var(--spacing-lg);
@@ -692,17 +403,17 @@
 .edit-section h3 {
     font-size: var(--font-size-md);
     font-weight: 600;
-    color: var(--text-dark);
+    color: var(--theme-text-primary);
     margin-bottom: 12px;
-    border-bottom: 2px solid var(--border-color);
+    border-bottom: 2px solid var(--theme-border-default);
     padding-bottom: var(--spacing-sm);
 }
 
 .info-box {
-    background: var(--bg-secondary);
+    background: var(--theme-bg-secondary);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--theme-border-default);
 }
 
 .info-row {
@@ -718,21 +429,22 @@
 
 .info-row .label {
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--theme-text-secondary);
 }
 
 .info-row .value {
-    color: var(--text-dark);
+    color: var(--theme-text-primary);
     font-weight: 500;
 }
 
-/* Equipment List */
+/* Equipment List (라이트 테마) */
 .equipment-list {
     max-height: 350px;
     overflow-y: auto;
-    border: 1px solid #ddd;
+    border: 1px solid var(--theme-border-default);
     border-radius: var(--radius-md);
     padding: var(--spacing-sm);
+    background: var(--theme-bg-primary);
 }
 
 .equipment-item {
@@ -741,24 +453,30 @@
     align-items: center;
     padding: 12px;
     margin-bottom: var(--spacing-sm);
-    background: var(--text-light);
-    border: 2px solid var(--border-color);
+    background: var(--theme-bg-primary);
+    border: 2px solid var(--theme-border-default);
     border-radius: var(--radius-md);
-    transition: all 0.2s;
+    transition: var(--transition-fast);
+    cursor: pointer;
+}
+
+.equipment-item:last-child {
+    margin-bottom: 0;
 }
 
 .equipment-item:hover {
-    border-color: #3498db;
-    background: #f0f8ff;
+    border-color: var(--interactive-primary);
+    background: var(--theme-bg-active);
 }
 
 .equipment-item.selected {
-    border-color: var(--equip-running);
-    background: #e8f5e9;
+    border-color: var(--status-success);
+    background: var(--status-success-bg);
 }
 
 .equipment-item.assigned {
     opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .equipment-item-content {
@@ -775,18 +493,18 @@
 .equipment-name {
     font-weight: 600;
     font-size: 15px;
-    color: var(--text-dark);
+    color: var(--theme-text-primary);
 }
 
 .equipment-item-details {
     display: flex;
     gap: 12px;
     font-size: var(--font-size-sm);
-    color: var(--text-secondary);
+    color: var(--theme-text-secondary);
 }
 
 .assigned-to {
-    color: var(--color-danger);
+    color: var(--interactive-danger);
     font-weight: 500;
 }
 
@@ -794,28 +512,29 @@
 .progress-info {
     text-align: center;
     padding: 12px;
-    background: #f0f8ff;
+    background: var(--status-info-bg);
+    border: 1px solid var(--status-info-border);
     border-radius: var(--radius-md);
     font-weight: 600;
-    color: var(--text-dark);
+    color: var(--status-info-text);
 }
 
 /* Loading & Error States */
 .loading, .error, .no-results {
     text-align: center;
     padding: 40px var(--spacing-lg);
-    color: var(--text-secondary);
+    color: var(--theme-text-muted);
     font-style: italic;
 }
 
 .error {
-    color: var(--color-danger);
+    color: var(--status-error);
 }
 
-/* Equipment Labels (CSS2D) */
+/* Equipment Labels (CSS2D) - 다크 테마 */
 .equipment-label {
-    color: var(--text-light);
-    background: var(--bg-dark);
+    color: var(--overlay-text-primary);
+    background: var(--overlay-bg-primary);
     padding: var(--spacing-xs) 12px;
     border-radius: var(--radius-sm);
     font-size: var(--font-size-sm);
@@ -823,38 +542,19 @@
     white-space: nowrap;
     pointer-events: none;
     user-select: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-md);
 }
 
 /* =============================================
    반응형
    ============================================= */
 @media (max-width: 768px) {
-    .status-details {
-        grid-template-columns: 1fr;
-    }
-
-    .database-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-    }
-
-    .table-detail-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .site-item {
-        flex-wrap: wrap;
-    }
-
-    .site-status {
-        width: 100%;
-        justify-content: flex-end;
-    }
-    
     #equipmentInfo {
         width: 90%;
         right: 5%;
+    }
+    
+    .equipment-list {
+        max-height: 250px;
     }
 }

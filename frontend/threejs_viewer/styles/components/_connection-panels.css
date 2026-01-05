@@ -1,0 +1,607 @@
+/**
+ * _connection-panels.css
+ * ======================
+ * Connection 관련 패널 스타일 통합
+ * - API Status Panel (ConnectionStatusPanel)
+ * - Site Selection Panel (SiteSelectionPanel)
+ * - Database List Panel (DatabaseListPanel)
+ * 
+ * 테마: 다크 오버레이 (3D 씬 위에 표시)
+ * CSS 변수: --overlay-* 사용
+ * 
+ * 작성일: 2026-01-06 (Phase 5)
+ */
+
+/* =============================================
+   Connection Panel 공통 스타일 (다크 테마)
+   ============================================= */
+.connection-panel {
+    background: var(--overlay-bg-primary);
+    border: 1px solid var(--overlay-border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+.connection-panel .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px var(--spacing-md);
+    background: var(--overlay-bg-secondary);
+    border-bottom: 1px solid var(--overlay-border-light);
+}
+
+.connection-panel .panel-header h3 {
+    margin: 0;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--overlay-text-primary);
+}
+
+.connection-panel .panel-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.connection-panel .panel-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px var(--spacing-md);
+    background: var(--overlay-bg-secondary);
+    border-top: 1px solid var(--overlay-border-light);
+}
+
+/* 패널 내 버튼 (다크 테마) */
+.connection-panel .btn-icon {
+    background: transparent;
+    border: none;
+    color: var(--overlay-text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: var(--font-size-base);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+}
+
+.connection-panel .btn-icon:hover {
+    background: var(--overlay-bg-hover);
+    color: var(--overlay-text-primary);
+}
+
+.connection-panel .btn-icon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* =============================================
+   API Status Panel (ConnectionStatusPanel)
+   ============================================= */
+.api-status-panel .api-status-content {
+    padding: var(--spacing-md);
+}
+
+/* 상태 인디케이터 */
+.api-status-panel .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.api-status-panel .status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: var(--radius-full);
+    background: var(--overlay-text-muted);
+    transition: var(--transition-fast);
+}
+
+.api-status-panel .status-dot--checking {
+    background: var(--status-warning);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+.api-status-panel .status-dot--connected {
+    background: var(--status-success);
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.2);
+}
+
+.api-status-panel .status-dot--degraded {
+    background: var(--status-warning);
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2);
+}
+
+.api-status-panel .status-dot--disconnected {
+    background: var(--status-error);
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.2);
+}
+
+.api-status-panel .status-text {
+    font-weight: 500;
+    color: var(--overlay-text-primary);
+    transition: var(--transition-fast);
+}
+
+.api-status-panel .status-text--connected {
+    color: var(--status-success);
+}
+
+.api-status-panel .status-text--degraded {
+    color: var(--status-warning);
+}
+
+.api-status-panel .status-text--disconnected {
+    color: var(--status-error);
+}
+
+/* 상태 상세 정보 */
+.api-status-panel .status-details {
+    font-size: var(--font-size-sm);
+}
+
+.api-status-panel .status-detail {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.api-status-panel .status-detail:last-child {
+    margin-bottom: 0;
+}
+
+.api-status-panel .detail-label {
+    color: var(--overlay-text-muted);
+}
+
+.api-status-panel .detail-value {
+    color: var(--overlay-text-primary);
+    font-weight: 500;
+}
+
+.api-status-panel .detail-value--warning {
+    color: var(--status-warning);
+}
+
+.api-status-panel .detail-value--error {
+    color: var(--status-error);
+}
+
+/* =============================================
+   Site Selection Panel (SiteSelectionPanel)
+   ============================================= */
+
+/* 자동 연결 레이블 */
+.site-selection-panel .auto-connect-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--font-size-sm);
+    color: var(--overlay-text-muted);
+    cursor: pointer;
+    user-select: none;
+}
+
+.site-selection-panel .auto-connect-label input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: var(--interactive-primary);
+}
+
+/* 사이트 목록 */
+.site-selection-panel .site-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+}
+
+/* 사이트 아이템 */
+.site-selection-panel .site-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    background: var(--overlay-bg-secondary);
+    border: 1px solid var(--overlay-border-light);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.site-selection-panel .site-item:last-child {
+    margin-bottom: 0;
+}
+
+.site-selection-panel .site-item:hover {
+    background: var(--overlay-bg-hover);
+    border-color: var(--interactive-primary);
+}
+
+.site-selection-panel .site-item--selected {
+    background: rgba(33, 150, 243, 0.15);
+    border-color: var(--interactive-primary);
+}
+
+.site-selection-panel .site-item--connected {
+    background: rgba(76, 175, 80, 0.1);
+    border-color: var(--status-success);
+}
+
+/* 체크박스 */
+.site-selection-panel .site-checkbox input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: var(--interactive-primary);
+}
+
+/* 사이트 정보 */
+.site-selection-panel .site-info {
+    flex: 1;
+}
+
+.site-selection-panel .site-main {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.site-selection-panel .site-name {
+    color: var(--overlay-text-primary);
+    font-weight: 500;
+}
+
+.site-selection-panel .site-region {
+    color: var(--overlay-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+.site-selection-panel .site-meta {
+    font-size: 11px;
+    color: var(--overlay-text-muted);
+    margin-top: 4px;
+}
+
+.site-selection-panel .site-meta .response-time {
+    margin-left: var(--spacing-sm);
+}
+
+/* 사이트 상태 */
+.site-selection-panel .site-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.site-selection-panel .status-icon {
+    font-size: var(--font-size-md);
+}
+
+/* 연결 해제/재시도 버튼 */
+.site-selection-panel .btn-disconnect,
+.site-selection-panel .btn-retry {
+    padding: 4px 8px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.site-selection-panel .btn-disconnect {
+    background: var(--status-error);
+    color: var(--overlay-text-primary);
+}
+
+.site-selection-panel .btn-disconnect:hover {
+    background: var(--interactive-danger-hover);
+}
+
+.site-selection-panel .btn-retry {
+    background: var(--status-warning);
+    color: #000;
+}
+
+.site-selection-panel .btn-retry:hover {
+    background: #e6ac00;
+}
+
+/* 빈 목록 */
+.site-selection-panel .no-sites {
+    padding: 20px;
+    text-align: center;
+    color: var(--overlay-text-muted);
+}
+
+/* 선택 정보 */
+.site-selection-panel .selection-info {
+    font-size: var(--font-size-sm);
+    color: var(--overlay-text-muted);
+}
+
+/* 연결 버튼 */
+.site-selection-panel .btn-connect {
+    padding: 8px 16px;
+    background: var(--interactive-primary);
+    color: var(--overlay-text-primary);
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    transition: var(--transition-fast);
+}
+
+.site-selection-panel .btn-connect:hover:not(:disabled) {
+    background: var(--interactive-primary-hover);
+}
+
+.site-selection-panel .btn-connect:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* =============================================
+   Database List Panel (DatabaseListPanel)
+   ============================================= */
+
+/* 데이터베이스 목록 */
+.database-list-panel .database-list {
+    padding: var(--spacing-md);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* 연결 없음 상태 */
+.database-list-panel .no-connection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    color: var(--overlay-text-muted);
+}
+
+.database-list-panel .no-connection-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: var(--spacing-sm);
+    opacity: 0.5;
+}
+
+.database-list-panel .no-connection p {
+    margin: 0 0 4px 0;
+    font-size: var(--font-size-base);
+    font-weight: 500;
+}
+
+.database-list-panel .no-connection small {
+    font-size: var(--font-size-sm);
+    opacity: 0.8;
+}
+
+/* 데이터베이스 아이템 */
+.database-list-panel .database-item {
+    background: var(--overlay-bg-secondary);
+    border: 1px solid var(--overlay-border-light);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: var(--spacing-md);
+}
+
+.database-list-panel .database-item:last-child {
+    margin-bottom: 0;
+}
+
+/* 데이터베이스 헤더 */
+.database-list-panel .database-header {
+    padding: 12px;
+    border-bottom: 1px solid var(--overlay-border-light);
+}
+
+.database-list-panel .database-header h4 {
+    margin: 0 0 var(--spacing-sm) 0;
+    color: var(--overlay-text-primary);
+    font-size: var(--font-size-base);
+}
+
+.database-list-panel .database-stats {
+    display: flex;
+    gap: 16px;
+    font-size: var(--font-size-sm);
+}
+
+.database-list-panel .stat-item {
+    display: flex;
+    align-items: center;
+}
+
+.database-list-panel .stat-label {
+    color: var(--overlay-text-muted);
+}
+
+.database-list-panel .stat-value {
+    color: var(--overlay-text-primary);
+    font-weight: 500;
+    margin-left: 4px;
+}
+
+/* 연결 정보 */
+.database-list-panel .connection-info {
+    padding: var(--spacing-sm) 12px;
+    background: var(--overlay-bg-primary);
+    font-size: var(--font-size-sm);
+}
+
+.database-list-panel .connection-info .info-label {
+    color: var(--overlay-text-muted);
+}
+
+.database-list-panel .connection-info .info-value {
+    color: var(--overlay-text-primary);
+    margin-left: var(--spacing-sm);
+}
+
+/* 테이블 목록 */
+.database-list-panel .table-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.database-list-panel .no-tables {
+    padding: 12px;
+    text-align: center;
+    color: var(--overlay-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+/* 테이블 아이템 */
+.database-list-panel .table-item {
+    border-bottom: 1px solid var(--overlay-border-light);
+    transition: var(--transition-fast);
+}
+
+.database-list-panel .table-item:last-child {
+    border-bottom: none;
+}
+
+.database-list-panel .table-item--expanded {
+    background: var(--overlay-bg-hover);
+}
+
+/* 테이블 헤더 */
+.database-list-panel .table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    cursor: pointer;
+    background: transparent;
+    transition: var(--transition-fast);
+}
+
+.database-list-panel .table-header:hover {
+    background: var(--overlay-bg-hover);
+}
+
+.database-list-panel .table-info-main {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.database-list-panel .expand-icon {
+    color: var(--overlay-text-muted);
+    font-size: 10px;
+    transition: var(--transition-fast);
+}
+
+.database-list-panel .table-item--expanded .expand-icon {
+    transform: rotate(90deg);
+}
+
+.database-list-panel .table-name {
+    color: var(--overlay-text-primary);
+    font-weight: 500;
+}
+
+.database-list-panel .table-rows {
+    color: var(--overlay-text-muted);
+    font-size: 11px;
+}
+
+/* 테이블 액션 */
+.database-list-panel .table-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    font-size: 11px;
+}
+
+.database-list-panel .table-size {
+    color: var(--overlay-text-muted);
+}
+
+.database-list-panel .table-schema {
+    color: var(--overlay-text-muted);
+    background: var(--overlay-bg-secondary);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+}
+
+/* 테이블 상세 */
+.database-list-panel .table-details {
+    padding: 12px;
+    background: var(--overlay-bg-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.database-list-panel .table-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+}
+
+.database-list-panel .detail-item {
+    display: flex;
+    align-items: center;
+}
+
+.database-list-panel .detail-item .detail-label {
+    color: var(--overlay-text-muted);
+}
+
+.database-list-panel .detail-item .detail-value {
+    color: var(--overlay-text-primary);
+    margin-left: var(--spacing-sm);
+}
+
+/* =============================================
+   연결 상태 애니메이션
+   ============================================= */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes connecting-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 연결 중 스피너 */
+.connection-panel .loading-spinner-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--overlay-border-light);
+    border-top: 2px solid var(--interactive-primary);
+    border-radius: var(--radius-full);
+    animation: connecting-spin 1s linear infinite;
+}
+
+/* =============================================
+   반응형
+   ============================================= */
+@media (max-width: 768px) {
+    .site-selection-panel .site-list {
+        max-height: 200px;
+    }
+    
+    .database-list-panel .database-list {
+        max-height: 250px;
+    }
+    
+    .database-list-panel .table-detail-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .site-selection-panel .site-item {
+        flex-wrap: wrap;
+    }
+    
+    .site-selection-panel .site-status {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: var(--spacing-sm);
+    }
+}

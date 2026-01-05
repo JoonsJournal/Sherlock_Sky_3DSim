@@ -2,8 +2,9 @@
  * DatabaseListPanel.js
  * 연결된 데이터베이스 테이블 목록 표시 패널
  * 
- * @version 2.0.0
- * @description BasePanel 상속 적용
+ * @version 2.1.0
+ * @description BasePanel 상속 적용, 인라인 스타일 제거
+ * @modified 2026-01-06 (Phase 5 - CSS 클래스 기반으로 전환)
  */
 
 import { BasePanel } from '../core/base/BasePanel.js';
@@ -36,31 +37,11 @@ export class DatabaseListPanel extends BasePanel {
      */
     renderHeader() {
         return `
-            <div class="panel-header" style="
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 12px;
-                border-bottom: 1px solid #333;
-            ">
-                <h3 style="margin: 0; font-size: 14px; color: #fff;">📊 Connected Databases</h3>
-                <div class="panel-actions" style="display: flex; gap: 4px;">
-                    <button class="btn-icon" id="refresh-db-btn" title="Refresh" style="
-                        background: transparent;
-                        border: none;
-                        color: #888;
-                        cursor: pointer;
-                        padding: 4px 8px;
-                        font-size: 14px;
-                    ">🔄</button>
-                    <button class="btn-icon" id="export-status-btn" title="Export Status" style="
-                        background: transparent;
-                        border: none;
-                        color: #888;
-                        cursor: pointer;
-                        padding: 4px 8px;
-                        font-size: 14px;
-                    ">📤</button>
+            <div class="panel-header">
+                <h3>📊 Connected Databases</h3>
+                <div class="panel-actions">
+                    <button class="btn-icon" id="refresh-db-btn" title="Refresh">🔄</button>
+                    <button class="btn-icon" id="export-status-btn" title="Export Status">📤</button>
                 </div>
             </div>
         `;
@@ -71,14 +52,10 @@ export class DatabaseListPanel extends BasePanel {
      */
     renderContent() {
         return `
-            <div class="database-list" id="database-list" style="padding: 12px;">
-                <div class="no-connection" style="
-                    text-align: center;
-                    padding: 20px;
-                    color: #888;
-                ">
-                    <span class="no-connection-icon" style="font-size: 32px; display: block; margin-bottom: 8px;">📂</span>
-                    <p style="margin: 0 0 4px 0;">No database connected</p>
+            <div class="database-list" id="database-list">
+                <div class="no-connection">
+                    <span class="no-connection-icon">📂</span>
+                    <p>No database connected</p>
                     <small>Connect to a site to view tables</small>
                 </div>
             </div>
@@ -124,13 +101,9 @@ export class DatabaseListPanel extends BasePanel {
 
         if (this.connectedSites.length === 0) {
             dbList.innerHTML = `
-                <div class="no-connection" style="
-                    text-align: center;
-                    padding: 20px;
-                    color: #888;
-                ">
-                    <span class="no-connection-icon" style="font-size: 32px; display: block; margin-bottom: 8px;">📂</span>
-                    <p style="margin: 0 0 4px 0;">No database connected</p>
+                <div class="no-connection">
+                    <span class="no-connection-icon">📂</span>
+                    <p>No database connected</p>
                     <small>Connect to a site to view tables</small>
                 </div>
             `;
@@ -143,39 +116,27 @@ export class DatabaseListPanel extends BasePanel {
             const dbType = dbInfo.db_type || 'unknown';
             
             return `
-                <div class="database-item" style="
-                    background: #1a1a1a;
-                    border: 1px solid #333;
-                    border-radius: 4px;
-                    overflow: hidden;
-                ">
-                    <div class="database-header" style="
-                        padding: 12px;
-                        border-bottom: 1px solid #333;
-                    ">
-                        <h4 style="margin: 0 0 8px 0; color: #fff;">🗄️ ${displayName}</h4>
-                        <div class="database-stats" style="display: flex; gap: 16px; font-size: 12px;">
+                <div class="database-item">
+                    <div class="database-header">
+                        <h4>🗄️ ${displayName}</h4>
+                        <div class="database-stats">
                             <span class="stat-item">
-                                <span class="stat-label" style="color: #888;">Tables:</span>
-                                <span class="stat-value" style="color: #fff; margin-left: 4px;">${totalTables}</span>
+                                <span class="stat-label">Tables:</span>
+                                <span class="stat-value">${totalTables}</span>
                             </span>
                             <span class="stat-item">
-                                <span class="stat-label" style="color: #888;">Type:</span>
-                                <span class="stat-value" style="color: #fff; margin-left: 4px;">${dbType.toUpperCase()}</span>
+                                <span class="stat-label">Type:</span>
+                                <span class="stat-value">${dbType.toUpperCase()}</span>
                             </span>
                         </div>
                     </div>
                     
-                    <div class="connection-info" style="
-                        padding: 8px 12px;
-                        background: #0a0a0a;
-                        font-size: 12px;
-                    ">
-                        <span class="info-label" style="color: #888;">Site ID:</span>
-                        <span class="info-value" style="color: #fff; margin-left: 8px;">${dbInfo.site_id}</span>
+                    <div class="connection-info">
+                        <span class="info-label">Site ID:</span>
+                        <span class="info-value">${dbInfo.site_id}</span>
                     </div>
 
-                    <div class="table-list" style="max-height: 300px; overflow-y: auto;">
+                    <div class="table-list">
                         ${this._renderTables(dbInfo.tables || [], dbInfo.site_id)}
                     </div>
                 </div>
@@ -191,64 +152,53 @@ export class DatabaseListPanel extends BasePanel {
      */
     _renderTables(tables, siteId) {
         if (!tables || tables.length === 0) {
-            return '<div class="no-tables" style="padding: 12px; text-align: center; color: #888;">No tables found</div>';
+            return '<div class="no-tables">No tables found</div>';
         }
 
         return tables.map(table => {
             const isExpanded = this.expandedTables.has(`${siteId}-${table.name}`);
+            const expandedClass = isExpanded ? 'table-item--expanded' : '';
             
             return `
-                <div class="table-item ${isExpanded ? 'expanded' : ''}" 
+                <div class="table-item ${expandedClass}" 
                      data-site-id="${siteId}" 
-                     data-table-name="${table.name}"
-                     style="border-bottom: 1px solid #222;">
-                    <div class="table-header" style="
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        padding: 10px 12px;
-                        cursor: pointer;
-                        background: ${isExpanded ? '#2a2a2a' : 'transparent'};
-                    ">
-                        <div class="table-info-main" style="display: flex; align-items: center; gap: 8px;">
-                            <span class="expand-icon" style="color: #888; font-size: 10px;">${isExpanded ? '▼' : '▶'}</span>
-                            <span class="table-name" style="color: #fff;">${table.name}</span>
+                     data-table-name="${table.name}">
+                    <div class="table-header">
+                        <div class="table-info-main">
+                            <span class="expand-icon">${isExpanded ? '▼' : '▶'}</span>
+                            <span class="table-name">${table.name}</span>
                             ${table.row_count !== null && table.row_count !== undefined ? `
-                                <span class="table-rows" style="color: #888; font-size: 11px;">${this._formatNumber(table.row_count)} rows</span>
+                                <span class="table-rows">${this._formatNumber(table.row_count)} rows</span>
                             ` : ''}
                         </div>
-                        <div class="table-actions" style="display: flex; gap: 8px; font-size: 11px;">
+                        <div class="table-actions">
                             ${table.size_mb !== null && table.size_mb !== undefined ? `
-                                <span class="table-size" style="color: #888;">${table.size_mb.toFixed(2)} MB</span>
+                                <span class="table-size">${table.size_mb.toFixed(2)} MB</span>
                             ` : ''}
                             ${table.schema ? `
-                                <span class="table-schema" style="color: #666; background: #333; padding: 2px 6px; border-radius: 3px;">${table.schema}</span>
+                                <span class="table-schema">${table.schema}</span>
                             ` : ''}
                         </div>
                     </div>
                     
                     ${isExpanded ? `
-                        <div class="table-details" style="
-                            padding: 12px;
-                            background: #1a1a1a;
-                            font-size: 12px;
-                        ">
-                            <div class="table-detail-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div class="table-details">
+                            <div class="table-detail-grid">
                                 <div class="detail-item">
-                                    <span class="detail-label" style="color: #888;">Schema:</span>
-                                    <span class="detail-value" style="color: #fff; margin-left: 8px;">${table.schema || 'N/A'}</span>
+                                    <span class="detail-label">Schema:</span>
+                                    <span class="detail-value">${table.schema || 'N/A'}</span>
                                 </div>
                                 <div class="detail-item">
-                                    <span class="detail-label" style="color: #888;">Type:</span>
-                                    <span class="detail-value" style="color: #fff; margin-left: 8px;">${table.type || 'N/A'}</span>
+                                    <span class="detail-label">Type:</span>
+                                    <span class="detail-value">${table.type || 'N/A'}</span>
                                 </div>
                                 <div class="detail-item">
-                                    <span class="detail-label" style="color: #888;">Row Count:</span>
-                                    <span class="detail-value" style="color: #fff; margin-left: 8px;">${table.row_count !== null && table.row_count !== undefined ? this._formatNumber(table.row_count) : 'N/A'}</span>
+                                    <span class="detail-label">Row Count:</span>
+                                    <span class="detail-value">${table.row_count !== null && table.row_count !== undefined ? this._formatNumber(table.row_count) : 'N/A'}</span>
                                 </div>
                                 <div class="detail-item">
-                                    <span class="detail-label" style="color: #888;">Size:</span>
-                                    <span class="detail-value" style="color: #fff; margin-left: 8px;">${table.size_mb !== null && table.size_mb !== undefined ? `${table.size_mb.toFixed(2)} MB` : 'N/A'}</span>
+                                    <span class="detail-label">Size:</span>
+                                    <span class="detail-value">${table.size_mb !== null && table.size_mb !== undefined ? `${table.size_mb.toFixed(2)} MB` : 'N/A'}</span>
                                 </div>
                             </div>
                         </div>
