@@ -4,10 +4,12 @@
  * 
  * 메인 애플리케이션 진입점 (리팩토링 버전)
  * 
- * @version 3.4.0
- * @description Phase 4-1 + Equipment Edit Button + AutoSave 연동
+ * @version 4.0.0
+ * @description 중앙 집중식 모드 관리 시스템 적용
  * 
  * @changelog
+ * - v4.0.0: 중앙 집중식 모드 관리, AppModeManager.toggleMode() 사용
+ *           ModeHandlers 서비스 연결, InteractionHandler에 AppModeManager 연결
  * - v3.4.0: StorageService AutoSave 연동, Equipment 복구 다이얼로그
  * - v3.3.0: EquipmentEditButton 연동, ConnectionStatus 체크 추가
  * 
@@ -20,6 +22,7 @@
 import {
     // Core
     initCoreManagers,
+    connectServicesToModeHandlers,  // 🆕 v4.0.0
     appModeManager,
     keyboardManager,
     debugManager,
@@ -83,49 +86,28 @@ const urlParams = new URLSearchParams(window.location.search);
 const SITE_ID = urlParams.get('siteId') || 'default_site';
 
 // ============================================
-// 모드 토글 함수
+// 🆕 v4.0.0: 모드 토글 함수 (단순화)
 // ============================================
 
+/**
+ * 🆕 v4.0.0: Equipment Edit 모드 토글
+ * AppModeManager.toggleMode() 사용 - 핸들러가 자동 처리
+ */
 function toggleEditMode() {
-    const currentMode = appModeManager.getCurrentMode();
-    
-    if (currentMode === APP_MODE.EQUIPMENT_EDIT) {
-        appModeManager.switchMode(APP_MODE.MAIN_VIEWER);
-        if (services.ui?.equipmentEditState) {
-            services.ui.equipmentEditState.disableEditMode();
-        }
-        updateButtonState('editBtn', false);
-        
-        // EquipmentEditButton 상태 동기화
-        if (services.ui?.equipmentEditButton) {
-            services.ui.equipmentEditButton.setEditModeActive(false);
-        }
-    } else {
-        appModeManager.switchMode(APP_MODE.EQUIPMENT_EDIT);
-        if (services.ui?.equipmentEditState) {
-            services.ui.equipmentEditState.enableEditMode();
-        }
-        updateButtonState('editBtn', true);
-        
-        // EquipmentEditButton 상태 동기화
-        if (services.ui?.equipmentEditButton) {
-            services.ui.equipmentEditButton.setEditModeActive(true);
-        }
-    }
+    appModeManager.toggleMode(APP_MODE.EQUIPMENT_EDIT);
 }
 
+/**
+ * 🆕 v4.0.0: Monitoring 모드 토글
+ * AppModeManager.toggleMode() 사용 - 핸들러가 자동 처리
+ */
 function toggleMonitoringMode() {
-    const currentMode = appModeManager.getCurrentMode();
-    
-    if (currentMode === APP_MODE.MONITORING) {
-        appModeManager.switchMode(APP_MODE.MAIN_VIEWER);
-        updateButtonState('monitoringBtn', false);
-    } else {
-        appModeManager.switchMode(APP_MODE.MONITORING);
-        updateButtonState('monitoringBtn', true);
-    }
+    appModeManager.toggleMode(APP_MODE.MONITORING);
 }
 
+/**
+ * Connection Modal 토글 (기존 유지)
+ */
 function toggleConnectionModal() {
     if (services.ui?.connectionModal) {
         services.ui.connectionModal.toggle();
@@ -133,6 +115,9 @@ function toggleConnectionModal() {
     }
 }
 
+/**
+ * 버튼 상태 업데이트 헬퍼 (Connection 버튼용)
+ */
 function updateButtonState(btnId, isActive) {
     const btn = document.getElementById(btnId);
     if (btn) {
@@ -140,6 +125,9 @@ function updateButtonState(btnId, isActive) {
     }
 }
 
+/**
+ * 전체화면 토글
+ */
 function toggleFullscreen() {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
@@ -345,12 +333,12 @@ function initEquipmentAutoSave(equipmentEditState) {
 // ============================================
 
 function init() {
-    console.log('🚀 Sherlock Sky 3DSim 초기화...');
+    console.log('🚀 Sherlock Sky 3DSim 초기화 (v4.0.0)...');
     console.log(`📍 Site ID: ${SITE_ID}`);
     
     try {
-        // 1. Core 매니저 초기화
-        initCoreManagers({ monitoringService: null });
+        // 1. Core 매니저 초기화 (모드 핸들러 등록)
+        initCoreManagers({ registerHandlers: true });
         
         // 2. 3D 씬 초기화
         services.scene = initScene();
@@ -366,24 +354,33 @@ function init() {
             services.ui.connectionStatusService
         );
         
-        // Core 매니저에 monitoringService 재등록
-        initCoreManagers({ monitoringService: services.monitoring.monitoringService });
+        // 🆕 5. 모드 핸들러에 서비스 연결 (v4.0.0 핵심!)
+        connectServicesToModeHandlers({
+            equipmentEditState: services.ui.equipmentEditState,
+            equipmentEditButton: services.ui.equipmentEditButton,
+            monitoringService: services.monitoring.monitoringService,
+            signalTowerManager: services.monitoring.signalTowerManager
+        });
         
-        // 5. InteractionHandler 연결
+        // 6. InteractionHandler 연결
         const { interactionHandler, sceneManager, equipmentLoader } = services.scene;
         const { equipmentEditState, equipmentEditModal, equipmentEditButton } = services.ui;
         
+        // 🆕 v4.0.0: AppModeManager 연결 (중앙 집중식 모드 관리)
+        interactionHandler.setAppModeManager(appModeManager);
+        
+        // 레거시 호환용 연결
         interactionHandler.setEditMode(equipmentEditState);
         interactionHandler.setEditModal(equipmentEditModal);
         interactionHandler.setMonitoringService(services.monitoring.monitoringService);
         
-        // 6. EquipmentEditButton 연동
+        // 7. EquipmentEditButton 연동
         connectEquipmentEditButton(equipmentEditButton, toggleEditMode);
         
-        // 🆕 7. Equipment AutoSave 초기화
+        // 8. Equipment AutoSave 초기화
         initEquipmentAutoSave(equipmentEditState);
         
-        // 8. 이벤트 리스너 설정
+        // 9. 이벤트 리스너 설정
         const eventHandlers = {
             toggleEditMode,
             toggleMonitoringMode,
@@ -413,13 +410,13 @@ function init() {
             signalTowerManager: services.monitoring.signalTowerManager
         });
         
-        // 9. LayoutEditorMain 연결
+        // 10. LayoutEditorMain 연결
         setupLayoutEditorMainConnection(sceneManager);
         
-        // 10. PreviewGenerator 초기화
+        // 11. PreviewGenerator 초기화
         previewGenerator = initPreviewGenerator();
         
-        // 11. 전역 디버그 함수 설정
+        // 12. 전역 디버그 함수 설정
         setupGlobalDebugFunctions({
             sceneManager,
             equipmentLoader,
@@ -433,10 +430,10 @@ function init() {
             services.scene.adaptivePerformance.setupGlobalCommands();
         }
         
-        // 12. 애니메이션 시작
+        // 13. 애니메이션 시작
         animate();
         
-        // 13. 전역 객체 노출
+        // 14. 전역 객체 노출
         exposeGlobalObjects({
             // Scene
             sceneManager,
@@ -482,10 +479,11 @@ function init() {
             
             // 함수 노출
             toggleAdaptivePerformance,
-            toggleEditMode
+            toggleEditMode,
+            toggleMonitoringMode
         });
         
-        // 14. 초기화 완료
+        // 15. 초기화 완료
         hideLoadingStatus(3000);
         
         eventBus.emit(EVENT_NAME.APP_INITIALIZED, {
@@ -500,12 +498,13 @@ function init() {
             }, 1000);
         }
         
-        console.log('✅ 모든 초기화 완료!');
+        console.log('✅ 모든 초기화 완료! (v4.0.0 - 중앙 집중식 모드 관리)');
         console.log('💡 콘솔에서 debugHelp() 입력으로 사용 가능한 명령어 확인');
         console.log('💡 키보드 단축키: D=디버그, P=성능, H=헬퍼, G=그리드, M=모니터링, E=편집');
         console.log('💡 AdaptivePerformance: toggleAdaptivePerformance() 또는 A키로 ON/OFF');
         console.log('💡 Equipment Edit: Backend 연결 시에만 E키 또는 버튼 사용 가능');
         console.log('💡 Equipment AutoSave: 30초마다 자동 저장, 5회 변경 시 즉시 저장');
+        console.log('💡 모드 전환: appModeManager.toggleMode(APP_MODE.XXX) 사용');
         
     } catch (error) {
         console.error('❌ 초기화 중 오류 발생:', error);

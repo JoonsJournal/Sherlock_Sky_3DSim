@@ -4,8 +4,11 @@
  * 
  * Bootstrap 모듈 통합 export
  * 
- * @version 1.0.0
+ * @version 2.0.0
  * @module bootstrap
+ * 
+ * @changelog
+ * - v2.0.0: ModeHandlers export 추가, connectServicesToModeHandlers 추가
  * 
  * 위치: frontend/threejs_viewer/src/bootstrap/index.js
  */
@@ -13,6 +16,7 @@
 // Core Bootstrap
 export { 
     initCoreManagers,
+    connectServicesToModeHandlers,  // 🆕 v2.0.0
     modeUtils,
     appModeManager,
     keyboardManager,
@@ -21,7 +25,11 @@ export {
     logger,
     APP_MODE,
     KEYBOARD_CONTEXT,
-    EVENT_NAME
+    EVENT_NAME,
+    // 🆕 v2.0.0: ModeHandlers export
+    registerAllModeHandlers,
+    connectModeHandlerServices,
+    modeHandlers
 } from './CoreBootstrap.js';
 
 // Scene Bootstrap
@@ -37,7 +45,7 @@ export {
     initMonitoringServices,
     initConnectionStatus,
     initEquipmentEditButton,
-    connectEquipmentEditButton,  // 🆕 추가
+    connectEquipmentEditButton,
     togglePerformanceMonitorUI,
     toggleDebugPanel,
     toggleConnectionIndicator,
@@ -45,7 +53,7 @@ export {
     ConnectionStatusService,
     ConnectionIndicator,
     ConnectionEvents,
-    EquipmentEditButton  // 🆕 추가
+    EquipmentEditButton
 } from './UIBootstrap.js';
 
 // Event Bootstrap

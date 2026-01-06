@@ -2,8 +2,13 @@
  * InteractionHandler.js
  * 마우스 및 키보드 상호작용 처리
  * 
- * @version 2.5.0
- * @description 호버/선택 기능, Edit Mode 지원, Monitoring Mode 미연결 설비 안내
+ * @version 3.0.0
+ * @description 호버/선택 기능, AppModeManager 기반 모드별 동작 분기
+ * 
+ * 🆕 v3.0.0: 
+ * - AppModeManager 참조로 모드 판단 (중앙 집중식)
+ * - 모드별 클릭 동작 분리 (main_viewer, equipment_edit, monitoring)
+ * - 기존 editState.editModeEnabled 직접 참조 제거
  * 
  * 📁 위치: frontend/threejs_viewer/src/viewer3d/controls/InteractionHandler.js
  */
@@ -11,6 +16,7 @@
 import * as THREE from 'three';
 import { debugLog } from '../../core/utils/Config.js';
 import { SelectionManager, SelectionVisualizer } from '../selection/index.js';
+import { APP_MODE } from '../../core/config/constants.js';
 
 export class InteractionHandler {
     constructor(camera, scene, domElement) {
@@ -36,11 +42,16 @@ export class InteractionHandler {
         // 참조
         this.dataOverlay = null;
         this.statusVisualizer = null;
-        this.editState = null;
         this.editModal = null;
+        
+        // 🆕 v3.0.0: AppModeManager 참조 (중앙 집중식 모드 관리)
+        this.appModeManager = null;
         
         // ⭐ Monitoring 서비스 참조 (미연결 설비 안내용)
         this.monitoringService = null;
+        
+        // 🆕 v3.0.0: 레거시 호환용 (기존 코드와의 호환성)
+        this.editState = null;
         
         this.init();
     }
@@ -54,8 +65,45 @@ export class InteractionHandler {
         this.domElement.addEventListener('mousemove', this._boundOnMouseMove, false);
         this.domElement.addEventListener('mouseleave', this._boundOnMouseLeave, false);
         
-        debugLog('🖱️ InteractionHandler 초기화 완료');
+        debugLog('🖱️ InteractionHandler 초기화 완료 (v3.0.0)');
     }
+    
+    // =========================================================================
+    // 🆕 v3.0.0: AppModeManager 설정
+    // =========================================================================
+    
+    /**
+     * 🆕 v3.0.0: AppModeManager 설정 (중앙 집중식 모드 관리)
+     * @param {Object} appModeManager - AppModeManager 인스턴스
+     */
+    setAppModeManager(appModeManager) {
+        this.appModeManager = appModeManager;
+        debugLog('🔗 AppModeManager connected to InteractionHandler');
+    }
+    
+    /**
+     * 🆕 v3.0.0: 현재 모드 조회 (헬퍼)
+     * @returns {string} 현재 모드
+     */
+    _getCurrentMode() {
+        if (this.appModeManager) {
+            return this.appModeManager.getCurrentMode();
+        }
+        
+        // 레거시 폴백: editState 사용
+        if (this.editState && this.editState.editModeEnabled) {
+            return APP_MODE.EQUIPMENT_EDIT;
+        }
+        if (this.monitoringService && this.monitoringService.isActive) {
+            return APP_MODE.MONITORING;
+        }
+        
+        return APP_MODE.MAIN_VIEWER;
+    }
+    
+    // =========================================================================
+    // 기존 설정 메서드 (호환성 유지)
+    // =========================================================================
     
     setDataOverlay(dataOverlay) {
         this.dataOverlay = dataOverlay;
@@ -69,6 +117,10 @@ export class InteractionHandler {
         this.equipmentArray = equipmentArray;
     }
     
+    /**
+     * 🆕 v3.0.0: 레거시 호환용 - EditState 설정
+     * @deprecated AppModeManager 사용 권장
+     */
     setEditMode(editState) {
         this.editState = editState;
     }
@@ -84,6 +136,10 @@ export class InteractionHandler {
         this.monitoringService = monitoringService;
         debugLog('🔗 MonitoringService connected to InteractionHandler');
     }
+    
+    // =========================================================================
+    // 마우스 이벤트 핸들러
+    // =========================================================================
     
     /**
      * 마우스가 캔버스를 벗어날 때
@@ -155,7 +211,7 @@ export class InteractionHandler {
     }
     
     /**
-     * 마우스 클릭 핸들러
+     * 🆕 v3.0.0: 마우스 클릭 핸들러 (모드별 동작 분기)
      */
     onMouseClick(event) {
         this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -175,48 +231,29 @@ export class InteractionHandler {
             
             const frontendId = targetEquipment.userData?.id;
             
-            // Edit Mode
-            if (this.editState && this.editState.editModeEnabled) {
-                if (this.editModal) {
-                    this.editModal.open(targetEquipment);
-                }
-                return;
-            }
+            // 🆕 v3.0.0: AppModeManager 기반 모드별 동작 분기
+            const currentMode = this._getCurrentMode();
             
-            // ⭐ Monitoring Mode: 미연결 설비 클릭 시 안내
-            if (this.monitoringService?.isActive) {
-                const isMapped = this.monitoringService.checkAndNotifyUnmapped(frontendId);
-                
-                if (!isMapped) {
-                    // 미연결 설비는 선택하지 않고 안내만 표시
-                    debugLog(`⚠️ Unmapped equipment clicked: ${frontendId}`);
+            switch (currentMode) {
+                case APP_MODE.EQUIPMENT_EDIT:
+                    // Equipment Edit 모드: Edit Modal 열기
+                    this._handleEquipmentEditClick(targetEquipment, frontendId);
                     return;
-                }
-            }
-            
-            if (this.currentHoveredEquipment === targetEquipment) {
-                this.currentHoveredEquipment = null;
-            }
-            
-            const isMultiSelectMode = event.ctrlKey || event.metaKey;
-            
-            if (isMultiSelectMode) {
-                this.selectionManager.toggle(targetEquipment);
-            } else {
-                this.selectionManager.select(targetEquipment, false);
-            }
-            
-            const selectedData = this.selectionManager.getSelectedData();
-            
-            if (this.dataOverlay && selectedData.length > 0) {
-                this.dataOverlay.showEquipmentInfo(selectedData);
-            }
-            
-            if (this.onEquipmentClickCallback) {
-                this.onEquipmentClickCallback(selectedData);
+                    
+                case APP_MODE.MONITORING:
+                    // Monitoring 모드: DataOverlay 패널 표시 또는 미연결 안내
+                    this._handleMonitoringClick(targetEquipment, frontendId, event);
+                    return;
+                    
+                case APP_MODE.MAIN_VIEWER:
+                default:
+                    // Main Viewer 모드: 선택만 (기존 동작)
+                    this._handleMainViewerClick(targetEquipment, frontendId, event);
+                    return;
             }
             
         } else {
+            // 빈 공간 클릭: 선택 해제
             if (!event.ctrlKey && !event.metaKey) {
                 this.selectionManager.clearSelection();
                 this._clearHover();
@@ -232,21 +269,145 @@ export class InteractionHandler {
         }
     }
     
-    // === 콜백 설정 ===
-    setOnEquipmentClick(callback) { this.onEquipmentClickCallback = callback; }
-    setOnEquipmentDeselect(callback) { this.onEquipmentDeselectCallback = callback; }
+    // =========================================================================
+    // 🆕 v3.0.0: 모드별 클릭 핸들러
+    // =========================================================================
     
-    // === 호환성 메서드 ===
-    getSelectedEquipments() { return this.selectionManager.getSelected(); }
-    getSelectedCount() { return this.selectionManager.getSelectedCount(); }
-    isSelected(equipment) { return this.selectionManager.isSelected(equipment); }
+    /**
+     * 🆕 v3.0.0: Equipment Edit 모드 클릭 처리
+     * @private
+     */
+    _handleEquipmentEditClick(targetEquipment, frontendId) {
+        debugLog(`✏️ Edit Mode Click: ${frontendId}`);
+        
+        if (this.editModal) {
+            this.editModal.open(targetEquipment);
+        }
+    }
+    
+    /**
+     * 🆕 v3.0.0: Monitoring 모드 클릭 처리
+     * @private
+     */
+    _handleMonitoringClick(targetEquipment, frontendId, event) {
+        debugLog(`📊 Monitoring Mode Click: ${frontendId}`);
+        
+        // 미연결 설비 확인 및 안내
+        if (this.monitoringService?.isActive) {
+            const isMapped = this.monitoringService.checkAndNotifyUnmapped(frontendId);
+            
+            if (!isMapped) {
+                // 미연결 설비는 선택하지 않고 안내만 표시
+                debugLog(`⚠️ Unmapped equipment clicked: ${frontendId}`);
+                return;
+            }
+        }
+        
+        // 호버 상태 정리
+        if (this.currentHoveredEquipment === targetEquipment) {
+            this.currentHoveredEquipment = null;
+        }
+        
+        // 선택 처리
+        const isMultiSelectMode = event.ctrlKey || event.metaKey;
+        
+        if (isMultiSelectMode) {
+            this.selectionManager.toggle(targetEquipment);
+        } else {
+            this.selectionManager.select(targetEquipment, false);
+        }
+        
+        // DataOverlay에 설비 정보 표시
+        const selectedData = this.selectionManager.getSelectedData();
+        
+        if (this.dataOverlay && selectedData.length > 0) {
+            this.dataOverlay.showEquipmentInfo(selectedData);
+        }
+        
+        // 콜백 호출
+        if (this.onEquipmentClickCallback) {
+            this.onEquipmentClickCallback(selectedData);
+        }
+    }
+    
+    /**
+     * 🆕 v3.0.0: Main Viewer 모드 클릭 처리 (선택만)
+     * @private
+     */
+    _handleMainViewerClick(targetEquipment, frontendId, event) {
+        debugLog(`👁️ Main Viewer Mode Click: ${frontendId}`);
+        
+        // 호버 상태 정리
+        if (this.currentHoveredEquipment === targetEquipment) {
+            this.currentHoveredEquipment = null;
+        }
+        
+        // 선택 처리 (기존 동작 유지)
+        const isMultiSelectMode = event.ctrlKey || event.metaKey;
+        
+        if (isMultiSelectMode) {
+            this.selectionManager.toggle(targetEquipment);
+        } else {
+            this.selectionManager.select(targetEquipment, false);
+        }
+        
+        // 선택 정보 표시 (DataOverlay 표시하지 않음 - 선택 효과만)
+        const selectedData = this.selectionManager.getSelectedData();
+        
+        // 콜백 호출
+        if (this.onEquipmentClickCallback) {
+            this.onEquipmentClickCallback(selectedData);
+        }
+    }
+    
+    // =========================================================================
+    // 콜백 설정
+    // =========================================================================
+    
+    setOnEquipmentClick(callback) { 
+        this.onEquipmentClickCallback = callback; 
+    }
+    
+    setOnEquipmentDeselect(callback) { 
+        this.onEquipmentDeselectCallback = callback; 
+    }
+    
+    // =========================================================================
+    // 호환성 메서드
+    // =========================================================================
+    
+    getSelectedEquipments() { 
+        return this.selectionManager.getSelected(); 
+    }
+    
+    getSelectedCount() { 
+        return this.selectionManager.getSelectedCount(); 
+    }
+    
+    isSelected(equipment) { 
+        return this.selectionManager.isSelected(equipment); 
+    }
+    
     clearAllSelections() { 
         this.selectionManager.clearSelection(); 
         this._clearHover();
     }
-    getSelectionManager() { return this.selectionManager; }
-    getSelectionVisualizer() { return this.selectionVisualizer; }
-    updateEquipmentArray(equipmentArray) { this.equipmentArray = equipmentArray; }
+    
+    getSelectionManager() { 
+        return this.selectionManager; 
+    }
+    
+    getSelectionVisualizer() { 
+        return this.selectionVisualizer; 
+    }
+    
+    updateEquipmentArray(equipmentArray) { 
+        this.equipmentArray = equipmentArray; 
+    }
+    
+    // =========================================================================
+    // 정리
+    // =========================================================================
     
     dispose() {
         this.domElement.removeEventListener('click', this._boundOnMouseClick);

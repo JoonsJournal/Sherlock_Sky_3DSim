@@ -2,9 +2,12 @@
  * AppModeManager.js
  * 애플리케이션 모드 관리
  * 
- * @version 1.1.0
+ * @version 2.0.0
  * @description 6가지 앱 모드 전환 및 상태 관리
- *              🆕 v1.1.0: Backend 연결 상태 체크 및 Monitoring 모드 진입 조건 추가
+ *              🆕 v2.0.0: 중앙 집중식 모드 관리, 상호 배타적 모드 전환
+ *              - 모드 전환 시 자동으로 이전 모드 onExit 호출
+ *              - 버튼 상태 자동 동기화
+ *              - Sub_mode 지원 준비
  */
 
 import { APP_MODE, EVENT_NAME } from '../config/constants.js';
@@ -24,7 +27,8 @@ const MODE_CONNECTION_REQUIREMENTS = {
     [APP_MODE.LAYOUT_EDITOR]: false,    // 연결 불필요 (로컬 편집 가능)
     [APP_MODE.PLAYBACK]: true,          // 연결 필요 (데이터 재생)
     [APP_MODE.ANALYTICS]: true,         // 연결 필요 (분석 데이터)
-    [APP_MODE.SETTINGS]: false          // 연결 불필요
+    [APP_MODE.SETTINGS]: false,         // 연결 불필요
+    [APP_MODE.EQUIPMENT_EDIT]: false    // 연결 불필요 (로컬 편집 가능)
 };
 
 /**
@@ -37,7 +41,16 @@ const MODE_OFFLINE_BEHAVIOR = {
     [APP_MODE.LAYOUT_EDITOR]: 'allow',
     [APP_MODE.PLAYBACK]: 'block',
     [APP_MODE.ANALYTICS]: 'warn',
-    [APP_MODE.SETTINGS]: 'allow'
+    [APP_MODE.SETTINGS]: 'allow',
+    [APP_MODE.EQUIPMENT_EDIT]: 'allow'
+};
+
+/**
+ * 🆕 v2.0.0: 버튼-모드 매핑
+ */
+const BUTTON_MODE_MAP = {
+    'editBtn': APP_MODE.EQUIPMENT_EDIT,
+    'monitoringBtn': APP_MODE.MONITORING
 };
 
 class AppModeManagerClass {
@@ -49,14 +62,39 @@ class AppModeManagerClass {
         this._transitions = new Map();
         this._locked = false;
         
+        // 🆕 v2.0.0: Sub_mode 지원
+        this._subMode = null;
+        
         // 🆕 Connection Status 서비스 참조
         this._connectionStatusService = null;
         this._connectionEventUnsubscribers = [];
         
         // 로거 설정
-        this._logger = logger.child('ModeManager');
+        this._logger = logger.child ? logger.child('ModeManager') : logger;
         
-        this._logger.info('초기화 완료');
+        this._logger.info('초기화 완료 (v2.0.0)');
+    }
+    
+    // =========================================================================
+    // 🆕 v2.0.0: 버튼 상태 동기화
+    // =========================================================================
+    
+    /**
+     * 🆕 v2.0.0: 모든 모드 버튼 상태를 현재 모드에 맞게 동기화
+     * @param {string} mode - 현재 모드 (기본값: this._currentMode)
+     */
+    syncButtonStates(mode = null) {
+        const activeMode = mode || this._currentMode;
+        
+        Object.entries(BUTTON_MODE_MAP).forEach(([btnId, modeValue]) => {
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                const isActive = (activeMode === modeValue);
+                btn.classList.toggle('active', isActive);
+            }
+        });
+        
+        this._logger.debug(`버튼 상태 동기화: ${activeMode}`);
     }
     
     // =========================================================================
@@ -222,6 +260,31 @@ class AppModeManagerClass {
         return this._previousMode;
     }
     
+    /**
+     * 🆕 v2.0.0: Sub_mode 조회
+     * @returns {string|null}
+     */
+    getSubMode() {
+        return this._subMode;
+    }
+    
+    /**
+     * 🆕 v2.0.0: Sub_mode 설정
+     * @param {string|null} subMode
+     */
+    setSubMode(subMode) {
+        const prevSubMode = this._subMode;
+        this._subMode = subMode;
+        
+        eventBus.emit('submode:change', {
+            from: prevSubMode,
+            to: subMode,
+            parentMode: this._currentMode
+        });
+        
+        this._logger.debug(`Sub_mode 변경: ${prevSubMode} → ${subMode}`);
+    }
+    
     // =========================================================================
     // 모드 핸들러 관리
     // =========================================================================
@@ -238,6 +301,8 @@ class AppModeManagerClass {
         }
         
         this._modeHandlers.set(mode, {
+            name: handler.name || mode,
+            keyboardContext: handler.keyboardContext || null,
             onEnter: handler.onEnter || (() => {}),
             onExit: handler.onExit || (() => {}),
             onUpdate: handler.onUpdate || (() => {})
@@ -255,8 +320,17 @@ class AppModeManagerClass {
         this._logger.debug(`모드 핸들러 제거: ${mode}`);
     }
     
+    /**
+     * 🆕 v2.0.0: 모드 핸들러 가져오기
+     * @param {string} mode
+     * @returns {Object|null}
+     */
+    getModeHandler(mode) {
+        return this._modeHandlers.get(mode) || null;
+    }
+    
     // =========================================================================
-    // 모드 전환 (🆕 연결 상태 체크 추가)
+    // 모드 전환 (🆕 v2.0.0: 상호 배타적 전환 보장)
     // =========================================================================
     
     /**
@@ -281,7 +355,7 @@ class AppModeManagerClass {
             return false;
         }
         
-        // 동일 모드 전환 방지
+        // 동일 모드 전환 방지 (force가 아닌 경우)
         if (this._currentMode === newMode && !options.force) {
             this._logger.debug('이미 해당 모드:', newMode);
             return true;
@@ -325,8 +399,11 @@ class AppModeManagerClass {
                 options
             });
             
-            // 현재 모드 종료
+            // 🆕 v2.0.0: 현재 모드 종료 (항상 호출하여 정리 보장)
             await this._exitMode(oldMode, newMode);
+            
+            // 🆕 v2.0.0: Sub_mode 초기화
+            this._subMode = null;
             
             // 모드 상태 업데이트
             this._previousMode = oldMode;
@@ -341,6 +418,9 @@ class AppModeManagerClass {
             
             // 새 모드 진입
             await this._enterMode(newMode, oldMode);
+            
+            // 🆕 v2.0.0: 버튼 상태 자동 동기화
+            this.syncButtonStates(newMode);
             
             // change 이벤트 발생
             eventBus.emit(EVENT_NAME.MODE_CHANGE, {
@@ -358,6 +438,20 @@ class AppModeManagerClass {
             this._currentMode = oldMode;
             return false;
         }
+    }
+    
+    /**
+     * 🆕 v2.0.0: 모드 토글 (편의 메서드)
+     * 현재 해당 모드면 main_viewer로, 아니면 해당 모드로 전환
+     * @param {string} targetMode - 토글할 모드
+     * @returns {boolean} 전환 성공 여부
+     */
+    async toggleMode(targetMode) {
+        const newMode = (this._currentMode === targetMode) 
+            ? APP_MODE.MAIN_VIEWER 
+            : targetMode;
+        
+        return this.switchMode(newMode);
     }
     
     // =========================================================================
@@ -415,6 +509,22 @@ class AppModeManagerClass {
      */
     isMonitoringMode() {
         return this._currentMode === APP_MODE.MONITORING;
+    }
+    
+    /**
+     * 🆕 v2.0.0: 현재 Equipment Edit 모드인지 확인
+     * @returns {boolean}
+     */
+    isEquipmentEditMode() {
+        return this._currentMode === APP_MODE.EQUIPMENT_EDIT;
+    }
+    
+    /**
+     * 🆕 v2.0.0: 현재 Main Viewer 모드인지 확인
+     * @returns {boolean}
+     */
+    isMainViewerMode() {
+        return this._currentMode === APP_MODE.MAIN_VIEWER;
     }
     
     // =========================================================================
@@ -559,15 +669,16 @@ class AppModeManagerClass {
      * 디버그 정보 출력
      */
     debug() {
-        this._logger.group('AppModeManager Debug');
-        this._logger.info('현재 모드:', this._currentMode);
-        this._logger.info('이전 모드:', this._previousMode);
-        this._logger.info('모드 스택:', this._modeStack);
-        this._logger.info('잠금 상태:', this._locked);
-        this._logger.info('등록된 핸들러:', Array.from(this._modeHandlers.keys()));
-        this._logger.info('Backend 연결:', this.isBackendOnline() ? 'ONLINE' : 'OFFLINE');
-        this._logger.info('ConnectionService 연결:', this._connectionStatusService ? 'YES' : 'NO');
-        this._logger.groupEnd();
+        console.group('🔧 AppModeManager Debug (v2.0.0)');
+        console.log('현재 모드:', this._currentMode);
+        console.log('이전 모드:', this._previousMode);
+        console.log('Sub_mode:', this._subMode);
+        console.log('모드 스택:', this._modeStack);
+        console.log('잠금 상태:', this._locked);
+        console.log('등록된 핸들러:', Array.from(this._modeHandlers.keys()));
+        console.log('Backend 연결:', this.isBackendOnline() ? 'ONLINE' : 'OFFLINE');
+        console.log('ConnectionService 연결:', this._connectionStatusService ? 'YES' : 'NO');
+        console.groupEnd();
     }
     
     /**
