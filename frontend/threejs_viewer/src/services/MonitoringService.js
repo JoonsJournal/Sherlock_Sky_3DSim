@@ -1,12 +1,17 @@
 /**
- * MonitoringService.js - v3.0.0
+ * MonitoringService.js - v3.1.0
  * 실시간 설비 모니터링 서비스
+ * 
+ * ⭐ v3.1.0: 24시간 기준 초기 상태 로드 + DISCONNECTED 처리
+ * - /api/monitoring/status/initial API 사용
+ * - threshold_hours 설정 가능 (기본 24시간)
+ * - is_connected 필드로 DISCONNECTED 상태 처리
+ * - 통계 패널에 전체 설비 수, SUDDENSTOP, DISCONNECTED 추가
  * 
  * ⭐ v3.0.0: SignalTower 연동 강화
  * - 초기화 흐름 개선 (모든 램프 OFF → 미매핑 DISABLED → REST API로 상태 로드)
  * - 새 매핑 이벤트 처리 (mapping-changed)
  * - SignalTower 미매핑 설비 DISABLED 처리
- * - API URL 수정: /equipment/{frontend_id}/live
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
  */
@@ -33,6 +38,9 @@ export class MonitoringService {
         this.batchInterval = 1000;
         this.batchTimer = null;
         
+        // ⭐ v3.1.0: DISCONNECTED 판별 기준 시간 (시간 단위)
+        this.staleThresholdHours = 24;
+        
         // 미연결 설비 색상 옵션
         this.disabledOptions = {
             grayColor: 0x444444  // 어두운 회색 (바닥과 구별)
@@ -40,11 +48,14 @@ export class MonitoringService {
         
         this.statusPanelElement = null;
         
+        // ⭐ v3.1.0: 확장된 통계 정보
         this.currentStats = {
-            mapped: 0,
-            unmapped: 0,
-            total: 0,
-            rate: 0
+            total: 0,           // 전체 설비 수
+            mapped: 0,          // 매핑된 설비 수
+            unmapped: 0,        // 미매핑 설비 수
+            rate: 0,            // 매핑 완료율
+            connected: 0,       // 연결된 설비 수 (24시간 내 데이터 있음)
+            disconnected: 0     // 연결 끊긴 설비 수 (24시간 내 데이터 없음)
         };
         
         // ⭐ v3.0.0: EventBus 참조 (있으면 사용)
@@ -53,7 +64,7 @@ export class MonitoringService {
         // ⭐ v3.0.0: 이벤트 핸들러 바인딩 (제거 시 필요)
         this._boundHandleMappingChanged = this.handleMappingChanged.bind(this);
         
-        debugLog('MonitoringService initialized (v3.0.0)');
+        debugLog('MonitoringService initialized (v3.1.0)');
     }
     
     /**
@@ -67,6 +78,19 @@ export class MonitoringService {
     }
     
     /**
+     * ⭐ v3.1.0: DISCONNECTED 판별 기준 시간 설정
+     * @param {number} hours - 시간 단위 (1~168)
+     */
+    setStaleThreshold(hours) {
+        if (hours >= 1 && hours <= 168) {
+            this.staleThresholdHours = hours;
+            debugLog(`⏱️ Stale threshold set to ${hours} hours`);
+        } else {
+            console.warn(`⚠️ Invalid threshold: ${hours}. Must be 1-168 hours.`);
+        }
+    }
+    
+    /**
      * ⭐ v3.0.0: 모니터링 시작 (개선된 흐름)
      */
     async start() {
@@ -75,7 +99,7 @@ export class MonitoringService {
             return;
         }
         
-        debugLog('🟢 Starting monitoring mode (v3.0.0)...');
+        debugLog('🟢 Starting monitoring mode (v3.1.0)...');
         this.isActive = true;
         
         try {
@@ -105,7 +129,8 @@ export class MonitoringService {
             debugLog('📊 Step 3: Status panel created');
             
             // ============================================
-            // 4️⃣ REST API로 초기 상태 로드
+            // 4️⃣ REST API로 초기 상태 로드 (24시간 기준)
+            // ⭐ v3.1.0: /status/initial API 사용
             // ============================================
             await this.loadInitialStatus().catch(err => {
                 debugLog(`⚠️ Step 4: loadInitialStatus failed: ${err.message}`);
@@ -130,7 +155,7 @@ export class MonitoringService {
             this.registerEventListeners();
             debugLog('📡 Step 7: Event listeners registered');
             
-            debugLog('✅ Monitoring mode started successfully (v3.0.0)');
+            debugLog('✅ Monitoring mode started successfully (v3.1.0)');
             
         } catch (error) {
             console.error('❌ Failed to start monitoring:', error);
@@ -324,7 +349,7 @@ export class MonitoringService {
      * Backend API: GET /api/monitoring/equipment/{frontend_id}/live
      * 
      * @param {string} frontendId - Frontend ID (예: 'EQ-01-01')
-     * @returns {Promise<string|null>} Status ('RUN', 'IDLE', 'STOP') 또는 null
+     * @returns {Promise<string|null>} Status ('RUN', 'IDLE', 'STOP', 'SUDDENSTOP') 또는 null
      */
     async fetchSingleEquipmentStatus(frontendId) {
         try {
@@ -399,10 +424,15 @@ export class MonitoringService {
         debugLog('📊 Status panel created');
     }
     
+    /**
+     * ⭐ v3.1.0: 개선된 통계 패널 HTML 생성
+     * - 전체 설비 수 추가
+     * - SUDDENSTOP, DISCONNECTED 카운트 추가
+     */
     getStatusPanelHTML() {
-        const { mapped, unmapped, rate } = this.currentStats;
+        const { total, mapped, unmapped, rate, connected, disconnected } = this.currentStats;
         
-        // ⭐ v3.0.0: SignalTower 통계 추가
+        // ⭐ v3.1.0: SignalTower 통계 (확장)
         let signalTowerStats = '';
         if (this.signalTowerManager) {
             const stats = this.signalTowerManager.getStatusStatistics();
@@ -410,38 +440,61 @@ export class MonitoringService {
                 <div class="status-divider">|</div>
                 <div class="status-item">
                     <span class="status-icon" style="color: #00ff00;">●</span>
+                    <span class="status-label">RUN</span>
                     <span class="status-value">${stats.RUN}</span>
                 </div>
                 <div class="status-item">
                     <span class="status-icon" style="color: #ffff00;">●</span>
+                    <span class="status-label">IDLE</span>
                     <span class="status-value">${stats.IDLE}</span>
                 </div>
                 <div class="status-item">
-                    <span class="status-icon" style="color: #ff0000;">●</span>
+                    <span class="status-icon" style="color: #ffff00;">●</span>
+                    <span class="status-label">STOP</span>
                     <span class="status-value">${stats.STOP}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-icon status-blink" style="color: #ff0000;">●</span>
+                    <span class="status-label">SUDDEN</span>
+                    <span class="status-value">${stats.SUDDENSTOP}</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-icon" style="color: #666666;">●</span>
+                    <span class="status-label">DISC</span>
+                    <span class="status-value">${stats.DISCONNECTED}</span>
                 </div>
             `;
         }
         
         return `
             <div class="status-item">
-                <span class="status-icon connected">✅</span>
-                <span class="status-value">${mapped}개 연결</span>
+                <span class="status-icon">📊</span>
+                <span class="status-label">전체</span>
+                <span class="status-value">${total}개</span>
             </div>
             <div class="status-divider">|</div>
+            <div class="status-item">
+                <span class="status-icon connected">✅</span>
+                <span class="status-label">매핑</span>
+                <span class="status-value">${mapped}개</span>
+            </div>
             <div class="status-item">
                 <span class="status-icon disconnected">⚠️</span>
-                <span class="status-value">${unmapped}개 미연결</span>
+                <span class="status-label">미매핑</span>
+                <span class="status-value">${unmapped}개</span>
             </div>
             <div class="status-divider">|</div>
             <div class="status-item">
-                <span class="status-icon">📊</span>
-                <span class="status-value">${rate}% 완료</span>
+                <span class="status-icon">📶</span>
+                <span class="status-value">${rate}%</span>
             </div>
             ${signalTowerStats}
         `;
     }
     
+    /**
+     * ⭐ v3.1.0: 통계 정보 업데이트 (확장)
+     */
     updateStats() {
         if (!this.equipmentLoader || !this.equipmentEditState) {
             return;
@@ -452,11 +505,25 @@ export class MonitoringService {
         const unmappedCount = totalEquipment - mappedCount;
         const rate = totalEquipment > 0 ? Math.round((mappedCount / totalEquipment) * 100) : 0;
         
+        // ⭐ v3.1.0: SignalTower 통계에서 connected/disconnected 계산
+        let connectedCount = 0;
+        let disconnectedCount = 0;
+        
+        if (this.signalTowerManager) {
+            const stats = this.signalTowerManager.getStatusStatistics();
+            // DISCONNECTED 카운트
+            disconnectedCount = stats.DISCONNECTED || 0;
+            // Connected = 매핑됨 - DISCONNECTED - DISABLED
+            connectedCount = mappedCount - disconnectedCount;
+        }
+        
         this.currentStats = {
+            total: totalEquipment,
             mapped: mappedCount,
             unmapped: unmappedCount,
-            total: totalEquipment,
-            rate: rate
+            rate: rate,
+            connected: connectedCount,
+            disconnected: disconnectedCount
         };
     }
     
@@ -596,10 +663,16 @@ export class MonitoringService {
     // API 및 WebSocket
     // ============================================
     
+    /**
+     * ⭐ v3.1.0: 초기 상태 로드 (24시간 기준)
+     * Backend API: GET /api/monitoring/status/initial?threshold_hours=24
+     */
     async loadInitialStatus() {
-        debugLog('📡 Loading initial equipment status...');
+        debugLog(`📡 Loading initial equipment status (threshold: ${this.staleThresholdHours}h)...`);
         
-        const response = await fetch(`${this.apiBaseUrl}/status`);
+        // ⭐ v3.1.0: 새 API 엔드포인트 사용
+        const url = `${this.apiBaseUrl}/status/initial?threshold_hours=${this.staleThresholdHours}`;
+        const response = await fetch(url);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -611,27 +684,58 @@ export class MonitoringService {
             throw new Error('Invalid response format');
         }
         
-        debugLog(`✅ Loaded ${data.equipment.length} equipment status`);
+        debugLog(`✅ Loaded ${data.equipment.length} equipment status from /status/initial`);
         
-        // REST API 응답에서 frontend_id 또는 equipment_id 사용
+        // ⭐ v3.1.0: Backend 응답의 summary 로깅
+        if (data.summary) {
+            debugLog(`📊 Summary: Total=${data.summary.total}, Connected=${data.summary.connected}, Disconnected=${data.summary.disconnected}`);
+            debugLog(`📊 By Status:`, data.summary.by_status);
+        }
+        
+        // ⭐ v3.1.0: is_connected 필드로 DISCONNECTED 처리
+        let connectedCount = 0;
+        let disconnectedCount = 0;
+        
         data.equipment.forEach(item => {
-            let frontendId = null;
+            const frontendId = item.frontend_id;
             
-            // frontend_id가 있으면 사용
-            if (item.frontend_id) {
-                frontendId = item.frontend_id;
-            }
-            // equipment_id로 frontend_id 조회
-            else if (item.equipment_id && this.equipmentEditState) {
-                frontendId = this.equipmentEditState.getFrontendIdByEquipmentId(item.equipment_id);
+            if (!frontendId) {
+                debugLog(`⚠️ No frontend_id for equipment_id: ${item.equipment_id}`);
+                return;
             }
             
-            if (frontendId && item.status) {
-                if (this.isEquipmentMapped(frontendId)) {
-                    this.updateEquipmentStatus(frontendId, item.status);
+            // 매핑된 설비만 처리
+            if (!this.isEquipmentMapped(frontendId)) {
+                return;
+            }
+            
+            // ⭐ v3.1.0: is_connected 필드로 DISCONNECTED 판별
+            if (item.is_connected === false || item.status === null) {
+                // DISCONNECTED 상태
+                if (this.signalTowerManager) {
+                    this.signalTowerManager.updateStatus(frontendId, 'DISCONNECTED');
                 }
+                this.statusCache.set(frontendId, 'DISCONNECTED');
+                disconnectedCount++;
+                debugLog(`🔌 ${frontendId} -> DISCONNECTED (no data in ${this.staleThresholdHours}h)`);
+            } else {
+                // 정상 상태 (RUN, IDLE, STOP, SUDDENSTOP)
+                if (this.signalTowerManager) {
+                    this.signalTowerManager.updateStatus(frontendId, item.status);
+                }
+                this.statusCache.set(frontendId, item.status);
+                connectedCount++;
             }
         });
+        
+        // 통계 업데이트
+        this.currentStats.connected = connectedCount;
+        this.currentStats.disconnected = disconnectedCount;
+        
+        debugLog(`✅ Initial status applied: ${connectedCount} connected, ${disconnectedCount} disconnected`);
+        
+        // 패널 업데이트
+        this.updateStatusPanel();
     }
     
     isEquipmentMapped(frontendId) {
@@ -718,6 +822,7 @@ export class MonitoringService {
     
     /**
      * WebSocket 메시지 핸들러 (equipment_id → frontend_id 변환)
+     * ⭐ v3.1.0: SUDDENSTOP 상태 지원
      */
     handleWebSocketMessage(event) {
         try {
@@ -824,7 +929,7 @@ export class MonitoringService {
     /**
      * 테스트용: 특정 설비 상태 변경
      * @param {string} frontendId - Frontend ID (예: 'EQ-01-01')
-     * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP')
+     * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP', 'SUDDENSTOP', 'DISCONNECTED')
      */
     testStatusChange(frontendId, status) {
         debugLog(`🧪 Test status change: ${frontendId} -> ${status}`);
@@ -835,7 +940,7 @@ export class MonitoringService {
     /**
      * 테스트용: equipment_id로 상태 변경
      * @param {number} equipmentId - Equipment ID (예: 75)
-     * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP')
+     * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP', 'SUDDENSTOP', 'DISCONNECTED')
      */
     testStatusChangeByEquipmentId(equipmentId, status) {
         const frontendId = this.equipmentEditState?.getFrontendIdByEquipmentId(equipmentId);
@@ -873,6 +978,7 @@ export class MonitoringService {
             queueLength: this.updateQueue.length,
             mappedCount: this.equipmentEditState?.getMappingCount() || 0,
             subscribedEquipmentIds: this.getMappedEquipmentIds().length,
+            staleThresholdHours: this.staleThresholdHours,
             stats: this.currentStats,
             signalTowerStats: this.signalTowerManager?.getStatusStatistics() || null
         };
@@ -883,7 +989,8 @@ export class MonitoringService {
      */
     debugPrintStatus() {
         console.group('🔧 MonitoringService Debug Info');
-        console.log('Version: 3.0.0');
+        console.log('Version: 3.1.0');
+        console.log('Stale Threshold:', this.staleThresholdHours, 'hours');
         console.log('Connection Status:', this.getConnectionStatus());
         console.log('Status Cache:', Object.fromEntries(this.statusCache));
         console.log('Update Queue:', this.updateQueue);

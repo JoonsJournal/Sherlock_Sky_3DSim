@@ -6,11 +6,13 @@
  * - Equipment Info Panel
  * - Debug Controls Panel
  * - Equipment Edit Panel
+ * - 🆕 Status Panel (Monitoring / Equipment Edit 모드)
  * 
  * ⚠️ Connection 관련 패널 스타일은 _connection-panels.css로 분리
  * 
  * 작성일: 2026-01-02
  * 수정일: 2026-01-06 (Phase 5 - 클래스명 정리 + 라이트 테마 통일)
+ * 수정일: 2026-01-06 (v3.1.0 - Status Panel 스타일 추가)
  */
 
 /* =============================================
@@ -134,6 +136,132 @@
 .btn-icon--overlay:hover {
     background: var(--overlay-bg-hover);
     color: var(--overlay-text-primary);
+}
+
+/* =============================================
+   🆕 Status Panel (Monitoring / Equipment Edit)
+   3D 씬 위 오버레이 (다크 테마)
+   ============================================= */
+.status-panel {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--overlay-bg-primary);
+    border: 1px solid var(--overlay-border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    color: var(--overlay-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    z-index: var(--z-dropdown);
+    animation: statusPanelFadeIn 0.3s ease-out;
+}
+
+@keyframes statusPanelFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* Status Panel 내부 요소 */
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.status-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.status-icon.connected {
+    color: var(--status-success);
+}
+
+.status-icon.disconnected {
+    color: var(--status-warning);
+}
+
+.status-label {
+    color: var(--overlay-text-muted);
+    font-size: 11px;
+    font-weight: 400;
+}
+
+.status-value {
+    color: var(--overlay-text-primary);
+    font-weight: 600;
+}
+
+.status-divider {
+    color: var(--overlay-border-light);
+    margin: 0 4px;
+    font-weight: 300;
+}
+
+/* 🆕 SUDDENSTOP 깜빡임 애니메이션 */
+.status-blink {
+    animation: statusBlink 0.5s ease-in-out infinite;
+}
+
+@keyframes statusBlink {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
+}
+
+/* Status Panel 변형 - Equipment Edit 모드 */
+.status-panel--edit {
+    background: linear-gradient(135deg, 
+        rgba(59, 130, 246, 0.9) 0%, 
+        rgba(37, 99, 235, 0.9) 100%);
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+.status-panel--edit .status-label {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.status-panel--edit .status-value {
+    color: #ffffff;
+}
+
+.status-panel--edit .status-divider {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+/* Status Panel 변형 - Monitoring 모드 */
+.status-panel--monitoring {
+    background: linear-gradient(135deg, 
+        rgba(16, 185, 129, 0.9) 0%, 
+        rgba(5, 150, 105, 0.9) 100%);
+    border-color: rgba(16, 185, 129, 0.5);
+}
+
+.status-panel--monitoring .status-label {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.status-panel--monitoring .status-value {
+    color: #ffffff;
+}
+
+.status-panel--monitoring .status-divider {
+    color: rgba(255, 255, 255, 0.3);
 }
 
 /* =============================================
@@ -556,5 +684,15 @@
     
     .equipment-list {
         max-height: 250px;
+    }
+    
+    .status-panel {
+        font-size: var(--font-size-xs);
+        padding: 8px 12px;
+        gap: 6px;
+    }
+    
+    .status-panel .status-label {
+        display: none;
     }
 }

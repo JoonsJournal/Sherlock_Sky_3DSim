@@ -2,10 +2,11 @@
  * SignalTowerManager.js
  * Signal Tower (경광등) 제어 관리자
  * 
- * ⭐ v2.0.0 - 시각적 구분 강화
- * - ON/OFF/DISABLED 3가지 상태 명확히 구분
- * - Emissive + 색상 + 투명도 조합
- * - 미매핑 설비 회색 처리
+ * ⭐ v2.1.0 - SUDDENSTOP 점멸 + DISCONNECTED 상태 추가
+ * - STOP: red → yellow로 변경 (요구사항 반영)
+ * - SUDDENSTOP: red 빠른 점멸 (가시적으로 보임)
+ * - DISCONNECTED: 모든 램프 OFF (24시간 데이터 없음)
+ * - 기존 ON/OFF/DISABLED 상태 유지
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/SignalTowerManager.js
  */
@@ -21,18 +22,21 @@ export class SignalTowerManager {
         // 설비별 램프 맵 (Frontend ID -> { green, yellow, red } 램프 객체들)
         this.lampMap = new Map();
         
-        // 설비별 현재 상태 (Frontend ID -> 'RUN' | 'IDLE' | 'STOP' | 'OFF' | 'DISABLED')
+        // 설비별 현재 상태 (Frontend ID -> 상태값)
+        // 'RUN' | 'IDLE' | 'STOP' | 'SUDDENSTOP' | 'DISCONNECTED' | 'OFF' | 'DISABLED'
         this.statusMap = new Map();
         
-        // 상태별 램프 타입 매핑
+        // ⭐ v2.1.0: 상태별 램프 타입 매핑 (수정됨)
         this.statusToLightType = {
             'RUN': 'green',
             'IDLE': 'yellow',
-            'STOP': 'red',
-            'OFF': null  // 모든 램프 꺼짐
+            'STOP': 'yellow',           // ⭐ v2.1.0: red → yellow로 변경
+            'SUDDENSTOP': 'red',        // ⭐ v2.1.0: 신규 추가 (빠른 점멸)
+            'DISCONNECTED': null,       // ⭐ v2.1.0: 신규 추가 (모든 램프 OFF)
+            'OFF': null                 // 모든 램프 꺼짐
         };
         
-        // ⭐ v2.0.0: 램프 상태별 시각 설정
+        // ⭐ v2.1.0: 램프 상태별 시각 설정
         this.lampStates = {
             // ON 상태: 밝은 색상 + 강한 발광
             ON: {
@@ -54,10 +58,11 @@ export class SignalTowerManager {
         
         // 애니메이션 관련
         this.animationTime = 0;
-        this.blinkSpeed = 2.0; // 깜빡임 속도
-        this.blinkEnabled = true; // 깜빡임 활성화 여부
+        this.blinkSpeed = 2.0;              // 일반 깜빡임 속도
+        this.suddenStopBlinkSpeed = 8.0;    // ⭐ v2.1.0: SUDDENSTOP 빠른 점멸 속도
+        this.blinkEnabled = true;           // 깜빡임 활성화 여부
         
-        debugLog('SignalTowerManager initialized (v2.0.0)');
+        debugLog('SignalTowerManager initialized (v2.1.0)');
     }
     
     /**
@@ -210,6 +215,25 @@ export class SignalTowerManager {
     }
     
     /**
+     * ⭐ v2.1.0: 특정 설비를 DISCONNECTED 상태로 설정
+     * 24시간 내 데이터가 없는 설비 (모든 램프 OFF, DISABLED와 다름)
+     * @param {string} frontendId - Frontend ID
+     */
+    setDisconnected(frontendId) {
+        const lights = this.lampMap.get(frontendId);
+        if (!lights) return;
+        
+        // 모든 램프 OFF (DISABLED와 달리 정상 OFF 상태)
+        this.setLampOff(lights.green, 'green');
+        this.setLampOff(lights.yellow, 'yellow');
+        this.setLampOff(lights.red, 'red');
+        
+        this.statusMap.set(frontendId, 'DISCONNECTED');
+        
+        debugLog(`🔌 ${frontendId} set to DISCONNECTED (no recent data)`);
+    }
+    
+    /**
      * ⭐ v2.0.0: 특정 설비의 모든 램프를 DISABLED 상태로 (미매핑)
      * @param {string} frontendId - Frontend ID
      */
@@ -247,8 +271,10 @@ export class SignalTowerManager {
     
     /**
      * Frontend ID로 상태 업데이트
+     * ⭐ v2.1.0: SUDDENSTOP, DISCONNECTED 지원 추가
+     * 
      * @param {string} frontendId - 설비 Frontend ID (예: 'EQ-01-01')
-     * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP', 'OFF')
+     * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP', 'SUDDENSTOP', 'DISCONNECTED', 'OFF')
      */
     updateStatus(frontendId, status) {
         const lights = this.lampMap.get(frontendId);
@@ -265,6 +291,12 @@ export class SignalTowerManager {
             return;
         }
         
+        // ⭐ v2.1.0: DISCONNECTED 상태 처리
+        if (status === 'DISCONNECTED' || status === null) {
+            this.setDisconnected(frontendId);
+            return;
+        }
+        
         // 상태에 해당하는 램프 타입 찾기
         const activeLightType = this.statusToLightType[status];
         
@@ -273,10 +305,19 @@ export class SignalTowerManager {
         this.setLampOff(lights.yellow, 'yellow');
         this.setLampOff(lights.red, 'red');
         
-        // ⭐ v2.0.0: 해당 상태의 램프만 ON (밝은 색상 + 발광)
+        // ⭐ v2.1.0: SUDDENSTOP은 빠른 점멸을 위해 ON 상태로 설정
+        // (animate()에서 빠른 점멸 처리)
         if (activeLightType && lights[activeLightType]) {
             this.setLampOn(lights[activeLightType], activeLightType);
-            debugLog(`🚨 ${frontendId} -> ${status} (${activeLightType} lamp ON)`);
+            
+            // ⭐ v2.1.0: SUDDENSTOP은 특별 마킹
+            if (status === 'SUDDENSTOP') {
+                lights[activeLightType].userData.isSuddenStop = true;
+                debugLog(`🚨 ${frontendId} -> SUDDENSTOP (red lamp BLINKING)`);
+            } else {
+                lights[activeLightType].userData.isSuddenStop = false;
+                debugLog(`🚨 ${frontendId} -> ${status} (${activeLightType} lamp ON)`);
+            }
         } else {
             debugLog(`🚨 ${frontendId} -> OFF (all lamps OFF)`);
         }
@@ -345,32 +386,50 @@ export class SignalTowerManager {
     
     /**
      * 깜빡임 애니메이션 업데이트
+     * ⭐ v2.1.0: SUDDENSTOP 빠른 점멸 추가
+     * 
      * @param {number} deltaTime - 프레임 간 경과 시간
      */
     animate(deltaTime) {
         if (!this.blinkEnabled) return;
         
-        this.animationTime += deltaTime * this.blinkSpeed;
+        this.animationTime += deltaTime;
         
-        // 사인파로 깜빡임 구현 (0.5~1.0 범위)
-        const blinkFactor = 0.5 + (Math.sin(this.animationTime) + 1) / 4;
+        // 일반 깜빡임: 사인파로 구현 (0.5~1.0 범위)
+        const normalBlinkFactor = 0.5 + (Math.sin(this.animationTime * this.blinkSpeed) + 1) / 4;
+        
+        // ⭐ v2.1.0: SUDDENSTOP 빠른 점멸 (ON/OFF 토글, 0 또는 1)
+        const suddenStopBlinkOn = Math.sin(this.animationTime * this.suddenStopBlinkSpeed) > 0;
         
         // 모든 설비의 램프 순회
         this.lampMap.forEach((lights, frontendId) => {
             const status = this.statusMap.get(frontendId);
             
-            // DISABLED 상태는 깜빡임 없음
-            if (status === 'DISABLED') return;
+            // DISABLED, DISCONNECTED 상태는 깜빡임 없음
+            if (status === 'DISABLED' || status === 'DISCONNECTED') return;
             
-            // 활성화된 램프만 깜빡임
+            // 활성화된 램프 처리
             ['green', 'yellow', 'red'].forEach(lightType => {
                 const lamp = lights[lightType];
                 
                 if (lamp && lamp.userData.isActive && lamp.userData.currentState === 'ON') {
                     const baseIntensity = this.lampStates.ON[lightType].emissiveIntensity;
                     
-                    // 깜빡임 효과 (baseIntensity * 0.5 ~ baseIntensity 범위)
-                    lamp.material.emissiveIntensity = baseIntensity * blinkFactor;
+                    // ⭐ v2.1.0: SUDDENSTOP 빠른 점멸 (ON/OFF 완전 토글)
+                    if (lamp.userData.isSuddenStop) {
+                        if (suddenStopBlinkOn) {
+                            // ON: 최대 밝기
+                            lamp.material.emissiveIntensity = baseIntensity * 1.5; // 더 밝게
+                            lamp.material.opacity = 1.0;
+                        } else {
+                            // OFF: 꺼짐 (완전 어둡게)
+                            lamp.material.emissiveIntensity = 0;
+                            lamp.material.opacity = 0.3;
+                        }
+                    } else {
+                        // 일반 깜빡임: 부드러운 펄스
+                        lamp.material.emissiveIntensity = baseIntensity * normalBlinkFactor;
+                    }
                 }
             });
         });
@@ -392,7 +451,7 @@ export class SignalTowerManager {
     /**
      * 특정 설비의 현재 상태 조회
      * @param {string} frontendId - Frontend ID
-     * @returns {string|null} 'RUN' | 'IDLE' | 'STOP' | 'OFF' | 'DISABLED' | null
+     * @returns {string|null} 상태값 또는 null
      */
     getStatus(frontendId) {
         return this.statusMap.get(frontendId) || null;
@@ -400,7 +459,7 @@ export class SignalTowerManager {
     
     /**
      * 특정 상태의 설비 개수 조회
-     * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP', 'OFF', 'DISABLED')
+     * @param {string} status - 상태
      * @returns {number}
      */
     getStatusCount(status) {
@@ -415,13 +474,17 @@ export class SignalTowerManager {
     
     /**
      * 전체 상태 통계
-     * @returns {Object} { RUN: 10, IDLE: 5, STOP: 2, OFF: 100, DISABLED: 0 }
+     * ⭐ v2.1.0: SUDDENSTOP, DISCONNECTED 추가
+     * 
+     * @returns {Object} { RUN: 10, IDLE: 5, STOP: 2, SUDDENSTOP: 1, DISCONNECTED: 3, OFF: 96, DISABLED: 0 }
      */
     getStatusStatistics() {
         const stats = {
             RUN: 0,
             IDLE: 0,
             STOP: 0,
+            SUDDENSTOP: 0,      // ⭐ v2.1.0: 추가
+            DISCONNECTED: 0,   // ⭐ v2.1.0: 추가
             OFF: 0,
             DISABLED: 0
         };
@@ -454,9 +517,10 @@ export class SignalTowerManager {
     
     /**
      * 테스트용: 랜덤 상태 설정
+     * ⭐ v2.1.0: SUDDENSTOP 포함
      */
     testRandomStatus() {
-        const statuses = ['RUN', 'IDLE', 'STOP'];
+        const statuses = ['RUN', 'IDLE', 'STOP', 'SUDDENSTOP'];
         let updateCount = 0;
         
         this.lampMap.forEach((lights, frontendId) => {
@@ -475,10 +539,12 @@ export class SignalTowerManager {
     
     /**
      * 테스트용: 특정 설비 상태 순환
+     * ⭐ v2.1.0: SUDDENSTOP, DISCONNECTED 포함
+     * 
      * @param {string} frontendId - Frontend ID
      */
     testCycleStatus(frontendId) {
-        const statuses = ['RUN', 'IDLE', 'STOP', 'OFF'];
+        const statuses = ['RUN', 'IDLE', 'STOP', 'SUDDENSTOP', 'DISCONNECTED', 'OFF'];
         const currentStatus = this.statusMap.get(frontendId) || 'OFF';
         const currentIndex = statuses.indexOf(currentStatus);
         const nextIndex = (currentIndex + 1) % statuses.length;
@@ -493,13 +559,17 @@ export class SignalTowerManager {
      */
     debugPrintStatus() {
         console.group('🔧 SignalTowerManager Debug Info');
-        console.log('Version: 2.0.0');
+        console.log('Version: 2.1.0');
         console.log('Total equipment with lamps:', this.lampMap.size);
         console.log('Statistics:', this.getStatusStatistics());
         console.log('Blink enabled:', this.blinkEnabled);
+        console.log('Blink speeds:', {
+            normal: this.blinkSpeed,
+            suddenStop: this.suddenStopBlinkSpeed
+        });
         
         // 상태별 설비 목록 (처음 5개씩만)
-        const byStatus = { RUN: [], IDLE: [], STOP: [], OFF: [], DISABLED: [] };
+        const byStatus = { RUN: [], IDLE: [], STOP: [], SUDDENSTOP: [], DISCONNECTED: [], OFF: [], DISABLED: [] };
         this.statusMap.forEach((status, frontendId) => {
             if (byStatus[status] && byStatus[status].length < 5) {
                 byStatus[status].push(frontendId);
