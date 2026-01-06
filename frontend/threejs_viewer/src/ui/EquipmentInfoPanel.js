@@ -1,0 +1,641 @@
+/**
+ * EquipmentInfoPanel.js
+ * =====================
+ * 설비 상세 정보 패널 (Tab UI + Backend API 연동)
+ * 
+ * @version 1.0.0
+ * @description
+ * - Tab Interface: General / PC Info.
+ * - Single Selection: Backend API에서 상세 정보 조회
+ * - Multi Selection: 빈 값 표시 (Phase 3에서 구현 예정)
+ * 
+ * 📁 위치: frontend/threejs_viewer/src/ui/EquipmentInfoPanel.js
+ * 작성일: 2026-01-06
+ */
+
+import { debugLog } from '../core/utils/Config.js';
+
+export class EquipmentInfoPanel {
+    constructor(options = {}) {
+        // DOM 요소
+        this.panelEl = document.getElementById('equipmentInfo');
+        this.equipNameEl = document.getElementById('equipName');
+        this.equipDetailsEl = document.getElementById('equipDetails');
+        
+        // API 설정
+        this.apiBaseUrl = options.apiBaseUrl || 'http://localhost:8000/api/equipment/detail';
+        
+        // 상태
+        this.isVisible = false;
+        this.currentTab = 'general';  // 'general' | 'pcinfo'
+        this.currentFrontendId = null;
+        this.currentEquipmentId = null;
+        this.selectedCount = 0;
+        
+        // 캐시
+        this.dataCache = new Map();
+        this.cacheExpiry = 30000;  // 30초
+        
+        // 의존성 (나중에 주입)
+        this.equipmentEditState = null;
+        
+        // 로딩 상태
+        this.isLoading = false;
+        
+        // 초기화
+        this._init();
+        
+        debugLog('📊 EquipmentInfoPanel initialized (v1.0.0)');
+    }
+    
+    // =========================================================================
+    // 초기화
+    // =========================================================================
+    
+    _init() {
+        // 패널 구조 재생성 (Tab UI 추가)
+        this._rebuildPanelStructure();
+        
+        // 전역 함수 노출
+        this._exposeGlobalFunctions();
+    }
+    
+    /**
+     * 패널 구조 재생성 (Tab UI 포함)
+     * @private
+     */
+    _rebuildPanelStructure() {
+        if (!this.panelEl) {
+            console.warn('⚠️ Equipment Info Panel element not found');
+            return;
+        }
+        
+        // 기존 내용 백업 후 새 구조로 교체
+        this.panelEl.innerHTML = `
+            <button class="close-btn" id="equipmentInfoClose">×</button>
+            <h2 id="equipName" class="equipment-panel-title">설비 정보</h2>
+            
+            <!-- Tab Header -->
+            <div class="equipment-panel-tabs">
+                <button class="equipment-tab active" data-tab="general">General</button>
+                <button class="equipment-tab" data-tab="pcinfo">PC Info.</button>
+            </div>
+            
+            <!-- Tab Content -->
+            <div class="equipment-panel-content">
+                <!-- General Tab -->
+                <div id="tab-general" class="equipment-tab-content active">
+                    <div id="generalTabContent">
+                        <div class="info-row placeholder">
+                            <span class="info-label">설비를 선택해주세요</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- PC Info Tab -->
+                <div id="tab-pcinfo" class="equipment-tab-content">
+                    <div id="pcinfoTabContent">
+                        <div class="info-row placeholder">
+                            <span class="info-label">PC 정보 (추후 확장 예정)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 요소 참조 업데이트
+        this.equipNameEl = document.getElementById('equipName');
+        this.generalTabContent = document.getElementById('generalTabContent');
+        this.pcinfoTabContent = document.getElementById('pcinfoTabContent');
+        
+        // 이벤트 리스너 설정
+        this._setupEventListeners();
+    }
+    
+    /**
+     * 이벤트 리스너 설정
+     * @private
+     */
+    _setupEventListeners() {
+        // 닫기 버튼
+        const closeBtn = document.getElementById('equipmentInfoClose');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.hide());
+        }
+        
+        // Tab 버튼들
+        const tabButtons = this.panelEl.querySelectorAll('.equipment-tab');
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const tabName = e.target.dataset.tab;
+                this._switchTab(tabName);
+            });
+        });
+    }
+    
+    /**
+     * Tab 전환
+     * @private
+     */
+    _switchTab(tabName) {
+        this.currentTab = tabName;
+        
+        // Tab 버튼 활성화 상태 변경
+        const tabButtons = this.panelEl.querySelectorAll('.equipment-tab');
+        tabButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+        
+        // Tab 컨텐츠 표시/숨김
+        const tabContents = this.panelEl.querySelectorAll('.equipment-tab-content');
+        tabContents.forEach(content => {
+            const contentTabName = content.id.replace('tab-', '');
+            content.classList.toggle('active', contentTabName === tabName);
+        });
+        
+        debugLog(`📑 Tab switched to: ${tabName}`);
+    }
+    
+    // =========================================================================
+    // 의존성 주입
+    // =========================================================================
+    
+    /**
+     * EquipmentEditState 설정 (매핑 정보 조회용)
+     * @param {Object} equipmentEditState 
+     */
+    setEquipmentEditState(equipmentEditState) {
+        this.equipmentEditState = equipmentEditState;
+        debugLog('🔗 EquipmentEditState connected to EquipmentInfoPanel');
+    }
+    
+    // =========================================================================
+    // 공개 API
+    // =========================================================================
+    
+    /**
+     * 설비 정보 표시 (단일 또는 다중 선택)
+     * @param {Array<Object>|Object} equipmentData - 설비 데이터 (배열 또는 단일 객체)
+     */
+    async show(equipmentData) {
+        // 배열이 아니면 배열로 변환
+        const dataArray = Array.isArray(equipmentData) ? equipmentData : [equipmentData];
+        
+        if (dataArray.length === 0) {
+            this.hide();
+            return;
+        }
+        
+        this.selectedCount = dataArray.length;
+        
+        if (dataArray.length === 1) {
+            // ✅ Single Selection: Backend API 호출
+            await this._showSingleEquipment(dataArray[0]);
+        } else {
+            // ⏳ Multi Selection: 빈 값 표시 (Phase 3에서 구현)
+            this._showMultipleEquipmentPlaceholder(dataArray);
+        }
+        
+        // 패널 표시
+        this._showPanel();
+    }
+    
+    /**
+     * 패널 숨기기
+     */
+    hide() {
+        if (this.panelEl) {
+            this.panelEl.classList.remove('active');
+            this.isVisible = false;
+        }
+        
+        // 상태 초기화
+        this.currentFrontendId = null;
+        this.currentEquipmentId = null;
+        this.selectedCount = 0;
+        
+        debugLog('📊 Equipment Info Panel hidden');
+    }
+    
+    /**
+     * 실시간 업데이트 (WebSocket에서 호출)
+     * @param {Object} updateData - 업데이트 데이터
+     */
+    updateRealtime(updateData) {
+        if (!this.isVisible || !this.currentFrontendId) return;
+        
+        // 현재 표시 중인 설비와 일치하면 업데이트
+        if (updateData.frontend_id === this.currentFrontendId) {
+            this._updateGeneralTab(updateData);
+            
+            // 캐시 업데이트
+            this.dataCache.set(this.currentFrontendId, {
+                data: updateData,
+                timestamp: Date.now()
+            });
+            
+            debugLog(`🔄 Real-time update: ${this.currentFrontendId}`);
+        }
+    }
+    
+    // =========================================================================
+    // 내부 메서드 - Single Selection
+    // =========================================================================
+    
+    /**
+     * 단일 설비 정보 표시
+     * @private
+     */
+    async _showSingleEquipment(equipmentData) {
+        const frontendId = equipmentData.id || equipmentData.frontendId;
+        this.currentFrontendId = frontendId;
+        
+        // 헤더 업데이트
+        this._updateHeader(frontendId);
+        
+        // 로딩 표시
+        this._showLoading();
+        
+        try {
+            // 1. 매핑 정보 확인 (equipment_id 가져오기)
+            const equipmentId = this._getEquipmentId(frontendId);
+            this.currentEquipmentId = equipmentId;
+            
+            if (!equipmentId) {
+                // 매핑되지 않은 설비
+                this._showUnmappedState(frontendId, equipmentData);
+                return;
+            }
+            
+            // 2. 캐시 확인
+            const cached = this._getFromCache(frontendId);
+            if (cached) {
+                this._updateGeneralTab(cached);
+                return;
+            }
+            
+            // 3. Backend API 호출
+            const detailData = await this._fetchEquipmentDetail(frontendId);
+            
+            if (detailData) {
+                // 캐시에 저장
+                this._saveToCache(frontendId, detailData);
+                
+                // UI 업데이트
+                this._updateGeneralTab(detailData);
+            } else {
+                // API 실패 시 기본 정보만 표시
+                this._showBasicInfo(frontendId, equipmentData);
+            }
+            
+        } catch (error) {
+            console.error('❌ Failed to load equipment detail:', error);
+            this._showErrorState(frontendId, error.message);
+        }
+    }
+    
+    /**
+     * Equipment ID 조회 (매핑 정보에서)
+     * @private
+     */
+    _getEquipmentId(frontendId) {
+        if (!this.equipmentEditState) {
+            debugLog('⚠️ EquipmentEditState not connected');
+            return null;
+        }
+        
+        const mapping = this.equipmentEditState.getMapping(frontendId);
+        return mapping?.equipmentId || mapping?.equipment_id || null;
+    }
+    
+    /**
+     * Backend API 호출
+     * @private
+     */
+    async _fetchEquipmentDetail(frontendId) {
+        const url = `${this.apiBaseUrl}/${frontendId}`;
+        
+        debugLog(`📡 Fetching equipment detail: ${url}`);
+        
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data;
+    }
+    
+    /**
+     * General Tab 업데이트
+     * @private
+     */
+    _updateGeneralTab(data) {
+        if (!this.generalTabContent) return;
+        
+        // Status 표시 정보
+        const statusDisplay = this._getStatusDisplay(data.status);
+        
+        this.generalTabContent.innerHTML = `
+            <div class="info-row">
+                <span class="info-label">Line:</span>
+                <span class="info-value">${data.line_name || '-'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="status-indicator ${statusDisplay.class}"></span>
+                <span class="info-value">${statusDisplay.text}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Product:</span>
+                <span class="info-value">${data.product_model || '-'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Lot No.:</span>
+                <span class="info-value">${data.lot_id || '-'}</span>
+            </div>
+            ${data.last_updated ? `
+            <div class="info-row info-row-meta">
+                <span class="info-label">Updated:</span>
+                <span class="info-value info-value-meta">${this._formatDateTime(data.last_updated)}</span>
+            </div>
+            ` : ''}
+        `;
+        
+        this.isLoading = false;
+        debugLog(`✅ General tab updated for: ${data.frontend_id || this.currentFrontendId}`);
+    }
+    
+    /**
+     * 매핑되지 않은 설비 상태 표시
+     * @private
+     */
+    _showUnmappedState(frontendId, equipmentData) {
+        if (!this.generalTabContent) return;
+        
+        this.generalTabContent.innerHTML = `
+            <div class="info-row unmapped-notice">
+                <span class="info-icon">⚠️</span>
+                <span class="info-text">DB에 연결되지 않은 설비입니다</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Frontend ID:</span>
+                <span class="info-value">${frontendId}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Position:</span>
+                <span class="info-value">Row ${equipmentData.position?.row || '-'}, Col ${equipmentData.position?.col || '-'}</span>
+            </div>
+            <div class="info-row unmapped-action">
+                <span class="info-text">Edit Mode (E키)에서 매핑해주세요</span>
+            </div>
+        `;
+        
+        this.isLoading = false;
+    }
+    
+    /**
+     * 기본 정보만 표시 (API 실패 시)
+     * @private
+     */
+    _showBasicInfo(frontendId, equipmentData) {
+        if (!this.generalTabContent) return;
+        
+        this.generalTabContent.innerHTML = `
+            <div class="info-row">
+                <span class="info-label">Line:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Product:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Lot No.:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row info-row-warning">
+                <span class="info-icon">ℹ️</span>
+                <span class="info-text">상세 정보를 불러올 수 없습니다</span>
+            </div>
+        `;
+        
+        this.isLoading = false;
+    }
+    
+    /**
+     * 에러 상태 표시
+     * @private
+     */
+    _showErrorState(frontendId, errorMessage) {
+        if (!this.generalTabContent) return;
+        
+        this.generalTabContent.innerHTML = `
+            <div class="info-row error-notice">
+                <span class="info-icon">❌</span>
+                <span class="info-text">데이터 로드 실패</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Frontend ID:</span>
+                <span class="info-value">${frontendId}</span>
+            </div>
+            <div class="info-row error-message">
+                <span class="info-text">${errorMessage}</span>
+            </div>
+        `;
+        
+        this.isLoading = false;
+    }
+    
+    // =========================================================================
+    // 내부 메서드 - Multi Selection (Phase 3 Placeholder)
+    // =========================================================================
+    
+    /**
+     * 다중 선택 Placeholder 표시
+     * @private
+     */
+    _showMultipleEquipmentPlaceholder(dataArray) {
+        const count = dataArray.length;
+        
+        // 헤더 업데이트
+        this._updateHeader(`${count}개 설비 선택됨`, true);
+        
+        // General Tab: 빈 값 표시
+        if (this.generalTabContent) {
+            this.generalTabContent.innerHTML = `
+                <div class="info-row multi-select-notice">
+                    <span class="info-icon">📊</span>
+                    <span class="info-text">${count}개 설비가 선택되었습니다</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Line:</span>
+                    <span class="info-value">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Status:</span>
+                    <span class="info-value">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Product:</span>
+                    <span class="info-value">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Lot No.:</span>
+                    <span class="info-value">-</span>
+                </div>
+                <div class="info-row info-row-hint">
+                    <span class="info-icon">💡</span>
+                    <span class="info-text">다중 선택 집계 기능은 추후 지원 예정</span>
+                </div>
+            `;
+        }
+        
+        // PC Info Tab도 빈 상태로
+        if (this.pcinfoTabContent) {
+            this.pcinfoTabContent.innerHTML = `
+                <div class="info-row placeholder">
+                    <span class="info-label">PC 정보 (추후 확장 예정)</span>
+                </div>
+            `;
+        }
+        
+        this.currentFrontendId = null;
+        this.currentEquipmentId = null;
+        
+        debugLog(`📊 Multi-selection placeholder shown: ${count} items`);
+    }
+    
+    // =========================================================================
+    // 헬퍼 메서드
+    // =========================================================================
+    
+    /**
+     * 헤더 업데이트
+     * @private
+     */
+    _updateHeader(title, isMulti = false) {
+        if (this.equipNameEl) {
+            this.equipNameEl.textContent = title;
+            this.equipNameEl.classList.toggle('multi-select', isMulti);
+        }
+    }
+    
+    /**
+     * 로딩 표시
+     * @private
+     */
+    _showLoading() {
+        this.isLoading = true;
+        
+        if (this.generalTabContent) {
+            this.generalTabContent.innerHTML = `
+                <div class="loading-container">
+                    <div class="loading-spinner-small"></div>
+                    <span class="loading-text">Loading...</span>
+                </div>
+            `;
+        }
+    }
+    
+    /**
+     * 패널 표시
+     * @private
+     */
+    _showPanel() {
+        if (this.panelEl) {
+            this.panelEl.classList.add('active');
+            this.isVisible = true;
+        }
+    }
+    
+    /**
+     * Status 표시 정보 반환
+     * @private
+     */
+    _getStatusDisplay(status) {
+        const statusMap = {
+            'RUN': { class: 'status-running', text: '가동 중 (RUN)' },
+            'IDLE': { class: 'status-idle', text: '대기 (IDLE)' },
+            'STOP': { class: 'status-stop', text: '정지 (STOP)' },
+            'SUDDENSTOP': { class: 'status-error', text: '긴급 정지 (SUDDENSTOP)' },
+            'DISCONNECTED': { class: 'status-disconnected', text: '연결 끊김' }
+        };
+        
+        return statusMap[status] || { class: '', text: status || '-' };
+    }
+    
+    /**
+     * 날짜/시간 포맷
+     * @private
+     */
+    _formatDateTime(isoString) {
+        if (!isoString) return '-';
+        
+        try {
+            const date = new Date(isoString);
+            return date.toLocaleString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return isoString;
+        }
+    }
+    
+    // =========================================================================
+    // 캐시 관리
+    // =========================================================================
+    
+    _getFromCache(frontendId) {
+        const cached = this.dataCache.get(frontendId);
+        if (!cached) return null;
+        
+        // 만료 확인
+        if (Date.now() - cached.timestamp > this.cacheExpiry) {
+            this.dataCache.delete(frontendId);
+            return null;
+        }
+        
+        return cached.data;
+    }
+    
+    _saveToCache(frontendId, data) {
+        this.dataCache.set(frontendId, {
+            data,
+            timestamp: Date.now()
+        });
+    }
+    
+    clearCache() {
+        this.dataCache.clear();
+        debugLog('🗑️ Equipment info cache cleared');
+    }
+    
+    // =========================================================================
+    // 전역 함수 노출
+    // =========================================================================
+    
+    _exposeGlobalFunctions() {
+        window.closeEquipmentInfo = () => this.hide();
+    }
+    
+    // =========================================================================
+    // 정리
+    // =========================================================================
+    
+    dispose() {
+        this.hide();
+        this.clearCache();
+        this.equipmentEditState = null;
+        debugLog('📊 EquipmentInfoPanel disposed');
+    }
+}

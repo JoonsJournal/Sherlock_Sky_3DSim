@@ -33,6 +33,8 @@ import ConnectionIndicator from '../ui/ConnectionIndicator.js';
 // EventBus import
 import { eventBus } from '../core/managers/EventBus.js';
 
+import { EquipmentInfoPanel } from '../ui/EquipmentInfoPanel.js';
+
 /**
  * Connection Status 서비스 및 UI 초기화
  * @param {Object} options - 초기화 옵션
@@ -80,7 +82,17 @@ export function initConnectionStatus(options = {}) {
         size: 'medium'
     });
     console.log('  ✅ ConnectionIndicator UI 생성 완료');
-    
+
+        // 🆕 EquipmentInfoPanel 초기화
+    const equipmentInfoPanel = new EquipmentInfoPanel({
+        apiBaseUrl: 'http://localhost:8000/api/equipment/detail'
+    });
+
+        // EquipmentEditState 연결 (매핑 정보 조회용)
+    equipmentInfoPanel.setEquipmentEditState(equipmentEditState);
+
+    console.log('  ✅ EquipmentInfoPanel 초기화 완료');
+
     if (autoStart) {
         connectionStatusService.start();
         console.log('  ✅ ConnectionStatusService 시작됨');
@@ -96,7 +108,8 @@ export function initConnectionStatus(options = {}) {
     
     return {
         connectionStatusService,
-        connectionIndicator
+        connectionIndicator,
+        equipmentInfoPanel  // 🆕 추가
     };
 }
 

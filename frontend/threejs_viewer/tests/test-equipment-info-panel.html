@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipment Info Panel Test</title>
+    
+    <!-- CSS 로드 -->
+    <link rel="stylesheet" href="../styles/main.css">
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a2e;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #fff;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #4da6ff;
+            margin-bottom: 20px;
+        }
+        
+        .test-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .test-section h2 {
+            color: #fff;
+            font-size: 16px;
+            margin: 0 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .test-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .test-btn {
+            padding: 10px 20px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .test-btn:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+        
+        .test-btn.danger {
+            background: #ef4444;
+        }
+        
+        .test-btn.danger:hover {
+            background: #dc2626;
+        }
+        
+        .test-btn.success {
+            background: #10b981;
+        }
+        
+        .test-btn.success:hover {
+            background: #059669;
+        }
+        
+        .log-container {
+            background: #000;
+            border-radius: 8px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            margin: 4px 0;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .log-entry.info {
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+        
+        .log-entry.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+        }
+        
+        .log-entry.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+        
+        /* Equipment Info Panel 위치 조정 (테스트용) */
+        #equipmentInfo {
+            position: fixed !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Equipment Info Panel Test</h1>
+        
+        <!-- Test Controls -->
+        <div class="test-section">
+            <h2>📋 Single Selection Tests</h2>
+            <div class="test-buttons">
+                <button class="test-btn" onclick="testSingleMapped()">
+                    ✅ Mapped Equipment
+                </button>
+                <button class="test-btn" onclick="testSingleUnmapped()">
+                    ⚠️ Unmapped Equipment
+                </button>
+                <button class="test-btn" onclick="testSingleApiError()">
+                    ❌ API Error
+                </button>
+                <button class="test-btn" onclick="testHidePanel()">
+                    🚫 Hide Panel
+                </button>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📊 Multi Selection Tests</h2>
+            <div class="test-buttons">
+                <button class="test-btn" onclick="testMultiSelection2()">
+                    2개 선택
+                </button>
+                <button class="test-btn" onclick="testMultiSelection5()">
+                    5개 선택
+                </button>
+                <button class="test-btn" onclick="testMultiSelection10()">
+                    10개 선택
+                </button>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔄 Tab Tests</h2>
+            <div class="test-buttons">
+                <button class="test-btn success" onclick="testTabSwitch('general')">
+                    General Tab
+                </button>
+                <button class="test-btn success" onclick="testTabSwitch('pcinfo')">
+                    PC Info. Tab
+                </button>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>⚡ Real-time Update Tests</h2>
+            <div class="test-buttons">
+                <button class="test-btn" onclick="testRealtimeUpdate('RUN')">
+                    Status → RUN
+                </button>
+                <button class="test-btn" onclick="testRealtimeUpdate('IDLE')">
+                    Status → IDLE
+                </button>
+                <button class="test-btn" onclick="testRealtimeUpdate('STOP')">
+                    Status → STOP
+                </button>
+                <button class="test-btn danger" onclick="testRealtimeUpdate('SUDDENSTOP')">
+                    Status → SUDDENSTOP
+                </button>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🛠️ Utility</h2>
+            <div class="test-buttons">
+                <button class="test-btn" onclick="testClearCache()">
+                    🗑️ Clear Cache
+                </button>
+                <button class="test-btn" onclick="testHealthCheck()">
+                    🏥 API Health Check
+                </button>
+                <button class="test-btn danger" onclick="clearLogs()">
+                    🧹 Clear Logs
+                </button>
+            </div>
+        </div>
+        
+        <!-- Log Output -->
+        <div class="test-section">
+            <h2>📝 Test Logs</h2>
+            <div id="logContainer" class="log-container"></div>
+        </div>
+    </div>
+    
+    <!-- Equipment Info Panel (HTML 구조) -->
+    <div id="equipmentInfo">
+        <button class="close-btn" onclick="closeEquipmentInfo()">×</button>
+        <h2 id="equipName">설비 정보</h2>
+        <div id="equipDetails"></div>
+    </div>
+    
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+    
+    <script type="module">
+        import { EquipmentInfoPanel } from '../src/ui/EquipmentInfoPanel.js';
+        import { EquipmentDetailApi } from '../src/api/equipmentDetailApi.js';
+        
+        // 테스트용 패널 인스턴스
+        const panel = new EquipmentInfoPanel({
+            apiBaseUrl: 'http://localhost:8000/api/equipment/detail'
+        });
+        
+        // Mock EquipmentEditState
+        const mockEditState = {
+            getMapping: (frontendId) => {
+                // 테스트용 매핑 데이터
+                const mappings = {
+                    'EQ-17-03': { equipmentId: 75, equipmentName: 'EQ-17-03' },
+                    'EQ-17-04': { equipmentId: 76, equipmentName: 'EQ-17-04' },
+                    'EQ-18-01': { equipmentId: 77, equipmentName: 'EQ-18-01' }
+                };
+                return mappings[frontendId] || null;
+            }
+        };
+        
+        panel.setEquipmentEditState(mockEditState);
+        
+        // API 클라이언트
+        const api = new EquipmentDetailApi();
+        
+        // 전역 노출
+        window.panel = panel;
+        window.api = api;
+        
+        // =========================================
+        // 로그 함수
+        // =========================================
+        window.log = function(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        };
+        
+        window.clearLogs = function() {
+            document.getElementById('logContainer').innerHTML = '';
+            log('Logs cleared', 'info');
+        };
+        
+        // =========================================
+        // Single Selection Tests
+        // =========================================
+        window.testSingleMapped = async function() {
+            log('Testing: Single Mapped Equipment (EQ-17-03)', 'info');
+            
+            try {
+                await panel.show({
+                    id: 'EQ-17-03',
+                    position: { row: 17, col: 3 },
+                    status: 'running'
+                });
+                log('✅ Panel shown successfully', 'success');
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        };
+        
+        window.testSingleUnmapped = async function() {
+            log('Testing: Single Unmapped Equipment (EQ-99-99)', 'info');
+            
+            try {
+                await panel.show({
+                    id: 'EQ-99-99',
+                    position: { row: 99, col: 99 },
+                    status: 'unknown'
+                });
+                log('✅ Unmapped state shown', 'success');
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        };
+        
+        window.testSingleApiError = async function() {
+            log('Testing: API Error Simulation', 'info');
+            
+            // 잘못된 API URL로 테스트
+            const oldUrl = panel.apiBaseUrl;
+            panel.apiBaseUrl = 'http://localhost:9999/invalid';
+            
+            try {
+                await panel.show({
+                    id: 'EQ-17-03',
+                    position: { row: 17, col: 3 }
+                });
+                log('Panel shown with error state', 'info');
+            } catch (error) {
+                log(`❌ Expected error: ${error.message}`, 'error');
+            }
+            
+            // URL 복원
+            panel.apiBaseUrl = oldUrl;
+        };
+        
+        window.testHidePanel = function() {
+            log('Testing: Hide Panel', 'info');
+            panel.hide();
+            log('✅ Panel hidden', 'success');
+        };
+        
+        // =========================================
+        // Multi Selection Tests
+        // =========================================
+        window.testMultiSelection2 = function() {
+            log('Testing: Multi Selection (2 items)', 'info');
+            
+            panel.show([
+                { id: 'EQ-17-03', position: { row: 17, col: 3 } },
+                { id: 'EQ-17-04', position: { row: 17, col: 4 } }
+            ]);
+            
+            log('✅ Multi-selection placeholder shown', 'success');
+        };
+        
+        window.testMultiSelection5 = function() {
+            log('Testing: Multi Selection (5 items)', 'info');
+            
+            const items = [];
+            for (let i = 1; i <= 5; i++) {
+                items.push({ id: `EQ-17-0${i}`, position: { row: 17, col: i } });
+            }
+            
+            panel.show(items);
+            log('✅ Multi-selection placeholder shown', 'success');
+        };
+        
+        window.testMultiSelection10 = function() {
+            log('Testing: Multi Selection (10 items)', 'info');
+            
+            const items = [];
+            for (let i = 1; i <= 10; i++) {
+                items.push({ id: `EQ-${17 + Math.floor(i/6)}-0${(i % 6) + 1}`, position: { row: 17 + Math.floor(i/6), col: (i % 6) + 1 } });
+            }
+            
+            panel.show(items);
+            log('✅ Multi-selection placeholder shown', 'success');
+        };
+        
+        // =========================================
+        // Tab Tests
+        // =========================================
+        window.testTabSwitch = function(tabName) {
+            log(`Testing: Switch to ${tabName} tab`, 'info');
+            panel._switchTab(tabName);
+            log(`✅ Switched to ${tabName} tab`, 'success');
+        };
+        
+        // =========================================
+        // Real-time Update Tests
+        // =========================================
+        window.testRealtimeUpdate = function(status) {
+            log(`Testing: Real-time update (status: ${status})`, 'info');
+            
+            panel.updateRealtime({
+                frontend_id: 'EQ-17-03',
+                equipment_id: 75,
+                line_name: 'Line-A',
+                status: status,
+                product_model: 'MODEL-X123',
+                lot_id: 'LOT-2026-001',
+                last_updated: new Date().toISOString()
+            });
+            
+            log(`✅ Updated to ${status}`, 'success');
+        };
+        
+        // =========================================
+        // Utility Tests
+        // =========================================
+        window.testClearCache = function() {
+            log('Testing: Clear Cache', 'info');
+            panel.clearCache();
+            log('✅ Cache cleared', 'success');
+        };
+        
+        window.testHealthCheck = async function() {
+            log('Testing: API Health Check', 'info');
+            
+            try {
+                const result = await api.healthCheck();
+                log(`✅ Health OK: ${JSON.stringify(result)}`, 'success');
+            } catch (error) {
+                log(`❌ Health check failed: ${error.message}`, 'error');
+            }
+        };
+        
+        // 초기 로그
+        log('🧪 Equipment Info Panel Test Page Loaded', 'success');
+        log('Click buttons above to run tests', 'info');
+    </script>
+</body>
+</html>

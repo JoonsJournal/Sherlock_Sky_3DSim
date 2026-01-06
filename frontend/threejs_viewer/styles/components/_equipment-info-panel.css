@@ -1,0 +1,315 @@
+/**
+ * _equipment-info-panel.css
+ * =========================
+ * Equipment Info Panel 전용 스타일 (Tab UI)
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/_equipment-info-panel.css
+ * 작성일: 2026-01-06
+ */
+
+/* =============================================
+   Equipment Info Panel Container
+   ============================================= */
+#equipmentInfo {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 320px;
+    max-height: 85vh;
+    overflow-y: auto;
+    background: var(--overlay-bg-primary);
+    border: 1px solid var(--overlay-border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    color: var(--overlay-text-primary);
+    display: none;
+    z-index: var(--z-dropdown);
+}
+
+#equipmentInfo.active {
+    display: block;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* =============================================
+   Close Button
+   ============================================= */
+#equipmentInfo .close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: var(--interactive-danger);
+    color: var(--overlay-text-primary);
+    border: none;
+    border-radius: var(--radius-full);
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    font-size: var(--font-size-lg);
+    line-height: 28px;
+    text-align: center;
+    transition: var(--transition-fast);
+    z-index: 10;
+}
+
+#equipmentInfo .close-btn:hover {
+    background: var(--interactive-danger-hover);
+    transform: scale(1.1);
+}
+
+/* =============================================
+   Panel Title (Equipment Name)
+   ============================================= */
+.equipment-panel-title {
+    margin: 0;
+    padding: 16px 48px 12px 16px;
+    color: var(--interactive-primary);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    border-bottom: 2px solid var(--interactive-primary);
+}
+
+.equipment-panel-title.multi-select {
+    color: var(--status-info);
+    border-bottom-color: var(--status-info);
+}
+
+/* =============================================
+   Tab Header
+   ============================================= */
+.equipment-panel-tabs {
+    display: flex;
+    padding: 0;
+    background: var(--overlay-bg-secondary);
+    border-bottom: 1px solid var(--overlay-border-light);
+}
+
+.equipment-tab {
+    flex: 1;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--overlay-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.equipment-tab:hover {
+    color: var(--overlay-text-primary);
+    background: var(--overlay-bg-hover);
+}
+
+.equipment-tab.active {
+    color: var(--interactive-primary);
+    border-bottom-color: var(--interactive-primary);
+    background: transparent;
+}
+
+/* =============================================
+   Tab Content
+   ============================================= */
+.equipment-panel-content {
+    padding: 16px;
+}
+
+.equipment-tab-content {
+    display: none;
+}
+
+.equipment-tab-content.active {
+    display: block;
+    animation: tabFadeIn 0.2s ease-out;
+}
+
+@keyframes tabFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =============================================
+   Info Rows
+   ============================================= */
+#equipmentInfo .info-row {
+    display: flex;
+    align-items: center;
+    margin: 8px 0;
+    padding: 10px 12px;
+    background: var(--overlay-bg-secondary);
+    border-radius: var(--radius-sm);
+}
+
+#equipmentInfo .info-row:first-child {
+    margin-top: 0;
+}
+
+#equipmentInfo .info-label {
+    min-width: 80px;
+    font-weight: 600;
+    color: var(--overlay-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+#equipmentInfo .info-value {
+    flex: 1;
+    color: var(--overlay-text-primary);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+}
+
+/* =============================================
+   Status Indicators
+   ============================================= */
+#equipmentInfo .status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+    margin-right: 8px;
+}
+
+#equipmentInfo .status-running {
+    background: var(--equip-running);
+    box-shadow: 0 0 8px var(--equip-running);
+}
+
+#equipmentInfo .status-idle {
+    background: var(--equip-idle);
+}
+
+#equipmentInfo .status-stop {
+    background: var(--status-warning);
+}
+
+#equipmentInfo .status-error {
+    background: var(--equip-alarm);
+    box-shadow: 0 0 8px var(--equip-alarm);
+    animation: statusBlink 0.5s ease-in-out infinite;
+}
+
+#equipmentInfo .status-disconnected {
+    background: #666666;
+}
+
+/* =============================================
+   Special Row Types
+   ============================================= */
+/* Meta info (timestamp) */
+#equipmentInfo .info-row-meta {
+    background: transparent;
+    padding: 6px 12px;
+    margin-top: 12px;
+    border-top: 1px solid var(--overlay-border-light);
+}
+
+#equipmentInfo .info-value-meta {
+    font-size: var(--font-size-xs);
+    color: var(--overlay-text-muted);
+}
+
+/* Warning/Notice rows */
+#equipmentInfo .info-row-warning,
+#equipmentInfo .info-row-hint {
+    background: rgba(255, 193, 7, 0.15);
+    border-left: 3px solid var(--status-warning);
+}
+
+#equipmentInfo .unmapped-notice {
+    background: rgba(255, 193, 7, 0.2);
+    border-left: 3px solid var(--status-warning);
+}
+
+#equipmentInfo .unmapped-action {
+    background: rgba(59, 130, 246, 0.15);
+    border-left: 3px solid var(--interactive-primary);
+}
+
+#equipmentInfo .error-notice {
+    background: rgba(239, 68, 68, 0.2);
+    border-left: 3px solid var(--status-error);
+}
+
+#equipmentInfo .error-message {
+    background: rgba(239, 68, 68, 0.1);
+    font-size: var(--font-size-xs);
+    color: var(--status-error);
+}
+
+#equipmentInfo .multi-select-notice {
+    background: rgba(59, 130, 246, 0.2);
+    border-left: 3px solid var(--interactive-primary);
+}
+
+/* Icon in notice rows */
+#equipmentInfo .info-icon {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+#equipmentInfo .info-text {
+    flex: 1;
+    font-size: var(--font-size-sm);
+}
+
+/* Placeholder row */
+#equipmentInfo .info-row.placeholder {
+    justify-content: center;
+    color: var(--overlay-text-muted);
+    font-style: italic;
+}
+
+/* =============================================
+   Loading State
+   ============================================= */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    gap: 12px;
+}
+
+.loading-text {
+    color: var(--overlay-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+/* =============================================
+   Responsive
+   ============================================= */
+@media (max-width: 768px) {
+    #equipmentInfo {
+        width: 90%;
+        right: 5%;
+        max-height: 70vh;
+    }
+    
+    .equipment-tab {
+        padding: 10px 8px;
+        font-size: var(--font-size-xs);
+    }
+    
+    #equipmentInfo .info-label {
+        min-width: 70px;
+    }
+}
