@@ -4,10 +4,11 @@
  * 
  * UI 컴포넌트 초기화 담당
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @module UIBootstrap
  * 
  * @changelog
+ * - v1.2.0: EquipmentInfoPanel 초기화 위치 수정 (initConnectionStatus → initUIComponents)
  * - v1.1.0: EquipmentEditButton 초기화 - 기존 #editBtn 인계 방식
  * 
  * 위치: frontend/threejs_viewer/src/bootstrap/UIBootstrap.js
@@ -33,6 +34,7 @@ import ConnectionIndicator from '../ui/ConnectionIndicator.js';
 // EventBus import
 import { eventBus } from '../core/managers/EventBus.js';
 
+// 🆕 v1.2.0: EquipmentInfoPanel import
 import { EquipmentInfoPanel } from '../ui/EquipmentInfoPanel.js';
 
 /**
@@ -83,15 +85,7 @@ export function initConnectionStatus(options = {}) {
     });
     console.log('  ✅ ConnectionIndicator UI 생성 완료');
 
-        // 🆕 EquipmentInfoPanel 초기화
-    const equipmentInfoPanel = new EquipmentInfoPanel({
-        apiBaseUrl: 'http://localhost:8000/api/equipment/detail'
-    });
-
-        // EquipmentEditState 연결 (매핑 정보 조회용)
-    equipmentInfoPanel.setEquipmentEditState(equipmentEditState);
-
-    console.log('  ✅ EquipmentInfoPanel 초기화 완료');
+    // 🆕 v1.2.0: EquipmentInfoPanel 초기화 코드 제거됨 (initUIComponents로 이동)
 
     if (autoStart) {
         connectionStatusService.start();
@@ -108,8 +102,8 @@ export function initConnectionStatus(options = {}) {
     
     return {
         connectionStatusService,
-        connectionIndicator,
-        equipmentInfoPanel  // 🆕 추가
+        connectionIndicator
+        // 🆕 v1.2.0: equipmentInfoPanel 제거됨 (initUIComponents에서 반환)
     };
 }
 
@@ -175,6 +169,15 @@ export function initUIComponents(options = {}) {
     });
     console.log('  ✅ EquipmentEditModal 초기화 완료');
     
+    // 🆕 v1.2.0: EquipmentInfoPanel 초기화 (여기로 이동!)
+    const equipmentInfoPanel = new EquipmentInfoPanel({
+        apiBaseUrl: 'http://localhost:8000/api/equipment/detail'
+    });
+    
+    // EquipmentEditState 연결 (매핑 정보 조회용)
+    equipmentInfoPanel.setEquipmentEditState(equipmentEditState);
+    console.log('  ✅ EquipmentInfoPanel 초기화 완료');
+    
     // Connection Status 초기화
     const connectionOptions = options.connectionOptions || {};
     const { connectionStatusService, connectionIndicator } = initConnectionStatus(connectionOptions);
@@ -195,7 +198,8 @@ export function initUIComponents(options = {}) {
         toast,
         connectionStatusService,
         connectionIndicator,
-        equipmentEditButton
+        equipmentEditButton,
+        equipmentInfoPanel  // 🆕 v1.2.0: 추가
     };
 }
 
@@ -236,6 +240,7 @@ export function initMonitoringServices(scene, equipmentLoader, equipmentEditStat
 
 /**
  * @private
+ * Monitoring과 ConnectionStatus 연동 설정
  */
 function _setupMonitoringConnectionIntegration(monitoringService, connectionStatusService) {
     connectionStatusService.onOffline(() => {
@@ -346,5 +351,6 @@ export {
     ConnectionStatusService,
     ConnectionIndicator,
     ConnectionEvents,
-    EquipmentEditButton
+    EquipmentEditButton,
+    EquipmentInfoPanel  // 🆕 v1.2.0: export 추가
 };

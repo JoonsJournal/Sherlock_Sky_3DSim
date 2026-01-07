@@ -1,6 +1,11 @@
 /**
- * MonitoringService.js - v3.1.0
+ * MonitoringService.js - v3.2.0
  * 실시간 설비 모니터링 서비스
+ * 
+ * ⭐ v3.2.0: equipment_id 기반 매핑 조회로 변경
+ * - Backend의 frontend_id 대신 equipment_id로 Frontend 매핑 조회
+ * - Backend: CUT-066, EQ-UNKNOWN-X → Frontend: EQ-XX-XX 변환
+ * - getFrontendIdByEquipmentId() 사용
  * 
  * ⭐ v3.1.0: 24시간 기준 초기 상태 로드 + DISCONNECTED 처리
  * - /api/monitoring/status/initial API 사용
@@ -664,8 +669,12 @@ export class MonitoringService {
     // ============================================
     
     /**
-     * ⭐ v3.1.0: 초기 상태 로드 (24시간 기준)
+     * ⭐ v3.2.0: 초기 상태 로드 (24시간 기준)
      * Backend API: GET /api/monitoring/status/initial?threshold_hours=24
+     * 
+     * 🔧 v3.2.0 수정: Backend의 frontend_id 대신 equipment_id로 Frontend 매핑 조회
+     * - Backend에서 CUT-066, EQ-UNKNOWN-X 등의 frontend_id가 오지만
+     * - Frontend의 equipmentEditState에서 equipment_id로 실제 frontend_id(EQ-XX-XX) 조회
      */
     async loadInitialStatus() {
         debugLog(`📡 Loading initial equipment status (threshold: ${this.staleThresholdHours}h)...`);
@@ -692,20 +701,20 @@ export class MonitoringService {
             debugLog(`📊 By Status:`, data.summary.by_status);
         }
         
-        // ⭐ v3.1.0: is_connected 필드로 DISCONNECTED 처리
+        // ⭐ v3.2.0: is_connected 필드로 DISCONNECTED 처리
         let connectedCount = 0;
         let disconnectedCount = 0;
+        let skippedCount = 0;
         
         data.equipment.forEach(item => {
-            const frontendId = item.frontend_id;
+            // ⭐ v3.2.0 수정: Backend의 frontend_id 대신 equipment_id로 Frontend 매핑 조회
+            // Backend에서 CUT-066, EQ-UNKNOWN-X 형식이 오지만,
+            // Frontend의 equipmentEditState에서 equipment_id로 실제 frontend_id(EQ-XX-XX) 조회
+            const frontendId = this.equipmentEditState?.getFrontendIdByEquipmentId(item.equipment_id);
             
             if (!frontendId) {
-                debugLog(`⚠️ No frontend_id for equipment_id: ${item.equipment_id}`);
-                return;
-            }
-            
-            // 매핑된 설비만 처리
-            if (!this.isEquipmentMapped(frontendId)) {
+                // equipment_id가 Frontend에 매핑되지 않음 (정상적인 스킵)
+                skippedCount++;
                 return;
             }
             
@@ -717,7 +726,7 @@ export class MonitoringService {
                 }
                 this.statusCache.set(frontendId, 'DISCONNECTED');
                 disconnectedCount++;
-                debugLog(`🔌 ${frontendId} -> DISCONNECTED (no data in ${this.staleThresholdHours}h)`);
+                debugLog(`🔌 ${frontendId} (eq_id:${item.equipment_id}) -> DISCONNECTED`);
             } else {
                 // 정상 상태 (RUN, IDLE, STOP, SUDDENSTOP)
                 if (this.signalTowerManager) {
@@ -732,7 +741,7 @@ export class MonitoringService {
         this.currentStats.connected = connectedCount;
         this.currentStats.disconnected = disconnectedCount;
         
-        debugLog(`✅ Initial status applied: ${connectedCount} connected, ${disconnectedCount} disconnected`);
+        debugLog(`✅ Initial status applied: ${connectedCount} connected, ${disconnectedCount} disconnected, ${skippedCount} skipped`);
         
         // 패널 업데이트
         this.updateStatusPanel();

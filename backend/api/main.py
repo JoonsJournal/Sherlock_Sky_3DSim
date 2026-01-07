@@ -39,6 +39,16 @@ except ImportError as e:
     logger.warning(f"⚠️ Monitoring 모듈 로드 실패: {e}")
     logger.info("   → Monitoring 기능 없이 실행됩니다")
 
+# ⭐ NEW: Equipment Detail Router 추가
+try:
+    from .routers.equipment_detail import router as equipment_detail_router
+    EQUIPMENT_DETAIL_ENABLED = True
+    logger.info("✅ Equipment Detail 모듈 로드 성공")
+except ImportError as e:
+    EQUIPMENT_DETAIL_ENABLED = False
+    logger.warning(f"⚠️ Equipment Detail 모듈 로드 실패: {e}")
+
+
 # 라이프사이클 관리
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -58,7 +68,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="SHERLOCK_SKY_3DSIM Connection Test API",
     description="데이터베이스 연결 테스트 전용 API",
-    version="1.0.0",
+    version="1.1.0",  # 버전 업데이트
     lifespan=lifespan
 )
 
@@ -110,6 +120,16 @@ if MONITORING_ENABLED:
 else:
     logger.warning("⚠️ Monitoring Router 미등록 (모듈 로드 실패)")
 
+# ⭐ NEW: Equipment Detail Router 등록
+if EQUIPMENT_DETAIL_ENABLED:
+    app.include_router(
+        equipment_detail_router,
+        tags=["Equipment Detail"]
+    )
+    logger.info("✅ Equipment Detail Router 등록 완료")
+else:
+    logger.warning("⚠️ Equipment Detail Router 미등록 (모듈 로드 실패)")
+
 
 @app.get("/")
 async def root():
@@ -137,12 +157,21 @@ async def root():
             "monitoring_stream": "ws://localhost:8000/api/monitoring/stream"
         })
     
+    # ⭐ NEW: Equipment Detail endpoints 추가 (조건부)
+    if EQUIPMENT_DETAIL_ENABLED:
+        endpoints.update({
+            "equipment_detail": "/api/equipment/detail/{frontend_id}",
+            "equipment_detail_multi": "/api/equipment/detail/multi",
+            "equipment_detail_health": "/api/equipment/detail/health"
+        })
+    
     return {
         "name": "SHERLOCK_SKY_3DSIM Connection Test API",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "description": "데이터베이스 연결 테스트 전용",
         "docs": "/docs",
         "monitoring_enabled": MONITORING_ENABLED,
+        "equipment_detail_enabled": EQUIPMENT_DETAIL_ENABLED,
         "endpoints": endpoints
     }
 
@@ -152,9 +181,10 @@ async def health():
     """헬스 체크"""
     return {
         "status": "ok",
-		"message": "healthy",
+        "message": "healthy",
         "timestamp": datetime.now().isoformat(),
-        "monitoring_enabled": MONITORING_ENABLED
+        "monitoring_enabled": MONITORING_ENABLED,
+        "equipment_detail_enabled": EQUIPMENT_DETAIL_ENABLED
     }
 
 

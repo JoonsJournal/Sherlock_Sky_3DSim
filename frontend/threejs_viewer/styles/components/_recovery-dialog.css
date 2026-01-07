@@ -1,0 +1,469 @@
+/**
+ * _recovery-dialog.css
+ * ====================
+ * RecoveryDialog 전용 스타일 - 라이트 테마
+ * 
+ * RecoveryDialog.js의 _injectStyles() 내용을
+ * 라이트 테마로 변환하여 분리
+ * 
+ * 작성일: 2026-01-06
+ */
+
+/* =============================================
+   Recovery Dialog Overlay
+   ============================================= */
+.recovery-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--overlay-bg-backdrop, rgba(0, 0, 0, 0.5));
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-recovery-dialog, 10001);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.recovery-dialog-overlay--visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* =============================================
+   Dialog Container - 라이트 테마
+   ============================================= */
+.recovery-dialog {
+    background: var(--theme-bg-primary, #ffffff);
+    border: 1px solid var(--theme-border-default, #dee2e6);
+    border-radius: var(--radius-xl, 16px);
+    max-width: 560px;
+    width: 90%;
+    max-height: 85vh;
+    overflow: hidden;
+    box-shadow: var(--shadow-xl, 0 10px 40px rgba(0, 0, 0, 0.2));
+    transform: translateY(20px) scale(0.95);
+    transition: all 0.3s ease;
+    font-family: var(--font-family);
+}
+
+.recovery-dialog-overlay--visible .recovery-dialog {
+    transform: translateY(0) scale(1);
+}
+
+/* =============================================
+   Header - 라이트 테마
+   ============================================= */
+.recovery-dialog__header {
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid var(--theme-border-light, #e9ecef);
+    background: var(--theme-bg-primary, #ffffff);
+}
+
+.recovery-dialog__title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--theme-text-primary, #212529);
+}
+
+.recovery-dialog__title-icon {
+    font-size: 28px;
+}
+
+.recovery-dialog__subtitle {
+    color: var(--theme-text-muted, #6c757d);
+    font-size: var(--font-size-base, 14px);
+    line-height: 1.5;
+}
+
+/* =============================================
+   Body
+   ============================================= */
+.recovery-dialog__body {
+    padding: 16px 24px;
+    max-height: 400px;
+    overflow-y: auto;
+    background: var(--theme-bg-primary, #ffffff);
+}
+
+.recovery-dialog__body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.recovery-dialog__body::-webkit-scrollbar-track {
+    background: var(--theme-bg-secondary, #f8f9fa);
+}
+
+.recovery-dialog__body::-webkit-scrollbar-thumb {
+    background: var(--theme-border-dark, #ced4da);
+    border-radius: 3px;
+}
+
+/* =============================================
+   Empty State
+   ============================================= */
+.recovery-dialog__empty {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.recovery-dialog__empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.recovery-dialog__empty-text {
+    color: var(--theme-text-muted, #6c757d);
+    font-size: var(--font-size-base, 14px);
+}
+
+/* =============================================
+   Select All - 라이트 테마
+   ============================================= */
+.recovery-dialog__select-all {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    background: var(--theme-bg-secondary, #f8f9fa);
+    border: 1px solid var(--theme-border-default, #dee2e6);
+    border-radius: var(--radius-md, 8px);
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.recovery-dialog__select-all:hover {
+    background: var(--theme-bg-hover, #e9ecef);
+}
+
+.recovery-dialog__select-all-checkbox {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--theme-border-dark, #ced4da);
+    border-radius: var(--radius-sm, 4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    background: var(--theme-bg-primary, #ffffff);
+}
+
+.recovery-dialog__select-all--checked .recovery-dialog__select-all-checkbox {
+    background: var(--interactive-primary, #2196F3);
+    border-color: var(--interactive-primary, #2196F3);
+}
+
+.recovery-dialog__select-all-label {
+    font-size: var(--font-size-base, 14px);
+    color: var(--theme-text-primary, #212529);
+    font-weight: 500;
+}
+
+/* =============================================
+   Recovery Item - 라이트 테마
+   ============================================= */
+.recovery-item {
+    background: var(--theme-bg-secondary, #f8f9fa);
+    border: 1px solid var(--theme-border-default, #dee2e6);
+    border-radius: var(--radius-lg, 12px);
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.recovery-item:last-child {
+    margin-bottom: 0;
+}
+
+.recovery-item:hover {
+    border-color: var(--theme-border-dark, #ced4da);
+    background: var(--theme-bg-hover, #e9ecef);
+}
+
+.recovery-item--selected {
+    border-color: var(--interactive-primary, #2196F3);
+    background: var(--theme-bg-active, #e3f2fd);
+}
+
+.recovery-item__header {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    cursor: pointer;
+    gap: 12px;
+}
+
+/* Checkbox */
+.recovery-item__checkbox {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--theme-border-dark, #ced4da);
+    border-radius: var(--radius-sm, 4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    background: var(--theme-bg-primary, #ffffff);
+}
+
+.recovery-item--selected .recovery-item__checkbox {
+    background: var(--interactive-primary, #2196F3);
+    border-color: var(--interactive-primary, #2196F3);
+}
+
+.recovery-item__checkbox-icon {
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.recovery-item--selected .recovery-item__checkbox-icon {
+    opacity: 1;
+}
+
+/* Item Icon */
+.recovery-item__icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+/* Item Info */
+.recovery-item__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.recovery-item__label {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--theme-text-primary, #212529);
+    margin-bottom: 4px;
+}
+
+.recovery-item__meta {
+    display: flex;
+    gap: 16px;
+    font-size: var(--font-size-sm, 12px);
+    color: var(--theme-text-muted, #6c757d);
+}
+
+.recovery-item__meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.recovery-item__meta-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: var(--status-warning-bg, #fff3cd);
+    color: var(--status-warning-text, #856404);
+    border-radius: 10px;
+    animation: rd-pulse 2s ease-in-out infinite;
+}
+
+@keyframes rd-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Toggle Button */
+.recovery-item__toggle {
+    padding: 6px 10px;
+    background: var(--theme-bg-tertiary, #f0f2f5);
+    border: 1px solid var(--theme-border-default, #dee2e6);
+    border-radius: var(--radius-sm, 4px);
+    color: var(--theme-text-muted, #6c757d);
+    cursor: pointer;
+    font-size: var(--font-size-sm, 12px);
+    transition: all 0.2s ease;
+}
+
+.recovery-item__toggle:hover {
+    background: var(--theme-bg-hover, #e9ecef);
+    color: var(--theme-text-primary, #212529);
+}
+
+.recovery-item__toggle--expanded {
+    background: var(--status-info-bg, #d1ecf1);
+    border-color: var(--status-info-border, #bee5eb);
+    color: var(--status-info-text, #0c5460);
+}
+
+/* =============================================
+   Preview - 라이트 테마
+   ============================================= */
+.recovery-item__preview {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background: var(--theme-bg-tertiary, #f0f2f5);
+}
+
+.recovery-item__preview--expanded {
+    max-height: 300px;
+}
+
+.recovery-item__preview-content {
+    padding: 12px 16px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--theme-text-secondary, #495057);
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 250px;
+    overflow-y: auto;
+    background: var(--theme-bg-primary, #ffffff);
+    border: 1px solid var(--theme-border-light, #e9ecef);
+    margin: 12px;
+    border-radius: var(--radius-sm, 4px);
+}
+
+/* =============================================
+   Summary Row - 라이트 테마
+   ============================================= */
+.recovery-item__summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--theme-border-light, #e9ecef);
+    background: var(--theme-bg-secondary, #f8f9fa);
+}
+
+.recovery-item__summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.recovery-item__summary-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--theme-text-muted, #6c757d);
+}
+
+.recovery-item__summary-value {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--theme-text-primary, #212529);
+}
+
+/* =============================================
+   Footer - 라이트 테마
+   ============================================= */
+.recovery-dialog__footer {
+    display: flex;
+    gap: 12px;
+    padding: 16px 24px 24px;
+    border-top: 1px solid var(--theme-border-light, #e9ecef);
+    background: var(--theme-bg-secondary, #f8f9fa);
+}
+
+.recovery-dialog__btn {
+    flex: 1;
+    padding: 12px 20px;
+    font-size: var(--font-size-base, 14px);
+    font-weight: 500;
+    border-radius: var(--radius-md, 8px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.recovery-dialog__btn--discard {
+    background: var(--status-error-bg, #f8d7da);
+    border: 1px solid var(--status-error-border, #f5c6cb);
+    color: var(--status-error-text, #721c24);
+}
+
+.recovery-dialog__btn--discard:hover:not(:disabled) {
+    background: #f5c6cb;
+    border-color: var(--status-error, #dc3545);
+}
+
+.recovery-dialog__btn--recover {
+    background: var(--status-success-bg, #d4edda);
+    border: 1px solid var(--status-success-border, #c3e6cb);
+    color: var(--status-success-text, #155724);
+}
+
+.recovery-dialog__btn--recover:hover:not(:disabled) {
+    background: #c3e6cb;
+    border-color: var(--status-success, #28a745);
+}
+
+.recovery-dialog__btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* =============================================
+   반응형
+   ============================================= */
+@media (max-width: 480px) {
+    .recovery-dialog {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .recovery-dialog__header {
+        padding: 16px 16px 12px;
+    }
+    
+    .recovery-dialog__title {
+        font-size: 18px;
+    }
+    
+    .recovery-dialog__body {
+        padding: 12px 16px;
+    }
+    
+    .recovery-dialog__footer {
+        padding: 12px 16px 16px;
+        flex-direction: column;
+    }
+    
+    .recovery-item__meta {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+}
+
+/* =============================================
+   접근성
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+    .recovery-dialog-overlay,
+    .recovery-dialog,
+    .recovery-item,
+    .recovery-item__checkbox,
+    .recovery-item__preview,
+    .recovery-dialog__btn {
+        transition: none;
+    }
+    
+    .recovery-item__meta-badge {
+        animation: none;
+    }
+}

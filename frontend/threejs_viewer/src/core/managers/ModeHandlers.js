@@ -7,8 +7,12 @@
  * - 각 모드의 책임을 명확히 분리
  * - Sub_mode 확장 지원 준비
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description 상호 배타적 모드 전환 시 자동 정리 지원
+ * 
+ * @changelog
+ * - v1.1.0: MonitoringModeHandler.onExit()에서 turnOffAllLights 방어적 코딩 적용
+ * - v1.0.0: 초기 버전 - 모드 핸들러 시스템 구현
  * 
  * 위치: frontend/threejs_viewer/src/core/managers/ModeHandlers.js
  */
@@ -176,17 +180,26 @@ export class MonitoringModeHandler {
         syncAllButtonStates(APP_MODE.MONITORING);
     }
     
+    /**
+     * 🔧 v1.1.0: 방어적 코딩 적용
+     */
     onExit(context = {}) {
         logger.info('Monitoring 모드 종료');
         
-        // 1. MonitoringService 중지
+        // 1. MonitoringService 중지 (내부에서 램프 정리 포함)
         if (this._monitoringService && this._monitoringService.isActive) {
             this._monitoringService.stop();
         }
         
-        // 2. SignalTower 모든 램프 OFF (선택적)
+        // 2. SignalTower 모든 램프 OFF (선택적 - 메서드 존재 시에만)
         if (this._signalTowerManager) {
-            this._signalTowerManager.turnOffAllLights();
+            // 🔧 수정: 메서드 존재 여부 확인 후 호출
+            if (typeof this._signalTowerManager.turnOffAllLights === 'function') {
+                this._signalTowerManager.turnOffAllLights();
+            } else if (typeof this._signalTowerManager.initializeAllLights === 'function') {
+                // fallback: 모든 램프 초기화 (OFF 상태로)
+                this._signalTowerManager.initializeAllLights();
+            }
         }
         
         // 3. CSS 클래스 제거

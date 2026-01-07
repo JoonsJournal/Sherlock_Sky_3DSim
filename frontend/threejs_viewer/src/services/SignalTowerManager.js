@@ -2,6 +2,9 @@
  * SignalTowerManager.js
  * Signal Tower (경광등) 제어 관리자
  * 
+ * ⭐ v2.1.1 - turnOffAllLights 메서드 추가
+ * - 🆕 turnOffAllLights(): Monitoring 모드 종료 시 모든 램프 OFF
+ * 
  * ⭐ v2.1.0 - SUDDENSTOP 점멸 + DISCONNECTED 상태 추가
  * - STOP: red → yellow로 변경 (요구사항 반영)
  * - SUDDENSTOP: red 빠른 점멸 (가시적으로 보임)
@@ -62,7 +65,7 @@ export class SignalTowerManager {
         this.suddenStopBlinkSpeed = 8.0;    // ⭐ v2.1.0: SUDDENSTOP 빠른 점멸 속도
         this.blinkEnabled = true;           // 깜빡임 활성화 여부
         
-        debugLog('SignalTowerManager initialized (v2.1.0)');
+        debugLog('SignalTowerManager initialized (v2.1.1)');
     }
     
     /**
@@ -380,6 +383,23 @@ export class SignalTowerManager {
         return count;
     }
     
+    /**
+     * 🆕 v2.1.1: 모든 설비의 램프를 OFF 상태로 설정
+     * Monitoring 모드 종료 시 호출
+     * @returns {number} OFF로 설정된 설비 수
+     */
+    turnOffAllLights() {
+        let count = 0;
+        
+        this.lampMap.forEach((lights, frontendId) => {
+            this.setAllLampsOff(frontendId);
+            count++;
+        });
+        
+        debugLog(`🚨 All lights turned off: ${count} equipment`);
+        return count;
+    }
+    
     // ============================================
     // 애니메이션
     // ============================================
@@ -559,7 +579,7 @@ export class SignalTowerManager {
      */
     debugPrintStatus() {
         console.group('🔧 SignalTowerManager Debug Info');
-        console.log('Version: 2.1.0');
+        console.log('Version: 2.1.1');
         console.log('Total equipment with lamps:', this.lampMap.size);
         console.log('Statistics:', this.getStatusStatistics());
         console.log('Blink enabled:', this.blinkEnabled);
