@@ -142,24 +142,30 @@
    🆕 Status Panel (Monitoring / Equipment Edit)
    3D 씬 위 오버레이 (다크 테마)
    ============================================= */
+/* =============================================
+   🆕 Status Panel (Monitoring / Equipment Edit)
+   3D 씬 위 오버레이 (다크 테마)
+   ============================================= */
 .status-panel {
     position: fixed;
-    top: 10px;
+    bottom: 20px;                              /* 🔧 top: 10px → bottom: 20px */
     left: 50%;
     transform: translateX(-50%);
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 10px 20px;
-    background: var(--overlay-bg-primary);
-    border: 1px solid var(--overlay-border-light);
+    max-width: 90vw;                           /* 🆕 추가 */
+    background: rgba(30, 30, 30, 0.95);        /* 🔧 fallback 값 추가 */
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     color: var(--overlay-text-primary);
     font-size: var(--font-size-sm);
     font-weight: 500;
-    z-index: var(--z-dropdown);
+    z-index: 1000;                             /* 🔧 구체적인 값 */
     animation: statusPanelFadeIn 0.3s ease-out;
+    pointer-events: auto;                      /* 🆕 클릭 가능 */
 }
 
 @keyframes statusPanelFadeIn {
