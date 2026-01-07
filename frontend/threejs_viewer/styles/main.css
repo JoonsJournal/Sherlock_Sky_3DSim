@@ -51,6 +51,9 @@
 @import './components/_file-controls.css';
 @import './components/_equipment-edit-button.css';
 
+/* Phase 8: Equipment Info Panel (Tab UI) */
+@import './components/_equipment-info-panel.css';
+
 /* =============================================
    Page Styles (페이지별)
    - 3D Viewer, Layout Editor

@@ -4,10 +4,11 @@
  * 
  * 메인 애플리케이션 진입점 (리팩토링 버전)
  * 
- * @version 4.0.0
+ * @version 4.1.0
  * @description 중앙 집중식 모드 관리 시스템 적용
  * 
  * @changelog
+ * - v4.1.0: EquipmentInfoPanel ↔ DataOverlay 연결 추가 (Phase 2 Equipment Detail)
  * - v4.0.0: 중앙 집중식 모드 관리, AppModeManager.toggleMode() 사용
  *           ModeHandlers 서비스 연결, InteractionHandler에 AppModeManager 연결
  * - v3.4.0: StorageService AutoSave 연동, Equipment 복구 다이얼로그
@@ -333,7 +334,7 @@ function initEquipmentAutoSave(equipmentEditState) {
 // ============================================
 
 function init() {
-    console.log('🚀 Sherlock Sky 3DSim 초기화 (v4.0.0)...');
+    console.log('🚀 Sherlock Sky 3DSim 초기화 (v4.1.0)...');
     console.log(`📍 Site ID: ${SITE_ID}`);
     
     try {
@@ -345,6 +346,12 @@ function init() {
         
         // 3. UI 컴포넌트 초기화
         services.ui = initUIComponents();
+        
+        // 🆕 v4.1.0: DataOverlay ↔ EquipmentInfoPanel 연결
+        if (services.scene?.dataOverlay && services.ui?.equipmentInfoPanel) {
+            services.scene.dataOverlay.setEquipmentInfoPanel(services.ui.equipmentInfoPanel);
+            console.log('  ✅ DataOverlay ↔ EquipmentInfoPanel 연결 완료');
+        }
         
         // 4. Monitoring 서비스 초기화
         services.monitoring = initMonitoringServices(
@@ -453,6 +460,7 @@ function init() {
             equipmentEditButton,
             apiClient: services.ui.apiClient,
             toast,
+            equipmentInfoPanel: services.ui.equipmentInfoPanel,  // 🆕 v4.1.0: 추가
             
             // Connection Status
             connectionStatusService: services.ui.connectionStatusService,
@@ -498,13 +506,14 @@ function init() {
             }, 1000);
         }
         
-        console.log('✅ 모든 초기화 완료! (v4.0.0 - 중앙 집중식 모드 관리)');
+        console.log('✅ 모든 초기화 완료! (v4.1.0 - EquipmentInfoPanel 연동)');
         console.log('💡 콘솔에서 debugHelp() 입력으로 사용 가능한 명령어 확인');
         console.log('💡 키보드 단축키: D=디버그, P=성능, H=헬퍼, G=그리드, M=모니터링, E=편집');
         console.log('💡 AdaptivePerformance: toggleAdaptivePerformance() 또는 A키로 ON/OFF');
         console.log('💡 Equipment Edit: Backend 연결 시에만 E키 또는 버튼 사용 가능');
         console.log('💡 Equipment AutoSave: 30초마다 자동 저장, 5회 변경 시 즉시 저장');
         console.log('💡 모드 전환: appModeManager.toggleMode(APP_MODE.XXX) 사용');
+        console.log('💡 Equipment Info: 설비 클릭 시 상세 정보 표시 (Backend API 연동)');
         
     } catch (error) {
         console.error('❌ 초기화 중 오류 발생:', error);
@@ -603,6 +612,11 @@ function handleCleanup() {
     // 🆕 Equipment AutoSave 중지
     if (services.ui?.equipmentEditState) {
         services.ui.equipmentEditState.stopAutoSave();
+    }
+    
+    // 🆕 v4.1.0: EquipmentInfoPanel 정리
+    if (services.ui?.equipmentInfoPanel) {
+        services.ui.equipmentInfoPanel.dispose();
     }
     
     cleanup({
