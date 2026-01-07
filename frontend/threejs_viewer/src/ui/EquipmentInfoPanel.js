@@ -3,15 +3,20 @@
  * =====================
  * 설비 상세 정보 패널 (Tab UI + Backend API 연동)
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @description
  * - Tab Interface: General / PC Info.
  * - Single Selection: Backend API에서 상세 정보 조회
- * - Multi Selection: 빈 값 표시 (Phase 3에서 구현 예정)
+ * - Multi Selection: Backend API에서 집계 정보 조회
  * 
  * @changelog
+ * - v1.2.0: Multi Selection 집계 기능 구현 (Phase 3)
+ *           - POST /api/equipment/detail/multi API 호출
+ *           - equipment_ids 파라미터 전달 (Frontend 매핑 우선)
+ *           - 집계 UI 표시 (Line, Status, Product, Lot)
+ *           - "외 N개" 형식 표시 (최대 3개)
+ *           - 하단 여백 확보 (추후 확장용)
  * - v1.1.0: API 호출 시 equipment_id 쿼리 파라미터 전달 추가
- *           (Backend equipment_mapping 테이블 동기화 문제 해결)
  * - v1.0.0: 초기 버전 - Tab UI, Backend API 연동
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/EquipmentInfoPanel.js
@@ -38,6 +43,11 @@ export class EquipmentInfoPanel {
         this.currentEquipmentId = null;
         this.selectedCount = 0;
         
+        // 🆕 v1.2.0: Multi Selection 상태
+        this.selectedFrontendIds = [];
+        this.selectedEquipmentIds = [];
+        this.multiSelectionCache = null;  // 집계 결과 캐시
+        
         // 캐시
         this.dataCache = new Map();
         this.cacheExpiry = 30000;  // 30초
@@ -51,7 +61,7 @@ export class EquipmentInfoPanel {
         // 초기화
         this._init();
         
-        debugLog('📊 EquipmentInfoPanel initialized (v1.1.0)');
+        debugLog('📊 EquipmentInfoPanel initialized (v1.2.0)');
     }
     
     // =========================================================================
@@ -198,8 +208,8 @@ export class EquipmentInfoPanel {
             // ✅ Single Selection: Backend API 호출
             await this._showSingleEquipment(dataArray[0]);
         } else {
-            // ⏳ Multi Selection: 빈 값 표시 (Phase 3에서 구현)
-            this._showMultipleEquipmentPlaceholder(dataArray);
+            // ✅ Multi Selection: Backend API 집계 호출 (v1.2.0)
+            await this._showMultipleEquipment(dataArray);
         }
         
         // 패널 표시
@@ -220,6 +230,11 @@ export class EquipmentInfoPanel {
         this.currentEquipmentId = null;
         this.selectedCount = 0;
         
+        // 🆕 v1.2.0: Multi Selection 상태 초기화
+        this.selectedFrontendIds = [];
+        this.selectedEquipmentIds = [];
+        this.multiSelectionCache = null;
+        
         debugLog('📊 Equipment Info Panel hidden');
     }
     
@@ -228,19 +243,30 @@ export class EquipmentInfoPanel {
      * @param {Object} updateData - 업데이트 데이터
      */
     updateRealtime(updateData) {
-        if (!this.isVisible || !this.currentFrontendId) return;
+        if (!this.isVisible) return;
         
-        // 현재 표시 중인 설비와 일치하면 업데이트
-        if (updateData.frontend_id === this.currentFrontendId) {
-            this._updateGeneralTab(updateData);
-            
-            // 캐시 업데이트
-            this.dataCache.set(this.currentFrontendId, {
-                data: updateData,
-                timestamp: Date.now()
-            });
-            
-            debugLog(`🔄 Real-time update: ${this.currentFrontendId}`);
+        const incomingFrontendId = updateData.frontend_id;
+        
+        // 🆕 v1.2.0: Single vs Multi Selection 분기
+        if (this.selectedCount === 1) {
+            // Single Selection: 현재 표시 중인 설비와 일치하면 업데이트
+            if (incomingFrontendId === this.currentFrontendId) {
+                this._updateGeneralTab(updateData);
+                
+                // 캐시 업데이트
+                this.dataCache.set(this.currentFrontendId, {
+                    data: updateData,
+                    timestamp: Date.now()
+                });
+                
+                debugLog(`🔄 Real-time update (single): ${this.currentFrontendId}`);
+            }
+        } else if (this.selectedCount > 1) {
+            // Multi Selection: 선택된 설비 중 하나면 집계 재계산
+            if (this.selectedFrontendIds.includes(incomingFrontendId)) {
+                this._updateMultiSelectionStatus(incomingFrontendId, updateData.status);
+                debugLog(`🔄 Real-time update (multi): ${incomingFrontendId} -> ${updateData.status}`);
+            }
         }
     }
     
@@ -256,6 +282,10 @@ export class EquipmentInfoPanel {
         const frontendId = equipmentData.id || equipmentData.frontendId;
         this.currentFrontendId = frontendId;
         
+        // Multi Selection 상태 초기화
+        this.selectedFrontendIds = [frontendId];
+        this.selectedEquipmentIds = [];
+        
         // 헤더 업데이트
         this._updateHeader(frontendId);
         
@@ -266,6 +296,10 @@ export class EquipmentInfoPanel {
             // 1. 매핑 정보 확인 (equipment_id 가져오기)
             const equipmentId = this._getEquipmentId(frontendId);
             this.currentEquipmentId = equipmentId;
+            
+            if (equipmentId) {
+                this.selectedEquipmentIds = [equipmentId];
+            }
             
             if (!equipmentId) {
                 // 매핑되지 않은 설비
@@ -280,7 +314,7 @@ export class EquipmentInfoPanel {
                 return;
             }
             
-            // 3. Backend API 호출 (🆕 v1.1.0: equipment_id 전달)
+            // 3. Backend API 호출 (v1.1.0: equipment_id 전달)
             const detailData = await this._fetchEquipmentDetail(frontendId, equipmentId);
             
             if (detailData) {
@@ -315,14 +349,13 @@ export class EquipmentInfoPanel {
     }
     
     /**
-     * 🆕 v1.1.0: Backend API 호출 (equipment_id 쿼리 파라미터 추가)
+     * Backend API 호출 (Single Selection)
      * @private
      * @param {string} frontendId - Frontend ID (예: EQ-13-01)
      * @param {number} equipmentId - Equipment ID (DB의 숫자 ID)
      */
     async _fetchEquipmentDetail(frontendId, equipmentId) {
-        // ⭐ v1.1.0: equipment_id를 쿼리 파라미터로 전달
-        // Backend의 equipment_mapping 테이블과 동기화 문제 해결
+        // v1.1.0: equipment_id를 쿼리 파라미터로 전달
         let url = `${this.apiBaseUrl}/${frontendId}`;
         
         if (equipmentId) {
@@ -342,7 +375,7 @@ export class EquipmentInfoPanel {
     }
     
     /**
-     * General Tab 업데이트
+     * General Tab 업데이트 (Single Selection)
      * @private
      */
     _updateGeneralTab(data) {
@@ -375,6 +408,9 @@ export class EquipmentInfoPanel {
                 <span class="info-value info-value-meta">${this._formatDateTime(data.last_updated)}</span>
             </div>
             ` : ''}
+            
+            <!-- 추후 확장 영역 -->
+            <div class="info-row-spacer"></div>
         `;
         
         this.isLoading = false;
@@ -467,62 +503,323 @@ export class EquipmentInfoPanel {
     }
     
     // =========================================================================
-    // 내부 메서드 - Multi Selection (Phase 3 Placeholder)
+    // 🆕 v1.2.0: Multi Selection
     // =========================================================================
     
     /**
-     * 다중 선택 Placeholder 표시
+     * 다중 설비 정보 표시 (집계)
      * @private
      */
-    _showMultipleEquipmentPlaceholder(dataArray) {
+    async _showMultipleEquipment(dataArray) {
         const count = dataArray.length;
+        
+        // Frontend IDs 추출
+        this.selectedFrontendIds = dataArray.map(item => item.id || item.frontendId);
+        
+        // Equipment IDs 조회 (Frontend 매핑에서)
+        this.selectedEquipmentIds = this.selectedFrontendIds
+            .map(fid => this._getEquipmentId(fid))
+            .filter(eid => eid !== null);
         
         // 헤더 업데이트
         this._updateHeader(`${count}개 설비 선택됨`, true);
         
-        // General Tab: 빈 값 표시
-        if (this.generalTabContent) {
-            this.generalTabContent.innerHTML = `
-                <div class="info-row multi-select-notice">
-                    <span class="info-icon">📊</span>
-                    <span class="info-text">${count}개 설비가 선택되었습니다</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Line:</span>
-                    <span class="info-value">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Status:</span>
-                    <span class="info-value">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Product:</span>
-                    <span class="info-value">-</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Lot No.:</span>
-                    <span class="info-value">-</span>
-                </div>
-                <div class="info-row info-row-hint">
-                    <span class="info-icon">💡</span>
-                    <span class="info-text">다중 선택 집계 기능은 추후 지원 예정</span>
-                </div>
-            `;
+        // 로딩 표시
+        this._showLoading();
+        
+        // 매핑된 설비가 하나도 없으면
+        if (this.selectedEquipmentIds.length === 0) {
+            this._showMultiUnmappedState(count);
+            return;
         }
         
-        // PC Info Tab도 빈 상태로
-        if (this.pcinfoTabContent) {
-            this.pcinfoTabContent.innerHTML = `
-                <div class="info-row placeholder">
-                    <span class="info-label">PC 정보 (추후 확장 예정)</span>
-                </div>
-            `;
+        try {
+            // Backend API 호출 (집계)
+            const aggregatedData = await this._fetchMultiEquipmentDetail();
+            
+            if (aggregatedData) {
+                // 캐시에 저장
+                this.multiSelectionCache = aggregatedData;
+                
+                // UI 업데이트
+                this._updateGeneralTabMulti(aggregatedData, count);
+            } else {
+                this._showMultiErrorState(count);
+            }
+            
+        } catch (error) {
+            console.error('❌ Failed to load multi equipment detail:', error);
+            this._showMultiErrorState(count, error.message);
+        }
+    }
+    
+    /**
+     * Backend API 호출 (Multi Selection)
+     * @private
+     */
+    async _fetchMultiEquipmentDetail() {
+        const url = `${this.apiBaseUrl}/multi`;
+        
+        // 🆕 v1.2.0: equipment_ids를 Body에 포함 (Frontend 매핑 우선)
+        const requestBody = {
+            frontend_ids: this.selectedFrontendIds,
+            equipment_ids: this.selectedEquipmentIds  // ⭐ ID 불일치 문제 해결
+        };
+        
+        debugLog(`📡 Fetching multi equipment detail: ${url}`, requestBody);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
         
-        this.currentFrontendId = null;
-        this.currentEquipmentId = null;
+        const data = await response.json();
+        return data;
+    }
+    
+    /**
+     * General Tab 업데이트 (Multi Selection - 집계)
+     * @private
+     */
+    _updateGeneralTabMulti(data, totalCount) {
+        if (!this.generalTabContent) return;
         
-        debugLog(`📊 Multi-selection placeholder shown: ${count} items`);
+        // Lines 표시 (최대 3개, "외 N개")
+        const linesDisplay = this._formatListWithMore(data.lines, data.lines_more);
+        
+        // Status 집계 표시
+        const statusDisplay = this._formatStatusCounts(data.status_counts);
+        
+        // Products 표시 (최대 3개, "외 N개")
+        const productsDisplay = this._formatListWithMore(data.products, data.products_more);
+        
+        // Lot IDs 표시 (최대 3개, "외 N개")
+        const lotIdsDisplay = this._formatListWithMore(data.lot_ids, data.lot_ids_more);
+        
+        this.generalTabContent.innerHTML = `
+            <div class="info-row multi-select-header">
+                <span class="info-icon">📊</span>
+                <span class="info-text">${totalCount}개 설비 집계 정보</span>
+                <span class="info-badge">${data.count || this.selectedEquipmentIds.length}개 조회됨</span>
+            </div>
+            
+            <div class="info-row">
+                <span class="info-label">Line:</span>
+                <span class="info-value">${linesDisplay || '-'}</span>
+            </div>
+            
+            <div class="info-row status-row">
+                <span class="info-label">Status:</span>
+                <div class="status-counts">
+                    ${statusDisplay}
+                </div>
+            </div>
+            
+            <div class="info-row">
+                <span class="info-label">Product:</span>
+                <span class="info-value">${productsDisplay || '-'}</span>
+            </div>
+            
+            <div class="info-row">
+                <span class="info-label">Lot No.:</span>
+                <span class="info-value">${lotIdsDisplay || '-'}</span>
+            </div>
+            
+            <!-- 추후 확장 영역 (여백 확보) -->
+            <div class="info-row-spacer"></div>
+            <div class="info-row-spacer"></div>
+        `;
+        
+        this.isLoading = false;
+        debugLog(`✅ Multi selection tab updated: ${totalCount} items`);
+    }
+    
+    /**
+     * 리스트를 "외 N개" 형식으로 포맷
+     * @private
+     */
+    _formatListWithMore(items, hasMore) {
+        if (!items || items.length === 0) {
+            return '-';
+        }
+        
+        // 최대 3개 표시
+        const displayItems = items.slice(0, 3);
+        let result = displayItems.join(', ');
+        
+        // "외 N개" 추가
+        if (hasMore || items.length > 3) {
+            const moreCount = items.length > 3 ? items.length - 3 : '...';
+            result += ` <span class="more-count">외 ${moreCount}개</span>`;
+        }
+        
+        return result;
+    }
+    
+    /**
+     * Status 집계를 아이콘+숫자 형식으로 포맷
+     * @private
+     */
+    _formatStatusCounts(statusCounts) {
+        if (!statusCounts || Object.keys(statusCounts).length === 0) {
+            return '<span class="status-count-item">-</span>';
+        }
+        
+        const statusConfig = {
+            'RUN': { icon: '🟢', class: 'status-running', label: 'RUN' },
+            'IDLE': { icon: '🟡', class: 'status-idle', label: 'IDLE' },
+            'STOP': { icon: '🔴', class: 'status-stop', label: 'STOP' },
+            'SUDDENSTOP': { icon: '⚠️', class: 'status-error', label: 'ERROR' },
+            'DISCONNECTED': { icon: '⚫', class: 'status-disconnected', label: 'DISC' }
+        };
+        
+        // 정렬 순서: RUN > IDLE > STOP > SUDDENSTOP > DISCONNECTED
+        const sortOrder = ['RUN', 'IDLE', 'STOP', 'SUDDENSTOP', 'DISCONNECTED'];
+        
+        return sortOrder
+            .filter(status => statusCounts[status] > 0)
+            .map(status => {
+                const config = statusConfig[status] || { icon: '❓', class: '', label: status };
+                return `
+                    <span class="status-count-item ${config.class}">
+                        <span class="status-count-icon">${config.icon}</span>
+                        <span class="status-count-number">${statusCounts[status]}</span>
+                    </span>
+                `;
+            })
+            .join('');
+    }
+    
+    /**
+     * Multi Selection 매핑 없음 상태 표시
+     * @private
+     */
+    _showMultiUnmappedState(count) {
+        if (!this.generalTabContent) return;
+        
+        this.generalTabContent.innerHTML = `
+            <div class="info-row multi-select-header">
+                <span class="info-icon">📊</span>
+                <span class="info-text">${count}개 설비 선택됨</span>
+            </div>
+            <div class="info-row unmapped-notice">
+                <span class="info-icon">⚠️</span>
+                <span class="info-text">선택된 설비가 모두 DB에 연결되지 않았습니다</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Line:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Product:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Lot No.:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row unmapped-action">
+                <span class="info-text">Edit Mode (E키)에서 매핑해주세요</span>
+            </div>
+        `;
+        
+        this.isLoading = false;
+    }
+    
+    /**
+     * Multi Selection 에러 상태 표시
+     * @private
+     */
+    _showMultiErrorState(count, errorMessage = '') {
+        if (!this.generalTabContent) return;
+        
+        this.generalTabContent.innerHTML = `
+            <div class="info-row multi-select-header">
+                <span class="info-icon">📊</span>
+                <span class="info-text">${count}개 설비 선택됨</span>
+            </div>
+            <div class="info-row error-notice">
+                <span class="info-icon">❌</span>
+                <span class="info-text">집계 데이터 로드 실패</span>
+            </div>
+            ${errorMessage ? `
+            <div class="info-row error-message">
+                <span class="info-text">${errorMessage}</span>
+            </div>
+            ` : ''}
+            <div class="info-row">
+                <span class="info-label">Line:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Product:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Lot No.:</span>
+                <span class="info-value">-</span>
+            </div>
+        `;
+        
+        this.isLoading = false;
+    }
+    
+    /**
+     * Multi Selection 실시간 Status 업데이트
+     * @private
+     */
+    _updateMultiSelectionStatus(frontendId, newStatus) {
+        if (!this.multiSelectionCache || !this.multiSelectionCache.status_counts) {
+            return;
+        }
+        
+        // TODO: 개별 설비의 이전 상태를 추적하여 집계 재계산
+        // 현재는 간단히 다시 API 호출하는 방식으로 구현
+        // (성능 최적화 필요 시 로컬 캐시에서 재계산 가능)
+        
+        debugLog(`🔄 Multi selection status update needed: ${frontendId} -> ${newStatus}`);
+        
+        // 집계 다시 로드 (debounce 적용 권장)
+        this._debounceRefreshMulti();
+    }
+    
+    /**
+     * Multi Selection 새로고침 (debounce)
+     * @private
+     */
+    _debounceRefreshMulti() {
+        if (this._refreshTimeout) {
+            clearTimeout(this._refreshTimeout);
+        }
+        
+        this._refreshTimeout = setTimeout(async () => {
+            if (this.selectedCount > 1 && this.selectedEquipmentIds.length > 0) {
+                try {
+                    const aggregatedData = await this._fetchMultiEquipmentDetail();
+                    if (aggregatedData) {
+                        this.multiSelectionCache = aggregatedData;
+                        this._updateGeneralTabMulti(aggregatedData, this.selectedCount);
+                    }
+                } catch (error) {
+                    console.error('❌ Failed to refresh multi selection:', error);
+                }
+            }
+        }, 500);  // 500ms debounce
     }
     
     // =========================================================================
@@ -569,7 +866,7 @@ export class EquipmentInfoPanel {
     }
     
     /**
-     * Status 표시 정보 반환
+     * Status 표시 정보 반환 (Single Selection용)
      * @private
      */
     _getStatusDisplay(status) {
@@ -631,6 +928,7 @@ export class EquipmentInfoPanel {
     
     clearCache() {
         this.dataCache.clear();
+        this.multiSelectionCache = null;
         debugLog('🗑️ Equipment info cache cleared');
     }
     
@@ -650,6 +948,11 @@ export class EquipmentInfoPanel {
         this.hide();
         this.clearCache();
         this.equipmentEditState = null;
+        
+        if (this._refreshTimeout) {
+            clearTimeout(this._refreshTimeout);
+        }
+        
         debugLog('📊 EquipmentInfoPanel disposed');
     }
 }

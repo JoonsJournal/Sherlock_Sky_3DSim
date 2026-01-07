@@ -3,8 +3,18 @@
  * =========================
  * Equipment Info Panel 전용 스타일 (Tab UI)
  * 
+ * @version 1.3.0
+ * @changelog
+ * - v1.3.0: 클래식 폴더 탭 스타일 적용 (Windows 스타일)
+ *           - 상단 모서리만 둥글게
+ *           - 활성 탭이 컨텐츠와 연결 (아래 테두리 없음)
+ *           - 비활성 탭은 약간 어둡고 아래 테두리 있음
+ * - v1.2.0: Multi Selection 집계 스타일 추가 (Phase 3)
+ * - v1.0.0: 초기 버전 - Tab UI
+ * 
  * 📁 위치: frontend/threejs_viewer/styles/components/_equipment-info-panel.css
  * 작성일: 2026-01-06
+ * 수정일: 2026-01-08
  */
 
 /* =============================================
@@ -77,35 +87,42 @@
     color: var(--interactive-primary);
     font-size: var(--font-size-lg);
     font-weight: 600;
-    border-bottom: 2px solid var(--interactive-primary);
+    border-bottom: none;
 }
 
 .equipment-panel-title.multi-select {
     color: var(--status-info);
-    border-bottom-color: var(--status-info);
 }
 
 /* =============================================
-   Tab Header
+   🆕 v1.3.0: 클래식 폴더 탭 (Windows 스타일)
    ============================================= */
 .equipment-panel-tabs {
     display: flex;
-    padding: 0;
-    background: var(--overlay-bg-secondary);
-    border-bottom: 1px solid var(--overlay-border-light);
+    padding: 0 12px;
+    background: transparent;
+    border-bottom: none;
+    position: relative;
+    margin-bottom: -1px;  /* 활성 탭과 컨텐츠 연결 */
+    z-index: 1;
 }
 
 .equipment-tab {
-    flex: 1;
-    padding: 12px 16px;
-    background: transparent;
-    border: none;
-    border-bottom: 3px solid transparent;
+    position: relative;
+    padding: 10px 20px;
+    margin-right: 4px;
+    background: var(--overlay-bg-secondary);
+    border: 1px solid var(--overlay-border-light);
+    border-bottom: 1px solid var(--overlay-border-light);
+    border-radius: 8px 8px 0 0;  /* 상단만 둥글게 */
     color: var(--overlay-text-muted);
     font-size: var(--font-size-sm);
     font-weight: 500;
     cursor: pointer;
     transition: var(--transition-fast);
+    
+    /* 비활성 탭: 약간 아래로 내려감 */
+    transform: translateY(2px);
 }
 
 .equipment-tab:hover {
@@ -113,17 +130,39 @@
     background: var(--overlay-bg-hover);
 }
 
+/* 활성 탭 스타일 */
 .equipment-tab.active {
+    background: var(--overlay-bg-primary);
     color: var(--interactive-primary);
-    border-bottom-color: var(--interactive-primary);
-    background: transparent;
+    border-bottom-color: var(--overlay-bg-primary);  /* 아래 테두리 숨김 (컨텐츠와 연결) */
+    font-weight: 600;
+    
+    /* 활성 탭: 위로 올라감 */
+    transform: translateY(0);
+    z-index: 2;
+}
+
+/* 활성 탭 상단 강조선 */
+.equipment-tab.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--interactive-primary);
+    border-radius: 8px 8px 0 0;
 }
 
 /* =============================================
-   Tab Content
+   Tab Content (컨텐츠 영역)
    ============================================= */
 .equipment-panel-content {
     padding: 16px;
+    background: var(--overlay-bg-primary);
+    border-top: 1px solid var(--overlay-border-light);
+    position: relative;
+    z-index: 0;
 }
 
 .equipment-tab-content {
@@ -177,7 +216,7 @@
 }
 
 /* =============================================
-   Status Indicators
+   Status Indicators (Single Selection)
    ============================================= */
 #equipmentInfo .status-indicator {
     display: inline-block;
@@ -210,6 +249,109 @@
     background: #666666;
 }
 
+@keyframes statusBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* =============================================
+   Multi Selection Header
+   ============================================= */
+#equipmentInfo .multi-select-header {
+    background: rgba(59, 130, 246, 0.15);
+    border-left: 3px solid var(--interactive-primary);
+    margin-bottom: 12px;
+}
+
+#equipmentInfo .info-badge {
+    background: var(--interactive-primary);
+    color: white;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    margin-left: auto;
+}
+
+/* =============================================
+   Status Counts (Multi Selection)
+   ============================================= */
+#equipmentInfo .status-row {
+    flex-wrap: wrap;
+}
+
+#equipmentInfo .status-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex: 1;
+}
+
+#equipmentInfo .status-count-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: var(--overlay-bg-primary);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+}
+
+#equipmentInfo .status-count-item.status-running {
+    background: rgba(76, 175, 80, 0.2);
+    color: var(--equip-running);
+}
+
+#equipmentInfo .status-count-item.status-idle {
+    background: rgba(255, 193, 7, 0.2);
+    color: var(--equip-idle);
+}
+
+#equipmentInfo .status-count-item.status-stop {
+    background: rgba(255, 152, 0, 0.2);
+    color: var(--status-warning);
+}
+
+#equipmentInfo .status-count-item.status-error {
+    background: rgba(244, 67, 54, 0.2);
+    color: var(--equip-alarm);
+}
+
+#equipmentInfo .status-count-item.status-disconnected {
+    background: rgba(102, 102, 102, 0.2);
+    color: #888;
+}
+
+#equipmentInfo .status-count-icon {
+    font-size: 12px;
+}
+
+#equipmentInfo .status-count-number {
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+}
+
+/* =============================================
+   "외 N개" 스타일
+   ============================================= */
+#equipmentInfo .more-count {
+    color: var(--overlay-text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    font-style: italic;
+}
+
+/* =============================================
+   여백 확보 (추후 확장용)
+   ============================================= */
+#equipmentInfo .info-row-spacer {
+    height: 16px;
+    background: transparent;
+    margin: 0;
+    padding: 0;
+}
+
 /* =============================================
    Special Row Types
    ============================================= */
@@ -231,6 +373,11 @@
 #equipmentInfo .info-row-hint {
     background: rgba(255, 193, 7, 0.15);
     border-left: 3px solid var(--status-warning);
+}
+
+#equipmentInfo .info-row-hint {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 3px solid var(--status-info);
 }
 
 #equipmentInfo .unmapped-notice {
@@ -305,11 +452,20 @@
     }
     
     .equipment-tab {
-        padding: 10px 8px;
+        padding: 8px 12px;
         font-size: var(--font-size-xs);
     }
     
     #equipmentInfo .info-label {
         min-width: 70px;
+    }
+    
+    #equipmentInfo .status-counts {
+        gap: 6px;
+    }
+    
+    #equipmentInfo .status-count-item {
+        padding: 3px 8px;
+        font-size: var(--font-size-xs);
     }
 }

@@ -6,10 +6,11 @@ API Endpoints:
 - GET  /api/equipment/detail/{frontend_id} : 단일 설비 상세 정보
 - POST /api/equipment/detail/multi        : 다중 설비 상세 정보 (집계)
 
-@version 1.1.0
+@version 1.2.0
 @changelog
+- v1.2.0: Multi Selection에 equipment_ids 파라미터 추가 (Frontend 매핑 우선)
+          MultiEquipmentDetailRequest 모델에 equipment_ids 필드 추가
 - v1.1.0: equipment_id 쿼리 파라미터 추가 (Frontend 매핑 우선 사용)
-          Backend equipment_mapping 테이블 동기화 문제 해결
 - v1.0.0: 초기 버전
 
 작성일: 2026-01-06
@@ -17,7 +18,7 @@ API Endpoints:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import logging
 
@@ -213,7 +214,11 @@ async def get_multi_equipment_detail(
     다중 설비 상세 정보 조회 (집계)
     
     - **frontend_ids**: Frontend ID 목록 (최대 100개)
+    - **equipment_ids**: Equipment ID 목록 (옵션, Frontend에서 전달 시 우선 사용) 🆕 v1.2.0
     - **site_id**: Site ID (옵션, 기본값: 현재 활성 사이트)
+    
+    🆕 v1.2.0: Frontend에서 equipment_ids를 전달하면 Local DB 조회 없이 바로 사용
+    (Frontend equipmentEditState와 Backend equipment_mapping 테이블 동기화 문제 해결)
     
     Returns:
         집계된 설비 정보:
@@ -222,13 +227,28 @@ async def get_multi_equipment_detail(
         - Product 목록 (중복 제거, 최대 3개)
         - Lot ID 목록 (중복 제거, 최대 3개)
     """
-    logger.info(f"📡 POST /equipment/detail/multi - {len(request.frontend_ids)} items")
+    logger.info(f"📡 POST /equipment/detail/multi - {len(request.frontend_ids)} frontend_ids" +
+                (f", {len(request.equipment_ids)} equipment_ids" if request.equipment_ids else ""))
     
-    # 1. Frontend IDs → Equipment IDs 매핑 일괄 조회 (Local DB)
-    frontend_to_equipment_map = get_equipment_mappings_batch(
-        local_db, 
-        request.frontend_ids
-    )
+    # 🆕 v1.2.0: Frontend에서 equipment_ids 전달받으면 그것 우선 사용
+    if request.equipment_ids and len(request.equipment_ids) > 0:
+        # Frontend에서 equipment_ids가 있으면 직접 사용
+        # frontend_id → equipment_id 매핑 생성
+        frontend_to_equipment_map = {}
+        
+        # equipment_ids와 frontend_ids를 순서대로 매핑
+        for i, equipment_id in enumerate(request.equipment_ids):
+            if i < len(request.frontend_ids):
+                frontend_to_equipment_map[request.frontend_ids[i]] = equipment_id
+        
+        logger.debug(f"  📍 Using equipment_ids from Frontend: {len(frontend_to_equipment_map)} mappings")
+    else:
+        # Frontend에서 equipment_ids가 없으면 Local DB에서 조회 (기존 방식)
+        frontend_to_equipment_map = get_equipment_mappings_batch(
+            local_db, 
+            request.frontend_ids
+        )
+        logger.debug(f"  📍 Using equipment_ids from Local DB: {len(frontend_to_equipment_map)} mappings")
     
     if not frontend_to_equipment_map:
         logger.warning("⚠️ No mappings found for any frontend_ids")
@@ -251,7 +271,8 @@ async def get_multi_equipment_detail(
             service = EquipmentDetailService(site_db)
             response = service.get_multi_equipment_detail_response(frontend_to_equipment_map)
             
-            logger.info(f"✅ Multi equipment detail fetched: {response.count} items")
+            logger.info(f"✅ Multi equipment detail fetched: {response.count} items, " +
+                       f"lines={len(response.lines)}, status_counts={response.status_counts}")
             return response
             
         finally:
@@ -278,6 +299,6 @@ async def health_check():
     return {
         "status": "ok",
         "service": "equipment-detail",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "timestamp": datetime.now().isoformat()
     }

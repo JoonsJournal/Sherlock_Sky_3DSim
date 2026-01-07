@@ -2,7 +2,13 @@
 Equipment Detail API - Pydantic Schemas
 설비 상세 정보 패널용 데이터 모델
 
+@version 1.2.0
+@changelog
+- v1.2.0: MultiEquipmentDetailRequest에 equipment_ids 필드 추가 (Frontend 매핑 우선)
+- v1.0.0: 초기 버전
+
 작성일: 2026-01-06
+수정일: 2026-01-08
 """
 
 from pydantic import BaseModel, Field
@@ -15,7 +21,12 @@ from datetime import datetime
 # ============================================================================
 
 class MultiEquipmentDetailRequest(BaseModel):
-    """다중 설비 상세 정보 요청"""
+    """다중 설비 상세 정보 요청
+    
+    🆕 v1.2.0: equipment_ids 필드 추가
+    - Frontend에서 equipmentEditState의 매핑 정보를 직접 전달
+    - Backend equipment_mapping 테이블과의 동기화 문제 해결
+    """
     frontend_ids: List[str] = Field(
         ...,
         description="Frontend ID 목록 (예: ['EQ-17-03', 'EQ-17-04'])",
@@ -23,10 +34,18 @@ class MultiEquipmentDetailRequest(BaseModel):
         max_length=100
     )
     
+    # 🆕 v1.2.0: Equipment IDs (Frontend 매핑에서 전달, 우선 사용)
+    equipment_ids: Optional[List[int]] = Field(
+        None,
+        description="Equipment ID 목록 (Frontend에서 전달 시 우선 사용)",
+        max_length=100
+    )
+    
     class Config:
         json_schema_extra = {
             "example": {
-                "frontend_ids": ["EQ-17-03", "EQ-17-04", "EQ-18-01"]
+                "frontend_ids": ["EQ-17-03", "EQ-17-04", "EQ-18-01"],
+                "equipment_ids": [1, 2, 5]
             }
         }
 
