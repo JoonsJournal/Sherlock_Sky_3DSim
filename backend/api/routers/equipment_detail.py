@@ -6,12 +6,14 @@ API Endpoints:
 - GET  /api/equipment/detail/{frontend_id} : 단일 설비 상세 정보
 - POST /api/equipment/detail/multi        : 다중 설비 상세 정보 (집계)
 
-작성일: 2026-01-06
-"""
+@version 1.1.0
+@changelog
+- v1.1.0: equipment_id 쿼리 파라미터 추가 (Frontend 매핑 우선 사용)
+          Backend equipment_mapping 테이블 동기화 문제 해결
+- v1.0.0: 초기 버전
 
-"""
-Equipment Detail API Router
-설비 상세 정보 패널용 API 엔드포인트
+작성일: 2026-01-06
+수정일: 2026-01-08
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -130,6 +132,7 @@ def get_equipment_mappings_batch(
 @handle_errors
 async def get_equipment_detail(
     frontend_id: str,
+    equipment_id: Optional[int] = Query(None, description="Equipment ID (Frontend에서 전달, 우선 사용)"),
     site_id: Optional[str] = Query(None, description="Site ID (기본값: 현재 활성 사이트)"),
     local_db: Session = Depends(get_db)
 ):
@@ -137,15 +140,25 @@ async def get_equipment_detail(
     단일 설비 상세 정보 조회
     
     - **frontend_id**: Frontend ID (예: EQ-17-03)
+    - **equipment_id**: Equipment ID (옵션, Frontend에서 전달 시 우선 사용)
     - **site_id**: Site ID (옵션, 기본값: 현재 활성 사이트)
+    
+    🆕 v1.1.0: Frontend에서 equipment_id를 전달하면 Local DB 조회 없이 바로 사용
+    (Frontend equipmentEditState와 Backend equipment_mapping 테이블 동기화 문제 해결)
     
     Returns:
         설비 상세 정보 (Line, Status, Product, Lot)
     """
-    logger.info(f"📡 GET /equipment/detail/{frontend_id}")
+    logger.info(f"📡 GET /equipment/detail/{frontend_id}" + 
+                (f"?equipment_id={equipment_id}" if equipment_id else ""))
     
-    # 1. Frontend ID → Equipment ID 매핑 조회 (Local DB)
-    equipment_id = get_equipment_mapping(local_db, frontend_id)
+    # 🆕 v1.1.0: Frontend에서 equipment_id 전달받으면 그것 우선 사용
+    if equipment_id is None:
+        # Frontend에서 equipment_id가 없으면 Local DB에서 조회 (기존 방식)
+        equipment_id = get_equipment_mapping(local_db, frontend_id)
+        logger.debug(f"  📍 equipment_id from Local DB: {equipment_id}")
+    else:
+        logger.debug(f"  📍 equipment_id from Frontend: {equipment_id}")
     
     if equipment_id is None:
         logger.warning(f"⚠️ No mapping found for: {frontend_id}")
@@ -170,7 +183,7 @@ async def get_equipment_detail(
             service = EquipmentDetailService(site_db)
             response = service.get_equipment_detail_response(frontend_id, equipment_id)
             
-            logger.info(f"✅ Equipment detail fetched: {frontend_id} -> {response.status}")
+            logger.info(f"✅ Equipment detail fetched: {frontend_id} -> eq_id={equipment_id}, status={response.status}")
             return response
             
         finally:
@@ -265,5 +278,6 @@ async def health_check():
     return {
         "status": "ok",
         "service": "equipment-detail",
+        "version": "1.1.0",
         "timestamp": datetime.now().isoformat()
     }

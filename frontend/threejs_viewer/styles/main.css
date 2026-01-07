@@ -6,10 +6,13 @@
  * 
  * 사용법: <link rel="stylesheet" href="styles/main.css">
  * 
+ * @version 1.1.0
+ * @changelog
+ * - v1.1.0: Equipment Info Panel CSS import 추가 (Phase 2 - Tab UI)
+ * - v1.0.0: 초기 버전 - 테마 통일, Toast 중복 스타일 제거
+ * 
  * 작성일: 2026-01-02
- * 수정일: 2026-01-06 (테마 통일 - Phase 1)
- *   - Toast 중복 스타일 제거 (_toast.css로 통합)
- *   - 신규 컴포넌트 CSS import 준비
+ * 수정일: 2026-01-08 (Equipment Info Panel 추가)
  */
 
 /* =============================================
@@ -51,7 +54,7 @@
 @import './components/_file-controls.css';
 @import './components/_equipment-edit-button.css';
 
-/* Phase 8: Equipment Info Panel (Tab UI) */
+/* Phase 8: Equipment Info Panel (Tab UI) - 🆕 v1.1.0 */
 @import './components/_equipment-info-panel.css';
 
 /* =============================================

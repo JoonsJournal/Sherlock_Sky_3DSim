@@ -3,14 +3,20 @@
  * =====================
  * 설비 상세 정보 패널 (Tab UI + Backend API 연동)
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - Tab Interface: General / PC Info.
  * - Single Selection: Backend API에서 상세 정보 조회
  * - Multi Selection: 빈 값 표시 (Phase 3에서 구현 예정)
  * 
+ * @changelog
+ * - v1.1.0: API 호출 시 equipment_id 쿼리 파라미터 전달 추가
+ *           (Backend equipment_mapping 테이블 동기화 문제 해결)
+ * - v1.0.0: 초기 버전 - Tab UI, Backend API 연동
+ * 
  * 📁 위치: frontend/threejs_viewer/src/ui/EquipmentInfoPanel.js
  * 작성일: 2026-01-06
+ * 수정일: 2026-01-08
  */
 
 import { debugLog } from '../core/utils/Config.js';
@@ -45,7 +51,7 @@ export class EquipmentInfoPanel {
         // 초기화
         this._init();
         
-        debugLog('📊 EquipmentInfoPanel initialized (v1.0.0)');
+        debugLog('📊 EquipmentInfoPanel initialized (v1.1.0)');
     }
     
     // =========================================================================
@@ -274,8 +280,8 @@ export class EquipmentInfoPanel {
                 return;
             }
             
-            // 3. Backend API 호출
-            const detailData = await this._fetchEquipmentDetail(frontendId);
+            // 3. Backend API 호출 (🆕 v1.1.0: equipment_id 전달)
+            const detailData = await this._fetchEquipmentDetail(frontendId, equipmentId);
             
             if (detailData) {
                 // 캐시에 저장
@@ -309,11 +315,19 @@ export class EquipmentInfoPanel {
     }
     
     /**
-     * Backend API 호출
+     * 🆕 v1.1.0: Backend API 호출 (equipment_id 쿼리 파라미터 추가)
      * @private
+     * @param {string} frontendId - Frontend ID (예: EQ-13-01)
+     * @param {number} equipmentId - Equipment ID (DB의 숫자 ID)
      */
-    async _fetchEquipmentDetail(frontendId) {
-        const url = `${this.apiBaseUrl}/${frontendId}`;
+    async _fetchEquipmentDetail(frontendId, equipmentId) {
+        // ⭐ v1.1.0: equipment_id를 쿼리 파라미터로 전달
+        // Backend의 equipment_mapping 테이블과 동기화 문제 해결
+        let url = `${this.apiBaseUrl}/${frontendId}`;
+        
+        if (equipmentId) {
+            url += `?equipment_id=${equipmentId}`;
+        }
         
         debugLog(`📡 Fetching equipment detail: ${url}`);
         
