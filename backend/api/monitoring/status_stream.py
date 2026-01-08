@@ -4,10 +4,22 @@ Status Stream WebSocket
 
 Phase 1: 신규 추가
 기존 시스템에 영향 없는 독립 WebSocket
+
+@version 2.0.0
+@changelog
+- v2.0.0: 메시지 확장 - Equipment Detail Info 지원
+          - equipment_name, line_name 추가
+          - product_model, lot_id, lot_start_time 추가
+          - cpu_usage_percent 추가 (실시간 Gauge용)
+          - 캐시 구조 확장 (상태 외 추가 정보 캐싱)
+- v1.0.0: 초기 버전 - 기본 상태 변경 감지
+
+작성일: 2026-01-06
+수정일: 2026-01-08
 """
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from typing import Dict, Set
+from typing import Dict, Set, Optional, Any
 import asyncio
 import logging
 import json
@@ -23,7 +35,13 @@ router = APIRouter(prefix="/api/monitoring", tags=["Monitoring WebSocket"])
 # ============================================
 
 class StatusStreamManager:
-    """WebSocket 연결 관리 및 상태 스트리밍"""
+    """WebSocket 연결 관리 및 상태 스트리밍
+    
+    🆕 v2.0.0: 확장된 메시지 지원
+    - Equipment Detail Info 필드 추가
+    - Lot 정보 (product_model, lot_id, lot_start_time)
+    - PC Info (cpu_usage_percent)
+    """
     
     def __init__(self):
         # 활성 WebSocket 연결
@@ -36,10 +54,10 @@ class StatusStreamManager:
         self.polling_task = None
         self.polling_interval = 2  # 2초마다 폴링
         
-        # 이전 상태 캐시 (equipment_id -> status)
-        self.status_cache: Dict[int, str] = {}
+        # 🆕 v2.0.0: 확장된 상태 캐시 (equipment_id -> 전체 정보)
+        self.status_cache: Dict[int, Dict[str, Any]] = {}
         
-        logger.info("🔌 StatusStreamManager initialized")
+        logger.info("🔌 StatusStreamManager initialized (v2.0.0)")
     
     async def connect(self, websocket: WebSocket):
         """클라이언트 연결"""
@@ -53,6 +71,7 @@ class StatusStreamManager:
         await websocket.send_json({
             "type": "connected",
             "message": "Monitoring stream connected",
+            "version": "2.0.0",  # 🆕 버전 정보 추가
             "timestamp": datetime.now().isoformat()
         })
     
@@ -79,6 +98,40 @@ class StatusStreamManager:
             })
             
             logger.info(f"📡 Subscribed to {len(equipment_ids)} equipment")
+            
+            # 🆕 v2.0.0: 구독 즉시 현재 상태 전송
+            await self._send_initial_status(websocket, equipment_ids)
+    
+    async def _send_initial_status(self, websocket: WebSocket, equipment_ids: list):
+        """🆕 v2.0.0: 구독 시 현재 상태 즉시 전송"""
+        try:
+            current_data = await self._fetch_current_status()
+            
+            for eq_id in equipment_ids:
+                if eq_id in current_data:
+                    data = current_data[eq_id]
+                    message = {
+                        "type": "equipment_status",
+                        "equipment_id": eq_id,
+                        "status": data.get('status'),
+                        "previous_status": None,  # 초기 상태
+                        
+                        # 🆕 v2.0.0: 확장 필드
+                        "equipment_name": data.get('equipment_name'),
+                        "line_name": data.get('line_name'),
+                        "product_model": data.get('product_model'),
+                        "lot_id": data.get('lot_id'),
+                        "lot_start_time": data.get('lot_start_time'),
+                        "cpu_usage_percent": data.get('cpu_usage_percent'),
+                        
+                        "timestamp": datetime.now().isoformat(),
+                        "is_initial": True  # 초기 데이터 표시
+                    }
+                    
+                    await websocket.send_json(message)
+                    
+        except Exception as e:
+            logger.error(f"❌ Failed to send initial status: {e}")
     
     async def unsubscribe(self, websocket: WebSocket, equipment_ids: list):
         """특정 설비 구독 해제"""
@@ -146,9 +199,17 @@ class StatusStreamManager:
         """
         DB에서 상태 변경 감지 (폴링 방식)
         
+        🆕 v2.0.0: 확장된 변경 감지
+        - Status 변경
+        - Lot 정보 변경 (product_model, lot_id, lot_start_time)
+        - CPU 사용율 변경 (일정 임계값 이상 변경 시)
+        
         Note: 실제 프로덕션에서는 DB Trigger나 Change Data Capture 사용 권장
         """
-        logger.info("🔄 Starting status change polling...")
+        logger.info("🔄 Starting status change polling (v2.0.0)...")
+        
+        # CPU 사용율 변경 감지 임계값 (%)
+        CPU_CHANGE_THRESHOLD = 5.0
         
         try:
             while True:
@@ -158,34 +219,79 @@ class StatusStreamManager:
                     continue
                 
                 try:
-                    # DB에서 현재 상태 조회
-                    current_status = await self._fetch_current_status()
+                    # DB에서 현재 상태 조회 (확장된 쿼리)
+                    current_data = await self._fetch_current_status()
                     
                     # 변경 감지 및 전송
-                    for equipment_id, status in current_status.items():
-                        previous_status = self.status_cache.get(equipment_id)
+                    for equipment_id, data in current_data.items():
+                        previous_data = self.status_cache.get(equipment_id, {})
                         
-                        # 상태 변경 감지
-                        if previous_status != status:
+                        # 변경 감지 플래그
+                        has_change = False
+                        change_reasons = []
+                        
+                        # 1. Status 변경 감지
+                        current_status = data.get('status')
+                        previous_status = previous_data.get('status')
+                        if previous_status != current_status:
+                            has_change = True
+                            change_reasons.append(f"status: {previous_status} → {current_status}")
+                        
+                        # 2. Lot 정보 변경 감지
+                        current_lot = data.get('lot_id')
+                        previous_lot = previous_data.get('lot_id')
+                        if previous_lot != current_lot:
+                            has_change = True
+                            change_reasons.append(f"lot: {previous_lot} → {current_lot}")
+                        
+                        # 3. CPU 사용율 변경 감지 (임계값 이상)
+                        current_cpu = data.get('cpu_usage_percent')
+                        previous_cpu = previous_data.get('cpu_usage_percent')
+                        if current_cpu is not None and previous_cpu is not None:
+                            if abs(current_cpu - previous_cpu) >= CPU_CHANGE_THRESHOLD:
+                                has_change = True
+                                change_reasons.append(f"cpu: {previous_cpu}% → {current_cpu}%")
+                        elif current_cpu is not None and previous_cpu is None:
+                            has_change = True
+                            change_reasons.append(f"cpu: None → {current_cpu}%")
+                        
+                        # 변경이 있으면 메시지 전송
+                        if has_change:
                             logger.info(
-                                f"🔄 Status changed: Equipment {equipment_id} "
-                                f"{previous_status} → {status}"
+                                f"🔄 Change detected: Equipment {equipment_id} - "
+                                f"{', '.join(change_reasons)}"
                             )
                             
-                            # 변경 메시지 생성
+                            # 🆕 v2.0.0: 확장된 변경 메시지 생성
                             message = {
                                 "type": "equipment_status",
                                 "equipment_id": equipment_id,
-                                "status": status,
+                                
+                                # 기본 상태 (호환성 유지)
+                                "status": current_status,
                                 "previous_status": previous_status,
-                                "timestamp": datetime.now().isoformat()
+                                
+                                # 🆕 v2.0.0: 확장 필드 - Equipment Info
+                                "equipment_name": data.get('equipment_name'),
+                                "line_name": data.get('line_name'),
+                                
+                                # 🆕 v2.0.0: 확장 필드 - Lot Info
+                                "product_model": data.get('product_model'),
+                                "lot_id": data.get('lot_id'),
+                                "lot_start_time": data.get('lot_start_time'),
+                                
+                                # 🆕 v2.0.0: 확장 필드 - PC Info
+                                "cpu_usage_percent": data.get('cpu_usage_percent'),
+                                
+                                "timestamp": datetime.now().isoformat(),
+                                "is_initial": False
                             }
                             
                             # 구독자에게 전송
                             await self.send_to_subscribed(equipment_id, message)
                             
                             # 캐시 업데이트
-                            self.status_cache[equipment_id] = status
+                            self.status_cache[equipment_id] = data
                 
                 except Exception as e:
                     logger.error(f"❌ Polling error: {e}")
@@ -198,12 +304,14 @@ class StatusStreamManager:
         except Exception as e:
             logger.error(f"❌ Polling loop error: {e}")
     
-    async def _fetch_current_status(self) -> Dict[int, str]:
+    async def _fetch_current_status(self) -> Dict[int, Dict[str, Any]]:
         """
         DB에서 현재 설비 상태 조회
         
+        🆕 v2.0.0: 확장된 쿼리 - 모든 관련 테이블 JOIN
+        
         Returns:
-            dict: {equipment_id: status}
+            dict: {equipment_id: {status, equipment_name, line_name, ...}}
         """
         try:
             # ⭐ 기존 database 모듈 사용
@@ -226,26 +334,95 @@ class StatusStreamManager:
             # 쿼리 실행
             cursor = conn.cursor()
             
+            # 🆕 v2.0.0: 확장된 SQL 쿼리
             query = """
                 SELECT 
-                    es.EquipmentID,
-                    es.Status
-                FROM log.EquipmentState es
-                WHERE es.OccurredAtUtc = (
-                    SELECT MAX(OccurredAtUtc)
+                    -- 기본 정보 (core.Equipment)
+                    e.EquipmentId,
+                    e.EquipmentName,
+                    e.LineName,
+                    
+                    -- 상태 정보 (log.EquipmentState) - 최신 1개
+                    es.Status,
+                    
+                    -- Lot 정보 (log.Lotinfo) - IsStart=1인 최신 1개
+                    li.ProductModel,
+                    li.LotId,
+                    li.OccurredAtUtc AS LotStartTime,
+                    
+                    -- PC 실시간 정보 (log.EquipmentPCInfo) - 최신 1개
+                    pcLog.CPUUsagePercent
+                    
+                FROM core.Equipment e
+                
+                -- log.EquipmentState JOIN (최신 1개)
+                LEFT JOIN (
+                    SELECT 
+                        EquipmentId, 
+                        Status,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY EquipmentId 
+                            ORDER BY OccurredAtUtc DESC
+                        ) AS rn
                     FROM log.EquipmentState
-                    WHERE EquipmentID = es.EquipmentID
-                )
+                ) es ON e.EquipmentId = es.EquipmentId AND es.rn = 1
+                
+                -- log.Lotinfo JOIN (IsStart=1인 최신 1개)
+                LEFT JOIN (
+                    SELECT 
+                        EquipmentId, 
+                        ProductModel, 
+                        LotId,
+                        OccurredAtUtc,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY EquipmentId 
+                            ORDER BY OccurredAtUtc DESC
+                        ) AS rn
+                    FROM log.Lotinfo
+                    WHERE IsStart = 1
+                ) li ON e.EquipmentId = li.EquipmentId AND li.rn = 1
+                
+                -- log.EquipmentPCInfo JOIN (최신 1개)
+                LEFT JOIN (
+                    SELECT 
+                        EquipmentId,
+                        CPUUsagePercent,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY EquipmentId 
+                            ORDER BY OccurredAtUtc DESC
+                        ) AS rn
+                    FROM log.EquipmentPCInfo
+                ) pcLog ON e.EquipmentId = pcLog.EquipmentId AND pcLog.rn = 1
             """
             
             cursor.execute(query)
             rows = cursor.fetchall()
             cursor.close()
             
-            # 결과 변환
-            status_dict = {row[0]: row[1] for row in rows}
+            # 🆕 v2.0.0: 확장된 결과 변환
+            result = {}
+            for row in rows:
+                equipment_id = row[0]
+                
+                # lot_start_time ISO 형식 변환
+                lot_start_time = None
+                if row[6] is not None:
+                    try:
+                        lot_start_time = row[6].isoformat() if hasattr(row[6], 'isoformat') else str(row[6])
+                    except:
+                        lot_start_time = str(row[6])
+                
+                result[equipment_id] = {
+                    'status': row[3],
+                    'equipment_name': row[1],
+                    'line_name': row[2],
+                    'product_model': row[4],
+                    'lot_id': row[5],
+                    'lot_start_time': lot_start_time,
+                    'cpu_usage_percent': float(row[7]) if row[7] is not None else None
+                }
             
-            return status_dict
+            return result
             
         except Exception as e:
             logger.error(f"❌ Failed to fetch current status: {e}")
@@ -265,7 +442,7 @@ async def equipment_status_stream(websocket: WebSocket):
     """
     실시간 설비 상태 스트림
     
-    Phase 1: 신규 추가 WebSocket
+    🆕 v2.0.0: 확장된 메시지 지원
     
     Protocol:
         Client -> Server:
@@ -278,13 +455,23 @@ async def equipment_status_stream(websocket: WebSocket):
                 "equipment_ids": [1, 2]
             }
         
-        Server -> Client:
+        Server -> Client (v2.0.0 확장):
             {
                 "type": "equipment_status",
                 "equipment_id": 1,
                 "status": "RUN",
                 "previous_status": "IDLE",
-                "timestamp": "2025-12-29T12:00:00Z"
+                
+                // 🆕 v2.0.0: 확장 필드
+                "equipment_name": "CUT-001",
+                "line_name": "Line-A",
+                "product_model": "MODEL-X",
+                "lot_id": "LOT-12345",
+                "lot_start_time": "2026-01-08T10:30:00+08:00",
+                "cpu_usage_percent": 45.2,
+                
+                "timestamp": "2026-01-08T12:00:00Z",
+                "is_initial": false
             }
     """
     logger.info("🔌 WebSocket connection attempt: /api/monitoring/stream")
@@ -318,6 +505,11 @@ async def equipment_status_stream(websocket: WebSocket):
                         "type": "pong",
                         "timestamp": datetime.now().isoformat()
                     })
+                
+                # 🆕 v2.0.0: 현재 상태 요청
+                elif action == "get_status":
+                    equipment_ids = message.get("equipment_ids", [])
+                    await stream_manager._send_initial_status(websocket, equipment_ids)
                 
                 else:
                     logger.warning(f"⚠️ Unknown action: {action}")
