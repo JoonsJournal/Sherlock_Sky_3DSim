@@ -3,19 +3,19 @@
  * =====================
  * 설비 상세 정보 패널 (Tab UI + Backend API 연동)
  * 
- * @version 1.3.0
+ * @version 2.0.0
  * @description
  * - Tab Interface: General / PC Info.
  * - Single Selection: Backend API에서 상세 정보 조회
  * - Multi Selection: Backend API에서 집계 정보 조회
  * 
  * @changelog
+ * - v2.0.0: General Tab 확장 + PC Info Tab 구현
+ *           - lot_start_time 표시 + Duration Timer (실시간 계산)
+ *           - PC Info Tab: CPU Gauge + 고정 정보 표시
+ *           - WebSocket 메시지 확장 (lot_start_time, cpu_usage_percent)
+ *           - Multi Selection: PC Info 집계 (avg_cpu_usage_percent)
  * - v1.3.0: WebSocket 실시간 업데이트 개선 (Phase 4 완성)
- *           - 헤더에 EquipmentName 표시 (Frontend ID 대신)
- *           - LineName은 초기 값 유지 (불변)
- *           - WebSocket 메시지와 기존 데이터 병합
- *           - Lot/Product 실시간 업데이트 지원
- *           - currentData 멤버 변수 추가 (초기 데이터 저장)
  * - v1.2.0: Multi Selection 집계 기능 구현 (Phase 3)
  * - v1.1.0: API 호출 시 equipment_id 쿼리 파라미터 전달 추가
  * - v1.0.0: 초기 버전 - Tab UI, Backend API 연동
@@ -62,10 +62,14 @@ export class EquipmentInfoPanel {
         // 로딩 상태
         this.isLoading = false;
         
+        // 🆕 v2.0.0: Duration Timer 관련
+        this.durationTimerInterval = null;
+        this.lotStartTime = null;  // ISO string
+        
         // 초기화
         this._init();
         
-        debugLog('📊 EquipmentInfoPanel initialized (v1.3.0)');
+        debugLog('📊 EquipmentInfoPanel initialized (v2.0.0)');
     }
     
     // =========================================================================
@@ -116,7 +120,7 @@ export class EquipmentInfoPanel {
                 <div id="tab-pcinfo" class="equipment-tab-content">
                     <div id="pcinfoTabContent">
                         <div class="info-row placeholder">
-                            <span class="info-label">PC 정보 (추후 확장 예정)</span>
+                            <span class="info-label">설비를 선택해주세요</span>
                         </div>
                     </div>
                 </div>
@@ -242,11 +246,14 @@ export class EquipmentInfoPanel {
         this.selectedEquipmentIds = [];
         this.multiSelectionCache = null;
         
+        // 🆕 v2.0.0: Duration Timer 정리
+        this._stopDurationTimer();
+        
         debugLog('📊 Equipment Info Panel hidden');
     }
     
     /**
-     * ⭐ v1.3.0: 실시간 업데이트 (WebSocket에서 호출) - 개선된 버전
+     * ⭐ v2.0.0: 실시간 업데이트 (WebSocket에서 호출) - 확장된 버전
      * @param {Object} updateData - 업데이트 데이터
      */
     updateRealtime(updateData) {
@@ -264,6 +271,9 @@ export class EquipmentInfoPanel {
                 
                 // 병합된 데이터로 UI 업데이트
                 this._updateGeneralTab(mergedData);
+                
+                // 🆕 v2.0.0: PC Info Tab도 업데이트 (cpu_usage_percent)
+                this._updatePCInfoTab(mergedData);
                 
                 // 캐시 업데이트
                 this.dataCache.set(this.currentFrontendId, {
@@ -283,7 +293,7 @@ export class EquipmentInfoPanel {
     }
     
     /**
-     * ⭐ v1.3.0: WebSocket 데이터와 현재 데이터 병합
+     * ⭐ v2.0.0: WebSocket 데이터와 현재 데이터 병합 - 확장
      * @private
      * @param {Object} updateData - WebSocket에서 받은 데이터
      * @returns {Object} 병합된 데이터
@@ -299,6 +309,7 @@ export class EquipmentInfoPanel {
         // - LineName: 초기 값 유지 (불변) ← 요구사항 #2
         // - Product/Lot: 새 값이 있으면 업데이트, 없으면 기존 값 유지
         // - EquipmentName: 새 값이 있으면 업데이트 (헤더에도 반영)
+        // - 🆕 v2.0.0: lot_start_time, cpu_usage_percent 병합
         
         const mergedData = {
             // 기존 데이터 복사
@@ -317,11 +328,19 @@ export class EquipmentInfoPanel {
             // EquipmentName: 새 값이 있으면 업데이트
             equipment_name: updateData.equipment_name || this.currentData.equipment_name,
             
+            // 🆕 v2.0.0: lot_start_time 병합
+            lot_start_time: updateData.lot_start_time || this.currentData.lot_start_time,
+            
+            // 🆕 v2.0.0: CPU 사용율 병합 (실시간 갱신)
+            cpu_usage_percent: updateData.cpu_usage_percent !== undefined 
+                ? updateData.cpu_usage_percent 
+                : this.currentData.cpu_usage_percent,
+            
             // Timestamp 업데이트
             last_updated: updateData.last_updated || updateData.timestamp || new Date().toISOString()
         };
         
-        debugLog(`📊 Data merged: status=${mergedData.status}, lot=${mergedData.lot_id}, product=${mergedData.product_model}`);
+        debugLog(`📊 Data merged: status=${mergedData.status}, lot=${mergedData.lot_id}, cpu=${mergedData.cpu_usage_percent}%`);
         
         return mergedData;
     }
@@ -345,6 +364,9 @@ export class EquipmentInfoPanel {
         // 🆕 v1.3.0: currentData 초기화
         this.currentData = null;
         
+        // 🆕 v2.0.0: Duration Timer 정리
+        this._stopDurationTimer();
+        
         // 헤더 업데이트 (임시로 Frontend ID 표시, API 응답 후 EquipmentName으로 변경)
         this._updateHeader(frontendId);
         
@@ -363,6 +385,7 @@ export class EquipmentInfoPanel {
             if (!equipmentId) {
                 // 매핑되지 않은 설비
                 this._showUnmappedState(frontendId, equipmentData);
+                this._showPCInfoUnmappedState();
                 return;
             }
             
@@ -376,6 +399,7 @@ export class EquipmentInfoPanel {
                 this._updateHeader(cached.equipment_name || frontendId);
                 
                 this._updateGeneralTab(cached);
+                this._updatePCInfoTab(cached);  // 🆕 v2.0.0
                 return;
             }
             
@@ -394,14 +418,17 @@ export class EquipmentInfoPanel {
                 
                 // UI 업데이트
                 this._updateGeneralTab(detailData);
+                this._updatePCInfoTab(detailData);  // 🆕 v2.0.0
             } else {
                 // API 실패 시 기본 정보만 표시
                 this._showBasicInfo(frontendId, equipmentData);
+                this._showPCInfoErrorState();
             }
             
         } catch (error) {
             console.error('❌ Failed to load equipment detail:', error);
             this._showErrorState(frontendId, error.message);
+            this._showPCInfoErrorState();
         }
     }
     
@@ -446,7 +473,7 @@ export class EquipmentInfoPanel {
     }
     
     /**
-     * ⭐ v1.3.0: General Tab 업데이트 (Single Selection) - currentData 저장 추가
+     * ⭐ v2.0.0: General Tab 업데이트 (Single Selection) - 확장
      * @private
      */
     _updateGeneralTab(data) {
@@ -457,6 +484,10 @@ export class EquipmentInfoPanel {
         
         // Status 표시 정보
         const statusDisplay = this._getStatusDisplay(data.status);
+        
+        // 🆕 v2.0.0: Duration 계산 및 Timer 시작
+        const durationDisplay = this._formatDuration(data.lot_start_time);
+        this._startDurationTimer(data.lot_start_time);
         
         this.generalTabContent.innerHTML = `
             <div class="info-row">
@@ -476,20 +507,260 @@ export class EquipmentInfoPanel {
                 <span class="info-label">Lot No.:</span>
                 <span class="info-value">${data.lot_id || '-'}</span>
             </div>
+            
+            <!-- 🆕 v2.0.0: Lot Start Time + Duration -->
+            <div class="info-row">
+                <span class="info-label">Lot Start:</span>
+                <span class="info-value">${this._formatDateTime(data.lot_start_time) || '-'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Duration:</span>
+                <span class="info-value" id="durationDisplay">${durationDisplay}</span>
+            </div>
+            
             ${data.last_updated ? `
             <div class="info-row info-row-meta">
                 <span class="info-label">Updated:</span>
                 <span class="info-value info-value-meta">${this._formatDateTime(data.last_updated)}</span>
             </div>
             ` : ''}
-            
-            <!-- 추후 확장 영역 -->
-            <div class="info-row-spacer"></div>
         `;
         
         this.isLoading = false;
         debugLog(`✅ General tab updated for: ${data.frontend_id || this.currentFrontendId}`);
     }
+    
+    // =========================================================================
+    // 🆕 v2.0.0: PC Info Tab
+    // =========================================================================
+    
+    /**
+     * 🆕 v2.0.0: PC Info Tab 업데이트 (Single Selection)
+     * @private
+     */
+    _updatePCInfoTab(data) {
+        if (!this.pcinfoTabContent) return;
+        
+        // CPU 사용율 Gauge 계산
+        const cpuPercent = data.cpu_usage_percent ?? 0;
+        const cpuGaugeColor = this._getCPUGaugeColor(cpuPercent);
+        
+        this.pcinfoTabContent.innerHTML = `
+            <!-- CPU Usage Gauge -->
+            <div class="info-row pc-gauge-row">
+                <span class="info-label">CPU Usage:</span>
+                <div class="cpu-gauge-container">
+                    <div class="cpu-gauge-bar">
+                        <div class="cpu-gauge-fill ${cpuGaugeColor}" style="width: ${cpuPercent}%"></div>
+                    </div>
+                    <span class="cpu-gauge-value" id="cpuGaugeValue">${cpuPercent !== null ? cpuPercent.toFixed(1) + '%' : '-'}</span>
+                </div>
+            </div>
+            
+            <div class="info-row-divider"></div>
+            
+            <!-- CPU Info -->
+            <div class="info-row">
+                <span class="info-label">CPU:</span>
+                <span class="info-value info-value-small">${data.cpu_name || '-'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Cores:</span>
+                <span class="info-value">${data.cpu_logical_count || '-'}</span>
+            </div>
+            
+            <div class="info-row-divider"></div>
+            
+            <!-- GPU Info -->
+            <div class="info-row">
+                <span class="info-label">GPU:</span>
+                <span class="info-value info-value-small">${data.gpu_name || '-'}</span>
+            </div>
+            
+            <div class="info-row-divider"></div>
+            
+            <!-- OS Info -->
+            <div class="info-row">
+                <span class="info-label">OS:</span>
+                <span class="info-value">${data.os_name || '-'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Arch:</span>
+                <span class="info-value">${data.os_architecture || '-'}</span>
+            </div>
+            
+            <div class="info-row-divider"></div>
+            
+            <!-- Boot Time -->
+            <div class="info-row">
+                <span class="info-label">Last Boot:</span>
+                <span class="info-value info-value-small">${this._formatDateTime(data.last_boot_time) || '-'}</span>
+            </div>
+            
+            ${data.pc_last_update_time ? `
+            <div class="info-row info-row-meta">
+                <span class="info-label">PC Updated:</span>
+                <span class="info-value info-value-meta">${this._formatDateTime(data.pc_last_update_time)}</span>
+            </div>
+            ` : ''}
+        `;
+        
+        debugLog(`✅ PC Info tab updated: CPU=${cpuPercent}%`);
+    }
+    
+    /**
+     * 🆕 v2.0.0: CPU Gauge 색상 결정
+     * @private
+     */
+    _getCPUGaugeColor(percent) {
+        if (percent === null || percent === undefined) return 'gauge-gray';
+        if (percent < 50) return 'gauge-green';
+        if (percent < 80) return 'gauge-yellow';
+        return 'gauge-red';
+    }
+    
+    /**
+     * 🆕 v2.0.0: PC Info Tab 매핑 없음 상태
+     * @private
+     */
+    _showPCInfoUnmappedState() {
+        if (!this.pcinfoTabContent) return;
+        
+        this.pcinfoTabContent.innerHTML = `
+            <div class="info-row unmapped-notice">
+                <span class="info-icon">⚠️</span>
+                <span class="info-text">DB에 연결되지 않은 설비입니다</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">CPU Usage:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">CPU:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">GPU:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">OS:</span>
+                <span class="info-value">-</span>
+            </div>
+        `;
+    }
+    
+    /**
+     * 🆕 v2.0.0: PC Info Tab 에러 상태
+     * @private
+     */
+    _showPCInfoErrorState() {
+        if (!this.pcinfoTabContent) return;
+        
+        this.pcinfoTabContent.innerHTML = `
+            <div class="info-row error-notice">
+                <span class="info-icon">❌</span>
+                <span class="info-text">PC 정보를 불러올 수 없습니다</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">CPU Usage:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">CPU:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">GPU:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">OS:</span>
+                <span class="info-value">-</span>
+            </div>
+        `;
+    }
+    
+    // =========================================================================
+    // 🆕 v2.0.0: Duration Timer
+    // =========================================================================
+    
+    /**
+     * 🆕 v2.0.0: Duration Timer 시작
+     * @private
+     */
+    _startDurationTimer(lotStartTime) {
+        // 기존 타이머 정리
+        this._stopDurationTimer();
+        
+        if (!lotStartTime) return;
+        
+        this.lotStartTime = lotStartTime;
+        
+        // 1초마다 업데이트
+        this.durationTimerInterval = setInterval(() => {
+            this._updateDurationDisplay();
+        }, 1000);
+        
+        debugLog(`⏱️ Duration timer started: ${lotStartTime}`);
+    }
+    
+    /**
+     * 🆕 v2.0.0: Duration Timer 정지
+     * @private
+     */
+    _stopDurationTimer() {
+        if (this.durationTimerInterval) {
+            clearInterval(this.durationTimerInterval);
+            this.durationTimerInterval = null;
+        }
+        this.lotStartTime = null;
+    }
+    
+    /**
+     * 🆕 v2.0.0: Duration 표시 업데이트
+     * @private
+     */
+    _updateDurationDisplay() {
+        const durationEl = document.getElementById('durationDisplay');
+        if (!durationEl || !this.lotStartTime) return;
+        
+        durationEl.textContent = this._formatDuration(this.lotStartTime);
+    }
+    
+    /**
+     * 🆕 v2.0.0: Duration 포맷 (HH:MM:SS)
+     * @private
+     */
+    _formatDuration(startTimeStr) {
+        if (!startTimeStr) return '-';
+        
+        try {
+            const startTime = new Date(startTimeStr);
+            const now = new Date();
+            
+            // 밀리초 차이 계산
+            let diffMs = now - startTime;
+            
+            // 음수면 (미래 시간이면) 0으로
+            if (diffMs < 0) diffMs = 0;
+            
+            // 시, 분, 초 계산
+            const hours = Math.floor(diffMs / (1000 * 60 * 60));
+            const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+            
+            // HH:MM:SS 포맷
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+        } catch (e) {
+            return '-';
+        }
+    }
+    
+    // =========================================================================
+    // 기존 메서드 - General Tab 상태 표시
+    // =========================================================================
     
     /**
      * 매핑되지 않은 설비 상태 표시
@@ -543,6 +814,14 @@ export class EquipmentInfoPanel {
                 <span class="info-label">Lot No.:</span>
                 <span class="info-value">-</span>
             </div>
+            <div class="info-row">
+                <span class="info-label">Lot Start:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Duration:</span>
+                <span class="info-value">-</span>
+            </div>
             <div class="info-row info-row-warning">
                 <span class="info-icon">ℹ️</span>
                 <span class="info-text">상세 정보를 불러올 수 없습니다</span>
@@ -577,7 +856,7 @@ export class EquipmentInfoPanel {
     }
     
     // =========================================================================
-    // 🆕 v1.2.0: Multi Selection
+    // 🆕 v1.2.0: Multi Selection - v2.0.0 확장
     // =========================================================================
     
     /**
@@ -598,12 +877,16 @@ export class EquipmentInfoPanel {
         // 헤더 업데이트
         this._updateHeader(`${count}개 설비 선택됨`, true);
         
+        // 🆕 v2.0.0: Duration Timer 정리 (Multi Selection에서는 사용 안함)
+        this._stopDurationTimer();
+        
         // 로딩 표시
         this._showLoading();
         
         // 매핑된 설비가 하나도 없으면
         if (this.selectedEquipmentIds.length === 0) {
             this._showMultiUnmappedState(count);
+            this._showMultiPCInfoUnmappedState(count);
             return;
         }
         
@@ -617,13 +900,16 @@ export class EquipmentInfoPanel {
                 
                 // UI 업데이트
                 this._updateGeneralTabMulti(aggregatedData, count);
+                this._updatePCInfoTabMulti(aggregatedData, count);  // 🆕 v2.0.0
             } else {
                 this._showMultiErrorState(count);
+                this._showMultiPCInfoErrorState(count);
             }
             
         } catch (error) {
             console.error('❌ Failed to load multi equipment detail:', error);
             this._showMultiErrorState(count, error.message);
+            this._showMultiPCInfoErrorState(count);
         }
     }
     
@@ -706,13 +992,135 @@ export class EquipmentInfoPanel {
                 <span class="info-value">${lotIdsDisplay || '-'}</span>
             </div>
             
-            <!-- 추후 확장 영역 (여백 확보) -->
-            <div class="info-row-spacer"></div>
+            <!-- Multi Selection에서는 Duration 표시 안함 -->
             <div class="info-row-spacer"></div>
         `;
         
         this.isLoading = false;
         debugLog(`✅ Multi selection tab updated: ${totalCount} items`);
+    }
+    
+    /**
+     * 🆕 v2.0.0: PC Info Tab 업데이트 (Multi Selection - 집계)
+     * @private
+     */
+    _updatePCInfoTabMulti(data, totalCount) {
+        if (!this.pcinfoTabContent) return;
+        
+        // 평균 CPU 사용율
+        const avgCpu = data.avg_cpu_usage_percent;
+        const cpuGaugeColor = this._getCPUGaugeColor(avgCpu);
+        
+        // CPU 이름 목록
+        const cpuNamesDisplay = this._formatListWithMore(data.cpu_names, data.cpu_names_more);
+        
+        // GPU 이름 목록
+        const gpuNamesDisplay = this._formatListWithMore(data.gpu_names, data.gpu_names_more);
+        
+        // OS 이름 목록
+        const osNamesDisplay = this._formatListWithMore(data.os_names, data.os_names_more);
+        
+        this.pcinfoTabContent.innerHTML = `
+            <div class="info-row multi-select-header">
+                <span class="info-icon">💻</span>
+                <span class="info-text">${totalCount}개 설비 PC 정보</span>
+            </div>
+            
+            <!-- 평균 CPU Usage Gauge -->
+            <div class="info-row pc-gauge-row">
+                <span class="info-label">Avg CPU:</span>
+                <div class="cpu-gauge-container">
+                    <div class="cpu-gauge-bar">
+                        <div class="cpu-gauge-fill ${cpuGaugeColor}" style="width: ${avgCpu || 0}%"></div>
+                    </div>
+                    <span class="cpu-gauge-value">${avgCpu !== null && avgCpu !== undefined ? avgCpu.toFixed(1) + '%' : '-'}</span>
+                </div>
+            </div>
+            
+            <div class="info-row-divider"></div>
+            
+            <!-- CPU 이름 목록 -->
+            <div class="info-row">
+                <span class="info-label">CPU:</span>
+                <span class="info-value info-value-small">${cpuNamesDisplay || '-'}</span>
+            </div>
+            
+            <!-- GPU 이름 목록 -->
+            <div class="info-row">
+                <span class="info-label">GPU:</span>
+                <span class="info-value info-value-small">${gpuNamesDisplay || '-'}</span>
+            </div>
+            
+            <!-- OS 이름 목록 -->
+            <div class="info-row">
+                <span class="info-label">OS:</span>
+                <span class="info-value">${osNamesDisplay || '-'}</span>
+            </div>
+        `;
+        
+        debugLog(`✅ Multi PC Info tab updated: avg_cpu=${avgCpu}%`);
+    }
+    
+    /**
+     * 🆕 v2.0.0: Multi Selection PC Info 매핑 없음
+     * @private
+     */
+    _showMultiPCInfoUnmappedState(count) {
+        if (!this.pcinfoTabContent) return;
+        
+        this.pcinfoTabContent.innerHTML = `
+            <div class="info-row multi-select-header">
+                <span class="info-icon">💻</span>
+                <span class="info-text">${count}개 설비 PC 정보</span>
+            </div>
+            <div class="info-row unmapped-notice">
+                <span class="info-icon">⚠️</span>
+                <span class="info-text">DB에 연결되지 않은 설비입니다</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Avg CPU:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">CPU:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">GPU:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">OS:</span>
+                <span class="info-value">-</span>
+            </div>
+        `;
+    }
+    
+    /**
+     * 🆕 v2.0.0: Multi Selection PC Info 에러
+     * @private
+     */
+    _showMultiPCInfoErrorState(count) {
+        if (!this.pcinfoTabContent) return;
+        
+        this.pcinfoTabContent.innerHTML = `
+            <div class="info-row multi-select-header">
+                <span class="info-icon">💻</span>
+                <span class="info-text">${count}개 설비 PC 정보</span>
+            </div>
+            <div class="info-row error-notice">
+                <span class="info-icon">❌</span>
+                <span class="info-text">PC 정보를 불러올 수 없습니다</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Avg CPU:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">CPU:</span>
+                <span class="info-value">-</span>
+            </div>
+        `;
     }
     
     /**
@@ -888,6 +1296,7 @@ export class EquipmentInfoPanel {
                     if (aggregatedData) {
                         this.multiSelectionCache = aggregatedData;
                         this._updateGeneralTabMulti(aggregatedData, this.selectedCount);
+                        this._updatePCInfoTabMulti(aggregatedData, this.selectedCount);  // 🆕 v2.0.0
                     }
                 } catch (error) {
                     console.error('❌ Failed to refresh multi selection:', error);
@@ -920,6 +1329,16 @@ export class EquipmentInfoPanel {
         
         if (this.generalTabContent) {
             this.generalTabContent.innerHTML = `
+                <div class="loading-container">
+                    <div class="loading-spinner-small"></div>
+                    <span class="loading-text">Loading...</span>
+                </div>
+            `;
+        }
+        
+        // 🆕 v2.0.0: PC Info Tab도 로딩 표시
+        if (this.pcinfoTabContent) {
+            this.pcinfoTabContent.innerHTML = `
                 <div class="loading-container">
                     <div class="loading-spinner-small"></div>
                     <span class="loading-text">Loading...</span>
@@ -1023,6 +1442,9 @@ export class EquipmentInfoPanel {
         this.hide();
         this.clearCache();
         this.equipmentEditState = null;
+        
+        // 🆕 v2.0.0: Duration Timer 정리
+        this._stopDurationTimer();
         
         if (this._refreshTimeout) {
             clearTimeout(this._refreshTimeout);

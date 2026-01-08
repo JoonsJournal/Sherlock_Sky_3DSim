@@ -3,12 +3,13 @@
  * =========================
  * Equipment Info Panel 전용 스타일 (Tab UI)
  * 
- * @version 1.3.0
+ * @version 2.0.0
  * @changelog
+ * - v2.0.0: PC Info Tab 스타일 추가
+ *           - CPU Usage Gauge (색상: 녹/황/적)
+ *           - Info Row Divider
+ *           - Small Value (긴 텍스트용)
  * - v1.3.0: 클래식 폴더 탭 스타일 적용 (Windows 스타일)
- *           - 상단 모서리만 둥글게
- *           - 활성 탭이 컨텐츠와 연결 (아래 테두리 없음)
- *           - 비활성 탭은 약간 어둡고 아래 테두리 있음
  * - v1.2.0: Multi Selection 집계 스타일 추가 (Phase 3)
  * - v1.0.0: 초기 버전 - Tab UI
  * 
@@ -213,6 +214,84 @@
     color: var(--overlay-text-primary);
     font-size: var(--font-size-base);
     font-weight: 500;
+}
+
+/* =============================================
+   🆕 v2.0.0: Small Value (긴 텍스트용)
+   ============================================= */
+#equipmentInfo .info-value-small {
+    font-size: 11px;
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+/* =============================================
+   🆕 v2.0.0: Info Row Divider
+   ============================================= */
+#equipmentInfo .info-row-divider {
+    height: 1px;
+    background: var(--overlay-border-light);
+    margin: 12px 0;
+    border: none;
+    padding: 0;
+}
+
+/* =============================================
+   🆕 v2.0.0: CPU Usage Gauge
+   ============================================= */
+#equipmentInfo .pc-gauge-row {
+    display: flex;
+    align-items: center;
+}
+
+#equipmentInfo .cpu-gauge-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+#equipmentInfo .cpu-gauge-bar {
+    flex: 1;
+    height: 14px;
+    background: var(--overlay-bg-primary);
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid var(--overlay-border-light);
+}
+
+#equipmentInfo .cpu-gauge-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.5s ease, background 0.3s ease;
+}
+
+/* Gauge 색상 */
+#equipmentInfo .cpu-gauge-fill.gauge-green {
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+}
+
+#equipmentInfo .cpu-gauge-fill.gauge-yellow {
+    background: linear-gradient(90deg, #eab308, #facc15);
+    box-shadow: 0 0 6px rgba(234, 179, 8, 0.4);
+}
+
+#equipmentInfo .cpu-gauge-fill.gauge-red {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+#equipmentInfo .cpu-gauge-fill.gauge-gray {
+    background: #4a4a5a;
+}
+
+#equipmentInfo .cpu-gauge-value {
+    min-width: 50px;
+    text-align: right;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--overlay-text-primary);
 }
 
 /* =============================================
@@ -466,6 +545,16 @@
     
     #equipmentInfo .status-count-item {
         padding: 3px 8px;
+        font-size: var(--font-size-xs);
+    }
+    
+    /* 🆕 v2.0.0: Gauge 반응형 */
+    #equipmentInfo .cpu-gauge-bar {
+        height: 12px;
+    }
+    
+    #equipmentInfo .cpu-gauge-value {
+        min-width: 42px;
         font-size: var(--font-size-xs);
     }
 }
