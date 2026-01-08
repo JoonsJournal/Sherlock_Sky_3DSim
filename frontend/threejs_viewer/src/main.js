@@ -4,10 +4,11 @@
  * 
  * 메인 애플리케이션 진입점 (리팩토링 버전)
  * 
- * @version 4.1.0
+ * @version 4.2.0
  * @description 중앙 집중식 모드 관리 시스템 적용
  * 
  * @changelog
+ * - v4.2.0: MonitoringService ↔ EquipmentInfoPanel 연결 추가 (Phase 4 WebSocket 실시간 업데이트)
  * - v4.1.0: EquipmentInfoPanel ↔ DataOverlay 연결 추가 (Phase 2 Equipment Detail)
  * - v4.0.0: 중앙 집중식 모드 관리, AppModeManager.toggleMode() 사용
  *           ModeHandlers 서비스 연결, InteractionHandler에 AppModeManager 연결
@@ -334,7 +335,7 @@ function initEquipmentAutoSave(equipmentEditState) {
 // ============================================
 
 function init() {
-    console.log('🚀 Sherlock Sky 3DSim 초기화 (v4.1.0)...');
+    console.log('🚀 Sherlock Sky 3DSim 초기화 (v4.2.0)...');
     console.log(`📍 Site ID: ${SITE_ID}`);
     
     try {
@@ -360,6 +361,12 @@ function init() {
             services.ui.equipmentEditState,
             services.ui.connectionStatusService
         );
+        
+        // 🆕 v4.2.0: MonitoringService ↔ EquipmentInfoPanel 연결 (Phase 4 WebSocket 실시간 업데이트)
+        if (services.monitoring?.monitoringService && services.ui?.equipmentInfoPanel) {
+            services.monitoring.monitoringService.setEquipmentInfoPanel(services.ui.equipmentInfoPanel);
+            console.log('  ✅ MonitoringService ↔ EquipmentInfoPanel 연결 완료 (실시간 업데이트)');
+        }
         
         // 🆕 5. 모드 핸들러에 서비스 연결 (v4.0.0 핵심!)
         connectServicesToModeHandlers({
@@ -506,7 +513,7 @@ function init() {
             }, 1000);
         }
         
-        console.log('✅ 모든 초기화 완료! (v4.1.0 - EquipmentInfoPanel 연동)');
+        console.log('✅ 모든 초기화 완료! (v4.2.0 - WebSocket 실시간 업데이트 연동)');
         console.log('💡 콘솔에서 debugHelp() 입력으로 사용 가능한 명령어 확인');
         console.log('💡 키보드 단축키: D=디버그, P=성능, H=헬퍼, G=그리드, M=모니터링, E=편집');
         console.log('💡 AdaptivePerformance: toggleAdaptivePerformance() 또는 A키로 ON/OFF');
@@ -514,6 +521,7 @@ function init() {
         console.log('💡 Equipment AutoSave: 30초마다 자동 저장, 5회 변경 시 즉시 저장');
         console.log('💡 모드 전환: appModeManager.toggleMode(APP_MODE.XXX) 사용');
         console.log('💡 Equipment Info: 설비 클릭 시 상세 정보 표시 (Backend API 연동)');
+        console.log('💡 실시간 업데이트: Monitoring Mode에서 WebSocket으로 Status 자동 갱신');
         
     } catch (error) {
         console.error('❌ 초기화 중 오류 발생:', error);

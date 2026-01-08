@@ -3,19 +3,20 @@
  * =====================
  * 설비 상세 정보 패널 (Tab UI + Backend API 연동)
  * 
- * @version 1.2.0
+ * @version 1.3.0
  * @description
  * - Tab Interface: General / PC Info.
  * - Single Selection: Backend API에서 상세 정보 조회
  * - Multi Selection: Backend API에서 집계 정보 조회
  * 
  * @changelog
+ * - v1.3.0: WebSocket 실시간 업데이트 개선 (Phase 4 완성)
+ *           - 헤더에 EquipmentName 표시 (Frontend ID 대신)
+ *           - LineName은 초기 값 유지 (불변)
+ *           - WebSocket 메시지와 기존 데이터 병합
+ *           - Lot/Product 실시간 업데이트 지원
+ *           - currentData 멤버 변수 추가 (초기 데이터 저장)
  * - v1.2.0: Multi Selection 집계 기능 구현 (Phase 3)
- *           - POST /api/equipment/detail/multi API 호출
- *           - equipment_ids 파라미터 전달 (Frontend 매핑 우선)
- *           - 집계 UI 표시 (Line, Status, Product, Lot)
- *           - "외 N개" 형식 표시 (최대 3개)
- *           - 하단 여백 확보 (추후 확장용)
  * - v1.1.0: API 호출 시 equipment_id 쿼리 파라미터 전달 추가
  * - v1.0.0: 초기 버전 - Tab UI, Backend API 연동
  * 
@@ -43,6 +44,9 @@ export class EquipmentInfoPanel {
         this.currentEquipmentId = null;
         this.selectedCount = 0;
         
+        // 🆕 v1.3.0: 현재 표시 중인 전체 데이터 (WebSocket 병합용)
+        this.currentData = null;
+        
         // 🆕 v1.2.0: Multi Selection 상태
         this.selectedFrontendIds = [];
         this.selectedEquipmentIds = [];
@@ -61,7 +65,7 @@ export class EquipmentInfoPanel {
         // 초기화
         this._init();
         
-        debugLog('📊 EquipmentInfoPanel initialized (v1.2.0)');
+        debugLog('📊 EquipmentInfoPanel initialized (v1.3.0)');
     }
     
     // =========================================================================
@@ -230,6 +234,9 @@ export class EquipmentInfoPanel {
         this.currentEquipmentId = null;
         this.selectedCount = 0;
         
+        // 🆕 v1.3.0: currentData 초기화
+        this.currentData = null;
+        
         // 🆕 v1.2.0: Multi Selection 상태 초기화
         this.selectedFrontendIds = [];
         this.selectedEquipmentIds = [];
@@ -239,7 +246,7 @@ export class EquipmentInfoPanel {
     }
     
     /**
-     * 실시간 업데이트 (WebSocket에서 호출)
+     * ⭐ v1.3.0: 실시간 업데이트 (WebSocket에서 호출) - 개선된 버전
      * @param {Object} updateData - 업데이트 데이터
      */
     updateRealtime(updateData) {
@@ -251,15 +258,20 @@ export class EquipmentInfoPanel {
         if (this.selectedCount === 1) {
             // Single Selection: 현재 표시 중인 설비와 일치하면 업데이트
             if (incomingFrontendId === this.currentFrontendId) {
-                this._updateGeneralTab(updateData);
+                
+                // ⭐ v1.3.0: 기존 데이터와 병합 (LineName은 초기 값 유지)
+                const mergedData = this._mergeWithCurrentData(updateData);
+                
+                // 병합된 데이터로 UI 업데이트
+                this._updateGeneralTab(mergedData);
                 
                 // 캐시 업데이트
                 this.dataCache.set(this.currentFrontendId, {
-                    data: updateData,
+                    data: mergedData,
                     timestamp: Date.now()
                 });
                 
-                debugLog(`🔄 Real-time update (single): ${this.currentFrontendId}`);
+                debugLog(`🔄 Real-time update (single): ${this.currentFrontendId} -> ${updateData.status}`);
             }
         } else if (this.selectedCount > 1) {
             // Multi Selection: 선택된 설비 중 하나면 집계 재계산
@@ -268,6 +280,50 @@ export class EquipmentInfoPanel {
                 debugLog(`🔄 Real-time update (multi): ${incomingFrontendId} -> ${updateData.status}`);
             }
         }
+    }
+    
+    /**
+     * ⭐ v1.3.0: WebSocket 데이터와 현재 데이터 병합
+     * @private
+     * @param {Object} updateData - WebSocket에서 받은 데이터
+     * @returns {Object} 병합된 데이터
+     */
+    _mergeWithCurrentData(updateData) {
+        // 현재 데이터가 없으면 업데이트 데이터 그대로 반환
+        if (!this.currentData) {
+            return updateData;
+        }
+        
+        // 병합 규칙:
+        // - Status: 항상 새 값으로 업데이트
+        // - LineName: 초기 값 유지 (불변) ← 요구사항 #2
+        // - Product/Lot: 새 값이 있으면 업데이트, 없으면 기존 값 유지
+        // - EquipmentName: 새 값이 있으면 업데이트 (헤더에도 반영)
+        
+        const mergedData = {
+            // 기존 데이터 복사
+            ...this.currentData,
+            
+            // Status는 항상 새 값으로 (핵심 업데이트 항목)
+            status: updateData.status,
+            
+            // LineName은 초기 값 유지 (불변)
+            line_name: this.currentData.line_name,
+            
+            // Product/Lot: 새 값이 있으면 업데이트, 없으면 기존 값 유지
+            product_model: updateData.product_model || this.currentData.product_model,
+            lot_id: updateData.lot_id || this.currentData.lot_id,
+            
+            // EquipmentName: 새 값이 있으면 업데이트
+            equipment_name: updateData.equipment_name || this.currentData.equipment_name,
+            
+            // Timestamp 업데이트
+            last_updated: updateData.last_updated || updateData.timestamp || new Date().toISOString()
+        };
+        
+        debugLog(`📊 Data merged: status=${mergedData.status}, lot=${mergedData.lot_id}, product=${mergedData.product_model}`);
+        
+        return mergedData;
     }
     
     // =========================================================================
@@ -286,7 +342,10 @@ export class EquipmentInfoPanel {
         this.selectedFrontendIds = [frontendId];
         this.selectedEquipmentIds = [];
         
-        // 헤더 업데이트
+        // 🆕 v1.3.0: currentData 초기화
+        this.currentData = null;
+        
+        // 헤더 업데이트 (임시로 Frontend ID 표시, API 응답 후 EquipmentName으로 변경)
         this._updateHeader(frontendId);
         
         // 로딩 표시
@@ -310,6 +369,12 @@ export class EquipmentInfoPanel {
             // 2. 캐시 확인
             const cached = this._getFromCache(frontendId);
             if (cached) {
+                // ⭐ v1.3.0: currentData 저장
+                this.currentData = cached;
+                
+                // ⭐ v1.3.0: 헤더를 EquipmentName으로 업데이트
+                this._updateHeader(cached.equipment_name || frontendId);
+                
                 this._updateGeneralTab(cached);
                 return;
             }
@@ -318,8 +383,14 @@ export class EquipmentInfoPanel {
             const detailData = await this._fetchEquipmentDetail(frontendId, equipmentId);
             
             if (detailData) {
+                // ⭐ v1.3.0: currentData 저장
+                this.currentData = detailData;
+                
                 // 캐시에 저장
                 this._saveToCache(frontendId, detailData);
+                
+                // ⭐ v1.3.0: 헤더를 EquipmentName으로 업데이트
+                this._updateHeader(detailData.equipment_name || frontendId);
                 
                 // UI 업데이트
                 this._updateGeneralTab(detailData);
@@ -375,11 +446,14 @@ export class EquipmentInfoPanel {
     }
     
     /**
-     * General Tab 업데이트 (Single Selection)
+     * ⭐ v1.3.0: General Tab 업데이트 (Single Selection) - currentData 저장 추가
      * @private
      */
     _updateGeneralTab(data) {
         if (!this.generalTabContent) return;
+        
+        // ⭐ v1.3.0: currentData 업데이트 (실시간 병합에 사용)
+        this.currentData = data;
         
         // Status 표시 정보
         const statusDisplay = this._getStatusDisplay(data.status);
@@ -929,6 +1003,7 @@ export class EquipmentInfoPanel {
     clearCache() {
         this.dataCache.clear();
         this.multiSelectionCache = null;
+        this.currentData = null;  // 🆕 v1.3.0
         debugLog('🗑️ Equipment info cache cleared');
     }
     

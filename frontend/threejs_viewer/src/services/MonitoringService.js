@@ -1,6 +1,11 @@
 /**
- * MonitoringService.js - v3.2.0
+ * MonitoringService.js - v3.3.0
  * 실시간 설비 모니터링 서비스
+ * 
+ * ⭐ v3.3.0: EquipmentInfoPanel 실시간 업데이트 연동 (Phase 4)
+ * - WebSocket 메시지 수신 시 EquipmentInfoPanel.updateRealtime() 호출
+ * - Single/Multi Selection 모두 지원
+ * - Monitoring Mode + Panel 열림 + 선택된 설비만 업데이트
  * 
  * ⭐ v3.2.0: equipment_id 기반 매핑 조회로 변경
  * - Backend의 frontend_id 대신 equipment_id로 Frontend 매핑 조회
@@ -66,10 +71,13 @@ export class MonitoringService {
         // ⭐ v3.0.0: EventBus 참조 (있으면 사용)
         this.eventBus = null;
         
+        // ⭐ v3.3.0: EquipmentInfoPanel 참조
+        this.equipmentInfoPanel = null;
+        
         // ⭐ v3.0.0: 이벤트 핸들러 바인딩 (제거 시 필요)
         this._boundHandleMappingChanged = this.handleMappingChanged.bind(this);
         
-        debugLog('MonitoringService initialized (v3.1.0)');
+        debugLog('MonitoringService initialized (v3.3.0)');
     }
     
     /**
@@ -80,6 +88,15 @@ export class MonitoringService {
         this.equipmentEditState = equipmentEditState;
         this.eventBus = eventBus;
         debugLog('MonitoringService dependencies set');
+    }
+    
+    /**
+     * ⭐ v3.3.0: EquipmentInfoPanel 설정
+     * @param {EquipmentInfoPanel} equipmentInfoPanel - Equipment Info Panel 인스턴스
+     */
+    setEquipmentInfoPanel(equipmentInfoPanel) {
+        this.equipmentInfoPanel = equipmentInfoPanel;
+        debugLog('🔗 EquipmentInfoPanel connected to MonitoringService');
     }
     
     /**
@@ -104,7 +121,7 @@ export class MonitoringService {
             return;
         }
         
-        debugLog('🟢 Starting monitoring mode (v3.1.0)...');
+        debugLog('🟢 Starting monitoring mode (v3.3.0)...');
         this.isActive = true;
         
         try {
@@ -160,7 +177,7 @@ export class MonitoringService {
             this.registerEventListeners();
             debugLog('📡 Step 7: Event listeners registered');
             
-            debugLog('✅ Monitoring mode started successfully (v3.1.0)');
+            debugLog('✅ Monitoring mode started successfully (v3.3.0)');
             
         } catch (error) {
             console.error('❌ Failed to start monitoring:', error);
@@ -830,8 +847,10 @@ export class MonitoringService {
     }
     
     /**
-     * WebSocket 메시지 핸들러 (equipment_id → frontend_id 변환)
-     * ⭐ v3.1.0: SUDDENSTOP 상태 지원
+     * ⭐ v3.3.0: WebSocket 메시지 핸들러 (EquipmentInfoPanel 실시간 업데이트 추가)
+     * - equipment_id → frontend_id 변환
+     * - SignalTower 업데이트
+     * - EquipmentInfoPanel 실시간 업데이트
      */
     handleWebSocketMessage(event) {
         try {
@@ -875,7 +894,12 @@ export class MonitoringService {
                 // 매핑된 설비만 처리
                 if (this.isEquipmentMapped(frontendId)) {
                     debugLog(`📊 Status update: ${frontendId} (equipment_id: ${data.equipment_id}) -> ${data.status}`);
+                    
+                    // SignalTower 업데이트
                     this.updateEquipmentStatus(frontendId, data.status);
+                    
+                    // ⭐ v3.3.0: EquipmentInfoPanel 실시간 업데이트
+                    this.notifyEquipmentInfoPanel(frontendId, data);
                 } else {
                     debugLog(`⚠️ Equipment not mapped: ${frontendId}`);
                 }
@@ -884,6 +908,35 @@ export class MonitoringService {
         } catch (error) {
             console.error('❌ Failed to parse WebSocket message:', error);
         }
+    }
+    
+    /**
+     * ⭐ v3.3.0: EquipmentInfoPanel에 실시간 업데이트 전달
+     * @param {string} frontendId - Frontend ID
+     * @param {Object} data - WebSocket에서 받은 데이터
+     */
+    notifyEquipmentInfoPanel(frontendId, data) {
+        // EquipmentInfoPanel이 연결되어 있고, 표시 중인 경우에만 전달
+        if (!this.equipmentInfoPanel || !this.equipmentInfoPanel.isVisible) {
+            return;
+        }
+        
+        // 업데이트 데이터 구성
+        const updateData = {
+            frontend_id: frontendId,
+            equipment_id: data.equipment_id,
+            status: data.status,
+            // Backend에서 추가 필드가 있으면 전달
+            line_name: data.line_name || null,
+            product_model: data.product_model || null,
+            lot_id: data.lot_id || null,
+            last_updated: data.timestamp || new Date().toISOString()
+        };
+        
+        // EquipmentInfoPanel.updateRealtime() 호출
+        this.equipmentInfoPanel.updateRealtime(updateData);
+        
+        debugLog(`📊 EquipmentInfoPanel notified: ${frontendId} -> ${data.status}`);
     }
     
     updateEquipmentStatus(frontendId, status) {
@@ -944,6 +997,13 @@ export class MonitoringService {
         debugLog(`🧪 Test status change: ${frontendId} -> ${status}`);
         this.updateEquipmentStatus(frontendId, status);
         this.flushUpdateQueue();
+        
+        // ⭐ v3.3.0: EquipmentInfoPanel도 테스트
+        this.notifyEquipmentInfoPanel(frontendId, {
+            equipment_id: this.equipmentEditState?.getMapping(frontendId)?.equipmentId,
+            status: status,
+            timestamp: new Date().toISOString()
+        });
     }
     
     /**
@@ -962,6 +1022,13 @@ export class MonitoringService {
         debugLog(`🧪 Test status change by equipment_id: ${equipmentId} -> ${frontendId} -> ${status}`);
         this.updateEquipmentStatus(frontendId, status);
         this.flushUpdateQueue();
+        
+        // ⭐ v3.3.0: EquipmentInfoPanel도 테스트
+        this.notifyEquipmentInfoPanel(frontendId, {
+            equipment_id: equipmentId,
+            status: status,
+            timestamp: new Date().toISOString()
+        });
     }
     
     /**
@@ -989,7 +1056,9 @@ export class MonitoringService {
             subscribedEquipmentIds: this.getMappedEquipmentIds().length,
             staleThresholdHours: this.staleThresholdHours,
             stats: this.currentStats,
-            signalTowerStats: this.signalTowerManager?.getStatusStatistics() || null
+            signalTowerStats: this.signalTowerManager?.getStatusStatistics() || null,
+            // ⭐ v3.3.0: EquipmentInfoPanel 연결 상태
+            equipmentInfoPanelConnected: !!this.equipmentInfoPanel
         };
     }
     
@@ -998,8 +1067,9 @@ export class MonitoringService {
      */
     debugPrintStatus() {
         console.group('🔧 MonitoringService Debug Info');
-        console.log('Version: 3.1.0');
+        console.log('Version: 3.3.0');
         console.log('Stale Threshold:', this.staleThresholdHours, 'hours');
+        console.log('EquipmentInfoPanel Connected:', !!this.equipmentInfoPanel);
         console.log('Connection Status:', this.getConnectionStatus());
         console.log('Status Cache:', Object.fromEntries(this.statusCache));
         console.log('Update Queue:', this.updateQueue);
@@ -1025,6 +1095,7 @@ export class MonitoringService {
         this.stop();
         this.statusCache.clear();
         this.updateQueue = [];
+        this.equipmentInfoPanel = null;
         
         debugLog('✓ MonitoringService 메모리 정리 완료');
     }
