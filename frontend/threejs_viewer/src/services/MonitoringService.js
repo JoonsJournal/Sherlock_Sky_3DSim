@@ -1,6 +1,13 @@
 /**
- * MonitoringService.js - v4.0.1
+ * MonitoringService.js - v4.1.0
  * 실시간 설비 모니터링 서비스
+ * 
+ * ⭐ v4.1.0: StatusAPIClient 모듈 분리 (Phase 3 리팩토링)
+ * - REST API 호출 로직을 StatusAPIClient로 위임
+ * - fetchSingleEquipmentStatus() → apiClient.fetchEquipmentLiveStatus() 위임
+ * - loadInitialStatus() 내부에서 apiClient.fetchInitialStatus() 사용
+ * - setApiBaseUrl() 메서드 추가
+ * - 기존 모든 기능 100% 호환성 유지
  * 
  * ⭐ v4.0.1: 선택된 설비만 EquipmentInfoPanel 업데이트 (버그 수정)
  * - notifyEquipmentInfoPanel()에서 선택된 설비 필터링 로직 단순화
@@ -15,35 +22,18 @@
  * - ⚠️ 호환성: 기존 모든 기능 100% 유지
  * 
  * ⭐ v3.4.0: Lot Active/Inactive 분기 지원
- * - WebSocket 메시지에 is_lot_active, since_time 필드 추가
- * - EquipmentInfoPanel에 신규 필드 전달
- * - 기존 기능 100% 호환성 유지
- * 
  * ⭐ v3.3.0: EquipmentInfoPanel 실시간 업데이트 연동 (Phase 4)
- * - WebSocket 메시지 수신 시 EquipmentInfoPanel.updateRealtime() 호출
- * - Single/Multi Selection 모두 지원
- * - Monitoring Mode + Panel 열림 + 선택된 설비만 업데이트
- * 
  * ⭐ v3.2.0: equipment_id 기반 매핑 조회로 변경
- * - Backend의 frontend_id 대신 equipment_id로 Frontend 매핑 조회
- * - Backend: CUT-066, EQ-UNKNOWN-X → Frontend: EQ-XX-XX 변환
- * - getFrontendIdByEquipmentId() 사용
- * 
  * ⭐ v3.1.0: 24시간 기준 초기 상태 로드 + DISCONNECTED 처리
- * - /api/monitoring/status/initial API 사용
- * - threshold_hours 설정 가능 (기본 24시간)
- * - is_connected 필드로 DISCONNECTED 상태 처리
- * - 통계 패널에 전체 설비 수, SUDDENSTOP, DISCONNECTED 추가
- * 
  * ⭐ v3.0.0: SignalTower 연동 강화
- * - 초기화 흐름 개선 (모든 램프 OFF → 미매핑 DISABLED → REST API로 상태 로드)
- * - 새 매핑 이벤트 처리 (mapping-changed)
- * - SignalTower 미매핑 설비 DISABLED 처리
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
  */
 
 import { debugLog } from '../core/utils/Config.js';
+
+// ⭐ v4.1.0: StatusAPIClient 모듈 import
+import { StatusAPIClient } from './monitoring/StatusAPIClient.js';
 
 export class MonitoringService {
     constructor(signalTowerManager, equipmentLoader = null, equipmentEditState = null) {
@@ -51,7 +41,10 @@ export class MonitoringService {
         this.equipmentLoader = equipmentLoader;
         this.equipmentEditState = equipmentEditState;
         
+        // ⭐ v4.1.0: StatusAPIClient 인스턴스 생성
         this.apiBaseUrl = 'http://localhost:8000/api/monitoring';
+        this.apiClient = new StatusAPIClient(this.apiBaseUrl);
+        
         this.wsUrl = 'ws://localhost:8000/api/monitoring/stream';
         
         this.ws = null;
@@ -94,7 +87,7 @@ export class MonitoringService {
         // ⭐ v3.0.0: 이벤트 핸들러 바인딩 (제거 시 필요)
         this._boundHandleMappingChanged = this.handleMappingChanged.bind(this);
         
-        debugLog('MonitoringService initialized (v4.0.1)');
+        debugLog('MonitoringService initialized (v4.1.0 - with StatusAPIClient)');
     }
     
     /**
@@ -130,6 +123,24 @@ export class MonitoringService {
     }
     
     /**
+     * ⭐ v4.1.0: API Base URL 설정
+     * @param {string} baseUrl - API Base URL
+     */
+    setApiBaseUrl(baseUrl) {
+        this.apiBaseUrl = baseUrl;
+        this.apiClient.setBaseUrl(baseUrl);
+        debugLog(`📡 API base URL changed to: ${baseUrl}`);
+    }
+    
+    /**
+     * ⭐ v4.1.0: API Client 직접 접근
+     * @returns {StatusAPIClient}
+     */
+    getApiClient() {
+        return this.apiClient;
+    }
+    
+    /**
      * ⭐ v3.0.0: 모니터링 시작 (개선된 흐름)
      */
     async start() {
@@ -138,7 +149,7 @@ export class MonitoringService {
             return;
         }
         
-        debugLog('🟢 Starting monitoring mode (v4.0.1)...');
+        debugLog('🟢 Starting monitoring mode (v4.1.0)...');
         this.isActive = true;
         
         try {
@@ -169,7 +180,7 @@ export class MonitoringService {
             
             // ============================================
             // 4️⃣ REST API로 초기 상태 로드 (24시간 기준)
-            // ⭐ v3.1.0: /status/initial API 사용
+            // ⭐ v4.1.0: StatusAPIClient 사용
             // ============================================
             await this.loadInitialStatus().catch(err => {
                 debugLog(`⚠️ Step 4: loadInitialStatus failed: ${err.message}`);
@@ -194,7 +205,7 @@ export class MonitoringService {
             this.registerEventListeners();
             debugLog('📡 Step 7: Event listeners registered');
             
-            debugLog('✅ Monitoring mode started successfully (v4.0.1)');
+            debugLog('✅ Monitoring mode started successfully (v4.1.0)');
             
         } catch (error) {
             console.error('❌ Failed to start monitoring:', error);
@@ -344,7 +355,7 @@ export class MonitoringService {
             
             // ============================================
             // 3️⃣ REST API로 해당 설비 최신 Status 조회
-            // ⭐ v3.0.0: Frontend ID로 /equipment/{id}/live API 호출
+            // ⭐ v4.1.0: StatusAPIClient 사용
             // ============================================
             const status = await this.fetchSingleEquipmentStatus(frontendId);
             
@@ -384,44 +395,14 @@ export class MonitoringService {
     }
     
     /**
-     * ⭐ v3.0.0: 특정 설비의 최신 Status 조회
-     * Backend API: GET /api/monitoring/equipment/{frontend_id}/live
+     * ⭐ v4.1.0: 특정 설비의 최신 Status 조회 (StatusAPIClient 위임)
      * 
      * @param {string} frontendId - Frontend ID (예: 'EQ-01-01')
      * @returns {Promise<string|null>} Status ('RUN', 'IDLE', 'STOP', 'SUDDENSTOP') 또는 null
      */
     async fetchSingleEquipmentStatus(frontendId) {
-        try {
-            // ⭐ v3.0.0: 올바른 API 엔드포인트 사용
-            const response = await fetch(`${this.apiBaseUrl}/equipment/${frontendId}/live`);
-            
-            if (!response.ok) {
-                debugLog(`⚠️ Failed to fetch status for: ${frontendId} (HTTP ${response.status})`);
-                return null;
-            }
-            
-            const data = await response.json();
-            
-            // Backend 응답 형식: { equipment_id, status: {...}, production: {...}, timestamp }
-            // status 객체 내부에서 현재 상태 추출
-            if (data.status) {
-                // status가 객체인 경우 (예: { status: 'RUN', temperature: 25.5, ... })
-                if (typeof data.status === 'object' && data.status.status) {
-                    return data.status.status;
-                }
-                // status가 문자열인 경우
-                if (typeof data.status === 'string') {
-                    return data.status;
-                }
-            }
-            
-            debugLog(`⚠️ Could not extract status from response for: ${frontendId}`);
-            return null;
-            
-        } catch (error) {
-            console.error(`❌ Error fetching status for ${frontendId}:`, error);
-            return null;
-        }
+        // ⭐ v4.1.0: StatusAPIClient로 위임
+        return this.apiClient.fetchEquipmentLiveStatus(frontendId);
     }
     
     /**
@@ -703,8 +684,7 @@ export class MonitoringService {
     // ============================================
     
     /**
-     * ⭐ v3.2.0: 초기 상태 로드 (24시간 기준)
-     * Backend API: GET /api/monitoring/status/initial?threshold_hours=24
+     * ⭐ v4.1.0: 초기 상태 로드 (StatusAPIClient 사용)
      * 
      * 🔧 v3.2.0 수정: Backend의 frontend_id 대신 equipment_id로 Frontend 매핑 조회
      * - Backend에서 CUT-066, EQ-UNKNOWN-X 등의 frontend_id가 오지만
@@ -713,15 +693,8 @@ export class MonitoringService {
     async loadInitialStatus() {
         debugLog(`📡 Loading initial equipment status (threshold: ${this.staleThresholdHours}h)...`);
         
-        // ⭐ v3.1.0: 새 API 엔드포인트 사용
-        const url = `${this.apiBaseUrl}/status/initial?threshold_hours=${this.staleThresholdHours}`;
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
+        // ⭐ v4.1.0: StatusAPIClient 사용
+        const data = await this.apiClient.fetchInitialStatus(this.staleThresholdHours);
         
         if (!data.equipment || !Array.isArray(data.equipment)) {
             throw new Error('Invalid response format');
@@ -1144,7 +1117,9 @@ export class MonitoringService {
             stats: this.currentStats,
             signalTowerStats: this.signalTowerManager?.getStatusStatistics() || null,
             // ⭐ v3.3.0: EquipmentInfoPanel 연결 상태
-            equipmentInfoPanelConnected: !!this.equipmentInfoPanel
+            equipmentInfoPanelConnected: !!this.equipmentInfoPanel,
+            // ⭐ v4.1.0: API Client 정보
+            apiBaseUrl: this.apiClient?.getBaseUrl() || this.apiBaseUrl
         };
     }
     
@@ -1153,8 +1128,9 @@ export class MonitoringService {
      */
     debugPrintStatus() {
         console.group('🔧 MonitoringService Debug Info');
-        console.log('Version: 4.0.1');
+        console.log('Version: 4.1.0 (with StatusAPIClient)');
         console.log('Stale Threshold:', this.staleThresholdHours, 'hours');
+        console.log('API Base URL:', this.apiClient?.getBaseUrl() || this.apiBaseUrl);
         console.log('EquipmentInfoPanel Connected:', !!this.equipmentInfoPanel);
         console.log('Connection Status:', this.getConnectionStatus());
         console.log('Status Cache:', Object.fromEntries(this.statusCache));
@@ -1172,6 +1148,11 @@ export class MonitoringService {
             this.signalTowerManager.debugPrintStatus();
         }
         
+        // ⭐ v4.1.0: StatusAPIClient 디버그 정보
+        if (this.apiClient) {
+            this.apiClient.debugPrint();
+        }
+        
         console.groupEnd();
     }
     
@@ -1182,6 +1163,7 @@ export class MonitoringService {
         this.statusCache.clear();
         this.updateQueue = [];
         this.equipmentInfoPanel = null;
+        this.apiClient = null;
         
         debugLog('✓ MonitoringService 메모리 정리 완료');
     }

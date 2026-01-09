@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StatusAPIClient Test - Phase 3</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: #1e1e2e;
+            color: #cdd6f4;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 {
+            color: #89b4fa;
+            border-bottom: 2px solid #45475a;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #a6e3a1;
+            margin-top: 30px;
+        }
+        .test-section {
+            background: #313244;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .test-row {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        button {
+            background: #89b4fa;
+            color: #1e1e2e;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: #b4befe;
+            transform: translateY(-2px);
+        }
+        button.success { background: #a6e3a1; }
+        button.warning { background: #f9e2af; }
+        button.error { background: #f38ba8; }
+        input {
+            background: #45475a;
+            border: 1px solid #585b70;
+            color: #cdd6f4;
+            padding: 10px;
+            border-radius: 6px;
+            width: 200px;
+        }
+        .result {
+            background: #11111b;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .result.success { border-left: 4px solid #a6e3a1; }
+        .result.error { border-left: 4px solid #f38ba8; }
+        .result.info { border-left: 4px solid #89b4fa; }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status-badge.connected { background: #a6e3a1; color: #1e1e2e; }
+        .status-badge.disconnected { background: #f38ba8; color: #1e1e2e; }
+        #connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #313244;
+            padding: 15px 20px;
+            border-radius: 8px;
+        }
+        .config-panel {
+            background: #45475a;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .config-panel label {
+            display: block;
+            margin-bottom: 5px;
+            color: #f5c2e7;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 StatusAPIClient Test - Phase 3</h1>
+    
+    <div id="connection-status">
+        API Status: <span id="api-status" class="status-badge disconnected">확인 중...</span>
+    </div>
+    
+    <!-- 설정 패널 -->
+    <div class="config-panel">
+        <label>API Base URL:</label>
+        <div class="test-row">
+            <input type="text" id="baseUrl" value="http://localhost:8000/api/monitoring" style="width: 400px;">
+            <button onclick="updateBaseUrl()">URL 변경</button>
+            <button onclick="checkHealth()" class="success">Health Check</button>
+        </div>
+    </div>
+    
+    <!-- 테스트 섹션 1: 초기 상태 조회 -->
+    <div class="test-section">
+        <h2>📊 1. fetchInitialStatus() - 초기 상태 조회</h2>
+        <p>Backend API: GET /api/monitoring/status/initial?threshold_hours=N</p>
+        <div class="test-row">
+            <input type="number" id="thresholdHours" value="24" min="1" max="168" placeholder="Threshold Hours">
+            <button onclick="testFetchInitialStatus()">fetchInitialStatus() 호출</button>
+        </div>
+        <div id="result-initial" class="result info">결과가 여기에 표시됩니다...</div>
+    </div>
+    
+    <!-- 테스트 섹션 2: 단일 설비 상태 조회 -->
+    <div class="test-section">
+        <h2>🔍 2. fetchEquipmentLiveStatus() - 단일 설비 실시간 상태</h2>
+        <p>Backend API: GET /api/monitoring/equipment/{frontend_id}/live</p>
+        <div class="test-row">
+            <input type="text" id="frontendId" value="EQ-01-01" placeholder="Frontend ID">
+            <button onclick="testFetchEquipmentLiveStatus()">fetchEquipmentLiveStatus() 호출</button>
+        </div>
+        <div id="result-live" class="result info">결과가 여기에 표시됩니다...</div>
+    </div>
+    
+    <!-- 테스트 섹션 3: 전체 상태 조회 -->
+    <div class="test-section">
+        <h2>📋 3. fetchAllStatus() - 전체 설비 상태</h2>
+        <p>Backend API: GET /api/monitoring/status</p>
+        <div class="test-row">
+            <button onclick="testFetchAllStatus()">fetchAllStatus() 호출</button>
+        </div>
+        <div id="result-all" class="result info">결과가 여기에 표시됩니다...</div>
+    </div>
+    
+    <!-- 테스트 섹션 4: 상태 이력 조회 -->
+    <div class="test-section">
+        <h2>📜 4. fetchEquipmentStatusHistory() - 설비 상태 이력</h2>
+        <p>Backend API: GET /api/monitoring/status/{equipment_id}?limit=N</p>
+        <div class="test-row">
+            <input type="number" id="equipmentId" value="75" placeholder="Equipment ID">
+            <input type="number" id="historyLimit" value="10" min="1" max="100" placeholder="Limit">
+            <button onclick="testFetchStatusHistory()">fetchEquipmentStatusHistory() 호출</button>
+        </div>
+        <div id="result-history" class="result info">결과가 여기에 표시됩니다...</div>
+    </div>
+    
+    <!-- 테스트 섹션 5: 유틸리티 -->
+    <div class="test-section">
+        <h2>🔧 5. 유틸리티 메서드</h2>
+        <div class="test-row">
+            <button onclick="testIsConnected()" class="success">isConnected()</button>
+            <button onclick="testDebugPrint()" class="warning">debugPrint()</button>
+            <button onclick="clearAllResults()" class="error">모든 결과 지우기</button>
+        </div>
+        <div id="result-util" class="result info">결과가 여기에 표시됩니다...</div>
+    </div>
+    
+    <script type="module">
+        // =========================================================
+        // StatusAPIClient 코드 (인라인 - 테스트용)
+        // =========================================================
+        
+        function debugLog(...args) {
+            console.log('[DEBUG]', ...args);
+        }
+        
+        class StatusAPIClient {
+            constructor(baseUrl = 'http://localhost:8000/api/monitoring') {
+                this.baseUrl = baseUrl;
+                this.timeout = 10000;
+                debugLog('📡 StatusAPIClient initialized (v1.0.0)');
+            }
+            
+            setBaseUrl(baseUrl) {
+                this.baseUrl = baseUrl;
+                debugLog(`📡 StatusAPIClient base URL changed to: ${baseUrl}`);
+            }
+            
+            getBaseUrl() {
+                return this.baseUrl;
+            }
+            
+            setTimeout(timeout) {
+                this.timeout = timeout;
+            }
+            
+            async fetchInitialStatus(thresholdHours = 24) {
+                if (thresholdHours < 1 || thresholdHours > 168) {
+                    console.warn(`⚠️ Invalid thresholdHours: ${thresholdHours}. Using default 24.`);
+                    thresholdHours = 24;
+                }
+                
+                const url = `${this.baseUrl}/status/initial?threshold_hours=${thresholdHours}`;
+                debugLog(`📡 GET ${url}`);
+                
+                const response = await this._fetch(url);
+                
+                if (!response.equipment || !Array.isArray(response.equipment)) {
+                    throw new Error('Invalid response format: missing equipment array');
+                }
+                
+                debugLog(`✅ Initial status loaded: ${response.equipment.length} equipment`);
+                return response;
+            }
+            
+            async fetchEquipmentLiveStatus(frontendId) {
+                if (!frontendId || typeof frontendId !== 'string') {
+                    console.error('❌ Invalid frontendId:', frontendId);
+                    return null;
+                }
+                
+                const url = `${this.baseUrl}/equipment/${encodeURIComponent(frontendId)}/live`;
+                debugLog(`📡 GET ${url}`);
+                
+                try {
+                    const response = await this._fetch(url);
+                    
+                    if (response.status) {
+                        if (typeof response.status === 'object' && response.status.status) {
+                            return response.status.status;
+                        }
+                        if (typeof response.status === 'string') {
+                            return response.status;
+                        }
+                    }
+                    
+                    return null;
+                } catch (error) {
+                    if (error.message && error.message.includes('404')) {
+                        debugLog(`⚠️ No live data for: ${frontendId} (404)`);
+                        return null;
+                    }
+                    console.error(`❌ fetchEquipmentLiveStatus failed for ${frontendId}:`, error);
+                    return null;
+                }
+            }
+            
+            async fetchAllStatus() {
+                const url = `${this.baseUrl}/status`;
+                debugLog(`📡 GET ${url}`);
+                
+                const response = await this._fetch(url);
+                debugLog(`✅ All status loaded: ${response.total || 0} equipment`);
+                return response;
+            }
+            
+            async fetchEquipmentStatusHistory(equipmentId, limit = 10) {
+                if (!equipmentId || typeof equipmentId !== 'number') {
+                    throw new Error('Invalid equipmentId: must be a number');
+                }
+                
+                if (limit < 1 || limit > 100) {
+                    limit = 10;
+                }
+                
+                const url = `${this.baseUrl}/status/${equipmentId}?limit=${limit}`;
+                debugLog(`📡 GET ${url}`);
+                
+                const response = await this._fetch(url);
+                debugLog(`✅ Status history loaded: ${response.total_history || 0} records`);
+                return response;
+            }
+            
+            async healthCheck() {
+                const url = `${this.baseUrl}/health`;
+                debugLog(`📡 GET ${url}`);
+                
+                const response = await this._fetch(url);
+                debugLog(`✅ Health check: ${response.status}`);
+                return response;
+            }
+            
+            async isConnected() {
+                try {
+                    const health = await this.healthCheck();
+                    return health.status === 'healthy';
+                } catch {
+                    return false;
+                }
+            }
+            
+            debugPrint() {
+                console.group('🔧 StatusAPIClient Debug Info');
+                console.log('Version: 1.0.0');
+                console.log('Base URL:', this.baseUrl);
+                console.log('Timeout:', this.timeout, 'ms');
+                console.groupEnd();
+                
+                return {
+                    version: '1.0.0',
+                    baseUrl: this.baseUrl,
+                    timeout: this.timeout
+                };
+            }
+            
+            async _fetch(url, options = {}) {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+                
+                try {
+                    const response = await fetch(url, {
+                        ...options,
+                        signal: controller.signal,
+                        headers: {
+                            'Accept': 'application/json',
+                            ...options.headers
+                        }
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text().catch(() => '');
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}${errorText ? ` - ${errorText}` : ''}`);
+                    }
+                    
+                    return await response.json();
+                    
+                } catch (error) {
+                    clearTimeout(timeoutId);
+                    
+                    if (error.name === 'AbortError') {
+                        throw new Error(`Request timeout after ${this.timeout}ms`);
+                    }
+                    
+                    throw error;
+                }
+            }
+        }
+        
+        // =========================================================
+        // 테스트 함수들
+        // =========================================================
+        
+        // 싱글톤 인스턴스
+        const apiClient = new StatusAPIClient();
+        window.apiClient = apiClient;  // 디버깅용
+        
+        // 결과 표시 헬퍼
+        function showResult(elementId, data, isError = false) {
+            const el = document.getElementById(elementId);
+            el.className = `result ${isError ? 'error' : 'success'}`;
+            
+            if (typeof data === 'object') {
+                el.textContent = JSON.stringify(data, null, 2);
+            } else {
+                el.textContent = String(data);
+            }
+        }
+        
+        // Health Check
+        window.checkHealth = async function() {
+            const statusEl = document.getElementById('api-status');
+            try {
+                const result = await apiClient.healthCheck();
+                statusEl.textContent = result.status || 'healthy';
+                statusEl.className = 'status-badge connected';
+                showResult('result-util', result);
+            } catch (error) {
+                statusEl.textContent = '연결 실패';
+                statusEl.className = 'status-badge disconnected';
+                showResult('result-util', error.message, true);
+            }
+        };
+        
+        // URL 변경
+        window.updateBaseUrl = function() {
+            const url = document.getElementById('baseUrl').value;
+            apiClient.setBaseUrl(url);
+            showResult('result-util', `Base URL changed to: ${url}`);
+            checkHealth();
+        };
+        
+        // 1. fetchInitialStatus
+        window.testFetchInitialStatus = async function() {
+            const hours = parseInt(document.getElementById('thresholdHours').value) || 24;
+            try {
+                const result = await apiClient.fetchInitialStatus(hours);
+                showResult('result-initial', {
+                    equipment_count: result.equipment?.length,
+                    summary: result.summary,
+                    threshold_hours: result.threshold_hours,
+                    site_id: result.site_id,
+                    first_5_equipment: result.equipment?.slice(0, 5)
+                });
+            } catch (error) {
+                showResult('result-initial', error.message, true);
+            }
+        };
+        
+        // 2. fetchEquipmentLiveStatus
+        window.testFetchEquipmentLiveStatus = async function() {
+            const frontendId = document.getElementById('frontendId').value;
+            try {
+                const result = await apiClient.fetchEquipmentLiveStatus(frontendId);
+                showResult('result-live', {
+                    frontend_id: frontendId,
+                    status: result,
+                    result_type: typeof result
+                });
+            } catch (error) {
+                showResult('result-live', error.message, true);
+            }
+        };
+        
+        // 3. fetchAllStatus
+        window.testFetchAllStatus = async function() {
+            try {
+                const result = await apiClient.fetchAllStatus();
+                showResult('result-all', {
+                    total: result.total,
+                    site_id: result.site_id,
+                    timestamp: result.timestamp,
+                    first_5_equipment: result.equipment?.slice(0, 5)
+                });
+            } catch (error) {
+                showResult('result-all', error.message, true);
+            }
+        };
+        
+        // 4. fetchEquipmentStatusHistory
+        window.testFetchStatusHistory = async function() {
+            const equipmentId = parseInt(document.getElementById('equipmentId').value);
+            const limit = parseInt(document.getElementById('historyLimit').value) || 10;
+            try {
+                const result = await apiClient.fetchEquipmentStatusHistory(equipmentId, limit);
+                showResult('result-history', result);
+            } catch (error) {
+                showResult('result-history', error.message, true);
+            }
+        };
+        
+        // 5. isConnected
+        window.testIsConnected = async function() {
+            try {
+                const result = await apiClient.isConnected();
+                showResult('result-util', { isConnected: result });
+            } catch (error) {
+                showResult('result-util', error.message, true);
+            }
+        };
+        
+        // 5. debugPrint
+        window.testDebugPrint = function() {
+            const info = apiClient.debugPrint();
+            showResult('result-util', info);
+        };
+        
+        // 모든 결과 지우기
+        window.clearAllResults = function() {
+            ['result-initial', 'result-live', 'result-all', 'result-history', 'result-util'].forEach(id => {
+                const el = document.getElementById(id);
+                el.className = 'result info';
+                el.textContent = '결과가 여기에 표시됩니다...';
+            });
+        };
+        
+        // 초기화
+        checkHealth();
+    </script>
+</body>
+</html>
