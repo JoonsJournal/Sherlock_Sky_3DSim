@@ -1,0 +1,379 @@
+/**
+ * _sidebar.css
+ * ============
+ * SHERLOCK SKY 3DSim - Cleanroom Sidebar 스타일
+ * 
+ * 새로운 사이드바 UI 컴포넌트 스타일 정의
+ * 기존 floating-btn 시스템을 대체
+ * 
+ * @version 1.0.0
+ * @created 2026-01-10
+ */
+
+/* =============================================
+   CSS 변수 확장 (Cleanroom Theme)
+   ============================================= */
+:root {
+    /* Sidebar Dimensions */
+    --sidebar-width: 80px;
+    --sidebar-width-expanded: 200px;
+    --sidebar-padding-top: 24px;
+    --sidebar-padding-bottom: 60px; /* Space for status bar */
+    
+    /* Icon Button Dimensions */
+    --icon-btn-size: 50px;
+    --icon-btn-gap: 20px;
+    --icon-size: 28px;
+    --icon-stroke-normal: 2px;
+    --icon-stroke-hover: 3px;
+    --icon-stroke-selected: 3px;
+    
+    /* Cleanroom Colors */
+    --cleanroom-bg-sidebar: #0F172A;
+    --cleanroom-bg-main: #FFFFFF;
+    --cleanroom-icon-normal: #E2E8F0;
+    --cleanroom-icon-selected: #06B6D4;
+    --cleanroom-icon-disabled: #334155;
+    --cleanroom-icon-hover: #FFFFFF;
+    
+    /* Indicator */
+    --indicator-width: 4px;
+    --indicator-height: 30px;
+    
+    /* Glow Effects */
+    --glow-cyan: 0 0 8px #06B6D4;
+    --glow-white: 0 0 4px rgba(255, 255, 255, 0.4);
+    
+    /* Transition */
+    --sidebar-transition-speed: 0.25s;
+    --sidebar-transition-easing: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* =============================================
+   Sidebar Container
+   ============================================= */
+.cleanroom-sidebar {
+    width: var(--sidebar-width);
+    height: 100vh;
+    background-color: var(--cleanroom-bg-sidebar);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: var(--sidebar-padding-top);
+    padding-bottom: var(--sidebar-padding-bottom);
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: var(--z-fixed, 300);
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.25);
+    transition: width 0.3s ease;
+}
+
+/* Expanded State (for future use) */
+.cleanroom-sidebar.expanded {
+    width: var(--sidebar-width-expanded);
+}
+
+/* =============================================
+   Icon Button
+   ============================================= */
+.cleanroom-icon-btn {
+    width: var(--icon-btn-size);
+    height: var(--icon-btn-size);
+    margin-bottom: var(--icon-btn-gap);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    transition: transform var(--sidebar-transition-speed) var(--sidebar-transition-easing);
+    outline: none;
+}
+
+/* SVG Icon Base Style */
+.cleanroom-icon-btn svg {
+    width: var(--icon-size);
+    height: var(--icon-size);
+    fill: none;
+    stroke: var(--cleanroom-icon-normal);
+    stroke-width: var(--icon-stroke-normal);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: all var(--sidebar-transition-speed);
+}
+
+/* =============================================
+   Hover State
+   ============================================= */
+.cleanroom-icon-btn:not(.selected):not(.disabled):hover {
+    transform: scale(1.15) translateY(-4px);
+}
+
+.cleanroom-icon-btn:not(.selected):not(.disabled):hover svg {
+    stroke: var(--cleanroom-icon-hover);
+    stroke-width: var(--icon-stroke-hover);
+    filter: drop-shadow(var(--glow-white));
+}
+
+/* =============================================
+   Selected State
+   ============================================= */
+.cleanroom-icon-btn.selected {
+    transform: scale(1.15) translateY(-4px);
+}
+
+.cleanroom-icon-btn.selected svg {
+    stroke: var(--cleanroom-icon-selected);
+    stroke-width: var(--icon-stroke-selected);
+    filter: drop-shadow(var(--glow-cyan));
+}
+
+/* Selection Indicator Line */
+.cleanroom-icon-btn.selected::before {
+    content: '';
+    position: absolute;
+    left: -15px;
+    width: var(--indicator-width);
+    height: var(--indicator-height);
+    background-color: var(--cleanroom-icon-selected);
+    border-radius: 0 4px 4px 0;
+    box-shadow: var(--glow-cyan);
+    animation: indicator-pulse 2s ease-in-out infinite;
+}
+
+@keyframes indicator-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* =============================================
+   Disabled State
+   ============================================= */
+.cleanroom-icon-btn.disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+}
+
+.cleanroom-icon-btn.disabled svg {
+    stroke: var(--cleanroom-icon-disabled);
+}
+
+.cleanroom-icon-btn.disabled:hover {
+    transform: none;
+}
+
+.cleanroom-icon-btn.disabled:hover svg {
+    stroke: var(--cleanroom-icon-disabled);
+    stroke-width: var(--icon-stroke-normal);
+    filter: none;
+}
+
+/* =============================================
+   Active/Pressed State
+   ============================================= */
+.cleanroom-icon-btn:active:not(.disabled) {
+    transform: scale(1.05) translateY(-2px);
+}
+
+/* =============================================
+   Focus State (Accessibility)
+   ============================================= */
+.cleanroom-icon-btn:focus-visible {
+    outline: 2px solid var(--cleanroom-icon-selected);
+    outline-offset: 4px;
+    border-radius: 8px;
+}
+
+/* =============================================
+   Tooltip
+   ============================================= */
+.cleanroom-icon-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(var(--icon-btn-size) + 20px);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: var(--font-family, 'Segoe UI', sans-serif);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    transform: translateX(-10px);
+    z-index: 1000;
+}
+
+.cleanroom-icon-btn[data-tooltip]:hover::after {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Shortcut Key Display */
+.cleanroom-icon-btn[data-shortcut]::after {
+    content: attr(data-tooltip) ' (' attr(data-shortcut) ')';
+}
+
+/* =============================================
+   Sidebar Divider
+   ============================================= */
+.cleanroom-sidebar-divider {
+    width: 40px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 10px 0;
+}
+
+/* =============================================
+   Sidebar Spacer (Pushes items to bottom)
+   ============================================= */
+.cleanroom-sidebar-spacer {
+    flex-grow: 1;
+}
+
+/* =============================================
+   Sidebar Section Groups
+   ============================================= */
+.cleanroom-sidebar-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.cleanroom-sidebar-group-label {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    margin-top: 8px;
+}
+
+/* =============================================
+   Mode-Specific Button Styling
+   ============================================= */
+
+/* Connection Mode */
+.cleanroom-icon-btn[data-mode="connection"].selected svg {
+    stroke: var(--mode-connection, #2196F3);
+}
+.cleanroom-icon-btn[data-mode="connection"].selected::before {
+    background-color: var(--mode-connection, #2196F3);
+    box-shadow: 0 0 8px var(--mode-connection, #2196F3);
+}
+
+/* Edit Mode */
+.cleanroom-icon-btn[data-mode="edit"].selected svg {
+    stroke: var(--mode-edit, #FF9800);
+}
+.cleanroom-icon-btn[data-mode="edit"].selected::before {
+    background-color: var(--mode-edit, #FF9800);
+    box-shadow: 0 0 8px var(--mode-edit, #FF9800);
+}
+
+/* Monitoring Mode */
+.cleanroom-icon-btn[data-mode="monitoring"].selected svg {
+    stroke: var(--mode-monitoring, #4CAF50);
+}
+.cleanroom-icon-btn[data-mode="monitoring"].selected::before {
+    background-color: var(--mode-monitoring, #4CAF50);
+    box-shadow: 0 0 8px var(--mode-monitoring, #4CAF50);
+}
+
+/* Layout Mode */
+.cleanroom-icon-btn[data-mode="layout"].selected svg {
+    stroke: var(--mode-layout, #9C27B0);
+}
+.cleanroom-icon-btn[data-mode="layout"].selected::before {
+    background-color: var(--mode-layout, #9C27B0);
+    box-shadow: 0 0 8px var(--mode-layout, #9C27B0);
+}
+
+/* =============================================
+   Badge/Notification Indicator
+   ============================================= */
+.cleanroom-icon-btn .badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    min-width: 16px;
+    height: 16px;
+    background: var(--status-error, #dc3545);
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.cleanroom-icon-btn .badge.warning {
+    background: var(--status-warning, #ffc107);
+    color: #000;
+}
+
+.cleanroom-icon-btn .badge.info {
+    background: var(--status-info, #17a2b8);
+}
+
+/* =============================================
+   Responsive Adjustments
+   ============================================= */
+@media (max-height: 600px) {
+    .cleanroom-sidebar {
+        padding-top: 12px;
+    }
+    
+    .cleanroom-icon-btn {
+        width: 40px;
+        height: 40px;
+        margin-bottom: 12px;
+    }
+    
+    .cleanroom-icon-btn svg {
+        width: 22px;
+        height: 22px;
+    }
+}
+
+@media (max-width: 768px) {
+    .cleanroom-sidebar {
+        width: 60px;
+    }
+    
+    .cleanroom-icon-btn {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .cleanroom-icon-btn svg {
+        width: 22px;
+        height: 22px;
+    }
+    
+    /* Hide tooltip on mobile */
+    .cleanroom-icon-btn[data-tooltip]::after {
+        display: none;
+    }
+}
+
+/* =============================================
+   Print Styles
+   ============================================= */
+@media print {
+    .cleanroom-sidebar {
+        display: none;
+    }
+}

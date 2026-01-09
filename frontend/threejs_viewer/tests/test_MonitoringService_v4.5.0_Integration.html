@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MonitoringService v4.5.0 - 종합 통합 테스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a1628 0%, #1a2f4a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #00d4ff;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+        
+        h2 {
+            color: #4fc3f7;
+            margin: 15px 0 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(79, 195, 247, 0.3);
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .header-info {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .header-info h3 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+        }
+        
+        .module-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .module-badge {
+            background: linear-gradient(135deg, #1e3a5f, #2d5a87);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .module-badge .version {
+            color: #4fc3f7;
+            font-weight: bold;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 20px;
+        }
+        
+        .panel {
+            background: rgba(26, 47, 74, 0.8);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(79, 195, 247, 0.2);
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .status-pass { background: #2e7d32; color: white; }
+        .status-fail { background: #c62828; color: white; }
+        .status-pending { background: #f57c00; color: white; }
+        .status-running { background: #1565c0; color: white; animation: pulse 1s infinite; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary { background: linear-gradient(135deg, #0288d1, #03a9f4); color: white; }
+        .btn-success { background: linear-gradient(135deg, #388e3c, #4caf50); color: white; }
+        .btn-warning { background: linear-gradient(135deg, #f57c00, #ff9800); color: white; }
+        .btn-danger { background: linear-gradient(135deg, #d32f2f, #f44336); color: white; }
+        .btn-info { background: linear-gradient(135deg, #5c6bc0, #7986cb); color: white; }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .test-results {
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .test-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .test-item:last-child { border-bottom: none; }
+        
+        .test-icon { font-size: 14px; }
+        .test-pass .test-icon { color: #4caf50; }
+        .test-fail .test-icon { color: #f44336; }
+        .test-skip .test-icon { color: #ff9800; }
+        
+        .test-name { flex: 1; }
+        .test-time { color: #888; font-size: 10px; }
+        
+        .log-output {
+            max-height: 250px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 11px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .log-entry {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+        
+        .log-info { color: #4fc3f7; }
+        .log-success { color: #81c784; }
+        .log-warning { color: #ffb74d; }
+        .log-error { color: #e57373; }
+        .log-event { color: #ce93d8; }
+        .log-ws { color: #80deea; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .stat-card {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4fc3f7;
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+        }
+        
+        .compatibility-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        
+        .compatibility-table th,
+        .compatibility-table td {
+            padding: 8px;
+            border: 1px solid rgba(79, 195, 247, 0.2);
+            text-align: left;
+        }
+        
+        .compatibility-table th {
+            background: rgba(79, 195, 247, 0.15);
+            color: #4fc3f7;
+        }
+        
+        .compatibility-table tr:nth-child(even) {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        
+        .check-icon { color: #4caf50; }
+        .warning-icon { color: #ff9800; }
+        .error-icon { color: #f44336; }
+        
+        .status-panel-preview {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            font-size: 12px;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-divider {
+            color: #555;
+        }
+        
+        .lamp {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .lamp-run { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
+        .lamp-idle { background: #ffff00; box-shadow: 0 0 8px #ffff00; }
+        .lamp-stop { background: #ff8800; box-shadow: 0 0 8px #ff8800; }
+        .lamp-sudden { background: #ff0000; box-shadow: 0 0 8px #ff0000; animation: blink 0.5s infinite; }
+        .lamp-disc { background: #666; }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .toast {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            animation: slideIn 0.3s ease;
+            max-width: 350px;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .toast-success { background: #2e7d32; color: white; }
+        .toast-error { background: #c62828; color: white; }
+        .toast-warning { background: #f57c00; color: white; }
+        .toast-info { background: #1565c0; color: white; }
+        
+        .progress-bar {
+            height: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 2px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4fc3f7, #00d4ff);
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+        
+        .summary-box {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(79, 195, 247, 0.05));
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .summary-title {
+            font-size: 24px;
+            color: #00d4ff;
+            margin-bottom: 15px;
+        }
+        
+        .summary-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+        }
+        
+        .summary-stat {
+            text-align: center;
+        }
+        
+        .summary-number {
+            font-size: 48px;
+            font-weight: bold;
+        }
+        
+        .summary-number.pass { color: #4caf50; }
+        .summary-number.fail { color: #f44336; }
+        .summary-number.skip { color: #ff9800; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 MonitoringService v4.5.0 종합 통합 테스트</h1>
+        
+        <div class="header-info">
+            <h3>📦 모듈 구성</h3>
+            <div class="module-list">
+                <div class="module-badge">
+                    <span>📡 StatusAPIClient</span>
+                    <span class="version">v1.0.0</span>
+                </div>
+                <div class="module-badge">
+                    <span>🔌 WebSocketManager</span>
+                    <span class="version">v1.0.0</span>
+                </div>
+                <div class="module-badge">
+                    <span>📊 MonitoringStatsPanel</span>
+                    <span class="version">v1.0.0</span>
+                </div>
+                <div class="module-badge">
+                    <span>🚨 SignalTowerIntegration</span>
+                    <span class="version">v1.0.0</span>
+                </div>
+                <div class="module-badge">
+                    <span>📢 MappingEventHandler</span>
+                    <span class="version">v1.0.0</span>
+                </div>
+                <div class="module-badge">
+                    <span>🎯 MonitoringService</span>
+                    <span class="version">v4.5.0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <!-- 호환성 테스트 패널 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>✅ 호환성 테스트</h2>
+                    <span id="compatStatus" class="status-badge status-pending">대기중</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="runCompatibilityTests()">전체 호환성 테스트</button>
+                    <button class="btn-info" onclick="showCompatibilityTable()">상세 보기</button>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="compatPass">0</div>
+                        <div class="stat-label">통과</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="compatFail">0</div>
+                        <div class="stat-label">실패</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="compatTotal">0</div>
+                        <div class="stat-label">전체</div>
+                    </div>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="compatProgress" style="width: 0%"></div>
+                </div>
+                <div class="test-results" id="compatResults"></div>
+            </div>
+            
+            <!-- 모듈 기능 테스트 패널 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>🧩 모듈 기능 테스트</h2>
+                    <span id="moduleStatus" class="status-badge status-pending">대기중</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-success" onclick="runModuleTests()">모듈 테스트 실행</button>
+                    <button class="btn-warning" onclick="testIndividualModule('api')">API</button>
+                    <button class="btn-warning" onclick="testIndividualModule('ws')">WS</button>
+                    <button class="btn-warning" onclick="testIndividualModule('stats')">Stats</button>
+                    <button class="btn-warning" onclick="testIndividualModule('signal')">Signal</button>
+                    <button class="btn-warning" onclick="testIndividualModule('event')">Event</button>
+                </div>
+                <div class="test-results" id="moduleResults"></div>
+            </div>
+            
+            <!-- 통합 시나리오 테스트 패널 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>🔄 통합 시나리오 테스트</h2>
+                    <span id="integrationStatus" class="status-badge status-pending">대기중</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="runIntegrationTests()">시나리오 테스트</button>
+                    <button class="btn-success" onclick="simulateStartStop()">Start/Stop</button>
+                    <button class="btn-info" onclick="simulateStatusUpdate()">Status Update</button>
+                    <button class="btn-warning" onclick="simulateMappingChange()">Mapping Change</button>
+                </div>
+                <div class="test-results" id="integrationResults"></div>
+            </div>
+            
+            <!-- 실시간 상태 미리보기 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>📊 Status Panel 미리보기</h2>
+                    <span id="previewStatus" class="status-badge status-pending">비활성</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-success" onclick="mockMonitoringService.start()">Start</button>
+                    <button class="btn-danger" onclick="mockMonitoringService.stop()">Stop</button>
+                    <button class="btn-info" onclick="refreshPreview()">새로고침</button>
+                </div>
+                <div class="status-panel-preview" id="statusPreview">
+                    <div class="status-item">
+                        <span>📊</span>
+                        <span>전체</span>
+                        <span id="prev-total">0개</span>
+                    </div>
+                    <div class="status-divider">|</div>
+                    <div class="status-item">
+                        <span>✅</span>
+                        <span>매핑</span>
+                        <span id="prev-mapped">0개</span>
+                    </div>
+                    <div class="status-item">
+                        <span>⚠️</span>
+                        <span>미매핑</span>
+                        <span id="prev-unmapped">0개</span>
+                    </div>
+                    <div class="status-divider">|</div>
+                    <div class="status-item">
+                        <span class="lamp lamp-run"></span>
+                        <span>RUN</span>
+                        <span id="prev-run">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="lamp lamp-idle"></span>
+                        <span>IDLE</span>
+                        <span id="prev-idle">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="lamp lamp-stop"></span>
+                        <span>STOP</span>
+                        <span id="prev-stop">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="lamp lamp-sudden"></span>
+                        <span>SUDDEN</span>
+                        <span id="prev-sudden">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="lamp lamp-disc"></span>
+                        <span>DISC</span>
+                        <span id="prev-disc">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 이벤트 로그 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>📋 실시간 로그</h2>
+                    <button class="btn-danger" onclick="clearLog()" style="padding: 4px 8px; font-size: 10px;">Clear</button>
+                </div>
+                <div class="log-output" id="logOutput"></div>
+            </div>
+            
+            <!-- 호환성 상세 테이블 -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>📋 레거시 호환성 상세</h2>
+                </div>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="compatibility-table" id="compatTable">
+                        <thead>
+                            <tr>
+                                <th>메서드/속성</th>
+                                <th>원본</th>
+                                <th>v4.5.0</th>
+                                <th>방식</th>
+                                <th>상태</th>
+                            </tr>
+                        </thead>
+                        <tbody id="compatTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 종합 결과 -->
+        <div class="summary-box" id="summaryBox" style="display: none;">
+            <div class="summary-title">🏆 테스트 종합 결과</div>
+            <div class="summary-stats">
+                <div class="summary-stat">
+                    <div class="summary-number pass" id="totalPass">0</div>
+                    <div class="stat-label">통과</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="summary-number fail" id="totalFail">0</div>
+                    <div class="stat-label">실패</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="summary-number skip" id="totalSkip">0</div>
+                    <div class="stat-label">스킵</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast-container" class="toast-container"></div>
+
+    <script>
+        // ============================================
+        // Mock 객체 정의
+        // ============================================
+        
+        // debugLog Mock
+        function debugLog(...args) {
+            addLog('info', args.join(' '));
+        }
+        
+        // Mock SignalTowerManager
+        class MockSignalTowerManager {
+            constructor() {
+                this.statusMap = new Map();
+                this.disabledIds = new Set();
+                this.initialized = false;
+            }
+            
+            initializeAllLights() {
+                this.statusMap.clear();
+                this.initialized = true;
+                addLog('success', '🚨 SignalTowerManager: All lights initialized');
+                return 117;
+            }
+            
+            updateStatus(frontendId, status) {
+                this.statusMap.set(frontendId, status);
+                addLog('event', `🚦 Signal ${frontendId} → ${status}`);
+            }
+            
+            disableUnmappedEquipment(ids) {
+                ids.forEach(id => this.disabledIds.add(id));
+                addLog('warning', `🚨 Disabled ${ids.length} unmapped signals`);
+            }
+            
+            clearDisabledState(frontendId) {
+                this.disabledIds.delete(frontendId);
+            }
+            
+            getStatusStatistics() {
+                const stats = { RUN: 0, IDLE: 0, STOP: 0, SUDDENSTOP: 0, DISCONNECTED: 0 };
+                this.statusMap.forEach(status => {
+                    const upper = status.toUpperCase();
+                    if (stats.hasOwnProperty(upper)) stats[upper]++;
+                });
+                return stats;
+            }
+        }
+        
+        // Mock EquipmentLoader
+        class MockEquipmentLoader {
+            constructor() {
+                this.equipmentArray = this._generateEquipment();
+            }
+            
+            _generateEquipment() {
+                const arr = [];
+                for (let row = 1; row <= 6; row++) {
+                    for (let col = 1; col <= 19; col++) {
+                        const id = `EQ-${String(row).padStart(2, '0')}-${String(col).padStart(2, '0')}`;
+                        arr.push({
+                            userData: { id },
+                            position: { x: col * 100, y: 0, z: row * 100 }
+                        });
+                    }
+                }
+                return arr;
+            }
+            
+            getAllEquipment() {
+                return this.equipmentArray;
+            }
+            
+            applyMonitoringModeVisibility(mappings, options) {
+                const mapped = Object.keys(mappings).length;
+                const unmapped = this.equipmentArray.length - mapped;
+                addLog('info', `🌫️ Equipment visibility: ${mapped} mapped, ${unmapped} unmapped`);
+                return { mapped, unmapped };
+            }
+            
+            restoreEquipmentStyle(frontendId) {
+                addLog('success', `✨ Restored style: ${frontendId}`);
+            }
+            
+            resetAllEquipmentVisibility() {
+                addLog('info', '🔄 All equipment visibility reset');
+            }
+        }
+        
+        // Mock EquipmentEditState
+        class MockEquipmentEditState {
+            constructor() {
+                this.mappings = this._generateMappings();
+            }
+            
+            _generateMappings() {
+                const m = {};
+                for (let i = 1; i <= 85; i++) {
+                    const row = Math.ceil(i / 19);
+                    const col = ((i - 1) % 19) + 1;
+                    const id = `EQ-${String(row).padStart(2, '0')}-${String(col).padStart(2, '0')}`;
+                    m[id] = { equipment_id: i, equipment_name: `Equipment-${i}` };
+                }
+                return m;
+            }
+            
+            getAllMappings() {
+                return this.mappings;
+            }
+            
+            getMappingCount() {
+                return Object.keys(this.mappings).length;
+            }
+            
+            isComplete(frontendId) {
+                return !!this.mappings[frontendId];
+            }
+            
+            getAllEquipmentIds() {
+                return Object.values(this.mappings).map(m => m.equipment_id);
+            }
+            
+            getFrontendIdByEquipmentId(equipmentId) {
+                for (const [fid, data] of Object.entries(this.mappings)) {
+                    if (data.equipment_id === equipmentId) return fid;
+                }
+                return null;
+            }
+        }
+        
+        // Mock EventBus
+        class MockEventBus {
+            constructor() {
+                this.listeners = new Map();
+            }
+            
+            on(event, handler) {
+                if (!this.listeners.has(event)) {
+                    this.listeners.set(event, new Set());
+                }
+                this.listeners.get(event).add(handler);
+                addLog('event', `📡 EventBus: registered '${event}'`);
+            }
+            
+            off(event, handler) {
+                if (this.listeners.has(event)) {
+                    this.listeners.get(event).delete(handler);
+                }
+            }
+            
+            emit(event, data) {
+                if (this.listeners.has(event)) {
+                    this.listeners.get(event).forEach(h => h(data));
+                }
+                addLog('event', `📢 EventBus: emit '${event}'`);
+            }
+        }
+        
+        // ============================================
+        // Mock 모듈 클래스들
+        // ============================================
+        
+        // StatusAPIClient Mock
+        class StatusAPIClient {
+            constructor(baseUrl) {
+                this.baseUrl = baseUrl;
+                addLog('info', `📡 StatusAPIClient created: ${baseUrl}`);
+            }
+            
+            setBaseUrl(url) { this.baseUrl = url; }
+            
+            async fetchInitialStatus(thresholdHours = 24) {
+                await this._delay(100);
+                const equipment = [];
+                for (let i = 1; i <= 85; i++) {
+                    equipment.push({
+                        equipment_id: i,
+                        status: ['RUN', 'IDLE', 'STOP', 'SUDDENSTOP'][Math.floor(Math.random() * 4)],
+                        is_connected: Math.random() > 0.15
+                    });
+                }
+                addLog('success', `✅ fetchInitialStatus: ${equipment.length} items`);
+                return { equipment, summary: { total: 85, connected: 72, disconnected: 13 } };
+            }
+            
+            async fetchEquipmentLiveStatus(frontendId) {
+                await this._delay(50);
+                const statuses = ['RUN', 'IDLE', 'STOP'];
+                return statuses[Math.floor(Math.random() * statuses.length)];
+            }
+            
+            _delay(ms) {
+                return new Promise(r => setTimeout(r, ms));
+            }
+        }
+        
+        // WebSocketManager Mock
+        class WebSocketManager {
+            constructor(url, options = {}) {
+                this.url = url;
+                this.options = options;
+                this.ws = null;
+                this._connected = false;
+                this._subscribed = false;
+                this.reconnectAttempts = 0;
+                addLog('ws', `🔌 WebSocketManager created: ${url}`);
+            }
+            
+            setUrl(url) { this.url = url; }
+            
+            async connect() {
+                await new Promise(r => setTimeout(r, 200));
+                this._connected = true;
+                this.options.onConnected?.('Mock WebSocket connected');
+                addLog('ws', '✅ WebSocket connected');
+                return true;
+            }
+            
+            disconnect() {
+                this._connected = false;
+                this._subscribed = false;
+                this.options.onDisconnected?.();
+                addLog('ws', '🔌 WebSocket disconnected');
+            }
+            
+            subscribe() {
+                if (!this._connected) return false;
+                this._subscribed = true;
+                const ids = this.options.getEquipmentIds?.() || [];
+                this.options.onSubscribed?.(`Subscribed to ${ids.length} equipment`);
+                addLog('ws', `📡 Subscribed: ${ids.length} equipment`);
+                return true;
+            }
+            
+            subscribeEquipment(equipmentId) {
+                addLog('ws', `📡 Subscribe equipment: ${equipmentId}`);
+                return true;
+            }
+            
+            unsubscribeEquipment(equipmentId) {
+                addLog('ws', `📡 Unsubscribe equipment: ${equipmentId}`);
+                return true;
+            }
+            
+            isConnected() { return this._connected; }
+            getReconnectAttempts() { return this.reconnectAttempts; }
+            
+            getStatus() {
+                return {
+                    connected: this._connected,
+                    subscribed: this._subscribed,
+                    url: this.url
+                };
+            }
+            
+            // 상태 업데이트 시뮬레이션
+            simulateStatusUpdate(frontendId, status) {
+                if (this._connected && this.options.onStatusUpdate) {
+                    this.options.onStatusUpdate(frontendId, { status, timestamp: Date.now() });
+                }
+            }
+        }
+        
+        // MonitoringStatsPanel Mock
+        class MonitoringStatsPanel {
+            constructor(options = {}) {
+                this.signalTowerManager = options.signalTowerManager;
+                this.element = null;
+                this.currentStats = { total: 0, mapped: 0, unmapped: 0, rate: 0, connected: 0, disconnected: 0 };
+                addLog('info', '📊 MonitoringStatsPanel created');
+            }
+            
+            setSignalTowerManager(manager) { this.signalTowerManager = manager; }
+            
+            create(stats) {
+                this.currentStats = stats || this.currentStats;
+                this.element = { id: 'mock-panel' };
+                updatePreview(this.currentStats);
+                addLog('success', '📊 Stats panel created');
+            }
+            
+            refresh(loader, editState) {
+                this.currentStats = this.calculateStats(loader, editState);
+                updatePreview(this.currentStats);
+            }
+            
+            remove() {
+                this.element = null;
+                addLog('info', '📊 Stats panel removed');
+            }
+            
+            calculateStats(loader, editState) {
+                if (!loader || !editState) return this.currentStats;
+                const total = loader.equipmentArray?.length || 0;
+                const mapped = editState.getMappingCount?.() || 0;
+                return {
+                    total,
+                    mapped,
+                    unmapped: total - mapped,
+                    rate: total > 0 ? Math.round((mapped / total) * 100) : 0,
+                    connected: mapped - 13,
+                    disconnected: 13
+                };
+            }
+            
+            getStats() { return { ...this.currentStats }; }
+            dispose() { this.remove(); }
+        }
+        
+        // SignalTowerIntegration Mock
+        class SignalTowerIntegration {
+            constructor(signalTowerManager, equipmentLoader, equipmentEditState, options = {}) {
+                this.signalTowerManager = signalTowerManager;
+                this.equipmentLoader = equipmentLoader;
+                this.equipmentEditState = equipmentEditState;
+                this.disabledOptions = { grayColor: 0x444444 };
+                addLog('info', '🚨 SignalTowerIntegration created');
+            }
+            
+            setDependencies(loader, editState) {
+                this.equipmentLoader = loader;
+                this.equipmentEditState = editState;
+            }
+            
+            setSignalTowerManager(manager) { this.signalTowerManager = manager; }
+            setEquipmentLoader(loader) { this.equipmentLoader = loader; }
+            setEquipmentEditState(state) { this.equipmentEditState = state; }
+            setDisabledOptions(options) { this.disabledOptions = { ...this.disabledOptions, ...options }; }
+            
+            initializeAllLights() {
+                return this.signalTowerManager?.initializeAllLights?.() || 0;
+            }
+            
+            updateStatus(frontendId, status, notify = true) {
+                this.signalTowerManager?.updateStatus?.(frontendId, status);
+            }
+            
+            normalizeStatus(status) {
+                if (!status) return 'disconnected';
+                const map = { 'RUN': 'running', 'RUNNING': 'running', 'IDLE': 'idle', 'STOP': 'stop', 
+                              'ALARM': 'alarm', 'DOWN': 'down', 'DISCONNECTED': 'disconnected', 'SUDDENSTOP': 'suddenstop' };
+                return map[status.toUpperCase()] || status.toLowerCase();
+            }
+            
+            applyUnmappedStyle() {
+                const model = this.applyUnmappedEquipmentStyle();
+                this.applyUnmappedSignalTowerStyle();
+                return model;
+            }
+            
+            applyUnmappedEquipmentStyle() {
+                const total = this.equipmentLoader?.equipmentArray?.length || 0;
+                const mapped = this.equipmentEditState?.getMappingCount?.() || 0;
+                const unmapped = total - mapped;
+                addLog('info', `🌫️ Unmapped style applied: ${unmapped} equipment`);
+                return { mapped, unmapped, total, rate: total > 0 ? Math.round((mapped / total) * 100) : 0 };
+            }
+            
+            applyUnmappedSignalTowerStyle() {
+                addLog('info', '🚨 Unmapped SignalTower style applied');
+            }
+            
+            resetAllStyles() {
+                this.equipmentLoader?.resetAllEquipmentVisibility?.();
+                addLog('info', '🔄 All styles reset');
+            }
+            
+            restoreEquipmentFullStyle(frontendId) {
+                this.equipmentLoader?.restoreEquipmentStyle?.(frontendId);
+                this.signalTowerManager?.clearDisabledState?.(frontendId);
+            }
+            
+            isEquipmentMapped(frontendId) {
+                return this.equipmentEditState?.isComplete?.(frontendId) ?? true;
+            }
+            
+            getStatus() {
+                return { initialized: true, disabledCount: 0 };
+            }
+            
+            dispose() {
+                addLog('info', '🗑️ SignalTowerIntegration disposed');
+            }
+        }
+        
+        // MappingEventHandler Mock
+        class MappingEventHandler {
+            constructor(dependencies = {}, options = {}) {
+                this.signalIntegration = dependencies.signalIntegration;
+                this.apiClient = dependencies.apiClient;
+                this.wsManager = dependencies.wsManager;
+                this.onUpdate = dependencies.onUpdate || (() => {});
+                this.showToast = dependencies.showToast || (() => {});
+                this.cacheStatus = dependencies.cacheStatus || (() => {});
+                this.eventBus = null;
+                this._boundHandler = this._handleMappingEvent.bind(this);
+                this._isRegistered = false;
+                this._stats = { totalEvents: 0, successCount: 0, errorCount: 0, lastEventTime: null };
+                addLog('info', '📢 MappingEventHandler created');
+            }
+            
+            register(eventBus = null) {
+                this.eventBus = eventBus;
+                if (eventBus) {
+                    eventBus.on('mapping-changed', this._boundHandler);
+                    eventBus.on('mapping-created', this._boundHandler);
+                }
+                window.addEventListener('mapping-changed', this._boundHandler);
+                window.addEventListener('mapping-created', this._boundHandler);
+                this._isRegistered = true;
+                addLog('success', '📢 EventHandler registered');
+            }
+            
+            unregister() {
+                if (this.eventBus) {
+                    this.eventBus.off('mapping-changed', this._boundHandler);
+                    this.eventBus.off('mapping-created', this._boundHandler);
+                }
+                window.removeEventListener('mapping-changed', this._boundHandler);
+                window.removeEventListener('mapping-created', this._boundHandler);
+                this._isRegistered = false;
+                addLog('info', '📢 EventHandler unregistered');
+            }
+            
+            async _handleMappingEvent(eventOrData) {
+                const data = eventOrData.detail || eventOrData;
+                const { frontendId, equipmentId, equipment_id } = data;
+                const eqId = equipmentId || equipment_id;
+                
+                this._stats.totalEvents++;
+                this._stats.lastEventTime = new Date().toISOString();
+                
+                addLog('event', `🆕 Mapping event: ${frontendId} → eq_id: ${eqId}`);
+                
+                try {
+                    this.signalIntegration?.restoreEquipmentFullStyle?.(frontendId);
+                    const status = await this.apiClient?.fetchEquipmentLiveStatus?.(frontendId);
+                    if (status) {
+                        this.signalIntegration?.updateStatus?.(frontendId, status);
+                        this.cacheStatus(frontendId, status);
+                    }
+                    if (eqId) {
+                        this.wsManager?.subscribeEquipment?.(eqId);
+                    }
+                    this.onUpdate();
+                    this.showToast(`✅ ${frontendId} 연결됨 (Status: ${status || 'Unknown'})`, 'success');
+                    this._stats.successCount++;
+                } catch (error) {
+                    this._stats.errorCount++;
+                    addLog('error', `❌ Mapping event failed: ${error.message}`);
+                }
+            }
+            
+            triggerMappingEvent(frontendId, equipmentId) {
+                const event = new CustomEvent('mapping-changed', {
+                    detail: { frontendId, equipmentId }
+                });
+                window.dispatchEvent(event);
+            }
+            
+            isRegistered() { return this._isRegistered; }
+            getStats() { return { ...this._stats }; }
+            getStatus() { return { registered: this._isRegistered, stats: this._stats }; }
+            dispose() { this.unregister(); }
+        }
+        
+        // ============================================
+        // MonitoringService v4.5.0 Mock
+        // ============================================
+        
+        class MonitoringService {
+            constructor(signalTowerManager, equipmentLoader = null, equipmentEditState = null) {
+                this.signalTowerManager = signalTowerManager;
+                this.equipmentLoader = equipmentLoader;
+                this.equipmentEditState = equipmentEditState;
+                
+                this.apiBaseUrl = 'http://localhost:8000/api/monitoring';
+                this.apiClient = new StatusAPIClient(this.apiBaseUrl);
+                
+                this.wsUrl = 'ws://localhost:8000/api/monitoring/stream';
+                this.wsManager = new WebSocketManager(this.wsUrl, {
+                    maxReconnectAttempts: 5,
+                    reconnectDelay: 3000,
+                    debug: false,
+                    onStatusUpdate: (frontendId, data) => this._handleStatusUpdate(frontendId, data),
+                    onConnected: (msg) => addLog('ws', `✅ WS: ${msg}`),
+                    onSubscribed: (msg) => addLog('ws', `📡 WS: ${msg}`),
+                    onDisconnected: () => addLog('ws', '🔌 WS disconnected'),
+                    getEquipmentIds: () => this.getMappedEquipmentIds(),
+                    getFrontendId: (eqId) => this.equipmentEditState?.getFrontendIdByEquipmentId(eqId)
+                });
+                
+                this.signalIntegration = new SignalTowerIntegration(
+                    signalTowerManager, equipmentLoader, equipmentEditState, { debug: false }
+                );
+                
+                this.statsPanel = new MonitoringStatsPanel({ signalTowerManager, debug: false });
+                
+                this.eventHandler = new MappingEventHandler({
+                    signalIntegration: this.signalIntegration,
+                    apiClient: this.apiClient,
+                    wsManager: this.wsManager,
+                    onUpdate: () => this.updateStatusPanel(),
+                    showToast: (msg, type) => this.showToast(msg, type),
+                    cacheStatus: (id, status) => {
+                        if (status === null) this.statusCache.delete(id);
+                        else this.statusCache.set(id, status);
+                    }
+                }, { debug: false });
+                
+                this._ws = null;
+                this.isActive = false;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 5;
+                this.reconnectDelay = 3000;
+                this.statusCache = new Map();
+                this.updateQueue = [];
+                this.batchInterval = 1000;
+                this.batchTimer = null;
+                this.staleThresholdHours = 24;
+                this.disabledOptions = { grayColor: 0x444444 };
+                this.statusPanelElement = null;
+                this.currentStats = { total: 0, mapped: 0, unmapped: 0, rate: 0, connected: 0, disconnected: 0 };
+                this.eventBus = null;
+                this.equipmentInfoPanel = null;
+                this._boundHandleMappingChanged = (e) => this.eventHandler._handleMappingEvent(e);
+                
+                addLog('success', '🎯 MonitoringService v4.5.0 initialized');
+            }
+            
+            // Getters/Setters
+            get ws() { return this.wsManager?.ws || this._ws; }
+            set ws(value) { this._ws = value; }
+            
+            // 의존성 설정
+            setDependencies(loader, editState, eventBus = null) {
+                this.equipmentLoader = loader;
+                this.equipmentEditState = editState;
+                this.eventBus = eventBus;
+                this.signalIntegration.setDependencies(loader, editState);
+            }
+            
+            setEquipmentInfoPanel(panel) { this.equipmentInfoPanel = panel; }
+            setSignalTowerManager(manager) {
+                this.signalTowerManager = manager;
+                this.signalIntegration.setSignalTowerManager(manager);
+                this.statsPanel.setSignalTowerManager(manager);
+            }
+            setEquipmentEditState(state) {
+                this.equipmentEditState = state;
+                this.signalIntegration.setEquipmentEditState(state);
+            }
+            setEquipmentLoader(loader) {
+                this.equipmentLoader = loader;
+                this.signalIntegration.setEquipmentLoader(loader);
+            }
+            setStaleThreshold(hours) {
+                if (hours >= 1 && hours <= 168) this.staleThresholdHours = hours;
+            }
+            setWsUrl(url) {
+                this.wsUrl = url;
+                if (this.wsManager && !this.wsManager.isConnected()) this.wsManager.setUrl(url);
+            }
+            setApiBaseUrl(url) {
+                this.apiBaseUrl = url;
+                this.apiClient?.setBaseUrl?.(url);
+            }
+            
+            // 모듈 접근자
+            getApiClient() { return this.apiClient; }
+            getWebSocketManager() { return this.wsManager; }
+            getStatsPanel() { return this.statsPanel; }
+            getSignalIntegration() { return this.signalIntegration; }
+            getEventHandler() { return this.eventHandler; }
+            
+            // Start/Stop
+            async start() {
+                if (this.isActive) return;
+                addLog('success', '🟢 Starting monitoring mode...');
+                this.isActive = true;
+                
+                try {
+                    this.signalIntegration.initializeAllLights();
+                    const result = this.signalIntegration.applyUnmappedStyle();
+                    Object.assign(this.currentStats, result);
+                    this.createStatusPanel();
+                    await this.loadInitialStatus().catch(e => addLog('warning', `Initial load failed: ${e.message}`));
+                    await this.connectWebSocket();
+                    this.startBatchProcessing();
+                    this.registerEventListeners();
+                    
+                    document.getElementById('previewStatus').className = 'status-badge status-pass';
+                    document.getElementById('previewStatus').textContent = '활성';
+                    addLog('success', '✅ Monitoring started');
+                } catch (error) {
+                    addLog('error', `❌ Start failed: ${error.message}`);
+                }
+            }
+            
+            stop() {
+                addLog('info', '🔴 Stopping monitoring mode...');
+                this.isActive = false;
+                this.unregisterEventListeners();
+                this.resetEquipmentStyle();
+                this.removeStatusPanel();
+                this.wsManager?.disconnect();
+                if (this.batchTimer) {
+                    clearInterval(this.batchTimer);
+                    this.batchTimer = null;
+                }
+                document.getElementById('previewStatus').className = 'status-badge status-pending';
+                document.getElementById('previewStatus').textContent = '비활성';
+                addLog('success', '✅ Monitoring stopped');
+            }
+            
+            // 이벤트 리스너 (위임)
+            registerEventListeners() { this.eventHandler.register(this.eventBus); }
+            unregisterEventListeners() { this.eventHandler.unregister(); }
+            handleMappingChanged(e) { return this.eventHandler._handleMappingEvent(e); }
+            
+            async fetchSingleEquipmentStatus(frontendId) {
+                return this.apiClient.fetchEquipmentLiveStatus?.(frontendId) || null;
+            }
+            
+            // 통계 패널 (위임)
+            createStatusPanel() {
+                this.updateStats();
+                this.statsPanel.create(this.currentStats);
+                this.statusPanelElement = this.statsPanel.element;
+            }
+            updateStatusPanel() {
+                this.statsPanel.refresh(this.equipmentLoader, this.equipmentEditState);
+                this.currentStats = this.statsPanel.getStats();
+            }
+            removeStatusPanel() {
+                this.statsPanel.remove();
+                this.statusPanelElement = null;
+            }
+            getStats() {
+                this.updateStats();
+                return { ...this.currentStats };
+            }
+            updateStats() {
+                if (this.equipmentLoader && this.equipmentEditState) {
+                    this.currentStats = this.statsPanel.calculateStats(this.equipmentLoader, this.equipmentEditState);
+                }
+            }
+            
+            // WebSocket (위임)
+            async connectWebSocket() {
+                try {
+                    await this.wsManager.connect();
+                    setTimeout(() => this.sendSubscribeMessage(), 500);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+            sendSubscribeMessage() { return this.wsManager.subscribe(); }
+            sendSubscribeForNewMapping(eqId) { return this.wsManager.subscribeEquipment(eqId); }
+            
+            _handleStatusUpdate(frontendId, data) {
+                const status = data.status || 'DISCONNECTED';
+                const normalized = this.signalIntegration.normalizeStatus(status);
+                this.statusCache.set(frontendId, { status: normalized, rawStatus: status, ...data });
+                this.updateEquipmentStatus(frontendId, normalized);
+                this.notifyEquipmentInfoPanel(frontendId, data);
+                this.updateStatusPanel();
+            }
+            
+            async loadInitialStatus() {
+                const data = await this.apiClient.fetchInitialStatus(this.staleThresholdHours);
+                if (!data.equipment?.length) throw new Error('Invalid response');
+                
+                let connected = 0, disconnected = 0;
+                data.equipment.forEach(item => {
+                    const fid = this.equipmentEditState?.getFrontendIdByEquipmentId(item.equipment_id);
+                    if (!fid) return;
+                    
+                    if (item.is_connected === false || item.status === null) {
+                        this.signalIntegration.updateStatus(fid, 'DISCONNECTED');
+                        this.statusCache.set(fid, 'DISCONNECTED');
+                        disconnected++;
+                    } else {
+                        this.signalIntegration.updateStatus(fid, item.status);
+                        this.statusCache.set(fid, item.status);
+                        connected++;
+                    }
+                });
+                
+                this.currentStats.connected = connected;
+                this.currentStats.disconnected = disconnected;
+                this.updateStatusPanel();
+            }
+            
+            // SignalTower (위임)
+            updateEquipmentStatus(fid, status) { this.signalIntegration.updateStatus(fid, status, false); }
+            normalizeStatus(status) { return this.signalIntegration.normalizeStatus(status); }
+            applyUnmappedSignalTowerStyle() { this.signalIntegration.applyUnmappedSignalTowerStyle(); }
+            applyUnmappedEquipmentStyle() {
+                const r = this.signalIntegration.applyUnmappedEquipmentStyle();
+                Object.assign(this.currentStats, r, { rate: r.total > 0 ? Math.round((r.mapped / r.total) * 100) : 0 });
+            }
+            resetEquipmentStyle() { this.signalIntegration.resetAllStyles(); }
+            setDisabledOptions(opts) {
+                this.disabledOptions = { ...this.disabledOptions, ...opts };
+                this.signalIntegration.setDisabledOptions(opts);
+            }
+            
+            notifyEquipmentInfoPanel(fid, data) {
+                if (this.equipmentInfoPanel?.currentEquipmentId === fid) {
+                    this.equipmentInfoPanel.updateFromMonitoring?.({ frontendId: fid, ...data });
+                }
+            }
+            
+            getMappedEquipmentIds() { return this.equipmentEditState?.getAllEquipmentIds?.() || []; }
+            isEquipmentMapped(fid) { return this.signalIntegration.isEquipmentMapped(fid); }
+            
+            // Batch
+            startBatchProcessing() {
+                if (this.batchTimer) return;
+                this.batchTimer = setInterval(() => this.processBatch(), this.batchInterval);
+            }
+            processBatch() {
+                if (!this.updateQueue.length) return;
+                const updates = [...this.updateQueue];
+                this.updateQueue = [];
+                updates.forEach(u => this.updateEquipmentStatus(u.frontendId, u.status));
+            }
+            queueUpdate(fid, status) { this.updateQueue.push({ frontendId: fid, status }); }
+            
+            // 상태 조회
+            getEquipmentStatus(fid) { return this.statusCache.get(fid); }
+            getAllStatuses() { return Object.fromEntries(this.statusCache); }
+            getConnectionStatus() {
+                return {
+                    isActive: this.isActive,
+                    wsManager: this.wsManager?.getStatus() || null,
+                    wsConnected: this.wsManager?.isConnected() || false,
+                    reconnectAttempts: this.wsManager?.getReconnectAttempts() || 0,
+                    cacheSize: this.statusCache.size,
+                    queueSize: this.updateQueue.length,
+                    stats: this.getStats(),
+                    signalIntegration: this.signalIntegration?.getStatus() || null,
+                    eventHandler: this.eventHandler?.getStatus() || null
+                };
+            }
+            
+            checkAndNotifyUnmapped(fid) {
+                if (!this.isActive) return true;
+                if (!this.isEquipmentMapped(fid)) {
+                    this.showUnmappedNotification(fid);
+                    return false;
+                }
+                return true;
+            }
+            showUnmappedNotification(fid) {
+                this.showToast(`⚠️ "${fid}"는 DB에 연결되지 않았습니다.`, 'warning');
+            }
+            showToast(msg, type = 'info') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                toast.className = `toast toast-${type}`;
+                toast.textContent = msg;
+                container.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+            
+            dispose() {
+                this.stop();
+                this.eventHandler?.dispose();
+                this.signalIntegration?.dispose();
+                this.statsPanel?.dispose();
+                this.statusCache.clear();
+            }
+        }
+        
+        // ============================================
+        // 전역 인스턴스 생성
+        // ============================================
+        
+        const mockSignalTowerManager = new MockSignalTowerManager();
+        const mockEquipmentLoader = new MockEquipmentLoader();
+        const mockEquipmentEditState = new MockEquipmentEditState();
+        const mockEventBus = new MockEventBus();
+        
+        const mockMonitoringService = new MonitoringService(
+            mockSignalTowerManager,
+            mockEquipmentLoader,
+            mockEquipmentEditState
+        );
+        mockMonitoringService.setDependencies(mockEquipmentLoader, mockEquipmentEditState, mockEventBus);
+        
+        // 전역 노출
+        window.mockMonitoringService = mockMonitoringService;
+        window.mockEventBus = mockEventBus;
+        
+        // ============================================
+        // 유틸리티 함수
+        // ============================================
+        
+        function addLog(type, message) {
+            const log = document.getElementById('logOutput');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('logOutput').innerHTML = '';
+        }
+        
+        function updatePreview(stats) {
+            document.getElementById('prev-total').textContent = `${stats.total || 0}개`;
+            document.getElementById('prev-mapped').textContent = `${stats.mapped || 0}개`;
+            document.getElementById('prev-unmapped').textContent = `${stats.unmapped || 0}개`;
+            
+            const signalStats = mockSignalTowerManager.getStatusStatistics();
+            document.getElementById('prev-run').textContent = signalStats.RUN || 0;
+            document.getElementById('prev-idle').textContent = signalStats.IDLE || 0;
+            document.getElementById('prev-stop').textContent = signalStats.STOP || 0;
+            document.getElementById('prev-sudden').textContent = signalStats.SUDDENSTOP || 0;
+            document.getElementById('prev-disc').textContent = signalStats.DISCONNECTED || 0;
+        }
+        
+        function refreshPreview() {
+            const stats = mockMonitoringService.getStats();
+            updatePreview(stats);
+        }
+        
+        // ============================================
+        // 호환성 테스트
+        // ============================================
+        
+        const compatibilityItems = [
+            // 생성자 & 속성
+            { name: 'constructor', original: '✓', v450: '✓', method: 'direct', check: () => mockMonitoringService !== null },
+            { name: 'signalTowerManager', original: '✓', v450: '✓', method: 'direct', check: () => 'signalTowerManager' in mockMonitoringService },
+            { name: 'equipmentLoader', original: '✓', v450: '✓', method: 'direct', check: () => 'equipmentLoader' in mockMonitoringService },
+            { name: 'equipmentEditState', original: '✓', v450: '✓', method: 'direct', check: () => 'equipmentEditState' in mockMonitoringService },
+            { name: 'apiClient', original: '✓', v450: '✓', method: 'direct', check: () => mockMonitoringService.apiClient !== null },
+            { name: 'wsManager', original: '-', v450: '✓', method: 'new', check: () => mockMonitoringService.wsManager !== null },
+            { name: 'signalIntegration', original: '-', v450: '✓', method: 'new', check: () => mockMonitoringService.signalIntegration !== null },
+            { name: 'statsPanel', original: '-', v450: '✓', method: 'new', check: () => mockMonitoringService.statsPanel !== null },
+            { name: 'eventHandler', original: '-', v450: '✓', method: 'new', check: () => mockMonitoringService.eventHandler !== null },
+            { name: 'ws (getter)', original: '✓', v450: '✓', method: 'legacy', check: () => 'ws' in mockMonitoringService },
+            { name: 'isActive', original: '✓', v450: '✓', method: 'direct', check: () => 'isActive' in mockMonitoringService },
+            { name: 'statusCache', original: '✓', v450: '✓', method: 'direct', check: () => mockMonitoringService.statusCache instanceof Map },
+            { name: 'currentStats', original: '✓', v450: '✓', method: 'legacy', check: () => 'currentStats' in mockMonitoringService },
+            { name: 'statusPanelElement', original: '✓', v450: '✓', method: 'legacy', check: () => 'statusPanelElement' in mockMonitoringService },
+            { name: 'eventBus', original: '✓', v450: '✓', method: 'direct', check: () => 'eventBus' in mockMonitoringService },
+            { name: '_boundHandleMappingChanged', original: '✓', v450: '✓', method: 'legacy', check: () => typeof mockMonitoringService._boundHandleMappingChanged === 'function' },
+            
+            // 의존성 설정 메서드
+            { name: 'setDependencies()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.setDependencies === 'function' },
+            { name: 'setEquipmentInfoPanel()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.setEquipmentInfoPanel === 'function' },
+            { name: 'setSignalTowerManager()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.setSignalTowerManager === 'function' },
+            { name: 'setEquipmentEditState()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.setEquipmentEditState === 'function' },
+            { name: 'setEquipmentLoader()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.setEquipmentLoader === 'function' },
+            { name: 'setStaleThreshold()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.setStaleThreshold === 'function' },
+            { name: 'setWsUrl()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.setWsUrl === 'function' },
+            { name: 'setApiBaseUrl()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.setApiBaseUrl === 'function' },
+            
+            // 모듈 접근자
+            { name: 'getApiClient()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.getApiClient === 'function' },
+            { name: 'getWebSocketManager()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.getWebSocketManager === 'function' },
+            { name: 'getStatsPanel()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.getStatsPanel === 'function' },
+            { name: 'getSignalIntegration()', original: '-', v450: '✓', method: 'new', check: () => typeof mockMonitoringService.getSignalIntegration === 'function' },
+            { name: 'getEventHandler()', original: '-', v450: '✓', method: 'new', check: () => typeof mockMonitoringService.getEventHandler === 'function' },
+            
+            // 시작/중지
+            { name: 'start()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.start === 'function' },
+            { name: 'stop()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.stop === 'function' },
+            
+            // 이벤트 리스너
+            { name: 'registerEventListeners()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.registerEventListeners === 'function' },
+            { name: 'unregisterEventListeners()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.unregisterEventListeners === 'function' },
+            { name: 'handleMappingChanged()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.handleMappingChanged === 'function' },
+            
+            // 통계 패널
+            { name: 'createStatusPanel()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.createStatusPanel === 'function' },
+            { name: 'updateStatusPanel()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.updateStatusPanel === 'function' },
+            { name: 'removeStatusPanel()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.removeStatusPanel === 'function' },
+            { name: 'getStats()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.getStats === 'function' },
+            { name: 'updateStats()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.updateStats === 'function' },
+            
+            // WebSocket
+            { name: 'connectWebSocket()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.connectWebSocket === 'function' },
+            { name: 'sendSubscribeMessage()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.sendSubscribeMessage === 'function' },
+            { name: 'sendSubscribeForNewMapping()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.sendSubscribeForNewMapping === 'function' },
+            
+            // API
+            { name: 'loadInitialStatus()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.loadInitialStatus === 'function' },
+            { name: 'fetchSingleEquipmentStatus()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.fetchSingleEquipmentStatus === 'function' },
+            
+            // SignalTower 관련
+            { name: 'updateEquipmentStatus()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.updateEquipmentStatus === 'function' },
+            { name: 'normalizeStatus()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.normalizeStatus === 'function' },
+            { name: 'applyUnmappedEquipmentStyle()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.applyUnmappedEquipmentStyle === 'function' },
+            { name: 'applyUnmappedSignalTowerStyle()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.applyUnmappedSignalTowerStyle === 'function' },
+            { name: 'resetEquipmentStyle()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.resetEquipmentStyle === 'function' },
+            { name: 'setDisabledOptions()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.setDisabledOptions === 'function' },
+            
+            // 매핑 관련
+            { name: 'getMappedEquipmentIds()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.getMappedEquipmentIds === 'function' },
+            { name: 'isEquipmentMapped()', original: '✓', v450: '✓', method: 'delegate', check: () => typeof mockMonitoringService.isEquipmentMapped === 'function' },
+            
+            // Batch 처리
+            { name: 'startBatchProcessing()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.startBatchProcessing === 'function' },
+            { name: 'processBatch()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.processBatch === 'function' },
+            { name: 'queueUpdate()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.queueUpdate === 'function' },
+            
+            // 상태 조회
+            { name: 'getEquipmentStatus()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.getEquipmentStatus === 'function' },
+            { name: 'getAllStatuses()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.getAllStatuses === 'function' },
+            { name: 'getConnectionStatus()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.getConnectionStatus === 'function' },
+            
+            // 유틸리티
+            { name: 'checkAndNotifyUnmapped()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.checkAndNotifyUnmapped === 'function' },
+            { name: 'showUnmappedNotification()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.showUnmappedNotification === 'function' },
+            { name: 'showToast()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.showToast === 'function' },
+            { name: 'notifyEquipmentInfoPanel()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.notifyEquipmentInfoPanel === 'function' },
+            { name: 'dispose()', original: '✓', v450: '✓', method: 'direct', check: () => typeof mockMonitoringService.dispose === 'function' },
+        ];
+        
+        async function runCompatibilityTests() {
+            const results = document.getElementById('compatResults');
+            const status = document.getElementById('compatStatus');
+            results.innerHTML = '';
+            status.className = 'status-badge status-running';
+            status.textContent = '테스트중...';
+            
+            let pass = 0, fail = 0;
+            
+            for (const item of compatibilityItems) {
+                await new Promise(r => setTimeout(r, 20));
+                
+                const result = item.check();
+                const testItem = document.createElement('div');
+                testItem.className = `test-item ${result ? 'test-pass' : 'test-fail'}`;
+                testItem.innerHTML = `
+                    <span class="test-icon">${result ? '✅' : '❌'}</span>
+                    <span class="test-name">${item.name}</span>
+                    <span class="test-time">${item.method}</span>
+                `;
+                results.appendChild(testItem);
+                results.scrollTop = results.scrollHeight;
+                
+                if (result) pass++; else fail++;
+                
+                document.getElementById('compatPass').textContent = pass;
+                document.getElementById('compatFail').textContent = fail;
+                document.getElementById('compatTotal').textContent = pass + fail;
+                document.getElementById('compatProgress').style.width = `${((pass + fail) / compatibilityItems.length) * 100}%`;
+            }
+            
+            status.className = `status-badge ${fail === 0 ? 'status-pass' : 'status-fail'}`;
+            status.textContent = fail === 0 ? '모두 통과' : `${fail}개 실패`;
+            
+            addLog(fail === 0 ? 'success' : 'error', `호환성 테스트 완료: ${pass}/${compatibilityItems.length} 통과`);
+        }
+        
+        function showCompatibilityTable() {
+            const tbody = document.getElementById('compatTableBody');
+            tbody.innerHTML = compatibilityItems.map(item => {
+                const result = item.check();
+                return `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.original}</td>
+                        <td>${item.v450}</td>
+                        <td>${item.method}</td>
+                        <td><span class="${result ? 'check-icon' : 'error-icon'}">${result ? '✅' : '❌'}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        // ============================================
+        // 모듈 테스트
+        // ============================================
+        
+        async function runModuleTests() {
+            const results = document.getElementById('moduleResults');
+            const status = document.getElementById('moduleStatus');
+            results.innerHTML = '';
+            status.className = 'status-badge status-running';
+            status.textContent = '테스트중...';
+            
+            const tests = [
+                { name: 'StatusAPIClient.fetchInitialStatus()', test: async () => {
+                    const data = await mockMonitoringService.apiClient.fetchInitialStatus(24);
+                    return data.equipment?.length > 0;
+                }},
+                { name: 'StatusAPIClient.fetchEquipmentLiveStatus()', test: async () => {
+                    const status = await mockMonitoringService.apiClient.fetchEquipmentLiveStatus('EQ-01-01');
+                    return ['RUN', 'IDLE', 'STOP'].includes(status);
+                }},
+                { name: 'WebSocketManager.connect()', test: async () => {
+                    await mockMonitoringService.wsManager.connect();
+                    return mockMonitoringService.wsManager.isConnected();
+                }},
+                { name: 'WebSocketManager.subscribe()', test: async () => {
+                    return mockMonitoringService.wsManager.subscribe();
+                }},
+                { name: 'WebSocketManager.disconnect()', test: async () => {
+                    mockMonitoringService.wsManager.disconnect();
+                    return !mockMonitoringService.wsManager.isConnected();
+                }},
+                { name: 'MonitoringStatsPanel.create()', test: () => {
+                    mockMonitoringService.statsPanel.create({ total: 117, mapped: 85 });
+                    return mockMonitoringService.statsPanel.element !== null;
+                }},
+                { name: 'MonitoringStatsPanel.getStats()', test: () => {
+                    const stats = mockMonitoringService.statsPanel.getStats();
+                    return stats.total !== undefined;
+                }},
+                { name: 'SignalTowerIntegration.initializeAllLights()', test: () => {
+                    const count = mockMonitoringService.signalIntegration.initializeAllLights();
+                    return count > 0;
+                }},
+                { name: 'SignalTowerIntegration.normalizeStatus()', test: () => {
+                    return mockMonitoringService.signalIntegration.normalizeStatus('RUN') === 'running';
+                }},
+                { name: 'SignalTowerIntegration.applyUnmappedStyle()', test: () => {
+                    const result = mockMonitoringService.signalIntegration.applyUnmappedStyle();
+                    return result.mapped !== undefined && result.unmapped !== undefined;
+                }},
+                { name: 'MappingEventHandler.register()', test: () => {
+                    mockMonitoringService.eventHandler.register(mockEventBus);
+                    return mockMonitoringService.eventHandler.isRegistered();
+                }},
+                { name: 'MappingEventHandler.getStats()', test: () => {
+                    const stats = mockMonitoringService.eventHandler.getStats();
+                    return stats.totalEvents !== undefined;
+                }},
+                { name: 'MappingEventHandler.unregister()', test: () => {
+                    mockMonitoringService.eventHandler.unregister();
+                    return !mockMonitoringService.eventHandler.isRegistered();
+                }},
+            ];
+            
+            let pass = 0, fail = 0;
+            
+            for (const t of tests) {
+                await new Promise(r => setTimeout(r, 50));
+                let result = false;
+                try {
+                    result = await t.test();
+                } catch (e) {
+                    addLog('error', `Test error: ${t.name} - ${e.message}`);
+                }
+                
+                const testItem = document.createElement('div');
+                testItem.className = `test-item ${result ? 'test-pass' : 'test-fail'}`;
+                testItem.innerHTML = `
+                    <span class="test-icon">${result ? '✅' : '❌'}</span>
+                    <span class="test-name">${t.name}</span>
+                `;
+                results.appendChild(testItem);
+                results.scrollTop = results.scrollHeight;
+                
+                if (result) pass++; else fail++;
+            }
+            
+            status.className = `status-badge ${fail === 0 ? 'status-pass' : 'status-fail'}`;
+            status.textContent = fail === 0 ? '모두 통과' : `${fail}개 실패`;
+            
+            addLog(fail === 0 ? 'success' : 'error', `모듈 테스트 완료: ${pass}/${tests.length} 통과`);
+        }
+        
+        async function testIndividualModule(module) {
+            addLog('info', `🧪 Testing ${module} module...`);
+            
+            switch(module) {
+                case 'api':
+                    const apiData = await mockMonitoringService.apiClient.fetchInitialStatus(24);
+                    addLog('success', `API: fetched ${apiData.equipment?.length} items`);
+                    break;
+                case 'ws':
+                    await mockMonitoringService.wsManager.connect();
+                    mockMonitoringService.wsManager.subscribe();
+                    addLog('success', `WS: connected=${mockMonitoringService.wsManager.isConnected()}`);
+                    break;
+                case 'stats':
+                    mockMonitoringService.statsPanel.create({ total: 117, mapped: 85, unmapped: 32 });
+                    addLog('success', `Stats: panel created`);
+                    break;
+                case 'signal':
+                    mockMonitoringService.signalIntegration.initializeAllLights();
+                    mockMonitoringService.signalIntegration.updateStatus('EQ-01-01', 'RUN');
+                    addLog('success', `Signal: updated EQ-01-01 → RUN`);
+                    break;
+                case 'event':
+                    mockMonitoringService.eventHandler.register(mockEventBus);
+                    addLog('success', `Event: registered=${mockMonitoringService.eventHandler.isRegistered()}`);
+                    break;
+            }
+        }
+        
+        // ============================================
+        // 통합 시나리오 테스트
+        // ============================================
+        
+        async function runIntegrationTests() {
+            const results = document.getElementById('integrationResults');
+            const status = document.getElementById('integrationStatus');
+            results.innerHTML = '';
+            status.className = 'status-badge status-running';
+            status.textContent = '테스트중...';
+            
+            const scenarios = [
+                { name: '1. MonitoringService.start()', test: async () => {
+                    await mockMonitoringService.start();
+                    return mockMonitoringService.isActive === true;
+                }},
+                { name: '2. WebSocket 연결 확인', test: () => {
+                    return mockMonitoringService.wsManager.isConnected();
+                }},
+                { name: '3. 이벤트 핸들러 등록 확인', test: () => {
+                    return mockMonitoringService.eventHandler.isRegistered();
+                }},
+                { name: '4. 상태 캐시 확인', test: () => {
+                    return mockMonitoringService.statusCache.size > 0;
+                }},
+                { name: '5. 통계 패널 생성 확인', test: () => {
+                    return mockMonitoringService.statusPanelElement !== null;
+                }},
+                { name: '6. getConnectionStatus() 동작', test: () => {
+                    const status = mockMonitoringService.getConnectionStatus();
+                    return status.isActive && status.wsConnected && status.eventHandler;
+                }},
+                { name: '7. 실시간 상태 업데이트', test: () => {
+                    mockMonitoringService.wsManager.simulateStatusUpdate('EQ-01-01', 'IDLE');
+                    return mockMonitoringService.statusCache.has('EQ-01-01');
+                }},
+                { name: '8. 매핑 이벤트 처리', test: async () => {
+                    const prevCount = mockMonitoringService.eventHandler.getStats().totalEvents;
+                    mockMonitoringService.eventHandler.triggerMappingEvent('EQ-02-01', 100);
+                    await new Promise(r => setTimeout(r, 200));
+                    return mockMonitoringService.eventHandler.getStats().totalEvents > prevCount;
+                }},
+                { name: '9. MonitoringService.stop()', test: () => {
+                    mockMonitoringService.stop();
+                    return mockMonitoringService.isActive === false;
+                }},
+                { name: '10. 리소스 정리 확인', test: () => {
+                    return !mockMonitoringService.wsManager.isConnected() && 
+                           !mockMonitoringService.eventHandler.isRegistered();
+                }},
+            ];
+            
+            let pass = 0, fail = 0;
+            
+            for (const s of scenarios) {
+                await new Promise(r => setTimeout(r, 100));
+                let result = false;
+                try {
+                    result = await s.test();
+                } catch (e) {
+                    addLog('error', `Scenario error: ${s.name} - ${e.message}`);
+                }
+                
+                const testItem = document.createElement('div');
+                testItem.className = `test-item ${result ? 'test-pass' : 'test-fail'}`;
+                testItem.innerHTML = `
+                    <span class="test-icon">${result ? '✅' : '❌'}</span>
+                    <span class="test-name">${s.name}</span>
+                `;
+                results.appendChild(testItem);
+                results.scrollTop = results.scrollHeight;
+                
+                if (result) pass++; else fail++;
+            }
+            
+            status.className = `status-badge ${fail === 0 ? 'status-pass' : 'status-fail'}`;
+            status.textContent = fail === 0 ? '모두 통과' : `${fail}개 실패`;
+            
+            // 종합 결과 표시
+            document.getElementById('summaryBox').style.display = 'block';
+            document.getElementById('totalPass').textContent = pass;
+            document.getElementById('totalFail').textContent = fail;
+            document.getElementById('totalSkip').textContent = 0;
+            
+            addLog(fail === 0 ? 'success' : 'error', `통합 테스트 완료: ${pass}/${scenarios.length} 통과`);
+        }
+        
+        async function simulateStartStop() {
+            addLog('info', '🔄 Start/Stop 시뮬레이션...');
+            await mockMonitoringService.start();
+            await new Promise(r => setTimeout(r, 1000));
+            mockMonitoringService.stop();
+            addLog('success', '✅ Start/Stop 시뮬레이션 완료');
+        }
+        
+        function simulateStatusUpdate() {
+            if (!mockMonitoringService.isActive) {
+                addLog('warning', '⚠️ 먼저 Start를 실행하세요');
+                return;
+            }
+            
+            const statuses = ['RUN', 'IDLE', 'STOP', 'SUDDENSTOP', 'DISCONNECTED'];
+            const randomId = `EQ-${String(Math.ceil(Math.random() * 6)).padStart(2, '0')}-${String(Math.ceil(Math.random() * 19)).padStart(2, '0')}`;
+            const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+            
+            mockMonitoringService.wsManager.simulateStatusUpdate(randomId, randomStatus);
+            addLog('event', `📡 Status update: ${randomId} → ${randomStatus}`);
+        }
+        
+        function simulateMappingChange() {
+            const randomId = `EQ-${String(Math.ceil(Math.random() * 6)).padStart(2, '0')}-${String(Math.ceil(Math.random() * 19)).padStart(2, '0')}`;
+            const randomEqId = Math.floor(Math.random() * 1000);
+            
+            mockMonitoringService.eventHandler.triggerMappingEvent(randomId, randomEqId);
+            addLog('event', `🆕 Mapping change: ${randomId} → eq_id: ${randomEqId}`);
+        }
+        
+        // ============================================
+        // 초기화
+        // ============================================
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            showCompatibilityTable();
+            addLog('info', '🚀 테스트 환경 준비 완료');
+            addLog('info', `📦 MonitoringService v4.5.0 인스턴스 생성됨`);
+            addLog('info', `📊 설비 ${mockEquipmentLoader.equipmentArray.length}개, 매핑 ${mockEquipmentEditState.getMappingCount()}개`);
+        });
+    </script>
+</body>
+</html>

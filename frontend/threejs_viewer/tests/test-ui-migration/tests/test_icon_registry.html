@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Test: Icon Registry</title>
+    <style>
+        :root {
+            --bg-dark: #0F172A;
+            --text-light: #E2E8F0;
+            --cyan: #06B6D4;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            min-height: 100vh;
+            color: var(--text-light);
+            padding: 40px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, #06B6D4, #8B5CF6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .section {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .section h2 {
+            color: var(--cyan);
+            font-size: 18px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 16px;
+        }
+        
+        .icon-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .icon-card:hover {
+            background: rgba(6, 182, 212, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .icon-card svg {
+            width: 32px;
+            height: 32px;
+            stroke: var(--text-light);
+            stroke-width: 2;
+            fill: none;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+        
+        .icon-card:hover svg {
+            stroke: var(--cyan);
+            filter: drop-shadow(0 0 6px var(--cyan));
+        }
+        
+        .icon-name {
+            font-size: 11px;
+            color: #9CA3AF;
+        }
+        
+        .icon-shortcut {
+            font-size: 10px;
+            color: #6B7280;
+            margin-top: 4px;
+        }
+        
+        /* Test Controls */
+        .test-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .test-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .test-btn-primary {
+            background: linear-gradient(135deg, #06B6D4, #0891B2);
+            color: white;
+        }
+        
+        .test-btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-light);
+        }
+        
+        .test-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        /* Size Demo */
+        .size-demo {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .size-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .size-label {
+            font-size: 11px;
+            color: #6B7280;
+        }
+        
+        /* Color Demo */
+        .color-demo {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .color-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+        
+        /* Test Results */
+        .test-results {
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .result-pass { color: #4ADE80; }
+        .result-fail { color: #F87171; }
+        .result-info { color: #60A5FA; }
+    </style>
+</head>
+<body>
+    <h1>🎨 Icon Registry Test</h1>
+    
+    <!-- Navigation Icons -->
+    <div class="section">
+        <h2>Navigation Icons</h2>
+        <div class="icon-grid" id="nav-icons"></div>
+    </div>
+    
+    <!-- Status Icons -->
+    <div class="section">
+        <h2>Status Icons</h2>
+        <div class="icon-grid" id="status-icons"></div>
+    </div>
+    
+    <!-- Utility Icons -->
+    <div class="section">
+        <h2>Utility Icons</h2>
+        <div class="icon-grid" id="utility-icons"></div>
+    </div>
+    
+    <!-- Size Variations -->
+    <div class="section">
+        <h2>Size Variations</h2>
+        <div class="size-demo" id="size-demo"></div>
+    </div>
+    
+    <!-- Color Variations -->
+    <div class="section">
+        <h2>Color Variations</h2>
+        <div class="color-demo" id="color-demo"></div>
+    </div>
+    
+    <!-- Test Controls -->
+    <div class="section">
+        <h2>Tests</h2>
+        <div class="test-controls">
+            <button class="test-btn test-btn-primary" onclick="runAllTests()">▶ Run All Tests</button>
+            <button class="test-btn test-btn-secondary" onclick="testCreateIcon()">Test createIcon()</button>
+            <button class="test-btn test-btn-secondary" onclick="testGetIconHTML()">Test getIconHTML()</button>
+            <button class="test-btn test-btn-secondary" onclick="testListIcons()">Test listIcons()</button>
+            <button class="test-btn test-btn-secondary" onclick="testRegisterIcon()">Test registerIcon()</button>
+        </div>
+        <div class="test-results" id="test-results">
+            Ready to run tests...
+        </div>
+    </div>
+
+    <script type="module">
+        // =============================================
+        // Inline IconRegistry (for standalone testing)
+        // =============================================
+        const ICONS = {
+            connection: {
+                name: 'Connection',
+                shortcut: 'Ctrl+K',
+                paths: `
+                    <path d="M4 6c0 1.66 3.58 3 8 3s8-1.34 8-3"/>
+                    <path d="M20 6v6c0 1.66-3.58 3-8 3s-8-1.34-8-3V6"/>
+                    <ellipse cx="12" cy="6" rx="8" ry="3"/>
+                    <circle cx="19" cy="19" r="3"/>
+                `
+            },
+            mapping: {
+                name: 'Data Mapping',
+                shortcut: null,
+                paths: `
+                    <circle cx="12" cy="12" r="3"/>
+                    <line x1="12" y1="12" x2="5" y2="5"/><circle cx="5" cy="5" r="2"/>
+                    <line x1="12" y1="12" x2="19" y2="5"/><circle cx="19" cy="5" r="2"/>
+                    <line x1="12" y1="12" x2="5" y2="19"/><circle cx="5" cy="19" r="2"/>
+                    <line x1="12" y1="12" x2="19" y2="19"/><circle cx="19" cy="19" r="2"/>
+                `
+            },
+            monitoring: {
+                name: 'Monitoring',
+                shortcut: 'M',
+                paths: `
+                    <rect x="3" y="4" width="18" height="12" rx="2"/>
+                    <polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/>
+                    <path d="M12 16v4"/><path d="M8 20h8"/>
+                `
+            },
+            edit: {
+                name: 'Edit',
+                shortcut: 'E',
+                paths: `
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/>
+                `
+            },
+            layout: {
+                name: 'Layout',
+                shortcut: null,
+                paths: `
+                    <rect x="3" y="3" width="7" height="7"/>
+                    <rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/>
+                `
+            },
+            viewer: {
+                name: '3D Viewer',
+                shortcut: null,
+                paths: `
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                `
+            },
+            settings: {
+                name: 'Settings',
+                shortcut: null,
+                paths: `
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                `
+            },
+            warning: {
+                name: 'Warning',
+                shortcut: null,
+                paths: `
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                `
+            },
+            error: {
+                name: 'Error',
+                shortcut: null,
+                paths: `
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
+                `
+            },
+            success: {
+                name: 'Success',
+                shortcut: null,
+                paths: `
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9 12l2 2 4-4"/>
+                `
+            },
+            info: {
+                name: 'Info',
+                shortcut: null,
+                paths: `
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="16" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                `
+            },
+            preview: {
+                name: 'Preview',
+                shortcut: 'P',
+                paths: `
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                `
+            },
+            save: {
+                name: 'Save',
+                shortcut: 'Ctrl+S',
+                paths: `
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                `
+            },
+            refresh: {
+                name: 'Refresh',
+                shortcut: null,
+                paths: `
+                    <polyline points="23 4 23 10 17 10"/>
+                    <polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                `
+            },
+            close: {
+                name: 'Close',
+                shortcut: 'Esc',
+                paths: `
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                `
+            },
+            debug: {
+                name: 'Debug',
+                shortcut: 'D',
+                paths: `
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                `
+            }
+        };
+
+        class IconRegistry {
+            constructor() {
+                this.icons = { ...ICONS };
+            }
+            
+            createIcon(iconName, options = {}) {
+                const icon = this.icons[iconName];
+                if (!icon) return this._createPlaceholder();
+                
+                const { size = 24, strokeWidth = 2, className = '', color = 'currentColor' } = options;
+                
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.setAttribute('viewBox', '0 0 24 24');
+                svg.setAttribute('width', size);
+                svg.setAttribute('height', size);
+                svg.setAttribute('fill', 'none');
+                svg.setAttribute('stroke', color);
+                svg.setAttribute('stroke-width', strokeWidth);
+                svg.setAttribute('stroke-linecap', 'round');
+                svg.setAttribute('stroke-linejoin', 'round');
+                if (className) svg.setAttribute('class', className);
+                svg.innerHTML = icon.paths;
+                
+                return svg;
+            }
+            
+            getIconHTML(iconName, options = {}) {
+                const icon = this.icons[iconName];
+                if (!icon) return '';
+                
+                const { size = 24, strokeWidth = 2 } = options;
+                return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${icon.paths}</svg>`;
+            }
+            
+            getIconInfo(iconName) {
+                return this.icons[iconName] || null;
+            }
+            
+            listIcons() {
+                return Object.keys(this.icons);
+            }
+            
+            getIconsByCategory() {
+                return {
+                    navigation: ['connection', 'mapping', 'monitoring', 'edit', 'layout', 'viewer', 'settings'],
+                    status: ['warning', 'error', 'success', 'info'],
+                    utility: ['preview', 'save', 'refresh', 'close', 'debug']
+                };
+            }
+            
+            registerIcon(name, iconDef) {
+                this.icons[name] = iconDef;
+            }
+            
+            _createPlaceholder() {
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.setAttribute('viewBox', '0 0 24 24');
+                svg.setAttribute('width', 24);
+                svg.setAttribute('height', 24);
+                svg.innerHTML = `<rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" fill="none"/>`;
+                return svg;
+            }
+        }
+
+        const iconRegistry = new IconRegistry();
+
+        // =============================================
+        // Render Icons
+        // =============================================
+        function renderIconGrid(containerId, iconNames) {
+            const container = document.getElementById(containerId);
+            
+            iconNames.forEach(name => {
+                const info = iconRegistry.getIconInfo(name);
+                if (!info) return;
+                
+                const card = document.createElement('div');
+                card.className = 'icon-card';
+                card.onclick = () => log(`Clicked: ${name}`, 'info');
+                
+                const svg = iconRegistry.createIcon(name, { size: 32, strokeWidth: 2 });
+                card.appendChild(svg);
+                
+                const nameEl = document.createElement('div');
+                nameEl.className = 'icon-name';
+                nameEl.textContent = info.name;
+                card.appendChild(nameEl);
+                
+                if (info.shortcut) {
+                    const shortcutEl = document.createElement('div');
+                    shortcutEl.className = 'icon-shortcut';
+                    shortcutEl.textContent = info.shortcut;
+                    card.appendChild(shortcutEl);
+                }
+                
+                container.appendChild(card);
+            });
+        }
+
+        // Render size demo
+        function renderSizeDemo() {
+            const container = document.getElementById('size-demo');
+            const sizes = [16, 24, 32, 48, 64];
+            
+            sizes.forEach(size => {
+                const item = document.createElement('div');
+                item.className = 'size-item';
+                
+                const svg = iconRegistry.createIcon('monitoring', { size, strokeWidth: 2 });
+                item.appendChild(svg);
+                
+                const label = document.createElement('div');
+                label.className = 'size-label';
+                label.textContent = `${size}px`;
+                item.appendChild(label);
+                
+                container.appendChild(item);
+            });
+        }
+
+        // Render color demo
+        function renderColorDemo() {
+            const container = document.getElementById('color-demo');
+            const colors = [
+                { name: 'Normal', color: '#E2E8F0' },
+                { name: 'Cyan', color: '#06B6D4' },
+                { name: 'Success', color: '#4ADE80' },
+                { name: 'Warning', color: '#FBBF24' },
+                { name: 'Error', color: '#F87171' },
+                { name: 'Purple', color: '#A855F7' }
+            ];
+            
+            colors.forEach(({ name, color }) => {
+                const item = document.createElement('div');
+                item.className = 'color-item';
+                
+                const svg = iconRegistry.createIcon('monitoring', { size: 24, color });
+                item.appendChild(svg);
+                
+                const label = document.createElement('span');
+                label.textContent = name;
+                label.style.color = color;
+                item.appendChild(label);
+                
+                container.appendChild(item);
+            });
+        }
+
+        // =============================================
+        // Test Functions
+        // =============================================
+        function log(message, type = 'info') {
+            const results = document.getElementById('test-results');
+            const entry = document.createElement('div');
+            entry.className = `result-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(entry);
+            results.scrollTop = results.scrollHeight;
+        }
+
+        window.testCreateIcon = function() {
+            log('Testing createIcon()...', 'info');
+            
+            try {
+                const svg = iconRegistry.createIcon('connection', { size: 32 });
+                if (svg && svg.tagName === 'svg') {
+                    log('✓ createIcon() returns SVG element', 'pass');
+                } else {
+                    log('✗ createIcon() failed to return SVG', 'fail');
+                }
+                
+                const placeholder = iconRegistry.createIcon('nonexistent');
+                if (placeholder) {
+                    log('✓ createIcon() handles unknown icons', 'pass');
+                }
+            } catch (e) {
+                log(`✗ Error: ${e.message}`, 'fail');
+            }
+        };
+
+        window.testGetIconHTML = function() {
+            log('Testing getIconHTML()...', 'info');
+            
+            try {
+                const html = iconRegistry.getIconHTML('monitoring', { size: 24 });
+                if (html.includes('<svg') && html.includes('viewBox')) {
+                    log('✓ getIconHTML() returns valid SVG string', 'pass');
+                } else {
+                    log('✗ getIconHTML() invalid output', 'fail');
+                }
+            } catch (e) {
+                log(`✗ Error: ${e.message}`, 'fail');
+            }
+        };
+
+        window.testListIcons = function() {
+            log('Testing listIcons()...', 'info');
+            
+            try {
+                const icons = iconRegistry.listIcons();
+                log(`Found ${icons.length} icons: ${icons.join(', ')}`, 'info');
+                
+                if (icons.length >= 10) {
+                    log('✓ listIcons() returns icon names', 'pass');
+                } else {
+                    log('✗ listIcons() returned too few icons', 'fail');
+                }
+            } catch (e) {
+                log(`✗ Error: ${e.message}`, 'fail');
+            }
+        };
+
+        window.testRegisterIcon = function() {
+            log('Testing registerIcon()...', 'info');
+            
+            try {
+                iconRegistry.registerIcon('custom', {
+                    name: 'Custom Icon',
+                    shortcut: null,
+                    paths: '<circle cx="12" cy="12" r="8"/>'
+                });
+                
+                const info = iconRegistry.getIconInfo('custom');
+                if (info && info.name === 'Custom Icon') {
+                    log('✓ registerIcon() adds new icon', 'pass');
+                } else {
+                    log('✗ registerIcon() failed', 'fail');
+                }
+            } catch (e) {
+                log(`✗ Error: ${e.message}`, 'fail');
+            }
+        };
+
+        window.runAllTests = function() {
+            document.getElementById('test-results').innerHTML = '';
+            log('Running all tests...', 'info');
+            
+            testCreateIcon();
+            testGetIconHTML();
+            testListIcons();
+            testRegisterIcon();
+            
+            log('All tests completed!', 'info');
+        };
+
+        // =============================================
+        // Initialize
+        // =============================================
+        const categories = iconRegistry.getIconsByCategory();
+        renderIconGrid('nav-icons', categories.navigation);
+        renderIconGrid('status-icons', categories.status);
+        renderIconGrid('utility-icons', categories.utility);
+        renderSizeDemo();
+        renderColorDemo();
+
+        log('Icon Registry Test Page Loaded', 'info');
+        log(`Total icons: ${iconRegistry.listIcons().length}`, 'info');
+    </script>
+</body>
+</html>

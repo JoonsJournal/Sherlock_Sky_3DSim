@@ -1,0 +1,362 @@
+/**
+ * _status-bar.css
+ * ===============
+ * SHERLOCK SKY 3DSim - Cleanroom Status Bar 스타일
+ * 
+ * 하단 상태바 UI 컴포넌트 스타일 정의
+ * 서버 연결, 사용자 정보, 경고/알람 표시
+ * 
+ * @version 1.0.0
+ * @created 2026-01-10
+ */
+
+/* =============================================
+   CSS 변수 확장 (Status Bar Theme)
+   ============================================= */
+:root {
+    /* Status Bar Dimensions */
+    --status-bar-height: 36px;
+    --status-bar-padding: 0 20px;
+    
+    /* Status Bar Colors */
+    --status-bar-bg: #0F172A;
+    --status-bar-border: rgba(255, 255, 255, 0.1);
+    
+    /* Status Text Colors */
+    --status-text-normal: #CBD5E1;
+    --status-text-warning: #FBBF24;
+    --status-text-alarm: #F87171;
+    --status-text-success: #4ADE80;
+    
+    /* Dot Indicator */
+    --status-dot-size: 8px;
+}
+
+/* =============================================
+   Status Bar Container
+   ============================================= */
+.cleanroom-status-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--status-bar-height);
+    background-color: var(--status-bar-bg);
+    border-top: 1px solid var(--status-bar-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--status-bar-padding);
+    box-sizing: border-box;
+    font-family: 'Consolas', 'Monaco', var(--font-mono, monospace);
+    font-size: 13px;
+    z-index: var(--z-fixed, 300);
+}
+
+/* =============================================
+   Status Groups (Left & Right)
+   ============================================= */
+.cleanroom-status-group {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+}
+
+/* =============================================
+   Status Items
+   ============================================= */
+.cleanroom-status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.3s ease;
+}
+
+/* Normal State */
+.cleanroom-status-item.normal {
+    color: var(--status-text-normal);
+}
+
+/* Success State */
+.cleanroom-status-item.success {
+    color: var(--status-text-success);
+}
+
+/* Warning State */
+.cleanroom-status-item.warning {
+    color: var(--status-text-warning);
+    font-weight: 600;
+}
+
+/* Alarm/Error State */
+.cleanroom-status-item.alarm,
+.cleanroom-status-item.error {
+    color: var(--status-text-alarm);
+    font-weight: 700;
+    animation: status-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* =============================================
+   Status Dot Indicator
+   ============================================= */
+.cleanroom-status-dot {
+    width: var(--status-dot-size);
+    height: var(--status-dot-size);
+    border-radius: 50%;
+    background-color: currentColor;
+    flex-shrink: 0;
+}
+
+/* Animated Dot */
+.cleanroom-status-dot.pulse {
+    animation: dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes dot-pulse {
+    0%, 100% { 
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% { 
+        transform: scale(1.2);
+        opacity: 0.7;
+    }
+}
+
+/* Connected Dot (Green Glow) */
+.cleanroom-status-dot.connected {
+    background-color: var(--status-text-success);
+    box-shadow: 0 0 6px var(--status-text-success);
+}
+
+/* Disconnected Dot (Gray) */
+.cleanroom-status-dot.disconnected {
+    background-color: #6B7280;
+    opacity: 0.6;
+}
+
+/* =============================================
+   Status Icons (SVG)
+   ============================================= */
+.cleanroom-status-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.cleanroom-status-icon svg {
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* =============================================
+   Status Labels & Values
+   ============================================= */
+.cleanroom-status-label {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+}
+
+.cleanroom-status-value {
+    font-weight: 500;
+}
+
+/* Highlight Value */
+.cleanroom-status-value.highlight {
+    color: var(--cleanroom-icon-selected, #06B6D4);
+}
+
+/* =============================================
+   Status Divider
+   ============================================= */
+.cleanroom-status-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* =============================================
+   Progress Indicator (for Load %)
+   ============================================= */
+.cleanroom-status-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cleanroom-status-progress-bar {
+    width: 60px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.cleanroom-status-progress-fill {
+    height: 100%;
+    background: var(--status-text-normal);
+    border-radius: 2px;
+    transition: width 0.5s ease, background-color 0.3s ease;
+}
+
+/* Progress Warning (70-85%) */
+.cleanroom-status-progress-fill.warning {
+    background: var(--status-text-warning);
+}
+
+/* Progress Critical (85%+) */
+.cleanroom-status-progress-fill.critical {
+    background: var(--status-text-alarm);
+    animation: progress-critical-pulse 1s ease-in-out infinite;
+}
+
+@keyframes progress-critical-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* =============================================
+   Timestamp Display
+   ============================================= */
+.cleanroom-status-time {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 0.5px;
+}
+
+/* =============================================
+   Clickable Status Items
+   ============================================= */
+.cleanroom-status-item.clickable {
+    cursor: pointer;
+    padding: 4px 8px;
+    margin: -4px -8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.cleanroom-status-item.clickable:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* =============================================
+   Notification Badge
+   ============================================= */
+.cleanroom-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: var(--status-text-alarm);
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 9px;
+    animation: badge-bounce 2s ease-in-out infinite;
+}
+
+@keyframes badge-bounce {
+    0%, 100% { transform: scale(1); }
+    10% { transform: scale(1.1); }
+    20% { transform: scale(1); }
+}
+
+.cleanroom-status-badge.warning {
+    background: var(--status-text-warning);
+    color: #000;
+}
+
+/* =============================================
+   Hidden State
+   ============================================= */
+.cleanroom-status-item.hidden {
+    display: none;
+}
+
+/* Fade In/Out Animation */
+.cleanroom-status-item.fade-in {
+    animation: status-fade-in 0.3s ease forwards;
+}
+
+.cleanroom-status-item.fade-out {
+    animation: status-fade-out 0.3s ease forwards;
+}
+
+@keyframes status-fade-in {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes status-fade-out {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(5px); }
+}
+
+/* =============================================
+   Responsive Adjustments
+   ============================================= */
+@media (max-width: 768px) {
+    .cleanroom-status-bar {
+        padding: 0 12px;
+        font-size: 11px;
+    }
+    
+    .cleanroom-status-group {
+        gap: 12px;
+    }
+    
+    .cleanroom-status-item {
+        gap: 6px;
+    }
+    
+    /* Hide less important items on mobile */
+    .cleanroom-status-item.mobile-hidden {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .cleanroom-status-bar {
+        height: 32px;
+        padding: 0 8px;
+        font-size: 10px;
+    }
+    
+    .cleanroom-status-dot {
+        width: 6px;
+        height: 6px;
+    }
+    
+    .cleanroom-status-progress-bar {
+        width: 40px;
+    }
+}
+
+/* =============================================
+   Print Styles
+   ============================================= */
+@media print {
+    .cleanroom-status-bar {
+        display: none;
+    }
+}
+
+/* =============================================
+   Dark Theme Override (if needed)
+   ============================================= */
+[data-theme="dark"] .cleanroom-status-bar {
+    background-color: #0a0f1a;
+    border-top-color: rgba(255, 255, 255, 0.05);
+}

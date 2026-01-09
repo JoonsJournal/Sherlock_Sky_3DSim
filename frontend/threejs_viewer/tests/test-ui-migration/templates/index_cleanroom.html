@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sherlock Sky 3DSim - Cleanroom Edition</title>
+
+    <!-- ============================================
+         CSS Import (통합된 스타일시트)
+         기존 main.css + 새 Cleanroom 스타일
+         ============================================ -->
+    <link rel="stylesheet" href="styles/main.css">
+    
+    <!-- 
+    추가할 CSS import (main.css에 추가 필요):
+    @import './components/_sidebar.css';
+    @import './components/_status-bar.css';
+    -->
+</head>
+
+<body>
+    <!-- ============================================
+         🆕 CLEANROOM SIDEBAR (새 UI)
+         기존 floating-btn을 대체
+         ============================================ -->
+    <aside class="cleanroom-sidebar" id="sidebar">
+        
+        <!-- Connection Button -->
+        <button class="cleanroom-icon-btn selected" 
+                id="btn-connection" 
+                data-mode="connection" 
+                data-tooltip="Connection Setup"
+                data-shortcut="Ctrl+K"
+                title="Connection Setup (Ctrl+K)">
+            <svg viewBox="0 0 24 24">
+                <path d="M4 6c0 1.66 3.58 3 8 3s8-1.34 8-3"/>
+                <path d="M20 6v6c0 1.66-3.58 3-8 3s-8-1.34-8-3V6"/>
+                <ellipse cx="12" cy="6" rx="8" ry="3"/>
+                <circle cx="19" cy="19" r="3"/>
+            </svg>
+        </button>
+
+        <!-- Mapping Button -->
+        <button class="cleanroom-icon-btn" 
+                id="btn-mapping" 
+                data-mode="mapping"
+                data-tooltip="Data Mapping"
+                title="Data Mapping">
+            <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"/>
+                <line x1="12" y1="12" x2="5" y2="5"/><circle cx="5" cy="5" r="2"/>
+                <line x1="12" y1="12" x2="19" y2="5"/><circle cx="19" cy="5" r="2"/>
+                <line x1="12" y1="12" x2="5" y2="19"/><circle cx="5" cy="19" r="2"/>
+                <line x1="12" y1="12" x2="19" y2="19"/><circle cx="19" cy="19" r="2"/>
+            </svg>
+        </button>
+
+        <!-- Monitoring Button -->
+        <button class="cleanroom-icon-btn" 
+                id="btn-monitoring" 
+                data-mode="monitoring"
+                data-tooltip="System Monitoring"
+                data-shortcut="M"
+                title="System Monitoring (M)">
+            <svg viewBox="0 0 24 24">
+                <rect x="3" y="4" width="18" height="12" rx="2"/>
+                <polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/>
+                <path d="M12 16v4"/>
+                <path d="M8 20h8"/>
+            </svg>
+        </button>
+
+        <div class="cleanroom-sidebar-divider"></div>
+
+        <!-- Edit Button -->
+        <button class="cleanroom-icon-btn" 
+                id="btn-edit" 
+                data-mode="edit"
+                data-tooltip="Edit Mode"
+                data-shortcut="E"
+                title="Edit Mode (E)">
+            <svg viewBox="0 0 24 24">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/>
+            </svg>
+        </button>
+
+        <!-- Layout Editor Button -->
+        <button class="cleanroom-icon-btn" 
+                id="btn-layout" 
+                data-mode="layout"
+                data-tooltip="Layout Editor"
+                title="Layout Editor">
+            <svg viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+        </button>
+
+        <!-- 3D Viewer Button -->
+        <button class="cleanroom-icon-btn" 
+                id="btn-viewer" 
+                data-mode="viewer"
+                data-tooltip="3D Viewer"
+                title="3D Viewer">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+            </svg>
+        </button>
+
+        <!-- Preview Button (Edit 모드에서만 표시) -->
+        <button class="cleanroom-icon-btn hidden" 
+                id="btn-preview" 
+                data-mode="preview"
+                data-tooltip="3D Preview"
+                data-shortcut="P"
+                title="3D Preview (P)">
+            <svg viewBox="0 0 24 24">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+        </button>
+
+        <div class="cleanroom-sidebar-spacer"></div>
+
+        <!-- Debug Button -->
+        <button class="cleanroom-icon-btn" 
+                id="btn-debug" 
+                data-mode="debug"
+                data-tooltip="Debug Panel"
+                data-shortcut="D"
+                title="Debug Panel (D)">
+            <svg viewBox="0 0 24 24">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+        </button>
+
+        <!-- Settings Button -->
+        <button class="cleanroom-icon-btn" 
+                id="btn-settings" 
+                data-mode="settings"
+                data-tooltip="Settings"
+                title="Settings">
+            <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+        </button>
+
+    </aside>
+
+    <!-- ============================================
+         MAIN 3D VIEWER CONTAINER
+         ============================================ -->
+    <main id="viewer-container" style="margin-left: 80px; margin-bottom: 36px;">
+        <!-- Three.js 캔버스가 여기에 렌더링됨 -->
+    </main>
+
+    <!-- ============================================
+         🆕 CLEANROOM STATUS BAR (새 UI)
+         ============================================ -->
+    <footer class="cleanroom-status-bar" id="status-bar">
+        <div class="cleanroom-status-group">
+            <div class="cleanroom-status-item normal" id="status-server">
+                <span class="cleanroom-status-dot disconnected"></span>
+                <span>Server:</span>
+                <span id="server-status-value">Disconnected</span>
+            </div>
+            <div class="cleanroom-status-item normal">
+                <span>User:</span>
+                <span id="user-name">Guest</span>
+            </div>
+        </div>
+
+        <div class="cleanroom-status-group">
+            <div class="cleanroom-status-item warning hidden" id="status-load">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <span>Load:</span>
+                <span id="load-value">0%</span>
+            </div>
+            
+            <div class="cleanroom-status-item alarm hidden" id="status-alarm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+                <span id="alarm-message">No Alarms</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ============================================
+         설비 정보 패널 (기존 유지)
+         ============================================ -->
+    <div id="equipmentInfo">
+        <button class="close-btn" onclick="closeEquipmentInfo()">×</button>
+        <h2 id="equipName">설비 정보</h2>
+        <div id="equipDetails"></div>
+    </div>
+
+    <!-- ============================================
+         Connection Modal (기존 유지)
+         ============================================ -->
+    <div id="connection-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔌 Database Connection Manager</h2>
+                <button class="modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="connection-status-panel"></div>
+                <div id="site-selection-panel"></div>
+                <div id="database-list-panel"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         Preview Modal (기존 유지)
+         ============================================ -->
+    <div id="preview-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content preview-modal-content">
+            <div class="modal-header preview-header">
+                <h2>🔍 3D Preview - 저장 전 미리보기</h2>
+                <button class="modal-close" id="preview-close">&times;</button>
+            </div>
+            <div class="modal-body preview-body">
+                <div class="preview-controls">
+                    <button class="preview-view-btn" data-view="perspective">↻ 원근</button>
+                    <button class="preview-view-btn" data-view="top">⬆️ Top</button>
+                    <button class="preview-view-btn" data-view="front">➡️ Front</button>
+                    <button class="preview-view-btn" data-view="side">⬇️ Side</button>
+                </div>
+                <div class="preview-canvas-container">
+                    <canvas id="preview-canvas"></canvas>
+                </div>
+                <div class="preview-info-panel">
+                    <div class="preview-info-title">📋 변경사항 요약</div>
+                    <div id="preview-summary"></div>
+                </div>
+            </div>
+            <div class="modal-footer preview-footer">
+                <button class="btn btn-secondary" id="preview-back-edit">✏️ Back to Edit</button>
+                <button class="btn btn-primary" id="preview-save-apply">💾 Save & Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         Component Palette (Edit 모드용)
+         ============================================ -->
+    <div id="component-palette" class="hidden">
+        <!-- ComponentPalette.js가 동적으로 채움 -->
+    </div>
+
+    <!-- ============================================
+         Toast Container
+         ============================================ -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- ============================================
+         Three.js Import Map
+         ============================================ -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <!-- ============================================
+         Main Script
+         ============================================ -->
+    <script type="module" src="./src/main.js"></script>
+
+    <!-- ============================================
+         Cleanroom Sidebar Controller
+         ============================================ -->
+    <script type="module">
+        /**
+         * Cleanroom Sidebar Controller
+         * 새 사이드바 UI와 기존 시스템 연결
+         */
+        
+        // 버튼 요소들
+        const sidebarButtons = document.querySelectorAll('.cleanroom-icon-btn');
+        let currentMode = 'connection';
+        
+        // 버튼 클릭 핸들러
+        sidebarButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (this.classList.contains('disabled')) return;
+                
+                const mode = this.dataset.mode;
+                selectMode(mode);
+                
+                // 기존 시스템 연결
+                triggerModeAction(mode);
+            });
+        });
+        
+        // 모드 선택
+        function selectMode(mode) {
+            sidebarButtons.forEach(b => b.classList.remove('selected'));
+            
+            const targetBtn = document.querySelector(`[data-mode="${mode}"]`);
+            if (targetBtn) {
+                targetBtn.classList.add('selected');
+            }
+            
+            currentMode = mode;
+            console.log(`[Sidebar] Mode: ${mode}`);
+        }
+        
+        // 기존 시스템 액션 트리거
+        function triggerModeAction(mode) {
+            switch(mode) {
+                case 'connection':
+                    if (window.openConnectionModal) {
+                        window.openConnectionModal();
+                    }
+                    break;
+                    
+                case 'edit':
+                    if (window.toggleEditMode) {
+                        window.toggleEditMode();
+                    }
+                    break;
+                    
+                case 'monitoring':
+                    if (window.toggleMonitoringMode) {
+                        window.toggleMonitoringMode();
+                    }
+                    break;
+                    
+                case 'debug':
+                    toggleDebugPanel();
+                    break;
+                    
+                case 'preview':
+                    if (window.showPreview3D) {
+                        window.showPreview3D();
+                    }
+                    break;
+            }
+        }
+        
+        // 디버그 패널 토글
+        function toggleDebugPanel() {
+            const panel = document.getElementById('debugControls');
+            if (panel) {
+                panel.classList.toggle('active');
+            }
+        }
+        
+        // 키보드 단축키
+        document.addEventListener('keydown', (e) => {
+            if (e.target.matches('input, textarea, select')) return;
+            
+            const key = e.key.toLowerCase();
+            
+            // Ctrl+K: Connection
+            if (e.ctrlKey && key === 'k') {
+                e.preventDefault();
+                selectMode('connection');
+                triggerModeAction('connection');
+                return;
+            }
+            
+            // 단일 키 단축키
+            const shortcuts = {
+                'm': 'monitoring',
+                'e': 'edit',
+                'p': 'preview',
+                'd': 'debug'
+            };
+            
+            if (shortcuts[key]) {
+                selectMode(shortcuts[key]);
+                triggerModeAction(shortcuts[key]);
+            }
+            
+            // ESC: 모달 닫기
+            if (e.key === 'Escape') {
+                closeEquipmentInfo();
+                if (window.closePreviewModal) {
+                    window.closePreviewModal();
+                }
+            }
+        });
+        
+        // 상태바 업데이트 함수들 (전역으로 노출)
+        window.updateServerStatus = function(connected, serverName = '') {
+            const statusItem = document.getElementById('status-server');
+            const dot = statusItem.querySelector('.cleanroom-status-dot');
+            const value = document.getElementById('server-status-value');
+            
+            if (connected) {
+                statusItem.classList.remove('alarm');
+                statusItem.classList.add('normal');
+                dot.classList.add('connected');
+                dot.classList.remove('disconnected');
+                value.textContent = `Connected (${serverName})`;
+            } else {
+                statusItem.classList.remove('normal');
+                statusItem.classList.add('alarm');
+                dot.classList.remove('connected');
+                dot.classList.add('disconnected');
+                value.textContent = 'Disconnected';
+            }
+        };
+        
+        window.updateLoadStatus = function(percentage) {
+            const loadItem = document.getElementById('status-load');
+            const loadValue = document.getElementById('load-value');
+            
+            if (percentage > 50) {
+                loadItem.classList.remove('hidden');
+                loadValue.textContent = `${percentage}%`;
+                
+                if (percentage >= 85) {
+                    loadItem.classList.remove('warning');
+                    loadItem.classList.add('alarm');
+                } else {
+                    loadItem.classList.remove('alarm');
+                    loadItem.classList.add('warning');
+                }
+            } else {
+                loadItem.classList.add('hidden');
+            }
+        };
+        
+        window.updateAlarmStatus = function(hasAlarm, message = '') {
+            const alarmItem = document.getElementById('status-alarm');
+            const alarmMsg = document.getElementById('alarm-message');
+            
+            if (hasAlarm) {
+                alarmItem.classList.remove('hidden');
+                alarmMsg.textContent = message;
+            } else {
+                alarmItem.classList.add('hidden');
+            }
+        };
+        
+        // 설비 정보 패널 닫기
+        window.closeEquipmentInfo = function() {
+            const panel = document.getElementById('equipmentInfo');
+            if (panel) {
+                panel.classList.remove('active');
+            }
+            if (window.clearSelections) {
+                window.clearSelections();
+            }
+        };
+        
+        console.log('🏭 Cleanroom Sidebar Controller Loaded');
+        console.log('Shortcuts: Ctrl+K (Connection), M (Monitoring), E (Edit), D (Debug), P (Preview)');
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Test: Cleanroom UI Integration</title>
+    
+    <!-- 
+        이 테스트 파일은 기존 SHERLOCK_SKY_3DSim 프로젝트와의
+        통합을 검증합니다.
+        
+        사용법:
+        1. 이 파일을 frontend/threejs_viewer/tests/ui/ 에 복사
+        2. http-server로 실행
+        3. 모든 테스트 통과 확인
+    -->
+    
+    <style>
+        /* =============================================
+           기존 _variables.css 시뮬레이션
+           실제 통합 시에는 @import로 대체
+           ============================================= */
+        :root {
+            /* 기존 테마 변수 */
+            --theme-bg-primary: #ffffff;
+            --overlay-bg-primary: rgba(30, 30, 30, 0.95);
+            --overlay-text-primary: #ffffff;
+            --overlay-text-secondary: #e5e5e5;
+            --overlay-text-muted: #9ca3af;
+            --overlay-border-light: rgba(255, 255, 255, 0.1);
+            
+            --status-success: #28a745;
+            --status-error: #dc3545;
+            --status-warning: #ffc107;
+            --status-info: #17a2b8;
+            
+            --mode-connection: #2196F3;
+            --mode-edit: #FF9800;
+            --mode-monitoring: #4CAF50;
+            --mode-layout: #9C27B0;
+            
+            --transition-fast: 150ms ease-out;
+            --transition-normal: 200ms ease-out;
+            
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'Consolas', 'Monaco', monospace;
+            
+            --z-fixed: 300;
+            --z-modal: 9999;
+            
+            /* 새 Cleanroom 변수 */
+            --cleanroom-bg-sidebar: #0F172A;
+            --cleanroom-icon-normal: #E2E8F0;
+            --cleanroom-icon-selected: #06B6D4;
+            --cleanroom-icon-disabled: #334155;
+            --sidebar-width: 80px;
+            --status-bar-height: 36px;
+        }
+
+        /* Reset */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: var(--font-family);
+            background: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* =============================================
+           시뮬레이션된 3D Viewer 영역
+           ============================================= */
+        .viewer-container {
+            flex-grow: 1;
+            margin-left: var(--sidebar-width);
+            margin-bottom: var(--status-bar-height);
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            position: relative;
+        }
+
+        .viewer-placeholder {
+            width: 80%;
+            height: 60%;
+            border: 2px dashed rgba(255,255,255,0.2);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .viewer-placeholder h2 {
+            font-size: 24px;
+            color: #06B6D4;
+        }
+
+        .viewer-placeholder p {
+            color: #9CA3AF;
+        }
+
+        /* =============================================
+           Cleanroom Sidebar Styles (Inline for Test)
+           ============================================= */
+        .cleanroom-sidebar {
+            width: var(--sidebar-width);
+            height: 100vh;
+            background-color: var(--cleanroom-bg-sidebar);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 24px;
+            padding-bottom: 60px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: var(--z-fixed);
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.25);
+        }
+
+        .cleanroom-icon-btn {
+            width: 50px;
+            height: 50px;
+            margin-bottom: 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            outline: none;
+        }
+
+        .cleanroom-icon-btn svg {
+            width: 28px;
+            height: 28px;
+            fill: none;
+            stroke: var(--cleanroom-icon-normal);
+            stroke-width: 2px;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: all 0.25s;
+        }
+
+        .cleanroom-icon-btn:not(.selected):not(.disabled):hover {
+            transform: scale(1.15) translateY(-4px);
+        }
+
+        .cleanroom-icon-btn:not(.selected):not(.disabled):hover svg {
+            stroke: #FFFFFF;
+            stroke-width: 3px;
+            filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4));
+        }
+
+        .cleanroom-icon-btn.selected {
+            transform: scale(1.15) translateY(-4px);
+        }
+
+        .cleanroom-icon-btn.selected svg {
+            stroke: var(--cleanroom-icon-selected);
+            stroke-width: 3px;
+            filter: drop-shadow(0 0 8px var(--cleanroom-icon-selected));
+        }
+
+        .cleanroom-icon-btn.selected::before {
+            content: '';
+            position: absolute;
+            left: -15px;
+            width: 4px;
+            height: 30px;
+            background-color: var(--cleanroom-icon-selected);
+            border-radius: 0 4px 4px 0;
+            box-shadow: 0 0 8px var(--cleanroom-icon-selected);
+        }
+
+        /* Mode-specific colors */
+        .cleanroom-icon-btn[data-mode="connection"].selected svg {
+            stroke: var(--mode-connection);
+        }
+        .cleanroom-icon-btn[data-mode="connection"].selected::before {
+            background-color: var(--mode-connection);
+            box-shadow: 0 0 8px var(--mode-connection);
+        }
+
+        .cleanroom-icon-btn[data-mode="edit"].selected svg {
+            stroke: var(--mode-edit);
+        }
+        .cleanroom-icon-btn[data-mode="edit"].selected::before {
+            background-color: var(--mode-edit);
+            box-shadow: 0 0 8px var(--mode-edit);
+        }
+
+        .cleanroom-icon-btn[data-mode="monitoring"].selected svg {
+            stroke: var(--mode-monitoring);
+        }
+        .cleanroom-icon-btn[data-mode="monitoring"].selected::before {
+            background-color: var(--mode-monitoring);
+            box-shadow: 0 0 8px var(--mode-monitoring);
+        }
+
+        .cleanroom-icon-btn[data-mode="layout"].selected svg {
+            stroke: var(--mode-layout);
+        }
+        .cleanroom-icon-btn[data-mode="layout"].selected::before {
+            background-color: var(--mode-layout);
+            box-shadow: 0 0 8px var(--mode-layout);
+        }
+
+        .cleanroom-sidebar-divider {
+            width: 40px;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 10px 0;
+        }
+
+        .cleanroom-sidebar-spacer {
+            flex-grow: 1;
+        }
+
+        /* =============================================
+           Status Bar Styles
+           ============================================= */
+        .cleanroom-status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: var(--status-bar-height);
+            background-color: var(--cleanroom-bg-sidebar);
+            border-top: 1px solid var(--overlay-border-light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            z-index: var(--z-fixed);
+        }
+
+        .cleanroom-status-group {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+
+        .cleanroom-status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cleanroom-status-item.normal { color: #CBD5E1; }
+        .cleanroom-status-item.success { color: var(--status-success); }
+        .cleanroom-status-item.warning { color: var(--status-warning); font-weight: 600; }
+        .cleanroom-status-item.alarm { color: #F87171; font-weight: 700; animation: pulse 1.5s infinite; }
+
+        .cleanroom-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: currentColor;
+        }
+
+        .cleanroom-status-dot.connected {
+            background-color: var(--status-success);
+            box-shadow: 0 0 6px var(--status-success);
+        }
+
+        .cleanroom-status-item.hidden { display: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* =============================================
+           Test Control Panel
+           ============================================= */
+        .test-control {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 320px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 16px;
+            font-size: 12px;
+            color: #e5e5e5;
+            z-index: 9999;
+        }
+
+        .test-control h3 {
+            color: #06B6D4;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .test-section {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .test-section h4 {
+            color: #9CA3AF;
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .test-btn {
+            padding: 8px 12px;
+            margin: 4px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .test-btn-primary {
+            background: linear-gradient(135deg, #06B6D4, #0891B2);
+            color: white;
+        }
+
+        .test-btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #e5e5e5;
+        }
+
+        .test-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .test-result {
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            margin-top: 8px;
+        }
+
+        .test-result.success { border-left: 3px solid var(--status-success); }
+        .test-result.error { border-left: 3px solid var(--status-error); }
+        .test-result.info { border-left: 3px solid var(--status-info); }
+
+        /* Mode Display */
+        .mode-display {
+            text-align: center;
+            padding: 16px;
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+
+        .mode-display .label {
+            font-size: 10px;
+            color: #9CA3AF;
+            text-transform: uppercase;
+        }
+
+        .mode-display .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #06B6D4;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- =============================================
+         CLEANROOM SIDEBAR
+         ============================================= -->
+    <aside class="cleanroom-sidebar" id="sidebar">
+        <button class="cleanroom-icon-btn selected" id="btn-connection" data-mode="connection" title="Connection (Ctrl+K)">
+            <svg viewBox="0 0 24 24">
+                <path d="M4 6c0 1.66 3.58 3 8 3s8-1.34 8-3"/>
+                <path d="M20 6v6c0 1.66-3.58 3-8 3s-8-1.34-8-3V6"/>
+                <ellipse cx="12" cy="6" rx="8" ry="3"/>
+                <circle cx="19" cy="19" r="3"/>
+            </svg>
+        </button>
+
+        <button class="cleanroom-icon-btn" id="btn-mapping" data-mode="mapping" title="Mapping">
+            <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"/>
+                <line x1="12" y1="12" x2="5" y2="5"/><circle cx="5" cy="5" r="2"/>
+                <line x1="12" y1="12" x2="19" y2="5"/><circle cx="19" cy="5" r="2"/>
+                <line x1="12" y1="12" x2="5" y2="19"/><circle cx="5" cy="19" r="2"/>
+                <line x1="12" y1="12" x2="19" y2="19"/><circle cx="19" cy="19" r="2"/>
+            </svg>
+        </button>
+
+        <button class="cleanroom-icon-btn" id="btn-monitoring" data-mode="monitoring" title="Monitoring (M)">
+            <svg viewBox="0 0 24 24">
+                <rect x="3" y="4" width="18" height="12" rx="2"/>
+                <polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/>
+                <path d="M12 16v4"/><path d="M8 20h8"/>
+            </svg>
+        </button>
+
+        <div class="cleanroom-sidebar-divider"></div>
+
+        <button class="cleanroom-icon-btn" id="btn-edit" data-mode="edit" title="Edit (E)">
+            <svg viewBox="0 0 24 24">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/>
+            </svg>
+        </button>
+
+        <button class="cleanroom-icon-btn" id="btn-layout" data-mode="layout" title="Layout">
+            <svg viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+        </button>
+
+        <button class="cleanroom-icon-btn" id="btn-viewer" data-mode="viewer" title="3D Viewer">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                <path d="M2 17l10 5 10-5"/>
+                <path d="M2 12l10 5 10-5"/>
+            </svg>
+        </button>
+
+        <div class="cleanroom-sidebar-spacer"></div>
+
+        <button class="cleanroom-icon-btn" id="btn-settings" data-mode="settings" title="Settings">
+            <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+        </button>
+    </aside>
+
+    <!-- =============================================
+         MAIN VIEWER AREA (Placeholder)
+         ============================================= -->
+    <main class="viewer-container">
+        <div class="viewer-placeholder">
+            <h2>🏭 3D Viewer Area</h2>
+            <p>이 영역에 Three.js 3D 씬이 렌더링됩니다.</p>
+            <p style="color: #06B6D4;">사이드바와 상태바가 정상적으로 표시되는지 확인하세요.</p>
+        </div>
+    </main>
+
+    <!-- =============================================
+         STATUS BAR
+         ============================================= -->
+    <footer class="cleanroom-status-bar">
+        <div class="cleanroom-status-group">
+            <div class="cleanroom-status-item normal" id="status-server">
+                <span class="cleanroom-status-dot connected"></span>
+                <span>Server:</span>
+                <span id="server-value">Connected (kr-b-01)</span>
+            </div>
+            <div class="cleanroom-status-item normal">
+                <span>User:</span>
+                <span>Admin</span>
+            </div>
+        </div>
+        <div class="cleanroom-status-group">
+            <div class="cleanroom-status-item warning hidden" id="status-load">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                </svg>
+                <span>Load:</span>
+                <span id="load-value">0%</span>
+            </div>
+            <div class="cleanroom-status-item alarm hidden" id="status-alarm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="15" y1="9" x2="9" y2="15"/>
+                    <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+                <span id="alarm-message">No Alarms</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- =============================================
+         TEST CONTROL PANEL
+         ============================================= -->
+    <div class="test-control">
+        <h3>🧪 Integration Test Controls</h3>
+        
+        <div class="test-section">
+            <h4>Mode Simulation</h4>
+            <button class="test-btn test-btn-primary" onclick="setMode('connection')">Connection</button>
+            <button class="test-btn test-btn-primary" onclick="setMode('monitoring')">Monitoring</button>
+            <button class="test-btn test-btn-primary" onclick="setMode('edit')">Edit</button>
+            <button class="test-btn test-btn-primary" onclick="setMode('layout')">Layout</button>
+        </div>
+
+        <div class="test-section">
+            <h4>Status Simulation</h4>
+            <button class="test-btn test-btn-secondary" onclick="toggleConnection()">Toggle Connection</button>
+            <button class="test-btn test-btn-secondary" onclick="setLoad(82)">Set Load 82%</button>
+            <button class="test-btn test-btn-secondary" onclick="triggerAlarm()">Trigger Alarm</button>
+            <button class="test-btn test-btn-secondary" onclick="clearAlarm()">Clear Alarm</button>
+        </div>
+
+        <div class="test-section">
+            <h4>Keyboard Shortcuts</h4>
+            <div class="test-result info">
+                <strong>M</strong> - Monitoring Mode<br>
+                <strong>E</strong> - Edit Mode<br>
+                <strong>Ctrl+K</strong> - Connection
+            </div>
+        </div>
+
+        <div class="mode-display">
+            <div class="label">Current Mode</div>
+            <div class="value" id="mode-value">Connection</div>
+        </div>
+
+        <div id="test-output" class="test-result info" style="margin-top: 12px;">
+            Ready for testing...
+        </div>
+    </div>
+
+    <!-- =============================================
+         SCRIPTS
+         ============================================= -->
+    <script>
+        // =============================================
+        // State
+        // =============================================
+        let currentMode = 'connection';
+        let isConnected = true;
+
+        // =============================================
+        // Sidebar Logic
+        // =============================================
+        const buttons = document.querySelectorAll('.cleanroom-icon-btn');
+        
+        buttons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const mode = this.dataset.mode;
+                setMode(mode);
+            });
+        });
+
+        function setMode(mode) {
+            currentMode = mode;
+            
+            buttons.forEach(b => b.classList.remove('selected'));
+            
+            const targetBtn = document.querySelector(`[data-mode="${mode}"]`);
+            if (targetBtn) {
+                targetBtn.classList.add('selected');
+            }
+            
+            document.getElementById('mode-value').textContent = 
+                mode.charAt(0).toUpperCase() + mode.slice(1);
+            
+            log(`Mode changed to: ${mode}`);
+        }
+
+        // =============================================
+        // Status Bar Logic
+        // =============================================
+        function toggleConnection() {
+            isConnected = !isConnected;
+            
+            const statusItem = document.getElementById('status-server');
+            const dot = statusItem.querySelector('.cleanroom-status-dot');
+            const value = document.getElementById('server-value');
+            
+            if (isConnected) {
+                statusItem.classList.remove('alarm');
+                statusItem.classList.add('normal');
+                dot.classList.add('connected');
+                dot.classList.remove('disconnected');
+                value.textContent = 'Connected (kr-b-01)';
+            } else {
+                statusItem.classList.remove('normal');
+                statusItem.classList.add('alarm');
+                dot.classList.remove('connected');
+                dot.classList.add('disconnected');
+                value.textContent = 'Disconnected';
+            }
+            
+            log(`Connection: ${isConnected ? 'Connected' : 'Disconnected'}`);
+        }
+
+        function setLoad(percentage) {
+            const loadItem = document.getElementById('status-load');
+            const loadValue = document.getElementById('load-value');
+            
+            loadItem.classList.remove('hidden');
+            loadValue.textContent = `${percentage}%`;
+            
+            if (percentage >= 85) {
+                loadItem.classList.remove('warning');
+                loadItem.classList.add('alarm');
+            } else {
+                loadItem.classList.remove('alarm');
+                loadItem.classList.add('warning');
+            }
+            
+            log(`Load set to: ${percentage}%`);
+        }
+
+        function triggerAlarm() {
+            const alarmItem = document.getElementById('status-alarm');
+            const alarmMsg = document.getElementById('alarm-message');
+            
+            alarmItem.classList.remove('hidden');
+            alarmMsg.textContent = 'Sensor Err: #204';
+            
+            log('Alarm triggered: Sensor Err #204');
+        }
+
+        function clearAlarm() {
+            const alarmItem = document.getElementById('status-alarm');
+            alarmItem.classList.add('hidden');
+            
+            const loadItem = document.getElementById('status-load');
+            loadItem.classList.add('hidden');
+            
+            log('Alarms cleared');
+        }
+
+        // =============================================
+        // Keyboard Shortcuts
+        // =============================================
+        document.addEventListener('keydown', (e) => {
+            if (e.target.matches('input, textarea')) return;
+            
+            const key = e.key.toLowerCase();
+            
+            if (e.ctrlKey && key === 'k') {
+                e.preventDefault();
+                setMode('connection');
+                return;
+            }
+            
+            switch(key) {
+                case 'm':
+                    setMode('monitoring');
+                    break;
+                case 'e':
+                    setMode('edit');
+                    break;
+            }
+        });
+
+        // =============================================
+        // Logging
+        // =============================================
+        function log(message) {
+            const output = document.getElementById('test-output');
+            output.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            console.log(`[Test] ${message}`);
+        }
+
+        // =============================================
+        // Integration Tests
+        // =============================================
+        async function runIntegrationTests() {
+            const tests = [
+                {
+                    name: 'CSS Variable Integration',
+                    test: () => {
+                        const styles = getComputedStyle(document.documentElement);
+                        const sidebarBg = styles.getPropertyValue('--cleanroom-bg-sidebar').trim();
+                        return sidebarBg === '#0F172A';
+                    }
+                },
+                {
+                    name: 'Sidebar Renders',
+                    test: () => {
+                        const sidebar = document.getElementById('sidebar');
+                        return sidebar && sidebar.offsetWidth > 0;
+                    }
+                },
+                {
+                    name: 'Status Bar Renders',
+                    test: () => {
+                        const statusBar = document.querySelector('.cleanroom-status-bar');
+                        return statusBar && statusBar.offsetHeight > 0;
+                    }
+                },
+                {
+                    name: 'Mode Selection Works',
+                    test: () => {
+                        setMode('monitoring');
+                        const btn = document.getElementById('btn-monitoring');
+                        return btn.classList.contains('selected');
+                    }
+                },
+                {
+                    name: 'Mode Colors Applied',
+                    test: () => {
+                        setMode('edit');
+                        const btn = document.getElementById('btn-edit');
+                        const svg = btn.querySelector('svg');
+                        const stroke = getComputedStyle(svg).stroke;
+                        return stroke !== 'none';
+                    }
+                }
+            ];
+
+            let passed = 0;
+            let failed = 0;
+
+            for (const t of tests) {
+                try {
+                    const result = await t.test();
+                    if (result) {
+                        console.log(`✓ ${t.name}`);
+                        passed++;
+                    } else {
+                        console.error(`✗ ${t.name}`);
+                        failed++;
+                    }
+                } catch (e) {
+                    console.error(`✗ ${t.name}:`, e);
+                    failed++;
+                }
+            }
+
+            log(`Tests: ${passed} passed, ${failed} failed`);
+            return { passed, failed };
+        }
+
+        // Run tests on load
+        window.addEventListener('load', () => {
+            log('Integration test page loaded');
+            setTimeout(runIntegrationTests, 500);
+        });
+
+        // Expose for console
+        window.setMode = setMode;
+        window.toggleConnection = toggleConnection;
+        window.setLoad = setLoad;
+        window.triggerAlarm = triggerAlarm;
+        window.clearAlarm = clearAlarm;
+        window.runIntegrationTests = runIntegrationTests;
+    </script>
+
+</body>
+</html>
