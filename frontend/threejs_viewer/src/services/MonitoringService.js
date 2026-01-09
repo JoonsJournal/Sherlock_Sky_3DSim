@@ -1,16 +1,15 @@
 /**
- * MonitoringService.js - v4.4.0
+ * MonitoringService.js - v4.5.0
  * 실시간 설비 모니터링 서비스
  * 
- * ⭐ v4.4.0: SignalTowerIntegration 모듈 분리 (Phase 6 리팩토링)
- * - SignalTower 및 설비 스타일 관리 로직을 SignalTowerIntegration으로 위임
- * - applyUnmappedSignalTowerStyle() → signalIntegration.applyUnmappedSignalTowerStyle() 위임
- * - applyUnmappedEquipmentStyle() → signalIntegration.applyUnmappedEquipmentStyle() 위임
- * - resetEquipmentStyle() → signalIntegration.resetAllStyles() 위임
- * - updateEquipmentStatus() → signalIntegration.updateStatus() 위임
- * - normalizeStatus() → signalIntegration.normalizeStatus() 위임
+ * ⭐ v4.5.0: MappingEventHandler 모듈 분리 (Phase 7 리팩토링)
+ * - 이벤트 리스너 관련 로직을 MappingEventHandler로 위임
+ * - registerEventListeners() → eventHandler.register() 위임
+ * - unregisterEventListeners() → eventHandler.unregister() 위임
+ * - handleMappingChanged() → eventHandler._handleMappingChanged() 위임
  * - 기존 모든 기능 100% 호환성 유지
  * 
+ * ⭐ v4.4.0: SignalTowerIntegration 모듈 분리 (Phase 6 리팩토링)
  * ⭐ v4.3.0: MonitoringStatsPanel 모듈 분리 (Phase 5 리팩토링)
  * ⭐ v4.2.0: WebSocketManager 모듈 분리 (Phase 4 리팩토링)
  * ⭐ v4.1.0: StatusAPIClient 모듈 분리 (Phase 3 리팩토링)
@@ -38,6 +37,9 @@ import { MonitoringStatsPanel } from './monitoring/MonitoringStatsPanel.js';
 
 // ⭐ v4.4.0: SignalTowerIntegration 모듈 import
 import { SignalTowerIntegration } from './monitoring/SignalTowerIntegration.js';
+
+// ⭐ v4.5.0: MappingEventHandler 모듈 import
+import { MappingEventHandler } from './monitoring/MappingEventHandler.js';
 
 export class MonitoringService {
     constructor(signalTowerManager, equipmentLoader = null, equipmentEditState = null) {
@@ -81,6 +83,22 @@ export class MonitoringService {
             debug: false
         });
         
+        // ⭐ v4.5.0: MappingEventHandler 인스턴스 생성
+        this.eventHandler = new MappingEventHandler({
+            signalIntegration: this.signalIntegration,
+            apiClient: this.apiClient,
+            wsManager: this.wsManager,
+            onUpdate: () => this.updateStatusPanel(),
+            showToast: (msg, type) => this.showToast(msg, type),
+            cacheStatus: (frontendId, status) => {
+                if (status === null) {
+                    this.statusCache.delete(frontendId);
+                } else {
+                    this.statusCache.set(frontendId, status);
+                }
+            }
+        }, { debug: false });
+        
         // ⭐ v4.2.0: 레거시 호환성 - ws 참조 (deprecated)
         this._ws = null;
         
@@ -123,10 +141,10 @@ export class MonitoringService {
         // ⭐ v3.3.0: EquipmentInfoPanel 참조
         this.equipmentInfoPanel = null;
         
-        // ⭐ v3.0.0: 이벤트 핸들러 바인딩 (제거 시 필요)
-        this._boundHandleMappingChanged = this.handleMappingChanged.bind(this);
+        // ⭐ v4.5.0: 레거시 호환성 - 이벤트 핸들러 바인딩 (deprecated)
+        this._boundHandleMappingChanged = (e) => this.eventHandler._handleMappingEvent(e);
         
-        debugLog('📡 MonitoringService v4.4.0 initialized (with SignalTowerIntegration)');
+        debugLog('📡 MonitoringService v4.5.0 initialized (with MappingEventHandler)');
     }
     
     // ===============================================
@@ -229,12 +247,16 @@ export class MonitoringService {
         return this.statsPanel;
     }
     
-    /**
-     * ⭐ v4.4.0: SignalTowerIntegration 인스턴스 조회
-     * @returns {SignalTowerIntegration}
-     */
     getSignalIntegration() {
         return this.signalIntegration;
+    }
+    
+    /**
+     * ⭐ v4.5.0: MappingEventHandler 인스턴스 조회
+     * @returns {MappingEventHandler}
+     */
+    getEventHandler() {
+        return this.eventHandler;
     }
     
     // ===============================================
@@ -247,17 +269,15 @@ export class MonitoringService {
             return;
         }
         
-        debugLog('🟢 Starting monitoring mode (v4.4.0)...');
+        debugLog('🟢 Starting monitoring mode (v4.5.0)...');
         this.isActive = true;
         
         try {
             // 1️⃣ SignalTower 모든 램프 초기화 (OFF 상태)
-            // ⭐ v4.4.0: SignalTowerIntegration 사용
             this.signalIntegration.initializeAllLights();
             debugLog('🚨 Step 1: SignalTower lights initialized (all OFF)');
             
             // 2️⃣ 미매핑 설비 처리
-            // ⭐ v4.4.0: SignalTowerIntegration 사용
             const applyResult = this.signalIntegration.applyUnmappedStyle();
             this.currentStats.mapped = applyResult.mapped;
             this.currentStats.unmapped = applyResult.unmapped;
@@ -284,10 +304,11 @@ export class MonitoringService {
             debugLog('⏱️ Step 6: Batch processing started');
             
             // 7️⃣ 이벤트 리스너 등록 (새 매핑 감지)
+            // ⭐ v4.5.0: MappingEventHandler 사용
             this.registerEventListeners();
             debugLog('📡 Step 7: Event listeners registered');
             
-            debugLog('✅ Monitoring mode started successfully (v4.4.0)');
+            debugLog('✅ Monitoring mode started successfully (v4.5.0)');
             
         } catch (error) {
             console.error('❌ Failed to start monitoring:', error);
@@ -299,10 +320,10 @@ export class MonitoringService {
         this.isActive = false;
         
         // 1. 이벤트 리스너 해제
+        // ⭐ v4.5.0: MappingEventHandler 사용
         this.unregisterEventListeners();
         
         // 2. 비활성화 표시 해제
-        // ⭐ v4.4.0: SignalTowerIntegration 사용
         this.resetEquipmentStyle();
         
         // 3. 통계 패널 제거
@@ -320,6 +341,39 @@ export class MonitoringService {
         }
         
         debugLog('✅ Monitoring mode stopped');
+    }
+    
+    // ===============================================
+    // ⭐ v4.5.0: 이벤트 리스너 관리 (위임)
+    // ===============================================
+    
+    /**
+     * 이벤트 리스너 등록 (레거시 호환성 유지)
+     */
+    registerEventListeners() {
+        debugLog('📡 registerEventListeners() → eventHandler.register()');
+        this.eventHandler.register(this.eventBus);
+    }
+    
+    /**
+     * 이벤트 리스너 해제 (레거시 호환성 유지)
+     */
+    unregisterEventListeners() {
+        debugLog('📡 unregisterEventListeners() → eventHandler.unregister()');
+        this.eventHandler.unregister();
+    }
+    
+    /**
+     * 매핑 변경 이벤트 핸들러 (레거시 호환성 유지)
+     * @deprecated v4.5.0부터 eventHandler._handleMappingEvent() 사용
+     */
+    async handleMappingChanged(eventOrData) {
+        debugLog('⚠️ handleMappingChanged() → eventHandler._handleMappingEvent()');
+        return this.eventHandler._handleMappingEvent(eventOrData);
+    }
+    
+    async fetchSingleEquipmentStatus(frontendId) {
+        return this.apiClient.fetchEquipmentLiveStatus?.(frontendId) || null;
     }
     
     // ===============================================
@@ -388,7 +442,6 @@ export class MonitoringService {
     
     _handleStatusUpdate(frontendId, data) {
         const status = data.status || 'DISCONNECTED';
-        // ⭐ v4.4.0: SignalTowerIntegration 사용
         const normalizedStatus = this.signalIntegration.normalizeStatus(status);
         
         debugLog(`📊 Status update: ${frontendId} → ${normalizedStatus}`);
@@ -402,7 +455,6 @@ export class MonitoringService {
         });
         
         // SignalTower 업데이트
-        // ⭐ v4.4.0: SignalTowerIntegration 사용
         this.updateEquipmentStatus(frontendId, normalizedStatus);
         
         // EquipmentInfoPanel 알림
@@ -440,12 +492,10 @@ export class MonitoringService {
             }
             
             if (item.is_connected === false || item.status === null) {
-                // ⭐ v4.4.0: SignalTowerIntegration 사용
                 this.signalIntegration.updateStatus(frontendId, 'DISCONNECTED');
                 this.statusCache.set(frontendId, 'DISCONNECTED');
                 disconnectedCount++;
             } else {
-                // ⭐ v4.4.0: SignalTowerIntegration 사용
                 this.signalIntegration.updateStatus(frontendId, item.status);
                 this.statusCache.set(frontendId, item.status);
                 connectedCount++;
@@ -466,16 +516,10 @@ export class MonitoringService {
     // ⭐ v4.4.0: 설비 상태 업데이트 (위임)
     // ===============================================
     
-    /**
-     * 설비 상태 업데이트 (레거시 호환성 유지)
-     */
     updateEquipmentStatus(frontendId, status) {
-        this.signalIntegration.updateStatus(frontendId, status, false);  // 이미 정규화됨
+        this.signalIntegration.updateStatus(frontendId, status, false);
     }
     
-    /**
-     * 상태 정규화 (레거시 호환성 유지)
-     */
     normalizeStatus(status) {
         return this.signalIntegration.normalizeStatus(status);
     }
@@ -484,20 +528,13 @@ export class MonitoringService {
     // ⭐ v4.4.0: SignalTower 미매핑 설비 처리 (위임)
     // ===============================================
     
-    /**
-     * 미매핑 SignalTower 램프 DISABLED 처리 (레거시 호환성 유지)
-     */
     applyUnmappedSignalTowerStyle() {
         this.signalIntegration.applyUnmappedSignalTowerStyle();
     }
     
-    /**
-     * 미매핑 설비 모델 회색 처리 (레거시 호환성 유지)
-     */
     applyUnmappedEquipmentStyle() {
         const result = this.signalIntegration.applyUnmappedEquipmentStyle();
         
-        // 레거시 호환성 - currentStats 업데이트
         this.currentStats.mapped = result.mapped;
         this.currentStats.unmapped = result.unmapped;
         this.currentStats.total = result.mapped + result.unmapped;
@@ -506,16 +543,10 @@ export class MonitoringService {
             : 0;
     }
     
-    /**
-     * 모든 설비 스타일 초기화 (레거시 호환성 유지)
-     */
     resetEquipmentStyle() {
         this.signalIntegration.resetAllStyles();
     }
     
-    /**
-     * 비활성화 옵션 설정 (레거시 호환성 유지)
-     */
     setDisabledOptions(options) {
         this.disabledOptions = { ...this.disabledOptions, ...options };
         this.signalIntegration.setDisabledOptions(options);
@@ -559,75 +590,7 @@ export class MonitoringService {
     }
     
     isEquipmentMapped(frontendId) {
-        // ⭐ v4.4.0: SignalTowerIntegration 사용
         return this.signalIntegration.isEquipmentMapped(frontendId);
-    }
-    
-    // ===============================================
-    // 이벤트 리스너
-    // ===============================================
-    
-    registerEventListeners() {
-        if (this.eventBus) {
-            this.eventBus.on('mapping-changed', this._boundHandleMappingChanged);
-            this.eventBus.on('mapping-created', this._boundHandleMappingChanged);
-        }
-        
-        window.addEventListener('mapping-changed', this._boundHandleMappingChanged);
-        window.addEventListener('mapping-created', this._boundHandleMappingChanged);
-        debugLog('📡 Event listeners registered');
-    }
-    
-    unregisterEventListeners() {
-        if (this.eventBus) {
-            this.eventBus.off('mapping-changed', this._boundHandleMappingChanged);
-            this.eventBus.off('mapping-created', this._boundHandleMappingChanged);
-        }
-        
-        window.removeEventListener('mapping-changed', this._boundHandleMappingChanged);
-        window.removeEventListener('mapping-created', this._boundHandleMappingChanged);
-        debugLog('📡 Event listeners unregistered');
-    }
-    
-    async handleMappingChanged(eventOrData) {
-        const data = eventOrData.detail || eventOrData;
-        const { frontendId, equipmentId, equipment_id } = data;
-        const eqId = equipmentId || equipment_id;
-        
-        if (!frontendId) {
-            debugLog('⚠️ Invalid mapping-changed event data');
-            return;
-        }
-        
-        debugLog(`🆕 New mapping detected: ${frontendId} -> equipment_id: ${eqId}`);
-        
-        try {
-            // ⭐ v4.4.0: SignalTowerIntegration 사용
-            this.signalIntegration.restoreEquipmentFullStyle(frontendId);
-            
-            const status = await this.fetchSingleEquipmentStatus(frontendId);
-            
-            if (status) {
-                // ⭐ v4.4.0: SignalTowerIntegration 사용
-                this.signalIntegration.updateStatus(frontendId, status);
-                this.statusCache.set(frontendId, status);
-            }
-            
-            if (eqId) {
-                this.sendSubscribeForNewMapping(eqId);
-            }
-            
-            this.updateStatusPanel();
-            this.showToast(`✅ ${frontendId} 연결됨 (Status: ${status || 'Unknown'})`, 'success');
-            
-        } catch (error) {
-            console.error(`❌ Failed to handle new mapping for ${frontendId}:`, error);
-            this.showToast(`⚠️ ${frontendId} 연결 처리 실패`, 'error');
-        }
-    }
-    
-    async fetchSingleEquipmentStatus(frontendId) {
-        return this.apiClient.fetchEquipmentLiveStatus?.(frontendId) || null;
     }
     
     // ===============================================
@@ -682,8 +645,9 @@ export class MonitoringService {
             cacheSize: this.statusCache.size,
             queueSize: this.updateQueue.length,
             stats: this.getStats(),
-            // ⭐ v4.4.0: SignalTowerIntegration 상태 추가
-            signalIntegration: this.signalIntegration?.getStatus() || null
+            signalIntegration: this.signalIntegration?.getStatus() || null,
+            // ⭐ v4.5.0: MappingEventHandler 상태 추가
+            eventHandler: this.eventHandler?.getStatus() || null
         };
     }
     
@@ -742,6 +706,9 @@ export class MonitoringService {
     
     dispose() {
         this.stop();
+        
+        // ⭐ v4.5.0: MappingEventHandler 정리
+        this.eventHandler?.dispose();
         
         // ⭐ v4.4.0: SignalTowerIntegration 정리
         this.signalIntegration?.dispose();
