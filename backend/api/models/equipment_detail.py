@@ -2,18 +2,24 @@
 Equipment Detail API - Pydantic Schemas
 설비 상세 정보 패널용 데이터 모델
 
-@version 1.3.0
+@version 2.0.0
 @changelog
+- v2.0.0: PC Info Tab 확장 - Memory, Disk 필드 추가
+          - EquipmentDetailResponse: memory_total_gb, memory_used_gb, disk_c_*, disk_d_* 추가
+          - MultiEquipmentDetailResponse: avg_memory_usage_percent, avg_disk_c/d_usage_percent 추가
+          - EquipmentDetailData: Memory, Disk 필드 추가
+          - ⚠️ 호환성: 기존 모든 필드 100% 유지
+- v1.4.0: Lot Active/Inactive 분기 지원
+          - is_lot_active: 최신 Lotinfo 레코드의 IsStart 값 (1=Active, 0=Inactive)
+          - since_time: Lot 종료 시점 (IsStart=0인 경우, Duration 계산용)
+          - lot_start_time 유지 (IsStart=1인 경우)
+          - PC Info 필드 유지
 - v1.3.0: General Tab 확장 (lot_start_time) + PC Info Tab 필드 추가
-          - lot_start_time: Lot 시작 시간 (log.Lotinfo.OccurredAtUtc, IsStart=1)
-          - PC Info: cpu_name, cpu_logical_count, gpu_name, os_name, etc.
-          - cpu_usage_percent: 실시간 CPU 사용율
-          - Multi Selection: avg_cpu_usage_percent 추가
-- v1.2.0: MultiEquipmentDetailRequest에 equipment_ids 필드 추가 (Frontend 매핑 우선)
+- v1.2.0: MultiEquipmentDetailRequest에 equipment_ids 필드 추가
 - v1.0.0: 초기 버전
 
 작성일: 2026-01-06
-수정일: 2026-01-08
+수정일: 2026-01-09
 """
 
 from pydantic import BaseModel, Field
@@ -62,14 +68,18 @@ class MultiEquipmentDetailRequest(BaseModel):
 class EquipmentDetailResponse(BaseModel):
     """단일 설비 상세 정보 응답
     
-    🆕 v1.3.0: General Tab 확장 + PC Info Tab 필드 추가
+    🆕 v2.0.0: PC Info Tab 확장 - Memory, Disk 필드 추가
     
     DB 테이블 매핑:
     - core.Equipment: EquipmentId, EquipmentName, LineName
     - log.EquipmentState: Status, OccurredAtUtc
-    - log.Lotinfo: LotId, ProductModel, OccurredAtUtc (IsStart=1)
+    - log.Lotinfo: LotId, ProductModel, IsStart, OccurredAtUtc
     - core.EquipmentPCInfo: OS, Architecture, LastBootTime, CPUName, CPULogicalCount, GPUName, UpdateAtUtc
-    - log.EquipmentPCInfo: CPUUsagePercent
+    - log.EquipmentPCInfo: CPUUsagePercent, MemoryTotalMb, MemoryUsedMb, DiskTotalGb, DiskUsedGb, DiskTotalGb2, DiskUsedGb2
+    
+    Lot Active/Inactive 분기:
+    - is_lot_active=True (IsStart=1): Product, Lot No, Lot Start, Lot Duration 표시
+    - is_lot_active=False (IsStart=0): Product="-", Lot No="-", Since, Duration 표시
     """
     
     # ============================================
@@ -85,15 +95,27 @@ class EquipmentDetailResponse(BaseModel):
     last_updated: Optional[datetime] = Field(None, description="마지막 업데이트 시간")
     
     # ============================================
-    # 🆕 v1.3.0: General Tab 확장 - Lot 시작 시간
+    # 🆕 v1.4.0: Lot Active/Inactive 분기 필드
     # ============================================
+    is_lot_active: Optional[bool] = Field(
+        None,
+        description="Lot 진행 중 여부 (True: IsStart=1, False: IsStart=0 또는 레코드 없음)"
+    )
+    
+    # Lot Active 시 사용 (is_lot_active=True)
     lot_start_time: Optional[datetime] = Field(
         None, 
-        description="Lot 시작 시간 (log.Lotinfo.OccurredAtUtc, IsStart=1)"
+        description="Lot 시작 시간 (log.Lotinfo.OccurredAtUtc, IsStart=1인 경우)"
+    )
+    
+    # Lot Inactive 시 사용 (is_lot_active=False)
+    since_time: Optional[datetime] = Field(
+        None,
+        description="Lot 종료 시점 (log.Lotinfo.OccurredAtUtc, IsStart=0인 경우, Duration 계산용)"
     )
     
     # ============================================
-    # 🆕 v1.3.0: PC Info Tab - 고정 정보 (core.EquipmentPCInfo)
+    # PC Info Tab - 고정 정보 (core.EquipmentPCInfo)
     # ============================================
     cpu_name: Optional[str] = Field(
         None, 
@@ -125,11 +147,41 @@ class EquipmentDetailResponse(BaseModel):
     )
     
     # ============================================
-    # 🆕 v1.3.0: PC Info Tab - 실시간 정보 (log.EquipmentPCInfo)
+    # PC Info Tab - 실시간 정보 (log.EquipmentPCInfo)
     # ============================================
     cpu_usage_percent: Optional[float] = Field(
         None, 
         description="CPU 사용율 % (log.EquipmentPCInfo.CPUUsagePercent)"
+    )
+    
+    # 🆕 v2.0.0: Memory (MB → GB 변환)
+    memory_total_gb: Optional[float] = Field(
+        None,
+        description="Memory 전체 용량 GB (log.EquipmentPCInfo.MemoryTotalMb / 1024)"
+    )
+    memory_used_gb: Optional[float] = Field(
+        None,
+        description="Memory 사용량 GB (log.EquipmentPCInfo.MemoryUsedMb / 1024)"
+    )
+    
+    # 🆕 v2.0.0: Disk C
+    disk_c_total_gb: Optional[float] = Field(
+        None,
+        description="Disk C 전체 용량 GB (log.EquipmentPCInfo.DiskTotalGb)"
+    )
+    disk_c_used_gb: Optional[float] = Field(
+        None,
+        description="Disk C 사용량 GB (log.EquipmentPCInfo.DiskUsedGb)"
+    )
+    
+    # 🆕 v2.0.0: Disk D (NULL 가능 - 없는 설비는 Frontend에서 행 숨김 처리)
+    disk_d_total_gb: Optional[float] = Field(
+        None,
+        description="Disk D 전체 용량 GB (log.EquipmentPCInfo.DiskTotalGb2, NULL 가능)"
+    )
+    disk_d_used_gb: Optional[float] = Field(
+        None,
+        description="Disk D 사용량 GB (log.EquipmentPCInfo.DiskUsedGb2, NULL 가능)"
     )
     
     class Config:
@@ -142,19 +194,28 @@ class EquipmentDetailResponse(BaseModel):
                 "status": "RUN",
                 "product_model": "MODEL-X123",
                 "lot_id": "LOT-2026-001",
-                "last_updated": "2026-01-08T21:24:55+08:00",
-                # 🆕 v1.3.0: General Tab 확장
-                "lot_start_time": "2026-01-08T10:30:00+08:00",
-                # 🆕 v1.3.0: PC Info Tab - 고정 정보
+                "last_updated": "2026-01-09T21:24:55+08:00",
+                # 🆕 v1.4.0: Lot Active/Inactive
+                "is_lot_active": True,
+                "lot_start_time": "2026-01-09T10:30:00+08:00",
+                "since_time": None,
+                # PC Info Tab - 고정 정보
                 "cpu_name": "Intel(R) Core(TM) i7-12700K",
                 "cpu_logical_count": 20,
                 "gpu_name": "NVIDIA GeForce RTX 3080",
                 "os_name": "Windows 11 Pro",
                 "os_architecture": "64-bit",
                 "last_boot_time": "2026-01-01T08:00:00+08:00",
-                "pc_last_update_time": "2026-01-08T10:00:00+08:00",
-                # 🆕 v1.3.0: PC Info Tab - 실시간 정보
-                "cpu_usage_percent": 45.2
+                "pc_last_update_time": "2026-01-09T10:00:00+08:00",
+                # PC Info Tab - 실시간 정보
+                "cpu_usage_percent": 45.2,
+                # 🆕 v2.0.0: Memory, Disk
+                "memory_total_gb": 16.0,
+                "memory_used_gb": 12.5,
+                "disk_c_total_gb": 500.0,
+                "disk_c_used_gb": 120.0,
+                "disk_d_total_gb": 1000.0,
+                "disk_d_used_gb": 200.0
             }
         }
 
@@ -172,7 +233,12 @@ class StatusCount(BaseModel):
 class MultiEquipmentDetailResponse(BaseModel):
     """다중 설비 상세 정보 응답 (집계)
     
-    🆕 v1.3.0: PC Info 집계 필드 추가 (avg_cpu_usage_percent)
+    🆕 v2.0.0: Memory, Disk 평균 추가
+    - avg_memory_usage_percent: 평균 Memory 사용율 %
+    - avg_disk_c_usage_percent: 평균 Disk C 사용율 %
+    - avg_disk_d_usage_percent: 평균 Disk D 사용율 % (NULL인 설비는 제외)
+    
+    기존 집계 방식 유지 (Lot Active/Inactive 개수 집계는 추가하지 않음)
     """
     count: int = Field(..., description="선택된 설비 수")
     
@@ -198,14 +264,32 @@ class MultiEquipmentDetailResponse(BaseModel):
     lot_ids_more: bool = Field(False, description="3개 초과 여부")
     
     # ============================================
-    # 🆕 v1.3.0: PC Info Tab 집계
+    # PC Info Tab 집계 (기존 필드 - 호환성 유지)
     # ============================================
     avg_cpu_usage_percent: Optional[float] = Field(
         None, 
         description="평균 CPU 사용율 % (Multi Selection 시 평균 계산)"
     )
     
-    # CPU 이름 목록 (중복 제거, 최대 3개) - 여러 종류의 CPU가 있을 수 있음
+    # 🆕 v2.0.0: 평균 Memory 사용율 %
+    avg_memory_usage_percent: Optional[float] = Field(
+        None,
+        description="평균 Memory 사용율 % (UsedMb / TotalMb * 100)"
+    )
+    
+    # 🆕 v2.0.0: 평균 Disk C 사용율 %
+    avg_disk_c_usage_percent: Optional[float] = Field(
+        None,
+        description="평균 Disk C 사용율 % (UsedGb / TotalGb * 100)"
+    )
+    
+    # 🆕 v2.0.0: 평균 Disk D 사용율 % (NULL인 설비는 평균 계산에서 제외)
+    avg_disk_d_usage_percent: Optional[float] = Field(
+        None,
+        description="평균 Disk D 사용율 % (NULL인 설비는 제외하고 계산)"
+    )
+    
+    # CPU 이름 목록 (중복 제거, 최대 3개)
     cpu_names: List[str] = Field(
         default_factory=list, 
         description="CPU 이름 목록 (최대 3개, 중복 제거)"
@@ -237,8 +321,13 @@ class MultiEquipmentDetailResponse(BaseModel):
                 "products_more": False,
                 "lot_ids": ["LOT-001", "LOT-002", "LOT-003"],
                 "lot_ids_more": True,
-                # 🆕 v1.3.0: PC Info 집계
+                # PC Info 집계
                 "avg_cpu_usage_percent": 48.5,
+                # 🆕 v2.0.0: Memory, Disk 평균
+                "avg_memory_usage_percent": 78.2,
+                "avg_disk_c_usage_percent": 45.0,
+                "avg_disk_d_usage_percent": 32.5,
+                # 기존 필드
                 "cpu_names": ["Intel(R) Core(TM) i7-12700K"],
                 "cpu_names_more": False,
                 "gpu_names": ["NVIDIA GeForce RTX 3080"],
@@ -256,7 +345,8 @@ class MultiEquipmentDetailResponse(BaseModel):
 class EquipmentDetailData(BaseModel):
     """내부용 설비 상세 데이터
     
-    🆕 v1.3.0: PC Info 필드 추가
+    🆕 v2.0.0: Memory, Disk 필드 추가
+    🆕 v1.4.0: Lot Active/Inactive 필드 추가
     """
     equipment_id: int
     equipment_name: Optional[str] = None
@@ -267,10 +357,12 @@ class EquipmentDetailData(BaseModel):
     lot_id: Optional[str] = None
     lot_occurred_at: Optional[datetime] = None
     
-    # 🆕 v1.3.0: Lot 시작 시간 (General Tab)
-    lot_start_time: Optional[datetime] = None
+    # 🆕 v1.4.0: Lot Active/Inactive 분기
+    is_lot_active: Optional[bool] = None  # IsStart 값 (1=True, 0=False)
+    lot_start_time: Optional[datetime] = None  # IsStart=1인 경우
+    since_time: Optional[datetime] = None  # IsStart=0인 경우
     
-    # 🆕 v1.3.0: PC Info (고정 정보)
+    # PC Info (고정 정보)
     cpu_name: Optional[str] = None
     cpu_logical_count: Optional[int] = None
     gpu_name: Optional[str] = None
@@ -279,5 +371,17 @@ class EquipmentDetailData(BaseModel):
     last_boot_time: Optional[datetime] = None
     pc_last_update_time: Optional[datetime] = None
     
-    # 🆕 v1.3.0: PC Info (실시간)
+    # PC Info (실시간)
     cpu_usage_percent: Optional[float] = None
+    
+    # 🆕 v2.0.0: Memory (GB 단위)
+    memory_total_gb: Optional[float] = None
+    memory_used_gb: Optional[float] = None
+    
+    # 🆕 v2.0.0: Disk C (GB 단위)
+    disk_c_total_gb: Optional[float] = None
+    disk_c_used_gb: Optional[float] = None
+    
+    # 🆕 v2.0.0: Disk D (GB 단위, NULL 가능)
+    disk_d_total_gb: Optional[float] = None
+    disk_d_used_gb: Optional[float] = None

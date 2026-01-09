@@ -1,6 +1,23 @@
 /**
- * MonitoringService.js - v3.3.0
+ * MonitoringService.js - v4.0.1
  * 실시간 설비 모니터링 서비스
+ * 
+ * ⭐ v4.0.1: 선택된 설비만 EquipmentInfoPanel 업데이트 (버그 수정)
+ * - notifyEquipmentInfoPanel()에서 선택된 설비 필터링 로직 단순화
+ * - selectedFrontendIds 배열로 통일 (Single/Multi 모두)
+ * - length === 0 체크 추가 (선택 없으면 무시)
+ * - 불필요한 WebSocket 메시지 처리 방지
+ * 
+ * ⭐ v4.0.0: PC Info Tab 확장 - Memory, Disk 필드 추가
+ * - WebSocket 메시지에 memory_total_gb, memory_used_gb 필드 추가
+ * - WebSocket 메시지에 disk_c_*, disk_d_* 필드 추가
+ * - EquipmentInfoPanel에 신규 필드 전달
+ * - ⚠️ 호환성: 기존 모든 기능 100% 유지
+ * 
+ * ⭐ v3.4.0: Lot Active/Inactive 분기 지원
+ * - WebSocket 메시지에 is_lot_active, since_time 필드 추가
+ * - EquipmentInfoPanel에 신규 필드 전달
+ * - 기존 기능 100% 호환성 유지
  * 
  * ⭐ v3.3.0: EquipmentInfoPanel 실시간 업데이트 연동 (Phase 4)
  * - WebSocket 메시지 수신 시 EquipmentInfoPanel.updateRealtime() 호출
@@ -77,7 +94,7 @@ export class MonitoringService {
         // ⭐ v3.0.0: 이벤트 핸들러 바인딩 (제거 시 필요)
         this._boundHandleMappingChanged = this.handleMappingChanged.bind(this);
         
-        debugLog('MonitoringService initialized (v3.3.0)');
+        debugLog('MonitoringService initialized (v4.0.1)');
     }
     
     /**
@@ -121,7 +138,7 @@ export class MonitoringService {
             return;
         }
         
-        debugLog('🟢 Starting monitoring mode (v3.3.0)...');
+        debugLog('🟢 Starting monitoring mode (v4.0.1)...');
         this.isActive = true;
         
         try {
@@ -177,7 +194,7 @@ export class MonitoringService {
             this.registerEventListeners();
             debugLog('📡 Step 7: Event listeners registered');
             
-            debugLog('✅ Monitoring mode started successfully (v3.3.0)');
+            debugLog('✅ Monitoring mode started successfully (v4.0.1)');
             
         } catch (error) {
             console.error('❌ Failed to start monitoring:', error);
@@ -847,10 +864,10 @@ export class MonitoringService {
     }
     
     /**
-     * ⭐ v3.3.0: WebSocket 메시지 핸들러 (EquipmentInfoPanel 실시간 업데이트 추가)
+     * ⭐ v4.0.0: WebSocket 메시지 핸들러 (Memory, Disk 필드 추가)
      * - equipment_id → frontend_id 변환
      * - SignalTower 업데이트
-     * - EquipmentInfoPanel 실시간 업데이트
+     * - EquipmentInfoPanel 실시간 업데이트 (Memory, Disk 포함)
      */
     handleWebSocketMessage(event) {
         try {
@@ -898,7 +915,7 @@ export class MonitoringService {
                     // SignalTower 업데이트
                     this.updateEquipmentStatus(frontendId, data.status);
                     
-                    // ⭐ v3.3.0: EquipmentInfoPanel 실시간 업데이트
+                    // ⭐ v4.0.0: EquipmentInfoPanel 실시간 업데이트 (Memory, Disk 포함)
                     this.notifyEquipmentInfoPanel(frontendId, data);
                 } else {
                     debugLog(`⚠️ Equipment not mapped: ${frontendId}`);
@@ -911,7 +928,8 @@ export class MonitoringService {
     }
     
     /**
-     * ⭐ v3.3.0: EquipmentInfoPanel에 실시간 업데이트 전달
+     * ⭐ v4.0.1: EquipmentInfoPanel에 실시간 업데이트 전달 (Memory, Disk 필드 포함)
+     * - 선택된 설비만 업데이트 (불필요한 호출 방지)
      * @param {string} frontendId - Frontend ID
      * @param {Object} data - WebSocket에서 받은 데이터
      */
@@ -921,22 +939,62 @@ export class MonitoringService {
             return;
         }
         
-        // 업데이트 데이터 구성
+        // 🆕 v4.0.1: 선택된 설비만 업데이트 (불필요한 호출 방지)
+        const selectedFrontendIds = this.equipmentInfoPanel.selectedFrontendIds || [];
+        
+        // 선택된 설비가 없으면 무시
+        if (selectedFrontendIds.length === 0) {
+            return;
+        }
+        
+        // 선택된 설비 목록에 포함되지 않으면 무시
+        if (!selectedFrontendIds.includes(frontendId)) {
+            debugLog(`⏭️ Skipping notify: ${frontendId} not in selected [${selectedFrontendIds.join(', ')}]`);
+            return;
+        }
+        
+        // ⭐ v4.0.0: 업데이트 데이터 구성 (Memory, Disk 필드 포함)
         const updateData = {
             frontend_id: frontendId,
             equipment_id: data.equipment_id,
             status: data.status,
-            // Backend에서 추가 필드가 있으면 전달
+            
+            // Equipment Info (기존 필드)
+            equipment_name: data.equipment_name || null,
             line_name: data.line_name || null,
+            
+            // Lot Info (기존 필드)
             product_model: data.product_model || null,
             lot_id: data.lot_id || null,
+            lot_start_time: data.lot_start_time || null,
+            
+            // 🆕 v3.4.0: Lot Active/Inactive 분기 필드
+            is_lot_active: data.is_lot_active,
+            since_time: data.since_time || null,
+            
+            // PC Info - CPU (기존 필드)
+            cpu_usage_percent: data.cpu_usage_percent,
+            
+            // 🆕 v4.0.0: PC Info - Memory
+            memory_total_gb: data.memory_total_gb,
+            memory_used_gb: data.memory_used_gb,
+            
+            // 🆕 v4.0.0: PC Info - Disk C
+            disk_c_total_gb: data.disk_c_total_gb,
+            disk_c_used_gb: data.disk_c_used_gb,
+            
+            // 🆕 v4.0.0: PC Info - Disk D (NULL 가능)
+            disk_d_total_gb: data.disk_d_total_gb,
+            disk_d_used_gb: data.disk_d_used_gb,
+            
+            // Timestamp
             last_updated: data.timestamp || new Date().toISOString()
         };
         
         // EquipmentInfoPanel.updateRealtime() 호출
         this.equipmentInfoPanel.updateRealtime(updateData);
         
-        debugLog(`📊 EquipmentInfoPanel notified: ${frontendId} -> ${data.status}`);
+        debugLog(`📊 EquipmentInfoPanel notified: ${frontendId} -> ${data.status}, is_lot_active=${data.is_lot_active}, mem=${data.memory_used_gb}GB`);
     }
     
     updateEquipmentStatus(frontendId, status) {
@@ -989,7 +1047,7 @@ export class MonitoringService {
     }
     
     /**
-     * 테스트용: 특정 설비 상태 변경
+     * ⭐ v4.0.0: 테스트용: 특정 설비 상태 변경 (Memory, Disk 포함)
      * @param {string} frontendId - Frontend ID (예: 'EQ-01-01')
      * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP', 'SUDDENSTOP', 'DISCONNECTED')
      */
@@ -998,16 +1056,30 @@ export class MonitoringService {
         this.updateEquipmentStatus(frontendId, status);
         this.flushUpdateQueue();
         
-        // ⭐ v3.3.0: EquipmentInfoPanel도 테스트
+        // ⭐ v4.0.0: EquipmentInfoPanel도 테스트 (Memory, Disk 포함)
         this.notifyEquipmentInfoPanel(frontendId, {
             equipment_id: this.equipmentEditState?.getMapping(frontendId)?.equipmentId,
             status: status,
+            is_lot_active: true,  // 테스트용 기본값
+            lot_start_time: new Date().toISOString(),
+            since_time: null,
+            // CPU
+            cpu_usage_percent: 45.5,
+            // 🆕 v4.0.0: Memory
+            memory_total_gb: 16.0,
+            memory_used_gb: 8.5,
+            // 🆕 v4.0.0: Disk C
+            disk_c_total_gb: 500,
+            disk_c_used_gb: 250,
+            // 🆕 v4.0.0: Disk D
+            disk_d_total_gb: 1000,
+            disk_d_used_gb: 400,
             timestamp: new Date().toISOString()
         });
     }
     
     /**
-     * 테스트용: equipment_id로 상태 변경
+     * ⭐ v4.0.0: 테스트용: equipment_id로 상태 변경 (Memory, Disk 포함)
      * @param {number} equipmentId - Equipment ID (예: 75)
      * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP', 'SUDDENSTOP', 'DISCONNECTED')
      */
@@ -1023,10 +1095,24 @@ export class MonitoringService {
         this.updateEquipmentStatus(frontendId, status);
         this.flushUpdateQueue();
         
-        // ⭐ v3.3.0: EquipmentInfoPanel도 테스트
+        // ⭐ v4.0.0: EquipmentInfoPanel도 테스트 (Memory, Disk 포함)
         this.notifyEquipmentInfoPanel(frontendId, {
             equipment_id: equipmentId,
             status: status,
+            is_lot_active: false,  // 테스트용: Lot Inactive
+            since_time: new Date().toISOString(),
+            lot_start_time: null,
+            // CPU
+            cpu_usage_percent: 72.3,
+            // 🆕 v4.0.0: Memory
+            memory_total_gb: 32.0,
+            memory_used_gb: 24.5,
+            // 🆕 v4.0.0: Disk C
+            disk_c_total_gb: 256,
+            disk_c_used_gb: 180,
+            // 🆕 v4.0.0: Disk D (NULL 테스트)
+            disk_d_total_gb: null,
+            disk_d_used_gb: null,
             timestamp: new Date().toISOString()
         });
     }
@@ -1067,7 +1153,7 @@ export class MonitoringService {
      */
     debugPrintStatus() {
         console.group('🔧 MonitoringService Debug Info');
-        console.log('Version: 3.3.0');
+        console.log('Version: 4.0.1');
         console.log('Stale Threshold:', this.staleThresholdHours, 'hours');
         console.log('EquipmentInfoPanel Connected:', !!this.equipmentInfoPanel);
         console.log('Connection Status:', this.getConnectionStatus());

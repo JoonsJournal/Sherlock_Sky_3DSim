@@ -3,19 +3,27 @@
  * =========================
  * Equipment Info Panel 전용 스타일 (Tab UI)
  * 
- * @version 2.0.0
+ * @version 3.0.0
  * @changelog
+ * - v3.0.0: PC Info Tab 확장 - Memory, Disk Gauge 스타일 추가
+ *           - .memory-gauge-*, .disk-gauge-* 스타일 추가
+ *           - .disk-label (C:, D: 라벨)
+ *           - .gauge-blue 색상 추가 (Disk용)
+ *           - Boot Duration 스타일 (.boot-duration)
+ *           - 반응형 Gauge 스타일 추가
+ *           - ⚠️ 호환성: 기존 모든 스타일 100% 유지
+ * - v2.1.0: Status를 헤더로 이동 (탭과 무관하게 항상 표시)
+ *           - .equipment-panel-header 추가 (Name + Status 나란히)
+ *           - .header-status 추가 (헤더 내 Status 표시)
+ *           - 기존 Status 스타일 유지 (호환성)
  * - v2.0.0: PC Info Tab 스타일 추가
- *           - CPU Usage Gauge (색상: 녹/황/적)
- *           - Info Row Divider
- *           - Small Value (긴 텍스트용)
  * - v1.3.0: 클래식 폴더 탭 스타일 적용 (Windows 스타일)
  * - v1.2.0: Multi Selection 집계 스타일 추가 (Phase 3)
  * - v1.0.0: 초기 버전 - Tab UI
  * 
  * 📁 위치: frontend/threejs_viewer/styles/components/_equipment-info-panel.css
  * 작성일: 2026-01-06
- * 수정일: 2026-01-08
+ * 수정일: 2026-01-09
  */
 
 /* =============================================
@@ -80,7 +88,84 @@
 }
 
 /* =============================================
-   Panel Title (Equipment Name)
+   🆕 v2.1.0: Panel Header (Name + Status 나란히)
+   ============================================= */
+.equipment-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 48px 12px 16px;
+    gap: 12px;
+}
+
+/* Header 내 Equipment Name */
+.equipment-panel-header .equipment-panel-title {
+    margin: 0;
+    padding: 0;
+    color: var(--interactive-primary);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    border-bottom: none;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.equipment-panel-header .equipment-panel-title.multi-select {
+    color: var(--status-info);
+}
+
+/* 🆕 v2.1.0: Header 내 Status 표시 */
+.equipment-panel-header .header-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--overlay-bg-secondary);
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+
+.equipment-panel-header .header-status .status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+}
+
+.equipment-panel-header .header-status .status-text {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--overlay-text-primary);
+}
+
+/* Header Status 색상 - 기존 스타일 재사용 */
+.equipment-panel-header .header-status .status-indicator.status-running {
+    background: var(--equip-running);
+    box-shadow: 0 0 8px var(--equip-running);
+}
+
+.equipment-panel-header .header-status .status-indicator.status-idle {
+    background: var(--equip-idle);
+}
+
+.equipment-panel-header .header-status .status-indicator.status-stop {
+    background: var(--status-warning);
+}
+
+.equipment-panel-header .header-status .status-indicator.status-error {
+    background: var(--equip-alarm);
+    box-shadow: 0 0 8px var(--equip-alarm);
+    animation: statusBlink 0.5s ease-in-out infinite;
+}
+
+.equipment-panel-header .header-status .status-indicator.status-disconnected {
+    background: #666666;
+}
+
+/* =============================================
+   기존 Panel Title (하위 호환성 유지)
    ============================================= */
 .equipment-panel-title {
     margin: 0;
@@ -203,7 +288,7 @@
 }
 
 #equipmentInfo .info-label {
-    min-width: 80px;
+    min-width: 90px;
     font-weight: 600;
     color: var(--overlay-text-muted);
     font-size: var(--font-size-sm);
@@ -234,6 +319,36 @@
     margin: 12px 0;
     border: none;
     padding: 0;
+}
+
+/* =============================================
+   🆕 v3.0.0: Section Header (그룹 타이틀)
+   ============================================= */
+#equipmentInfo .section-header {
+    display: flex;
+    align-items: center;
+    margin: 16px 0 8px 0;
+    padding: 0;
+    background: transparent;
+}
+
+#equipmentInfo .section-header:first-child {
+    margin-top: 0;
+}
+
+#equipmentInfo .section-title {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--overlay-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#equipmentInfo .section-line {
+    flex: 1;
+    height: 1px;
+    background: var(--overlay-border-light);
+    margin-left: 10px;
 }
 
 /* =============================================
@@ -295,7 +410,232 @@
 }
 
 /* =============================================
-   Status Indicators (Single Selection)
+   🆕 v3.0.0: Memory Gauge
+   ============================================= */
+#equipmentInfo .memory-gauge-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+#equipmentInfo .memory-gauge-bar {
+    flex: 1;
+    height: 14px;
+    background: var(--overlay-bg-primary);
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid var(--overlay-border-light);
+}
+
+#equipmentInfo .memory-gauge-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.5s ease, background 0.3s ease;
+}
+
+/* Memory Gauge 색상 (CPU와 동일) */
+#equipmentInfo .memory-gauge-fill.gauge-green {
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+}
+
+#equipmentInfo .memory-gauge-fill.gauge-yellow {
+    background: linear-gradient(90deg, #eab308, #facc15);
+    box-shadow: 0 0 6px rgba(234, 179, 8, 0.4);
+}
+
+#equipmentInfo .memory-gauge-fill.gauge-red {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+#equipmentInfo .memory-gauge-fill.gauge-gray {
+    background: #4a4a5a;
+}
+
+#equipmentInfo .memory-gauge-value {
+    min-width: 85px;
+    text-align: right;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--overlay-text-primary);
+}
+
+/* Memory 상세 표시 (12.5 / 16 GB) */
+#equipmentInfo .memory-gauge-detail {
+    font-size: var(--font-size-xs);
+    color: var(--overlay-text-muted);
+    margin-left: 4px;
+}
+
+/* =============================================
+   🆕 v3.0.0: Disk Gauge (C:, D:)
+   ============================================= */
+#equipmentInfo .disk-gauge-row {
+    display: flex;
+    align-items: center;
+    margin: 6px 0;
+    padding: 8px 12px;
+    background: var(--overlay-bg-secondary);
+    border-radius: var(--radius-sm);
+}
+
+#equipmentInfo .disk-label {
+    min-width: 30px;
+    font-weight: 700;
+    font-size: var(--font-size-sm);
+    color: var(--overlay-text-primary);
+}
+
+#equipmentInfo .disk-gauge-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+#equipmentInfo .disk-gauge-bar {
+    flex: 1;
+    height: 12px;
+    background: var(--overlay-bg-primary);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--overlay-border-light);
+}
+
+#equipmentInfo .disk-gauge-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.5s ease, background 0.3s ease;
+}
+
+/* Disk Gauge 색상 */
+#equipmentInfo .disk-gauge-fill.gauge-green {
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    box-shadow: 0 0 4px rgba(34, 197, 94, 0.3);
+}
+
+#equipmentInfo .disk-gauge-fill.gauge-yellow {
+    background: linear-gradient(90deg, #eab308, #facc15);
+    box-shadow: 0 0 4px rgba(234, 179, 8, 0.3);
+}
+
+#equipmentInfo .disk-gauge-fill.gauge-red {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.3);
+}
+
+#equipmentInfo .disk-gauge-fill.gauge-blue {
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    box-shadow: 0 0 4px rgba(59, 130, 246, 0.3);
+}
+
+#equipmentInfo .disk-gauge-fill.gauge-gray {
+    background: #4a4a5a;
+}
+
+#equipmentInfo .disk-gauge-value {
+    min-width: 95px;
+    text-align: right;
+    font-weight: 600;
+    font-size: var(--font-size-xs);
+    color: var(--overlay-text-primary);
+}
+
+/* Disk 상세 표시 (120 / 500 GB) */
+#equipmentInfo .disk-gauge-detail {
+    font-size: 10px;
+    color: var(--overlay-text-muted);
+}
+
+/* Disk D 없음 표시 */
+#equipmentInfo .disk-not-available {
+    color: var(--overlay-text-muted);
+    font-style: italic;
+    font-size: var(--font-size-xs);
+}
+
+/* =============================================
+   🆕 v3.0.0: Boot Duration 스타일
+   ============================================= */
+#equipmentInfo .boot-duration {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#equipmentInfo .boot-duration-value {
+    font-weight: 600;
+    color: var(--overlay-text-primary);
+}
+
+#equipmentInfo .boot-duration-unit {
+    font-size: var(--font-size-xs);
+    color: var(--overlay-text-muted);
+}
+
+/* Boot Duration 경고 (장기 가동) */
+#equipmentInfo .boot-duration.warning .boot-duration-value {
+    color: var(--status-warning);
+}
+
+#equipmentInfo .boot-duration.danger .boot-duration-value {
+    color: var(--status-error);
+}
+
+/* =============================================
+   🆕 v3.0.0: Multi Selection Gauge 평균 표시
+   ============================================= */
+#equipmentInfo .avg-gauge-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#equipmentInfo .avg-gauge-label {
+    min-width: 70px;
+    font-size: var(--font-size-xs);
+    color: var(--overlay-text-muted);
+}
+
+#equipmentInfo .avg-gauge-bar {
+    flex: 1;
+    height: 10px;
+    background: var(--overlay-bg-primary);
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid var(--overlay-border-light);
+}
+
+#equipmentInfo .avg-gauge-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+#equipmentInfo .avg-gauge-fill.gauge-green {
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+#equipmentInfo .avg-gauge-fill.gauge-yellow {
+    background: linear-gradient(90deg, #eab308, #facc15);
+}
+
+#equipmentInfo .avg-gauge-fill.gauge-red {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+#equipmentInfo .avg-gauge-value {
+    min-width: 40px;
+    text-align: right;
+    font-weight: 600;
+    font-size: var(--font-size-xs);
+    color: var(--overlay-text-primary);
+}
+
+/* =============================================
+   Status Indicators (General - 기존 호환성)
    ============================================= */
 #equipmentInfo .status-indicator {
     display: inline-block;
@@ -530,6 +870,20 @@
         max-height: 70vh;
     }
     
+    /* 🆕 v2.1.0: Header 반응형 */
+    .equipment-panel-header {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .equipment-panel-header .equipment-panel-title {
+        flex-basis: 100%;
+    }
+    
+    .equipment-panel-header .header-status {
+        margin-left: auto;
+    }
+    
     .equipment-tab {
         padding: 8px 12px;
         font-size: var(--font-size-xs);
@@ -548,7 +902,7 @@
         font-size: var(--font-size-xs);
     }
     
-    /* 🆕 v2.0.0: Gauge 반응형 */
+    /* 🆕 v2.0.0: CPU Gauge 반응형 */
     #equipmentInfo .cpu-gauge-bar {
         height: 12px;
     }
@@ -556,5 +910,53 @@
     #equipmentInfo .cpu-gauge-value {
         min-width: 42px;
         font-size: var(--font-size-xs);
+    }
+    
+    /* 🆕 v3.0.0: Memory Gauge 반응형 */
+    #equipmentInfo .memory-gauge-bar {
+        height: 12px;
+    }
+    
+    #equipmentInfo .memory-gauge-value {
+        min-width: 70px;
+        font-size: var(--font-size-xs);
+    }
+    
+    /* 🆕 v3.0.0: Disk Gauge 반응형 */
+    #equipmentInfo .disk-gauge-row {
+        padding: 6px 10px;
+    }
+    
+    #equipmentInfo .disk-label {
+        min-width: 24px;
+        font-size: var(--font-size-xs);
+    }
+    
+    #equipmentInfo .disk-gauge-bar {
+        height: 10px;
+    }
+    
+    #equipmentInfo .disk-gauge-value {
+        min-width: 75px;
+        font-size: 10px;
+    }
+    
+    /* 🆕 v3.0.0: Avg Gauge 반응형 */
+    #equipmentInfo .avg-gauge-row {
+        gap: 6px;
+    }
+    
+    #equipmentInfo .avg-gauge-label {
+        min-width: 55px;
+        font-size: 10px;
+    }
+    
+    #equipmentInfo .avg-gauge-bar {
+        height: 8px;
+    }
+    
+    #equipmentInfo .avg-gauge-value {
+        min-width: 35px;
+        font-size: 10px;
     }
 }
