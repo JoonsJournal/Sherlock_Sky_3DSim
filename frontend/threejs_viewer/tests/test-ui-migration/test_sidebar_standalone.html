@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.1</title>
+    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.2</title>
     
     <style>
         /* =============================================
@@ -270,7 +270,7 @@
 
         /* =============================================
            1. Theme Configuration (Cleanroom Palette)
-           v2.1: Stroke 1px, Size 36px default
+           v2.2: Connection modal, Dev mode
            ============================================= */
         :root {
             /* Background Colors */
@@ -417,6 +417,11 @@
         .icon-btn.disabled:hover {
             transform: none;
             animation: none;
+        }
+
+        /* Hidden State */
+        .icon-btn.hidden {
+            display: none !important;
         }
 
         /* =============================================
@@ -716,7 +721,434 @@
         }
         
         /* =============================================
-           7. Test Controls Additional Styles
+           7. Connection Modal Styles
+           ============================================= */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-container {
+            background: #1E293B;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 85vh;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            transform: scale(0.9) translateY(20px);
+            transition: transform 0.3s ease;
+        }
+        
+        .modal-overlay.active .modal-container {
+            transform: scale(1) translateY(0);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #E2E8F0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            color: #9CA3AF;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .modal-close:hover {
+            background: rgba(248, 113, 113, 0.2);
+            color: #F87171;
+        }
+        
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            max-height: calc(85vh - 140px);
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.2);
+        }
+        
+        .footer-hint {
+            font-size: 11px;
+            color: #6B7280;
+        }
+        
+        .btn-secondary {
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: #E2E8F0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        /* Connection Panel Styles */
+        .connection-panel {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .panel-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #E2E8F0;
+        }
+        
+        .panel-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .panel-content {
+            padding: 16px;
+        }
+        
+        /* API Status Panel */
+        .api-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+        }
+        
+        .api-status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .api-status-indicator.healthy {
+            background: #4ADE80;
+            box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+        }
+        
+        .api-status-indicator.unhealthy {
+            background: #F87171;
+            box-shadow: 0 0 10px rgba(248, 113, 113, 0.5);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .api-status-info {
+            flex: 1;
+        }
+        
+        .api-status-url {
+            font-size: 13px;
+            color: #E2E8F0;
+            font-family: 'Consolas', monospace;
+        }
+        
+        .api-status-meta {
+            font-size: 11px;
+            color: #6B7280;
+            margin-top: 2px;
+        }
+        
+        /* Site List */
+        .site-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 16px;
+        }
+        
+        .site-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .site-item:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: rgba(255,255,255,0.1);
+        }
+        
+        .site-item.site-item--selected {
+            background: rgba(6, 182, 212, 0.1);
+            border-color: rgba(6, 182, 212, 0.3);
+        }
+        
+        .site-item.site-item--connected {
+            background: rgba(74, 222, 128, 0.1);
+            border-color: rgba(74, 222, 128, 0.3);
+        }
+        
+        .site-checkbox input {
+            width: 16px;
+            height: 16px;
+            accent-color: #06B6D4;
+        }
+        
+        .site-info {
+            flex: 1;
+        }
+        
+        .site-main {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .site-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #E2E8F0;
+        }
+        
+        .site-region {
+            font-size: 11px;
+            padding: 2px 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            color: #9CA3AF;
+        }
+        
+        .site-meta {
+            font-size: 11px;
+            color: #6B7280;
+            margin-top: 4px;
+        }
+        
+        .site-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-icon {
+            font-size: 16px;
+        }
+        
+        .btn-disconnect, .btn-retry {
+            padding: 4px 10px;
+            font-size: 11px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-disconnect {
+            background: rgba(248, 113, 113, 0.2);
+            color: #F87171;
+        }
+        
+        .btn-disconnect:hover {
+            background: rgba(248, 113, 113, 0.3);
+        }
+        
+        .btn-retry {
+            background: rgba(251, 191, 36, 0.2);
+            color: #FBBF24;
+        }
+        
+        .btn-retry:hover {
+            background: rgba(251, 191, 36, 0.3);
+        }
+        
+        .panel-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            background: rgba(0,0,0,0.1);
+        }
+        
+        .selection-info {
+            font-size: 12px;
+            color: #9CA3AF;
+        }
+        
+        .btn-connect {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #06B6D4, #0891B2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-connect:hover:not(:disabled) {
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+        }
+        
+        .btn-connect:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Auto-connect label */
+        .auto-connect-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: #9CA3AF;
+            cursor: pointer;
+        }
+        
+        .auto-connect-label input {
+            accent-color: #06B6D4;
+        }
+        
+        /* Button icons in panels */
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .btn-icon:hover {
+            opacity: 1;
+        }
+        
+        /* Database Info */
+        .database-item {
+            padding: 16px;
+        }
+        
+        .database-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .database-header h4 {
+            font-size: 14px;
+            color: #E2E8F0;
+        }
+        
+        .database-stats {
+            display: flex;
+            gap: 16px;
+        }
+        
+        .stat-item {
+            display: flex;
+            gap: 4px;
+            font-size: 12px;
+        }
+        
+        .stat-label {
+            color: #6B7280;
+        }
+        
+        .stat-value {
+            color: #06B6D4;
+            font-weight: 600;
+        }
+        
+        .no-connection {
+            text-align: center;
+            padding: 32px;
+            color: #6B7280;
+        }
+        
+        .no-connection-icon {
+            font-size: 32px;
+            display: block;
+            margin-bottom: 8px;
+        }
+        
+        /* Loading spinner */
+        .loading-spinner-small {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-top-color: #06B6D4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* =============================================
+           8. Test Controls Additional Styles
            ============================================= */
         .slider-container {
             margin: 8px 0;
@@ -774,24 +1206,29 @@
 
     <!-- =============================================
          SIDEBAR COMPONENT
-         Icon Order: Connection, Monitoring, Analysis, Simulation
+         Icon Order: Connection → Monitoring → Analysis → Simulation
+         Settings at bottom, Layout hidden by default (Dev mode)
          ============================================= -->
     <aside class="sidebar" id="sidebar">
         
-        <!-- 1. Connection Button -->
-        <button class="icon-btn selected" id="btn-connection" data-mode="connection" data-tooltip="Connection Setup (Ctrl+K)">
+        <!-- 1. Multi-Site Database Connection Button -->
+        <button class="icon-btn selected" id="btn-connection" data-mode="connection" data-tooltip="Database Connection (Ctrl+K)">
             <svg viewBox="0 0 24 24">
-                <path d="M4 6c0 1.66 3.58 3 8 3s8-1.34 8-3"/>
-                <path d="M20 6v6c0 1.66-3.58 3-8 3s-8-1.34-8-3V6"/>
-                <ellipse cx="12" cy="6" rx="8" ry="3"/>
-                <circle cx="19" cy="19" r="3"/>
-                <path d="M19 19m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" fill="currentColor" stroke="none"/>
+                <!-- Multi-site database icon -->
+                <ellipse cx="7" cy="5" rx="5" ry="2"/>
+                <path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/>
+                <path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/>
+                <ellipse cx="17" cy="11" rx="5" ry="2"/>
+                <path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/>
+                <path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/>
+                <path d="M7 13v2" stroke-dasharray="2 2"/>
+                <circle cx="12" cy="17" r="1.5" fill="currentColor" stroke="none"/>
             </svg>
         </button>
 
         <!-- 2. Monitoring Button with Submenu -->
         <div class="has-submenu" id="btn-monitoring-wrapper">
-            <button class="icon-btn" id="btn-monitoring" data-mode="monitoring" data-tooltip="System Monitoring (M)">
+            <button class="icon-btn disabled" id="btn-monitoring" data-mode="monitoring" data-tooltip="System Monitoring (M)">
                 <svg viewBox="0 0 24 24">
                     <rect x="3" y="4" width="18" height="12" rx="2" />
                     <polyline points="6 10 9 10 11 7 13 13 15 10 18 10" />
@@ -823,7 +1260,7 @@
         </div>
 
         <!-- 3. Analysis Button -->
-        <button class="icon-btn" id="btn-analysis" data-mode="analysis" data-tooltip="Data Analysis (A)">
+        <button class="icon-btn disabled" id="btn-analysis" data-mode="analysis" data-tooltip="Data Analysis (A)">
             <svg viewBox="0 0 24 24">
                 <path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/>
                 <path d="M7 14l4-4 4 4 6-6"/>
@@ -832,7 +1269,7 @@
         </button>
 
         <!-- 4. Simulation Button -->
-        <button class="icon-btn" id="btn-simulation" data-mode="simulation" data-tooltip="Simulation (S)">
+        <button class="icon-btn disabled" id="btn-simulation" data-mode="simulation" data-tooltip="Simulation (S)">
             <svg viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M12 2v4"/>
@@ -848,8 +1285,8 @@
 
         <div class="sidebar-divider"></div>
 
-        <!-- Layout Button -->
-        <button class="icon-btn" id="btn-layout" data-mode="layout" data-tooltip="Layout Editor">
+        <!-- Layout Button (Hidden by default, shown in Dev mode) -->
+        <button class="icon-btn disabled hidden" id="btn-layout" data-mode="layout" data-tooltip="Layout Editor">
             <svg viewBox="0 0 24 24">
                 <rect x="3" y="3" width="7" height="7"/>
                 <rect x="14" y="3" width="7" height="7"/>
@@ -858,32 +1295,141 @@
             </svg>
         </button>
 
-        <!-- Settings Button -->
-        <button class="icon-btn" id="btn-settings" data-mode="settings" data-tooltip="Settings">
-            <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-        </button>
-
-        <div class="sidebar-spacer"></div>
-        
-        <!-- Debug Button - Disabled when Monitoring is selected -->
-        <button class="icon-btn" id="btn-debug" data-mode="debug" data-tooltip="Debug Panel (D)">
+        <!-- Debug Button -->
+        <button class="icon-btn disabled" id="btn-debug" data-mode="debug" data-tooltip="Debug Panel (D)">
             <svg viewBox="0 0 24 24">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
             </svg>
         </button>
 
+        <div class="sidebar-spacer"></div>
+        
+        <!-- Settings Button with Submenu (moved to bottom) -->
+        <div class="has-submenu" id="btn-settings-wrapper">
+            <button class="icon-btn" id="btn-settings" data-mode="settings" data-tooltip="Settings">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+            </button>
+            
+            <!-- Settings Submenu -->
+            <div class="submenu" id="settings-submenu">
+                <div class="submenu-header">Settings</div>
+                <button class="submenu-item" data-submode="general" onclick="setSubMode('settings', 'general')">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 2v2"/>
+                        <path d="M12 20v2"/>
+                        <path d="M4.93 4.93l1.41 1.41"/>
+                        <path d="M17.66 17.66l1.41 1.41"/>
+                        <path d="M2 12h2"/>
+                        <path d="M20 12h2"/>
+                    </svg>
+                    General
+                </button>
+                <div class="submenu-divider"></div>
+                <button class="submenu-item" id="dev-mode-toggle" data-submode="dev-mode" onclick="toggleDevMode()">
+                    <svg viewBox="0 0 24 24">
+                        <polyline points="16 18 22 12 16 6"/>
+                        <polyline points="8 6 2 12 8 18"/>
+                    </svg>
+                    <span id="dev-mode-label">Dev Mode: OFF</span>
+                </button>
+            </div>
+        </div>
+
         <div style="height: 50px;"></div>
     </aside>
+
+    <!-- =============================================
+         DATABASE CONNECTION MODAL
+         ============================================= -->
+    <div class="modal-overlay" id="connection-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title">
+                    🔌 Database Connection Manager
+                </div>
+                <button class="modal-close" onclick="closeConnectionModal()">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- API Status Panel -->
+                <div class="connection-panel">
+                    <div class="panel-header">
+                        <h3>📡 API Status</h3>
+                        <div class="panel-actions">
+                            <button class="btn-icon" onclick="refreshAPIStatus()" title="Refresh">🔄</button>
+                        </div>
+                    </div>
+                    <div class="api-status">
+                        <div class="api-status-indicator" id="api-indicator"></div>
+                        <div class="api-status-info">
+                            <div class="api-status-url" id="api-url">http://localhost:8000</div>
+                            <div class="api-status-meta">
+                                <span id="api-status-text">Checking...</span>
+                                <span id="api-response-time"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Site Selection Panel -->
+                <div class="connection-panel">
+                    <div class="panel-header">
+                        <h3>🔍 Site Connection</h3>
+                        <div class="panel-actions">
+                            <label class="auto-connect-label">
+                                <input type="checkbox" id="auto-connect-checkbox">
+                                <span>Auto Connect</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="site-list" id="site-list">
+                        <!-- Sites will be rendered here -->
+                    </div>
+                    <div class="panel-footer">
+                        <div class="selection-info">
+                            <span id="selection-count">Selected: 0</span>
+                        </div>
+                        <button class="btn-connect" id="connect-btn" disabled onclick="connectToSelectedSite()">
+                            🔌 Connect
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Database List Panel -->
+                <div class="connection-panel">
+                    <div class="panel-header">
+                        <h3>📊 Connected Databases</h3>
+                        <div class="panel-actions">
+                            <button class="btn-icon" onclick="refreshDatabaseInfo()" title="Refresh">🔄</button>
+                        </div>
+                    </div>
+                    <div id="database-list">
+                        <div class="no-connection">
+                            <span class="no-connection-icon">📂</span>
+                            <p>No database connected</p>
+                            <small>Connect to a site to view tables</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <span class="footer-hint">Ctrl+K to toggle</span>
+                <button class="btn-secondary" onclick="closeConnectionModal()">Close</button>
+            </div>
+        </div>
+    </div>
 
     <!-- =============================================
          MAIN CONTENT AREA
          ============================================= -->
     <main class="main-content">
-        <h1>🧪 Sidebar Test v2.1</h1>
-        <p>아이콘 순서: Connection → Monitoring → Analysis → Simulation</p>
+        <h1>🧪 Sidebar Test v2.2</h1>
+        <p>아이콘 순서: Connection → Monitoring → Analysis → Simulation | Settings at bottom</p>
         
         <div class="current-mode">
             <div class="mode-label">Current Mode</div>
@@ -900,16 +1446,16 @@
         <div class="status-group">
             <!-- Backend Connection -->
             <div class="status-item" id="status-backend">
-                <span class="status-dot connected" id="backend-dot"></span>
+                <span class="status-dot disconnected" id="backend-dot"></span>
                 <span class="status-label">Backend</span>
-                <span class="status-value" id="backend-value">Connected</span>
+                <span class="status-value" id="backend-value">Disconnected</span>
             </div>
             
             <!-- DB Connection -->
             <div class="status-item" id="status-db">
-                <span class="status-dot connected" id="db-dot"></span>
+                <span class="status-dot disconnected" id="db-dot"></span>
                 <span class="status-label">DB</span>
-                <span class="status-value" id="db-value">kr-b-01</span>
+                <span class="status-value" id="db-value">None</span>
             </div>
         </div>
 
@@ -948,7 +1494,7 @@
          ============================================= -->
     <div class="test-framework" id="test-panel">
         <div class="test-header">
-            <div class="test-title">🧪 Icon Style Tester v2.1</div>
+            <div class="test-title">🧪 Icon Style Tester v2.2</div>
         </div>
         
         <!-- Tabs -->
@@ -1069,19 +1615,32 @@
          ============================================= -->
     <script>
         // =============================================
-        // Configuration - v2.1 defaults
+        // Configuration - v2.2 defaults
         // =============================================
         const CONFIG = {
             strokeWidths: [1, 1.5, 2, 2.5, 3],
             iconSizes: [24, 28, 32, 36, 40],
-            currentStroke: 1,        // v2.1: default 1px
-            currentSize: 36,         // v2.1: default 36px
+            currentStroke: 1,
+            currentSize: 36,
             strokeHover: 1.5,
             strokeSelected: 1.5
         };
         
         let currentMode = 'connection';
         let currentSubMode = null;
+        let isConnected = false;
+        let devModeEnabled = false;
+        let selectedSite = null;
+        
+        // Simulated site profiles (matching Sherlock_Sky_3DSim structure)
+        const siteProfiles = [
+            { id: 'kr_b_01', display_name: 'Korea Site B-01', region: 'Asia/Seoul', priority: 10 },
+            { id: 'kr_b_02', display_name: 'Korea Site B-02', region: 'Asia/Seoul', priority: 8 },
+            { id: 'vn_a_01', display_name: 'Vietnam Site A-01', region: 'Asia/Ho_Chi_Minh', priority: 5 },
+            { id: 'us_w_01', display_name: 'USA West Site W-01', region: 'America/Los_Angeles', priority: 3 }
+        ];
+        
+        let siteStatus = {};
 
         // =============================================
         // Initialize
@@ -1093,7 +1652,274 @@
             setupSidebarEvents();
             startPerformanceSimulation();
             updateConfigDisplay();
-            applyStyles(); // Apply default styles on load
+            applyStyles();
+            
+            // Initialize site status
+            siteProfiles.forEach(site => {
+                siteStatus[site.id] = { status: 'disconnected' };
+            });
+            
+            // Render site list
+            renderSiteList();
+            
+            // Show connection modal on start
+            setTimeout(() => {
+                openConnectionModal();
+            }, 500);
+            
+            // Start API status check simulation
+            simulateAPIStatus();
+        }
+
+        // =============================================
+        // Connection Modal Functions
+        // =============================================
+        function openConnectionModal() {
+            document.getElementById('connection-modal').classList.add('active');
+            log('Connection modal opened', 'info');
+        }
+        
+        function closeConnectionModal() {
+            if (!isConnected) {
+                log('Please connect to a database first', 'error');
+                return;
+            }
+            document.getElementById('connection-modal').classList.remove('active');
+            log('Connection modal closed', 'info');
+        }
+        
+        function toggleConnectionModal() {
+            const modal = document.getElementById('connection-modal');
+            if (modal.classList.contains('active')) {
+                closeConnectionModal();
+            } else {
+                openConnectionModal();
+            }
+        }
+        
+        function simulateAPIStatus() {
+            const indicator = document.getElementById('api-indicator');
+            const statusText = document.getElementById('api-status-text');
+            const responseTime = document.getElementById('api-response-time');
+            
+            // Simulate healthy API
+            indicator.className = 'api-status-indicator healthy';
+            statusText.textContent = 'Healthy';
+            responseTime.textContent = '• 45ms';
+        }
+        
+        function refreshAPIStatus() {
+            const indicator = document.getElementById('api-indicator');
+            const statusText = document.getElementById('api-status-text');
+            
+            indicator.className = 'api-status-indicator';
+            statusText.textContent = 'Checking...';
+            
+            setTimeout(() => {
+                simulateAPIStatus();
+                log('API status refreshed', 'success');
+            }, 500);
+        }
+        
+        function renderSiteList() {
+            const siteList = document.getElementById('site-list');
+            
+            siteList.innerHTML = siteProfiles.map(profile => {
+                const status = siteStatus[profile.id] || {};
+                const isSelected = selectedSite === profile.id;
+                const isConnectedSite = status.status === 'connected';
+                
+                let itemClasses = ['site-item'];
+                if (isSelected) itemClasses.push('site-item--selected');
+                if (isConnectedSite) itemClasses.push('site-item--connected');
+                
+                return `
+                    <div class="${itemClasses.join(' ')}" data-site-id="${profile.id}" onclick="toggleSiteSelection('${profile.id}')">
+                        <div class="site-checkbox">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleSiteSelection('${profile.id}')">
+                        </div>
+                        <div class="site-info">
+                            <div class="site-main">
+                                <span class="site-name">${profile.display_name}</span>
+                                <span class="site-region">${profile.region}</span>
+                            </div>
+                            <div class="site-meta">
+                                Priority: ${profile.priority}
+                            </div>
+                        </div>
+                        <div class="site-status">
+                            ${isConnectedSite ? `
+                                <span class="status-icon">✅</span>
+                                <button class="btn-disconnect" onclick="event.stopPropagation(); disconnectFromSite('${profile.id}')">Disconnect</button>
+                            ` : `
+                                <span class="status-icon">⚪</span>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            updateSelectionUI();
+        }
+        
+        function toggleSiteSelection(siteId) {
+            if (selectedSite === siteId) {
+                selectedSite = null;
+            } else {
+                selectedSite = siteId;
+            }
+            renderSiteList();
+        }
+        
+        function updateSelectionUI() {
+            const countEl = document.getElementById('selection-count');
+            const connectBtn = document.getElementById('connect-btn');
+            
+            countEl.textContent = `Selected: ${selectedSite ? 1 : 0}`;
+            connectBtn.disabled = !selectedSite;
+        }
+        
+        function connectToSelectedSite() {
+            if (!selectedSite) return;
+            
+            const connectBtn = document.getElementById('connect-btn');
+            connectBtn.disabled = true;
+            connectBtn.textContent = '⏳ Connecting...';
+            
+            // Simulate connection
+            setTimeout(() => {
+                siteStatus[selectedSite] = { status: 'connected' };
+                isConnected = true;
+                
+                // Update UI
+                renderSiteList();
+                renderDatabaseInfo(selectedSite);
+                enableSidebarIcons();
+                updateStatusBar(selectedSite);
+                
+                connectBtn.textContent = '🔌 Connect';
+                connectBtn.disabled = true;
+                
+                log(`Connected to ${selectedSite}`, 'success');
+            }, 1500);
+        }
+        
+        function disconnectFromSite(siteId) {
+            siteStatus[siteId] = { status: 'disconnected' };
+            isConnected = false;
+            selectedSite = null;
+            
+            renderSiteList();
+            clearDatabaseInfo();
+            disableSidebarIcons();
+            updateStatusBar(null);
+            
+            log(`Disconnected from ${siteId}`, 'info');
+        }
+        
+        function renderDatabaseInfo(siteId) {
+            const dbList = document.getElementById('database-list');
+            const site = siteProfiles.find(s => s.id === siteId);
+            
+            dbList.innerHTML = `
+                <div class="database-item">
+                    <div class="database-header">
+                        <h4>🗄️ ${site.display_name} - EquipmentDB</h4>
+                        <div class="database-stats">
+                            <span class="stat-item">
+                                <span class="stat-label">Tables:</span>
+                                <span class="stat-value">12</span>
+                            </span>
+                            <span class="stat-item">
+                                <span class="stat-label">Type:</span>
+                                <span class="stat-value">MSSQL</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div style="padding: 8px 0; font-size: 12px; color: #6B7280;">
+                        Site ID: ${siteId}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function clearDatabaseInfo() {
+            const dbList = document.getElementById('database-list');
+            dbList.innerHTML = `
+                <div class="no-connection">
+                    <span class="no-connection-icon">📂</span>
+                    <p>No database connected</p>
+                    <small>Connect to a site to view tables</small>
+                </div>
+            `;
+        }
+        
+        function refreshDatabaseInfo() {
+            if (isConnected && selectedSite) {
+                log('Refreshing database info...', 'info');
+                setTimeout(() => {
+                    renderDatabaseInfo(selectedSite);
+                    log('Database info refreshed', 'success');
+                }, 500);
+            }
+        }
+        
+        function enableSidebarIcons() {
+            ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-debug'].forEach(id => {
+                document.getElementById(id).classList.remove('disabled');
+            });
+            
+            if (devModeEnabled) {
+                document.getElementById('btn-layout').classList.remove('disabled');
+            }
+        }
+        
+        function disableSidebarIcons() {
+            ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-debug', 'btn-layout'].forEach(id => {
+                document.getElementById(id).classList.add('disabled');
+            });
+        }
+        
+        function updateStatusBar(siteId) {
+            const backendDot = document.getElementById('backend-dot');
+            const backendValue = document.getElementById('backend-value');
+            const dbDot = document.getElementById('db-dot');
+            const dbValue = document.getElementById('db-value');
+            
+            if (siteId) {
+                backendDot.className = 'status-dot connected';
+                backendValue.textContent = 'Connected';
+                dbDot.className = 'status-dot connected';
+                dbValue.textContent = siteId.replace(/_/g, '-');
+            } else {
+                backendDot.className = 'status-dot disconnected';
+                backendValue.textContent = 'Disconnected';
+                dbDot.className = 'status-dot disconnected';
+                dbValue.textContent = 'None';
+            }
+        }
+
+        // =============================================
+        // Dev Mode Toggle
+        // =============================================
+        function toggleDevMode() {
+            devModeEnabled = !devModeEnabled;
+            
+            const layoutBtn = document.getElementById('btn-layout');
+            const devModeLabel = document.getElementById('dev-mode-label');
+            
+            if (devModeEnabled) {
+                layoutBtn.classList.remove('hidden');
+                if (isConnected) {
+                    layoutBtn.classList.remove('disabled');
+                }
+                devModeLabel.textContent = 'Dev Mode: ON';
+                log('Dev Mode enabled - Layout Editor visible', 'success');
+            } else {
+                layoutBtn.classList.add('hidden');
+                devModeLabel.textContent = 'Dev Mode: OFF';
+                log('Dev Mode disabled - Layout Editor hidden', 'info');
+            }
         }
 
         // =============================================
@@ -1173,7 +1999,7 @@
         }
 
         // =============================================
-        // State Preview - v2.1: Added Selected+Hover
+        // State Preview
         // =============================================
         function generateStatePreview() {
             const container = document.getElementById('state-preview');
@@ -1235,7 +2061,13 @@
             buttons.forEach(btn => {
                 btn.addEventListener('click', function(e) {
                     if (this.classList.contains('disabled')) return;
-                    if (this.closest('.has-submenu')) return;
+                    if (this.closest('.has-submenu') && this.id !== 'btn-connection') return;
+                    
+                    // Special handling for connection button
+                    if (this.id === 'btn-connection') {
+                        openConnectionModal();
+                        return;
+                    }
                     
                     buttons.forEach(b => b.classList.remove('selected'));
                     this.classList.add('selected');
@@ -1248,6 +2080,7 @@
             // Monitoring button special handling
             const monitoringBtn = document.getElementById('btn-monitoring');
             monitoringBtn.addEventListener('click', function() {
+                if (this.classList.contains('disabled')) return;
                 const buttons = document.querySelectorAll('.icon-btn');
                 buttons.forEach(b => b.classList.remove('selected'));
                 this.classList.add('selected');
@@ -1262,12 +2095,12 @@
                 mode.charAt(0).toUpperCase() + mode.slice(1);
             document.getElementById('current-submode').textContent = '';
             
-            // v2.1: Disable Debug button when Monitoring is selected
+            // Disable Debug button when Monitoring is selected
             const debugBtn = document.getElementById('btn-debug');
             if (mode === 'monitoring') {
                 debugBtn.classList.add('disabled');
                 log('Debug Panel disabled (Monitoring mode)', 'info');
-            } else {
+            } else if (isConnected) {
                 debugBtn.classList.remove('disabled');
             }
             
@@ -1281,7 +2114,10 @@
             // Update main button
             const buttons = document.querySelectorAll('.icon-btn');
             buttons.forEach(b => b.classList.remove('selected'));
-            document.getElementById('btn-monitoring').classList.add('selected');
+            
+            if (mode === 'monitoring') {
+                document.getElementById('btn-monitoring').classList.add('selected');
+            }
             
             // Update submenu items
             document.querySelectorAll('.submenu-item').forEach(item => {
@@ -1289,15 +2125,14 @@
             });
             
             // Update display
-            document.getElementById('current-mode').textContent = 'Monitoring';
+            document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
             const submodeLabels = {
                 '3d-view': '3D View',
-                'ranking-view': 'Ranking View'
+                'ranking-view': 'Ranking View',
+                'general': 'General Settings',
+                'dev-mode': 'Developer Mode'
             };
             document.getElementById('current-submode').textContent = `→ ${submodeLabels[submode] || submode}`;
-            
-            // Disable Debug button
-            document.getElementById('btn-debug').classList.add('disabled');
             
             log(`Mode: ${mode} → ${submode}`, 'info');
         }
@@ -1375,12 +2210,10 @@
         // =============================================
         function startPerformanceSimulation() {
             setInterval(() => {
-                // Simulate FPS fluctuation
                 const baseFPS = 58;
                 const fps = baseFPS + Math.floor(Math.random() * 5);
                 setFPS(fps);
                 
-                // Simulate memory usage
                 const currentMem = parseInt(document.getElementById('memory-value').textContent);
                 const newMem = Math.max(100, Math.min(300, currentMem + (Math.random() - 0.5) * 20));
                 setMemory(Math.floor(newMem));
@@ -1396,14 +2229,20 @@
                 const ids = ['btn-connection', 'btn-monitoring', 'btn-analysis', 'btn-simulation'];
                 return ids.every(id => document.getElementById(id) !== null);
             }},
-            { name: 'Status bar height = 36px', fn: () => {
-                const bar = document.querySelector('.status-bar');
-                return bar.offsetHeight <= 40;
+            { name: 'Settings at bottom', fn: () => {
+                const sidebar = document.getElementById('sidebar');
+                const settingsWrapper = document.getElementById('btn-settings-wrapper');
+                const spacer = sidebar.querySelector('.sidebar-spacer');
+                return spacer && settingsWrapper && spacer.compareDocumentPosition(settingsWrapper) & Node.DOCUMENT_POSITION_FOLLOWING;
             }},
-            { name: 'Submenu exists', fn: () => document.querySelector('.submenu') !== null },
-            { name: 'Debug disabled when Monitoring', fn: () => {
-                setMode('monitoring');
-                return document.getElementById('btn-debug').classList.contains('disabled');
+            { name: 'Layout hidden by default', fn: () => {
+                return document.getElementById('btn-layout').classList.contains('hidden');
+            }},
+            { name: 'Connection modal shows on start', fn: () => {
+                return document.getElementById('connection-modal').classList.contains('active');
+            }},
+            { name: 'Icons disabled before connection', fn: () => {
+                return document.getElementById('btn-monitoring').classList.contains('disabled');
             }},
             { name: 'Default stroke = 1px', fn: () => CONFIG.currentStroke === 1 },
             { name: 'Default size = 36px', fn: () => CONFIG.currentSize === 36 },
@@ -1419,7 +2258,6 @@
             tests.forEach(test => {
                 try {
                     const result = test.fn();
-                    const status = result ? 'pass' : 'fail';
                     result ? passed++ : failed++;
                     
                     container.innerHTML += `
@@ -1439,9 +2277,6 @@
                 }
             });
             
-            // Reset to connection mode after tests
-            setMode('connection');
-            
             log(`Tests: ${passed} passed, ${failed} failed`, failed === 0 ? 'success' : 'error');
         }
 
@@ -1456,7 +2291,6 @@
             logEl.appendChild(entry);
             logEl.scrollTop = logEl.scrollHeight;
             
-            // Keep only last 20 entries
             while (logEl.children.length > 20) {
                 logEl.removeChild(logEl.firstChild);
             }
@@ -1470,26 +2304,39 @@
             
             const key = e.key.toLowerCase();
             
-            if (e.ctrlKey && key === 'k') {
+            if ((e.ctrlKey || e.metaKey) && key === 'k') {
                 e.preventDefault();
-                document.getElementById('btn-connection').click();
+                toggleConnectionModal();
                 return;
             }
             
+            if (!isConnected) return;
+            
             switch(key) {
                 case 'm':
-                    document.getElementById('btn-monitoring').click();
+                    if (!document.getElementById('btn-monitoring').classList.contains('disabled')) {
+                        document.getElementById('btn-monitoring').click();
+                    }
                     break;
                 case 'a':
-                    document.getElementById('btn-analysis').click();
+                    if (!document.getElementById('btn-analysis').classList.contains('disabled')) {
+                        document.getElementById('btn-analysis').click();
+                    }
                     break;
                 case 's':
-                    if (!e.ctrlKey) document.getElementById('btn-simulation').click();
+                    if (!e.ctrlKey && !document.getElementById('btn-simulation').classList.contains('disabled')) {
+                        document.getElementById('btn-simulation').click();
+                    }
                     break;
                 case 'd':
                     const debugBtn = document.getElementById('btn-debug');
                     if (!debugBtn.classList.contains('disabled')) {
                         debugBtn.click();
+                    }
+                    break;
+                case 'escape':
+                    if (document.getElementById('connection-modal').classList.contains('active') && isConnected) {
+                        closeConnectionModal();
                     }
                     break;
             }
@@ -1506,9 +2353,12 @@
         window.setDBStatus = setDBStatus;
         window.setFPS = setFPS;
         window.setMemory = setMemory;
+        window.toggleDevMode = toggleDevMode;
+        window.openConnectionModal = openConnectionModal;
+        window.closeConnectionModal = closeConnectionModal;
         
-        console.log('🧪 Sidebar Test v2.1 Loaded');
-        console.log('Changes: Icon order, Floating effect, Debug disable, Stroke=1, Size=36, StatusBar=36px');
+        console.log('🧪 Sidebar Test v2.2 Loaded');
+        console.log('Changes: Multi-site DB icon, Connection modal on start, Dev mode, Settings at bottom');
     </script>
 
 </body>
