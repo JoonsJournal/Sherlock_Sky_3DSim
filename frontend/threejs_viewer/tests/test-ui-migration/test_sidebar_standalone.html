@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.2</title>
+    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.3</title>
     
     <style>
         /* =============================================
@@ -270,7 +270,7 @@
 
         /* =============================================
            1. Theme Configuration (Cleanroom Palette)
-           v2.2: Connection modal, Dev mode
+           v2.3: Modal closable without connection
            ============================================= */
         :root {
             /* Background Colors */
@@ -520,23 +520,28 @@
         }
         
         /* =============================================
-           4.1 Settings Button - Always Normal State
-           Settings icon never gets selected styling
+           4.1 Always Normal State Icons
+           Connection and Settings icons never get selected styling
            ============================================= */
+        #btn-connection,
         #btn-settings-wrapper .icon-btn {
             transform: none !important;
         }
+        #btn-connection::before,
         #btn-settings-wrapper .icon-btn::before {
             display: none !important;
         }
+        #btn-connection svg,
         #btn-settings-wrapper .icon-btn svg {
             stroke: var(--icon-normal) !important;
             filter: none !important;
         }
+        #btn-connection:hover svg,
         #btn-settings-wrapper .icon-btn:hover svg {
             stroke: #FFFFFF !important;
             filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.3)) !important;
         }
+        #btn-connection:hover,
         #btn-settings-wrapper:hover .icon-btn {
             transform: scale(1.1) translateY(-3px) !important;
         }
@@ -1229,11 +1234,12 @@
          SIDEBAR COMPONENT
          Icon Order: Connection → Monitoring → Analysis → Simulation
          Settings at bottom, Layout hidden by default (Dev mode)
+         v2.3: Connection and Settings always normal state
          ============================================= -->
     <aside class="sidebar" id="sidebar">
         
-        <!-- 1. Multi-Site Database Connection Button -->
-        <button class="icon-btn selected" id="btn-connection" data-mode="connection" data-tooltip="Database Connection (Ctrl+K)">
+        <!-- 1. Multi-Site Database Connection Button (always normal state) -->
+        <button class="icon-btn" id="btn-connection" data-mode="connection" data-tooltip="Database Connection (Ctrl+K)">
             <svg viewBox="0 0 24 24">
                 <!-- Multi-site database icon -->
                 <ellipse cx="7" cy="5" rx="5" ry="2"/>
@@ -1439,7 +1445,7 @@
             </div>
             
             <div class="modal-footer">
-                <span class="footer-hint">Ctrl+K to toggle</span>
+                <span class="footer-hint">Ctrl+K to toggle | Escape to close</span>
                 <button class="btn-secondary" onclick="closeConnectionModal()">Close</button>
             </div>
         </div>
@@ -1449,12 +1455,12 @@
          MAIN CONTENT AREA
          ============================================= -->
     <main class="main-content">
-        <h1>🧪 Sidebar Test v2.2</h1>
+        <h1>🧪 Sidebar Test v2.3</h1>
         <p>아이콘 순서: Connection → Monitoring → Analysis → Simulation | Settings at bottom</p>
         
         <div class="current-mode">
             <div class="mode-label">Current Mode</div>
-            <div class="mode-value" id="current-mode">Connection</div>
+            <div class="mode-value" id="current-mode">—</div>
             <div class="submode-value" id="current-submode"></div>
         </div>
     </main>
@@ -1515,7 +1521,7 @@
          ============================================= -->
     <div class="test-framework" id="test-panel">
         <div class="test-header">
-            <div class="test-title">🧪 Icon Style Tester v2.2</div>
+            <div class="test-title">🧪 Icon Style Tester v2.3</div>
         </div>
         
         <!-- Tabs -->
@@ -1636,7 +1642,7 @@
          ============================================= -->
     <script>
         // =============================================
-        // Configuration - v2.2 defaults
+        // Configuration - v2.3 defaults
         // =============================================
         const CONFIG = {
             strokeWidths: [1, 1.5, 2, 2.5, 3],
@@ -1647,7 +1653,7 @@
             strokeSelected: 1.5
         };
         
-        let currentMode = 'connection';
+        let currentMode = null;
         let currentSubMode = null;
         let isConnected = false;
         let devModeEnabled = false;
@@ -1694,6 +1700,7 @@
 
         // =============================================
         // Connection Modal Functions
+        // v2.3: Modal can be closed without connection
         // =============================================
         function openConnectionModal() {
             document.getElementById('connection-modal').classList.add('active');
@@ -1701,10 +1708,7 @@
         }
         
         function closeConnectionModal() {
-            if (!isConnected) {
-                log('Please connect to a database first', 'error');
-                return;
-            }
+            // v2.3: Allow closing modal even without connection
             document.getElementById('connection-modal').classList.remove('active');
             log('Connection modal closed', 'info');
         }
@@ -1835,6 +1839,11 @@
             disableSidebarIcons();
             updateStatusBar(null);
             
+            // Reset current mode
+            currentMode = null;
+            document.getElementById('current-mode').textContent = '—';
+            document.getElementById('current-submode').textContent = '';
+            
             log(`Disconnected from ${siteId}`, 'info');
         }
         
@@ -1896,8 +1905,14 @@
         }
         
         function disableSidebarIcons() {
+            // v2.3: Only disable feature icons, keep Connection and Settings normal
             ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-debug', 'btn-layout'].forEach(id => {
                 document.getElementById(id).classList.add('disabled');
+            });
+            
+            // Clear selected state from all buttons
+            document.querySelectorAll('.icon-btn').forEach(btn => {
+                btn.classList.remove('selected');
             });
         }
         
@@ -2090,6 +2105,11 @@
                         return;
                     }
                     
+                    // Don't select Connection or Settings buttons
+                    if (this.id === 'btn-connection' || this.id === 'btn-settings') {
+                        return;
+                    }
+                    
                     buttons.forEach(b => b.classList.remove('selected'));
                     this.classList.add('selected');
                     
@@ -2267,6 +2287,10 @@
             }},
             { name: 'Default stroke = 1px', fn: () => CONFIG.currentStroke === 1 },
             { name: 'Default size = 36px', fn: () => CONFIG.currentSize === 36 },
+            { name: 'Connection btn normal state', fn: () => {
+                const connBtn = document.getElementById('btn-connection');
+                return !connBtn.classList.contains('selected');
+            }},
             { name: 'Settings always normal state', fn: () => {
                 const settingsBtn = document.getElementById('btn-settings');
                 return !settingsBtn.classList.contains('selected');
@@ -2323,18 +2347,29 @@
 
         // =============================================
         // Keyboard Shortcuts
+        // v2.3: Escape always closes modal
         // =============================================
         document.addEventListener('keydown', (e) => {
             if (e.target.matches('input, textarea')) return;
             
             const key = e.key.toLowerCase();
             
+            // Ctrl+K: Toggle connection modal
             if ((e.ctrlKey || e.metaKey) && key === 'k') {
                 e.preventDefault();
                 toggleConnectionModal();
                 return;
             }
             
+            // Escape: Close modal (always allowed now)
+            if (key === 'escape') {
+                if (document.getElementById('connection-modal').classList.contains('active')) {
+                    closeConnectionModal();
+                }
+                return;
+            }
+            
+            // Other shortcuts only work when connected
             if (!isConnected) return;
             
             switch(key) {
@@ -2359,11 +2394,6 @@
                         debugBtn.click();
                     }
                     break;
-                case 'escape':
-                    if (document.getElementById('connection-modal').classList.contains('active') && isConnected) {
-                        closeConnectionModal();
-                    }
-                    break;
             }
         });
 
@@ -2382,8 +2412,8 @@
         window.openConnectionModal = openConnectionModal;
         window.closeConnectionModal = closeConnectionModal;
         
-        console.log('🧪 Sidebar Test v2.2 Loaded');
-        console.log('Changes: Multi-site DB icon, Connection modal on start, Dev mode, Settings at bottom (always normal state)');
+        console.log('🧪 Sidebar Test v2.3 Loaded');
+        console.log('Changes: Modal closable without connection, Connection+Settings always normal state');
     </script>
 
 </body>
