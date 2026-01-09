@@ -514,10 +514,31 @@
             opacity: 0.5;
         }
         
-        .has-submenu:hover::after,
-        .has-submenu.selected::after {
+        .has-submenu:hover::after {
             border-left-color: var(--icon-selected);
             opacity: 1;
+        }
+        
+        /* =============================================
+           4.1 Settings Button - Always Normal State
+           Settings icon never gets selected styling
+           ============================================= */
+        #btn-settings-wrapper .icon-btn {
+            transform: none !important;
+        }
+        #btn-settings-wrapper .icon-btn::before {
+            display: none !important;
+        }
+        #btn-settings-wrapper .icon-btn svg {
+            stroke: var(--icon-normal) !important;
+            filter: none !important;
+        }
+        #btn-settings-wrapper .icon-btn:hover svg {
+            stroke: #FFFFFF !important;
+            filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.3)) !important;
+        }
+        #btn-settings-wrapper:hover .icon-btn {
+            transform: scale(1.1) translateY(-3px) !important;
         }
 
         /* =============================================
@@ -1304,7 +1325,7 @@
 
         <div class="sidebar-spacer"></div>
         
-        <!-- Settings Button with Submenu (moved to bottom) -->
+        <!-- Settings Button with Submenu (moved to bottom, always normal state) -->
         <div class="has-submenu" id="btn-settings-wrapper">
             <button class="icon-btn" id="btn-settings" data-mode="settings" data-tooltip="Settings">
                 <svg viewBox="0 0 24 24">
@@ -2246,6 +2267,10 @@
             }},
             { name: 'Default stroke = 1px', fn: () => CONFIG.currentStroke === 1 },
             { name: 'Default size = 36px', fn: () => CONFIG.currentSize === 36 },
+            { name: 'Settings always normal state', fn: () => {
+                const settingsBtn = document.getElementById('btn-settings');
+                return !settingsBtn.classList.contains('selected');
+            }},
         ];
 
         function runAllTests() {
@@ -2358,7 +2383,7 @@
         window.closeConnectionModal = closeConnectionModal;
         
         console.log('🧪 Sidebar Test v2.2 Loaded');
-        console.log('Changes: Multi-site DB icon, Connection modal on start, Dev mode, Settings at bottom');
+        console.log('Changes: Multi-site DB icon, Connection modal on start, Dev mode, Settings at bottom (always normal state)');
     </script>
 
 </body>
