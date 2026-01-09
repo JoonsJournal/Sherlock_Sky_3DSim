@@ -17,99 +17,8 @@
     
     <style>
         /* =============================================
-           v3.1.0 새 레이아웃 CSS (Resource Usage 통일)
-           ============================================= */
-        
-        /* 섹션 타이틀 */
-        .section-title {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--overlay-text-muted, #9ca3af);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 8px 0 6px 0;
-            padding-bottom: 4px;
-            border-bottom: 1px solid var(--overlay-border-light, rgba(255,255,255,0.1));
-        }
-        
-        /* 🆕 v3.1.0: 통일된 Resource Gauge Row */
-        .resource-gauge-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 4px 0;
-        }
-        
-        .resource-label {
-            width: 32px;  /* 통일된 라벨 너비 */
-            font-size: 11px;
-            font-weight: 500;
-            color: var(--overlay-text-secondary, #e5e5e5);
-            flex-shrink: 0;
-        }
-        
-        .resource-gauge-container {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .resource-gauge-bar {
-            flex: 1;
-            height: 8px;
-            background: var(--overlay-border-light, rgba(255,255,255,0.1));
-            border-radius: 4px;
-            overflow: hidden;
-            min-width: 80px;
-        }
-        
-        .resource-gauge-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.3s ease;
-        }
-        
-        .resource-gauge-fill.gauge-green { background: linear-gradient(90deg, #22c55e, #4ade80); }
-        .resource-gauge-fill.gauge-yellow { background: linear-gradient(90deg, #eab308, #facc15); }
-        .resource-gauge-fill.gauge-red { background: linear-gradient(90deg, #ef4444, #f87171); }
-        .resource-gauge-fill.gauge-gray { background: #6b7280; }
-        
-        .resource-gauge-value {
-            width: 90px;  /* 통일된 값 너비 */
-            font-size: 11px;
-            color: var(--overlay-text-secondary, #e5e5e5);
-            text-align: right;
-            flex-shrink: 0;
-        }
-        
-        .resource-not-available {
-            color: var(--overlay-text-muted, #9ca3af);
-            font-size: 11px;
-            font-style: italic;
-        }
-        
-        /* Boot Duration 스타일 */
-        .boot-duration {
-            display: inline-flex;
-            align-items: center;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-        
-        .boot-duration.warning {
-            background: rgba(234, 179, 8, 0.2);
-            color: #fde047;
-        }
-        
-        .boot-duration.danger {
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-        }
-        
-        /* =============================================
            테스트 페이지 전용 스타일
+           (v3.1.0 CSS는 GitHub의 _equipment-info-panel.css에 이미 정의됨)
            ============================================= */
         body {
             margin: 0;
@@ -739,7 +648,7 @@
         }
         
         // =============================================
-        // PC Info Tab 업데이트 (v3.1.0 새 레이아웃)
+        // PC Info Tab 업데이트 (v3.1.0 새 레이아웃 - GitHub CSS 클래스 사용)
         // =============================================
         function updatePCInfoTab(data) {
             const container = document.getElementById('pcinfoTabContent');
@@ -777,24 +686,24 @@
             const bootDuration = formatBootDuration(data.last_boot_time);
             const bootDurationClass = getBootDurationClass(data.last_boot_time);
             
-            // 🆕 v3.1.0: CPU 이름 줄이기 (Intel Core i7-12700K @ 3.60GHz -> i7-12700K)
+            // 🆕 v3.1.0: CPU 이름 줄이기
             const cpuShortName = shortenCpuName(data.cpu_name);
             
             container.innerHTML = `
-                <!-- 🆕 v3.1.0: System Info (합쳐진 레이아웃) -->
-                <div class="info-row">
+                <!-- 🆕 v3.1.0: System Info (합쳐진 레이아웃) - GitHub: .pcinfo-system-row -->
+                <div class="pcinfo-system-row">
                     <span class="info-label">CPU</span>
                     <span class="info-value">${cpuShortName || '-'}, ${data.cpu_logical_count || '-'} Cores</span>
                 </div>
-                <div class="info-row">
+                <div class="pcinfo-system-row">
                     <span class="info-label">GPU</span>
                     <span class="info-value info-value-small">${data.gpu_name || '-'}</span>
                 </div>
-                <div class="info-row">
+                <div class="pcinfo-system-row">
                     <span class="info-label">OS</span>
                     <span class="info-value">${data.os_name || '-'}, ${data.os_architecture || '-'}</span>
                 </div>
-                <div class="info-row">
+                <div class="pcinfo-system-row">
                     <span class="info-label">Boot</span>
                     <span class="info-value">
                         <span class="boot-duration ${bootDurationClass}">
@@ -803,54 +712,54 @@
                     </span>
                 </div>
                 
-                <div class="info-row-divider"></div>
-                
-                <!-- 🆕 v3.1.0: Resource Usage 섹션 타이틀 -->
-                <div class="section-title">Resource Usage</div>
-                
-                <!-- 🆕 v3.1.0: 통일된 Gauge 레이아웃 -->
-                <div class="resource-gauge-row">
-                    <span class="resource-label">CPU</span>
-                    <div class="resource-gauge-container">
-                        <div class="resource-gauge-bar">
-                            <div class="resource-gauge-fill ${cpuGaugeColor}" style="width: ${cpuPercent ?? 0}%"></div>
+                <!-- 🆕 v3.1.0: Gauge Section - GitHub: .gauge-section -->
+                <div class="gauge-section">
+                    <div class="gauge-section-title">Resource Usage</div>
+                    
+                    <!-- 🆕 v3.1.0: 통일된 Gauge - GitHub: .unified-gauge-* -->
+                    <div class="unified-gauge-row">
+                        <span class="unified-gauge-label">CPU</span>
+                        <div class="unified-gauge-container">
+                            <div class="unified-gauge-bar">
+                                <div class="unified-gauge-fill ${cpuGaugeColor}" style="width: ${cpuPercent ?? 0}%"></div>
+                            </div>
+                            <span class="unified-gauge-value">${cpuPercent !== null ? cpuPercent.toFixed(1) + '%' : '-'}</span>
                         </div>
-                        <span class="resource-gauge-value">${cpuPercent !== null ? cpuPercent.toFixed(1) + '%' : '-'}</span>
                     </div>
-                </div>
-                
-                <div class="resource-gauge-row">
-                    <span class="resource-label">Mem</span>
-                    <div class="resource-gauge-container">
-                        <div class="resource-gauge-bar">
-                            <div class="resource-gauge-fill ${memoryGaugeColor}" style="width: ${memoryPercent ?? 0}%"></div>
+                    
+                    <div class="unified-gauge-row">
+                        <span class="unified-gauge-label">Mem</span>
+                        <div class="unified-gauge-container">
+                            <div class="unified-gauge-bar">
+                                <div class="unified-gauge-fill ${memoryGaugeColor}" style="width: ${memoryPercent ?? 0}%"></div>
+                            </div>
+                            <span class="unified-gauge-value">${memoryUsed?.toFixed(1) ?? '-'}/${memoryTotal?.toFixed(0) ?? '-'} GB</span>
                         </div>
-                        <span class="resource-gauge-value">${memoryUsed?.toFixed(1) ?? '-'}/${memoryTotal?.toFixed(0) ?? '-'} GB</span>
                     </div>
-                </div>
-                
-                <div class="resource-gauge-row">
-                    <span class="resource-label">C:</span>
-                    <div class="resource-gauge-container">
-                        <div class="resource-gauge-bar">
-                            <div class="resource-gauge-fill ${diskCGaugeColor}" style="width: ${diskCPercent ?? 0}%"></div>
+                    
+                    <div class="unified-gauge-row">
+                        <span class="unified-gauge-label">C:</span>
+                        <div class="unified-gauge-container">
+                            <div class="unified-gauge-bar">
+                                <div class="unified-gauge-fill ${diskCGaugeColor}" style="width: ${diskCPercent ?? 0}%"></div>
+                            </div>
+                            <span class="unified-gauge-value">${diskCUsed?.toFixed(0) ?? '-'}/${diskCTotal?.toFixed(0) ?? '-'} GB</span>
                         </div>
-                        <span class="resource-gauge-value">${diskCUsed?.toFixed(0) ?? '-'}/${diskCTotal?.toFixed(0) ?? '-'} GB</span>
                     </div>
-                </div>
-                
-                <div class="resource-gauge-row">
-                    <span class="resource-label">D:</span>
-                    ${hasDiskD ? `
-                    <div class="resource-gauge-container">
-                        <div class="resource-gauge-bar">
-                            <div class="resource-gauge-fill ${diskDGaugeColor}" style="width: ${diskDPercent ?? 0}%"></div>
+                    
+                    <div class="unified-gauge-row">
+                        <span class="unified-gauge-label">D:</span>
+                        ${hasDiskD ? `
+                        <div class="unified-gauge-container">
+                            <div class="unified-gauge-bar">
+                                <div class="unified-gauge-fill ${diskDGaugeColor}" style="width: ${diskDPercent ?? 0}%"></div>
+                            </div>
+                            <span class="unified-gauge-value">${diskDUsed?.toFixed(0) ?? '-'}/${diskDTotal?.toFixed(0) ?? '-'} GB</span>
                         </div>
-                        <span class="resource-gauge-value">${diskDUsed?.toFixed(0) ?? '-'}/${diskDTotal?.toFixed(0) ?? '-'} GB</span>
+                        ` : `
+                        <span class="unified-gauge-na">N/A</span>
+                        `}
                     </div>
-                    ` : `
-                    <span class="resource-not-available">N/A</span>
-                    `}
                 </div>
                 
                 ${data.pc_last_update_time ? `
@@ -1128,68 +1037,68 @@
                     <span class="info-text">${totalCount}개 설비 PC 정보</span>
                 </div>
                 
-                <!-- 🆕 v3.1.0: System Info 요약 -->
-                <div class="info-row">
+                <!-- 🆕 v3.1.0: System Info 요약 - GitHub: .pcinfo-system-row -->
+                <div class="pcinfo-system-row">
                     <span class="info-label">CPU</span>
                     <span class="info-value info-value-small">${cpuNamesDisplay || '-'}</span>
                 </div>
-                <div class="info-row">
+                <div class="pcinfo-system-row">
                     <span class="info-label">GPU</span>
                     <span class="info-value info-value-small">${gpuNamesDisplay || '-'}</span>
                 </div>
-                <div class="info-row">
+                <div class="pcinfo-system-row">
                     <span class="info-label">OS</span>
                     <span class="info-value">${osNamesDisplay || '-'}</span>
                 </div>
                 
-                <div class="info-row-divider"></div>
-                
-                <!-- 🆕 v3.1.0: Resource Usage 섹션 타이틀 -->
-                <div class="section-title">Avg Resource Usage</div>
-                
-                <!-- 🆕 v3.1.0: 통일된 Gauge 레이아웃 -->
-                <div class="resource-gauge-row">
-                    <span class="resource-label">CPU</span>
-                    <div class="resource-gauge-container">
-                        <div class="resource-gauge-bar">
-                            <div class="resource-gauge-fill ${cpuGaugeColor}" style="width: ${avgCpu || 0}%"></div>
+                <!-- 🆕 v3.1.0: Gauge Section - GitHub: .gauge-section -->
+                <div class="gauge-section">
+                    <div class="gauge-section-title">Avg Resource Usage</div>
+                    
+                    <!-- 🆕 v3.1.0: 통일된 Gauge - GitHub: .unified-gauge-* -->
+                    <div class="unified-gauge-row">
+                        <span class="unified-gauge-label">CPU</span>
+                        <div class="unified-gauge-container">
+                            <div class="unified-gauge-bar">
+                                <div class="unified-gauge-fill ${cpuGaugeColor}" style="width: ${avgCpu || 0}%"></div>
+                            </div>
+                            <span class="unified-gauge-value">${avgCpu !== null ? avgCpu.toFixed(1) + '%' : '-'}</span>
                         </div>
-                        <span class="resource-gauge-value">${avgCpu !== null ? avgCpu.toFixed(1) + '%' : '-'}</span>
                     </div>
-                </div>
-                
-                <div class="resource-gauge-row">
-                    <span class="resource-label">Mem</span>
-                    <div class="resource-gauge-container">
-                        <div class="resource-gauge-bar">
-                            <div class="resource-gauge-fill ${memoryGaugeColor}" style="width: ${avgMemory || 0}%"></div>
+                    
+                    <div class="unified-gauge-row">
+                        <span class="unified-gauge-label">Mem</span>
+                        <div class="unified-gauge-container">
+                            <div class="unified-gauge-bar">
+                                <div class="unified-gauge-fill ${memoryGaugeColor}" style="width: ${avgMemory || 0}%"></div>
+                            </div>
+                            <span class="unified-gauge-value">${avgMemory !== null ? avgMemory.toFixed(1) + '%' : '-'}</span>
                         </div>
-                        <span class="resource-gauge-value">${avgMemory !== null ? avgMemory.toFixed(1) + '%' : '-'}</span>
                     </div>
-                </div>
-                
-                <div class="resource-gauge-row">
-                    <span class="resource-label">C:</span>
-                    <div class="resource-gauge-container">
-                        <div class="resource-gauge-bar">
-                            <div class="resource-gauge-fill ${diskCGaugeColor}" style="width: ${avgDiskC || 0}%"></div>
+                    
+                    <div class="unified-gauge-row">
+                        <span class="unified-gauge-label">C:</span>
+                        <div class="unified-gauge-container">
+                            <div class="unified-gauge-bar">
+                                <div class="unified-gauge-fill ${diskCGaugeColor}" style="width: ${avgDiskC || 0}%"></div>
+                            </div>
+                            <span class="unified-gauge-value">${avgDiskC !== null ? avgDiskC.toFixed(1) + '%' : '-'}</span>
                         </div>
-                        <span class="resource-gauge-value">${avgDiskC !== null ? avgDiskC.toFixed(1) + '%' : '-'}</span>
                     </div>
-                </div>
-                
-                <div class="resource-gauge-row">
-                    <span class="resource-label">D:</span>
-                    ${hasDiskD ? `
-                    <div class="resource-gauge-container">
-                        <div class="resource-gauge-bar">
-                            <div class="resource-gauge-fill ${diskDGaugeColor}" style="width: ${avgDiskD || 0}%"></div>
+                    
+                    <div class="unified-gauge-row">
+                        <span class="unified-gauge-label">D:</span>
+                        ${hasDiskD ? `
+                        <div class="unified-gauge-container">
+                            <div class="unified-gauge-bar">
+                                <div class="unified-gauge-fill ${diskDGaugeColor}" style="width: ${avgDiskD || 0}%"></div>
+                            </div>
+                            <span class="unified-gauge-value">${avgDiskD.toFixed(1)}%</span>
                         </div>
-                        <span class="resource-gauge-value">${avgDiskD.toFixed(1)}%</span>
+                        ` : `
+                        <span class="unified-gauge-na">N/A (일부 D: 없음)</span>
+                        `}
                     </div>
-                    ` : `
-                    <span class="resource-not-available">N/A (일부 D: 없음)</span>
-                    `}
                 </div>
             `;
         }

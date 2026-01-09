@@ -3,18 +3,27 @@
  * =====================
  * 설비 상세 정보 패널 (Tab UI + Backend API 연동)
  * 
- * @version 3.0.0
+ * @version 3.1.0
  * @description
  * - Tab Interface: General / PC Info.
  * - Single Selection: Backend API에서 상세 정보 조회
  * - Multi Selection: Backend API에서 집계 정보 조회
- * - 🆕 v3.0.0: Memory, Disk Gauge 추가 (PC Info Tab 확장)
- * - 🆕 v3.0.0: Boot Duration 표시 추가
- * - 🆕 v2.1.0: Status를 헤더로 이동 (탭과 무관하게 항상 표시)
- * - 🆕 v2.1.0: Lot Active/Inactive 분기 (is_lot_active 필드)
- * - 🆕 v2.1.0: Duration 형식 변경 (24시간 이상: Xday HH:MM:SS)
+ * - 🆕 v3.1.0: PC Info Tab 레이아웃 개선
+ *   - System Info: CPU+Cores, OS+Arch 합침
+ *   - Gauge Section: 통일된 레이아웃 (라벨 너비, 시작점 정렬)
+ *   - CPU 이름 줄이기: Intel Core i7-12700K @ 3.60GHz → i7-12700K
+ * - v3.0.0: Memory, Disk Gauge 추가 (PC Info Tab 확장)
+ * - v2.1.0: Status를 헤더로 이동 (탭과 무관하게 항상 표시)
+ * - v2.1.0: Lot Active/Inactive 분기 (is_lot_active 필드)
+ * - v2.1.0: Duration 형식 변경 (24시간 이상: Xday HH:MM:SS)
  * 
  * @changelog
+ * - v3.1.0: PC Info Tab 레이아웃 개선
+ *           - 🆕 System Info Row: CPU+Cores, OS+Arch, Boot 합침 (.pcinfo-system-row)
+ *           - 🆕 Gauge Section: .gauge-section, .gauge-section-title
+ *           - 🆕 Unified Gauge: .unified-gauge-row, .unified-gauge-label, etc.
+ *           - 🆕 _shortenCpuName(): CPU 이름 줄이기 함수 추가
+ *           - ⚠️ 호환성: 기존 모든 기능/메서드/import 100% 유지
  * - v3.0.0: PC Info Tab 확장 - Memory, Disk Gauge 추가
  *           - Memory Gauge: memory_total_gb, memory_used_gb
  *           - Disk C/D Gauge: disk_c_*, disk_d_* (D는 NULL 체크)
@@ -82,7 +91,7 @@ export class EquipmentInfoPanel {
         // 초기화
         this._init();
         
-        debugLog('📊 EquipmentInfoPanel initialized (v3.0.0)');
+        debugLog('📊 EquipmentInfoPanel initialized (v3.1.0)');
     }
     
     // =========================================================================
@@ -664,11 +673,11 @@ export class EquipmentInfoPanel {
     }
     
     // =========================================================================
-    // 🆕 v3.0.0: PC Info Tab (Memory, Disk Gauge 추가)
+    // 🆕 v3.1.0: PC Info Tab (새 레이아웃 - System Info + Gauge Section)
     // =========================================================================
     
     /**
-     * 🆕 v3.0.0: PC Info Tab 업데이트 (Single Selection) - Memory, Disk 추가
+     * 🆕 v3.1.0: PC Info Tab 업데이트 (Single Selection) - 새 레이아웃
      * @private
      */
     _updatePCInfoTab(data) {
@@ -707,105 +716,26 @@ export class EquipmentInfoPanel {
         const bootDuration = this._formatBootDuration(data.last_boot_time);
         const bootDurationClass = this._getBootDurationClass(data.last_boot_time);
         
+        // 🆕 v3.1.0: CPU 이름 줄이기
+        const cpuShortName = this._shortenCpuName(data.cpu_name);
+        
+        // 🆕 v3.1.0: 새 레이아웃 - System Info Row + Gauge Section
         this.pcinfoTabContent.innerHTML = `
-            <!-- CPU Usage Gauge -->
-            <div class="info-row pc-gauge-row">
-                <span class="info-label">CPU:</span>
-                <div class="cpu-gauge-container">
-                    <div class="cpu-gauge-bar">
-                        <div class="cpu-gauge-fill ${cpuGaugeColor}" style="width: ${cpuPercent ?? 0}%"></div>
-                    </div>
-                    <span class="cpu-gauge-value" id="cpuGaugeValue">${cpuPercent !== null ? cpuPercent.toFixed(1) + '%' : '-'}</span>
-                </div>
+            <!-- 🆕 v3.1.0: System Info (합쳐진 레이아웃) -->
+            <div class="pcinfo-system-row">
+                <span class="info-label">CPU</span>
+                <span class="info-value">${cpuShortName || '-'}<span class="value-separator">,</span>${data.cpu_logical_count || '-'} Cores</span>
             </div>
-            
-            <!-- 🆕 v3.0.0: Memory Usage Gauge -->
-            <div class="info-row pc-gauge-row">
-                <span class="info-label">Memory:</span>
-                <div class="memory-gauge-container">
-                    <div class="memory-gauge-bar">
-                        <div class="memory-gauge-fill ${memoryGaugeColor}" style="width: ${memoryPercent ?? 0}%"></div>
-                    </div>
-                    <span class="memory-gauge-value">
-                        ${memoryPercent !== null ? memoryPercent + '%' : '-'}
-                        ${memoryTotal !== null ? `<span class="memory-gauge-detail">(${memoryUsed?.toFixed(1) ?? '-'}/${memoryTotal?.toFixed(0) ?? '-'}GB)</span>` : ''}
-                    </span>
-                </div>
-            </div>
-            
-            <!-- 🆕 v3.0.0: Disk C Usage Gauge -->
-            <div class="disk-gauge-row">
-                <span class="disk-label">C:</span>
-                <div class="disk-gauge-container">
-                    <div class="disk-gauge-bar">
-                        <div class="disk-gauge-fill ${diskCGaugeColor}" style="width: ${diskCPercent ?? 0}%"></div>
-                    </div>
-                    <span class="disk-gauge-value">
-                        ${diskCPercent !== null ? diskCPercent + '%' : '-'}
-                        <span class="disk-gauge-detail">(${diskCUsed?.toFixed(0) ?? '-'}/${diskCTotal?.toFixed(0) ?? '-'}GB)</span>
-                    </span>
-                </div>
-            </div>
-            
-            <!-- 🆕 v3.0.0: Disk D Usage Gauge (NULL 체크) -->
-            <div class="disk-gauge-row">
-                <span class="disk-label">D:</span>
-                ${hasDiskD ? `
-                <div class="disk-gauge-container">
-                    <div class="disk-gauge-bar">
-                        <div class="disk-gauge-fill ${diskDGaugeColor}" style="width: ${diskDPercent ?? 0}%"></div>
-                    </div>
-                    <span class="disk-gauge-value">
-                        ${diskDPercent !== null ? diskDPercent + '%' : '-'}
-                        <span class="disk-gauge-detail">(${diskDUsed?.toFixed(0) ?? '-'}/${diskDTotal?.toFixed(0) ?? '-'}GB)</span>
-                    </span>
-                </div>
-                ` : `
-                <span class="disk-not-available">N/A</span>
-                `}
-            </div>
-            
-            <div class="info-row-divider"></div>
-            
-            <!-- CPU Info -->
-            <div class="info-row">
-                <span class="info-label">CPU:</span>
-                <span class="info-value info-value-small">${data.cpu_name || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Cores:</span>
-                <span class="info-value">${data.cpu_logical_count || '-'}</span>
-            </div>
-            
-            <div class="info-row-divider"></div>
-            
-            <!-- GPU Info -->
-            <div class="info-row">
-                <span class="info-label">GPU:</span>
+            <div class="pcinfo-system-row">
+                <span class="info-label">GPU</span>
                 <span class="info-value info-value-small">${data.gpu_name || '-'}</span>
             </div>
-            
-            <div class="info-row-divider"></div>
-            
-            <!-- OS Info -->
-            <div class="info-row">
-                <span class="info-label">OS:</span>
-                <span class="info-value">${data.os_name || '-'}</span>
+            <div class="pcinfo-system-row">
+                <span class="info-label">OS</span>
+                <span class="info-value">${data.os_name || '-'}<span class="value-separator">,</span>${data.os_architecture || '-'}</span>
             </div>
-            <div class="info-row">
-                <span class="info-label">Arch:</span>
-                <span class="info-value">${data.os_architecture || '-'}</span>
-            </div>
-            
-            <div class="info-row-divider"></div>
-            
-            <!-- 🆕 v3.0.0: Boot Duration -->
-            <div class="info-row">
-                <span class="info-label">Boot Time:</span>
-                <span class="info-value info-value-small">${this._formatDateTime(data.last_boot_time) || '-'}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Uptime:</span>
+            <div class="pcinfo-system-row">
+                <span class="info-label">Boot</span>
                 <span class="info-value">
                     <span class="boot-duration ${bootDurationClass}">
                         <span class="boot-duration-value">${bootDuration}</span>
@@ -813,15 +743,103 @@ export class EquipmentInfoPanel {
                 </span>
             </div>
             
+            <!-- 🆕 v3.1.0: Gauge Section -->
+            <div class="gauge-section">
+                <div class="gauge-section-title">Resource Usage</div>
+                
+                <!-- CPU Gauge -->
+                <div class="unified-gauge-row">
+                    <span class="unified-gauge-label">CPU</span>
+                    <div class="unified-gauge-container">
+                        <div class="unified-gauge-bar">
+                            <div class="unified-gauge-fill ${cpuGaugeColor}" style="width: ${cpuPercent ?? 0}%"></div>
+                        </div>
+                        <span class="unified-gauge-value">${cpuPercent !== null ? cpuPercent.toFixed(1) + '%' : '-'}</span>
+                    </div>
+                </div>
+                
+                <!-- Memory Gauge -->
+                <div class="unified-gauge-row">
+                    <span class="unified-gauge-label">Mem</span>
+                    <div class="unified-gauge-container">
+                        <div class="unified-gauge-bar">
+                            <div class="unified-gauge-fill ${memoryGaugeColor}" style="width: ${memoryPercent ?? 0}%"></div>
+                        </div>
+                        <span class="unified-gauge-value">${memoryUsed?.toFixed(1) ?? '-'}/${memoryTotal?.toFixed(0) ?? '-'} GB</span>
+                    </div>
+                </div>
+                
+                <!-- Disk C Gauge -->
+                <div class="unified-gauge-row">
+                    <span class="unified-gauge-label">C:</span>
+                    <div class="unified-gauge-container">
+                        <div class="unified-gauge-bar">
+                            <div class="unified-gauge-fill ${diskCGaugeColor}" style="width: ${diskCPercent ?? 0}%"></div>
+                        </div>
+                        <span class="unified-gauge-value">${diskCUsed?.toFixed(0) ?? '-'}/${diskCTotal?.toFixed(0) ?? '-'} GB</span>
+                    </div>
+                </div>
+                
+                <!-- Disk D Gauge -->
+                <div class="unified-gauge-row">
+                    <span class="unified-gauge-label">D:</span>
+                    ${hasDiskD ? `
+                    <div class="unified-gauge-container">
+                        <div class="unified-gauge-bar">
+                            <div class="unified-gauge-fill ${diskDGaugeColor}" style="width: ${diskDPercent ?? 0}%"></div>
+                        </div>
+                        <span class="unified-gauge-value">${diskDUsed?.toFixed(0) ?? '-'}/${diskDTotal?.toFixed(0) ?? '-'} GB</span>
+                    </div>
+                    ` : `
+                    <span class="unified-gauge-na">N/A</span>
+                    `}
+                </div>
+            </div>
+            
             ${data.pc_last_update_time ? `
             <div class="info-row info-row-meta">
-                <span class="info-label">PC Updated:</span>
+                <span class="info-label">Updated:</span>
                 <span class="info-value info-value-meta">${this._formatDateTime(data.pc_last_update_time)}</span>
             </div>
             ` : ''}
         `;
         
-        debugLog(`✅ PC Info tab updated: CPU=${cpuPercent}%, Memory=${memoryPercent}%, DiskC=${diskCPercent}%`);
+        debugLog(`✅ PC Info tab updated (v3.1.0): CPU=${cpuPercent}%, Memory=${memoryPercent}%, DiskC=${diskCPercent}%`);
+    }
+    
+    /**
+     * 🆕 v3.1.0: CPU 이름 줄이기
+     * @private
+     * @param {string} cpuName - 원본 CPU 이름
+     * @returns {string} 줄인 CPU 이름
+     */
+    _shortenCpuName(cpuName) {
+        if (!cpuName) return '-';
+        
+        // Intel: "Intel(R) Core(TM) i7-12700K CPU @ 3.60GHz" -> "i7-12700K"
+        const intelMatch = cpuName.match(/i[3579]-\d{4,5}[A-Z]*/i);
+        if (intelMatch) {
+            return intelMatch[0];
+        }
+        
+        // AMD: "AMD Ryzen 9 5900X 12-Core Processor" -> "Ryzen 9 5900X"
+        const amdMatch = cpuName.match(/Ryzen\s+\d+\s+\d{4}[A-Z]*/i);
+        if (amdMatch) {
+            return amdMatch[0];
+        }
+        
+        // 기타: @ 이전까지만
+        let short = cpuName;
+        if (cpuName.includes('@')) {
+            short = cpuName.split('@')[0].trim();
+        }
+        
+        // 너무 길면 자르기
+        if (short.length > 20) {
+            short = short.substring(0, 20) + '...';
+        }
+        
+        return short;
     }
     
     /**
@@ -1298,7 +1316,7 @@ export class EquipmentInfoPanel {
     }
     
     /**
-     * 🆕 v3.0.0: PC Info Tab 업데이트 (Multi Selection - 집계) - Memory, Disk 추가
+     * 🆕 v3.1.0: PC Info Tab 업데이트 (Multi Selection - 집계) - 새 레이아웃
      * @private
      */
     _updatePCInfoTabMulti(data, totalCount) {
@@ -1330,82 +1348,82 @@ export class EquipmentInfoPanel {
         // OS 이름 목록
         const osNamesDisplay = this._formatListWithMore(data.os_names, data.os_names_more);
         
+        // 🆕 v3.1.0: 새 레이아웃 - System Info + Gauge Section
         this.pcinfoTabContent.innerHTML = `
             <div class="info-row multi-select-header">
                 <span class="info-icon">💻</span>
                 <span class="info-text">${totalCount}개 설비 PC 정보</span>
             </div>
             
-            <!-- 평균 CPU Usage Gauge -->
-            <div class="info-row pc-gauge-row">
-                <span class="info-label">Avg CPU:</span>
-                <div class="cpu-gauge-container">
-                    <div class="cpu-gauge-bar">
-                        <div class="cpu-gauge-fill ${cpuGaugeColor}" style="width: ${avgCpu || 0}%"></div>
-                    </div>
-                    <span class="cpu-gauge-value">${avgCpu !== null && avgCpu !== undefined ? avgCpu.toFixed(1) + '%' : '-'}</span>
-                </div>
-            </div>
-            
-            <!-- 🆕 v3.0.0: 평균 Memory Usage Gauge -->
-            <div class="info-row pc-gauge-row">
-                <span class="info-label">Avg Memory:</span>
-                <div class="memory-gauge-container">
-                    <div class="memory-gauge-bar">
-                        <div class="memory-gauge-fill ${memoryGaugeColor}" style="width: ${avgMemory || 0}%"></div>
-                    </div>
-                    <span class="memory-gauge-value">${avgMemory !== null && avgMemory !== undefined ? avgMemory.toFixed(1) + '%' : '-'}</span>
-                </div>
-            </div>
-            
-            <!-- 🆕 v3.0.0: 평균 Disk C Usage Gauge -->
-            <div class="disk-gauge-row">
-                <span class="disk-label">Avg C:</span>
-                <div class="disk-gauge-container">
-                    <div class="disk-gauge-bar">
-                        <div class="disk-gauge-fill ${diskCGaugeColor}" style="width: ${avgDiskC || 0}%"></div>
-                    </div>
-                    <span class="disk-gauge-value">${avgDiskC !== null && avgDiskC !== undefined ? avgDiskC.toFixed(1) + '%' : '-'}</span>
-                </div>
-            </div>
-            
-            <!-- 🆕 v3.0.0: 평균 Disk D Usage Gauge (NULL 체크) -->
-            <div class="disk-gauge-row">
-                <span class="disk-label">Avg D:</span>
-                ${hasDiskD ? `
-                <div class="disk-gauge-container">
-                    <div class="disk-gauge-bar">
-                        <div class="disk-gauge-fill ${diskDGaugeColor}" style="width: ${avgDiskD || 0}%"></div>
-                    </div>
-                    <span class="disk-gauge-value">${avgDiskD.toFixed(1)}%</span>
-                </div>
-                ` : `
-                <span class="disk-not-available">N/A (일부 설비 D: 없음)</span>
-                `}
-            </div>
-            
-            <div class="info-row-divider"></div>
-            
-            <!-- CPU 이름 목록 -->
-            <div class="info-row">
-                <span class="info-label">CPU:</span>
+            <!-- 🆕 v3.1.0: System Info 요약 -->
+            <div class="pcinfo-system-row">
+                <span class="info-label">CPU</span>
                 <span class="info-value info-value-small">${cpuNamesDisplay || '-'}</span>
             </div>
-            
-            <!-- GPU 이름 목록 -->
-            <div class="info-row">
-                <span class="info-label">GPU:</span>
+            <div class="pcinfo-system-row">
+                <span class="info-label">GPU</span>
                 <span class="info-value info-value-small">${gpuNamesDisplay || '-'}</span>
             </div>
-            
-            <!-- OS 이름 목록 -->
-            <div class="info-row">
-                <span class="info-label">OS:</span>
+            <div class="pcinfo-system-row">
+                <span class="info-label">OS</span>
                 <span class="info-value">${osNamesDisplay || '-'}</span>
+            </div>
+            
+            <!-- 🆕 v3.1.0: Gauge Section -->
+            <div class="gauge-section">
+                <div class="gauge-section-title">Avg Resource Usage</div>
+                
+                <!-- 평균 CPU Gauge -->
+                <div class="unified-gauge-row">
+                    <span class="unified-gauge-label">CPU</span>
+                    <div class="unified-gauge-container">
+                        <div class="unified-gauge-bar">
+                            <div class="unified-gauge-fill ${cpuGaugeColor}" style="width: ${avgCpu || 0}%"></div>
+                        </div>
+                        <span class="unified-gauge-value">${avgCpu !== null && avgCpu !== undefined ? avgCpu.toFixed(1) + '%' : '-'}</span>
+                    </div>
+                </div>
+                
+                <!-- 평균 Memory Gauge -->
+                <div class="unified-gauge-row">
+                    <span class="unified-gauge-label">Mem</span>
+                    <div class="unified-gauge-container">
+                        <div class="unified-gauge-bar">
+                            <div class="unified-gauge-fill ${memoryGaugeColor}" style="width: ${avgMemory || 0}%"></div>
+                        </div>
+                        <span class="unified-gauge-value">${avgMemory !== null && avgMemory !== undefined ? avgMemory.toFixed(1) + '%' : '-'}</span>
+                    </div>
+                </div>
+                
+                <!-- 평균 Disk C Gauge -->
+                <div class="unified-gauge-row">
+                    <span class="unified-gauge-label">C:</span>
+                    <div class="unified-gauge-container">
+                        <div class="unified-gauge-bar">
+                            <div class="unified-gauge-fill ${diskCGaugeColor}" style="width: ${avgDiskC || 0}%"></div>
+                        </div>
+                        <span class="unified-gauge-value">${avgDiskC !== null && avgDiskC !== undefined ? avgDiskC.toFixed(1) + '%' : '-'}</span>
+                    </div>
+                </div>
+                
+                <!-- 평균 Disk D Gauge -->
+                <div class="unified-gauge-row">
+                    <span class="unified-gauge-label">D:</span>
+                    ${hasDiskD ? `
+                    <div class="unified-gauge-container">
+                        <div class="unified-gauge-bar">
+                            <div class="unified-gauge-fill ${diskDGaugeColor}" style="width: ${avgDiskD || 0}%"></div>
+                        </div>
+                        <span class="unified-gauge-value">${avgDiskD.toFixed(1)}%</span>
+                    </div>
+                    ` : `
+                    <span class="unified-gauge-na">N/A (일부 D: 없음)</span>
+                    `}
+                </div>
             </div>
         `;
         
-        debugLog(`✅ Multi PC Info tab updated: avg_cpu=${avgCpu}%, avg_memory=${avgMemory}%, avg_diskC=${avgDiskC}%`);
+        debugLog(`✅ Multi PC Info tab updated (v3.1.0): avg_cpu=${avgCpu}%, avg_memory=${avgMemory}%, avg_diskC=${avgDiskC}%`);
     }
     
     /**
