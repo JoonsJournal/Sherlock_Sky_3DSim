@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocketManager Test - Phase 4</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .panel h2 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .panel h2::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #00d4ff;
+            border-radius: 2px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-family: inherit;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            color: #000;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757 0%, #cc3847 100%);
+            color: #fff;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ffa502 0%, #cc8402 100%);
+            color: #000;
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .status-indicator.connected {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+        }
+        
+        .status-indicator.disconnected {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+        }
+        
+        .status-indicator.connecting {
+            background: rgba(255, 165, 2, 0.2);
+            color: #ffa502;
+        }
+        
+        .status-indicator.reconnecting {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.connected .status-dot { background: #00ff88; }
+        .status-indicator.disconnected .status-dot { background: #ff4757; }
+        .status-indicator.connecting .status-dot { background: #ffa502; }
+        .status-indicator.reconnecting .status-dot { background: #00d4ff; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .log-container {
+            height: 300px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+        
+        .log-entry.info { background: rgba(0, 212, 255, 0.1); }
+        .log-entry.success { background: rgba(0, 255, 136, 0.1); color: #00ff88; }
+        .log-entry.error { background: rgba(255, 71, 87, 0.1); color: #ff4757; }
+        .log-entry.warning { background: rgba(255, 165, 2, 0.1); color: #ffa502; }
+        .log-entry.message { background: rgba(155, 89, 182, 0.1); color: #9b59b6; }
+        
+        .log-time {
+            color: #666;
+            margin-right: 8px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .stat-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        .json-viewer {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .status-updates {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .status-update-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        
+        .equipment-id {
+            font-weight: 600;
+            color: #00d4ff;
+        }
+        
+        .equipment-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .equipment-status.running { background: #00ff88; color: #000; }
+        .equipment-status.idle { background: #ffa502; color: #000; }
+        .equipment-status.stop { background: #ff4757; color: #fff; }
+        .equipment-status.alarm { background: #ff6b81; color: #fff; }
+        .equipment-status.disconnected { background: #666; color: #fff; }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔌 WebSocketManager Test - Phase 4</h1>
+    
+    <div class="container">
+        <!-- Connection Panel -->
+        <div class="panel">
+            <h2>Connection Control</h2>
+            
+            <div class="form-group">
+                <label>WebSocket URL</label>
+                <input type="text" id="wsUrl" value="ws://localhost:8000/api/monitoring/stream">
+            </div>
+            
+            <div class="header-row">
+                <div id="connectionStatus" class="status-indicator disconnected">
+                    <span class="status-dot"></span>
+                    <span class="status-text">DISCONNECTED</span>
+                </div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn-primary" onclick="connect()">🔌 Connect</button>
+                <button class="btn-danger" onclick="disconnect()">⛔ Disconnect</button>
+                <button class="btn-secondary" onclick="toggleDebug()">🔧 Toggle Debug</button>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="statMessages">0</div>
+                    <div class="stat-label">Messages</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statSubscribed">0</div>
+                    <div class="stat-label">Subscribed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statReconnects">0</div>
+                    <div class="stat-label">Reconnects</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Subscribe Panel -->
+        <div class="panel">
+            <h2>Subscribe Management</h2>
+            
+            <div class="form-group">
+                <label>Equipment IDs (comma separated)</label>
+                <input type="text" id="equipmentIds" value="1,2,3,4,5" placeholder="1,2,3,4,5">
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn-success" onclick="subscribe()">📋 Subscribe All</button>
+                <button class="btn-warning" onclick="subscribeSingle()">📌 Subscribe One</button>
+                <button class="btn-danger" onclick="unsubscribe()">🗑️ Unsubscribe</button>
+                <button class="btn-secondary" onclick="requestStatus()">📊 Request Status</button>
+            </div>
+            
+            <div class="form-group" style="margin-top: 15px;">
+                <label>Single Equipment ID</label>
+                <input type="number" id="singleEquipmentId" value="1" placeholder="Equipment ID">
+            </div>
+        </div>
+        
+        <!-- Status Updates Panel -->
+        <div class="panel">
+            <h2>Real-time Status Updates</h2>
+            <div class="status-updates" id="statusUpdates">
+                <div style="color: #666; text-align: center; padding: 20px;">
+                    No status updates yet...
+                </div>
+            </div>
+        </div>
+        
+        <!-- Manager Status Panel -->
+        <div class="panel">
+            <h2>WebSocketManager Status</h2>
+            <div class="json-viewer" id="managerStatus">
+                { "status": "Not initialized" }
+            </div>
+            <button class="btn-secondary" style="margin-top: 10px; width: 100%;" onclick="refreshStatus()">🔄 Refresh Status</button>
+        </div>
+        
+        <!-- Log Panel -->
+        <div class="panel full-width">
+            <div class="header-row">
+                <h2>Live Log</h2>
+                <button class="btn-secondary" onclick="clearLog()">🗑️ Clear</button>
+            </div>
+            <div class="log-container" id="logContainer"></div>
+        </div>
+    </div>
+    
+    <script>
+        // =========================================
+        // WebSocketManager Inline Implementation
+        // =========================================
+        
+        const ConnectionState = {
+            DISCONNECTED: 'DISCONNECTED',
+            CONNECTING: 'CONNECTING',
+            CONNECTED: 'CONNECTED',
+            RECONNECTING: 'RECONNECTING',
+            CLOSED: 'CLOSED'
+        };
+        
+        const MessageType = {
+            CONNECTED: 'connected',
+            SUBSCRIBED: 'subscribed',
+            UNSUBSCRIBED: 'unsubscribed',
+            EQUIPMENT_STATUS: 'equipment_status',
+            PONG: 'pong',
+            ERROR: 'error'
+        };
+        
+        const ActionType = {
+            SUBSCRIBE: 'subscribe',
+            UNSUBSCRIBE: 'unsubscribe',
+            PING: 'ping',
+            GET_STATUS: 'get_status'
+        };
+        
+        class WebSocketManager {
+            constructor(wsUrl, options = {}) {
+                this.wsUrl = wsUrl;
+                this.options = {
+                    maxReconnectAttempts: 5,
+                    reconnectDelay: 3000,
+                    heartbeatInterval: 30000,
+                    autoReconnect: true,
+                    debug: true,
+                    onStatusUpdate: null,
+                    onConnected: null,
+                    onSubscribed: null,
+                    onDisconnected: null,
+                    onError: null,
+                    onReconnecting: null,
+                    getEquipmentIds: null,
+                    getFrontendId: null,
+                    ...options
+                };
+                
+                this.ws = null;
+                this.connectionState = ConnectionState.DISCONNECTED;
+                this.reconnectAttempts = 0;
+                this.reconnectTimer = null;
+                this.heartbeatTimer = null;
+                this.lastPongTime = null;
+                this.subscribedIds = new Set();
+                this.messageCount = 0;
+                this.statusUpdateCount = 0;
+                this.serverVersion = null;
+                
+                this._log('📡 WebSocketManager 초기화', { wsUrl });
+            }
+            
+            _log(...args) {
+                if (this.options.debug) {
+                    console.log('[WebSocketManager]', ...args);
+                    addLog('info', args.join(' '));
+                }
+            }
+            
+            connect() {
+                return new Promise((resolve, reject) => {
+                    if (this.connectionState === ConnectionState.CONNECTED) {
+                        this._log('이미 연결됨');
+                        resolve(true);
+                        return;
+                    }
+                    
+                    if (this.connectionState === ConnectionState.CONNECTING) {
+                        this._log('연결 진행 중...');
+                        resolve(false);
+                        return;
+                    }
+                    
+                    this.connectionState = ConnectionState.CONNECTING;
+                    updateConnectionUI();
+                    this._log('🔌 WebSocket 연결 시작...', this.wsUrl);
+                    
+                    try {
+                        this.ws = new WebSocket(this.wsUrl);
+                        
+                        this.ws.onopen = () => {
+                            this.connectionState = ConnectionState.CONNECTED;
+                            this.reconnectAttempts = 0;
+                            this._log('✅ WebSocket 연결 성공');
+                            addLog('success', '✅ WebSocket 연결 성공');
+                            updateConnectionUI();
+                            this._startHeartbeat();
+                            resolve(true);
+                        };
+                        
+                        this.ws.onclose = (event) => {
+                            this._log('🔌 WebSocket 연결 종료', event.code, event.reason);
+                            addLog('warning', `🔌 WebSocket 연결 종료 (code: ${event.code})`);
+                            this._handleClose(event);
+                        };
+                        
+                        this.ws.onerror = (error) => {
+                            this._log('❌ WebSocket 에러', error);
+                            addLog('error', '❌ WebSocket 에러');
+                            if (this.options.onError) this.options.onError(error);
+                            if (this.connectionState === ConnectionState.CONNECTING) reject(error);
+                        };
+                        
+                        this.ws.onmessage = (event) => this._handleMessage(event);
+                        
+                    } catch (error) {
+                        this._log('❌ WebSocket 생성 실패', error);
+                        addLog('error', '❌ WebSocket 생성 실패: ' + error.message);
+                        this.connectionState = ConnectionState.DISCONNECTED;
+                        updateConnectionUI();
+                        reject(error);
+                    }
+                });
+            }
+            
+            disconnect() {
+                this._log('🔌 WebSocket 연결 해제');
+                addLog('warning', '🔌 WebSocket 연결 해제');
+                
+                this._stopHeartbeat();
+                this._clearReconnectTimer();
+                this.connectionState = ConnectionState.CLOSED;
+                this.subscribedIds.clear();
+                
+                if (this.ws) {
+                    this.ws.onclose = null;
+                    this.ws.close();
+                    this.ws = null;
+                }
+                
+                updateConnectionUI();
+                if (this.options.onDisconnected) this.options.onDisconnected();
+            }
+            
+            _handleClose(event) {
+                this._stopHeartbeat();
+                const wasConnected = this.connectionState === ConnectionState.CONNECTED;
+                this.connectionState = ConnectionState.DISCONNECTED;
+                updateConnectionUI();
+                if (this.options.onDisconnected) this.options.onDisconnected();
+                if (this.options.autoReconnect && wasConnected) this._attemptReconnect();
+            }
+            
+            _attemptReconnect() {
+                if (this.reconnectAttempts >= this.options.maxReconnectAttempts) {
+                    this._log('❌ 최대 재연결 시도 초과');
+                    addLog('error', '❌ 최대 재연결 시도 초과');
+                    this.connectionState = ConnectionState.CLOSED;
+                    updateConnectionUI();
+                    return;
+                }
+                
+                this.reconnectAttempts++;
+                this.connectionState = ConnectionState.RECONNECTING;
+                updateConnectionUI();
+                
+                this._log(`🔄 재연결 시도 ${this.reconnectAttempts}/${this.options.maxReconnectAttempts}`);
+                addLog('info', `🔄 재연결 시도 ${this.reconnectAttempts}/${this.options.maxReconnectAttempts}`);
+                
+                if (this.options.onReconnecting) {
+                    this.options.onReconnecting(this.reconnectAttempts, this.options.maxReconnectAttempts);
+                }
+                
+                this.reconnectTimer = setTimeout(() => {
+                    this.connect().then(() => {
+                        if (this.subscribedIds.size > 0) {
+                            this.subscribe(Array.from(this.subscribedIds));
+                        }
+                    }).catch(() => this._attemptReconnect());
+                }, this.options.reconnectDelay);
+            }
+            
+            _clearReconnectTimer() {
+                if (this.reconnectTimer) {
+                    clearTimeout(this.reconnectTimer);
+                    this.reconnectTimer = null;
+                }
+            }
+            
+            _startHeartbeat() {
+                if (this.options.heartbeatInterval <= 0) return;
+                this._stopHeartbeat();
+                this.heartbeatTimer = setInterval(() => {
+                    if (this.isConnected()) this._sendPing();
+                }, this.options.heartbeatInterval);
+            }
+            
+            _stopHeartbeat() {
+                if (this.heartbeatTimer) {
+                    clearInterval(this.heartbeatTimer);
+                    this.heartbeatTimer = null;
+                }
+            }
+            
+            _sendPing() {
+                this._send({ action: ActionType.PING });
+            }
+            
+            _send(data) {
+                if (!this.isConnected()) {
+                    this._log('⚠️ 연결되지 않아 메시지 전송 불가');
+                    return false;
+                }
+                try {
+                    this.ws.send(JSON.stringify(data));
+                    return true;
+                } catch (error) {
+                    this._log('❌ 메시지 전송 실패', error);
+                    return false;
+                }
+            }
+            
+            _handleMessage(event) {
+                this.messageCount++;
+                updateStats();
+                
+                try {
+                    const data = JSON.parse(event.data);
+                    addLog('message', '📨 ' + JSON.stringify(data));
+                    
+                    switch (data.type) {
+                        case MessageType.CONNECTED:
+                            this._handleConnected(data);
+                            break;
+                        case MessageType.SUBSCRIBED:
+                            this._handleSubscribed(data);
+                            break;
+                        case MessageType.UNSUBSCRIBED:
+                            this._handleUnsubscribed(data);
+                            break;
+                        case MessageType.EQUIPMENT_STATUS:
+                            this._handleStatusUpdate(data);
+                            break;
+                        case MessageType.PONG:
+                            this._handlePong(data);
+                            break;
+                        case MessageType.ERROR:
+                            this._handleError(data);
+                            break;
+                    }
+                } catch (error) {
+                    this._log('❌ 메시지 파싱 실패', error);
+                }
+            }
+            
+            _handleConnected(data) {
+                this.serverVersion = data.version || 'unknown';
+                addLog('success', `✅ 서버 연결: ${data.message} (v${this.serverVersion})`);
+                if (this.options.onConnected) this.options.onConnected(data.message);
+            }
+            
+            _handleSubscribed(data) {
+                const ids = data.equipment_ids || [];
+                ids.forEach(id => this.subscribedIds.add(id));
+                updateStats();
+                addLog('success', `📋 구독 완료: ${ids.length}개 설비`);
+                if (this.options.onSubscribed) this.options.onSubscribed(data.message);
+            }
+            
+            _handleUnsubscribed(data) {
+                const ids = data.equipment_ids || [];
+                ids.forEach(id => this.subscribedIds.delete(id));
+                updateStats();
+            }
+            
+            _handleStatusUpdate(data) {
+                this.statusUpdateCount++;
+                const equipmentId = data.equipment_id;
+                if (!equipmentId) return;
+                
+                // 테스트용: frontend_id = equipment_id (실제로는 매핑 사용)
+                const frontendId = `EQ_${equipmentId}`;
+                
+                addStatusUpdate(frontendId, data.status, data);
+                
+                if (this.options.onStatusUpdate) {
+                    this.options.onStatusUpdate(frontendId, data);
+                }
+            }
+            
+            _handlePong(data) {
+                this.lastPongTime = Date.now();
+            }
+            
+            _handleError(data) {
+                addLog('error', `❌ 서버 에러: ${data.message}`);
+                if (this.options.onError) this.options.onError(new Error(data.message));
+            }
+            
+            subscribe(equipmentIds = null) {
+                let ids = equipmentIds;
+                if (!ids && this.options.getEquipmentIds) {
+                    ids = this.options.getEquipmentIds();
+                }
+                if (!ids || ids.length === 0) {
+                    addLog('warning', '⚠️ 구독할 equipment_id 없음');
+                    return false;
+                }
+                addLog('info', `📤 구독 요청: ${ids.length}개`);
+                return this._send({ action: ActionType.SUBSCRIBE, equipment_ids: ids });
+            }
+            
+            subscribeEquipment(equipmentId) {
+                if (!equipmentId) return false;
+                addLog('info', `📤 단일 구독: ${equipmentId}`);
+                return this._send({ action: ActionType.SUBSCRIBE, equipment_ids: [equipmentId] });
+            }
+            
+            unsubscribe(equipmentIds) {
+                if (!equipmentIds || equipmentIds.length === 0) return false;
+                addLog('info', `📤 구독 해제: ${equipmentIds.length}개`);
+                return this._send({ action: ActionType.UNSUBSCRIBE, equipment_ids: equipmentIds });
+            }
+            
+            requestStatus(equipmentIds = null) {
+                let ids = equipmentIds;
+                if (!ids && this.options.getEquipmentIds) {
+                    ids = this.options.getEquipmentIds();
+                }
+                if (!ids || ids.length === 0) return false;
+                addLog('info', `📤 상태 요청: ${ids.length}개`);
+                return this._send({ action: ActionType.GET_STATUS, equipment_ids: ids });
+            }
+            
+            isConnected() {
+                return this.ws && this.ws.readyState === WebSocket.OPEN && this.connectionState === ConnectionState.CONNECTED;
+            }
+            
+            getConnectionState() { return this.connectionState; }
+            getSubscribedIds() { return Array.from(this.subscribedIds); }
+            getSubscribedCount() { return this.subscribedIds.size; }
+            getReconnectAttempts() { return this.reconnectAttempts; }
+            
+            getStatus() {
+                return {
+                    connectionState: this.connectionState,
+                    isConnected: this.isConnected(),
+                    wsUrl: this.wsUrl,
+                    subscribedIds: this.getSubscribedIds(),
+                    subscribedCount: this.subscribedIds.size,
+                    reconnectAttempts: this.reconnectAttempts,
+                    maxReconnectAttempts: this.options.maxReconnectAttempts,
+                    messageCount: this.messageCount,
+                    statusUpdateCount: this.statusUpdateCount,
+                    lastPongTime: this.lastPongTime,
+                    serverVersion: this.serverVersion
+                };
+            }
+            
+            setUrl(newUrl) {
+                if (this.isConnected()) return false;
+                this.wsUrl = newUrl;
+                return true;
+            }
+            
+            setDebug(enabled) {
+                this.options.debug = enabled;
+            }
+        }
+        
+        // =========================================
+        // UI Functions
+        // =========================================
+        
+        let wsManager = null;
+        let debugEnabled = true;
+        
+        function initManager() {
+            const wsUrl = document.getElementById('wsUrl').value;
+            wsManager = new WebSocketManager(wsUrl, {
+                debug: debugEnabled,
+                onStatusUpdate: (frontendId, data) => {
+                    console.log('Status update:', frontendId, data);
+                },
+                onConnected: (msg) => console.log('Connected:', msg),
+                onDisconnected: () => console.log('Disconnected'),
+                getEquipmentIds: () => {
+                    const input = document.getElementById('equipmentIds').value;
+                    return input.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+                }
+            });
+        }
+        
+        async function connect() {
+            if (!wsManager) initManager();
+            
+            const wsUrl = document.getElementById('wsUrl').value;
+            if (wsManager.wsUrl !== wsUrl) {
+                wsManager.setUrl(wsUrl);
+            }
+            
+            try {
+                await wsManager.connect();
+            } catch (error) {
+                addLog('error', '❌ 연결 실패: ' + error.message);
+            }
+        }
+        
+        function disconnect() {
+            if (wsManager) {
+                wsManager.disconnect();
+            }
+        }
+        
+        function subscribe() {
+            if (!wsManager || !wsManager.isConnected()) {
+                addLog('warning', '⚠️ 먼저 연결하세요');
+                return;
+            }
+            
+            const input = document.getElementById('equipmentIds').value;
+            const ids = input.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            wsManager.subscribe(ids);
+        }
+        
+        function subscribeSingle() {
+            if (!wsManager || !wsManager.isConnected()) {
+                addLog('warning', '⚠️ 먼저 연결하세요');
+                return;
+            }
+            
+            const id = parseInt(document.getElementById('singleEquipmentId').value);
+            if (!isNaN(id)) {
+                wsManager.subscribeEquipment(id);
+            }
+        }
+        
+        function unsubscribe() {
+            if (!wsManager || !wsManager.isConnected()) {
+                addLog('warning', '⚠️ 먼저 연결하세요');
+                return;
+            }
+            
+            const input = document.getElementById('equipmentIds').value;
+            const ids = input.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            wsManager.unsubscribe(ids);
+        }
+        
+        function requestStatus() {
+            if (!wsManager || !wsManager.isConnected()) {
+                addLog('warning', '⚠️ 먼저 연결하세요');
+                return;
+            }
+            
+            const input = document.getElementById('equipmentIds').value;
+            const ids = input.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            wsManager.requestStatus(ids);
+        }
+        
+        function toggleDebug() {
+            debugEnabled = !debugEnabled;
+            if (wsManager) {
+                wsManager.setDebug(debugEnabled);
+            }
+            addLog('info', `🔧 Debug ${debugEnabled ? 'ON' : 'OFF'}`);
+        }
+        
+        function updateConnectionUI() {
+            const statusEl = document.getElementById('connectionStatus');
+            if (!wsManager) {
+                statusEl.className = 'status-indicator disconnected';
+                statusEl.querySelector('.status-text').textContent = 'DISCONNECTED';
+                return;
+            }
+            
+            const state = wsManager.getConnectionState();
+            statusEl.className = 'status-indicator ' + state.toLowerCase();
+            statusEl.querySelector('.status-text').textContent = state;
+        }
+        
+        function updateStats() {
+            if (!wsManager) return;
+            
+            document.getElementById('statMessages').textContent = wsManager.messageCount;
+            document.getElementById('statSubscribed').textContent = wsManager.getSubscribedCount();
+            document.getElementById('statReconnects').textContent = wsManager.getReconnectAttempts();
+        }
+        
+        function refreshStatus() {
+            const statusEl = document.getElementById('managerStatus');
+            if (!wsManager) {
+                statusEl.textContent = '{ "status": "Not initialized" }';
+                return;
+            }
+            statusEl.textContent = JSON.stringify(wsManager.getStatus(), null, 2);
+        }
+        
+        function addLog(type, message) {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${time}]</span>${message}`;
+            
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '';
+        }
+        
+        function addStatusUpdate(frontendId, status, data) {
+            const container = document.getElementById('statusUpdates');
+            
+            // Clear placeholder
+            if (container.querySelector('div[style]')) {
+                container.innerHTML = '';
+            }
+            
+            const item = document.createElement('div');
+            item.className = 'status-update-item';
+            
+            const statusClass = (status || 'disconnected').toLowerCase();
+            
+            item.innerHTML = `
+                <div>
+                    <span class="equipment-id">${frontendId}</span>
+                    <span style="color: #666; font-size: 0.8rem; margin-left: 8px;">
+                        ${new Date().toLocaleTimeString()}
+                    </span>
+                </div>
+                <span class="equipment-status ${statusClass}">${status || 'DISCONNECTED'}</span>
+            `;
+            
+            container.insertBefore(item, container.firstChild);
+            
+            // Limit items
+            while (container.children.length > 20) {
+                container.removeChild(container.lastChild);
+            }
+        }
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            addLog('info', '🚀 WebSocketManager Test Page Ready');
+            setInterval(refreshStatus, 1000);
+            setInterval(updateStats, 500);
+        });
+    </script>
+</body>
+</html>
