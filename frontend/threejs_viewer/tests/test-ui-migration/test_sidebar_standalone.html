@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Test: Cleanroom Sidebar (Standalone)</title>
+    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.0</title>
     
     <style>
         /* =============================================
@@ -13,7 +13,7 @@
             position: fixed;
             top: 10px;
             right: 10px;
-            width: 350px;
+            width: 420px;
             background: #1a1a2e;
             border: 1px solid #16213e;
             border-radius: 12px;
@@ -41,138 +41,213 @@
             color: #06B6D4;
         }
         
-        .test-stats {
+        .test-tabs {
             display: flex;
-            gap: 12px;
-            font-size: 11px;
-        }
-        
-        .stat-pass { color: #4CAF50; }
-        .stat-fail { color: #F44336; }
-        .stat-pending { color: #FFC107; }
-        
-        .test-group {
+            gap: 4px;
             margin-bottom: 16px;
         }
         
-        .test-group-title {
-            font-size: 12px;
-            font-weight: bold;
-            color: #9CA3AF;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .test-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 8px;
-            margin: 4px 0;
-            background: rgba(255,255,255,0.03);
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        
-        .test-item:hover {
-            background: rgba(255,255,255,0.08);
-        }
-        
-        .test-icon {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 10px;
-        }
-        
-        .test-icon.pass { background: #4CAF50; }
-        .test-icon.fail { background: #F44336; }
-        .test-icon.pending { background: #FFC107; color: #000; }
-        .test-icon.running { 
-            background: #2196F3; 
-            animation: pulse 1s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .test-name {
-            flex: 1;
-            color: #e5e5e5;
-        }
-        
-        .test-time {
-            color: #6B7280;
-            font-size: 10px;
-        }
-        
-        .test-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 16px;
-            padding-top: 12px;
-            border-top: 1px solid #16213e;
-        }
-        
-        .test-btn {
-            flex: 1;
-            padding: 10px 16px;
+        .test-tab {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
+            color: #9CA3AF;
             cursor: pointer;
-            font-family: inherit;
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 11px;
             transition: all 0.2s;
         }
         
-        .test-btn-primary {
+        .test-tab.active {
             background: linear-gradient(135deg, #06B6D4, #0891B2);
             color: white;
         }
         
-        .test-btn-primary:hover {
+        .test-tab:hover:not(.active) {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .test-panel {
+            display: none;
+        }
+        
+        .test-panel.active {
+            display: block;
+        }
+
+        /* Icon Style Tester */
+        .style-tester {
+            margin-bottom: 16px;
+        }
+        
+        .style-section {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .style-section h4 {
+            color: #9CA3AF;
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+        
+        .style-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        
+        .style-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        
+        .style-option:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .style-option.selected {
+            border-color: #06B6D4;
+            background: rgba(6, 182, 212, 0.1);
+        }
+        
+        .style-option svg {
+            margin-bottom: 4px;
+        }
+        
+        .style-label {
+            font-size: 9px;
+            color: #6B7280;
+        }
+        
+        /* State Preview */
+        .state-preview {
+            display: flex;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg-sidebar);
+            border-radius: 8px;
+            justify-content: center;
+        }
+        
+        .state-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .state-item .icon-wrapper {
+            width: 54px;
+            height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border-radius: 8px;
+            transition: all 0.25s;
+        }
+        
+        .state-item .icon-wrapper.normal {
+            background: transparent;
+        }
+        
+        .state-item .icon-wrapper.hover {
+            background: rgba(255,255,255,0.05);
+            transform: scale(1.1) translateY(-3px);
+        }
+        
+        .state-item .icon-wrapper.hover svg {
+            stroke: #FFFFFF;
+            filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.3));
+        }
+        
+        .state-item .icon-wrapper.selected {
+            background: rgba(6, 182, 212, 0.1);
+            transform: scale(1.08) translateY(-2px);
+        }
+        
+        .state-item .icon-wrapper.selected svg {
+            stroke: #06B6D4;
+            filter: drop-shadow(0 0 6px #06B6D4);
+        }
+        
+        .state-item .icon-wrapper.selected::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            width: 3px;
+            height: 28px;
+            background: #06B6D4;
+            border-radius: 0 3px 3px 0;
+            box-shadow: 0 0 6px #06B6D4;
+        }
+        
+        .state-item .icon-wrapper.disabled {
+            opacity: 0.4;
+        }
+        
+        .state-item .icon-wrapper.disabled svg {
+            stroke: #334155;
+        }
+        
+        .state-label {
+            font-size: 10px;
+            color: #6B7280;
+            text-transform: uppercase;
+        }
+        
+        /* Apply Button */
+        .apply-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #06B6D4, #0891B2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+            transition: all 0.2s;
+        }
+        
+        .apply-btn:hover {
             box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
         }
         
-        .test-btn-secondary {
-            background: rgba(255,255,255,0.1);
-            color: #e5e5e5;
-        }
-        
-        .test-btn-secondary:hover {
-            background: rgba(255,255,255,0.15);
-        }
-        
-        .test-log {
-            margin-top: 16px;
+        /* Current Config Display */
+        .current-config {
             padding: 12px;
-            background: rgba(0,0,0,0.3);
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
             border-radius: 8px;
+            margin-top: 12px;
+        }
+        
+        .config-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
             font-size: 11px;
-            max-height: 150px;
-            overflow-y: auto;
         }
         
-        .log-entry {
-            padding: 2px 0;
-            color: #9CA3AF;
-        }
-        
-        .log-entry.success { color: #4CAF50; }
-        .log-entry.error { color: #F44336; }
-        .log-entry.info { color: #06B6D4; }
+        .config-key { color: #9CA3AF; }
+        .config-value { color: #06B6D4; font-weight: 600; }
 
         /* =============================================
            1. Theme Configuration (Cleanroom Palette)
-           ✨ v1.1.0: 선 굵기/크기 변수 추가
            ============================================= */
         :root {
             /* Background Colors */
@@ -184,16 +259,17 @@
             --icon-selected: #06B6D4;
             --icon-disabled: #334155;
             
-            /* ✨ Icon Sizing - v1.1.0 */
-            --icon-size: 32px;              /* 28px → 32px */
-            --icon-stroke-normal: 1.5px;    /* 2px → 1.5px */
-            --icon-stroke-hover: 2px;       /* 3px → 2px */
-            --icon-stroke-selected: 2px;    /* 3px → 2px */
+            /* Icon Sizing - Configurable */
+            --icon-size: 32px;
+            --icon-stroke-normal: 1.5px;
+            --icon-stroke-hover: 2px;
+            --icon-stroke-selected: 2px;
             
             /* Status Text Colors */
             --text-normal: #CBD5E1;
             --text-warning: #FBBF24;
             --text-alarm: #F87171;
+            --text-success: #4ADE80;
 
             /* Interaction Settings */
             --transition-speed: 0.25s;
@@ -228,7 +304,7 @@
         .icon-btn {
             width: 54px;
             height: 54px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             background: transparent;
             border: none;
             cursor: pointer;
@@ -239,7 +315,7 @@
             transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        /* ✨ SVG Style - 더 크고 가는 선 */
+        /* SVG Style */
         .icon-btn svg {
             width: var(--icon-size);
             height: var(--icon-size);
@@ -253,10 +329,9 @@
 
         /* =============================================
            3. Interaction Logic (Hover & Selected)
-           ✨ v1.1.0: 선 굵기 효과 축소
            ============================================= */
         
-        /* Hover Effect - 더 부드러운 효과 */
+        /* Hover Effect */
         .icon-btn:not(.selected):not(.disabled):hover {
             transform: scale(1.1) translateY(-3px);
         }
@@ -266,7 +341,7 @@
             filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.3));
         }
 
-        /* Selected Effect - 부드러운 강조 */
+        /* Selected Effect */
         .icon-btn.selected {
             transform: scale(1.08) translateY(-2px);
         }
@@ -301,7 +376,103 @@
         }
 
         /* =============================================
-           4. Main Content Area
+           4. Submenu System
+           ============================================= */
+        .has-submenu {
+            position: relative;
+        }
+        
+        .submenu {
+            position: absolute;
+            left: 70px;
+            top: 0;
+            background: var(--bg-sidebar);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 8px 0;
+            min-width: 160px;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(-10px);
+            transition: all 0.2s ease;
+            box-shadow: 4px 4px 20px rgba(0,0,0,0.4);
+            z-index: 100;
+        }
+        
+        .has-submenu:hover .submenu,
+        .has-submenu.submenu-open .submenu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+        }
+        
+        .submenu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            color: var(--text-normal);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        
+        .submenu-item:hover {
+            background: rgba(6, 182, 212, 0.1);
+            color: #FFFFFF;
+        }
+        
+        .submenu-item.active {
+            background: rgba(6, 182, 212, 0.15);
+            color: var(--icon-selected);
+        }
+        
+        .submenu-item svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            stroke-width: 1.5px;
+            fill: none;
+        }
+        
+        .submenu-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            margin: 6px 12px;
+        }
+        
+        .submenu-header {
+            padding: 6px 16px;
+            font-size: 10px;
+            color: #6B7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Submenu indicator arrow */
+        .has-submenu::after {
+            content: '';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 4px solid transparent;
+            border-left-color: var(--icon-normal);
+            opacity: 0.5;
+        }
+        
+        .has-submenu:hover::after,
+        .has-submenu.selected::after {
+            border-left-color: var(--icon-selected);
+            opacity: 1;
+        }
+
+        /* =============================================
+           5. Main Content Area
            ============================================= */
         .main-content {
             flex-grow: 1;
@@ -312,6 +483,7 @@
             justify-content: center;
             align-items: center;
             color: #e5e5e5;
+            margin-bottom: 48px;
         }
 
         .main-content h1 {
@@ -349,16 +521,22 @@
             font-weight: bold;
             color: #06B6D4;
         }
+        
+        .submode-value {
+            font-size: 14px;
+            color: #9CA3AF;
+            margin-top: 4px;
+        }
 
         /* =============================================
-           5. Status Bar (Bottom)
+           6. Status Bar (Bottom) - Enhanced
            ============================================= */
         .status-bar {
-            position: absolute;
+            position: fixed;
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 36px;
+            height: 48px;
             background-color: var(--bg-sidebar);
             border-top: 1px solid rgba(255,255,255,0.1);
             display: flex;
@@ -367,14 +545,27 @@
             padding: 0 20px;
             box-sizing: border-box;
             font-family: 'Consolas', monospace;
-            font-size: 13px;
+            font-size: 12px;
             z-index: 20;
         }
 
-        .status-group { display: flex; gap: 24px; }
-        .status-item { display: flex; align-items: center; gap: 8px; }
+        .status-group { 
+            display: flex; 
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .status-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+        }
         
         .status-normal { color: var(--text-normal); }
+        .status-success { color: var(--text-success); }
         .status-warning { color: var(--text-warning); font-weight: 600; }
         .status-alarm { 
             color: var(--text-alarm); 
@@ -382,12 +573,58 @@
             animation: pulse-alarm 1.5s infinite; 
         }
 
-        .dot { 
+        .status-dot { 
             width: 8px; 
             height: 8px; 
             border-radius: 50%; 
-            background-color: currentColor; 
+            background-color: currentColor;
+            flex-shrink: 0;
         }
+        
+        .status-dot.connected {
+            background-color: var(--text-success);
+            box-shadow: 0 0 6px var(--text-success);
+        }
+        
+        .status-dot.disconnected {
+            background-color: var(--text-alarm);
+            box-shadow: 0 0 6px var(--text-alarm);
+        }
+        
+        .status-dot.warning {
+            background-color: var(--text-warning);
+            box-shadow: 0 0 6px var(--text-warning);
+        }
+
+        .status-label {
+            color: #6B7280;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        
+        .status-value {
+            color: var(--text-normal);
+            font-weight: 500;
+        }
+        
+        /* Performance Bar */
+        .perf-bar {
+            width: 60px;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .perf-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s, background 0.3s;
+        }
+        
+        .perf-bar-fill.good { background: var(--text-success); }
+        .perf-bar-fill.medium { background: var(--text-warning); }
+        .perf-bar-fill.bad { background: var(--text-alarm); }
 
         @keyframes pulse-alarm {
             0% { opacity: 1; }
@@ -396,7 +633,7 @@
         }
 
         /* Tooltip */
-        .icon-btn::after {
+        .icon-btn[data-tooltip]::after {
             content: attr(data-tooltip);
             position: absolute;
             left: 70px;
@@ -410,9 +647,10 @@
             pointer-events: none;
             transition: opacity 0.2s, transform 0.2s;
             transform: translateX(-10px);
+            z-index: 50;
         }
 
-        .icon-btn:hover::after {
+        .icon-btn:not(.has-submenu):hover[data-tooltip]::after {
             opacity: 1;
             transform: translateX(0);
         }
@@ -422,13 +660,65 @@
             width: 40px;
             height: 1px;
             background: rgba(255,255,255,0.1);
-            margin: 10px 0;
+            margin: 8px 0;
         }
 
         /* Spacer */
         .sidebar-spacer {
             flex-grow: 1;
         }
+        
+        /* =============================================
+           7. Test Controls Additional Styles
+           ============================================= */
+        .slider-container {
+            margin: 8px 0;
+        }
+        
+        .slider-container label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 11px;
+            color: #9CA3AF;
+        }
+        
+        .slider-container input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #06B6D4;
+            cursor: pointer;
+        }
+        
+        .test-log {
+            margin-top: 12px;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            font-size: 10px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            padding: 2px 0;
+            color: #6B7280;
+        }
+        
+        .log-entry.success { color: #4ADE80; }
+        .log-entry.error { color: #F87171; }
+        .log-entry.info { color: #06B6D4; }
     </style>
 </head>
 <body>
@@ -444,8 +734,7 @@
                 <path d="M4 6c0 1.66 3.58 3 8 3s8-1.34 8-3"/>
                 <path d="M20 6v6c0 1.66-3.58 3-8 3s-8-1.34-8-3V6"/>
                 <ellipse cx="12" cy="6" rx="8" ry="3"/>
-                <path d="M19.5 15.5a2.5 2.5 0 0 0-3.8-2.3 2.5 2.5 0 0 0-1.2 3.8 2.5 2.5 0 0 0 3.5 1.2" stroke-dasharray="2 1" />
-                <circle cx="19" cy="19" r="3" />
+                <circle cx="19" cy="19" r="3"/>
                 <path d="M19 19m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" fill="currentColor" stroke="none"/>
             </svg>
         </button>
@@ -465,15 +754,47 @@
             </svg>
         </button>
 
-        <!-- Monitoring Button -->
-        <button class="icon-btn" id="btn-monitoring" data-mode="monitoring" data-tooltip="System Monitoring (M)">
-            <svg viewBox="0 0 24 24">
-                <rect x="3" y="4" width="18" height="12" rx="2" />
-                <polyline points="6 10 9 10 11 7 13 13 15 10 18 10" />
-                <path d="M12 16v4" />
-                <path d="M8 20h8" />
-            </svg>
-        </button>
+        <!-- Monitoring Button with Submenu -->
+        <div class="has-submenu" id="btn-monitoring-wrapper">
+            <button class="icon-btn" id="btn-monitoring" data-mode="monitoring" data-tooltip="System Monitoring (M)">
+                <svg viewBox="0 0 24 24">
+                    <rect x="3" y="4" width="18" height="12" rx="2" />
+                    <polyline points="6 10 9 10 11 7 13 13 15 10 18 10" />
+                    <path d="M12 16v4" />
+                    <path d="M8 20h8" />
+                </svg>
+            </button>
+            
+            <!-- Submenu -->
+            <div class="submenu" id="monitoring-submenu">
+                <div class="submenu-header">Monitoring Views</div>
+                <button class="submenu-item active" data-submode="3d-view" onclick="setSubMode('monitoring', '3d-view')">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                    3D View
+                </button>
+                <button class="submenu-item" data-submode="ranking-view" onclick="setSubMode('monitoring', 'ranking-view')">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M18 20V10"/>
+                        <path d="M12 20V4"/>
+                        <path d="M6 20v-6"/>
+                    </svg>
+                    Ranking View
+                </button>
+                <div class="submenu-divider"></div>
+                <button class="submenu-item" data-submode="stats" onclick="setSubMode('monitoring', 'stats')">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <path d="M3 9h18"/>
+                        <path d="M9 21V9"/>
+                    </svg>
+                    Statistics Panel
+                </button>
+            </div>
+        </div>
 
         <div class="sidebar-divider"></div>
 
@@ -503,8 +824,23 @@
                 <path d="M2 12l10 5 10-5"/>
             </svg>
         </button>
+        
+        <!-- Preview Button -->
+        <button class="icon-btn" id="btn-preview" data-mode="preview" data-tooltip="Preview (P)">
+            <svg viewBox="0 0 24 24">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+        </button>
 
         <div class="sidebar-spacer"></div>
+        
+        <!-- Debug Button -->
+        <button class="icon-btn" id="btn-debug" data-mode="debug" data-tooltip="Debug Panel (D)">
+            <svg viewBox="0 0 24 24">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+        </button>
 
         <!-- Settings Button (bottom) -->
         <button class="icon-btn" id="btn-settings" data-mode="settings" data-tooltip="Settings">
@@ -514,52 +850,92 @@
             </svg>
         </button>
 
-        <div style="height: 60px;"></div> <!-- Space for status bar -->
+        <div style="height: 60px;"></div>
     </aside>
 
     <!-- =============================================
          MAIN CONTENT AREA
          ============================================= -->
     <main class="main-content">
-        <h1>🧪 Sidebar Standalone Test</h1>
-        <p>Click sidebar buttons to test selection and hover effects.</p>
+        <h1>🧪 Sidebar Test v2.0</h1>
+        <p>아이콘 스타일 테스터 + 서브메뉴 + 상태바 개선</p>
         
         <div class="current-mode">
             <div class="mode-label">Current Mode</div>
             <div class="mode-value" id="current-mode">Connection</div>
+            <div class="submode-value" id="current-submode"></div>
         </div>
     </main>
 
     <!-- =============================================
-         STATUS BAR
+         STATUS BAR - Enhanced
          ============================================= -->
     <footer class="status-bar">
+        <!-- Left Group: Connections -->
         <div class="status-group">
-            <div class="status-item status-normal" id="status-server">
-                <span class="dot"></span> Server: <span id="server-status">Disconnected</span>
+            <!-- Backend Connection -->
+            <div class="status-item" id="status-backend">
+                <span class="status-dot connected" id="backend-dot"></span>
+                <div>
+                    <div class="status-label">Backend</div>
+                    <div class="status-value" id="backend-value">Connected</div>
+                </div>
             </div>
-            <div class="status-item status-normal">
-                User: Admin
+            
+            <!-- DB Connection -->
+            <div class="status-item" id="status-db">
+                <span class="status-dot connected" id="db-dot"></span>
+                <div>
+                    <div class="status-label">Database</div>
+                    <div class="status-value" id="db-value">kr-b-01</div>
+                </div>
             </div>
         </div>
 
+        <!-- Center Group: Performance -->
         <div class="status-group">
-            <div class="status-item status-warning" id="status-load" style="display: none;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+            <!-- Render Performance -->
+            <div class="status-item" id="status-render">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-normal);">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/>
+                    <path d="M3 9h18"/>
+                    <path d="M9 21V9"/>
                 </svg>
-                Load: <span id="load-value">0</span>%
+                <div>
+                    <div class="status-label">Render</div>
+                    <div class="status-value"><span id="fps-value">60</span> FPS</div>
+                </div>
+                <div class="perf-bar">
+                    <div class="perf-bar-fill good" id="fps-bar" style="width: 100%;"></div>
+                </div>
             </div>
             
-            <div class="status-item status-alarm" id="status-alarm" style="display: none;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="15" y1="9" x2="9" y2="15"/>
-                    <line x1="9" y1="9" x2="15" y2="15"/>
+            <!-- Memory Usage -->
+            <div class="status-item" id="status-memory">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-normal);">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
                 </svg>
-                <span id="alarm-message">No Alarms</span>
+                <div>
+                    <div class="status-label">Memory</div>
+                    <div class="status-value"><span id="memory-value">128</span> MB</div>
+                </div>
+                <div class="perf-bar">
+                    <div class="perf-bar-fill good" id="memory-bar" style="width: 30%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Group: User Info -->
+        <div class="status-group">
+            <div class="status-item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-normal);">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <div>
+                    <div class="status-label">User</div>
+                    <div class="status-value">Admin</div>
+                </div>
             </div>
         </div>
     </footer>
@@ -569,330 +945,534 @@
          ============================================= -->
     <div class="test-framework" id="test-panel">
         <div class="test-header">
-            <div class="test-title">🧪 Test Results</div>
-            <div class="test-stats">
-                <span class="stat-pass">✓ <span id="pass-count">0</span></span>
-                <span class="stat-fail">✗ <span id="fail-count">0</span></span>
-                <span class="stat-pending">○ <span id="pending-count">0</span></span>
+            <div class="test-title">🧪 Icon Style Tester v2.0</div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="test-tabs">
+            <button class="test-tab active" onclick="showPanel('style')">Icon Styles</button>
+            <button class="test-tab" onclick="showPanel('status')">Status Bar</button>
+            <button class="test-tab" onclick="showPanel('tests')">Tests</button>
+        </div>
+        
+        <!-- Panel 1: Icon Styles -->
+        <div class="test-panel active" id="panel-style">
+            <div class="style-tester">
+                <!-- Stroke Width Selection -->
+                <div class="style-section">
+                    <h4>Stroke Width (선 굵기)</h4>
+                    <div class="style-row" id="stroke-options">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+                
+                <!-- Icon Size Selection -->
+                <div class="style-section">
+                    <h4>Icon Size (아이콘 크기)</h4>
+                    <div class="style-row" id="size-options">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+                
+                <!-- State Preview -->
+                <div class="style-section">
+                    <h4>State Preview (상태 미리보기)</h4>
+                    <div class="state-preview" id="state-preview">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+                
+                <!-- Current Config -->
+                <div class="current-config">
+                    <div class="config-row">
+                        <span class="config-key">Icon Size:</span>
+                        <span class="config-value" id="config-size">32px</span>
+                    </div>
+                    <div class="config-row">
+                        <span class="config-key">Stroke Normal:</span>
+                        <span class="config-value" id="config-stroke-normal">1.5px</span>
+                    </div>
+                    <div class="config-row">
+                        <span class="config-key">Stroke Hover:</span>
+                        <span class="config-value" id="config-stroke-hover">2px</span>
+                    </div>
+                    <div class="config-row">
+                        <span class="config-key">Stroke Selected:</span>
+                        <span class="config-value" id="config-stroke-selected">2px</span>
+                    </div>
+                </div>
+                
+                <button class="apply-btn" onclick="applyStyles()">✓ Apply to Sidebar</button>
             </div>
         </div>
         
-        <div class="test-group">
-            <div class="test-group-title">Visual Tests</div>
-            <div class="test-item" id="test-sidebar-render">
-                <span class="test-icon pending">○</span>
-                <span class="test-name">Sidebar renders correctly</span>
-                <span class="test-time"></span>
+        <!-- Panel 2: Status Bar Controls -->
+        <div class="test-panel" id="panel-status">
+            <div class="style-section">
+                <h4>Backend Connection</h4>
+                <div class="style-row">
+                    <button class="style-option" onclick="setBackendStatus('connected')">✓ Connected</button>
+                    <button class="style-option" onclick="setBackendStatus('disconnected')">✗ Disconnected</button>
+                    <button class="style-option" onclick="setBackendStatus('connecting')">⟳ Connecting</button>
+                </div>
             </div>
-            <div class="test-item" id="test-buttons-visible">
-                <span class="test-icon pending">○</span>
-                <span class="test-name">All buttons visible</span>
-                <span class="test-time"></span>
+            
+            <div class="style-section">
+                <h4>Database Connection</h4>
+                <div class="style-row">
+                    <button class="style-option" onclick="setDBStatus('connected', 'kr-b-01')">kr-b-01</button>
+                    <button class="style-option" onclick="setDBStatus('connected', 'vn-a-02')">vn-a-02</button>
+                    <button class="style-option" onclick="setDBStatus('disconnected', 'None')">Disconnected</button>
+                </div>
             </div>
-            <div class="test-item" id="test-status-bar">
-                <span class="test-icon pending">○</span>
-                <span class="test-name">Status bar renders</span>
-                <span class="test-time"></span>
-            </div>
-        </div>
-        
-        <div class="test-group">
-            <div class="test-group-title">Interaction Tests</div>
-            <div class="test-item" id="test-click-selection">
-                <span class="test-icon pending">○</span>
-                <span class="test-name">Click selects button</span>
-                <span class="test-time"></span>
-            </div>
-            <div class="test-item" id="test-hover-effect">
-                <span class="test-icon pending">○</span>
-                <span class="test-name">Hover effect works</span>
-                <span class="test-time"></span>
-            </div>
-            <div class="test-item" id="test-indicator-line">
-                <span class="test-icon pending">○</span>
-                <span class="test-name">Selection indicator shows</span>
-                <span class="test-time"></span>
-            </div>
-        </div>
-        
-        <div class="test-group">
-            <div class="test-group-title">State Tests</div>
-            <div class="test-item" id="test-mode-change">
-                <span class="test-icon pending">○</span>
-                <span class="test-name">Mode changes on click</span>
-                <span class="test-time"></span>
-            </div>
-            <div class="test-item" id="test-status-update">
-                <span class="test-icon pending">○</span>
-                <span class="test-name">Status updates dynamically</span>
-                <span class="test-time"></span>
+            
+            <div class="style-section">
+                <h4>Render Performance</h4>
+                <div class="slider-container">
+                    <label>
+                        <span>FPS</span>
+                        <span id="fps-display">60</span>
+                    </label>
+                    <input type="range" min="1" max="120" value="60" oninput="setFPS(this.value)">
+                </div>
+                <div class="slider-container">
+                    <label>
+                        <span>Memory (MB)</span>
+                        <span id="memory-display">128</span>
+                    </label>
+                    <input type="range" min="50" max="2000" value="128" oninput="setMemory(this.value)">
+                </div>
             </div>
         </div>
         
-        <div class="test-actions">
-            <button class="test-btn test-btn-primary" onclick="runAllTests()">▶ Run All Tests</button>
-            <button class="test-btn test-btn-secondary" onclick="resetTests()">↺ Reset</button>
-        </div>
-        
-        <div class="test-log" id="test-log">
-            <div class="log-entry info">Ready to run tests...</div>
+        <!-- Panel 3: Automated Tests -->
+        <div class="test-panel" id="panel-tests">
+            <div class="style-section">
+                <h4>Visual Tests</h4>
+                <div id="test-results">
+                    <!-- Generated by test runner -->
+                </div>
+                <button class="apply-btn" onclick="runAllTests()" style="margin-top: 12px;">▶ Run All Tests</button>
+            </div>
+            
+            <div class="test-log" id="test-log">
+                <div class="log-entry info">Ready to run tests...</div>
+            </div>
         </div>
     </div>
 
     <!-- =============================================
-         TEST SCRIPT
+         SCRIPTS
          ============================================= -->
     <script>
         // =============================================
-        // Test Framework
+        // Configuration
         // =============================================
-        const TestRunner = {
-            results: { pass: 0, fail: 0, pending: 0 },
-            
-            log(message, type = 'info') {
-                const logEl = document.getElementById('test-log');
-                const entry = document.createElement('div');
-                entry.className = `log-entry ${type}`;
-                entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-                logEl.appendChild(entry);
-                logEl.scrollTop = logEl.scrollHeight;
-            },
-            
-            updateStats() {
-                document.getElementById('pass-count').textContent = this.results.pass;
-                document.getElementById('fail-count').textContent = this.results.fail;
-                document.getElementById('pending-count').textContent = this.results.pending;
-            },
-            
-            async runTest(testId, testFn) {
-                const testEl = document.getElementById(testId);
-                const iconEl = testEl.querySelector('.test-icon');
-                const timeEl = testEl.querySelector('.test-time');
-                
-                iconEl.className = 'test-icon running';
-                iconEl.textContent = '⟳';
-                
-                const startTime = performance.now();
-                
-                try {
-                    await testFn();
-                    const duration = (performance.now() - startTime).toFixed(1);
-                    iconEl.className = 'test-icon pass';
-                    iconEl.textContent = '✓';
-                    timeEl.textContent = `${duration}ms`;
-                    this.results.pass++;
-                    this.results.pending--;
-                    this.log(`✓ PASS: ${testEl.querySelector('.test-name').textContent}`, 'success');
-                } catch (error) {
-                    const duration = (performance.now() - startTime).toFixed(1);
-                    iconEl.className = 'test-icon fail';
-                    iconEl.textContent = '✗';
-                    timeEl.textContent = `${duration}ms`;
-                    this.results.fail++;
-                    this.results.pending--;
-                    this.log(`✗ FAIL: ${error.message}`, 'error');
-                }
-                
-                this.updateStats();
-            }
+        const CONFIG = {
+            strokeWidths: [1, 1.5, 2, 2.5, 3],
+            iconSizes: [24, 28, 32, 36, 40],
+            currentStroke: 1.5,
+            currentSize: 32,
+            strokeHover: 2,
+            strokeSelected: 2
         };
-
-        // =============================================
-        // Sidebar Logic
-        // =============================================
-        const buttons = document.querySelectorAll('.icon-btn');
+        
         let currentMode = 'connection';
+        let currentSubMode = null;
 
-        buttons.forEach(btn => {
-            btn.addEventListener('click', function() {
-                if (this.classList.contains('disabled')) return;
+        // =============================================
+        // Initialize
+        // =============================================
+        function init() {
+            generateStrokeOptions();
+            generateSizeOptions();
+            generateStatePreview();
+            setupSidebarEvents();
+            startPerformanceSimulation();
+        }
+
+        // =============================================
+        // Panel Management
+        // =============================================
+        function showPanel(panelName) {
+            document.querySelectorAll('.test-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.test-tab').forEach(t => t.classList.remove('active'));
+            
+            document.getElementById(`panel-${panelName}`).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // =============================================
+        // Stroke Width Options
+        // =============================================
+        function generateStrokeOptions() {
+            const container = document.getElementById('stroke-options');
+            container.innerHTML = '';
+            
+            CONFIG.strokeWidths.forEach(width => {
+                const option = document.createElement('div');
+                option.className = `style-option${width === CONFIG.currentStroke ? ' selected' : ''}`;
+                option.onclick = () => selectStroke(width);
                 
+                option.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#E2E8F0" stroke-width="${width}">
+                        <rect x="3" y="4" width="18" height="12" rx="2"/>
+                        <polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/>
+                    </svg>
+                    <span class="style-label">${width}px</span>
+                `;
+                
+                container.appendChild(option);
+            });
+        }
+
+        function selectStroke(width) {
+            CONFIG.currentStroke = width;
+            CONFIG.strokeHover = Math.min(width + 0.5, 3);
+            CONFIG.strokeSelected = Math.min(width + 0.5, 3);
+            
+            generateStrokeOptions();
+            generateStatePreview();
+            updateConfigDisplay();
+        }
+
+        // =============================================
+        // Icon Size Options
+        // =============================================
+        function generateSizeOptions() {
+            const container = document.getElementById('size-options');
+            container.innerHTML = '';
+            
+            CONFIG.iconSizes.forEach(size => {
+                const option = document.createElement('div');
+                option.className = `style-option${size === CONFIG.currentSize ? ' selected' : ''}`;
+                option.onclick = () => selectSize(size);
+                
+                option.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="#E2E8F0" stroke-width="${CONFIG.currentStroke}">
+                        <rect x="3" y="4" width="18" height="12" rx="2"/>
+                        <polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/>
+                    </svg>
+                    <span class="style-label">${size}px</span>
+                `;
+                
+                container.appendChild(option);
+            });
+        }
+
+        function selectSize(size) {
+            CONFIG.currentSize = size;
+            generateSizeOptions();
+            generateStatePreview();
+            updateConfigDisplay();
+        }
+
+        // =============================================
+        // State Preview
+        // =============================================
+        function generateStatePreview() {
+            const container = document.getElementById('state-preview');
+            const states = ['normal', 'hover', 'selected', 'disabled'];
+            
+            container.innerHTML = states.map(state => {
+                const strokeWidth = state === 'hover' ? CONFIG.strokeHover : 
+                                   state === 'selected' ? CONFIG.strokeSelected : 
+                                   CONFIG.currentStroke;
+                const color = state === 'disabled' ? '#334155' :
+                             state === 'selected' ? '#06B6D4' :
+                             state === 'hover' ? '#FFFFFF' : '#E2E8F0';
+                
+                return `
+                    <div class="state-item">
+                        <div class="icon-wrapper ${state}">
+                            <svg viewBox="0 0 24 24" width="${CONFIG.currentSize}" height="${CONFIG.currentSize}" 
+                                 fill="none" stroke="${color}" stroke-width="${strokeWidth}"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="12" rx="2"/>
+                                <polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/>
+                                <path d="M12 16v4"/>
+                                <path d="M8 20h8"/>
+                            </svg>
+                        </div>
+                        <span class="state-label">${state}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // =============================================
+        // Apply Styles to Sidebar
+        // =============================================
+        function applyStyles() {
+            document.documentElement.style.setProperty('--icon-size', `${CONFIG.currentSize}px`);
+            document.documentElement.style.setProperty('--icon-stroke-normal', `${CONFIG.currentStroke}px`);
+            document.documentElement.style.setProperty('--icon-stroke-hover', `${CONFIG.strokeHover}px`);
+            document.documentElement.style.setProperty('--icon-stroke-selected', `${CONFIG.strokeSelected}px`);
+            
+            log(`Applied: Size=${CONFIG.currentSize}px, Stroke=${CONFIG.currentStroke}px`, 'success');
+        }
+
+        function updateConfigDisplay() {
+            document.getElementById('config-size').textContent = `${CONFIG.currentSize}px`;
+            document.getElementById('config-stroke-normal').textContent = `${CONFIG.currentStroke}px`;
+            document.getElementById('config-stroke-hover').textContent = `${CONFIG.strokeHover}px`;
+            document.getElementById('config-stroke-selected').textContent = `${CONFIG.strokeSelected}px`;
+        }
+
+        // =============================================
+        // Sidebar Events
+        // =============================================
+        function setupSidebarEvents() {
+            const buttons = document.querySelectorAll('.icon-btn');
+            
+            buttons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    if (this.classList.contains('disabled')) return;
+                    if (this.closest('.has-submenu')) return; // Let submenu handle it
+                    
+                    buttons.forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    
+                    const mode = this.dataset.mode;
+                    setMode(mode);
+                });
+            });
+            
+            // Monitoring button special handling
+            const monitoringBtn = document.getElementById('btn-monitoring');
+            monitoringBtn.addEventListener('click', function() {
+                const buttons = document.querySelectorAll('.icon-btn');
                 buttons.forEach(b => b.classList.remove('selected'));
                 this.classList.add('selected');
-                
-                const mode = this.dataset.mode;
-                currentMode = mode;
-                document.getElementById('current-mode').textContent = 
-                    mode.charAt(0).toUpperCase() + mode.slice(1);
-                
-                TestRunner.log(`Mode changed to: ${mode}`, 'info');
+                setMode('monitoring');
             });
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            currentSubMode = null;
+            document.getElementById('current-mode').textContent = 
+                mode.charAt(0).toUpperCase() + mode.slice(1);
+            document.getElementById('current-submode').textContent = '';
+            log(`Mode: ${mode}`, 'info');
+        }
+
+        function setSubMode(mode, submode) {
+            currentMode = mode;
+            currentSubMode = submode;
+            
+            // Update main button
+            const buttons = document.querySelectorAll('.icon-btn');
+            buttons.forEach(b => b.classList.remove('selected'));
+            document.getElementById('btn-monitoring').classList.add('selected');
+            
+            // Update submenu items
+            document.querySelectorAll('.submenu-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.submode === submode);
+            });
+            
+            // Update display
+            document.getElementById('current-mode').textContent = 'Monitoring';
+            const submodeLabels = {
+                '3d-view': '3D View',
+                'ranking-view': 'Ranking View',
+                'stats': 'Statistics Panel'
+            };
+            document.getElementById('current-submode').textContent = `→ ${submodeLabels[submode] || submode}`;
+            
+            log(`Mode: ${mode} → ${submode}`, 'info');
+        }
+
+        // =============================================
+        // Status Bar Controls
+        // =============================================
+        function setBackendStatus(status) {
+            const dot = document.getElementById('backend-dot');
+            const value = document.getElementById('backend-value');
+            
+            dot.className = 'status-dot';
+            
+            switch(status) {
+                case 'connected':
+                    dot.classList.add('connected');
+                    value.textContent = 'Connected';
+                    break;
+                case 'disconnected':
+                    dot.classList.add('disconnected');
+                    value.textContent = 'Disconnected';
+                    break;
+                case 'connecting':
+                    dot.classList.add('warning');
+                    value.textContent = 'Connecting...';
+                    break;
+            }
+            
+            log(`Backend: ${status}`, status === 'connected' ? 'success' : 'error');
+        }
+
+        function setDBStatus(status, name) {
+            const dot = document.getElementById('db-dot');
+            const value = document.getElementById('db-value');
+            
+            dot.className = 'status-dot';
+            dot.classList.add(status === 'connected' ? 'connected' : 'disconnected');
+            value.textContent = name;
+            
+            log(`Database: ${name} (${status})`, status === 'connected' ? 'success' : 'error');
+        }
+
+        function setFPS(fps) {
+            fps = parseInt(fps);
+            document.getElementById('fps-value').textContent = fps;
+            document.getElementById('fps-display').textContent = fps;
+            
+            const bar = document.getElementById('fps-bar');
+            const percent = Math.min(100, (fps / 60) * 100);
+            bar.style.width = `${percent}%`;
+            
+            bar.className = 'perf-bar-fill';
+            if (fps >= 50) bar.classList.add('good');
+            else if (fps >= 30) bar.classList.add('medium');
+            else bar.classList.add('bad');
+        }
+
+        function setMemory(mb) {
+            mb = parseInt(mb);
+            document.getElementById('memory-value').textContent = mb;
+            document.getElementById('memory-display').textContent = mb;
+            
+            const bar = document.getElementById('memory-bar');
+            const percent = Math.min(100, (mb / 1000) * 100);
+            bar.style.width = `${percent}%`;
+            
+            bar.className = 'perf-bar-fill';
+            if (mb < 500) bar.classList.add('good');
+            else if (mb < 1000) bar.classList.add('medium');
+            else bar.classList.add('bad');
+        }
+
+        // =============================================
+        // Performance Simulation
+        // =============================================
+        function startPerformanceSimulation() {
+            setInterval(() => {
+                // Simulate FPS fluctuation
+                const baseFPS = 58;
+                const fps = baseFPS + Math.floor(Math.random() * 5);
+                setFPS(fps);
+                
+                // Simulate memory usage
+                const currentMem = parseInt(document.getElementById('memory-value').textContent);
+                const newMem = Math.max(100, Math.min(300, currentMem + (Math.random() - 0.5) * 20));
+                setMemory(Math.floor(newMem));
+            }, 2000);
+        }
+
+        // =============================================
+        // Test Runner
+        // =============================================
+        const tests = [
+            { name: 'Sidebar renders', fn: () => document.getElementById('sidebar').offsetWidth > 0 },
+            { name: 'All buttons visible', fn: () => document.querySelectorAll('.icon-btn').length >= 8 },
+            { name: 'Status bar renders', fn: () => document.querySelector('.status-bar').offsetHeight > 0 },
+            { name: 'Submenu exists', fn: () => document.querySelector('.submenu') !== null },
+            { name: 'CSS variables applied', fn: () => getComputedStyle(document.documentElement).getPropertyValue('--icon-size').trim() !== '' },
+        ];
+
+        function runAllTests() {
+            const container = document.getElementById('test-results');
+            container.innerHTML = '';
+            
+            let passed = 0;
+            let failed = 0;
+            
+            tests.forEach(test => {
+                try {
+                    const result = test.fn();
+                    const status = result ? 'pass' : 'fail';
+                    result ? passed++ : failed++;
+                    
+                    container.innerHTML += `
+                        <div style="padding: 6px 0; display: flex; gap: 8px; align-items: center;">
+                            <span style="color: ${result ? '#4ADE80' : '#F87171'};">${result ? '✓' : '✗'}</span>
+                            <span style="color: ${result ? '#E5E5E5' : '#9CA3AF'};">${test.name}</span>
+                        </div>
+                    `;
+                } catch(e) {
+                    failed++;
+                    container.innerHTML += `
+                        <div style="padding: 6px 0; display: flex; gap: 8px; align-items: center;">
+                            <span style="color: #F87171;">✗</span>
+                            <span style="color: #9CA3AF;">${test.name}: ${e.message}</span>
+                        </div>
+                    `;
+                }
+            });
+            
+            log(`Tests: ${passed} passed, ${failed} failed`, failed === 0 ? 'success' : 'error');
+        }
+
+        // =============================================
+        // Logging
+        // =============================================
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('test-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            
+            // Keep only last 20 entries
+            while (logEl.children.length > 20) {
+                logEl.removeChild(logEl.firstChild);
+            }
+        }
+
+        // =============================================
+        // Keyboard Shortcuts
+        // =============================================
+        document.addEventListener('keydown', (e) => {
+            if (e.target.matches('input, textarea')) return;
+            
+            const key = e.key.toLowerCase();
+            
+            if (e.ctrlKey && key === 'k') {
+                e.preventDefault();
+                document.getElementById('btn-connection').click();
+                return;
+            }
+            
+            switch(key) {
+                case 'm':
+                    document.getElementById('btn-monitoring').click();
+                    break;
+                case 'e':
+                    document.getElementById('btn-edit').click();
+                    break;
+                case 'p':
+                    document.getElementById('btn-preview').click();
+                    break;
+                case 'd':
+                    document.getElementById('btn-debug').click();
+                    break;
+            }
         });
 
-        // =============================================
-        // Test Definitions
-        // =============================================
-        const tests = {
-            'test-sidebar-render': () => {
-                const sidebar = document.getElementById('sidebar');
-                if (!sidebar || sidebar.offsetWidth === 0) {
-                    throw new Error('Sidebar not rendered');
-                }
-            },
-            
-            'test-buttons-visible': () => {
-                const buttons = document.querySelectorAll('.icon-btn');
-                if (buttons.length < 6) {
-                    throw new Error(`Expected 6+ buttons, found ${buttons.length}`);
-                }
-                buttons.forEach(btn => {
-                    if (btn.offsetWidth === 0) {
-                        throw new Error('Button not visible');
-                    }
-                });
-            },
-            
-            'test-status-bar': () => {
-                const statusBar = document.querySelector('.status-bar');
-                if (!statusBar || statusBar.offsetHeight === 0) {
-                    throw new Error('Status bar not rendered');
-                }
-            },
-            
-            'test-click-selection': async () => {
-                const btn = document.getElementById('btn-monitoring');
-                btn.click();
-                await new Promise(r => setTimeout(r, 100));
-                
-                if (!btn.classList.contains('selected')) {
-                    throw new Error('Button not selected after click');
-                }
-            },
-            
-            'test-hover-effect': async () => {
-                const btn = document.getElementById('btn-edit');
-                const initialTransform = getComputedStyle(btn).transform;
-                
-                // Simulate hover (can't truly trigger :hover, but check CSS exists)
-                const styles = getComputedStyle(btn);
-                if (!styles.transition.includes('transform')) {
-                    throw new Error('Hover transition not defined');
-                }
-            },
-            
-            'test-indicator-line': async () => {
-                const btn = document.getElementById('btn-connection');
-                btn.click();
-                await new Promise(r => setTimeout(r, 100));
-                
-                const beforeStyle = getComputedStyle(btn, '::before');
-                if (beforeStyle.content === 'none') {
-                    throw new Error('Indicator line not showing');
-                }
-            },
-            
-            'test-mode-change': async () => {
-                const btn = document.getElementById('btn-layout');
-                btn.click();
-                await new Promise(r => setTimeout(r, 100));
-                
-                const modeDisplay = document.getElementById('current-mode').textContent;
-                if (modeDisplay.toLowerCase() !== 'layout') {
-                    throw new Error(`Mode not updated: ${modeDisplay}`);
-                }
-            },
-            
-            'test-status-update': async () => {
-                const serverStatus = document.getElementById('server-status');
-                serverStatus.textContent = 'Connected (test-server)';
-                
-                const statusItem = document.getElementById('status-server');
-                statusItem.classList.remove('status-normal');
-                statusItem.classList.add('status-normal');
-                
-                await new Promise(r => setTimeout(r, 100));
-                
-                if (!serverStatus.textContent.includes('Connected')) {
-                    throw new Error('Status not updated');
-                }
-            }
-        };
-
-        // =============================================
-        // Test Runner Functions
-        // =============================================
-        async function runAllTests() {
-            TestRunner.log('Starting all tests...', 'info');
-            TestRunner.results = { pass: 0, fail: 0, pending: Object.keys(tests).length };
-            TestRunner.updateStats();
-            
-            for (const [testId, testFn] of Object.entries(tests)) {
-                await TestRunner.runTest(testId, testFn);
-                await new Promise(r => setTimeout(r, 200));
-            }
-            
-            TestRunner.log(`Tests completed: ${TestRunner.results.pass} passed, ${TestRunner.results.fail} failed`, 
-                TestRunner.results.fail === 0 ? 'success' : 'error');
-        }
-
-        function resetTests() {
-            TestRunner.results = { pass: 0, fail: 0, pending: Object.keys(tests).length };
-            TestRunner.updateStats();
-            
-            document.querySelectorAll('.test-icon').forEach(el => {
-                el.className = 'test-icon pending';
-                el.textContent = '○';
-            });
-            
-            document.querySelectorAll('.test-time').forEach(el => {
-                el.textContent = '';
-            });
-            
-            document.getElementById('test-log').innerHTML = 
-                '<div class="log-entry info">Tests reset. Ready to run...</div>';
-            
-            // Reset sidebar state
-            buttons.forEach(b => b.classList.remove('selected'));
-            document.getElementById('btn-connection').classList.add('selected');
-            document.getElementById('current-mode').textContent = 'Connection';
-        }
-
-        // =============================================
-        // Simulation Functions (for testing)
-        // =============================================
-        function simulateConnection(connected = true) {
-            const serverStatus = document.getElementById('server-status');
-            const statusItem = document.getElementById('status-server');
-            
-            if (connected) {
-                serverStatus.textContent = 'Connected (kr-b-01)';
-                statusItem.classList.remove('status-alarm');
-                statusItem.classList.add('status-normal');
-            } else {
-                serverStatus.textContent = 'Disconnected';
-                statusItem.classList.remove('status-normal');
-                statusItem.classList.add('status-alarm');
-            }
-        }
-
-        function simulateWarning(show = true, value = 82) {
-            const loadStatus = document.getElementById('status-load');
-            const loadValue = document.getElementById('load-value');
-            
-            loadStatus.style.display = show ? 'flex' : 'none';
-            loadValue.textContent = value;
-        }
-
-        function simulateAlarm(show = true, message = 'Sensor Err: #204') {
-            const alarmStatus = document.getElementById('status-alarm');
-            const alarmMessage = document.getElementById('alarm-message');
-            
-            alarmStatus.style.display = show ? 'flex' : 'none';
-            alarmMessage.textContent = message;
-        }
-
-        // Initialize
-        TestRunner.results.pending = Object.keys(tests).length;
-        TestRunner.updateStats();
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
         
-        // Expose to console
-        window.simulateConnection = simulateConnection;
-        window.simulateWarning = simulateWarning;
-        window.simulateAlarm = simulateAlarm;
+        // Console exports
+        window.applyStyles = applyStyles;
+        window.setMode = setMode;
+        window.setSubMode = setSubMode;
+        window.setBackendStatus = setBackendStatus;
+        window.setDBStatus = setDBStatus;
+        window.setFPS = setFPS;
+        window.setMemory = setMemory;
         
-        console.log('🧪 Sidebar Standalone Test Loaded (v1.1.0)');
-        console.log('✨ Updated: 아이콘 크기 증가 (32px), 선 굵기 감소 (1.5px)');
-        console.log('Commands: simulateConnection(bool), simulateWarning(bool, value), simulateAlarm(bool, message)');
+        console.log('🧪 Sidebar Test v2.0 Loaded');
+        console.log('Features: Icon Style Tester, Submenu, Enhanced Status Bar');
     </script>
 
 </body>
