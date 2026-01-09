@@ -10,6 +10,30 @@
  * - v1.1.0: EquipmentEditButton, ConnectionIndicator export 추가
  */
 
+// =========================================================================
+// 🆕 Phase 6: Equipment Info 관련 추가
+// =========================================================================
+
+// Equipment Info Panel (메인)
+export { EquipmentInfoPanel } from './EquipmentInfoPanel.js';
+
+// Equipment Info 서브 모듈 (선택적 re-export)
+export {
+    // Utils
+    DurationTimer,
+    DataFormatter,
+    DataCache,
+    mergeEquipmentData,
+    
+    // Components
+    GaugeRenderer,
+    HeaderStatus,
+    
+    // Tabs
+    GeneralTab,
+    PCInfoTab
+} from './equipment-info/index.js';
+
 // =========================================================
 // Modals
 // =========================================================
@@ -53,3 +77,4 @@ export * from './common/index.js';
 // Debug Components
 // =========================================================
 export * from './debug/index.js';
+
