@@ -3,7 +3,11 @@
  * =======================
  * Equipment Info 모듈 통합 Export
  * 
- * @version 1.0.0
+ * @version 1.1.0
+ * @changelog
+ * - v1.1.0: 컴포넌트 export 추가 (GaugeRenderer, HeaderStatus)
+ * - v1.0.0: 유틸리티 export
+ * 
  * 📁 위치: frontend/threejs_viewer/src/ui/equipment-info/index.js
  * 작성일: 2026-01-09
  */
@@ -20,3 +24,14 @@ export {
     hasFieldsChanged,
     default as DataMerger 
 } from './utils/DataMerger.js';
+
+// =========================================================================
+// 🆕 v1.1.0: Components
+// =========================================================================
+export { GaugeRenderer, default as GaugeRendererClass } from './components/GaugeRenderer.js';
+export { 
+    HeaderStatus, 
+    STATUS_CONFIG, 
+    DEFAULT_STATUS,
+    default as HeaderStatusClass 
+} from './components/HeaderStatus.js';
