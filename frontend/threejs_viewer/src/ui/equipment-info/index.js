@@ -3,10 +3,11 @@
  * =======================
  * Equipment Info 모듈 통합 Export
  * 
- * @version 1.2.0
+ * @version 1.3.0
  * @changelog
- * - v1.2.0: 탭 컴포넌트 export 추가 (GeneralTab, PCInfoTab)
- * - v1.1.0: 컴포넌트 export 추가 (GaugeRenderer, HeaderStatus)
+ * - v1.3.0: DataCache, panelTemplate export 추가
+ * - v1.2.0: 탭 컴포넌트 export 추가
+ * - v1.1.0: 컴포넌트 export 추가
  * - v1.0.0: 유틸리티 export
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/equipment-info/index.js
@@ -25,6 +26,8 @@ export {
     hasFieldsChanged,
     default as DataMerger 
 } from './utils/DataMerger.js';
+// 🆕 v1.3.0
+export { DataCache, default as DataCacheClass } from './utils/DataCache.js';
 
 // =========================================================================
 // Components
@@ -38,7 +41,19 @@ export {
 } from './components/HeaderStatus.js';
 
 // =========================================================================
-// 🆕 v1.2.0: Tabs
+// Tabs
 // =========================================================================
 export { GeneralTab, default as GeneralTabClass } from './tabs/GeneralTab.js';
 export { PCInfoTab, default as PCInfoTabClass } from './tabs/PCInfoTab.js';
+
+// =========================================================================
+// 🆕 v1.3.0: Template
+// =========================================================================
+export { 
+    DOM_IDS, 
+    TAB_NAMES, 
+    getPanelTemplate, 
+    getPlaceholderContent,
+    getDOMReferences,
+    default as panelTemplate 
+} from './panelTemplate.js';
