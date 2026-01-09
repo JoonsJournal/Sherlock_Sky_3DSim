@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.0</title>
+    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.1</title>
     
     <style>
         /* =============================================
@@ -195,6 +195,28 @@
             box-shadow: 0 0 6px #06B6D4;
         }
         
+        .state-item .icon-wrapper.selected-hover {
+            background: rgba(6, 182, 212, 0.15);
+            transform: scale(1.12) translateY(-4px);
+            animation: float 2s ease-in-out infinite;
+        }
+        
+        .state-item .icon-wrapper.selected-hover svg {
+            stroke: #06B6D4;
+            filter: drop-shadow(0 0 10px #06B6D4);
+        }
+        
+        .state-item .icon-wrapper.selected-hover::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            width: 3px;
+            height: 28px;
+            background: #06B6D4;
+            border-radius: 0 3px 3px 0;
+            box-shadow: 0 0 10px #06B6D4;
+        }
+        
         .state-item .icon-wrapper.disabled {
             opacity: 0.4;
         }
@@ -248,6 +270,7 @@
 
         /* =============================================
            1. Theme Configuration (Cleanroom Palette)
+           v2.1: Stroke 1px, Size 36px default
            ============================================= */
         :root {
             /* Background Colors */
@@ -259,11 +282,11 @@
             --icon-selected: #06B6D4;
             --icon-disabled: #334155;
             
-            /* Icon Sizing - Configurable */
-            --icon-size: 32px;
-            --icon-stroke-normal: 1.5px;
-            --icon-stroke-hover: 2px;
-            --icon-stroke-selected: 2px;
+            /* Icon Sizing - v2.1 defaults */
+            --icon-size: 36px;
+            --icon-stroke-normal: 1px;
+            --icon-stroke-hover: 1.5px;
+            --icon-stroke-selected: 1.5px;
             
             /* Status Text Colors */
             --text-normal: #CBD5E1;
@@ -273,6 +296,9 @@
 
             /* Interaction Settings */
             --transition-speed: 0.25s;
+            
+            /* Status Bar */
+            --status-bar-height: 36px;
         }
 
         /* Reset & Layout */
@@ -329,9 +355,10 @@
 
         /* =============================================
            3. Interaction Logic (Hover & Selected)
+           v2.1: Added floating effect for selected+hover
            ============================================= */
         
-        /* Hover Effect */
+        /* Hover Effect (not selected) */
         .icon-btn:not(.selected):not(.disabled):hover {
             transform: scale(1.1) translateY(-3px);
         }
@@ -351,6 +378,21 @@
             filter: drop-shadow(0 0 6px var(--icon-selected));
         }
 
+        /* ✨ Selected + Hover = Floating Effect */
+        @keyframes float {
+            0%, 100% { transform: scale(1.12) translateY(-4px); }
+            50% { transform: scale(1.12) translateY(-8px); }
+        }
+        
+        .icon-btn.selected:hover {
+            animation: float 2s ease-in-out infinite;
+        }
+        .icon-btn.selected:hover svg {
+            stroke: var(--icon-selected);
+            stroke-width: var(--icon-stroke-selected);
+            filter: drop-shadow(0 0 12px var(--icon-selected));
+        }
+
         /* Indicator Line for Selected Item */
         .icon-btn.selected::before {
             content: '';
@@ -367,12 +409,14 @@
         .icon-btn.disabled {
             cursor: not-allowed;
             opacity: 0.4;
+            pointer-events: none;
         }
         .icon-btn.disabled svg {
             stroke: var(--icon-disabled);
         }
         .icon-btn.disabled:hover {
             transform: none;
+            animation: none;
         }
 
         /* =============================================
@@ -483,7 +527,7 @@
             justify-content: center;
             align-items: center;
             color: #e5e5e5;
-            margin-bottom: 48px;
+            margin-bottom: var(--status-bar-height);
         }
 
         .main-content h1 {
@@ -529,39 +573,40 @@
         }
 
         /* =============================================
-           6. Status Bar (Bottom) - Enhanced
+           6. Status Bar (Bottom) - Compact Height
+           v2.1: Reduced height to 36px
            ============================================= */
         .status-bar {
             position: fixed;
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 48px;
+            height: var(--status-bar-height);
             background-color: var(--bg-sidebar);
             border-top: 1px solid rgba(255,255,255,0.1);
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
+            padding: 0 16px;
             box-sizing: border-box;
             font-family: 'Consolas', monospace;
-            font-size: 12px;
+            font-size: 11px;
             z-index: 20;
         }
 
         .status-group { 
             display: flex; 
-            gap: 20px;
+            gap: 16px;
             align-items: center;
         }
         
         .status-item { 
             display: flex; 
             align-items: center; 
-            gap: 8px;
-            padding: 6px 12px;
+            gap: 6px;
+            padding: 4px 10px;
             background: rgba(255,255,255,0.03);
-            border-radius: 6px;
+            border-radius: 4px;
         }
         
         .status-normal { color: var(--text-normal); }
@@ -574,8 +619,8 @@
         }
 
         .status-dot { 
-            width: 8px; 
-            height: 8px; 
+            width: 6px; 
+            height: 6px; 
             border-radius: 50%; 
             background-color: currentColor;
             flex-shrink: 0;
@@ -583,42 +628,43 @@
         
         .status-dot.connected {
             background-color: var(--text-success);
-            box-shadow: 0 0 6px var(--text-success);
+            box-shadow: 0 0 4px var(--text-success);
         }
         
         .status-dot.disconnected {
             background-color: var(--text-alarm);
-            box-shadow: 0 0 6px var(--text-alarm);
+            box-shadow: 0 0 4px var(--text-alarm);
         }
         
         .status-dot.warning {
             background-color: var(--text-warning);
-            box-shadow: 0 0 6px var(--text-warning);
+            box-shadow: 0 0 4px var(--text-warning);
         }
 
         .status-label {
             color: #6B7280;
-            font-size: 10px;
+            font-size: 9px;
             text-transform: uppercase;
         }
         
         .status-value {
             color: var(--text-normal);
             font-weight: 500;
+            font-size: 11px;
         }
         
-        /* Performance Bar */
+        /* Performance Bar - Compact */
         .perf-bar {
-            width: 60px;
-            height: 6px;
+            width: 50px;
+            height: 4px;
             background: rgba(255,255,255,0.1);
-            border-radius: 3px;
+            border-radius: 2px;
             overflow: hidden;
         }
         
         .perf-bar-fill {
             height: 100%;
-            border-radius: 3px;
+            border-radius: 2px;
             transition: width 0.3s, background 0.3s;
         }
         
@@ -725,10 +771,11 @@
 
     <!-- =============================================
          SIDEBAR COMPONENT
+         Icon Order: Connection, Monitoring, Analysis, Simulation
          ============================================= -->
     <aside class="sidebar" id="sidebar">
         
-        <!-- Connection Button -->
+        <!-- 1. Connection Button -->
         <button class="icon-btn selected" id="btn-connection" data-mode="connection" data-tooltip="Connection Setup (Ctrl+K)">
             <svg viewBox="0 0 24 24">
                 <path d="M4 6c0 1.66 3.58 3 8 3s8-1.34 8-3"/>
@@ -739,22 +786,7 @@
             </svg>
         </button>
 
-        <!-- Mapping Button -->
-        <button class="icon-btn" id="btn-mapping" data-mode="mapping" data-tooltip="Data Mapping">
-            <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="3" />
-                <line x1="12" y1="12" x2="5" y2="5" />
-                <circle cx="5" cy="5" r="2" />
-                <line x1="12" y1="12" x2="19" y2="5" />
-                <circle cx="19" cy="5" r="2" />
-                <line x1="12" y1="12" x2="5" y2="19" />
-                <circle cx="5" cy="19" r="2" />
-                <line x1="12" y1="12" x2="19" y2="19" />
-                <circle cx="19" cy="19" r="2" />
-            </svg>
-        </button>
-
-        <!-- Monitoring Button with Submenu -->
+        <!-- 2. Monitoring Button with Submenu -->
         <div class="has-submenu" id="btn-monitoring-wrapper">
             <button class="icon-btn" id="btn-monitoring" data-mode="monitoring" data-tooltip="System Monitoring (M)">
                 <svg viewBox="0 0 24 24">
@@ -784,27 +816,34 @@
                     </svg>
                     Ranking View
                 </button>
-                <div class="submenu-divider"></div>
-                <button class="submenu-item" data-submode="stats" onclick="setSubMode('monitoring', 'stats')">
-                    <svg viewBox="0 0 24 24">
-                        <rect x="3" y="3" width="18" height="18" rx="2"/>
-                        <path d="M3 9h18"/>
-                        <path d="M9 21V9"/>
-                    </svg>
-                    Statistics Panel
-                </button>
             </div>
         </div>
 
-        <div class="sidebar-divider"></div>
-
-        <!-- Edit Button -->
-        <button class="icon-btn" id="btn-edit" data-mode="edit" data-tooltip="Edit Mode (E)">
+        <!-- 3. Analysis Button -->
+        <button class="icon-btn" id="btn-analysis" data-mode="analysis" data-tooltip="Data Analysis (A)">
             <svg viewBox="0 0 24 24">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/>
+                <path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/>
+                <path d="M7 14l4-4 4 4 6-6"/>
+                <circle cx="21" cy="8" r="2"/>
             </svg>
         </button>
+
+        <!-- 4. Simulation Button -->
+        <button class="icon-btn" id="btn-simulation" data-mode="simulation" data-tooltip="Simulation (S)">
+            <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 2v4"/>
+                <path d="M12 18v4"/>
+                <path d="M4.93 4.93l2.83 2.83"/>
+                <path d="M16.24 16.24l2.83 2.83"/>
+                <path d="M2 12h4"/>
+                <path d="M18 12h4"/>
+                <path d="M4.93 19.07l2.83-2.83"/>
+                <path d="M16.24 7.76l2.83-2.83"/>
+            </svg>
+        </button>
+
+        <div class="sidebar-divider"></div>
 
         <!-- Layout Button -->
         <button class="icon-btn" id="btn-layout" data-mode="layout" data-tooltip="Layout Editor">
@@ -816,33 +855,7 @@
             </svg>
         </button>
 
-        <!-- 3D Viewer Button -->
-        <button class="icon-btn" id="btn-viewer" data-mode="viewer" data-tooltip="3D Viewer">
-            <svg viewBox="0 0 24 24">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5"/>
-                <path d="M2 12l10 5 10-5"/>
-            </svg>
-        </button>
-        
-        <!-- Preview Button -->
-        <button class="icon-btn" id="btn-preview" data-mode="preview" data-tooltip="Preview (P)">
-            <svg viewBox="0 0 24 24">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-            </svg>
-        </button>
-
-        <div class="sidebar-spacer"></div>
-        
-        <!-- Debug Button -->
-        <button class="icon-btn" id="btn-debug" data-mode="debug" data-tooltip="Debug Panel (D)">
-            <svg viewBox="0 0 24 24">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-            </svg>
-        </button>
-
-        <!-- Settings Button (bottom) -->
+        <!-- Settings Button -->
         <button class="icon-btn" id="btn-settings" data-mode="settings" data-tooltip="Settings">
             <svg viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="3"/>
@@ -850,15 +863,24 @@
             </svg>
         </button>
 
-        <div style="height: 60px;"></div>
+        <div class="sidebar-spacer"></div>
+        
+        <!-- Debug Button - Disabled when Monitoring is selected -->
+        <button class="icon-btn" id="btn-debug" data-mode="debug" data-tooltip="Debug Panel (D)">
+            <svg viewBox="0 0 24 24">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+            </svg>
+        </button>
+
+        <div style="height: 50px;"></div>
     </aside>
 
     <!-- =============================================
          MAIN CONTENT AREA
          ============================================= -->
     <main class="main-content">
-        <h1>🧪 Sidebar Test v2.0</h1>
-        <p>아이콘 스타일 테스터 + 서브메뉴 + 상태바 개선</p>
+        <h1>🧪 Sidebar Test v2.1</h1>
+        <p>아이콘 순서: Connection → Monitoring → Analysis → Simulation</p>
         
         <div class="current-mode">
             <div class="mode-label">Current Mode</div>
@@ -868,7 +890,7 @@
     </main>
 
     <!-- =============================================
-         STATUS BAR - Enhanced
+         STATUS BAR - Compact (36px height)
          ============================================= -->
     <footer class="status-bar">
         <!-- Left Group: Connections -->
@@ -876,19 +898,15 @@
             <!-- Backend Connection -->
             <div class="status-item" id="status-backend">
                 <span class="status-dot connected" id="backend-dot"></span>
-                <div>
-                    <div class="status-label">Backend</div>
-                    <div class="status-value" id="backend-value">Connected</div>
-                </div>
+                <span class="status-label">Backend</span>
+                <span class="status-value" id="backend-value">Connected</span>
             </div>
             
             <!-- DB Connection -->
             <div class="status-item" id="status-db">
                 <span class="status-dot connected" id="db-dot"></span>
-                <div>
-                    <div class="status-label">Database</div>
-                    <div class="status-value" id="db-value">kr-b-01</div>
-                </div>
+                <span class="status-label">DB</span>
+                <span class="status-value" id="db-value">kr-b-01</span>
             </div>
         </div>
 
@@ -896,15 +914,8 @@
         <div class="status-group">
             <!-- Render Performance -->
             <div class="status-item" id="status-render">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-normal);">
-                    <rect x="3" y="3" width="18" height="18" rx="2"/>
-                    <path d="M3 9h18"/>
-                    <path d="M9 21V9"/>
-                </svg>
-                <div>
-                    <div class="status-label">Render</div>
-                    <div class="status-value"><span id="fps-value">60</span> FPS</div>
-                </div>
+                <span class="status-label">FPS</span>
+                <span class="status-value" id="fps-value">60</span>
                 <div class="perf-bar">
                     <div class="perf-bar-fill good" id="fps-bar" style="width: 100%;"></div>
                 </div>
@@ -912,13 +923,8 @@
             
             <!-- Memory Usage -->
             <div class="status-item" id="status-memory">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-normal);">
-                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-                </svg>
-                <div>
-                    <div class="status-label">Memory</div>
-                    <div class="status-value"><span id="memory-value">128</span> MB</div>
-                </div>
+                <span class="status-label">MEM</span>
+                <span class="status-value"><span id="memory-value">128</span>MB</span>
                 <div class="perf-bar">
                     <div class="perf-bar-fill good" id="memory-bar" style="width: 30%;"></div>
                 </div>
@@ -928,14 +934,8 @@
         <!-- Right Group: User Info -->
         <div class="status-group">
             <div class="status-item">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--text-normal);">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                </svg>
-                <div>
-                    <div class="status-label">User</div>
-                    <div class="status-value">Admin</div>
-                </div>
+                <span class="status-label">User</span>
+                <span class="status-value">Admin</span>
             </div>
         </div>
     </footer>
@@ -945,7 +945,7 @@
          ============================================= -->
     <div class="test-framework" id="test-panel">
         <div class="test-header">
-            <div class="test-title">🧪 Icon Style Tester v2.0</div>
+            <div class="test-title">🧪 Icon Style Tester v2.1</div>
         </div>
         
         <!-- Tabs -->
@@ -986,19 +986,19 @@
                 <div class="current-config">
                     <div class="config-row">
                         <span class="config-key">Icon Size:</span>
-                        <span class="config-value" id="config-size">32px</span>
+                        <span class="config-value" id="config-size">36px</span>
                     </div>
                     <div class="config-row">
                         <span class="config-key">Stroke Normal:</span>
-                        <span class="config-value" id="config-stroke-normal">1.5px</span>
+                        <span class="config-value" id="config-stroke-normal">1px</span>
                     </div>
                     <div class="config-row">
                         <span class="config-key">Stroke Hover:</span>
-                        <span class="config-value" id="config-stroke-hover">2px</span>
+                        <span class="config-value" id="config-stroke-hover">1.5px</span>
                     </div>
                     <div class="config-row">
                         <span class="config-key">Stroke Selected:</span>
-                        <span class="config-value" id="config-stroke-selected">2px</span>
+                        <span class="config-value" id="config-stroke-selected">1.5px</span>
                     </div>
                 </div>
                 
@@ -1066,15 +1066,15 @@
          ============================================= -->
     <script>
         // =============================================
-        // Configuration
+        // Configuration - v2.1 defaults
         // =============================================
         const CONFIG = {
             strokeWidths: [1, 1.5, 2, 2.5, 3],
             iconSizes: [24, 28, 32, 36, 40],
-            currentStroke: 1.5,
-            currentSize: 32,
-            strokeHover: 2,
-            strokeSelected: 2
+            currentStroke: 1,        // v2.1: default 1px
+            currentSize: 36,         // v2.1: default 36px
+            strokeHover: 1.5,
+            strokeSelected: 1.5
         };
         
         let currentMode = 'connection';
@@ -1089,6 +1089,8 @@
             generateStatePreview();
             setupSidebarEvents();
             startPerformanceSimulation();
+            updateConfigDisplay();
+            applyStyles(); // Apply default styles on load
         }
 
         // =============================================
@@ -1168,19 +1170,21 @@
         }
 
         // =============================================
-        // State Preview
+        // State Preview - v2.1: Added Selected+Hover
         // =============================================
         function generateStatePreview() {
             const container = document.getElementById('state-preview');
-            const states = ['normal', 'hover', 'selected', 'disabled'];
+            const states = ['normal', 'hover', 'selected', 'selected-hover', 'disabled'];
             
             container.innerHTML = states.map(state => {
-                const strokeWidth = state === 'hover' ? CONFIG.strokeHover : 
+                const strokeWidth = (state === 'hover' || state === 'selected-hover') ? CONFIG.strokeHover : 
                                    state === 'selected' ? CONFIG.strokeSelected : 
                                    CONFIG.currentStroke;
                 const color = state === 'disabled' ? '#334155' :
-                             state === 'selected' ? '#06B6D4' :
+                             (state === 'selected' || state === 'selected-hover') ? '#06B6D4' :
                              state === 'hover' ? '#FFFFFF' : '#E2E8F0';
+                
+                const label = state === 'selected-hover' ? 'sel+hover' : state;
                 
                 return `
                     <div class="state-item">
@@ -1194,7 +1198,7 @@
                                 <path d="M8 20h8"/>
                             </svg>
                         </div>
-                        <span class="state-label">${state}</span>
+                        <span class="state-label">${label}</span>
                     </div>
                 `;
             }).join('');
@@ -1228,7 +1232,7 @@
             buttons.forEach(btn => {
                 btn.addEventListener('click', function(e) {
                     if (this.classList.contains('disabled')) return;
-                    if (this.closest('.has-submenu')) return; // Let submenu handle it
+                    if (this.closest('.has-submenu')) return;
                     
                     buttons.forEach(b => b.classList.remove('selected'));
                     this.classList.add('selected');
@@ -1254,6 +1258,16 @@
             document.getElementById('current-mode').textContent = 
                 mode.charAt(0).toUpperCase() + mode.slice(1);
             document.getElementById('current-submode').textContent = '';
+            
+            // v2.1: Disable Debug button when Monitoring is selected
+            const debugBtn = document.getElementById('btn-debug');
+            if (mode === 'monitoring') {
+                debugBtn.classList.add('disabled');
+                log('Debug Panel disabled (Monitoring mode)', 'info');
+            } else {
+                debugBtn.classList.remove('disabled');
+            }
+            
             log(`Mode: ${mode}`, 'info');
         }
 
@@ -1275,10 +1289,12 @@
             document.getElementById('current-mode').textContent = 'Monitoring';
             const submodeLabels = {
                 '3d-view': '3D View',
-                'ranking-view': 'Ranking View',
-                'stats': 'Statistics Panel'
+                'ranking-view': 'Ranking View'
             };
             document.getElementById('current-submode').textContent = `→ ${submodeLabels[submode] || submode}`;
+            
+            // Disable Debug button
+            document.getElementById('btn-debug').classList.add('disabled');
             
             log(`Mode: ${mode} → ${submode}`, 'info');
         }
@@ -1373,10 +1389,21 @@
         // =============================================
         const tests = [
             { name: 'Sidebar renders', fn: () => document.getElementById('sidebar').offsetWidth > 0 },
-            { name: 'All buttons visible', fn: () => document.querySelectorAll('.icon-btn').length >= 8 },
-            { name: 'Status bar renders', fn: () => document.querySelector('.status-bar').offsetHeight > 0 },
+            { name: 'Icon order correct (4 main)', fn: () => {
+                const ids = ['btn-connection', 'btn-monitoring', 'btn-analysis', 'btn-simulation'];
+                return ids.every(id => document.getElementById(id) !== null);
+            }},
+            { name: 'Status bar height = 36px', fn: () => {
+                const bar = document.querySelector('.status-bar');
+                return bar.offsetHeight <= 40;
+            }},
             { name: 'Submenu exists', fn: () => document.querySelector('.submenu') !== null },
-            { name: 'CSS variables applied', fn: () => getComputedStyle(document.documentElement).getPropertyValue('--icon-size').trim() !== '' },
+            { name: 'Debug disabled when Monitoring', fn: () => {
+                setMode('monitoring');
+                return document.getElementById('btn-debug').classList.contains('disabled');
+            }},
+            { name: 'Default stroke = 1px', fn: () => CONFIG.currentStroke === 1 },
+            { name: 'Default size = 36px', fn: () => CONFIG.currentSize === 36 },
         ];
 
         function runAllTests() {
@@ -1408,6 +1435,9 @@
                     `;
                 }
             });
+            
+            // Reset to connection mode after tests
+            setMode('connection');
             
             log(`Tests: ${passed} passed, ${failed} failed`, failed === 0 ? 'success' : 'error');
         }
@@ -1447,14 +1477,17 @@
                 case 'm':
                     document.getElementById('btn-monitoring').click();
                     break;
-                case 'e':
-                    document.getElementById('btn-edit').click();
+                case 'a':
+                    document.getElementById('btn-analysis').click();
                     break;
-                case 'p':
-                    document.getElementById('btn-preview').click();
+                case 's':
+                    if (!e.ctrlKey) document.getElementById('btn-simulation').click();
                     break;
                 case 'd':
-                    document.getElementById('btn-debug').click();
+                    const debugBtn = document.getElementById('btn-debug');
+                    if (!debugBtn.classList.contains('disabled')) {
+                        debugBtn.click();
+                    }
                     break;
             }
         });
@@ -1471,8 +1504,8 @@
         window.setFPS = setFPS;
         window.setMemory = setMemory;
         
-        console.log('🧪 Sidebar Test v2.0 Loaded');
-        console.log('Features: Icon Style Tester, Submenu, Enhanced Status Bar');
+        console.log('🧪 Sidebar Test v2.1 Loaded');
+        console.log('Changes: Icon order, Floating effect, Debug disable, Stroke=1, Size=36, StatusBar=36px');
     </script>
 
 </body>
