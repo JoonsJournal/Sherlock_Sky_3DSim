@@ -4,10 +4,11 @@
  * 
  * UI 컴포넌트 초기화 담당
  * 
- * @version 1.2.0
+ * @version 1.2.1
  * @module UIBootstrap
  * 
  * @changelog
+ * - v1.2.1: 🐛 isActive 버그 수정 - 함수 호출() → 속성 접근으로 변경
  * - v1.2.0: EquipmentInfoPanel 초기화 위치 수정 (initConnectionStatus → initUIComponents)
  * - v1.1.0: EquipmentEditButton 초기화 - 기존 #editBtn 인계 방식
  * 
@@ -241,10 +242,14 @@ export function initMonitoringServices(scene, equipmentLoader, equipmentEditStat
 /**
  * @private
  * Monitoring과 ConnectionStatus 연동 설정
+ * 
+ * 🐛 v1.2.1 수정: monitoringService.isActive() → monitoringService.isActive
+ * - isActive는 함수가 아닌 boolean 속성임
  */
 function _setupMonitoringConnectionIntegration(monitoringService, connectionStatusService) {
     connectionStatusService.onOffline(() => {
-        if (monitoringService.isActive && monitoringService.isActive()) {
+        // 🐛 v1.2.1 수정: isActive는 속성(boolean)이므로 함수 호출() 제거
+        if (monitoringService.isActive) {
             console.warn('[Monitoring] Backend 연결 끊김 - Monitoring 모드 종료');
             
             if (typeof toast !== 'undefined' && toast.show) {
