@@ -3,274 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.3</title>
+    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.4</title>
     
     <style>
         /* =============================================
-           TEST FRAMEWORK STYLES
-           ============================================= */
-        .test-framework {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            width: 420px;
-            background: #1a1a2e;
-            border: 1px solid #16213e;
-            border-radius: 12px;
-            padding: 16px;
-            font-family: 'Consolas', monospace;
-            font-size: 12px;
-            color: #e5e5e5;
-            z-index: 9999;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        
-        .test-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #16213e;
-        }
-        
-        .test-title {
-            font-size: 14px;
-            font-weight: bold;
-            color: #06B6D4;
-        }
-        
-        .test-tabs {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 16px;
-        }
-        
-        .test-tab {
-            padding: 8px 12px;
-            background: rgba(255,255,255,0.05);
-            border: none;
-            border-radius: 6px;
-            color: #9CA3AF;
-            cursor: pointer;
-            font-size: 11px;
-            transition: all 0.2s;
-        }
-        
-        .test-tab.active {
-            background: linear-gradient(135deg, #06B6D4, #0891B2);
-            color: white;
-        }
-        
-        .test-tab:hover:not(.active) {
-            background: rgba(255,255,255,0.1);
-        }
-        
-        .test-panel {
-            display: none;
-        }
-        
-        .test-panel.active {
-            display: block;
-        }
-
-        /* Icon Style Tester */
-        .style-tester {
-            margin-bottom: 16px;
-        }
-        
-        .style-section {
-            margin-bottom: 16px;
-            padding: 12px;
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px;
-        }
-        
-        .style-section h4 {
-            color: #9CA3AF;
-            font-size: 11px;
-            text-transform: uppercase;
-            margin-bottom: 12px;
-            letter-spacing: 0.5px;
-        }
-        
-        .style-row {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 8px;
-        }
-        
-        .style-option {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 8px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 2px solid transparent;
-        }
-        
-        .style-option:hover {
-            background: rgba(255,255,255,0.1);
-        }
-        
-        .style-option.selected {
-            border-color: #06B6D4;
-            background: rgba(6, 182, 212, 0.1);
-        }
-        
-        .style-option svg {
-            margin-bottom: 4px;
-        }
-        
-        .style-label {
-            font-size: 9px;
-            color: #6B7280;
-        }
-        
-        /* State Preview */
-        .state-preview {
-            display: flex;
-            gap: 16px;
-            padding: 16px;
-            background: var(--bg-sidebar);
-            border-radius: 8px;
-            justify-content: center;
-        }
-        
-        .state-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .state-item .icon-wrapper {
-            width: 54px;
-            height: 54px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            border-radius: 8px;
-            transition: all 0.25s;
-        }
-        
-        .state-item .icon-wrapper.normal {
-            background: transparent;
-        }
-        
-        .state-item .icon-wrapper.hover {
-            background: rgba(255,255,255,0.05);
-            transform: scale(1.1) translateY(-3px);
-        }
-        
-        .state-item .icon-wrapper.hover svg {
-            stroke: #FFFFFF;
-            filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.3));
-        }
-        
-        .state-item .icon-wrapper.selected {
-            background: rgba(6, 182, 212, 0.1);
-            transform: scale(1.08) translateY(-2px);
-        }
-        
-        .state-item .icon-wrapper.selected svg {
-            stroke: #06B6D4;
-            filter: drop-shadow(0 0 6px #06B6D4);
-        }
-        
-        .state-item .icon-wrapper.selected::before {
-            content: '';
-            position: absolute;
-            left: -8px;
-            width: 3px;
-            height: 28px;
-            background: #06B6D4;
-            border-radius: 0 3px 3px 0;
-            box-shadow: 0 0 6px #06B6D4;
-        }
-        
-        .state-item .icon-wrapper.selected-hover {
-            background: rgba(6, 182, 212, 0.15);
-            transform: scale(1.12) translateY(-4px);
-            animation: float 2s ease-in-out infinite;
-        }
-        
-        .state-item .icon-wrapper.selected-hover svg {
-            stroke: #06B6D4;
-            filter: drop-shadow(0 0 10px #06B6D4);
-        }
-        
-        .state-item .icon-wrapper.selected-hover::before {
-            content: '';
-            position: absolute;
-            left: -8px;
-            width: 3px;
-            height: 28px;
-            background: #06B6D4;
-            border-radius: 0 3px 3px 0;
-            box-shadow: 0 0 10px #06B6D4;
-        }
-        
-        .state-item .icon-wrapper.disabled {
-            opacity: 0.4;
-        }
-        
-        .state-item .icon-wrapper.disabled svg {
-            stroke: #334155;
-        }
-        
-        .state-label {
-            font-size: 10px;
-            color: #6B7280;
-            text-transform: uppercase;
-        }
-        
-        /* Apply Button */
-        .apply-btn {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #06B6D4, #0891B2);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 12px;
-            transition: all 0.2s;
-        }
-        
-        .apply-btn:hover {
-            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
-        }
-        
-        /* Current Config Display */
-        .current-config {
-            padding: 12px;
-            background: rgba(6, 182, 212, 0.1);
-            border: 1px solid rgba(6, 182, 212, 0.3);
-            border-radius: 8px;
-            margin-top: 12px;
-        }
-        
-        .config-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 4px 0;
-            font-size: 11px;
-        }
-        
-        .config-key { color: #9CA3AF; }
-        .config-value { color: #06B6D4; font-weight: 600; }
-
-        /* =============================================
            1. Theme Configuration (Cleanroom Palette)
-           v2.3: Modal closable without connection
+           v2.4: Icon customization modal, disabled submenu fix
            ============================================= */
         :root {
             /* Background Colors */
@@ -282,7 +20,7 @@
             --icon-selected: #06B6D4;
             --icon-disabled: #334155;
             
-            /* Icon Sizing - v2.1 defaults */
+            /* Icon Sizing */
             --icon-size: 36px;
             --icon-stroke-normal: 1px;
             --icon-stroke-hover: 1.5px;
@@ -355,7 +93,6 @@
 
         /* =============================================
            3. Interaction Logic (Hover & Selected)
-           v2.1: Added floating effect for selected+hover
            ============================================= */
         
         /* Hover Effect (not selected) */
@@ -378,7 +115,7 @@
             filter: drop-shadow(0 0 6px var(--icon-selected));
         }
 
-        /* ✨ Selected + Hover = Floating Effect */
+        /* Selected + Hover = Floating Effect */
         @keyframes float {
             0%, 100% { transform: scale(1.12) translateY(-4px); }
             50% { transform: scale(1.12) translateY(-8px); }
@@ -448,11 +185,19 @@
             z-index: 100;
         }
         
-        .has-submenu:hover .submenu,
-        .has-submenu.submenu-open .submenu {
+        /* v2.4: Submenu only shows when NOT disabled */
+        .has-submenu:not(.disabled):hover .submenu,
+        .has-submenu:not(.disabled).submenu-open .submenu {
             opacity: 1;
             visibility: visible;
             transform: translateX(0);
+        }
+        
+        /* Disabled wrapper blocks submenu */
+        .has-submenu.disabled .submenu {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
         }
         
         .submenu-item {
@@ -514,9 +259,15 @@
             opacity: 0.5;
         }
         
-        .has-submenu:hover::after {
+        .has-submenu:not(.disabled):hover::after {
             border-left-color: var(--icon-selected);
             opacity: 1;
+        }
+        
+        /* Disabled submenu arrow */
+        .has-submenu.disabled::after {
+            border-left-color: var(--icon-disabled);
+            opacity: 0.3;
         }
         
         /* =============================================
@@ -605,8 +356,7 @@
         }
 
         /* =============================================
-           6. Status Bar (Bottom) - Compact Height
-           v2.1: Reduced height to 36px
+           6. Status Bar (Bottom)
            ============================================= */
         .status-bar {
             position: fixed;
@@ -640,15 +390,6 @@
             background: rgba(255,255,255,0.03);
             border-radius: 4px;
         }
-        
-        .status-normal { color: var(--text-normal); }
-        .status-success { color: var(--text-success); }
-        .status-warning { color: var(--text-warning); font-weight: 600; }
-        .status-alarm { 
-            color: var(--text-alarm); 
-            font-weight: 700; 
-            animation: pulse-alarm 1.5s infinite; 
-        }
 
         .status-dot { 
             width: 6px; 
@@ -667,11 +408,6 @@
             background-color: var(--text-alarm);
             box-shadow: 0 0 4px var(--text-alarm);
         }
-        
-        .status-dot.warning {
-            background-color: var(--text-warning);
-            box-shadow: 0 0 4px var(--text-warning);
-        }
 
         .status-label {
             color: #6B7280;
@@ -685,7 +421,6 @@
             font-size: 11px;
         }
         
-        /* Performance Bar - Compact */
         .perf-bar {
             width: 50px;
             height: 4px;
@@ -703,12 +438,6 @@
         .perf-bar-fill.good { background: var(--text-success); }
         .perf-bar-fill.medium { background: var(--text-warning); }
         .perf-bar-fill.bad { background: var(--text-alarm); }
-
-        @keyframes pulse-alarm {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
 
         /* Tooltip */
         .icon-btn[data-tooltip]::after {
@@ -733,7 +462,7 @@
             transform: translateX(0);
         }
 
-        /* Divider */
+        /* Divider & Spacer */
         .sidebar-divider {
             width: 40px;
             height: 1px;
@@ -741,13 +470,12 @@
             margin: 8px 0;
         }
 
-        /* Spacer */
         .sidebar-spacer {
             flex-grow: 1;
         }
         
         /* =============================================
-           7. Connection Modal Styles
+           7. Modal Styles (Shared)
            ============================================= */
         .modal-overlay {
             position: fixed;
@@ -859,6 +587,26 @@
             background: rgba(255,255,255,0.1);
         }
         
+        .btn-primary {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #06B6D4, #0891B2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
         /* Connection Panel Styles */
         .connection-panel {
             background: rgba(0,0,0,0.2);
@@ -889,10 +637,6 @@
             align-items: center;
         }
         
-        .panel-content {
-            padding: 16px;
-        }
-        
         /* API Status Panel */
         .api-status {
             display: flex;
@@ -911,11 +655,6 @@
         .api-status-indicator.healthy {
             background: #4ADE80;
             box-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
-        }
-        
-        .api-status-indicator.unhealthy {
-            background: #F87171;
-            box-shadow: 0 0 10px rgba(248, 113, 113, 0.5);
         }
         
         @keyframes pulse {
@@ -1020,31 +759,19 @@
             font-size: 16px;
         }
         
-        .btn-disconnect, .btn-retry {
+        .btn-disconnect {
             padding: 4px 10px;
             font-size: 11px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s;
-        }
-        
-        .btn-disconnect {
             background: rgba(248, 113, 113, 0.2);
             color: #F87171;
         }
         
         .btn-disconnect:hover {
             background: rgba(248, 113, 113, 0.3);
-        }
-        
-        .btn-retry {
-            background: rgba(251, 191, 36, 0.2);
-            color: #FBBF24;
-        }
-        
-        .btn-retry:hover {
-            background: rgba(251, 191, 36, 0.3);
         }
         
         .panel-footer {
@@ -1081,7 +808,6 @@
             cursor: not-allowed;
         }
         
-        /* Auto-connect label */
         .auto-connect-label {
             display: flex;
             align-items: center;
@@ -1095,7 +821,6 @@
             accent-color: #06B6D4;
         }
         
-        /* Button icons in panels */
         .btn-icon {
             background: none;
             border: none;
@@ -1159,89 +884,114 @@
             margin-bottom: 8px;
         }
         
-        /* Loading spinner */
-        .loading-spinner-small {
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.1);
-            border-top-color: #06B6D4;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
         /* =============================================
-           8. Test Controls Additional Styles
+           8. Icon Customization Modal
            ============================================= */
-        .slider-container {
-            margin: 8px 0;
+        #icon-modal .modal-container {
+            max-width: 800px;
         }
         
-        .slider-container label {
+        .icon-menu-section {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        
+        .icon-menu-header {
             display: flex;
-            justify-content: space-between;
-            margin-bottom: 4px;
-            font-size: 11px;
-            color: #9CA3AF;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
         
-        .slider-container input[type="range"] {
-            width: 100%;
-            height: 6px;
-            border-radius: 3px;
-            background: rgba(255,255,255,0.1);
-            outline: none;
-            -webkit-appearance: none;
-            appearance: none;
+        .icon-menu-header .current-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(6, 182, 212, 0.1);
+            border-radius: 8px;
         }
         
-        .slider-container input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #06B6D4;
+        .icon-menu-header .current-icon svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--icon-selected);
+            stroke-width: 1.5px;
+            fill: none;
+        }
+        
+        .icon-menu-header h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #E2E8F0;
+            flex: 1;
+        }
+        
+        .icon-options {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .icon-option {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.03);
+            border: 2px solid transparent;
+            border-radius: 12px;
             cursor: pointer;
+            transition: all 0.2s;
         }
         
-        .test-log {
-            margin-top: 12px;
-            padding: 10px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 6px;
-            font-size: 10px;
-            max-height: 100px;
-            overflow-y: auto;
+        .icon-option:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.1);
         }
         
-        .log-entry {
-            padding: 2px 0;
-            color: #6B7280;
+        .icon-option.selected {
+            background: rgba(6, 182, 212, 0.15);
+            border-color: var(--icon-selected);
         }
         
-        .log-entry.success { color: #4ADE80; }
-        .log-entry.error { color: #F87171; }
-        .log-entry.info { color: #06B6D4; }
+        .icon-option svg {
+            width: 28px;
+            height: 28px;
+            stroke: var(--icon-normal);
+            stroke-width: 1.5px;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        
+        .icon-option.selected svg {
+            stroke: var(--icon-selected);
+        }
+        
+        .icon-option:hover svg {
+            stroke: #FFFFFF;
+        }
     </style>
 </head>
 <body>
 
     <!-- =============================================
-         SIDEBAR COMPONENT
-         Icon Order: Connection → Monitoring → Analysis → Simulation
-         Settings at bottom, Layout hidden by default (Dev mode)
-         v2.3: Connection and Settings always normal state
+         SIDEBAR COMPONENT v2.4
          ============================================= -->
     <aside class="sidebar" id="sidebar">
         
-        <!-- 1. Multi-Site Database Connection Button (always normal state) -->
+        <!-- 1. Database Connection Button -->
         <button class="icon-btn" id="btn-connection" data-mode="connection" data-tooltip="Database Connection (Ctrl+K)">
-            <svg viewBox="0 0 24 24">
-                <!-- Multi-site database icon -->
+            <svg viewBox="0 0 24 24" id="icon-connection">
                 <ellipse cx="7" cy="5" rx="5" ry="2"/>
                 <path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/>
                 <path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/>
@@ -1254,9 +1004,9 @@
         </button>
 
         <!-- 2. Monitoring Button with Submenu -->
-        <div class="has-submenu" id="btn-monitoring-wrapper">
+        <div class="has-submenu disabled" id="btn-monitoring-wrapper">
             <button class="icon-btn disabled" id="btn-monitoring" data-mode="monitoring" data-tooltip="System Monitoring (M)">
-                <svg viewBox="0 0 24 24">
+                <svg viewBox="0 0 24 24" id="icon-monitoring">
                     <rect x="3" y="4" width="18" height="12" rx="2" />
                     <polyline points="6 10 9 10 11 7 13 13 15 10 18 10" />
                     <path d="M12 16v4" />
@@ -1264,7 +1014,6 @@
                 </svg>
             </button>
             
-            <!-- Submenu -->
             <div class="submenu" id="monitoring-submenu">
                 <div class="submenu-header">Monitoring Views</div>
                 <button class="submenu-item active" data-submode="3d-view" onclick="setSubMode('monitoring', '3d-view')">
@@ -1288,7 +1037,7 @@
 
         <!-- 3. Analysis Button -->
         <button class="icon-btn disabled" id="btn-analysis" data-mode="analysis" data-tooltip="Data Analysis (A)">
-            <svg viewBox="0 0 24 24">
+            <svg viewBox="0 0 24 24" id="icon-analysis">
                 <path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/>
                 <path d="M7 14l4-4 4 4 6-6"/>
                 <circle cx="21" cy="8" r="2"/>
@@ -1297,7 +1046,7 @@
 
         <!-- 4. Simulation Button -->
         <button class="icon-btn disabled" id="btn-simulation" data-mode="simulation" data-tooltip="Simulation (S)">
-            <svg viewBox="0 0 24 24">
+            <svg viewBox="0 0 24 24" id="icon-simulation">
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M12 2v4"/>
                 <path d="M12 18v4"/>
@@ -1312,9 +1061,9 @@
 
         <div class="sidebar-divider"></div>
 
-        <!-- Layout Button (Hidden by default, shown in Dev mode) -->
+        <!-- Layout Button (Hidden by default) -->
         <button class="icon-btn disabled hidden" id="btn-layout" data-mode="layout" data-tooltip="Layout Editor">
-            <svg viewBox="0 0 24 24">
+            <svg viewBox="0 0 24 24" id="icon-layout">
                 <rect x="3" y="3" width="7" height="7"/>
                 <rect x="14" y="3" width="7" height="7"/>
                 <rect x="14" y="14" width="7" height="7"/>
@@ -1324,23 +1073,22 @@
 
         <!-- Debug Button -->
         <button class="icon-btn disabled" id="btn-debug" data-mode="debug" data-tooltip="Debug Panel (D)">
-            <svg viewBox="0 0 24 24">
+            <svg viewBox="0 0 24 24" id="icon-debug">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
             </svg>
         </button>
 
         <div class="sidebar-spacer"></div>
         
-        <!-- Settings Button with Submenu (moved to bottom, always normal state) -->
+        <!-- Settings Button with Submenu -->
         <div class="has-submenu" id="btn-settings-wrapper">
             <button class="icon-btn" id="btn-settings" data-mode="settings" data-tooltip="Settings">
-                <svg viewBox="0 0 24 24">
+                <svg viewBox="0 0 24 24" id="icon-settings">
                     <circle cx="12" cy="12" r="3"/>
                     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                 </svg>
             </button>
             
-            <!-- Settings Submenu -->
             <div class="submenu" id="settings-submenu">
                 <div class="submenu-header">Settings</div>
                 <button class="submenu-item" data-submode="general" onclick="setSubMode('settings', 'general')">
@@ -1354,6 +1102,14 @@
                         <path d="M20 12h2"/>
                     </svg>
                     General
+                </button>
+                <button class="submenu-item" data-submode="icon" onclick="openIconModal()">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <path d="M21 15l-5-5L5 21"/>
+                    </svg>
+                    Icon
                 </button>
                 <div class="submenu-divider"></div>
                 <button class="submenu-item" id="dev-mode-toggle" data-submode="dev-mode" onclick="toggleDevMode()">
@@ -1375,9 +1131,7 @@
     <div class="modal-overlay" id="connection-modal">
         <div class="modal-container">
             <div class="modal-header">
-                <div class="modal-title">
-                    🔌 Database Connection Manager
-                </div>
+                <div class="modal-title">🔌 Database Connection Manager</div>
                 <button class="modal-close" onclick="closeConnectionModal()">✕</button>
             </div>
             
@@ -1391,12 +1145,12 @@
                         </div>
                     </div>
                     <div class="api-status">
-                        <div class="api-status-indicator" id="api-indicator"></div>
+                        <div class="api-status-indicator healthy" id="api-indicator"></div>
                         <div class="api-status-info">
                             <div class="api-status-url" id="api-url">http://localhost:8000</div>
                             <div class="api-status-meta">
-                                <span id="api-status-text">Checking...</span>
-                                <span id="api-response-time"></span>
+                                <span id="api-status-text">Healthy</span>
+                                <span id="api-response-time">• 45ms</span>
                             </div>
                         </div>
                     </div>
@@ -1413,9 +1167,7 @@
                             </label>
                         </div>
                     </div>
-                    <div class="site-list" id="site-list">
-                        <!-- Sites will be rendered here -->
-                    </div>
+                    <div class="site-list" id="site-list"></div>
                     <div class="panel-footer">
                         <div class="selection-info">
                             <span id="selection-count">Selected: 0</span>
@@ -1452,11 +1204,35 @@
     </div>
 
     <!-- =============================================
+         ICON CUSTOMIZATION MODAL
+         ============================================= -->
+    <div class="modal-overlay" id="icon-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title">🎨 Icon Customization</div>
+                <button class="modal-close" onclick="closeIconModal()">✕</button>
+            </div>
+            
+            <div class="modal-body" id="icon-modal-body">
+                <!-- Icon sections will be generated here -->
+            </div>
+            
+            <div class="modal-footer">
+                <span class="footer-hint">Select icons for each menu</span>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-secondary" onclick="closeIconModal()">Cancel</button>
+                    <button class="btn-primary" onclick="applyIconChanges()">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =============================================
          MAIN CONTENT AREA
          ============================================= -->
     <main class="main-content">
-        <h1>🧪 Sidebar Test v2.3</h1>
-        <p>아이콘 순서: Connection → Monitoring → Analysis → Simulation | Settings at bottom</p>
+        <h1>🧪 Sidebar Test v2.4</h1>
+        <p>Connection → Monitoring → Analysis → Simulation | Settings at bottom</p>
         
         <div class="current-mode">
             <div class="mode-label">Current Mode</div>
@@ -1466,19 +1242,15 @@
     </main>
 
     <!-- =============================================
-         STATUS BAR - Compact (36px height)
+         STATUS BAR
          ============================================= -->
     <footer class="status-bar">
-        <!-- Left Group: Connections -->
         <div class="status-group">
-            <!-- Backend Connection -->
             <div class="status-item" id="status-backend">
                 <span class="status-dot disconnected" id="backend-dot"></span>
                 <span class="status-label">Backend</span>
                 <span class="status-value" id="backend-value">Disconnected</span>
             </div>
-            
-            <!-- DB Connection -->
             <div class="status-item" id="status-db">
                 <span class="status-dot disconnected" id="db-dot"></span>
                 <span class="status-label">DB</span>
@@ -1486,9 +1258,7 @@
             </div>
         </div>
 
-        <!-- Center Group: Performance -->
         <div class="status-group">
-            <!-- Render Performance -->
             <div class="status-item" id="status-render">
                 <span class="status-label">FPS</span>
                 <span class="status-value" id="fps-value">60</span>
@@ -1496,8 +1266,6 @@
                     <div class="perf-bar-fill good" id="fps-bar" style="width: 100%;"></div>
                 </div>
             </div>
-            
-            <!-- Memory Usage -->
             <div class="status-item" id="status-memory">
                 <span class="status-label">MEM</span>
                 <span class="status-value"><span id="memory-value">128</span>MB</span>
@@ -1507,7 +1275,6 @@
             </div>
         </div>
 
-        <!-- Right Group: User Info -->
         <div class="status-group">
             <div class="status-item">
                 <span class="status-label">User</span>
@@ -1516,150 +1283,128 @@
         </div>
     </footer>
 
-    <!-- =============================================
-         TEST FRAMEWORK PANEL
-         ============================================= -->
-    <div class="test-framework" id="test-panel">
-        <div class="test-header">
-            <div class="test-title">🧪 Icon Style Tester v2.3</div>
-        </div>
-        
-        <!-- Tabs -->
-        <div class="test-tabs">
-            <button class="test-tab active" onclick="showPanel('style')">Icon Styles</button>
-            <button class="test-tab" onclick="showPanel('status')">Status Bar</button>
-            <button class="test-tab" onclick="showPanel('tests')">Tests</button>
-        </div>
-        
-        <!-- Panel 1: Icon Styles -->
-        <div class="test-panel active" id="panel-style">
-            <div class="style-tester">
-                <!-- Stroke Width Selection -->
-                <div class="style-section">
-                    <h4>Stroke Width (선 굵기)</h4>
-                    <div class="style-row" id="stroke-options">
-                        <!-- Generated by JS -->
-                    </div>
-                </div>
-                
-                <!-- Icon Size Selection -->
-                <div class="style-section">
-                    <h4>Icon Size (아이콘 크기)</h4>
-                    <div class="style-row" id="size-options">
-                        <!-- Generated by JS -->
-                    </div>
-                </div>
-                
-                <!-- State Preview -->
-                <div class="style-section">
-                    <h4>State Preview (상태 미리보기)</h4>
-                    <div class="state-preview" id="state-preview">
-                        <!-- Generated by JS -->
-                    </div>
-                </div>
-                
-                <!-- Current Config -->
-                <div class="current-config">
-                    <div class="config-row">
-                        <span class="config-key">Icon Size:</span>
-                        <span class="config-value" id="config-size">36px</span>
-                    </div>
-                    <div class="config-row">
-                        <span class="config-key">Stroke Normal:</span>
-                        <span class="config-value" id="config-stroke-normal">1px</span>
-                    </div>
-                    <div class="config-row">
-                        <span class="config-key">Stroke Hover:</span>
-                        <span class="config-value" id="config-stroke-hover">1.5px</span>
-                    </div>
-                    <div class="config-row">
-                        <span class="config-key">Stroke Selected:</span>
-                        <span class="config-value" id="config-stroke-selected">1.5px</span>
-                    </div>
-                </div>
-                
-                <button class="apply-btn" onclick="applyStyles()">✓ Apply to Sidebar</button>
-            </div>
-        </div>
-        
-        <!-- Panel 2: Status Bar Controls -->
-        <div class="test-panel" id="panel-status">
-            <div class="style-section">
-                <h4>Backend Connection</h4>
-                <div class="style-row">
-                    <button class="style-option" onclick="setBackendStatus('connected')">✓ Connected</button>
-                    <button class="style-option" onclick="setBackendStatus('disconnected')">✗ Disconnected</button>
-                    <button class="style-option" onclick="setBackendStatus('connecting')">⟳ Connecting</button>
-                </div>
-            </div>
-            
-            <div class="style-section">
-                <h4>Database Connection</h4>
-                <div class="style-row">
-                    <button class="style-option" onclick="setDBStatus('connected', 'kr-b-01')">kr-b-01</button>
-                    <button class="style-option" onclick="setDBStatus('connected', 'vn-a-02')">vn-a-02</button>
-                    <button class="style-option" onclick="setDBStatus('disconnected', 'None')">Disconnected</button>
-                </div>
-            </div>
-            
-            <div class="style-section">
-                <h4>Render Performance</h4>
-                <div class="slider-container">
-                    <label>
-                        <span>FPS</span>
-                        <span id="fps-display">60</span>
-                    </label>
-                    <input type="range" min="1" max="120" value="60" oninput="setFPS(this.value)">
-                </div>
-                <div class="slider-container">
-                    <label>
-                        <span>Memory (MB)</span>
-                        <span id="memory-display">128</span>
-                    </label>
-                    <input type="range" min="50" max="2000" value="128" oninput="setMemory(this.value)">
-                </div>
-            </div>
-        </div>
-        
-        <!-- Panel 3: Automated Tests -->
-        <div class="test-panel" id="panel-tests">
-            <div class="style-section">
-                <h4>Visual Tests</h4>
-                <div id="test-results">
-                    <!-- Generated by test runner -->
-                </div>
-                <button class="apply-btn" onclick="runAllTests()" style="margin-top: 12px;">▶ Run All Tests</button>
-            </div>
-            
-            <div class="test-log" id="test-log">
-                <div class="log-entry info">Ready to run tests...</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- =============================================
-         SCRIPTS
-         ============================================= -->
     <script>
         // =============================================
-        // Configuration - v2.3 defaults
+        // Configuration
         // =============================================
-        const CONFIG = {
-            strokeWidths: [1, 1.5, 2, 2.5, 3],
-            iconSizes: [24, 28, 32, 36, 40],
-            currentStroke: 1,
-            currentSize: 36,
-            strokeHover: 1.5,
-            strokeSelected: 1.5
-        };
-        
         let currentMode = null;
         let currentSubMode = null;
         let isConnected = false;
         let devModeEnabled = false;
         let selectedSite = null;
         
-        // Simulated site profiles (matching Sherlock_Sky_3DSim structure)
+        // Icon selections (stores selected icon index for each menu)
+        let iconSelections = {
+            connection: 0,
+            monitoring: 0,
+            analysis: 0,
+            simulation: 0,
+            layout: 0,
+            debug: 0,
+            settings: 0
+        };
+        
+        // Pending icon selections (before apply)
+        let pendingIconSelections = {};
+        
+        // Icon options for each menu
+        const iconOptions = {
+            connection: [
+                // 0: Multi-site database (current)
+                `<ellipse cx="7" cy="5" rx="5" ry="2"/><path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/><path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/><ellipse cx="17" cy="11" rx="5" ry="2"/><path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M7 13v2" stroke-dasharray="2 2"/><circle cx="12" cy="17" r="1.5" fill="currentColor" stroke="none"/>`,
+                // 1: Single database
+                `<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>`,
+                // 2: Server
+                `<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>`,
+                // 3: Cloud database
+                `<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><line x1="12" y1="13" x2="12" y2="17"/><line x1="10" y1="15" x2="14" y2="15"/>`,
+                // 4: Link
+                `<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>`
+            ],
+            monitoring: [
+                // 0: Monitor with heartbeat (current)
+                `<rect x="3" y="4" width="18" height="12" rx="2"/><polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/><path d="M12 16v4"/><path d="M8 20h8"/>`,
+                // 1: Activity
+                `<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>`,
+                // 2: Eye
+                `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`,
+                // 3: Radio
+                `<circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14"/>`,
+                // 4: CPU
+                `<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/>`
+            ],
+            analysis: [
+                // 0: Trend chart (current)
+                `<path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/><path d="M7 14l4-4 4 4 6-6"/><circle cx="21" cy="8" r="2"/>`,
+                // 1: Bar chart
+                `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`,
+                // 2: Pie chart
+                `<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>`,
+                // 3: Statistics
+                `<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>`,
+                // 4: Table
+                `<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>`
+            ],
+            simulation: [
+                // 0: Sun/Gear (current)
+                `<circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/>`,
+                // 1: Play circle
+                `<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>`,
+                // 2: Refresh
+                `<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>`,
+                // 3: Zap
+                `<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>`,
+                // 4: Cog
+                `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>`
+            ],
+            layout: [
+                // 0: Grid (current)
+                `<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>`,
+                // 1: Layout
+                `<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>`,
+                // 2: Sidebar
+                `<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>`,
+                // 3: Columns
+                `<path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7"/>`,
+                // 4: Move
+                `<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>`
+            ],
+            debug: [
+                // 0: Wrench (current)
+                `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`,
+                // 1: Bug
+                `<rect x="8" y="6" width="8" height="14" rx="4"/><path d="M8 6V4a4 4 0 0 1 8 0v2"/><line x1="12" y1="6" x2="12" y2="20"/><path d="M4 13h4"/><path d="M16 13h4"/><path d="M4 9h4"/><path d="M16 9h4"/><path d="M4 17h4"/><path d="M16 17h4"/>`,
+                // 2: Terminal
+                `<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>`,
+                // 3: Code
+                `<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>`,
+                // 4: Tool
+                `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`
+            ],
+            settings: [
+                // 0: Gear (current)
+                `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>`,
+                // 1: Sliders
+                `<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>`,
+                // 2: Toggle
+                `<rect x="1" y="5" width="22" height="14" rx="7"/><circle cx="8" cy="12" r="3"/>`,
+                // 3: Settings 2
+                `<circle cx="12" cy="12" r="3"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M4.93 19.07l1.41-1.41"/><path d="M17.66 6.34l1.41-1.41"/>`,
+                // 4: Menu
+                `<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>`
+            ]
+        };
+        
+        const menuLabels = {
+            connection: 'Database Connection',
+            monitoring: 'System Monitoring',
+            analysis: 'Data Analysis',
+            simulation: 'Simulation',
+            layout: 'Layout Editor',
+            debug: 'Debug Panel',
+            settings: 'Settings'
+        };
+        
         const siteProfiles = [
             { id: 'kr_b_01', display_name: 'Korea Site B-01', region: 'Asia/Seoul', priority: 10 },
             { id: 'kr_b_02', display_name: 'Korea Site B-02', region: 'Asia/Seoul', priority: 8 },
@@ -1673,44 +1418,28 @@
         // Initialize
         // =============================================
         function init() {
-            generateStrokeOptions();
-            generateSizeOptions();
-            generateStatePreview();
-            setupSidebarEvents();
-            startPerformanceSimulation();
-            updateConfigDisplay();
-            applyStyles();
-            
-            // Initialize site status
             siteProfiles.forEach(site => {
                 siteStatus[site.id] = { status: 'disconnected' };
             });
             
-            // Render site list
             renderSiteList();
+            setupSidebarEvents();
+            startPerformanceSimulation();
             
-            // Show connection modal on start
             setTimeout(() => {
                 openConnectionModal();
             }, 500);
-            
-            // Start API status check simulation
-            simulateAPIStatus();
         }
 
         // =============================================
         // Connection Modal Functions
-        // v2.3: Modal can be closed without connection
         // =============================================
         function openConnectionModal() {
             document.getElementById('connection-modal').classList.add('active');
-            log('Connection modal opened', 'info');
         }
         
         function closeConnectionModal() {
-            // v2.3: Allow closing modal even without connection
             document.getElementById('connection-modal').classList.remove('active');
-            log('Connection modal closed', 'info');
         }
         
         function toggleConnectionModal() {
@@ -1722,17 +1451,6 @@
             }
         }
         
-        function simulateAPIStatus() {
-            const indicator = document.getElementById('api-indicator');
-            const statusText = document.getElementById('api-status-text');
-            const responseTime = document.getElementById('api-response-time');
-            
-            // Simulate healthy API
-            indicator.className = 'api-status-indicator healthy';
-            statusText.textContent = 'Healthy';
-            responseTime.textContent = '• 45ms';
-        }
-        
         function refreshAPIStatus() {
             const indicator = document.getElementById('api-indicator');
             const statusText = document.getElementById('api-status-text');
@@ -1741,8 +1459,8 @@
             statusText.textContent = 'Checking...';
             
             setTimeout(() => {
-                simulateAPIStatus();
-                log('API status refreshed', 'success');
+                indicator.className = 'api-status-indicator healthy';
+                statusText.textContent = 'Healthy';
             }, 500);
         }
         
@@ -1759,7 +1477,7 @@
                 if (isConnectedSite) itemClasses.push('site-item--connected');
                 
                 return `
-                    <div class="${itemClasses.join(' ')}" data-site-id="${profile.id}" onclick="toggleSiteSelection('${profile.id}')">
+                    <div class="${itemClasses.join(' ')}" onclick="toggleSiteSelection('${profile.id}')">
                         <div class="site-checkbox">
                             <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleSiteSelection('${profile.id}')">
                         </div>
@@ -1768,17 +1486,13 @@
                                 <span class="site-name">${profile.display_name}</span>
                                 <span class="site-region">${profile.region}</span>
                             </div>
-                            <div class="site-meta">
-                                Priority: ${profile.priority}
-                            </div>
+                            <div class="site-meta">Priority: ${profile.priority}</div>
                         </div>
                         <div class="site-status">
                             ${isConnectedSite ? `
                                 <span class="status-icon">✅</span>
                                 <button class="btn-disconnect" onclick="event.stopPropagation(); disconnectFromSite('${profile.id}')">Disconnect</button>
-                            ` : `
-                                <span class="status-icon">⚪</span>
-                            `}
+                            ` : `<span class="status-icon">⚪</span>`}
                         </div>
                     </div>
                 `;
@@ -1788,20 +1502,13 @@
         }
         
         function toggleSiteSelection(siteId) {
-            if (selectedSite === siteId) {
-                selectedSite = null;
-            } else {
-                selectedSite = siteId;
-            }
+            selectedSite = selectedSite === siteId ? null : siteId;
             renderSiteList();
         }
         
         function updateSelectionUI() {
-            const countEl = document.getElementById('selection-count');
-            const connectBtn = document.getElementById('connect-btn');
-            
-            countEl.textContent = `Selected: ${selectedSite ? 1 : 0}`;
-            connectBtn.disabled = !selectedSite;
+            document.getElementById('selection-count').textContent = `Selected: ${selectedSite ? 1 : 0}`;
+            document.getElementById('connect-btn').disabled = !selectedSite;
         }
         
         function connectToSelectedSite() {
@@ -1811,12 +1518,10 @@
             connectBtn.disabled = true;
             connectBtn.textContent = '⏳ Connecting...';
             
-            // Simulate connection
             setTimeout(() => {
                 siteStatus[selectedSite] = { status: 'connected' };
                 isConnected = true;
                 
-                // Update UI
                 renderSiteList();
                 renderDatabaseInfo(selectedSite);
                 enableSidebarIcons();
@@ -1824,8 +1529,6 @@
                 
                 connectBtn.textContent = '🔌 Connect';
                 connectBtn.disabled = true;
-                
-                log(`Connected to ${selectedSite}`, 'success');
             }, 1500);
         }
         
@@ -1839,43 +1542,29 @@
             disableSidebarIcons();
             updateStatusBar(null);
             
-            // Reset current mode
             currentMode = null;
             document.getElementById('current-mode').textContent = '—';
             document.getElementById('current-submode').textContent = '';
-            
-            log(`Disconnected from ${siteId}`, 'info');
         }
         
         function renderDatabaseInfo(siteId) {
-            const dbList = document.getElementById('database-list');
             const site = siteProfiles.find(s => s.id === siteId);
-            
-            dbList.innerHTML = `
+            document.getElementById('database-list').innerHTML = `
                 <div class="database-item">
                     <div class="database-header">
                         <h4>🗄️ ${site.display_name} - EquipmentDB</h4>
                         <div class="database-stats">
-                            <span class="stat-item">
-                                <span class="stat-label">Tables:</span>
-                                <span class="stat-value">12</span>
-                            </span>
-                            <span class="stat-item">
-                                <span class="stat-label">Type:</span>
-                                <span class="stat-value">MSSQL</span>
-                            </span>
+                            <span class="stat-item"><span class="stat-label">Tables:</span><span class="stat-value">12</span></span>
+                            <span class="stat-item"><span class="stat-label">Type:</span><span class="stat-value">MSSQL</span></span>
                         </div>
                     </div>
-                    <div style="padding: 8px 0; font-size: 12px; color: #6B7280;">
-                        Site ID: ${siteId}
-                    </div>
+                    <div style="padding: 8px 0; font-size: 12px; color: #6B7280;">Site ID: ${siteId}</div>
                 </div>
             `;
         }
         
         function clearDatabaseInfo() {
-            const dbList = document.getElementById('database-list');
-            dbList.innerHTML = `
+            document.getElementById('database-list').innerHTML = `
                 <div class="no-connection">
                     <span class="no-connection-icon">📂</span>
                     <p>No database connected</p>
@@ -1886,11 +1575,7 @@
         
         function refreshDatabaseInfo() {
             if (isConnected && selectedSite) {
-                log('Refreshing database info...', 'info');
-                setTimeout(() => {
-                    renderDatabaseInfo(selectedSite);
-                    log('Database info refreshed', 'success');
-                }, 500);
+                renderDatabaseInfo(selectedSite);
             }
         }
         
@@ -1899,18 +1584,22 @@
                 document.getElementById(id).classList.remove('disabled');
             });
             
+            // Enable wrapper for submenu
+            document.getElementById('btn-monitoring-wrapper').classList.remove('disabled');
+            
             if (devModeEnabled) {
                 document.getElementById('btn-layout').classList.remove('disabled');
             }
         }
         
         function disableSidebarIcons() {
-            // v2.3: Only disable feature icons, keep Connection and Settings normal
             ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-debug', 'btn-layout'].forEach(id => {
                 document.getElementById(id).classList.add('disabled');
             });
             
-            // Clear selected state from all buttons
+            // Disable wrapper for submenu
+            document.getElementById('btn-monitoring-wrapper').classList.add('disabled');
+            
             document.querySelectorAll('.icon-btn').forEach(btn => {
                 btn.classList.remove('selected');
             });
@@ -1936,6 +1625,81 @@
         }
 
         // =============================================
+        // Icon Modal Functions
+        // =============================================
+        function openIconModal() {
+            // Copy current selections to pending
+            pendingIconSelections = { ...iconSelections };
+            
+            // Render icon options
+            const body = document.getElementById('icon-modal-body');
+            body.innerHTML = Object.keys(iconOptions).map(menuKey => {
+                const icons = iconOptions[menuKey];
+                const currentIdx = iconSelections[menuKey];
+                
+                return `
+                    <div class="icon-menu-section">
+                        <div class="icon-menu-header">
+                            <div class="current-icon">
+                                <svg viewBox="0 0 24 24">${icons[currentIdx]}</svg>
+                            </div>
+                            <h4>${menuLabels[menuKey]}</h4>
+                        </div>
+                        <div class="icon-options">
+                            ${icons.map((icon, idx) => `
+                                <div class="icon-option ${idx === currentIdx ? 'selected' : ''}" 
+                                     data-menu="${menuKey}" data-index="${idx}"
+                                     onclick="selectIcon('${menuKey}', ${idx})">
+                                    <svg viewBox="0 0 24 24">${icon}</svg>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('icon-modal').classList.add('active');
+        }
+        
+        function closeIconModal() {
+            document.getElementById('icon-modal').classList.remove('active');
+        }
+        
+        function selectIcon(menuKey, idx) {
+            pendingIconSelections[menuKey] = idx;
+            
+            // Update UI
+            const section = document.querySelector(`.icon-menu-section .icon-menu-header h4`);
+            document.querySelectorAll(`.icon-option[data-menu="${menuKey}"]`).forEach((opt, i) => {
+                opt.classList.toggle('selected', i === idx);
+            });
+            
+            // Update current icon preview
+            const icons = iconOptions[menuKey];
+            const sections = document.querySelectorAll('.icon-menu-section');
+            const menuIndex = Object.keys(iconOptions).indexOf(menuKey);
+            if (sections[menuIndex]) {
+                sections[menuIndex].querySelector('.current-icon svg').innerHTML = icons[idx];
+            }
+        }
+        
+        function applyIconChanges() {
+            // Apply pending selections
+            iconSelections = { ...pendingIconSelections };
+            
+            // Update sidebar icons
+            Object.keys(iconSelections).forEach(menuKey => {
+                const idx = iconSelections[menuKey];
+                const iconEl = document.getElementById(`icon-${menuKey}`);
+                if (iconEl) {
+                    iconEl.innerHTML = iconOptions[menuKey][idx];
+                }
+            });
+            
+            closeIconModal();
+        }
+
+        // =============================================
         // Dev Mode Toggle
         // =============================================
         function toggleDevMode() {
@@ -1950,142 +1714,10 @@
                     layoutBtn.classList.remove('disabled');
                 }
                 devModeLabel.textContent = 'Dev Mode: ON';
-                log('Dev Mode enabled - Layout Editor visible', 'success');
             } else {
                 layoutBtn.classList.add('hidden');
                 devModeLabel.textContent = 'Dev Mode: OFF';
-                log('Dev Mode disabled - Layout Editor hidden', 'info');
             }
-        }
-
-        // =============================================
-        // Panel Management
-        // =============================================
-        function showPanel(panelName) {
-            document.querySelectorAll('.test-panel').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.test-tab').forEach(t => t.classList.remove('active'));
-            
-            document.getElementById(`panel-${panelName}`).classList.add('active');
-            event.target.classList.add('active');
-        }
-
-        // =============================================
-        // Stroke Width Options
-        // =============================================
-        function generateStrokeOptions() {
-            const container = document.getElementById('stroke-options');
-            container.innerHTML = '';
-            
-            CONFIG.strokeWidths.forEach(width => {
-                const option = document.createElement('div');
-                option.className = `style-option${width === CONFIG.currentStroke ? ' selected' : ''}`;
-                option.onclick = () => selectStroke(width);
-                
-                option.innerHTML = `
-                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#E2E8F0" stroke-width="${width}">
-                        <rect x="3" y="4" width="18" height="12" rx="2"/>
-                        <polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/>
-                    </svg>
-                    <span class="style-label">${width}px</span>
-                `;
-                
-                container.appendChild(option);
-            });
-        }
-
-        function selectStroke(width) {
-            CONFIG.currentStroke = width;
-            CONFIG.strokeHover = Math.min(width + 0.5, 3);
-            CONFIG.strokeSelected = Math.min(width + 0.5, 3);
-            
-            generateStrokeOptions();
-            generateStatePreview();
-            updateConfigDisplay();
-        }
-
-        // =============================================
-        // Icon Size Options
-        // =============================================
-        function generateSizeOptions() {
-            const container = document.getElementById('size-options');
-            container.innerHTML = '';
-            
-            CONFIG.iconSizes.forEach(size => {
-                const option = document.createElement('div');
-                option.className = `style-option${size === CONFIG.currentSize ? ' selected' : ''}`;
-                option.onclick = () => selectSize(size);
-                
-                option.innerHTML = `
-                    <svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="#E2E8F0" stroke-width="${CONFIG.currentStroke}">
-                        <rect x="3" y="4" width="18" height="12" rx="2"/>
-                        <polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/>
-                    </svg>
-                    <span class="style-label">${size}px</span>
-                `;
-                
-                container.appendChild(option);
-            });
-        }
-
-        function selectSize(size) {
-            CONFIG.currentSize = size;
-            generateSizeOptions();
-            generateStatePreview();
-            updateConfigDisplay();
-        }
-
-        // =============================================
-        // State Preview
-        // =============================================
-        function generateStatePreview() {
-            const container = document.getElementById('state-preview');
-            const states = ['normal', 'hover', 'selected', 'selected-hover', 'disabled'];
-            
-            container.innerHTML = states.map(state => {
-                const strokeWidth = (state === 'hover' || state === 'selected-hover') ? CONFIG.strokeHover : 
-                                   state === 'selected' ? CONFIG.strokeSelected : 
-                                   CONFIG.currentStroke;
-                const color = state === 'disabled' ? '#334155' :
-                             (state === 'selected' || state === 'selected-hover') ? '#06B6D4' :
-                             state === 'hover' ? '#FFFFFF' : '#E2E8F0';
-                
-                const label = state === 'selected-hover' ? 'sel+hover' : state;
-                
-                return `
-                    <div class="state-item">
-                        <div class="icon-wrapper ${state}">
-                            <svg viewBox="0 0 24 24" width="${CONFIG.currentSize}" height="${CONFIG.currentSize}" 
-                                 fill="none" stroke="${color}" stroke-width="${strokeWidth}"
-                                 stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="4" width="18" height="12" rx="2"/>
-                                <polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/>
-                                <path d="M12 16v4"/>
-                                <path d="M8 20h8"/>
-                            </svg>
-                        </div>
-                        <span class="state-label">${label}</span>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // =============================================
-        // Apply Styles to Sidebar
-        // =============================================
-        function applyStyles() {
-            document.documentElement.style.setProperty('--icon-size', `${CONFIG.currentSize}px`);
-            document.documentElement.style.setProperty('--icon-stroke-normal', `${CONFIG.currentStroke}px`);
-            document.documentElement.style.setProperty('--icon-stroke-hover', `${CONFIG.strokeHover}px`);
-            document.documentElement.style.setProperty('--icon-stroke-selected', `${CONFIG.strokeSelected}px`);
-            
-            log(`Applied: Size=${CONFIG.currentSize}px, Stroke=${CONFIG.currentStroke}px`, 'success');
-        }
-
-        function updateConfigDisplay() {
-            document.getElementById('config-size').textContent = `${CONFIG.currentSize}px`;
-            document.getElementById('config-stroke-normal').textContent = `${CONFIG.currentStroke}px`;
-            document.getElementById('config-stroke-hover').textContent = `${CONFIG.strokeHover}px`;
-            document.getElementById('config-stroke-selected').textContent = `${CONFIG.strokeSelected}px`;
         }
 
         // =============================================
@@ -2099,31 +1731,24 @@
                     if (this.classList.contains('disabled')) return;
                     if (this.closest('.has-submenu') && this.id !== 'btn-connection') return;
                     
-                    // Special handling for connection button
                     if (this.id === 'btn-connection') {
                         openConnectionModal();
                         return;
                     }
                     
-                    // Don't select Connection or Settings buttons
-                    if (this.id === 'btn-connection' || this.id === 'btn-settings') {
-                        return;
-                    }
+                    if (this.id === 'btn-connection' || this.id === 'btn-settings') return;
                     
                     buttons.forEach(b => b.classList.remove('selected'));
                     this.classList.add('selected');
                     
-                    const mode = this.dataset.mode;
-                    setMode(mode);
+                    setMode(this.dataset.mode);
                 });
             });
             
-            // Monitoring button special handling
             const monitoringBtn = document.getElementById('btn-monitoring');
             monitoringBtn.addEventListener('click', function() {
                 if (this.classList.contains('disabled')) return;
-                const buttons = document.querySelectorAll('.icon-btn');
-                buttons.forEach(b => b.classList.remove('selected'));
+                document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
                 this.classList.add('selected');
                 setMode('monitoring');
             });
@@ -2132,118 +1757,40 @@
         function setMode(mode) {
             currentMode = mode;
             currentSubMode = null;
-            document.getElementById('current-mode').textContent = 
-                mode.charAt(0).toUpperCase() + mode.slice(1);
+            document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
             document.getElementById('current-submode').textContent = '';
             
-            // Disable Debug button when Monitoring is selected
             const debugBtn = document.getElementById('btn-debug');
             if (mode === 'monitoring') {
                 debugBtn.classList.add('disabled');
-                log('Debug Panel disabled (Monitoring mode)', 'info');
             } else if (isConnected) {
                 debugBtn.classList.remove('disabled');
             }
-            
-            log(`Mode: ${mode}`, 'info');
         }
 
         function setSubMode(mode, submode) {
             currentMode = mode;
             currentSubMode = submode;
             
-            // Update main button
-            const buttons = document.querySelectorAll('.icon-btn');
-            buttons.forEach(b => b.classList.remove('selected'));
+            document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
             
             if (mode === 'monitoring') {
                 document.getElementById('btn-monitoring').classList.add('selected');
             }
             
-            // Update submenu items
             document.querySelectorAll('.submenu-item').forEach(item => {
                 item.classList.toggle('active', item.dataset.submode === submode);
             });
             
-            // Update display
             document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
             const submodeLabels = {
                 '3d-view': '3D View',
                 'ranking-view': 'Ranking View',
                 'general': 'General Settings',
+                'icon': 'Icon Customization',
                 'dev-mode': 'Developer Mode'
             };
             document.getElementById('current-submode').textContent = `→ ${submodeLabels[submode] || submode}`;
-            
-            log(`Mode: ${mode} → ${submode}`, 'info');
-        }
-
-        // =============================================
-        // Status Bar Controls
-        // =============================================
-        function setBackendStatus(status) {
-            const dot = document.getElementById('backend-dot');
-            const value = document.getElementById('backend-value');
-            
-            dot.className = 'status-dot';
-            
-            switch(status) {
-                case 'connected':
-                    dot.classList.add('connected');
-                    value.textContent = 'Connected';
-                    break;
-                case 'disconnected':
-                    dot.classList.add('disconnected');
-                    value.textContent = 'Disconnected';
-                    break;
-                case 'connecting':
-                    dot.classList.add('warning');
-                    value.textContent = 'Connecting...';
-                    break;
-            }
-            
-            log(`Backend: ${status}`, status === 'connected' ? 'success' : 'error');
-        }
-
-        function setDBStatus(status, name) {
-            const dot = document.getElementById('db-dot');
-            const value = document.getElementById('db-value');
-            
-            dot.className = 'status-dot';
-            dot.classList.add(status === 'connected' ? 'connected' : 'disconnected');
-            value.textContent = name;
-            
-            log(`Database: ${name} (${status})`, status === 'connected' ? 'success' : 'error');
-        }
-
-        function setFPS(fps) {
-            fps = parseInt(fps);
-            document.getElementById('fps-value').textContent = fps;
-            document.getElementById('fps-display').textContent = fps;
-            
-            const bar = document.getElementById('fps-bar');
-            const percent = Math.min(100, (fps / 60) * 100);
-            bar.style.width = `${percent}%`;
-            
-            bar.className = 'perf-bar-fill';
-            if (fps >= 50) bar.classList.add('good');
-            else if (fps >= 30) bar.classList.add('medium');
-            else bar.classList.add('bad');
-        }
-
-        function setMemory(mb) {
-            mb = parseInt(mb);
-            document.getElementById('memory-value').textContent = mb;
-            document.getElementById('memory-display').textContent = mb;
-            
-            const bar = document.getElementById('memory-bar');
-            const percent = Math.min(100, (mb / 1000) * 100);
-            bar.style.width = `${percent}%`;
-            
-            bar.className = 'perf-bar-fill';
-            if (mb < 500) bar.classList.add('good');
-            else if (mb < 1000) bar.classList.add('medium');
-            else bar.classList.add('bad');
         }
 
         // =============================================
@@ -2251,125 +1798,42 @@
         // =============================================
         function startPerformanceSimulation() {
             setInterval(() => {
-                const baseFPS = 58;
-                const fps = baseFPS + Math.floor(Math.random() * 5);
-                setFPS(fps);
+                const fps = 58 + Math.floor(Math.random() * 5);
+                document.getElementById('fps-value').textContent = fps;
                 
-                const currentMem = parseInt(document.getElementById('memory-value').textContent);
-                const newMem = Math.max(100, Math.min(300, currentMem + (Math.random() - 0.5) * 20));
-                setMemory(Math.floor(newMem));
+                const bar = document.getElementById('fps-bar');
+                bar.style.width = `${Math.min(100, (fps / 60) * 100)}%`;
+                bar.className = 'perf-bar-fill ' + (fps >= 50 ? 'good' : fps >= 30 ? 'medium' : 'bad');
+                
+                const mem = 128 + Math.floor((Math.random() - 0.5) * 20);
+                document.getElementById('memory-value').textContent = mem;
+                document.getElementById('memory-bar').style.width = `${Math.min(100, (mem / 500) * 100)}%`;
             }, 2000);
         }
 
         // =============================================
-        // Test Runner
-        // =============================================
-        const tests = [
-            { name: 'Sidebar renders', fn: () => document.getElementById('sidebar').offsetWidth > 0 },
-            { name: 'Icon order correct (4 main)', fn: () => {
-                const ids = ['btn-connection', 'btn-monitoring', 'btn-analysis', 'btn-simulation'];
-                return ids.every(id => document.getElementById(id) !== null);
-            }},
-            { name: 'Settings at bottom', fn: () => {
-                const sidebar = document.getElementById('sidebar');
-                const settingsWrapper = document.getElementById('btn-settings-wrapper');
-                const spacer = sidebar.querySelector('.sidebar-spacer');
-                return spacer && settingsWrapper && spacer.compareDocumentPosition(settingsWrapper) & Node.DOCUMENT_POSITION_FOLLOWING;
-            }},
-            { name: 'Layout hidden by default', fn: () => {
-                return document.getElementById('btn-layout').classList.contains('hidden');
-            }},
-            { name: 'Connection modal shows on start', fn: () => {
-                return document.getElementById('connection-modal').classList.contains('active');
-            }},
-            { name: 'Icons disabled before connection', fn: () => {
-                return document.getElementById('btn-monitoring').classList.contains('disabled');
-            }},
-            { name: 'Default stroke = 1px', fn: () => CONFIG.currentStroke === 1 },
-            { name: 'Default size = 36px', fn: () => CONFIG.currentSize === 36 },
-            { name: 'Connection btn normal state', fn: () => {
-                const connBtn = document.getElementById('btn-connection');
-                return !connBtn.classList.contains('selected');
-            }},
-            { name: 'Settings always normal state', fn: () => {
-                const settingsBtn = document.getElementById('btn-settings');
-                return !settingsBtn.classList.contains('selected');
-            }},
-        ];
-
-        function runAllTests() {
-            const container = document.getElementById('test-results');
-            container.innerHTML = '';
-            
-            let passed = 0;
-            let failed = 0;
-            
-            tests.forEach(test => {
-                try {
-                    const result = test.fn();
-                    result ? passed++ : failed++;
-                    
-                    container.innerHTML += `
-                        <div style="padding: 6px 0; display: flex; gap: 8px; align-items: center;">
-                            <span style="color: ${result ? '#4ADE80' : '#F87171'};">${result ? '✓' : '✗'}</span>
-                            <span style="color: ${result ? '#E5E5E5' : '#9CA3AF'};">${test.name}</span>
-                        </div>
-                    `;
-                } catch(e) {
-                    failed++;
-                    container.innerHTML += `
-                        <div style="padding: 6px 0; display: flex; gap: 8px; align-items: center;">
-                            <span style="color: #F87171;">✗</span>
-                            <span style="color: #9CA3AF;">${test.name}: ${e.message}</span>
-                        </div>
-                    `;
-                }
-            });
-            
-            log(`Tests: ${passed} passed, ${failed} failed`, failed === 0 ? 'success' : 'error');
-        }
-
-        // =============================================
-        // Logging
-        // =============================================
-        function log(message, type = 'info') {
-            const logEl = document.getElementById('test-log');
-            const entry = document.createElement('div');
-            entry.className = `log-entry ${type}`;
-            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            logEl.appendChild(entry);
-            logEl.scrollTop = logEl.scrollHeight;
-            
-            while (logEl.children.length > 20) {
-                logEl.removeChild(logEl.firstChild);
-            }
-        }
-
-        // =============================================
         // Keyboard Shortcuts
-        // v2.3: Escape always closes modal
         // =============================================
         document.addEventListener('keydown', (e) => {
             if (e.target.matches('input, textarea')) return;
             
             const key = e.key.toLowerCase();
             
-            // Ctrl+K: Toggle connection modal
             if ((e.ctrlKey || e.metaKey) && key === 'k') {
                 e.preventDefault();
                 toggleConnectionModal();
                 return;
             }
             
-            // Escape: Close modal (always allowed now)
             if (key === 'escape') {
-                if (document.getElementById('connection-modal').classList.contains('active')) {
+                if (document.getElementById('icon-modal').classList.contains('active')) {
+                    closeIconModal();
+                } else if (document.getElementById('connection-modal').classList.contains('active')) {
                     closeConnectionModal();
                 }
                 return;
             }
             
-            // Other shortcuts only work when connected
             if (!isConnected) return;
             
             switch(key) {
@@ -2397,23 +1861,11 @@
             }
         });
 
-        // Initialize on load
+        // Initialize
         document.addEventListener('DOMContentLoaded', init);
         
-        // Console exports
-        window.applyStyles = applyStyles;
-        window.setMode = setMode;
-        window.setSubMode = setSubMode;
-        window.setBackendStatus = setBackendStatus;
-        window.setDBStatus = setDBStatus;
-        window.setFPS = setFPS;
-        window.setMemory = setMemory;
-        window.toggleDevMode = toggleDevMode;
-        window.openConnectionModal = openConnectionModal;
-        window.closeConnectionModal = closeConnectionModal;
-        
-        console.log('🧪 Sidebar Test v2.3 Loaded');
-        console.log('Changes: Modal closable without connection, Connection+Settings always normal state');
+        console.log('🧪 Sidebar Test v2.4 Loaded');
+        console.log('Changes: Disabled submenu fix, Icon customization modal');
     </script>
 
 </body>
