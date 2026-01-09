@@ -3,59 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Equipment Info Panel Test</title>
+    <title>🧪 Equipment Info Panel Mock Test (v3.1.0)</title>
     
-    <!-- CSS 로드 -->
-    <link rel="stylesheet" href="../styles/main.css">
+    <!-- =============================================
+         CSS 개별 로드 (방법 2)
+         - 필요한 파일만 로드
+         - 경로: tests/ 폴더 기준 ../styles/
+         ============================================= -->
+    <link rel="stylesheet" href="../styles/base/_variables.css">
+    <link rel="stylesheet" href="../styles/base/_reset.css">
+    <link rel="stylesheet" href="../styles/components/_panels.css">
+    <link rel="stylesheet" href="../styles/components/_equipment-info-panel.css">
     
     <style>
+        /* =============================================
+           v3.1.0 새 레이아웃 CSS (Resource Usage 통일)
+           ============================================= */
+        
+        /* 섹션 타이틀 */
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--overlay-text-muted, #9ca3af);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 8px 0 6px 0;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--overlay-border-light, rgba(255,255,255,0.1));
+        }
+        
+        /* 🆕 v3.1.0: 통일된 Resource Gauge Row */
+        .resource-gauge-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+        }
+        
+        .resource-label {
+            width: 32px;  /* 통일된 라벨 너비 */
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--overlay-text-secondary, #e5e5e5);
+            flex-shrink: 0;
+        }
+        
+        .resource-gauge-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .resource-gauge-bar {
+            flex: 1;
+            height: 8px;
+            background: var(--overlay-border-light, rgba(255,255,255,0.1));
+            border-radius: 4px;
+            overflow: hidden;
+            min-width: 80px;
+        }
+        
+        .resource-gauge-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .resource-gauge-fill.gauge-green { background: linear-gradient(90deg, #22c55e, #4ade80); }
+        .resource-gauge-fill.gauge-yellow { background: linear-gradient(90deg, #eab308, #facc15); }
+        .resource-gauge-fill.gauge-red { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .resource-gauge-fill.gauge-gray { background: #6b7280; }
+        
+        .resource-gauge-value {
+            width: 90px;  /* 통일된 값 너비 */
+            font-size: 11px;
+            color: var(--overlay-text-secondary, #e5e5e5);
+            text-align: right;
+            flex-shrink: 0;
+        }
+        
+        .resource-not-available {
+            color: var(--overlay-text-muted, #9ca3af);
+            font-size: 11px;
+            font-style: italic;
+        }
+        
+        /* Boot Duration 스타일 */
+        .boot-duration {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .boot-duration.warning {
+            background: rgba(234, 179, 8, 0.2);
+            color: #fde047;
+        }
+        
+        .boot-duration.danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+        
+        /* =============================================
+           테스트 페이지 전용 스타일
+           ============================================= */
         body {
             margin: 0;
             padding: 20px;
-            background: #1a1a2e;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            font-family: var(--font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
             color: #fff;
         }
         
-        .test-container {
-            max-width: 1200px;
+        .test-page {
+            display: flex;
+            gap: 20px;
+            max-width: 1400px;
             margin: 0 auto;
         }
         
-        h1 {
-            color: #4da6ff;
-            margin-bottom: 20px;
-        }
-        
-        .test-section {
-            background: rgba(255,255,255,0.05);
-            border-radius: 8px;
+        /* 왼쪽: 테스트 컨트롤 */
+        .test-controls {
+            flex: 0 0 400px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
             padding: 20px;
-            margin-bottom: 20px;
+            height: fit-content;
         }
         
-        .test-section h2 {
-            color: #fff;
-            font-size: 16px;
-            margin: 0 0 15px 0;
+        .test-controls h1 {
+            color: #4da6ff;
+            font-size: 18px;
+            margin: 0 0 20px 0;
             padding-bottom: 10px;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         
-        .test-buttons {
+        .test-section {
+            margin-bottom: 20px;
+        }
+        
+        .test-section h2 {
+            color: #9ca3af;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0 0 10px 0;
+        }
+        
+        .btn-group {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
         }
         
         .test-btn {
-            padding: 10px 20px;
+            padding: 8px 14px;
             background: #3b82f6;
             color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 12px;
+            font-weight: 500;
             transition: all 0.2s;
         }
         
@@ -64,356 +180,1122 @@
             transform: translateY(-1px);
         }
         
-        .test-btn.danger {
-            background: #ef4444;
+        .test-btn.run { background: #22c55e; }
+        .test-btn.run:hover { background: #16a34a; }
+        
+        .test-btn.idle { background: #eab308; color: #000; }
+        .test-btn.idle:hover { background: #ca8a04; }
+        
+        .test-btn.stop { background: #ef4444; }
+        .test-btn.stop:hover { background: #dc2626; }
+        
+        .test-btn.sudden { background: #f97316; }
+        .test-btn.sudden:hover { background: #ea580c; }
+        
+        .test-btn.secondary { background: #4b5563; }
+        .test-btn.secondary:hover { background: #374151; }
+        
+        .test-btn.primary { background: #6366f1; }
+        .test-btn.primary:hover { background: #4f46e5; }
+        
+        /* 오른쪽: 패널 영역 */
+        .panel-area {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 600px;
+            position: relative;
         }
         
-        .test-btn.danger:hover {
-            background: #dc2626;
+        /* Equipment Info Panel 위치 오버라이드 (테스트용) */
+        #equipmentInfo {
+            position: relative !important;
+            top: auto !important;
+            right: auto !important;
+            transform: none !important;
         }
         
-        .test-btn.success {
-            background: #10b981;
-        }
-        
-        .test-btn.success:hover {
-            background: #059669;
-        }
-        
+        /* 로그 컨테이너 */
         .log-container {
             background: #000;
             border-radius: 8px;
-            padding: 15px;
-            height: 200px;
+            padding: 12px;
+            height: 150px;
             overflow-y: auto;
-            font-family: monospace;
-            font-size: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 11px;
+            margin-top: 15px;
         }
         
         .log-entry {
-            margin: 4px 0;
-            padding: 4px 8px;
-            border-radius: 4px;
+            margin: 3px 0;
+            padding: 3px 6px;
+            border-radius: 3px;
         }
         
-        .log-entry.info {
-            background: rgba(59, 130, 246, 0.2);
-            color: #93c5fd;
+        .log-entry.info { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+        .log-entry.success { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+        .log-entry.warning { background: rgba(234, 179, 8, 0.2); color: #fde047; }
+        .log-entry.error { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        
+        /* 상태 표시 */
+        .status-indicator-test {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            font-size: 12px;
+            margin-top: 15px;
         }
         
-        .log-entry.success {
-            background: rgba(16, 185, 129, 0.2);
-            color: #6ee7b7;
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
         }
         
-        .log-entry.error {
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-        }
-        
-        /* Equipment Info Panel 위치 조정 (테스트용) */
-        #equipmentInfo {
-            position: fixed !important;
-        }
+        .status-dot.inactive { background: #ef4444; }
     </style>
 </head>
 <body>
-    <div class="test-container">
-        <h1>🧪 Equipment Info Panel Test</h1>
-        
-        <!-- Test Controls -->
-        <div class="test-section">
-            <h2>📋 Single Selection Tests</h2>
-            <div class="test-buttons">
-                <button class="test-btn" onclick="testSingleMapped()">
-                    ✅ Mapped Equipment
-                </button>
-                <button class="test-btn" onclick="testSingleUnmapped()">
-                    ⚠️ Unmapped Equipment
-                </button>
-                <button class="test-btn" onclick="testSingleApiError()">
-                    ❌ API Error
-                </button>
-                <button class="test-btn" onclick="testHidePanel()">
-                    🚫 Hide Panel
-                </button>
+    <div class="test-page">
+        <!-- 왼쪽: 테스트 컨트롤 -->
+        <div class="test-controls">
+            <h1>🧪 Equipment Info Panel Test (v3.1.0)</h1>
+            
+            <!-- Single Selection: 상태별 -->
+            <div class="test-section">
+                <h2>📌 Single Selection - Status</h2>
+                <div class="btn-group">
+                    <button class="test-btn run" onclick="showSingle('RUN')">RUN</button>
+                    <button class="test-btn idle" onclick="showSingle('IDLE')">IDLE</button>
+                    <button class="test-btn stop" onclick="showSingle('STOP')">STOP</button>
+                    <button class="test-btn sudden" onclick="showSingle('SUDDENSTOP')">SUDDEN</button>
+                    <button class="test-btn secondary" onclick="showSingle('DISCONNECTED')">DISC</button>
+                </div>
+            </div>
+            
+            <!-- Lot Active / Inactive -->
+            <div class="test-section">
+                <h2>📌 Lot Active vs Inactive</h2>
+                <div class="btn-group">
+                    <button class="test-btn run" onclick="showLotActive()">✅ Lot Active</button>
+                    <button class="test-btn secondary" onclick="showLotInactive()">❌ Lot Inactive</button>
+                    <button class="test-btn secondary" onclick="showLotInactiveNoSince()">❌ No Since</button>
+                </div>
+            </div>
+            
+            <!-- Multi Selection -->
+            <div class="test-section">
+                <h2>📌 Multi Selection</h2>
+                <div class="btn-group">
+                    <button class="test-btn primary" onclick="showMulti(3)">3개 선택</button>
+                    <button class="test-btn primary" onclick="showMulti(5)">5개 선택</button>
+                    <button class="test-btn primary" onclick="showMulti(10)">10개 선택</button>
+                </div>
+            </div>
+            
+            <!-- PC Info Tab -->
+            <div class="test-section">
+                <h2>📌 PC Info Tab</h2>
+                <div class="btn-group">
+                    <button class="test-btn primary" onclick="showPCInfo('normal')">정상 (30%)</button>
+                    <button class="test-btn idle" onclick="showPCInfo('warning')">경고 (70%)</button>
+                    <button class="test-btn sudden" onclick="showPCInfo('critical')">위험 (95%)</button>
+                </div>
+            </div>
+            
+            <!-- Disk D 테스트 -->
+            <div class="test-section">
+                <h2>📌 Disk D 유무</h2>
+                <div class="btn-group">
+                    <button class="test-btn primary" onclick="showDiskD(true)">D: 있음</button>
+                    <button class="test-btn secondary" onclick="showDiskD(false)">D: 없음 (N/A)</button>
+                </div>
+            </div>
+            
+            <!-- Tab 전환 -->
+            <div class="test-section">
+                <h2>📌 Tab 전환</h2>
+                <div class="btn-group">
+                    <button class="test-btn secondary" onclick="switchTab('general')">General Tab</button>
+                    <button class="test-btn secondary" onclick="switchTab('pcinfo')">PC Info Tab</button>
+                </div>
+            </div>
+            
+            <!-- 패널 제어 -->
+            <div class="test-section">
+                <h2>🛠️ 패널 제어</h2>
+                <div class="btn-group">
+                    <button class="test-btn secondary" onclick="hidePanel()">패널 닫기</button>
+                    <button class="test-btn secondary" onclick="showPanel()">패널 열기</button>
+                    <button class="test-btn secondary" onclick="clearLogs()">로그 지우기</button>
+                </div>
+            </div>
+            
+            <!-- 실시간 업데이트 시뮬레이션 -->
+            <div class="test-section">
+                <h2>⚡ 실시간 업데이트</h2>
+                <div class="btn-group">
+                    <button class="test-btn run" onclick="simulateRealtime()">▶ 시작 (3초)</button>
+                    <button class="test-btn stop" onclick="stopRealtime()">■ 중지</button>
+                </div>
+            </div>
+            
+            <!-- 상태 표시 -->
+            <div class="status-indicator-test">
+                <span class="status-dot" id="panelStatusDot"></span>
+                <span id="panelStatusText">Panel: 비활성</span>
+            </div>
+            
+            <!-- 로그 -->
+            <div class="log-container" id="logContainer">
+                <div class="log-entry info">[시작] 테스트 페이지 로드됨</div>
             </div>
         </div>
         
-        <div class="test-section">
-            <h2>📊 Multi Selection Tests</h2>
-            <div class="test-buttons">
-                <button class="test-btn" onclick="testMultiSelection2()">
-                    2개 선택
-                </button>
-                <button class="test-btn" onclick="testMultiSelection5()">
-                    5개 선택
-                </button>
-                <button class="test-btn" onclick="testMultiSelection10()">
-                    10개 선택
-                </button>
+        <!-- 오른쪽: Equipment Info Panel -->
+        <div class="panel-area">
+            <div id="equipmentInfo">
+                <button class="close-btn" onclick="hidePanel()">×</button>
+                
+                <!-- Header (Name + Status) -->
+                <div class="equipment-panel-header">
+                    <h2 id="equipName" class="equipment-panel-title">설비 정보</h2>
+                    <div class="header-status" id="headerStatus">
+                        <span class="status-indicator" id="headerStatusIndicator"></span>
+                        <span class="status-text" id="headerStatusText">-</span>
+                    </div>
+                </div>
+                
+                <!-- Tab Header -->
+                <div class="equipment-panel-tabs">
+                    <button class="equipment-tab active" data-tab="general" onclick="switchTab('general')">General</button>
+                    <button class="equipment-tab" data-tab="pcinfo" onclick="switchTab('pcinfo')">PC Info.</button>
+                </div>
+                
+                <!-- Tab Content -->
+                <div class="equipment-panel-content">
+                    <!-- General Tab -->
+                    <div id="tab-general" class="equipment-tab-content active">
+                        <div id="generalTabContent">
+                            <div class="info-row placeholder">
+                                <span class="info-label">버튼을 클릭하여 테스트</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- PC Info Tab -->
+                    <div id="tab-pcinfo" class="equipment-tab-content">
+                        <div id="pcinfoTabContent">
+                            <div class="info-row placeholder">
+                                <span class="info-label">PC Info를 선택하세요</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-        
-        <div class="test-section">
-            <h2>🔄 Tab Tests</h2>
-            <div class="test-buttons">
-                <button class="test-btn success" onclick="testTabSwitch('general')">
-                    General Tab
-                </button>
-                <button class="test-btn success" onclick="testTabSwitch('pcinfo')">
-                    PC Info. Tab
-                </button>
-            </div>
-        </div>
-        
-        <div class="test-section">
-            <h2>⚡ Real-time Update Tests</h2>
-            <div class="test-buttons">
-                <button class="test-btn" onclick="testRealtimeUpdate('RUN')">
-                    Status → RUN
-                </button>
-                <button class="test-btn" onclick="testRealtimeUpdate('IDLE')">
-                    Status → IDLE
-                </button>
-                <button class="test-btn" onclick="testRealtimeUpdate('STOP')">
-                    Status → STOP
-                </button>
-                <button class="test-btn danger" onclick="testRealtimeUpdate('SUDDENSTOP')">
-                    Status → SUDDENSTOP
-                </button>
-            </div>
-        </div>
-        
-        <div class="test-section">
-            <h2>🛠️ Utility</h2>
-            <div class="test-buttons">
-                <button class="test-btn" onclick="testClearCache()">
-                    🗑️ Clear Cache
-                </button>
-                <button class="test-btn" onclick="testHealthCheck()">
-                    🏥 API Health Check
-                </button>
-                <button class="test-btn danger" onclick="clearLogs()">
-                    🧹 Clear Logs
-                </button>
-            </div>
-        </div>
-        
-        <!-- Log Output -->
-        <div class="test-section">
-            <h2>📝 Test Logs</h2>
-            <div id="logContainer" class="log-container"></div>
         </div>
     </div>
     
-    <!-- Equipment Info Panel (HTML 구조) -->
-    <div id="equipmentInfo">
-        <button class="close-btn" onclick="closeEquipmentInfo()">×</button>
-        <h2 id="equipName">설비 정보</h2>
-        <div id="equipDetails"></div>
-    </div>
-    
-    <!-- Toast Container -->
-    <div id="toast-container" class="toast-container"></div>
-    
-    <script type="module">
-        import { EquipmentInfoPanel } from '../src/ui/EquipmentInfoPanel.js';
-        import { EquipmentDetailApi } from '../src/api/equipmentDetailApi.js';
+    <script>
+        // =============================================
+        // 전역 상태
+        // =============================================
+        let currentTab = 'general';
+        let durationTimer = null;
+        let realtimeTimer = null;
+        let durationBaseTime = null;
         
-        // 테스트용 패널 인스턴스
-        const panel = new EquipmentInfoPanel({
-            apiBaseUrl: 'http://localhost:8000/api/equipment/detail'
-        });
-        
-        // Mock EquipmentEditState
-        const mockEditState = {
-            getMapping: (frontendId) => {
-                // 테스트용 매핑 데이터
-                const mappings = {
-                    'EQ-17-03': { equipmentId: 75, equipmentName: 'EQ-17-03' },
-                    'EQ-17-04': { equipmentId: 76, equipmentName: 'EQ-17-04' },
-                    'EQ-18-01': { equipmentId: 77, equipmentName: 'EQ-18-01' }
-                };
-                return mappings[frontendId] || null;
-            }
-        };
-        
-        panel.setEquipmentEditState(mockEditState);
-        
-        // API 클라이언트
-        const api = new EquipmentDetailApi();
-        
-        // 전역 노출
-        window.panel = panel;
-        window.api = api;
-        
-        // =========================================
+        // =============================================
         // 로그 함수
-        // =========================================
-        window.log = function(message, type = 'info') {
+        // =============================================
+        function log(message, type = 'info') {
             const container = document.getElementById('logContainer');
             const entry = document.createElement('div');
             entry.className = `log-entry ${type}`;
-            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            const time = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            entry.textContent = `[${time}] ${message}`;
             container.appendChild(entry);
             container.scrollTop = container.scrollHeight;
-        };
+        }
         
-        window.clearLogs = function() {
+        function clearLogs() {
             document.getElementById('logContainer').innerHTML = '';
-            log('Logs cleared', 'info');
-        };
+            log('로그 초기화됨', 'info');
+        }
         
-        // =========================================
-        // Single Selection Tests
-        // =========================================
-        window.testSingleMapped = async function() {
-            log('Testing: Single Mapped Equipment (EQ-17-03)', 'info');
+        // =============================================
+        // 패널 제어
+        // =============================================
+        function showPanel() {
+            document.getElementById('equipmentInfo').classList.add('active');
+            document.getElementById('panelStatusDot').classList.remove('inactive');
+            document.getElementById('panelStatusText').textContent = 'Panel: 활성';
+            log('패널 열림', 'success');
+        }
+        
+        function hidePanel() {
+            document.getElementById('equipmentInfo').classList.remove('active');
+            document.getElementById('panelStatusDot').classList.add('inactive');
+            document.getElementById('panelStatusText').textContent = 'Panel: 비활성';
+            stopDurationTimer();
+            log('패널 닫힘', 'info');
+        }
+        
+        // =============================================
+        // Tab 전환
+        // =============================================
+        function switchTab(tabName) {
+            currentTab = tabName;
             
+            // Tab 버튼 활성화
+            document.querySelectorAll('.equipment-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabName);
+            });
+            
+            // Tab 컨텐츠 표시
+            document.querySelectorAll('.equipment-tab-content').forEach(content => {
+                const contentTab = content.id.replace('tab-', '');
+                content.classList.toggle('active', contentTab === tabName);
+            });
+            
+            log(`Tab 전환: ${tabName}`, 'info');
+        }
+        
+        // =============================================
+        // Header Status 업데이트
+        // =============================================
+        function updateHeaderStatus(status) {
+            const indicator = document.getElementById('headerStatusIndicator');
+            const text = document.getElementById('headerStatusText');
+            
+            const statusClasses = {
+                'RUN': 'status-running',
+                'IDLE': 'status-idle',
+                'STOP': 'status-stop',
+                'SUDDENSTOP': 'status-error',
+                'DISCONNECTED': 'status-disconnected'
+            };
+            
+            indicator.className = `status-indicator ${statusClasses[status] || ''}`;
+            text.textContent = status || '-';
+        }
+        
+        // =============================================
+        // Duration Timer
+        // =============================================
+        function startDurationTimer(baseTime) {
+            stopDurationTimer();
+            if (!baseTime) return;
+            
+            durationBaseTime = new Date(baseTime);
+            
+            function updateDuration() {
+                const el = document.getElementById('durationDisplay');
+                if (!el) return;
+                el.textContent = formatDuration(durationBaseTime);
+            }
+            
+            updateDuration();
+            durationTimer = setInterval(updateDuration, 1000);
+        }
+        
+        function stopDurationTimer() {
+            if (durationTimer) {
+                clearInterval(durationTimer);
+                durationTimer = null;
+            }
+        }
+        
+        function formatDuration(startTime) {
+            if (!startTime) return '-';
+            
+            const now = new Date();
+            let diffMs = now - startTime;
+            if (diffMs < 0) diffMs = 0;
+            
+            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+            
+            if (days > 0) {
+                return `${days}day ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        function formatDateTime(isoString) {
+            if (!isoString) return '-';
             try {
-                await panel.show({
-                    id: 'EQ-17-03',
-                    position: { row: 17, col: 3 },
-                    status: 'running'
+                const date = new Date(isoString);
+                return date.toLocaleString('ko-KR', {
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit'
                 });
-                log('✅ Panel shown successfully', 'success');
-            } catch (error) {
-                log(`❌ Error: ${error.message}`, 'error');
+            } catch {
+                return isoString;
             }
-        };
+        }
         
-        window.testSingleUnmapped = async function() {
-            log('Testing: Single Unmapped Equipment (EQ-99-99)', 'info');
-            
-            try {
-                await panel.show({
-                    id: 'EQ-99-99',
-                    position: { row: 99, col: 99 },
-                    status: 'unknown'
-                });
-                log('✅ Unmapped state shown', 'success');
-            } catch (error) {
-                log(`❌ Error: ${error.message}`, 'error');
-            }
-        };
+        // =============================================
+        // Gauge 색상
+        // =============================================
+        function getGaugeColor(percent) {
+            if (percent === null || percent === undefined) return 'gauge-gray';
+            if (percent < 50) return 'gauge-green';
+            if (percent < 80) return 'gauge-yellow';
+            return 'gauge-red';
+        }
         
-        window.testSingleApiError = async function() {
-            log('Testing: API Error Simulation', 'info');
+        // =============================================
+        // Single Selection 표시
+        // =============================================
+        function showSingle(status) {
+            showPanel();
             
-            // 잘못된 API URL로 테스트
-            const oldUrl = panel.apiBaseUrl;
-            panel.apiBaseUrl = 'http://localhost:9999/invalid';
+            document.getElementById('equipName').textContent = 'CUT-075';
+            updateHeaderStatus(status);
+            document.getElementById('headerStatus').style.display = 'flex';
             
-            try {
-                await panel.show({
-                    id: 'EQ-17-03',
-                    position: { row: 17, col: 3 }
-                });
-                log('Panel shown with error state', 'info');
-            } catch (error) {
-                log(`❌ Expected error: ${error.message}`, 'error');
-            }
+            // Lot Active 상태로 표시
+            const now = new Date();
+            const lotStart = new Date(now - 2 * 60 * 60 * 1000); // 2시간 전
             
-            // URL 복원
-            panel.apiBaseUrl = oldUrl;
-        };
+            updateGeneralTab({
+                is_lot_active: true,
+                line_name: 'LINE-A',
+                product_model: 'MODEL-2024-A',
+                lot_id: 'LOT-20250109-001',
+                lot_start_time: lotStart.toISOString(),
+                last_updated: now.toISOString()
+            });
+            
+            updatePCInfoTab({
+                cpu_usage_percent: 45.2,
+                memory_total_gb: 32,
+                memory_used_gb: 18.5,
+                disk_c_total_gb: 256,
+                disk_c_used_gb: 120,
+                disk_d_total_gb: 512,
+                disk_d_used_gb: 280,
+                cpu_name: 'Intel Core i7-12700K @ 3.60GHz',
+                cpu_logical_count: 20,
+                gpu_name: 'NVIDIA GeForce RTX 3060',
+                os_name: 'Windows 10 Pro',
+                os_architecture: '64-bit',
+                last_boot_time: new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                pc_last_update_time: now.toISOString()
+            });
+            
+            log(`Single Selection: ${status}`, 'success');
+        }
         
-        window.testHidePanel = function() {
-            log('Testing: Hide Panel', 'info');
-            panel.hide();
-            log('✅ Panel hidden', 'success');
-        };
+        // =============================================
+        // Lot Active / Inactive
+        // =============================================
+        function showLotActive() {
+            showPanel();
+            
+            document.getElementById('equipName').textContent = 'CUT-075';
+            updateHeaderStatus('RUN');
+            document.getElementById('headerStatus').style.display = 'flex';
+            
+            const now = new Date();
+            const lotStart = new Date(now - 3 * 60 * 60 * 1000); // 3시간 전
+            
+            updateGeneralTab({
+                is_lot_active: true,
+                line_name: 'LINE-A',
+                product_model: 'PRODUCT-X500',
+                lot_id: 'LOT-20250109-002',
+                lot_start_time: lotStart.toISOString(),
+                last_updated: now.toISOString()
+            });
+            
+            log('Lot Active 상태 표시', 'success');
+        }
         
-        // =========================================
-        // Multi Selection Tests
-        // =========================================
-        window.testMultiSelection2 = function() {
-            log('Testing: Multi Selection (2 items)', 'info');
+        function showLotInactive() {
+            showPanel();
             
-            panel.show([
-                { id: 'EQ-17-03', position: { row: 17, col: 3 } },
-                { id: 'EQ-17-04', position: { row: 17, col: 4 } }
-            ]);
+            document.getElementById('equipName').textContent = 'CUT-076';
+            updateHeaderStatus('IDLE');
+            document.getElementById('headerStatus').style.display = 'flex';
             
-            log('✅ Multi-selection placeholder shown', 'success');
-        };
+            const now = new Date();
+            const sinceTime = new Date(now - 45 * 60 * 1000); // 45분 전
+            
+            updateGeneralTab({
+                is_lot_active: false,
+                line_name: 'LINE-B',
+                since_time: sinceTime.toISOString(),
+                last_updated: now.toISOString()
+            });
+            
+            log('Lot Inactive 상태 표시 (with Since)', 'success');
+        }
         
-        window.testMultiSelection5 = function() {
-            log('Testing: Multi Selection (5 items)', 'info');
+        function showLotInactiveNoSince() {
+            showPanel();
             
-            const items = [];
-            for (let i = 1; i <= 5; i++) {
-                items.push({ id: `EQ-17-0${i}`, position: { row: 17, col: i } });
-            }
+            document.getElementById('equipName').textContent = 'CUT-077';
+            updateHeaderStatus('DISCONNECTED');
+            document.getElementById('headerStatus').style.display = 'flex';
             
-            panel.show(items);
-            log('✅ Multi-selection placeholder shown', 'success');
-        };
-        
-        window.testMultiSelection10 = function() {
-            log('Testing: Multi Selection (10 items)', 'info');
-            
-            const items = [];
-            for (let i = 1; i <= 10; i++) {
-                items.push({ id: `EQ-${17 + Math.floor(i/6)}-0${(i % 6) + 1}`, position: { row: 17 + Math.floor(i/6), col: (i % 6) + 1 } });
-            }
-            
-            panel.show(items);
-            log('✅ Multi-selection placeholder shown', 'success');
-        };
-        
-        // =========================================
-        // Tab Tests
-        // =========================================
-        window.testTabSwitch = function(tabName) {
-            log(`Testing: Switch to ${tabName} tab`, 'info');
-            panel._switchTab(tabName);
-            log(`✅ Switched to ${tabName} tab`, 'success');
-        };
-        
-        // =========================================
-        // Real-time Update Tests
-        // =========================================
-        window.testRealtimeUpdate = function(status) {
-            log(`Testing: Real-time update (status: ${status})`, 'info');
-            
-            panel.updateRealtime({
-                frontend_id: 'EQ-17-03',
-                equipment_id: 75,
-                line_name: 'Line-A',
-                status: status,
-                product_model: 'MODEL-X123',
-                lot_id: 'LOT-2026-001',
+            updateGeneralTab({
+                is_lot_active: false,
+                line_name: 'LINE-C',
+                since_time: null,
                 last_updated: new Date().toISOString()
             });
             
-            log(`✅ Updated to ${status}`, 'success');
-        };
+            log('Lot Inactive 상태 표시 (no Since)', 'success');
+        }
         
-        // =========================================
-        // Utility Tests
-        // =========================================
-        window.testClearCache = function() {
-            log('Testing: Clear Cache', 'info');
-            panel.clearCache();
-            log('✅ Cache cleared', 'success');
-        };
+        // =============================================
+        // General Tab 업데이트
+        // =============================================
+        function updateGeneralTab(data) {
+            const container = document.getElementById('generalTabContent');
+            const isLotActive = data.is_lot_active === true;
+            
+            let lotInfoHTML = '';
+            
+            if (isLotActive) {
+                const durationDisplay = formatDuration(new Date(data.lot_start_time));
+                startDurationTimer(data.lot_start_time);
+                
+                lotInfoHTML = `
+                    <div class="info-row">
+                        <span class="info-label">Product:</span>
+                        <span class="info-value">${data.product_model || '-'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Lot No.:</span>
+                        <span class="info-value">${data.lot_id || '-'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Lot Start:</span>
+                        <span class="info-value">${formatDateTime(data.lot_start_time) || '-'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Lot Duration:</span>
+                        <span class="info-value" id="durationDisplay">${durationDisplay}</span>
+                    </div>
+                `;
+            } else {
+                const hasSinceTime = data.since_time != null;
+                const durationDisplay = hasSinceTime ? formatDuration(new Date(data.since_time)) : '-';
+                
+                if (hasSinceTime) {
+                    startDurationTimer(data.since_time);
+                } else {
+                    stopDurationTimer();
+                }
+                
+                lotInfoHTML = `
+                    <div class="info-row">
+                        <span class="info-label">Product:</span>
+                        <span class="info-value">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Lot No.:</span>
+                        <span class="info-value">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Since:</span>
+                        <span class="info-value">${hasSinceTime ? formatDateTime(data.since_time) : '-'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Duration:</span>
+                        <span class="info-value" id="durationDisplay">${durationDisplay}</span>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = `
+                <div class="info-row">
+                    <span class="info-label">Line:</span>
+                    <span class="info-value">${data.line_name || '-'}</span>
+                </div>
+                
+                <div class="info-row-divider"></div>
+                
+                ${lotInfoHTML}
+                
+                ${data.last_updated ? `
+                <div class="info-row info-row-meta">
+                    <span class="info-label">Updated:</span>
+                    <span class="info-value info-value-meta">${formatDateTime(data.last_updated)}</span>
+                </div>
+                ` : ''}
+            `;
+        }
         
-        window.testHealthCheck = async function() {
-            log('Testing: API Health Check', 'info');
+        // =============================================
+        // PC Info Tab 업데이트 (v3.1.0 새 레이아웃)
+        // =============================================
+        function updatePCInfoTab(data) {
+            const container = document.getElementById('pcinfoTabContent');
+            
+            // CPU
+            const cpuPercent = data.cpu_usage_percent ?? null;
+            const cpuGaugeColor = getGaugeColor(cpuPercent);
+            
+            // Memory
+            const memoryTotal = data.memory_total_gb ?? null;
+            const memoryUsed = data.memory_used_gb ?? null;
+            const memoryPercent = (memoryTotal && memoryUsed) 
+                ? Math.round((memoryUsed / memoryTotal) * 100) 
+                : null;
+            const memoryGaugeColor = getGaugeColor(memoryPercent);
+            
+            // Disk C
+            const diskCTotal = data.disk_c_total_gb ?? null;
+            const diskCUsed = data.disk_c_used_gb ?? null;
+            const diskCPercent = (diskCTotal && diskCUsed) 
+                ? Math.round((diskCUsed / diskCTotal) * 100) 
+                : null;
+            const diskCGaugeColor = getGaugeColor(diskCPercent);
+            
+            // Disk D
+            const diskDTotal = data.disk_d_total_gb ?? null;
+            const diskDUsed = data.disk_d_used_gb ?? null;
+            const hasDiskD = diskDTotal !== null && diskDTotal > 0;
+            const diskDPercent = (diskDTotal && diskDUsed) 
+                ? Math.round((diskDUsed / diskDTotal) * 100) 
+                : null;
+            const diskDGaugeColor = getGaugeColor(diskDPercent);
+            
+            // Boot Duration
+            const bootDuration = formatBootDuration(data.last_boot_time);
+            const bootDurationClass = getBootDurationClass(data.last_boot_time);
+            
+            // 🆕 v3.1.0: CPU 이름 줄이기 (Intel Core i7-12700K @ 3.60GHz -> i7-12700K)
+            const cpuShortName = shortenCpuName(data.cpu_name);
+            
+            container.innerHTML = `
+                <!-- 🆕 v3.1.0: System Info (합쳐진 레이아웃) -->
+                <div class="info-row">
+                    <span class="info-label">CPU</span>
+                    <span class="info-value">${cpuShortName || '-'}, ${data.cpu_logical_count || '-'} Cores</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">GPU</span>
+                    <span class="info-value info-value-small">${data.gpu_name || '-'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">OS</span>
+                    <span class="info-value">${data.os_name || '-'}, ${data.os_architecture || '-'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Boot</span>
+                    <span class="info-value">
+                        <span class="boot-duration ${bootDurationClass}">
+                            <span class="boot-duration-value">${bootDuration}</span>
+                        </span>
+                    </span>
+                </div>
+                
+                <div class="info-row-divider"></div>
+                
+                <!-- 🆕 v3.1.0: Resource Usage 섹션 타이틀 -->
+                <div class="section-title">Resource Usage</div>
+                
+                <!-- 🆕 v3.1.0: 통일된 Gauge 레이아웃 -->
+                <div class="resource-gauge-row">
+                    <span class="resource-label">CPU</span>
+                    <div class="resource-gauge-container">
+                        <div class="resource-gauge-bar">
+                            <div class="resource-gauge-fill ${cpuGaugeColor}" style="width: ${cpuPercent ?? 0}%"></div>
+                        </div>
+                        <span class="resource-gauge-value">${cpuPercent !== null ? cpuPercent.toFixed(1) + '%' : '-'}</span>
+                    </div>
+                </div>
+                
+                <div class="resource-gauge-row">
+                    <span class="resource-label">Mem</span>
+                    <div class="resource-gauge-container">
+                        <div class="resource-gauge-bar">
+                            <div class="resource-gauge-fill ${memoryGaugeColor}" style="width: ${memoryPercent ?? 0}%"></div>
+                        </div>
+                        <span class="resource-gauge-value">${memoryUsed?.toFixed(1) ?? '-'}/${memoryTotal?.toFixed(0) ?? '-'} GB</span>
+                    </div>
+                </div>
+                
+                <div class="resource-gauge-row">
+                    <span class="resource-label">C:</span>
+                    <div class="resource-gauge-container">
+                        <div class="resource-gauge-bar">
+                            <div class="resource-gauge-fill ${diskCGaugeColor}" style="width: ${diskCPercent ?? 0}%"></div>
+                        </div>
+                        <span class="resource-gauge-value">${diskCUsed?.toFixed(0) ?? '-'}/${diskCTotal?.toFixed(0) ?? '-'} GB</span>
+                    </div>
+                </div>
+                
+                <div class="resource-gauge-row">
+                    <span class="resource-label">D:</span>
+                    ${hasDiskD ? `
+                    <div class="resource-gauge-container">
+                        <div class="resource-gauge-bar">
+                            <div class="resource-gauge-fill ${diskDGaugeColor}" style="width: ${diskDPercent ?? 0}%"></div>
+                        </div>
+                        <span class="resource-gauge-value">${diskDUsed?.toFixed(0) ?? '-'}/${diskDTotal?.toFixed(0) ?? '-'} GB</span>
+                    </div>
+                    ` : `
+                    <span class="resource-not-available">N/A</span>
+                    `}
+                </div>
+                
+                ${data.pc_last_update_time ? `
+                <div class="info-row info-row-meta">
+                    <span class="info-label">Updated:</span>
+                    <span class="info-value info-value-meta">${formatDateTime(data.pc_last_update_time)}</span>
+                </div>
+                ` : ''}
+            `;
+        }
+        
+        // 🆕 v3.1.0: CPU 이름 줄이기
+        function shortenCpuName(cpuName) {
+            if (!cpuName) return '-';
+            // "Intel Core i7-12700K @ 3.60GHz" -> "i7-12700K"
+            // "AMD Ryzen 9 5900X 12-Core Processor" -> "Ryzen 9 5900X"
+            
+            let short = cpuName;
+            
+            // Intel: "Intel(R) Core(TM) i7-12700K CPU @ 3.60GHz" -> "i7-12700K"
+            const intelMatch = cpuName.match(/i[3579]-\d{4,5}[A-Z]*/i);
+            if (intelMatch) {
+                return intelMatch[0];
+            }
+            
+            // AMD: "AMD Ryzen 9 5900X" -> "Ryzen 9 5900X"
+            const amdMatch = cpuName.match(/Ryzen\s+\d+\s+\d{4}[A-Z]*/i);
+            if (amdMatch) {
+                return amdMatch[0];
+            }
+            
+            // 기타: @ 이전까지만
+            if (cpuName.includes('@')) {
+                short = cpuName.split('@')[0].trim();
+            }
+            
+            // 너무 길면 자르기
+            if (short.length > 20) {
+                short = short.substring(0, 20) + '...';
+            }
+            
+            return short;
+        }
+        
+        function formatBootDuration(lastBootTime) {
+            if (!lastBootTime) return '-';
             
             try {
-                const result = await api.healthCheck();
-                log(`✅ Health OK: ${JSON.stringify(result)}`, 'success');
-            } catch (error) {
-                log(`❌ Health check failed: ${error.message}`, 'error');
+                const bootTime = new Date(lastBootTime);
+                const now = new Date();
+                let diffMs = now - bootTime;
+                if (diffMs < 0) diffMs = 0;
+                
+                const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                
+                if (days > 0) {
+                    return `${days}d ${hours}h ${minutes}m`;
+                } else if (hours > 0) {
+                    return `${hours}h ${minutes}m`;
+                } else {
+                    return `${minutes}m`;
+                }
+            } catch (e) {
+                return '-';
             }
-        };
+        }
         
-        // 초기 로그
-        log('🧪 Equipment Info Panel Test Page Loaded', 'success');
-        log('Click buttons above to run tests', 'info');
+        function getBootDurationClass(lastBootTime) {
+            if (!lastBootTime) return '';
+            
+            try {
+                const bootTime = new Date(lastBootTime);
+                const now = new Date();
+                const diffDays = (now - bootTime) / (1000 * 60 * 60 * 24);
+                
+                if (diffDays >= 30) return 'danger';
+                if (diffDays >= 14) return 'warning';
+                return '';
+            } catch (e) {
+                return '';
+            }
+        }
+        
+        // =============================================
+        // PC Info 레벨 테스트
+        // =============================================
+        function showPCInfo(level) {
+            showPanel();
+            switchTab('pcinfo');
+            
+            document.getElementById('equipName').textContent = 'CUT-075';
+            updateHeaderStatus('RUN');
+            document.getElementById('headerStatus').style.display = 'flex';
+            
+            const now = new Date();
+            let cpu, memory, diskC, diskD;
+            
+            switch (level) {
+                case 'normal':
+                    cpu = 28.5; memory = 10; diskC = 80; diskD = 150;
+                    break;
+                case 'warning':
+                    cpu = 72.3; memory = 22; diskC = 180; diskD = 380;
+                    break;
+                case 'critical':
+                    cpu = 95.8; memory = 30; diskC = 240; diskD = 490;
+                    break;
+            }
+            
+            updatePCInfoTab({
+                cpu_usage_percent: cpu,
+                memory_total_gb: 32,
+                memory_used_gb: memory,
+                disk_c_total_gb: 256,
+                disk_c_used_gb: diskC,
+                disk_d_total_gb: 512,
+                disk_d_used_gb: diskD,
+                cpu_name: 'Intel Core i7-12700K @ 3.60GHz',
+                cpu_logical_count: 20,
+                gpu_name: 'NVIDIA GeForce RTX 3060',
+                os_name: 'Windows 10 Pro',
+                os_architecture: '64-bit',
+                last_boot_time: new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                pc_last_update_time: now.toISOString()
+            });
+            
+            log(`PC Info: ${level} 레벨 표시`, 'success');
+        }
+        
+        // =============================================
+        // Disk D 테스트
+        // =============================================
+        function showDiskD(hasDiskD) {
+            showPanel();
+            switchTab('pcinfo');
+            
+            document.getElementById('equipName').textContent = 'CUT-075';
+            updateHeaderStatus('RUN');
+            document.getElementById('headerStatus').style.display = 'flex';
+            
+            const now = new Date();
+            
+            updatePCInfoTab({
+                cpu_usage_percent: 45.2,
+                memory_total_gb: 32,
+                memory_used_gb: 18.5,
+                disk_c_total_gb: 256,
+                disk_c_used_gb: 120,
+                disk_d_total_gb: hasDiskD ? 512 : null,
+                disk_d_used_gb: hasDiskD ? 280 : null,
+                cpu_name: 'Intel Core i7-12700K @ 3.60GHz',
+                cpu_logical_count: 20,
+                gpu_name: 'NVIDIA GeForce RTX 3060',
+                os_name: 'Windows 10 Pro',
+                os_architecture: '64-bit',
+                last_boot_time: new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                pc_last_update_time: now.toISOString()
+            });
+            
+            log(`Disk D: ${hasDiskD ? '있음' : '없음 (N/A)'}`, 'success');
+        }
+        
+        // =============================================
+        // Multi Selection
+        // =============================================
+        function showMulti(count) {
+            showPanel();
+            switchTab('general');
+            
+            document.getElementById('equipName').textContent = `${count}개 설비 선택됨`;
+            document.getElementById('equipName').classList.add('multi-select');
+            document.getElementById('headerStatus').style.display = 'none';
+            stopDurationTimer();
+            
+            // Mock 집계 데이터
+            const statusCounts = {
+                'RUN': Math.floor(count * 0.5),
+                'IDLE': Math.floor(count * 0.3),
+                'STOP': count - Math.floor(count * 0.5) - Math.floor(count * 0.3)
+            };
+            
+            updateGeneralTabMulti({
+                count: count,
+                lines: ['LINE-A', 'LINE-B', 'LINE-C'],
+                lines_more: count > 3,
+                status_counts: statusCounts,
+                products: ['MODEL-X100', 'MODEL-X200', 'MODEL-X300'],
+                products_more: count > 3,
+                lot_ids: ['LOT-001', 'LOT-002', 'LOT-003'],
+                lot_ids_more: count > 3
+            });
+            
+            updatePCInfoTabMulti({
+                avg_cpu_usage_percent: 52.3,
+                avg_memory_usage_percent: 65.4,
+                avg_disk_c_usage_percent: 48.7,
+                avg_disk_d_usage_percent: count > 5 ? 55.2 : null,
+                cpu_names: ['Intel Core i7-12700K', 'Intel Core i5-10400'],
+                cpu_names_more: count > 3,
+                gpu_names: ['NVIDIA RTX 3060', 'NVIDIA GTX 1660'],
+                gpu_names_more: count > 3,
+                os_names: ['Windows 10 Pro', 'Windows 11 Pro'],
+                os_names_more: false
+            }, count);
+            
+            log(`Multi Selection: ${count}개`, 'success');
+        }
+        
+        function updateGeneralTabMulti(data) {
+            const container = document.getElementById('generalTabContent');
+            
+            const linesDisplay = formatListWithMore(data.lines, data.lines_more);
+            const statusDisplay = formatStatusCounts(data.status_counts);
+            const productsDisplay = formatListWithMore(data.products, data.products_more);
+            const lotIdsDisplay = formatListWithMore(data.lot_ids, data.lot_ids_more);
+            
+            container.innerHTML = `
+                <div class="info-row multi-select-header">
+                    <span class="info-icon">📊</span>
+                    <span class="info-text">${data.count}개 설비 집계 정보</span>
+                    <span class="info-badge">${data.count}개 조회됨</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Line:</span>
+                    <span class="info-value">${linesDisplay || '-'}</span>
+                </div>
+                
+                <div class="info-row status-row">
+                    <span class="info-label">Status:</span>
+                    <div class="status-counts">
+                        ${statusDisplay}
+                    </div>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Product:</span>
+                    <span class="info-value">${productsDisplay || '-'}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Lot No.:</span>
+                    <span class="info-value">${lotIdsDisplay || '-'}</span>
+                </div>
+                
+                <div class="info-row-spacer"></div>
+            `;
+        }
+        
+        function updatePCInfoTabMulti(data, totalCount) {
+            const container = document.getElementById('pcinfoTabContent');
+            
+            const avgCpu = data.avg_cpu_usage_percent;
+            const cpuGaugeColor = getGaugeColor(avgCpu);
+            
+            const avgMemory = data.avg_memory_usage_percent;
+            const memoryGaugeColor = getGaugeColor(avgMemory);
+            
+            const avgDiskC = data.avg_disk_c_usage_percent;
+            const diskCGaugeColor = getGaugeColor(avgDiskC);
+            
+            const avgDiskD = data.avg_disk_d_usage_percent;
+            const hasDiskD = avgDiskD !== null && avgDiskD !== undefined;
+            const diskDGaugeColor = getGaugeColor(avgDiskD);
+            
+            const cpuNamesDisplay = formatListWithMore(data.cpu_names, data.cpu_names_more);
+            const gpuNamesDisplay = formatListWithMore(data.gpu_names, data.gpu_names_more);
+            const osNamesDisplay = formatListWithMore(data.os_names, data.os_names_more);
+            
+            container.innerHTML = `
+                <div class="info-row multi-select-header">
+                    <span class="info-icon">💻</span>
+                    <span class="info-text">${totalCount}개 설비 PC 정보</span>
+                </div>
+                
+                <!-- 🆕 v3.1.0: System Info 요약 -->
+                <div class="info-row">
+                    <span class="info-label">CPU</span>
+                    <span class="info-value info-value-small">${cpuNamesDisplay || '-'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">GPU</span>
+                    <span class="info-value info-value-small">${gpuNamesDisplay || '-'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">OS</span>
+                    <span class="info-value">${osNamesDisplay || '-'}</span>
+                </div>
+                
+                <div class="info-row-divider"></div>
+                
+                <!-- 🆕 v3.1.0: Resource Usage 섹션 타이틀 -->
+                <div class="section-title">Avg Resource Usage</div>
+                
+                <!-- 🆕 v3.1.0: 통일된 Gauge 레이아웃 -->
+                <div class="resource-gauge-row">
+                    <span class="resource-label">CPU</span>
+                    <div class="resource-gauge-container">
+                        <div class="resource-gauge-bar">
+                            <div class="resource-gauge-fill ${cpuGaugeColor}" style="width: ${avgCpu || 0}%"></div>
+                        </div>
+                        <span class="resource-gauge-value">${avgCpu !== null ? avgCpu.toFixed(1) + '%' : '-'}</span>
+                    </div>
+                </div>
+                
+                <div class="resource-gauge-row">
+                    <span class="resource-label">Mem</span>
+                    <div class="resource-gauge-container">
+                        <div class="resource-gauge-bar">
+                            <div class="resource-gauge-fill ${memoryGaugeColor}" style="width: ${avgMemory || 0}%"></div>
+                        </div>
+                        <span class="resource-gauge-value">${avgMemory !== null ? avgMemory.toFixed(1) + '%' : '-'}</span>
+                    </div>
+                </div>
+                
+                <div class="resource-gauge-row">
+                    <span class="resource-label">C:</span>
+                    <div class="resource-gauge-container">
+                        <div class="resource-gauge-bar">
+                            <div class="resource-gauge-fill ${diskCGaugeColor}" style="width: ${avgDiskC || 0}%"></div>
+                        </div>
+                        <span class="resource-gauge-value">${avgDiskC !== null ? avgDiskC.toFixed(1) + '%' : '-'}</span>
+                    </div>
+                </div>
+                
+                <div class="resource-gauge-row">
+                    <span class="resource-label">D:</span>
+                    ${hasDiskD ? `
+                    <div class="resource-gauge-container">
+                        <div class="resource-gauge-bar">
+                            <div class="resource-gauge-fill ${diskDGaugeColor}" style="width: ${avgDiskD || 0}%"></div>
+                        </div>
+                        <span class="resource-gauge-value">${avgDiskD.toFixed(1)}%</span>
+                    </div>
+                    ` : `
+                    <span class="resource-not-available">N/A (일부 D: 없음)</span>
+                    `}
+                </div>
+            `;
+        }
+        
+        function formatListWithMore(items, hasMore) {
+            if (!items || items.length === 0) return '-';
+            
+            const displayItems = items.slice(0, 3);
+            let result = displayItems.join(', ');
+            
+            if (hasMore || items.length > 3) {
+                const moreCount = items.length > 3 ? items.length - 3 : '...';
+                result += ` <span class="more-count">외 ${moreCount}개</span>`;
+            }
+            
+            return result;
+        }
+        
+        function formatStatusCounts(statusCounts) {
+            if (!statusCounts || Object.keys(statusCounts).length === 0) {
+                return '<span class="status-count-item">-</span>';
+            }
+            
+            const statusConfig = {
+                'RUN': { icon: '🟢', class: 'status-running' },
+                'IDLE': { icon: '🟡', class: 'status-idle' },
+                'STOP': { icon: '🔴', class: 'status-stop' },
+                'SUDDENSTOP': { icon: '⚠️', class: 'status-error' },
+                'DISCONNECTED': { icon: '⚫', class: 'status-disconnected' }
+            };
+            
+            const sortOrder = ['RUN', 'IDLE', 'STOP', 'SUDDENSTOP', 'DISCONNECTED'];
+            
+            return sortOrder
+                .filter(status => statusCounts[status] > 0)
+                .map(status => {
+                    const config = statusConfig[status] || { icon: '❓', class: '' };
+                    return `
+                        <span class="status-count-item ${config.class}">
+                            <span class="status-count-icon">${config.icon}</span>
+                            <span class="status-count-number">${statusCounts[status]}</span>
+                        </span>
+                    `;
+                })
+                .join('');
+        }
+        
+        // =============================================
+        // 실시간 업데이트 시뮬레이션
+        // =============================================
+        function simulateRealtime() {
+            stopRealtime();
+            
+            log('실시간 업데이트 시작 (3초 간격)', 'warning');
+            
+            let tick = 0;
+            const statuses = ['RUN', 'IDLE', 'STOP', 'RUN', 'RUN'];
+            
+            showSingle('RUN');
+            
+            realtimeTimer = setInterval(() => {
+                tick++;
+                const status = statuses[tick % statuses.length];
+                
+                updateHeaderStatus(status);
+                
+                // CPU, Memory 랜덤 변동
+                const cpu = 30 + Math.random() * 50;
+                const memory = 15 + Math.random() * 10;
+                
+                updatePCInfoTab({
+                    cpu_usage_percent: cpu,
+                    memory_total_gb: 32,
+                    memory_used_gb: memory,
+                    disk_c_total_gb: 256,
+                    disk_c_used_gb: 120,
+                    disk_d_total_gb: 512,
+                    disk_d_used_gb: 280,
+                    cpu_name: 'Intel Core i7-12700K @ 3.60GHz',
+                    cpu_logical_count: 20,
+                    gpu_name: 'NVIDIA GeForce RTX 3060',
+                    os_name: 'Windows 10 Pro',
+                    os_architecture: '64-bit',
+                    last_boot_time: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                    pc_last_update_time: new Date().toISOString()
+                });
+                
+                log(`실시간: Status=${status}, CPU=${cpu.toFixed(1)}%`, 'info');
+            }, 3000);
+        }
+        
+        function stopRealtime() {
+            if (realtimeTimer) {
+                clearInterval(realtimeTimer);
+                realtimeTimer = null;
+                log('실시간 업데이트 중지', 'warning');
+            }
+        }
+        
+        // =============================================
+        // 초기화
+        // =============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🎉 Mock 테스트 페이지 준비 완료!', 'success');
+            log('왼쪽 버튼을 클릭하여 테스트하세요', 'info');
+        });
     </script>
 </body>
 </html>

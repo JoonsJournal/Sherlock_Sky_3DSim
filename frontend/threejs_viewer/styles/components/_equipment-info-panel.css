@@ -3,15 +3,20 @@
  * =========================
  * Equipment Info Panel 전용 스타일 (Tab UI)
  * 
- * @version 3.0.0
+ * @version 3.1.0
  * @changelog
+ * - v3.1.0: PC Info Tab 레이아웃 개선
+ *           - 🆕 .pcinfo-system-row: CPU+Cores, OS+Arch 합친 Row 스타일
+ *           - 🆕 .gauge-section: Gauge들을 하단에 그룹으로 배치
+ *           - 🆕 .unified-gauge-row: 통일된 Gauge Row (라벨 너비, 시작점 정렬)
+ *           - 🆕 .unified-gauge-label: 통일된 라벨 너비 (50px)
+ *           - ⚠️ 호환성: 기존 모든 스타일 100% 유지
  * - v3.0.0: PC Info Tab 확장 - Memory, Disk Gauge 스타일 추가
  *           - .memory-gauge-*, .disk-gauge-* 스타일 추가
  *           - .disk-label (C:, D: 라벨)
  *           - .gauge-blue 색상 추가 (Disk용)
  *           - Boot Duration 스타일 (.boot-duration)
  *           - 반응형 Gauge 스타일 추가
- *           - ⚠️ 호환성: 기존 모든 스타일 100% 유지
  * - v2.1.0: Status를 헤더로 이동 (탭과 무관하게 항상 표시)
  *           - .equipment-panel-header 추가 (Name + Status 나란히)
  *           - .header-status 추가 (헤더 내 Status 표시)
@@ -352,7 +357,147 @@
 }
 
 /* =============================================
-   🆕 v2.0.0: CPU Usage Gauge
+   🆕 v3.1.0: PC Info 시스템 정보 Row (합친 셀)
+   - CPU, Cores → 하나의 Row
+   - OS, Arch → 하나의 Row
+   ============================================= */
+#equipmentInfo .pcinfo-system-row {
+    display: flex;
+    align-items: center;
+    margin: 6px 0;
+    padding: 8px 12px;
+    background: var(--overlay-bg-secondary);
+    border-radius: var(--radius-sm);
+}
+
+#equipmentInfo .pcinfo-system-row .info-label {
+    min-width: 50px;
+    font-weight: 600;
+    color: var(--overlay-text-muted);
+    font-size: var(--font-size-sm);
+}
+
+#equipmentInfo .pcinfo-system-row .info-value {
+    flex: 1;
+    color: var(--overlay-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+/* 콤마로 연결된 값 스타일 */
+#equipmentInfo .pcinfo-system-row .info-value .value-separator {
+    color: var(--overlay-text-muted);
+    margin: 0 6px;
+}
+
+/* =============================================
+   🆕 v3.1.0: Gauge Section (하단 그룹)
+   ============================================= */
+#equipmentInfo .gauge-section {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--overlay-border-light);
+}
+
+#equipmentInfo .gauge-section-title {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--overlay-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+/* =============================================
+   🆕 v3.1.0: Unified Gauge Row (통일된 Gauge)
+   - 라벨 너비 통일: 50px
+   - 시작점 정렬
+   - 크기 통일
+   ============================================= */
+#equipmentInfo .unified-gauge-row {
+    display: flex;
+    align-items: center;
+    margin: 6px 0;
+    padding: 8px 12px;
+    background: var(--overlay-bg-secondary);
+    border-radius: var(--radius-sm);
+}
+
+#equipmentInfo .unified-gauge-label {
+    min-width: 50px;
+    width: 50px;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--overlay-text-muted);
+    flex-shrink: 0;
+}
+
+#equipmentInfo .unified-gauge-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+#equipmentInfo .unified-gauge-bar {
+    flex: 1;
+    height: 14px;
+    background: var(--overlay-bg-primary);
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid var(--overlay-border-light);
+}
+
+#equipmentInfo .unified-gauge-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.5s ease, background 0.3s ease;
+}
+
+#equipmentInfo .unified-gauge-value {
+    min-width: 80px;
+    text-align: right;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--overlay-text-primary);
+    flex-shrink: 0;
+}
+
+/* Unified Gauge 색상 */
+#equipmentInfo .unified-gauge-fill.gauge-green {
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+}
+
+#equipmentInfo .unified-gauge-fill.gauge-yellow {
+    background: linear-gradient(90deg, #eab308, #facc15);
+    box-shadow: 0 0 6px rgba(234, 179, 8, 0.4);
+}
+
+#equipmentInfo .unified-gauge-fill.gauge-red {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+#equipmentInfo .unified-gauge-fill.gauge-blue {
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
+}
+
+#equipmentInfo .unified-gauge-fill.gauge-gray {
+    background: #4a4a5a;
+}
+
+/* Disk N/A 표시 */
+#equipmentInfo .unified-gauge-na {
+    color: var(--overlay-text-muted);
+    font-style: italic;
+    font-size: var(--font-size-sm);
+    flex: 1;
+}
+
+/* =============================================
+   🆕 v2.0.0: CPU Usage Gauge (기존 호환성 유지)
    ============================================= */
 #equipmentInfo .pc-gauge-row {
     display: flex;
@@ -410,7 +555,7 @@
 }
 
 /* =============================================
-   🆕 v3.0.0: Memory Gauge
+   🆕 v3.0.0: Memory Gauge (기존 호환성 유지)
    ============================================= */
 #equipmentInfo .memory-gauge-container {
     display: flex;
@@ -470,7 +615,7 @@
 }
 
 /* =============================================
-   🆕 v3.0.0: Disk Gauge (C:, D:)
+   🆕 v3.0.0: Disk Gauge (C:, D:) - 기존 호환성 유지
    ============================================= */
 #equipmentInfo .disk-gauge-row {
     display: flex;
@@ -958,5 +1103,35 @@
     #equipmentInfo .avg-gauge-value {
         min-width: 35px;
         font-size: 10px;
+    }
+    
+    /* 🆕 v3.1.0: Unified Gauge 반응형 */
+    #equipmentInfo .unified-gauge-label {
+        min-width: 40px;
+        width: 40px;
+        font-size: var(--font-size-xs);
+    }
+    
+    #equipmentInfo .unified-gauge-bar {
+        height: 12px;
+    }
+    
+    #equipmentInfo .unified-gauge-value {
+        min-width: 70px;
+        font-size: var(--font-size-xs);
+    }
+    
+    /* 🆕 v3.1.0: PC Info System Row 반응형 */
+    #equipmentInfo .pcinfo-system-row {
+        padding: 6px 10px;
+    }
+    
+    #equipmentInfo .pcinfo-system-row .info-label {
+        min-width: 40px;
+        font-size: var(--font-size-xs);
+    }
+    
+    #equipmentInfo .pcinfo-system-row .info-value {
+        font-size: var(--font-size-xs);
     }
 }
