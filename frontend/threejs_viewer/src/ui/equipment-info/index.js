@@ -3,57 +3,132 @@
  * =======================
  * Equipment Info 모듈 통합 Export
  * 
- * @version 1.3.0
- * @changelog
- * - v1.3.0: DataCache, panelTemplate export 추가
- * - v1.2.0: 탭 컴포넌트 export 추가
- * - v1.1.0: 컴포넌트 export 추가
- * - v1.0.0: 유틸리티 export
+ * @version 2.0.0
+ * @description
+ * - 모든 Equipment Info 관련 모듈 통합 export
+ * - Named export 방식 사용 (권장)
+ * - 카테고리별 그룹화
+ * 
+ * @example
+ * // 개별 import
+ * import { GeneralTab } from './equipment-info/index.js';
+ * 
+ * // 다중 import
+ * import { GeneralTab, PCInfoTab, GaugeRenderer } from './equipment-info/index.js';
+ * 
+ * // 전체 import
+ * import * as EquipmentInfo from './equipment-info/index.js';
+ * const tab = new EquipmentInfo.GeneralTab(container);
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/equipment-info/index.js
  * 작성일: 2026-01-09
  */
 
 // =========================================================================
-// Utils
+// Utils (유틸리티)
 // =========================================================================
-export { DurationTimer, default as DurationTimerClass } from './utils/DurationTimer.js';
-export { DataFormatter, default as DataFormatterObj } from './utils/DataFormatter.js';
+
+/**
+ * Duration Timer - 경과 시간 타이머
+ * @see ./utils/DurationTimer.js
+ */
+export { DurationTimer } from './utils/DurationTimer.js';
+
+/**
+ * Data Formatter - 데이터 포맷팅 유틸리티
+ * @see ./utils/DataFormatter.js
+ */
+export { DataFormatter } from './utils/DataFormatter.js';
+
+/**
+ * Data Merger - WebSocket 데이터 병합
+ * @see ./utils/DataMerger.js
+ */
 export { 
     mergeEquipmentData, 
     mergePartial, 
     updateCacheEntry,
-    hasFieldsChanged,
-    default as DataMerger 
+    hasFieldsChanged
 } from './utils/DataMerger.js';
-// 🆕 v1.3.0
-export { DataCache, default as DataCacheClass } from './utils/DataCache.js';
+
+/**
+ * Data Cache - 데이터 캐시 관리
+ * @see ./utils/DataCache.js
+ */
+export { DataCache } from './utils/DataCache.js';
 
 // =========================================================================
-// Components
+// Components (UI 컴포넌트)
 // =========================================================================
-export { GaugeRenderer, default as GaugeRendererClass } from './components/GaugeRenderer.js';
+
+/**
+ * Gauge Renderer - Gauge UI 렌더링
+ * @see ./components/GaugeRenderer.js
+ */
+export { GaugeRenderer } from './components/GaugeRenderer.js';
+
+/**
+ * Header Status - 헤더 상태 표시
+ * @see ./components/HeaderStatus.js
+ */
 export { 
     HeaderStatus, 
     STATUS_CONFIG, 
-    DEFAULT_STATUS,
-    default as HeaderStatusClass 
+    DEFAULT_STATUS 
 } from './components/HeaderStatus.js';
 
 // =========================================================================
-// Tabs
+// Tabs (탭 컴포넌트)
 // =========================================================================
-export { GeneralTab, default as GeneralTabClass } from './tabs/GeneralTab.js';
-export { PCInfoTab, default as PCInfoTabClass } from './tabs/PCInfoTab.js';
+
+/**
+ * General Tab - General 탭 렌더링
+ * @see ./tabs/GeneralTab.js
+ */
+export { GeneralTab } from './tabs/GeneralTab.js';
+
+/**
+ * PC Info Tab - PC Info 탭 렌더링
+ * @see ./tabs/PCInfoTab.js
+ */
+export { PCInfoTab } from './tabs/PCInfoTab.js';
 
 // =========================================================================
-// 🆕 v1.3.0: Template
+// Template (HTML 템플릿)
 // =========================================================================
+
+/**
+ * Panel Template - HTML 템플릿 및 DOM ID
+ * @see ./panelTemplate.js
+ */
 export { 
     DOM_IDS, 
     TAB_NAMES, 
     getPanelTemplate, 
     getPlaceholderContent,
-    getDOMReferences,
-    default as panelTemplate 
+    getDOMReferences
 } from './panelTemplate.js';
+
+// =========================================================================
+// 버전 정보
+// =========================================================================
+
+/**
+ * 모듈 버전 정보
+ */
+export const VERSION = '2.0.0';
+
+/**
+ * 모듈 메타데이터
+ */
+export const META = {
+    name: 'equipment-info',
+    version: VERSION,
+    description: 'Equipment Info Panel 모듈 집합',
+    modules: {
+        utils: ['DurationTimer', 'DataFormatter', 'DataMerger', 'DataCache'],
+        components: ['GaugeRenderer', 'HeaderStatus'],
+        tabs: ['GeneralTab', 'PCInfoTab'],
+        template: ['panelTemplate']
+    }
+};
