@@ -6,11 +6,23 @@
  * 개별 사이드바 버튼 UI 컴포넌트
  * 호버, 선택, 비활성화 상태 관리
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @created 2026-01-10
+ * @updated 2026-01-10
+ * 
+ * @changelog
+ * - v1.1.0: 아이콘 크기/굵기 조정 (32px, 1.5px)
+ * - v1.0.0: 초기 버전
  */
 
 import { iconRegistry } from '../icons/IconRegistry.js';
+
+// ✨ v1.1.0: 아이콘 크기/굵기 상수
+const ICON_CONFIG = {
+    size: 32,                    // 28 → 32
+    strokeNormal: 1.5,           // 2 → 1.5
+    strokeSelected: 2            // 3 → 2
+};
 
 /**
  * SidebarButton 클래스
@@ -62,10 +74,10 @@ export class SidebarButton {
             this.element.setAttribute('title', this.tooltip);
         }
         
-        // 아이콘 렌더링
+        // ✨ v1.1.0: 새 크기/굵기 적용
         const iconSvg = iconRegistry.createIcon(this.icon, {
-            size: 28,
-            strokeWidth: 2
+            size: ICON_CONFIG.size,
+            strokeWidth: ICON_CONFIG.strokeNormal
         });
         this.element.appendChild(iconSvg);
         
@@ -204,10 +216,10 @@ export class SidebarButton {
             existingSvg.remove();
         }
         
-        // 새 아이콘 추가
+        // ✨ v1.1.0: 새 크기/굵기 적용
         const iconSvg = iconRegistry.createIcon(iconName, {
-            size: 28,
-            strokeWidth: this.selected ? 3 : 2
+            size: ICON_CONFIG.size,
+            strokeWidth: this.selected ? ICON_CONFIG.strokeSelected : ICON_CONFIG.strokeNormal
         });
         
         // 뱃지 앞에 삽입
