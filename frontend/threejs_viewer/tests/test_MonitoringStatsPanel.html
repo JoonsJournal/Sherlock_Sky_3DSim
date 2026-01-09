@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MonitoringStatsPanel Test - Phase 5</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .panel h2 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .panel h2::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #00d4ff;
+            border-radius: 2px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-family: inherit;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            color: #000;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 212, 255, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            color: #000;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757 0%, #cc3847 100%);
+            color: #fff;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ffa502 0%, #cc8402 100%);
+            color: #000;
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .stat-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        .signal-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .signal-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .signal-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin: 0 auto 5px;
+        }
+        
+        .signal-dot.run { background: #00ff00; box-shadow: 0 0 10px #00ff00; }
+        .signal-dot.idle { background: #ffff00; box-shadow: 0 0 10px #ffff00; }
+        .signal-dot.stop { background: #ffff00; }
+        .signal-dot.sudden { background: #ff0000; animation: blink 0.5s infinite; }
+        .signal-dot.disc { background: #666666; }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .log-container {
+            height: 200px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        
+        .log-entry.info { background: rgba(0, 212, 255, 0.1); }
+        .log-entry.success { background: rgba(0, 255, 136, 0.1); color: #00ff88; }
+        .log-entry.error { background: rgba(255, 71, 87, 0.1); color: #ff4757; }
+        
+        .log-time {
+            color: #666;
+            margin-right: 8px;
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .preview-area {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Status Panel Styles (실제 구현) */
+        .status-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 13px;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-icon {
+            font-size: 14px;
+        }
+        
+        .status-icon.connected { color: #00ff88; }
+        .status-icon.disconnected { color: #ff6b6b; }
+        
+        .status-label {
+            color: #aaa;
+            font-size: 11px;
+        }
+        
+        .status-value {
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .status-divider {
+            color: #444;
+            font-weight: 300;
+        }
+        
+        .status-blink {
+            animation: blink 0.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <h1>📊 MonitoringStatsPanel Test - Phase 5</h1>
+    
+    <div class="container">
+        <!-- Control Panel -->
+        <div class="panel">
+            <h2>Panel Control</h2>
+            
+            <div class="btn-group">
+                <button class="btn-primary" onclick="createPanel()">📊 Create Panel</button>
+                <button class="btn-warning" onclick="updatePanel()">🔄 Update Panel</button>
+                <button class="btn-danger" onclick="removePanel()">🗑️ Remove Panel</button>
+            </div>
+            
+            <div class="form-group" style="margin-top: 15px;">
+                <label>Auto Update Interval (ms, 0 = off)</label>
+                <input type="number" id="autoUpdateInterval" value="0" placeholder="0">
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn-success" onclick="startAutoUpdate()">▶️ Start Auto</button>
+                <button class="btn-secondary" onclick="stopAutoUpdate()">⏹️ Stop Auto</button>
+            </div>
+        </div>
+        
+        <!-- Stats Input -->
+        <div class="panel">
+            <h2>Stats Input</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                    <label>Total Equipment</label>
+                    <input type="number" id="statTotal" value="117">
+                </div>
+                <div class="form-group">
+                    <label>Mapped</label>
+                    <input type="number" id="statMapped" value="85">
+                </div>
+                <div class="form-group">
+                    <label>Connected</label>
+                    <input type="number" id="statConnected" value="72">
+                </div>
+                <div class="form-group">
+                    <label>Disconnected</label>
+                    <input type="number" id="statDisconnected" value="13">
+                </div>
+            </div>
+            
+            <button class="btn-primary" style="width: 100%;" onclick="applyStats()">Apply Stats</button>
+        </div>
+        
+        <!-- SignalTower Stats -->
+        <div class="panel">
+            <h2>SignalTower Stats (Mock)</h2>
+            
+            <div class="signal-grid">
+                <div class="signal-card">
+                    <div class="signal-dot run"></div>
+                    <input type="number" id="signalRun" value="45" style="width: 60px; text-align: center;">
+                    <div style="font-size: 11px; color: #aaa;">RUN</div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-dot idle"></div>
+                    <input type="number" id="signalIdle" value="15" style="width: 60px; text-align: center;">
+                    <div style="font-size: 11px; color: #aaa;">IDLE</div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-dot stop"></div>
+                    <input type="number" id="signalStop" value="8" style="width: 60px; text-align: center;">
+                    <div style="font-size: 11px; color: #aaa;">STOP</div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-dot sudden"></div>
+                    <input type="number" id="signalSudden" value="2" style="width: 60px; text-align: center;">
+                    <div style="font-size: 11px; color: #aaa;">SUDDEN</div>
+                </div>
+                <div class="signal-card">
+                    <div class="signal-dot disc"></div>
+                    <input type="number" id="signalDisc" value="15" style="width: 60px; text-align: center;">
+                    <div style="font-size: 11px; color: #aaa;">DISC</div>
+                </div>
+            </div>
+            
+            <button class="btn-warning" style="width: 100%; margin-top: 15px;" onclick="updateSignalStats()">Update Signal Stats</button>
+        </div>
+        
+        <!-- Current Stats Display -->
+        <div class="panel">
+            <h2>Current Stats</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="displayTotal">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="displayMapped">0</div>
+                    <div class="stat-label">Mapped</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="displayUnmapped">0</div>
+                    <div class="stat-label">Unmapped</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="displayRate">0%</div>
+                    <div class="stat-label">Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="displayConnected">0</div>
+                    <div class="stat-label">Connected</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="displayDisconnected">0</div>
+                    <div class="stat-label">Disconnected</div>
+                </div>
+            </div>
+            
+            <button class="btn-secondary" style="width: 100%; margin-top: 15px;" onclick="refreshDisplay()">🔄 Refresh Display</button>
+        </div>
+        
+        <!-- Log Panel -->
+        <div class="panel full-width">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin-bottom: 0;">Live Log</h2>
+                <button class="btn-secondary" onclick="clearLog()">🗑️ Clear</button>
+            </div>
+            <div class="log-container" id="logContainer"></div>
+        </div>
+    </div>
+    
+    <script>
+        // =========================================
+        // MonitoringStatsPanel Inline Implementation
+        // =========================================
+        
+        const DEFAULT_STATS = {
+            total: 0, mapped: 0, unmapped: 0, rate: 0, connected: 0, disconnected: 0
+        };
+        
+        class MonitoringStatsPanel {
+            constructor(options = {}) {
+                this.signalTowerManager = options.signalTowerManager || null;
+                this.panelId = options.panelId || 'monitoring-status-panel';
+                this.panelClass = options.panelClass || 'status-panel';
+                this.debug = options.debug || true;
+                
+                this.element = null;
+                this.currentStats = { ...DEFAULT_STATS };
+                this.updateTimer = null;
+                this.updateInterval = 0;
+                
+                this._log('📊 MonitoringStatsPanel 초기화');
+            }
+            
+            _log(...args) {
+                if (this.debug) {
+                    console.log('[MonitoringStatsPanel]', ...args);
+                    addLog('info', args.join(' '));
+                }
+            }
+            
+            setSignalTowerManager(manager) {
+                this.signalTowerManager = manager;
+                this._log('🔗 SignalTowerManager 연결됨');
+            }
+            
+            create(stats = null) {
+                this.remove();
+                
+                if (stats) {
+                    this.currentStats = { ...DEFAULT_STATS, ...stats };
+                }
+                
+                const panel = document.createElement('div');
+                panel.id = this.panelId;
+                panel.className = this.panelClass;
+                panel.innerHTML = this._generateHTML();
+                
+                document.body.appendChild(panel);
+                this.element = panel;
+                
+                this._log('📊 Status panel created');
+                addLog('success', '📊 Status panel created');
+            }
+            
+            update(stats = null) {
+                if (stats) {
+                    this.currentStats = { ...this.currentStats, ...stats };
+                }
+                
+                if (this.element) {
+                    this.element.innerHTML = this._generateHTML();
+                }
+            }
+            
+            remove() {
+                this.stopAutoUpdate();
+                
+                if (this.element) {
+                    this.element.remove();
+                    this.element = null;
+                    this._log('📊 Status panel removed');
+                    addLog('error', '📊 Status panel removed');
+                }
+                
+                const existing = document.getElementById(this.panelId);
+                if (existing) {
+                    existing.remove();
+                }
+            }
+            
+            isVisible() {
+                return this.element !== null && document.body.contains(this.element);
+            }
+            
+            calculateStats(equipmentLoader, equipmentEditState) {
+                // Mock calculation
+                return this.currentStats;
+            }
+            
+            refresh(equipmentLoader, equipmentEditState) {
+                this.update();
+            }
+            
+            getStats() {
+                return { ...this.currentStats };
+            }
+            
+            setStats(stats) {
+                this.currentStats = { ...this.currentStats, ...stats };
+            }
+            
+            startAutoUpdate(intervalMs, refreshCallback) {
+                this.stopAutoUpdate();
+                
+                if (intervalMs <= 0) return;
+                
+                this.updateInterval = intervalMs;
+                this.updateTimer = setInterval(() => {
+                    if (refreshCallback) refreshCallback();
+                    this.update();
+                    addLog('info', '⏱️ Auto update tick');
+                }, intervalMs);
+                
+                this._log(`⏱️ Auto update started (interval: ${intervalMs}ms)`);
+                addLog('success', `⏱️ Auto update started (${intervalMs}ms)`);
+            }
+            
+            stopAutoUpdate() {
+                if (this.updateTimer) {
+                    clearInterval(this.updateTimer);
+                    this.updateTimer = null;
+                    this._log('⏱️ Auto update stopped');
+                    addLog('info', '⏱️ Auto update stopped');
+                }
+            }
+            
+            _generateHTML() {
+                const { total, mapped, unmapped, rate } = this.currentStats;
+                const signalTowerStats = this._generateSignalTowerStatsHTML();
+                
+                return `
+                    <div class="status-item">
+                        <span class="status-icon">📊</span>
+                        <span class="status-label">전체</span>
+                        <span class="status-value">${total}개</span>
+                    </div>
+                    <div class="status-divider">|</div>
+                    <div class="status-item">
+                        <span class="status-icon connected">✅</span>
+                        <span class="status-label">매핑</span>
+                        <span class="status-value">${mapped}개</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon disconnected">⚠️</span>
+                        <span class="status-label">미매핑</span>
+                        <span class="status-value">${unmapped}개</span>
+                    </div>
+                    <div class="status-divider">|</div>
+                    <div class="status-item">
+                        <span class="status-icon">📶</span>
+                        <span class="status-value">${rate}%</span>
+                    </div>
+                    ${signalTowerStats}
+                `;
+            }
+            
+            _generateSignalTowerStatsHTML() {
+                if (!this.signalTowerManager) return '';
+                
+                const stats = this.signalTowerManager.getStatusStatistics();
+                
+                return `
+                    <div class="status-divider">|</div>
+                    <div class="status-item">
+                        <span class="status-icon" style="color: #00ff00;">●</span>
+                        <span class="status-label">RUN</span>
+                        <span class="status-value">${stats.RUN || 0}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon" style="color: #ffff00;">●</span>
+                        <span class="status-label">IDLE</span>
+                        <span class="status-value">${stats.IDLE || 0}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon" style="color: #ffff00;">●</span>
+                        <span class="status-label">STOP</span>
+                        <span class="status-value">${stats.STOP || 0}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon status-blink" style="color: #ff0000;">●</span>
+                        <span class="status-label">SUDDEN</span>
+                        <span class="status-value">${stats.SUDDENSTOP || 0}</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-icon" style="color: #666666;">●</span>
+                        <span class="status-label">DISC</span>
+                        <span class="status-value">${stats.DISCONNECTED || 0}</span>
+                    </div>
+                `;
+            }
+            
+            dispose() {
+                this.remove();
+                this.signalTowerManager = null;
+                this.currentStats = { ...DEFAULT_STATS };
+            }
+        }
+        
+        // =========================================
+        // Mock SignalTowerManager
+        // =========================================
+        
+        const mockSignalTowerManager = {
+            stats: {
+                RUN: 45,
+                IDLE: 15,
+                STOP: 8,
+                SUDDENSTOP: 2,
+                DISCONNECTED: 15
+            },
+            getStatusStatistics() {
+                return { ...this.stats };
+            },
+            updateStats(newStats) {
+                this.stats = { ...this.stats, ...newStats };
+            }
+        };
+        
+        // =========================================
+        // Global Instance
+        // =========================================
+        
+        let statsPanel = new MonitoringStatsPanel({
+            signalTowerManager: mockSignalTowerManager,
+            debug: true
+        });
+        
+        // =========================================
+        // UI Functions
+        // =========================================
+        
+        function createPanel() {
+            const stats = getInputStats();
+            statsPanel.create(stats);
+            refreshDisplay();
+        }
+        
+        function updatePanel() {
+            const stats = getInputStats();
+            statsPanel.setStats(stats);
+            statsPanel.update();
+            refreshDisplay();
+        }
+        
+        function removePanel() {
+            statsPanel.remove();
+            refreshDisplay();
+        }
+        
+        function applyStats() {
+            const stats = getInputStats();
+            statsPanel.setStats(stats);
+            statsPanel.update();
+            refreshDisplay();
+            addLog('success', '📊 Stats applied');
+        }
+        
+        function getInputStats() {
+            const total = parseInt(document.getElementById('statTotal').value) || 0;
+            const mapped = parseInt(document.getElementById('statMapped').value) || 0;
+            const connected = parseInt(document.getElementById('statConnected').value) || 0;
+            const disconnected = parseInt(document.getElementById('statDisconnected').value) || 0;
+            
+            return {
+                total: total,
+                mapped: mapped,
+                unmapped: total - mapped,
+                rate: total > 0 ? Math.round((mapped / total) * 100) : 0,
+                connected: connected,
+                disconnected: disconnected
+            };
+        }
+        
+        function updateSignalStats() {
+            const stats = {
+                RUN: parseInt(document.getElementById('signalRun').value) || 0,
+                IDLE: parseInt(document.getElementById('signalIdle').value) || 0,
+                STOP: parseInt(document.getElementById('signalStop').value) || 0,
+                SUDDENSTOP: parseInt(document.getElementById('signalSudden').value) || 0,
+                DISCONNECTED: parseInt(document.getElementById('signalDisc').value) || 0
+            };
+            
+            mockSignalTowerManager.updateStats(stats);
+            statsPanel.update();
+            addLog('success', '🚦 Signal stats updated');
+        }
+        
+        function startAutoUpdate() {
+            const interval = parseInt(document.getElementById('autoUpdateInterval').value) || 0;
+            if (interval > 0) {
+                statsPanel.startAutoUpdate(interval, () => {
+                    // Random stat changes for demo
+                    const currentStats = statsPanel.getStats();
+                    const variation = Math.floor(Math.random() * 5) - 2;
+                    currentStats.connected = Math.max(0, currentStats.connected + variation);
+                    statsPanel.setStats(currentStats);
+                    refreshDisplay();
+                });
+            }
+        }
+        
+        function stopAutoUpdate() {
+            statsPanel.stopAutoUpdate();
+        }
+        
+        function refreshDisplay() {
+            const stats = statsPanel.getStats();
+            document.getElementById('displayTotal').textContent = stats.total;
+            document.getElementById('displayMapped').textContent = stats.mapped;
+            document.getElementById('displayUnmapped').textContent = stats.unmapped;
+            document.getElementById('displayRate').textContent = stats.rate + '%';
+            document.getElementById('displayConnected').textContent = stats.connected;
+            document.getElementById('displayDisconnected').textContent = stats.disconnected;
+        }
+        
+        function addLog(type, message) {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${time}]</span>${message}`;
+            
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '';
+        }
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            addLog('info', '🚀 MonitoringStatsPanel Test Page Ready');
+            refreshDisplay();
+        });
+    </script>
+</body>
+</html>
