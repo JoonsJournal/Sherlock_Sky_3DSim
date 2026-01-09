@@ -6,9 +6,14 @@
  * 모든 사이드바 아이콘을 중앙에서 관리하고,
  * 동적 로딩 및 커스터마이징을 지원합니다.
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @author SHERLOCK SKY Team
  * @created 2026-01-10
+ * @updated 2026-01-10
+ * 
+ * @changelog
+ * - v1.1.0: 선 굵기 조정 (2px → 1.5px), 아이콘 크기 증가 (24px → 32px)
+ * - v1.0.0: 초기 버전
  */
 
 /**
@@ -210,8 +215,9 @@ export const ICONS = {
 export class IconRegistry {
     constructor() {
         this.icons = ICONS;
-        this.defaultSize = 24;
-        this.defaultStrokeWidth = 2;
+        // ✨ v1.1.0: 기본 크기 증가, 선 굵기 감소
+        this.defaultSize = 32;           // 24 → 32
+        this.defaultStrokeWidth = 1.5;   // 2 → 1.5
     }
     
     /**
