@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.5</title>
+    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.6</title>
     
     <style>
         /* =============================================
            1. Theme Configuration
-           v2.5: Dark/Light mode support
+           v2.6: Full feature parity with main branch
            ============================================= */
         
         /* Dark Theme (Default) */
@@ -106,7 +106,6 @@
             transition: background-color 0.3s ease, box-shadow 0.3s ease;
         }
 
-        /* Icon Button Container */
         .icon-btn {
             width: 54px;
             height: 54px;
@@ -121,7 +120,6 @@
             transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        /* SVG Style */
         .icon-btn svg {
             width: var(--icon-size);
             height: var(--icon-size);
@@ -134,10 +132,8 @@
         }
 
         /* =============================================
-           3. Interaction Logic (Hover & Selected)
+           3. Interaction Logic
            ============================================= */
-        
-        /* Hover Effect (not selected) */
         .icon-btn:not(.selected):not(.disabled):hover {
             transform: scale(1.1) translateY(-3px);
         }
@@ -147,7 +143,6 @@
             filter: drop-shadow(0 0 3px var(--glow-color));
         }
 
-        /* Selected Effect */
         .icon-btn.selected {
             transform: scale(1.08) translateY(-2px);
         }
@@ -157,7 +152,6 @@
             filter: drop-shadow(0 0 6px var(--icon-selected));
         }
 
-        /* Selected + Hover = Floating Effect */
         @keyframes float {
             0%, 100% { transform: scale(1.12) translateY(-4px); }
             50% { transform: scale(1.12) translateY(-8px); }
@@ -167,12 +161,9 @@
             animation: float 2s ease-in-out infinite;
         }
         .icon-btn.selected:hover svg {
-            stroke: var(--icon-selected);
-            stroke-width: var(--icon-stroke-selected);
             filter: drop-shadow(0 0 12px var(--icon-selected));
         }
 
-        /* Indicator Line for Selected Item */
         .icon-btn.selected::before {
             content: '';
             position: absolute;
@@ -184,7 +175,6 @@
             box-shadow: 0 0 6px var(--icon-selected);
         }
 
-        /* Disabled State */
         .icon-btn.disabled {
             cursor: not-allowed;
             opacity: 0.4;
@@ -193,12 +183,7 @@
         .icon-btn.disabled svg {
             stroke: var(--icon-disabled);
         }
-        .icon-btn.disabled:hover {
-            transform: none;
-            animation: none;
-        }
 
-        /* Hidden State */
         .icon-btn.hidden {
             display: none !important;
         }
@@ -227,7 +212,6 @@
             z-index: 100;
         }
         
-        /* Settings submenu: align bottom with icon */
         #btn-settings-wrapper .submenu {
             top: auto;
             bottom: 0;
@@ -293,7 +277,6 @@
             letter-spacing: 0.5px;
         }
         
-        /* Submenu indicator arrow */
         .has-submenu::after {
             content: '';
             position: absolute;
@@ -315,9 +298,7 @@
             opacity: 0.3;
         }
         
-        /* =============================================
-           4.1 Always Normal State Icons
-           ============================================= */
+        /* Always Normal State Icons */
         #btn-connection,
         #btn-settings-wrapper .icon-btn {
             transform: none !important;
@@ -341,9 +322,7 @@
             transform: scale(1.1) translateY(-3px) !important;
         }
 
-        /* =============================================
-           4.2 Theme Toggle Switch
-           ============================================= */
+        /* Theme Toggle */
         .theme-toggle-item {
             display: flex;
             align-items: center;
@@ -388,7 +367,6 @@
             background: var(--icon-normal);
             border-radius: 50%;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 4px var(--shadow-color);
         }
         
         .theme-switch.active {
@@ -415,22 +393,10 @@
             transition: all 0.3s ease;
         }
         
-        .theme-icons .icon-sun {
-            stroke: var(--text-warning);
-            opacity: 0.5;
-        }
-        
-        .theme-icons .icon-moon {
-            stroke: var(--icon-selected);
-        }
-        
-        [data-theme="light"] .theme-icons .icon-sun {
-            opacity: 1;
-        }
-        
-        [data-theme="light"] .theme-icons .icon-moon {
-            opacity: 0.5;
-        }
+        .theme-icons .icon-sun { stroke: var(--text-warning); opacity: 0.5; }
+        .theme-icons .icon-moon { stroke: var(--icon-selected); }
+        [data-theme="light"] .theme-icons .icon-sun { opacity: 1; }
+        [data-theme="light"] .theme-icons .icon-moon { opacity: 0.5; }
 
         /* =============================================
            5. Main Content Area
@@ -491,7 +457,7 @@
         }
 
         /* =============================================
-           6. Status Bar (Bottom)
+           6. Status Bar
            ============================================= */
         .status-bar {
             position: fixed;
@@ -505,72 +471,21 @@
             align-items: center;
             justify-content: space-between;
             padding: 0 16px;
-            box-sizing: border-box;
             font-family: 'Consolas', monospace;
             font-size: 11px;
             z-index: 20;
             transition: background-color 0.3s ease;
         }
 
-        .status-group { 
-            display: flex; 
-            gap: 16px;
-            align-items: center;
-        }
-        
-        .status-item { 
-            display: flex; 
-            align-items: center; 
-            gap: 6px;
-            padding: 4px 10px;
-            background: var(--bg-input);
-            border-radius: 4px;
-        }
-
-        .status-dot { 
-            width: 6px; 
-            height: 6px; 
-            border-radius: 50%; 
-            background-color: currentColor;
-            flex-shrink: 0;
-        }
-        
-        .status-dot.connected {
-            background-color: var(--text-success);
-            box-shadow: 0 0 4px var(--text-success);
-        }
-        
-        .status-dot.disconnected {
-            background-color: var(--text-alarm);
-            box-shadow: 0 0 4px var(--text-alarm);
-        }
-
-        .status-label {
-            color: var(--text-muted);
-            font-size: 9px;
-            text-transform: uppercase;
-        }
-        
-        .status-value {
-            color: var(--text-normal);
-            font-weight: 500;
-            font-size: 11px;
-        }
-        
-        .perf-bar {
-            width: 50px;
-            height: 4px;
-            background: var(--bg-input);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-        
-        .perf-bar-fill {
-            height: 100%;
-            border-radius: 2px;
-            transition: width 0.3s, background 0.3s;
-        }
-        
+        .status-group { display: flex; gap: 16px; align-items: center; }
+        .status-item { display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--bg-input); border-radius: 4px; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .status-dot.connected { background-color: var(--text-success); box-shadow: 0 0 4px var(--text-success); }
+        .status-dot.disconnected { background-color: var(--text-alarm); box-shadow: 0 0 4px var(--text-alarm); }
+        .status-label { color: var(--text-muted); font-size: 9px; text-transform: uppercase; }
+        .status-value { color: var(--text-normal); font-weight: 500; font-size: 11px; }
+        .perf-bar { width: 50px; height: 4px; background: var(--bg-input); border-radius: 2px; overflow: hidden; }
+        .perf-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s, background 0.3s; }
         .perf-bar-fill.good { background: var(--text-success); }
         .perf-bar-fill.medium { background: var(--text-warning); }
         .perf-bar-fill.bad { background: var(--text-alarm); }
@@ -592,7 +507,6 @@
             transform: translateX(-10px);
             z-index: 50;
             border: 1px solid var(--border-color);
-            box-shadow: 0 4px 12px var(--shadow-color);
         }
 
         .icon-btn:not(.has-submenu):hover[data-tooltip]::after {
@@ -600,19 +514,11 @@
             transform: translateX(0);
         }
 
-        .sidebar-divider {
-            width: 40px;
-            height: 1px;
-            background: var(--border-color);
-            margin: 8px 0;
-        }
-
-        .sidebar-spacer {
-            flex-grow: 1;
-        }
+        .sidebar-divider { width: 40px; height: 1px; background: var(--border-color); margin: 8px 0; }
+        .sidebar-spacer { flex-grow: 1; }
         
         /* =============================================
-           7. Modal Styles (Shared)
+           7. Modal Styles
            ============================================= */
         .modal-overlay {
             position: fixed;
@@ -705,10 +611,7 @@
             background: var(--bg-panel-header);
         }
         
-        .footer-hint {
-            font-size: 11px;
-            color: var(--text-muted);
-        }
+        .footer-hint { font-size: 11px; color: var(--text-muted); }
         
         .btn-secondary {
             padding: 10px 20px;
@@ -720,9 +623,7 @@
             transition: all 0.2s;
         }
         
-        .btn-secondary:hover {
-            background: var(--bg-hover);
-        }
+        .btn-secondary:hover { background: var(--bg-hover); }
         
         .btn-primary {
             padding: 10px 20px;
@@ -774,46 +675,60 @@
             align-items: center;
         }
         
-        .api-status {
+        /* API Status Panel - Full Feature */
+        .api-status-content {
+            padding: 16px;
+        }
+        
+        .status-indicator {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 12px 16px;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: var(--bg-input);
+            border-radius: 8px;
         }
         
-        .api-status-indicator {
+        .status-indicator .status-dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
         
-        .api-status-indicator.healthy {
-            background: var(--text-success);
-            box-shadow: 0 0 10px var(--text-success);
-        }
+        .status-dot--connected { background: var(--text-success); box-shadow: 0 0 10px var(--text-success); }
+        .status-dot--disconnected { background: var(--text-alarm); box-shadow: 0 0 10px var(--text-alarm); }
+        .status-dot--degraded { background: var(--text-warning); box-shadow: 0 0 10px var(--text-warning); }
+        .status-dot--checking { background: var(--text-muted); }
         
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
         
-        .api-status-info {
-            flex: 1;
+        .status-text { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .status-text--connected { color: var(--text-success); }
+        .status-text--disconnected { color: var(--text-alarm); }
+        .status-text--degraded { color: var(--text-warning); }
+        
+        .status-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
         }
         
-        .api-status-url {
-            font-size: 13px;
-            color: var(--text-primary);
-            font-family: 'Consolas', monospace;
+        .status-detail {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
         
-        .api-status-meta {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 2px;
-        }
+        .detail-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+        .detail-value { font-size: 13px; color: var(--text-primary); font-family: 'Consolas', monospace; }
+        .detail-value--error { color: var(--text-alarm); }
         
+        /* Site Selection Panel */
         .site-list {
             display: flex;
             flex-direction: column;
@@ -854,60 +769,34 @@
             accent-color: var(--icon-selected);
         }
         
-        .site-info {
-            flex: 1;
-        }
+        .site-info { flex: 1; }
+        .site-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .site-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+        .site-region { font-size: 11px; padding: 2px 8px; background: var(--bg-hover); border-radius: 4px; color: var(--text-secondary); }
+        .site-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+        .site-status { display: flex; align-items: center; gap: 8px; }
+        .status-icon { font-size: 16px; }
         
-        .site-main {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .site-name {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-primary);
-        }
-        
-        .site-region {
-            font-size: 11px;
-            padding: 2px 8px;
-            background: var(--bg-hover);
-            border-radius: 4px;
-            color: var(--text-secondary);
-        }
-        
-        .site-meta {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 4px;
-        }
-        
-        .site-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .status-icon {
-            font-size: 16px;
-        }
-        
-        .btn-disconnect {
+        .btn-disconnect, .btn-retry {
             padding: 4px 10px;
             font-size: 11px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s;
+        }
+        
+        .btn-disconnect {
             background: rgba(248, 113, 113, 0.2);
             color: var(--text-alarm);
         }
+        .btn-disconnect:hover { background: rgba(248, 113, 113, 0.3); }
         
-        .btn-disconnect:hover {
-            background: rgba(248, 113, 113, 0.3);
+        .btn-retry {
+            background: rgba(251, 191, 36, 0.2);
+            color: var(--text-warning);
         }
+        .btn-retry:hover { background: rgba(251, 191, 36, 0.3); }
         
         .panel-footer {
             display: flex;
@@ -918,12 +807,9 @@
             background: var(--bg-panel-header);
         }
         
-        .selection-info {
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
+        .selection-info { font-size: 12px; color: var(--text-secondary); }
         
-        .btn-connect {
+        .btn-connect, .btn-refresh-styled {
             padding: 10px 20px;
             background: linear-gradient(135deg, #06B6D4, #0891B2);
             border: none;
@@ -932,13 +818,16 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
+            font-size: 13px;
         }
         
-        .btn-connect:hover:not(:disabled) {
+        .btn-connect:hover:not(:disabled),
+        .btn-refresh-styled:hover:not(:disabled) {
             box-shadow: 0 0 20px var(--glow-color);
         }
         
-        .btn-connect:disabled {
+        .btn-connect:disabled,
+        .btn-refresh-styled:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
@@ -952,24 +841,22 @@
             cursor: pointer;
         }
         
-        .auto-connect-label input {
-            accent-color: var(--icon-selected);
-        }
+        .auto-connect-label input { accent-color: var(--icon-selected); }
         
         .btn-icon {
             background: none;
             border: none;
             cursor: pointer;
             font-size: 14px;
-            padding: 4px;
+            padding: 4px 8px;
             opacity: 0.7;
             transition: opacity 0.2s;
+            border-radius: 4px;
         }
         
-        .btn-icon:hover {
-            opacity: 1;
-        }
+        .btn-icon:hover { opacity: 1; background: var(--bg-hover); }
         
+        /* Database List Panel */
         .database-item {
             padding: 16px;
         }
@@ -981,29 +868,61 @@
             margin-bottom: 12px;
         }
         
-        .database-header h4 {
-            font-size: 14px;
-            color: var(--text-primary);
-        }
+        .database-header h4 { font-size: 14px; color: var(--text-primary); }
+        .database-stats { display: flex; gap: 16px; }
+        .stat-item { display: flex; gap: 4px; font-size: 12px; }
+        .stat-label { color: var(--text-muted); }
+        .stat-value { color: var(--icon-selected); font-weight: 600; }
         
-        .database-stats {
+        .connection-info {
             display: flex;
-            gap: 16px;
-        }
-        
-        .stat-item {
-            display: flex;
-            gap: 4px;
+            gap: 8px;
+            padding: 8px 0;
             font-size: 12px;
+            border-bottom: 1px solid var(--border-subtle);
+            margin-bottom: 12px;
         }
         
-        .stat-label {
-            color: var(--text-muted);
+        .info-label { color: var(--text-muted); }
+        .info-value { color: var(--text-secondary); }
+        
+        .table-list { display: flex; flex-direction: column; gap: 4px; }
+        
+        .table-item {
+            background: var(--bg-input);
+            border-radius: 6px;
+            overflow: hidden;
         }
         
-        .stat-value {
-            color: var(--icon-selected);
-            font-weight: 600;
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .table-header:hover { background: var(--bg-hover); }
+        
+        .table-info-main { display: flex; align-items: center; gap: 8px; }
+        .expand-icon { font-size: 10px; color: var(--text-muted); width: 12px; }
+        .table-name { font-size: 13px; color: var(--text-primary); font-family: 'Consolas', monospace; }
+        .table-rows { font-size: 11px; color: var(--text-muted); }
+        .table-actions { display: flex; gap: 8px; align-items: center; }
+        .table-size { font-size: 11px; color: var(--icon-selected); }
+        .table-schema { font-size: 10px; padding: 2px 6px; background: var(--bg-hover); border-radius: 3px; color: var(--text-muted); }
+        
+        .table-details {
+            padding: 12px;
+            background: var(--bg-panel-header);
+            border-top: 1px solid var(--border-subtle);
+        }
+        
+        .table-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
         }
         
         .no-connection {
@@ -1018,12 +937,10 @@
             margin-bottom: 8px;
         }
         
-        /* =============================================
-           8. Icon Customization Modal
-           ============================================= */
-        #icon-modal .modal-container {
-            max-width: 800px;
-        }
+        .no-tables { padding: 12px; text-align: center; color: var(--text-muted); font-size: 12px; }
+        
+        /* Icon Modal */
+        #icon-modal .modal-container { max-width: 800px; }
         
         .icon-menu-section {
             background: var(--bg-panel-header);
@@ -1107,105 +1024,59 @@
             stroke-linejoin: round;
         }
         
-        .icon-option.selected svg {
-            stroke: var(--icon-selected);
-        }
-        
-        .icon-option:hover svg {
-            stroke: var(--icon-hover);
-        }
+        .icon-option.selected svg { stroke: var(--icon-selected); }
+        .icon-option:hover svg { stroke: var(--icon-hover); }
     </style>
 </head>
 <body>
 
-    <!-- =============================================
-         SIDEBAR COMPONENT v2.5
-         ============================================= -->
+    <!-- SIDEBAR v2.6 -->
     <aside class="sidebar" id="sidebar">
-        
-        <!-- 1. Database Connection Button -->
         <button class="icon-btn" id="btn-connection" data-mode="connection" data-tooltip="Database Connection (Ctrl+K)">
             <svg viewBox="0 0 24 24" id="icon-connection">
-                <ellipse cx="7" cy="5" rx="5" ry="2"/>
-                <path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/>
-                <path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/>
-                <ellipse cx="17" cy="11" rx="5" ry="2"/>
-                <path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/>
-                <path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/>
-                <path d="M7 13v2" stroke-dasharray="2 2"/>
-                <circle cx="12" cy="17" r="1.5" fill="currentColor" stroke="none"/>
+                <ellipse cx="7" cy="5" rx="5" ry="2"/><path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/><path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/><ellipse cx="17" cy="11" rx="5" ry="2"/><path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M7 13v2" stroke-dasharray="2 2"/><circle cx="12" cy="17" r="1.5" fill="currentColor" stroke="none"/>
             </svg>
         </button>
 
-        <!-- 2. Monitoring Button with Submenu -->
         <div class="has-submenu disabled" id="btn-monitoring-wrapper">
             <button class="icon-btn disabled" id="btn-monitoring" data-mode="monitoring" data-tooltip="System Monitoring (M)">
                 <svg viewBox="0 0 24 24" id="icon-monitoring">
-                    <rect x="3" y="4" width="18" height="12" rx="2" />
-                    <polyline points="6 10 9 10 11 7 13 13 15 10 18 10" />
-                    <path d="M12 16v4" />
-                    <path d="M8 20h8" />
+                    <rect x="3" y="4" width="18" height="12" rx="2"/><polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/><path d="M12 16v4"/><path d="M8 20h8"/>
                 </svg>
             </button>
-            
             <div class="submenu" id="monitoring-submenu">
                 <div class="submenu-header">Monitoring Views</div>
                 <button class="submenu-item active" data-submode="3d-view" onclick="setSubMode('monitoring', '3d-view')">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                        <path d="M2 17l10 5 10-5"/>
-                        <path d="M2 12l10 5 10-5"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                     3D View
                 </button>
                 <button class="submenu-item" data-submode="ranking-view" onclick="setSubMode('monitoring', 'ranking-view')">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M18 20V10"/>
-                        <path d="M12 20V4"/>
-                        <path d="M6 20v-6"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
                     Ranking View
                 </button>
             </div>
         </div>
 
-        <!-- 3. Analysis Button -->
         <button class="icon-btn disabled" id="btn-analysis" data-mode="analysis" data-tooltip="Data Analysis (A)">
             <svg viewBox="0 0 24 24" id="icon-analysis">
-                <path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/>
-                <path d="M7 14l4-4 4 4 6-6"/>
-                <circle cx="21" cy="8" r="2"/>
+                <path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/><path d="M7 14l4-4 4 4 6-6"/><circle cx="21" cy="8" r="2"/>
             </svg>
         </button>
 
-        <!-- 4. Simulation Button -->
         <button class="icon-btn disabled" id="btn-simulation" data-mode="simulation" data-tooltip="Simulation (S)">
             <svg viewBox="0 0 24 24" id="icon-simulation">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M12 2v4"/>
-                <path d="M12 18v4"/>
-                <path d="M4.93 4.93l2.83 2.83"/>
-                <path d="M16.24 16.24l2.83 2.83"/>
-                <path d="M2 12h4"/>
-                <path d="M18 12h4"/>
-                <path d="M4.93 19.07l2.83-2.83"/>
-                <path d="M16.24 7.76l2.83-2.83"/>
+                <circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/>
             </svg>
         </button>
 
         <div class="sidebar-divider"></div>
 
-        <!-- Layout Button (Hidden by default) -->
         <button class="icon-btn disabled hidden" id="btn-layout" data-mode="layout" data-tooltip="Layout Editor">
             <svg viewBox="0 0 24 24" id="icon-layout">
-                <rect x="3" y="3" width="7" height="7"/>
-                <rect x="14" y="3" width="7" height="7"/>
-                <rect x="14" y="14" width="7" height="7"/>
-                <rect x="3" y="14" width="7" height="7"/>
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
             </svg>
         </button>
 
-        <!-- Debug Button -->
         <button class="icon-btn disabled" id="btn-debug" data-mode="debug" data-tooltip="Debug Panel (D)">
             <svg viewBox="0 0 24 24" id="icon-debug">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
@@ -1214,90 +1085,47 @@
 
         <div class="sidebar-spacer"></div>
         
-        <!-- Settings Button with Submenu (bottom-aligned) -->
         <div class="has-submenu" id="btn-settings-wrapper">
             <button class="icon-btn" id="btn-settings" data-mode="settings" data-tooltip="Settings">
                 <svg viewBox="0 0 24 24" id="icon-settings">
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                 </svg>
             </button>
-            
             <div class="submenu" id="settings-submenu">
                 <div class="submenu-header">Settings</div>
-                
-                <!-- Theme Toggle -->
                 <div class="theme-toggle-item">
                     <div class="theme-toggle-label">
-                        <svg viewBox="0 0 24 24">
-                            <circle cx="12" cy="12" r="5"/>
-                            <line x1="12" y1="1" x2="12" y2="3"/>
-                            <line x1="12" y1="21" x2="12" y2="23"/>
-                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                            <line x1="1" y1="12" x2="3" y2="12"/>
-                            <line x1="21" y1="12" x2="23" y2="12"/>
-                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                        </svg>
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
                         <span>Theme</span>
                     </div>
                     <div style="display: flex; align-items: center;">
                         <div class="theme-switch" id="theme-switch" onclick="toggleTheme()"></div>
                         <div class="theme-icons">
-                            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="5"/>
-                                <line x1="12" y1="1" x2="12" y2="3"/>
-                                <line x1="12" y1="21" x2="12" y2="23"/>
-                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                            </svg>
-                            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                            </svg>
+                            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/></svg>
+                            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                         </div>
                     </div>
                 </div>
-                
                 <div class="submenu-divider"></div>
-                
                 <button class="submenu-item" data-submode="general" onclick="setSubMode('settings', 'general')">
-                    <svg viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M12 2v2"/>
-                        <path d="M12 20v2"/>
-                        <path d="M4.93 4.93l1.41 1.41"/>
-                        <path d="M17.66 17.66l1.41 1.41"/>
-                        <path d="M2 12h2"/>
-                        <path d="M20 12h2"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2"/><path d="M12 20v2"/></svg>
                     General
                 </button>
                 <button class="submenu-item" data-submode="icon" onclick="openIconModal()">
-                    <svg viewBox="0 0 24 24">
-                        <rect x="3" y="3" width="18" height="18" rx="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <path d="M21 15l-5-5L5 21"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                     Icon
                 </button>
                 <div class="submenu-divider"></div>
                 <button class="submenu-item" id="dev-mode-toggle" data-submode="dev-mode" onclick="toggleDevMode()">
-                    <svg viewBox="0 0 24 24">
-                        <polyline points="16 18 22 12 16 6"/>
-                        <polyline points="8 6 2 12 8 18"/>
-                    </svg>
+                    <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                     <span id="dev-mode-label">Dev Mode: OFF</span>
                 </button>
             </div>
         </div>
-
         <div style="height: 50px;"></div>
     </aside>
 
-    <!-- =============================================
-         DATABASE CONNECTION MODAL
-         ============================================= -->
+    <!-- CONNECTION MODAL (Full Feature Parity) -->
     <div class="modal-overlay" id="connection-modal">
         <div class="modal-container">
             <div class="modal-header">
@@ -1306,25 +1134,41 @@
             </div>
             
             <div class="modal-body">
+                <!-- API Status Panel (Full) -->
                 <div class="connection-panel">
                     <div class="panel-header">
-                        <h3>📡 API Status</h3>
+                        <h3>🔌 Backend API Status</h3>
                         <div class="panel-actions">
-                            <button class="btn-icon" onclick="refreshAPIStatus()" title="Refresh">🔄</button>
+                            <button class="btn-refresh-styled" id="api-refresh-btn" onclick="refreshAPIStatus()">🔄 Check Status</button>
                         </div>
                     </div>
-                    <div class="api-status">
-                        <div class="api-status-indicator healthy" id="api-indicator"></div>
-                        <div class="api-status-info">
-                            <div class="api-status-url" id="api-url">http://localhost:8000</div>
-                            <div class="api-status-meta">
-                                <span id="api-status-text">Healthy</span>
-                                <span id="api-response-time">• 45ms</span>
+                    <div class="api-status-content">
+                        <div class="status-indicator">
+                            <span class="status-dot status-dot--checking" id="api-status-dot"></span>
+                            <span class="status-text" id="api-status-text">Checking...</span>
+                        </div>
+                        <div class="status-details">
+                            <div class="status-detail">
+                                <span class="detail-label">API URL</span>
+                                <span class="detail-value" id="api-url">http://localhost:8000</span>
+                            </div>
+                            <div class="status-detail">
+                                <span class="detail-label">Response Time</span>
+                                <span class="detail-value" id="response-time">-</span>
+                            </div>
+                            <div class="status-detail">
+                                <span class="detail-label">Last Check</span>
+                                <span class="detail-value" id="last-check">-</span>
+                            </div>
+                            <div class="status-detail">
+                                <span class="detail-label">Retry Count</span>
+                                <span class="detail-value" id="retry-count">0/3</span>
                             </div>
                         </div>
                     </div>
                 </div>
                 
+                <!-- Site Selection Panel (Full) -->
                 <div class="connection-panel">
                     <div class="panel-header">
                         <h3>🔍 Site Connection</h3>
@@ -1333,6 +1177,8 @@
                                 <input type="checkbox" id="auto-connect-checkbox">
                                 <span>Auto Connect</span>
                             </label>
+                            <button class="btn-icon" id="select-all-btn" title="Select All" onclick="selectAllSites()">☑️</button>
+                            <button class="btn-icon" id="deselect-all-btn" title="Deselect All" onclick="deselectAllSites()">☐</button>
                         </div>
                     </div>
                     <div class="site-list" id="site-list"></div>
@@ -1346,11 +1192,13 @@
                     </div>
                 </div>
                 
+                <!-- Database List Panel (Full) -->
                 <div class="connection-panel">
                     <div class="panel-header">
                         <h3>📊 Connected Databases</h3>
                         <div class="panel-actions">
-                            <button class="btn-icon" onclick="refreshDatabaseInfo()" title="Refresh">🔄</button>
+                            <button class="btn-refresh-styled" id="db-refresh-btn" onclick="refreshDatabaseInfo()">🔄 Refresh</button>
+                            <button class="btn-icon" id="export-status-btn" title="Export Status" onclick="exportDatabaseStatus()">📤</button>
                         </div>
                     </div>
                     <div id="database-list">
@@ -1370,18 +1218,14 @@
         </div>
     </div>
 
-    <!-- =============================================
-         ICON CUSTOMIZATION MODAL
-         ============================================= -->
+    <!-- ICON MODAL -->
     <div class="modal-overlay" id="icon-modal">
         <div class="modal-container">
             <div class="modal-header">
                 <div class="modal-title">🎨 Icon Customization</div>
                 <button class="modal-close" onclick="closeIconModal()">✕</button>
             </div>
-            
             <div class="modal-body" id="icon-modal-body"></div>
-            
             <div class="modal-footer">
                 <span class="footer-hint">Select icons for each menu</span>
                 <div style="display: flex; gap: 10px;">
@@ -1392,13 +1236,10 @@
         </div>
     </div>
 
-    <!-- =============================================
-         MAIN CONTENT AREA
-         ============================================= -->
+    <!-- MAIN CONTENT -->
     <main class="main-content">
-        <h1>🧪 Sidebar Test v2.5</h1>
-        <p>Dark/Light Theme | Connection → Monitoring → Analysis → Simulation</p>
-        
+        <h1>🧪 Sidebar Test v2.6</h1>
+        <p>Full Feature Parity with Main Branch</p>
         <div class="current-mode">
             <div class="mode-label">Current Mode</div>
             <div class="mode-value" id="current-mode">—</div>
@@ -1406,40 +1247,32 @@
         </div>
     </main>
 
-    <!-- =============================================
-         STATUS BAR
-         ============================================= -->
+    <!-- STATUS BAR -->
     <footer class="status-bar">
         <div class="status-group">
-            <div class="status-item" id="status-backend">
+            <div class="status-item">
                 <span class="status-dot disconnected" id="backend-dot"></span>
                 <span class="status-label">Backend</span>
                 <span class="status-value" id="backend-value">Disconnected</span>
             </div>
-            <div class="status-item" id="status-db">
+            <div class="status-item">
                 <span class="status-dot disconnected" id="db-dot"></span>
                 <span class="status-label">DB</span>
                 <span class="status-value" id="db-value">None</span>
             </div>
         </div>
-
         <div class="status-group">
-            <div class="status-item" id="status-render">
+            <div class="status-item">
                 <span class="status-label">FPS</span>
                 <span class="status-value" id="fps-value">60</span>
-                <div class="perf-bar">
-                    <div class="perf-bar-fill good" id="fps-bar" style="width: 100%;"></div>
-                </div>
+                <div class="perf-bar"><div class="perf-bar-fill good" id="fps-bar" style="width: 100%;"></div></div>
             </div>
-            <div class="status-item" id="status-memory">
+            <div class="status-item">
                 <span class="status-label">MEM</span>
                 <span class="status-value"><span id="memory-value">128</span>MB</span>
-                <div class="perf-bar">
-                    <div class="perf-bar-fill good" id="memory-bar" style="width: 30%;"></div>
-                </div>
+                <div class="perf-bar"><div class="perf-bar-fill good" id="memory-bar" style="width: 30%;"></div></div>
             </div>
         </div>
-
         <div class="status-group">
             <div class="status-item">
                 <span class="status-label">User</span>
@@ -1458,12 +1291,10 @@
         let devModeEnabled = false;
         let selectedSite = null;
         let currentTheme = 'dark';
+        let retryCount = 0;
+        let expandedTables = new Set();
         
-        let iconSelections = {
-            connection: 0, monitoring: 0, analysis: 0,
-            simulation: 0, layout: 0, debug: 0, settings: 0
-        };
-        
+        let iconSelections = { connection: 0, monitoring: 0, analysis: 0, simulation: 0, layout: 0, debug: 0, settings: 0 };
         let pendingIconSelections = {};
         
         const iconOptions = {
@@ -1478,61 +1309,63 @@
                 `<rect x="3" y="4" width="18" height="12" rx="2"/><polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/><path d="M12 16v4"/><path d="M8 20h8"/>`,
                 `<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>`,
                 `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`,
-                `<circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14"/>`,
-                `<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/>`
+                `<circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/>`,
+                `<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/>`
             ],
             analysis: [
                 `<path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/><path d="M7 14l4-4 4 4 6-6"/><circle cx="21" cy="8" r="2"/>`,
                 `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`,
                 `<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>`,
                 `<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>`,
-                `<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>`
+                `<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/>`
             ],
             simulation: [
-                `<circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/>`,
+                `<circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/>`,
                 `<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>`,
                 `<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>`,
                 `<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>`,
-                `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>`
+                `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33"/>`
             ],
             layout: [
                 `<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>`,
                 `<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>`,
                 `<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>`,
                 `<path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7"/>`,
-                `<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>`
+                `<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>`
             ],
             debug: [
                 `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`,
-                `<rect x="8" y="6" width="8" height="14" rx="4"/><path d="M8 6V4a4 4 0 0 1 8 0v2"/><line x1="12" y1="6" x2="12" y2="20"/><path d="M4 13h4"/><path d="M16 13h4"/><path d="M4 9h4"/><path d="M16 9h4"/><path d="M4 17h4"/><path d="M16 17h4"/>`,
+                `<rect x="8" y="6" width="8" height="14" rx="4"/><path d="M8 6V4a4 4 0 0 1 8 0v2"/>`,
                 `<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>`,
                 `<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>`,
                 `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`
             ],
             settings: [
-                `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>`,
-                `<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>`,
+                `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4"/>`,
+                `<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>`,
                 `<rect x="1" y="5" width="22" height="14" rx="7"/><circle cx="8" cy="12" r="3"/>`,
-                `<circle cx="12" cy="12" r="3"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="M4.93 19.07l1.41-1.41"/><path d="M17.66 6.34l1.41-1.41"/>`,
+                `<circle cx="12" cy="12" r="3"/><path d="M12 2v2"/><path d="M12 20v2"/>`,
                 `<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>`
             ]
         };
         
         const menuLabels = {
-            connection: 'Database Connection',
-            monitoring: 'System Monitoring',
-            analysis: 'Data Analysis',
-            simulation: 'Simulation',
-            layout: 'Layout Editor',
-            debug: 'Debug Panel',
-            settings: 'Settings'
+            connection: 'Database Connection', monitoring: 'System Monitoring', analysis: 'Data Analysis',
+            simulation: 'Simulation', layout: 'Layout Editor', debug: 'Debug Panel', settings: 'Settings'
         };
         
         const siteProfiles = [
-            { id: 'kr_b_01', display_name: 'Korea Site B-01', region: 'Asia/Seoul', priority: 10 },
-            { id: 'kr_b_02', display_name: 'Korea Site B-02', region: 'Asia/Seoul', priority: 8 },
-            { id: 'vn_a_01', display_name: 'Vietnam Site A-01', region: 'Asia/Ho_Chi_Minh', priority: 5 },
-            { id: 'us_w_01', display_name: 'USA West Site W-01', region: 'America/Los_Angeles', priority: 3 }
+            { id: 'kr_b_01', display_name: 'Korea Site B-01', region: 'Asia/Seoul', priority: 10, last_connected: '2026-01-09T14:30:00Z', response_time_ms: 45 },
+            { id: 'kr_b_02', display_name: 'Korea Site B-02', region: 'Asia/Seoul', priority: 8, last_connected: null, response_time_ms: null },
+            { id: 'vn_a_01', display_name: 'Vietnam Site A-01', region: 'Asia/Ho_Chi_Minh', priority: 5, last_connected: '2026-01-08T10:00:00Z', response_time_ms: 120 },
+            { id: 'us_w_01', display_name: 'USA West Site W-01', region: 'America/Los_Angeles', priority: 3, last_connected: null, response_time_ms: null }
+        ];
+        
+        const mockTables = [
+            { name: 'Equipment', schema: 'dbo', type: 'BASE TABLE', row_count: 117, size_mb: 2.5 },
+            { name: 'MonitoringLog', schema: 'dbo', type: 'BASE TABLE', row_count: 152340, size_mb: 48.2 },
+            { name: 'AlarmHistory', schema: 'dbo', type: 'BASE TABLE', row_count: 8921, size_mb: 5.1 },
+            { name: 'ProductionData', schema: 'dbo', type: 'BASE TABLE', row_count: 45000, size_mb: 22.8 }
         ];
         
         let siteStatus = {};
@@ -1555,20 +1388,55 @@
         }
 
         // =============================================
-        // Initialize
+        // Initialize - NO AUTO MODAL
         // =============================================
         function init() {
             loadTheme();
-            
-            siteProfiles.forEach(site => {
-                siteStatus[site.id] = { status: 'disconnected' };
-            });
-            
+            siteProfiles.forEach(site => { siteStatus[site.id] = { status: 'disconnected' }; });
             renderSiteList();
             setupSidebarEvents();
             startPerformanceSimulation();
+            // v2.6: Modal does NOT open automatically
+            // User must click Connection button to open modal
+        }
+
+        // =============================================
+        // API Status Functions
+        // =============================================
+        function refreshAPIStatus() {
+            const btn = document.getElementById('api-refresh-btn');
+            const dot = document.getElementById('api-status-dot');
+            const text = document.getElementById('api-status-text');
             
-            setTimeout(() => openConnectionModal(), 500);
+            btn.disabled = true;
+            btn.textContent = '⏳ Checking...';
+            dot.className = 'status-dot status-dot--checking';
+            text.className = 'status-text';
+            text.textContent = 'Checking...';
+            
+            setTimeout(() => {
+                const isHealthy = Math.random() > 0.1;
+                
+                if (isHealthy) {
+                    dot.className = 'status-dot status-dot--connected';
+                    text.className = 'status-text status-text--connected';
+                    text.textContent = 'Connected';
+                    retryCount = 0;
+                } else {
+                    dot.className = 'status-dot status-dot--disconnected';
+                    text.className = 'status-text status-text--disconnected';
+                    text.textContent = 'Disconnected';
+                    retryCount = Math.min(retryCount + 1, 3);
+                }
+                
+                document.getElementById('response-time').textContent = `${Math.floor(Math.random() * 50 + 20)}ms`;
+                document.getElementById('last-check').textContent = new Date().toLocaleTimeString();
+                document.getElementById('retry-count').textContent = `${retryCount}/3`;
+                document.getElementById('retry-count').className = retryCount >= 3 ? 'detail-value detail-value--error' : 'detail-value';
+                
+                btn.disabled = false;
+                btn.textContent = '🔄 Check Status';
+            }, 1000);
         }
 
         // =============================================
@@ -1576,6 +1444,7 @@
         // =============================================
         function openConnectionModal() {
             document.getElementById('connection-modal').classList.add('active');
+            refreshAPIStatus();
         }
         
         function closeConnectionModal() {
@@ -1587,15 +1456,16 @@
             modal.classList.contains('active') ? closeConnectionModal() : openConnectionModal();
         }
         
-        function refreshAPIStatus() {
-            const indicator = document.getElementById('api-indicator');
-            const statusText = document.getElementById('api-status-text');
-            indicator.className = 'api-status-indicator';
-            statusText.textContent = 'Checking...';
-            setTimeout(() => {
-                indicator.className = 'api-status-indicator healthy';
-                statusText.textContent = 'Healthy';
-            }, 500);
+        function selectAllSites() {
+            if (siteProfiles.length > 0) {
+                selectedSite = siteProfiles[0].id;
+                renderSiteList();
+            }
+        }
+        
+        function deselectAllSites() {
+            selectedSite = null;
+            renderSiteList();
         }
         
         function renderSiteList() {
@@ -1604,6 +1474,7 @@
                 const status = siteStatus[profile.id] || {};
                 const isSelected = selectedSite === profile.id;
                 const isConnectedSite = status.status === 'connected';
+                const isFailed = status.status === 'failed';
                 let itemClasses = ['site-item'];
                 if (isSelected) itemClasses.push('site-item--selected');
                 if (isConnectedSite) itemClasses.push('site-item--connected');
@@ -1618,12 +1489,18 @@
                                 <span class="site-name">${profile.display_name}</span>
                                 <span class="site-region">${profile.region}</span>
                             </div>
-                            <div class="site-meta">Priority: ${profile.priority}</div>
+                            <div class="site-meta">
+                                ${profile.last_connected ? `<span>Last: ${new Date(profile.last_connected).toLocaleString()}</span>` : ''}
+                                ${profile.response_time_ms ? `<span>${profile.response_time_ms}ms</span>` : ''}
+                            </div>
                         </div>
                         <div class="site-status">
                             ${isConnectedSite ? `
                                 <span class="status-icon">✅</span>
                                 <button class="btn-disconnect" onclick="event.stopPropagation(); disconnectFromSite('${profile.id}')">Disconnect</button>
+                            ` : isFailed ? `
+                                <span class="status-icon">❌</span>
+                                <button class="btn-retry" onclick="event.stopPropagation(); retrySite('${profile.id}')">Retry</button>
                             ` : `<span class="status-icon">⚪</span>`}
                         </div>
                     </div>
@@ -1660,6 +1537,12 @@
             }, 1500);
         }
         
+        function retrySite(siteId) {
+            selectedSite = siteId;
+            renderSiteList();
+            connectToSelectedSite();
+        }
+        
         function disconnectFromSite(siteId) {
             siteStatus[siteId] = { status: 'disconnected' };
             isConnected = false;
@@ -1675,21 +1558,69 @@
         
         function renderDatabaseInfo(siteId) {
             const site = siteProfiles.find(s => s.id === siteId);
-            document.getElementById('database-list').innerHTML = `
+            const dbList = document.getElementById('database-list');
+            
+            dbList.innerHTML = `
                 <div class="database-item">
                     <div class="database-header">
                         <h4>🗄️ ${site.display_name} - EquipmentDB</h4>
                         <div class="database-stats">
-                            <span class="stat-item"><span class="stat-label">Tables:</span><span class="stat-value">12</span></span>
+                            <span class="stat-item"><span class="stat-label">Tables:</span><span class="stat-value">${mockTables.length}</span></span>
                             <span class="stat-item"><span class="stat-label">Type:</span><span class="stat-value">MSSQL</span></span>
                         </div>
                     </div>
-                    <div style="padding: 8px 0; font-size: 12px; color: var(--text-muted);">Site ID: ${siteId}</div>
+                    <div class="connection-info">
+                        <span class="info-label">Site ID:</span>
+                        <span class="info-value">${siteId}</span>
+                    </div>
+                    <div class="table-list">
+                        ${mockTables.map(table => {
+                            const key = `${siteId}-${table.name}`;
+                            const isExpanded = expandedTables.has(key);
+                            return `
+                                <div class="table-item ${isExpanded ? 'table-item--expanded' : ''}" data-key="${key}">
+                                    <div class="table-header" onclick="toggleTable('${key}')">
+                                        <div class="table-info-main">
+                                            <span class="expand-icon">${isExpanded ? '▼' : '▶'}</span>
+                                            <span class="table-name">${table.name}</span>
+                                            <span class="table-rows">${table.row_count.toLocaleString()} rows</span>
+                                        </div>
+                                        <div class="table-actions">
+                                            <span class="table-size">${table.size_mb.toFixed(2)} MB</span>
+                                            <span class="table-schema">${table.schema}</span>
+                                        </div>
+                                    </div>
+                                    ${isExpanded ? `
+                                        <div class="table-details">
+                                            <div class="table-detail-grid">
+                                                <div class="detail-item"><span class="detail-label">Schema:</span><span class="detail-value">${table.schema}</span></div>
+                                                <div class="detail-item"><span class="detail-label">Type:</span><span class="detail-value">${table.type}</span></div>
+                                                <div class="detail-item"><span class="detail-label">Row Count:</span><span class="detail-value">${table.row_count.toLocaleString()}</span></div>
+                                                <div class="detail-item"><span class="detail-label">Size:</span><span class="detail-value">${table.size_mb.toFixed(2)} MB</span></div>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
                 </div>
             `;
         }
         
+        function toggleTable(key) {
+            if (expandedTables.has(key)) {
+                expandedTables.delete(key);
+            } else {
+                expandedTables.add(key);
+            }
+            if (isConnected && selectedSite) {
+                renderDatabaseInfo(selectedSite);
+            }
+        }
+        
         function clearDatabaseInfo() {
+            expandedTables.clear();
             document.getElementById('database-list').innerHTML = `
                 <div class="no-connection">
                     <span class="no-connection-icon">📂</span>
@@ -1700,7 +1631,37 @@
         }
         
         function refreshDatabaseInfo() {
-            if (isConnected && selectedSite) renderDatabaseInfo(selectedSite);
+            if (!isConnected || !selectedSite) return;
+            const btn = document.getElementById('db-refresh-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Refreshing...';
+            
+            setTimeout(() => {
+                renderDatabaseInfo(selectedSite);
+                btn.disabled = false;
+                btn.textContent = '🔄 Refresh';
+            }, 800);
+        }
+        
+        function exportDatabaseStatus() {
+            if (!isConnected) {
+                alert('No database connected');
+                return;
+            }
+            const site = siteProfiles.find(s => s.id === selectedSite);
+            const exportData = {
+                exported_at: new Date().toISOString(),
+                site: site,
+                tables: mockTables
+            };
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `database_status_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
         }
         
         function enableSidebarIcons() {
@@ -1755,9 +1716,7 @@
                         </div>
                         <div class="icon-options">
                             ${icons.map((icon, idx) => `
-                                <div class="icon-option ${idx === currentIdx ? 'selected' : ''}" 
-                                     data-menu="${menuKey}" data-index="${idx}"
-                                     onclick="selectIcon('${menuKey}', ${idx})">
+                                <div class="icon-option ${idx === currentIdx ? 'selected' : ''}" data-menu="${menuKey}" data-index="${idx}" onclick="selectIcon('${menuKey}', ${idx})">
                                     <svg viewBox="0 0 24 24">${icon}</svg>
                                 </div>
                             `).join('')}
@@ -1794,37 +1753,30 @@
         }
 
         // =============================================
-        // Dev Mode Toggle
+        // Dev Mode & Sidebar
         // =============================================
         function toggleDevMode() {
             devModeEnabled = !devModeEnabled;
             const layoutBtn = document.getElementById('btn-layout');
-            const devModeLabel = document.getElementById('dev-mode-label');
-            
+            const label = document.getElementById('dev-mode-label');
             if (devModeEnabled) {
                 layoutBtn.classList.remove('hidden');
                 if (isConnected) layoutBtn.classList.remove('disabled');
-                devModeLabel.textContent = 'Dev Mode: ON';
+                label.textContent = 'Dev Mode: ON';
             } else {
                 layoutBtn.classList.add('hidden');
-                devModeLabel.textContent = 'Dev Mode: OFF';
+                label.textContent = 'Dev Mode: OFF';
             }
         }
 
-        // =============================================
-        // Sidebar Events
-        // =============================================
         function setupSidebarEvents() {
-            const buttons = document.querySelectorAll('.icon-btn');
-            
-            buttons.forEach(btn => {
-                btn.addEventListener('click', function(e) {
+            document.querySelectorAll('.icon-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
                     if (this.classList.contains('disabled')) return;
-                    if (this.closest('.has-submenu') && this.id !== 'btn-connection') return;
                     if (this.id === 'btn-connection') { openConnectionModal(); return; }
                     if (this.id === 'btn-settings') return;
-                    
-                    buttons.forEach(b => b.classList.remove('selected'));
+                    if (this.closest('.has-submenu')) return;
+                    document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
                     this.classList.add('selected');
                     setMode(this.dataset.mode);
                 });
@@ -1843,34 +1795,21 @@
             currentSubMode = null;
             document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
             document.getElementById('current-submode').textContent = '';
-            
-            const debugBtn = document.getElementById('btn-debug');
-            if (mode === 'monitoring') {
-                debugBtn.classList.add('disabled');
-            } else if (isConnected) {
-                debugBtn.classList.remove('disabled');
-            }
         }
 
         function setSubMode(mode, submode) {
             currentMode = mode;
             currentSubMode = submode;
-            
             document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
             if (mode === 'monitoring') document.getElementById('btn-monitoring').classList.add('selected');
-            
             document.querySelectorAll('.submenu-item').forEach(item => {
                 item.classList.toggle('active', item.dataset.submode === submode);
             });
-            
             document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
             const labels = { '3d-view': '3D View', 'ranking-view': 'Ranking View', 'general': 'General', 'icon': 'Icon', 'dev-mode': 'Dev Mode' };
             document.getElementById('current-submode').textContent = `→ ${labels[submode] || submode}`;
         }
 
-        // =============================================
-        // Performance Simulation
-        // =============================================
         function startPerformanceSimulation() {
             setInterval(() => {
                 const fps = 58 + Math.floor(Math.random() * 5);
@@ -1878,34 +1817,23 @@
                 const bar = document.getElementById('fps-bar');
                 bar.style.width = `${Math.min(100, (fps / 60) * 100)}%`;
                 bar.className = 'perf-bar-fill ' + (fps >= 50 ? 'good' : fps >= 30 ? 'medium' : 'bad');
-                
                 const mem = 128 + Math.floor((Math.random() - 0.5) * 20);
                 document.getElementById('memory-value').textContent = mem;
                 document.getElementById('memory-bar').style.width = `${Math.min(100, (mem / 500) * 100)}%`;
             }, 2000);
         }
 
-        // =============================================
         // Keyboard Shortcuts
-        // =============================================
         document.addEventListener('keydown', (e) => {
             if (e.target.matches('input, textarea')) return;
             const key = e.key.toLowerCase();
-            
-            if ((e.ctrlKey || e.metaKey) && key === 'k') {
-                e.preventDefault();
-                toggleConnectionModal();
-                return;
-            }
-            
+            if ((e.ctrlKey || e.metaKey) && key === 'k') { e.preventDefault(); toggleConnectionModal(); return; }
             if (key === 'escape') {
                 if (document.getElementById('icon-modal').classList.contains('active')) closeIconModal();
                 else if (document.getElementById('connection-modal').classList.contains('active')) closeConnectionModal();
                 return;
             }
-            
             if (!isConnected) return;
-            
             switch(key) {
                 case 'm': if (!document.getElementById('btn-monitoring').classList.contains('disabled')) document.getElementById('btn-monitoring').click(); break;
                 case 'a': if (!document.getElementById('btn-analysis').classList.contains('disabled')) document.getElementById('btn-analysis').click(); break;
@@ -1915,8 +1843,8 @@
         });
 
         document.addEventListener('DOMContentLoaded', init);
-        console.log('🧪 Sidebar Test v2.5 Loaded');
-        console.log('Changes: Dark/Light theme toggle, Settings submenu bottom-aligned');
+        console.log('🧪 Sidebar Test v2.6 Loaded');
+        console.log('Features: Full parity with main branch ConnectionModal');
     </script>
 
 </body>
