@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.7</title>
+    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.8</title>
+    
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <style>
         /* =============================================
            MIGRATION GUIDE - CSS Variables
            ===========================================
            [MIGRATE TO] src/styles/variables.css
-           - All CSS custom properties (--bg-*, --text-*, etc.)
-           - Theme definitions (dark/light)
            ============================================= */
         
         /* Dark Theme (Default) */
@@ -96,12 +97,7 @@
         
         /* =============================================
            MIGRATION GUIDE - Sidebar Component
-           ===========================================
            [MIGRATE TO] src/ui/sidebar/Sidebar.js
-           [MIGRATE TO] src/styles/components/sidebar.css
-           - Sidebar container styles
-           - Icon button styles
-           - Submenu system
            ============================================= */
         .sidebar {
             width: 80px;
@@ -140,15 +136,7 @@
             transition: all var(--transition-speed);
         }
 
-        /* =============================================
-           MIGRATION GUIDE - Icon Interaction States
-           ===========================================
-           [MIGRATE TO] src/styles/components/sidebar.css
-           - Hover effects
-           - Selected state
-           - Disabled state
-           - Float animation
-           ============================================= */
+        /* Icon Interaction States */
         .icon-btn:not(.selected):not(.disabled):hover {
             transform: scale(1.1) translateY(-3px);
         }
@@ -199,22 +187,16 @@
             stroke: var(--icon-disabled);
         }
 
-        .icon-btn.hidden {
-            display: none !important;
-        }
+        .icon-btn.hidden { display: none !important; }
 
         /* =============================================
            MIGRATION GUIDE - Submenu System
-           ===========================================
            [MIGRATE TO] src/ui/sidebar/Submenu.js
-           [MIGRATE TO] src/styles/components/submenu.css
-           - Submenu container
-           - Submenu items
-           - Position variants (top/bottom aligned)
+           
+           [v2.8 FIX] Submenu items: Normal by default, 
+           Active color only when .active class is present
            ============================================= */
-        .has-submenu {
-            position: relative;
-        }
+        .has-submenu { position: relative; }
         
         .submenu {
             position: absolute;
@@ -233,11 +215,7 @@
             z-index: 100;
         }
         
-        /* [IMPORTANT] Settings submenu: bottom-aligned with icon */
-        #btn-settings-wrapper .submenu {
-            top: auto;
-            bottom: 0;
-        }
+        #btn-settings-wrapper .submenu { top: auto; bottom: 0; }
         
         .has-submenu:not(.disabled):hover .submenu,
         .has-submenu:not(.disabled).submenu-open .submenu {
@@ -246,19 +224,19 @@
             transform: translateX(0);
         }
         
-        /* [IMPORTANT] Disabled state prevents submenu from showing */
         .has-submenu.disabled .submenu {
             opacity: 0 !important;
             visibility: hidden !important;
             pointer-events: none !important;
         }
         
+        /* [v2.8] Submenu item - NORMAL state by default */
         .submenu-item {
             display: flex;
             align-items: center;
             gap: 10px;
             padding: 10px 16px;
-            color: var(--text-secondary);
+            color: var(--text-secondary);  /* Normal: secondary color */
             font-size: 13px;
             cursor: pointer;
             transition: all 0.15s;
@@ -269,10 +247,11 @@
         }
         
         .submenu-item:hover {
-            background: var(--bg-selected);
+            background: var(--bg-hover);
             color: var(--text-primary);
         }
         
+        /* [v2.8] Submenu item - ACTIVE state only with .active class */
         .submenu-item.active {
             background: var(--bg-selected);
             color: var(--icon-selected);
@@ -286,19 +265,15 @@
             fill: none;
         }
         
-        .submenu-divider {
-            height: 1px;
-            background: var(--border-color);
-            margin: 6px 12px;
+        /* [v2.8] Disabled submenu item */
+        .submenu-item.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            pointer-events: none;
         }
         
-        .submenu-header {
-            padding: 6px 16px;
-            font-size: 10px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+        .submenu-divider { height: 1px; background: var(--border-color); margin: 6px 12px; }
+        .submenu-header { padding: 6px 16px; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
         
         .has-submenu::after {
             content: '';
@@ -311,121 +286,26 @@
             opacity: 0.5;
         }
         
-        .has-submenu:not(.disabled):hover::after {
-            border-left-color: var(--icon-selected);
-            opacity: 1;
-        }
+        .has-submenu:not(.disabled):hover::after { border-left-color: var(--icon-selected); opacity: 1; }
+        .has-submenu.disabled::after { border-left-color: var(--icon-disabled); opacity: 0.3; }
         
-        .has-submenu.disabled::after {
-            border-left-color: var(--icon-disabled);
-            opacity: 0.3;
-        }
-        
-        /* =============================================
-           MIGRATION GUIDE - Always Normal State Icons
-           ===========================================
-           [NOTE] Connection & Settings icons never show
-           selected state - they always appear "normal"
-           ============================================= */
-        #btn-connection,
-        #btn-settings-wrapper .icon-btn {
-            transform: none !important;
-        }
-        #btn-connection::before,
-        #btn-settings-wrapper .icon-btn::before {
-            display: none !important;
-        }
-        #btn-connection svg,
-        #btn-settings-wrapper .icon-btn svg {
-            stroke: var(--icon-normal) !important;
-            filter: none !important;
-        }
-        #btn-connection:hover svg,
-        #btn-settings-wrapper .icon-btn:hover svg {
-            stroke: var(--icon-hover) !important;
-            filter: drop-shadow(0 0 3px var(--glow-color)) !important;
-        }
-        #btn-connection:hover,
-        #btn-settings-wrapper:hover .icon-btn {
-            transform: scale(1.1) translateY(-3px) !important;
-        }
+        /* Always Normal State Icons */
+        #btn-connection, #btn-settings-wrapper .icon-btn { transform: none !important; }
+        #btn-connection::before, #btn-settings-wrapper .icon-btn::before { display: none !important; }
+        #btn-connection svg, #btn-settings-wrapper .icon-btn svg { stroke: var(--icon-normal) !important; filter: none !important; }
+        #btn-connection:hover svg, #btn-settings-wrapper .icon-btn:hover svg { stroke: var(--icon-hover) !important; filter: drop-shadow(0 0 3px var(--glow-color)) !important; }
+        #btn-connection:hover, #btn-settings-wrapper:hover .icon-btn { transform: scale(1.1) translateY(-3px) !important; }
 
-        /* =============================================
-           MIGRATION GUIDE - Theme Toggle
-           ===========================================
-           [MIGRATE TO] src/ui/settings/ThemeToggle.js
-           [MIGRATE TO] src/styles/components/theme-toggle.css
-           ============================================= */
-        .theme-toggle-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 16px;
-            color: var(--text-secondary);
-            font-size: 13px;
-        }
-        
-        .theme-toggle-label {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .theme-toggle-label svg {
-            width: 18px;
-            height: 18px;
-            stroke: currentColor;
-            stroke-width: 1.5px;
-            fill: none;
-        }
-        
-        .theme-switch {
-            position: relative;
-            width: 44px;
-            height: 24px;
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .theme-switch::before {
-            content: '';
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 18px;
-            height: 18px;
-            background: var(--icon-normal);
-            border-radius: 50%;
-            transition: all 0.3s ease;
-        }
-        
-        .theme-switch.active {
-            background: var(--icon-selected);
-            border-color: var(--icon-selected);
-        }
-        
-        .theme-switch.active::before {
-            left: 22px;
-            background: white;
-        }
-        
-        .theme-icons {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-left: 8px;
-        }
-        
-        .theme-icons svg {
-            width: 14px;
-            height: 14px;
-            stroke: var(--text-muted);
-            transition: all 0.3s ease;
-        }
-        
+        /* Theme Toggle */
+        .theme-toggle-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; color: var(--text-secondary); font-size: 13px; }
+        .theme-toggle-label { display: flex; align-items: center; gap: 10px; }
+        .theme-toggle-label svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5px; fill: none; }
+        .theme-switch { position: relative; width: 44px; height: 24px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.3s ease; }
+        .theme-switch::before { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: var(--icon-normal); border-radius: 50%; transition: all 0.3s ease; }
+        .theme-switch.active { background: var(--icon-selected); border-color: var(--icon-selected); }
+        .theme-switch.active::before { left: 22px; background: white; }
+        .theme-icons { display: flex; align-items: center; gap: 6px; margin-left: 8px; }
+        .theme-icons svg { width: 14px; height: 14px; stroke: var(--text-muted); transition: all 0.3s ease; }
         .theme-icons .icon-sun { stroke: var(--text-warning); opacity: 0.5; }
         .theme-icons .icon-moon { stroke: var(--icon-selected); }
         [data-theme="light"] .theme-icons .icon-sun { opacity: 1; }
@@ -433,74 +313,356 @@
 
         /* =============================================
            MIGRATION GUIDE - Main Content Area
-           ===========================================
            [MIGRATE TO] src/styles/layout.css
+           
+           [v2.8] Three.js canvas container for 3D View
            ============================================= */
         .main-content {
             flex-grow: 1;
             background: var(--bg-main-gradient);
-            padding: 40px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
             color: var(--text-primary);
             margin-bottom: var(--status-bar-height);
             transition: background 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        .main-content h1 {
-            font-size: 32px;
-            margin-bottom: 16px;
-            background: linear-gradient(135deg, #06B6D4, #8B5CF6);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+        /* [v2.8] Three.js Canvas Container */
+        #threejs-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
         }
 
-        .main-content p {
-            color: var(--text-secondary);
+        /* [v2.8] Overlay UI on top of Three.js */
+        .overlay-ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
-        .current-mode {
-            margin-top: 40px;
-            padding: 20px 40px;
+        .mode-indicator {
+            padding: 12px 20px;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+        }
+
+        .mode-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .mode-value { font-size: 18px; font-weight: bold; color: var(--icon-selected); }
+        .submode-value { font-size: 12px; color: var(--text-secondary); }
+
+        /* [v2.8] Test Controls Panel */
+        .test-controls {
+            padding: 16px;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            max-width: 280px;
+        }
+
+        .test-controls h4 {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .test-btn {
+            display: block;
+            width: 100%;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 12px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .test-btn:hover {
             background: var(--bg-selected);
+            border-color: var(--icon-selected);
+        }
+
+        .test-btn-icon { margin-right: 8px; }
+
+        /* =============================================
+           MIGRATION GUIDE - Equipment Info Panel
+           [MIGRATE TO] src/ui/EquipmentInfoPanel.js
+           [MIGRATE TO] src/styles/components/equipment-info.css
+           
+           [v2.8] Full implementation based on main branch
+           ============================================= */
+        #equipmentInfo {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            width: 320px;
+            background: var(--bg-panel);
             border: 1px solid var(--border-color);
             border-radius: 12px;
-            text-align: center;
+            box-shadow: 0 10px 40px var(--shadow-color);
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateX(20px);
+            transition: all 0.3s ease;
         }
 
-        .mode-label {
-            font-size: 12px;
-            color: var(--text-secondary);
+        #equipmentInfo.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(0);
+        }
+
+        .equipment-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-subtle);
+            background: var(--bg-panel-header);
+            border-radius: 12px 12px 0 0;
+        }
+
+        .equipment-panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .equipment-panel-title.multi-select {
+            color: var(--icon-selected);
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: var(--bg-input);
+            border-radius: 12px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.run { background: var(--text-success); box-shadow: 0 0 8px var(--text-success); }
+        .status-indicator.idle { background: var(--text-warning); box-shadow: 0 0 8px var(--text-warning); }
+        .status-indicator.stop { background: var(--text-alarm); box-shadow: 0 0 8px var(--text-alarm); }
+        .status-indicator.disconnected { background: var(--text-muted); }
+
+        .status-text {
+            font-size: 11px;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 1px;
+        }
+
+        .status-text.run { color: var(--text-success); }
+        .status-text.idle { color: var(--text-warning); }
+        .status-text.stop { color: var(--text-alarm); }
+        .status-text.disconnected { color: var(--text-muted); }
+
+        .close-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 24px;
+            height: 24px;
+            background: var(--bg-input);
+            border: none;
+            border-radius: 6px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .close-btn:hover {
+            background: rgba(248, 113, 113, 0.2);
+            color: var(--text-alarm);
+        }
+
+        /* Equipment Panel Tabs */
+        .equipment-panel-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 0 16px;
+        }
+
+        .equipment-tab {
+            padding: 10px 16px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 12px;
+            cursor: pointer;
+            position: relative;
+            transition: color 0.2s;
+        }
+
+        .equipment-tab:hover { color: var(--text-primary); }
+
+        .equipment-tab.active {
+            color: var(--icon-selected);
+        }
+
+        .equipment-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--icon-selected);
+        }
+
+        /* Equipment Panel Content */
+        .equipment-panel-content {
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .equipment-tab-content {
+            display: none;
+        }
+
+        .equipment-tab-content.active {
+            display: block;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .info-value {
+            font-size: 12px;
+            color: var(--text-primary);
+            font-family: 'Consolas', monospace;
+        }
+
+        .info-row-divider {
+            height: 1px;
+            background: var(--border-subtle);
+            margin: 8px 0;
+        }
+
+        .info-row-meta { opacity: 0.7; }
+        .info-value-meta { font-size: 10px; }
+
+        .info-row.unmapped-notice,
+        .info-row.error-notice {
+            background: rgba(248, 113, 113, 0.1);
+            padding: 10px 12px;
+            border-radius: 6px;
             margin-bottom: 8px;
         }
 
-        .mode-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--icon-selected);
+        .info-icon { margin-right: 8px; }
+        .info-text { font-size: 12px; color: var(--text-secondary); }
+
+        .multi-select-header {
+            background: var(--bg-selected);
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
         }
-        
-        .submode-value {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-top: 4px;
+
+        .info-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            background: var(--icon-selected);
+            color: white;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+
+        .status-counts {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .status-count-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: var(--bg-input);
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .status-count-item.run { color: var(--text-success); }
+        .status-count-item.idle { color: var(--text-warning); }
+        .status-count-item.stop { color: var(--text-alarm); }
+
+        .loading-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 40px;
+        }
+
+        .loading-spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--icon-selected);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading-text {
+            font-size: 12px;
+            color: var(--text-muted);
         }
 
         /* =============================================
            MIGRATION GUIDE - Status Bar
-           ===========================================
            [MIGRATE TO] src/ui/StatusBar.js
-           [MIGRATE TO] src/styles/components/status-bar.css
-           
-           [v2.7 CHANGES]
-           - Country code display (KR, CN, US, etc.) instead of "User"
-           - Internet connection status added
-           - Performance gauges moved to right, width reduced 30%
            ============================================= */
         .status-bar {
             position: fixed;
@@ -527,21 +689,12 @@
         .status-dot.disconnected { background-color: var(--text-alarm); box-shadow: 0 0 4px var(--text-alarm); }
         .status-label { color: var(--text-muted); font-size: 9px; text-transform: uppercase; }
         .status-value { color: var(--text-normal); font-weight: 500; font-size: 11px; }
-        
-        /* [v2.7] Performance bar width reduced by 30% (50px -> 35px) */
         .perf-bar { width: 35px; height: 4px; background: var(--bg-input); border-radius: 2px; overflow: hidden; }
         .perf-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s, background 0.3s; }
         .perf-bar-fill.good { background: var(--text-success); }
         .perf-bar-fill.medium { background: var(--text-warning); }
         .perf-bar-fill.bad { background: var(--text-alarm); }
-        
-        /* [v2.7] Country code display style */
-        .country-code {
-            font-weight: 700;
-            font-size: 12px;
-            color: var(--icon-selected);
-            letter-spacing: 1px;
-        }
+        .country-code { font-weight: 700; font-size: 12px; color: var(--icon-selected); letter-spacing: 1px; }
 
         /* Tooltip */
         .icon-btn[data-tooltip]::after {
@@ -562,19 +715,14 @@
             border: 1px solid var(--border-color);
         }
 
-        .icon-btn:not(.has-submenu):hover[data-tooltip]::after {
-            opacity: 1;
-            transform: translateX(0);
-        }
+        .icon-btn:not(.has-submenu):hover[data-tooltip]::after { opacity: 1; transform: translateX(0); }
 
         .sidebar-divider { width: 40px; height: 1px; background: var(--border-color); margin: 8px 0; }
         .sidebar-spacer { flex-grow: 1; }
         
         /* =============================================
            MIGRATION GUIDE - Toast Notification
-           ===========================================
            [MIGRATE TO] src/ui/common/Toast.js
-           [MIGRATE TO] src/styles/components/toast.css
            ============================================= */
         .toast-container {
             position: fixed;
@@ -600,639 +748,118 @@
             animation: slideIn 0.3s ease;
         }
         
-        .toast.hiding {
-            animation: slideOut 0.3s ease forwards;
-        }
+        .toast.hiding { animation: slideOut 0.3s ease forwards; }
         
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
         
-        @keyframes slideOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
-        }
-        
-        .toast-icon {
-            font-size: 20px;
-            flex-shrink: 0;
-        }
-        
-        .toast-content {
-            flex: 1;
-        }
-        
-        .toast-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 2px;
-        }
-        
-        .toast-message {
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-        
-        .toast-close {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 4px;
-            font-size: 16px;
-            transition: color 0.2s;
-        }
-        
-        .toast-close:hover {
-            color: var(--text-primary);
-        }
+        .toast-icon { font-size: 20px; flex-shrink: 0; }
+        .toast-content { flex: 1; }
+        .toast-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+        .toast-message { font-size: 12px; color: var(--text-secondary); }
+        .toast-close { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; font-size: 16px; transition: color 0.2s; }
+        .toast-close:hover { color: var(--text-primary); }
         
         .toast.success { border-left: 4px solid var(--text-success); }
         .toast.error { border-left: 4px solid var(--text-alarm); }
         .toast.warning { border-left: 4px solid var(--text-warning); }
         .toast.info { border-left: 4px solid var(--icon-selected); }
-        
-        /* =============================================
-           MIGRATION GUIDE - Modal System
-           ===========================================
-           [MIGRATE TO] src/core/base/BaseModal.js
-           [MIGRATE TO] src/styles/components/modal.css
-           ============================================= */
+
+        /* Modal Styles - Compact version */
         .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease;
         }
-        
-        .modal-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-        
+        .modal-overlay.active { opacity: 1; visibility: visible; }
         .modal-container {
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            width: 90%;
-            max-width: 700px;
-            max-height: 85vh;
-            overflow: hidden;
-            box-shadow: 0 25px 50px var(--shadow-color);
-            transform: scale(0.9) translateY(20px);
-            transition: transform 0.3s ease, background 0.3s ease;
+            background: var(--bg-panel); border: 1px solid var(--border-color);
+            border-radius: 16px; width: 90%; max-width: 700px; max-height: 85vh;
+            overflow: hidden; box-shadow: 0 25px 50px var(--shadow-color);
+            transform: scale(0.9) translateY(20px); transition: transform 0.3s ease;
         }
-        
-        .modal-overlay.active .modal-container {
-            transform: scale(1) translateY(0);
-        }
-        
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--border-color);
-            background: var(--bg-panel-header);
-        }
-        
-        .modal-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .modal-close {
-            width: 32px;
-            height: 32px;
-            border: none;
-            background: var(--bg-input);
-            border-radius: 8px;
-            color: var(--text-secondary);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-        
-        .modal-close:hover {
-            background: rgba(248, 113, 113, 0.2);
-            color: var(--text-alarm);
-        }
-        
-        .modal-body {
-            padding: 24px;
-            overflow-y: auto;
-            max-height: calc(85vh - 140px);
-        }
-        
-        .modal-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 24px;
-            border-top: 1px solid var(--border-color);
-            background: var(--bg-panel-header);
-        }
-        
+        .modal-overlay.active .modal-container { transform: scale(1) translateY(0); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-panel-header); }
+        .modal-title { font-size: 18px; font-weight: 600; color: var(--text-primary); }
+        .modal-close { width: 32px; height: 32px; border: none; background: var(--bg-input); border-radius: 8px; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .modal-close:hover { background: rgba(248, 113, 113, 0.2); color: var(--text-alarm); }
+        .modal-body { padding: 24px; overflow-y: auto; max-height: calc(85vh - 140px); }
+        .modal-footer { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid var(--border-color); background: var(--bg-panel-header); }
         .footer-hint { font-size: 11px; color: var(--text-muted); }
-        
-        .btn-secondary {
-            padding: 10px 20px;
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            color: var(--text-primary);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
+        .btn-secondary { padding: 10px 20px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); cursor: pointer; }
         .btn-secondary:hover { background: var(--bg-hover); }
-        
-        .btn-primary {
-            padding: 10px 20px;
-            background: linear-gradient(135deg, #06B6D4, #0891B2);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .btn-primary:hover:not(:disabled) {
-            box-shadow: 0 0 20px var(--glow-color);
-        }
-        
-        .btn-primary:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        /* =============================================
-           MIGRATION GUIDE - Connection Panel Styles
-           ===========================================
-           [MIGRATE TO] src/ui/ConnectionStatusPanel.js
-           [MIGRATE TO] src/ui/SiteSelectionPanel.js
-           [MIGRATE TO] src/ui/DatabaseListPanel.js
-           [MIGRATE TO] src/styles/components/connection-panel.css
-           ============================================= */
-        .connection-panel {
-            background: var(--bg-panel-header);
-            border: 1px solid var(--border-subtle);
-            border-radius: 12px;
-            margin-bottom: 16px;
-            overflow: hidden;
-        }
-        
-        .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 14px 16px;
-            background: var(--bg-panel-header);
-            border-bottom: 1px solid var(--border-subtle);
-        }
-        
-        .panel-header h3 {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-        
-        .panel-actions {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-        
-        /* [v2.7] Internet Connection Status in Modal */
-        .internet-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 16px;
-            background: var(--bg-input);
-            border-radius: 8px;
-            margin-bottom: 16px;
-        }
-        
-        .internet-status .status-dot {
-            width: 10px;
-            height: 10px;
-        }
-        
-        .internet-status-text {
-            font-size: 13px;
-            color: var(--text-primary);
-        }
-        
-        .internet-status-detail {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-left: auto;
-        }
-        
-        /* API Status Panel */
-        .api-status-content {
-            padding: 16px;
-        }
-        
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-            padding: 12px;
-            background: var(--bg-input);
-            border-radius: 8px;
-        }
-        
-        .status-indicator .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        
+
+        /* Connection Panel Styles - Compact */
+        .connection-panel { background: var(--bg-panel-header); border: 1px solid var(--border-subtle); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: var(--bg-panel-header); border-bottom: 1px solid var(--border-subtle); }
+        .panel-header h3 { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .panel-actions { display: flex; gap: 8px; align-items: center; }
+        .internet-status { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-input); border-radius: 8px; margin-bottom: 16px; }
+        .internet-status .status-dot { width: 10px; height: 10px; }
+        .internet-status-text { font-size: 13px; color: var(--text-primary); }
+        .internet-status-detail { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+        .api-status-content { padding: 16px; }
+        .status-indicator-box { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px; background: var(--bg-input); border-radius: 8px; }
+        .status-indicator-box .status-dot { width: 12px; height: 12px; border-radius: 50%; animation: pulse 2s infinite; }
         .status-dot--connected { background: var(--text-success); box-shadow: 0 0 10px var(--text-success); }
         .status-dot--disconnected { background: var(--text-alarm); box-shadow: 0 0 10px var(--text-alarm); }
-        .status-dot--degraded { background: var(--text-warning); box-shadow: 0 0 10px var(--text-warning); }
         .status-dot--checking { background: var(--text-muted); }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .status-text { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-        .status-text--connected { color: var(--text-success); }
-        .status-text--disconnected { color: var(--text-alarm); }
-        .status-text--degraded { color: var(--text-warning); }
-        
-        .status-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-        
-        .status-detail {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        
+        .status-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .status-detail { display: flex; flex-direction: column; gap: 4px; }
         .detail-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
         .detail-value { font-size: 13px; color: var(--text-primary); font-family: 'Consolas', monospace; }
-        .detail-value--error { color: var(--text-alarm); }
-        
-        /* Site Selection Panel */
-        .site-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            padding: 16px;
-        }
-        
-        .site-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 14px;
-            background: var(--bg-input);
-            border: 1px solid var(--border-subtle);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .site-item:hover {
-            background: var(--bg-hover);
-            border-color: var(--border-color);
-        }
-        
-        .site-item.site-item--selected {
-            background: var(--bg-selected);
-            border-color: var(--icon-selected);
-        }
-        
-        .site-item.site-item--connected {
-            background: rgba(74, 222, 128, 0.1);
-            border-color: var(--text-success);
-        }
-        
-        .site-checkbox input {
-            width: 16px;
-            height: 16px;
-            accent-color: var(--icon-selected);
-        }
-        
+        .site-list { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
+        .site-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+        .site-item:hover { background: var(--bg-hover); border-color: var(--border-color); }
+        .site-item.site-item--selected { background: var(--bg-selected); border-color: var(--icon-selected); }
+        .site-item.site-item--connected { background: rgba(74, 222, 128, 0.1); border-color: var(--text-success); }
+        .site-checkbox input { width: 16px; height: 16px; accent-color: var(--icon-selected); }
         .site-info { flex: 1; }
         .site-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .site-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
         .site-region { font-size: 11px; padding: 2px 8px; background: var(--bg-hover); border-radius: 4px; color: var(--text-secondary); }
-        .site-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+        .site-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: flex; gap: 12px; }
         .site-status { display: flex; align-items: center; gap: 8px; }
-        .status-icon { font-size: 16px; }
-        
-        .btn-disconnect, .btn-retry {
-            padding: 4px 10px;
-            font-size: 11px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .btn-disconnect {
-            background: rgba(248, 113, 113, 0.2);
-            color: var(--text-alarm);
-        }
-        .btn-disconnect:hover { background: rgba(248, 113, 113, 0.3); }
-        
-        .btn-retry {
-            background: rgba(251, 191, 36, 0.2);
-            color: var(--text-warning);
-        }
-        .btn-retry:hover { background: rgba(251, 191, 36, 0.3); }
-        
-        .panel-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            border-top: 1px solid var(--border-subtle);
-            background: var(--bg-panel-header);
-        }
-        
+        .btn-disconnect, .btn-retry { padding: 4px 10px; font-size: 11px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-disconnect { background: rgba(248, 113, 113, 0.2); color: var(--text-alarm); }
+        .btn-retry { background: rgba(251, 191, 36, 0.2); color: var(--text-warning); }
+        .panel-footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border-subtle); background: var(--bg-panel-header); }
         .selection-info { font-size: 12px; color: var(--text-secondary); }
-        
-        .btn-connect, .btn-refresh-styled {
-            padding: 10px 20px;
-            background: linear-gradient(135deg, #06B6D4, #0891B2);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 13px;
-        }
-        
-        .btn-connect:hover:not(:disabled),
-        .btn-refresh-styled:hover:not(:disabled) {
-            box-shadow: 0 0 20px var(--glow-color);
-        }
-        
-        .btn-connect:disabled,
-        .btn-refresh-styled:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .auto-connect-label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 11px;
-            color: var(--text-secondary);
-            cursor: pointer;
-        }
-        
+        .btn-connect, .btn-refresh-styled { padding: 10px 20px; background: linear-gradient(135deg, #06B6D4, #0891B2); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; font-size: 13px; }
+        .btn-connect:hover:not(:disabled), .btn-refresh-styled:hover:not(:disabled) { box-shadow: 0 0 20px var(--glow-color); }
+        .btn-connect:disabled, .btn-refresh-styled:disabled { opacity: 0.5; cursor: not-allowed; }
+        .auto-connect-label { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
         .auto-connect-label input { accent-color: var(--icon-selected); }
-        
-        .btn-icon {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-            padding: 4px 8px;
-            opacity: 0.7;
-            transition: opacity 0.2s;
-            border-radius: 4px;
-        }
-        
+        .btn-icon { background: none; border: none; cursor: pointer; font-size: 14px; padding: 4px 8px; opacity: 0.7; border-radius: 4px; }
         .btn-icon:hover { opacity: 1; background: var(--bg-hover); }
-        
-        /* Database List Panel */
-        .database-item {
-            padding: 16px;
-        }
-        
-        .database-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        
+        .database-item { padding: 16px; }
+        .database-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .database-header h4 { font-size: 14px; color: var(--text-primary); }
         .database-stats { display: flex; gap: 16px; }
         .stat-item { display: flex; gap: 4px; font-size: 12px; }
         .stat-label { color: var(--text-muted); }
         .stat-value { color: var(--icon-selected); font-weight: 600; }
-        
-        .connection-info {
-            display: flex;
-            gap: 8px;
-            padding: 8px 0;
-            font-size: 12px;
-            border-bottom: 1px solid var(--border-subtle);
-            margin-bottom: 12px;
-        }
-        
-        .info-label { color: var(--text-muted); }
-        .info-value { color: var(--text-secondary); }
-        
-        .table-list { display: flex; flex-direction: column; gap: 4px; }
-        
-        .table-item {
-            background: var(--bg-input);
-            border-radius: 6px;
-            overflow: hidden;
-        }
-        
-        .table-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 12px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        
-        .table-header:hover { background: var(--bg-hover); }
-        
-        .table-info-main { display: flex; align-items: center; gap: 8px; }
-        .expand-icon { font-size: 10px; color: var(--text-muted); width: 12px; }
-        .table-name { font-size: 13px; color: var(--text-primary); font-family: 'Consolas', monospace; }
-        .table-rows { font-size: 11px; color: var(--text-muted); }
-        .table-actions { display: flex; gap: 8px; align-items: center; }
-        .table-size { font-size: 11px; color: var(--icon-selected); }
-        .table-schema { font-size: 10px; padding: 2px 6px; background: var(--bg-hover); border-radius: 3px; color: var(--text-muted); }
-        
-        .table-details {
-            padding: 12px;
-            background: var(--bg-panel-header);
-            border-top: 1px solid var(--border-subtle);
-        }
-        
-        .table-detail-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-        
-        .no-connection {
-            text-align: center;
-            padding: 32px;
-            color: var(--text-muted);
-        }
-        
-        .no-connection-icon {
-            font-size: 32px;
-            display: block;
-            margin-bottom: 8px;
-        }
-        
-        .no-tables { padding: 12px; text-align: center; color: var(--text-muted); font-size: 12px; }
-        
-        /* =============================================
-           MIGRATION GUIDE - Icon Customization Modal
-           ===========================================
-           [MIGRATE TO] src/ui/settings/IconModal.js
-           [MIGRATE TO] src/styles/components/icon-modal.css
-           ============================================= */
-        #icon-modal .modal-container { max-width: 800px; }
-        
-        .icon-menu-section {
-            background: var(--bg-panel-header);
-            border: 1px solid var(--border-subtle);
-            border-radius: 12px;
-            margin-bottom: 16px;
-            overflow: hidden;
-        }
-        
-        .icon-menu-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 16px;
-            background: var(--bg-panel-header);
-            border-bottom: 1px solid var(--border-subtle);
-        }
-        
-        .icon-menu-header .current-icon {
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--bg-selected);
-            border-radius: 8px;
-        }
-        
-        .icon-menu-header .current-icon svg {
-            width: 20px;
-            height: 20px;
-            stroke: var(--icon-selected);
-            stroke-width: 1.5px;
-            fill: none;
-        }
-        
-        .icon-menu-header h4 {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-primary);
-            flex: 1;
-        }
-        
-        .icon-options {
-            display: flex;
-            gap: 12px;
-            padding: 16px;
-            flex-wrap: wrap;
-        }
-        
-        .icon-option {
-            width: 60px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--bg-input);
-            border: 2px solid transparent;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .icon-option:hover {
-            background: var(--bg-hover);
-            border-color: var(--border-color);
-        }
-        
-        .icon-option.selected {
-            background: var(--bg-selected);
-            border-color: var(--icon-selected);
-        }
-        
-        .icon-option svg {
-            width: 28px;
-            height: 28px;
-            stroke: var(--icon-normal);
-            stroke-width: 1.5px;
-            fill: none;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-        
-        .icon-option.selected svg { stroke: var(--icon-selected); }
-        .icon-option:hover svg { stroke: var(--icon-hover); }
+        .no-connection { text-align: center; padding: 32px; color: var(--text-muted); }
+        .no-connection-icon { font-size: 32px; display: block; margin-bottom: 8px; }
     </style>
 </head>
 <body>
 
-    <!-- =============================================
-         TOAST CONTAINER
-         [v2.7] Added for connection notifications
-         ============================================= -->
     <div class="toast-container" id="toast-container"></div>
 
     <!-- =============================================
-         SIDEBAR COMPONENT v2.7
-         ===========================================
-         [MIGRATION NOTE]
-         - Icon order: Connection → Monitoring → Analysis → Simulation
-         - Divider separates main features from utility (Layout, Debug)
-         - [v2.7] Debug icon moved ABOVE Settings icon
-         - Settings always at bottom with spacer
+         SIDEBAR v2.8
+         [v2.8] Ranking View is disabled
          ============================================= -->
     <aside class="sidebar" id="sidebar">
-        <!-- 1. Database Connection Button (Always Normal) -->
         <button class="icon-btn" id="btn-connection" data-mode="connection" data-tooltip="Database Connection (Ctrl+K)">
             <svg viewBox="0 0 24 24" id="icon-connection">
-                <ellipse cx="7" cy="5" rx="5" ry="2"/><path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/><path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/><ellipse cx="17" cy="11" rx="5" ry="2"/><path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M7 13v2" stroke-dasharray="2 2"/><circle cx="12" cy="17" r="1.5" fill="currentColor" stroke="none"/>
+                <ellipse cx="7" cy="5" rx="5" ry="2"/><path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/><path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/><ellipse cx="17" cy="11" rx="5" ry="2"/><path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/>
             </svg>
         </button>
 
-        <!-- 2. Monitoring Button with Submenu -->
+        <!-- [v2.8] Monitoring with submenu - 3D View active only when clicked -->
         <div class="has-submenu disabled" id="btn-monitoring-wrapper">
             <button class="icon-btn disabled" id="btn-monitoring" data-mode="monitoring" data-tooltip="System Monitoring (M)">
                 <svg viewBox="0 0 24 24" id="icon-monitoring">
@@ -1241,25 +868,25 @@
             </button>
             <div class="submenu" id="monitoring-submenu">
                 <div class="submenu-header">Monitoring Views</div>
-                <button class="submenu-item active" data-submode="3d-view" onclick="setSubMode('monitoring', '3d-view')">
+                <!-- [v2.8] NO .active class by default - only added when clicked -->
+                <button class="submenu-item" id="submenu-3d-view" data-submode="3d-view" onclick="setSubMode('monitoring', '3d-view')">
                     <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                     3D View
                 </button>
-                <button class="submenu-item" data-submode="ranking-view" onclick="setSubMode('monitoring', 'ranking-view')">
+                <!-- [v2.8] Ranking View is DISABLED -->
+                <button class="submenu-item disabled" data-submode="ranking-view">
                     <svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
-                    Ranking View
+                    Ranking View (Coming Soon)
                 </button>
             </div>
         </div>
 
-        <!-- 3. Analysis Button -->
         <button class="icon-btn disabled" id="btn-analysis" data-mode="analysis" data-tooltip="Data Analysis (A)">
             <svg viewBox="0 0 24 24" id="icon-analysis">
                 <path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/><path d="M7 14l4-4 4 4 6-6"/><circle cx="21" cy="8" r="2"/>
             </svg>
         </button>
 
-        <!-- 4. Simulation Button -->
         <button class="icon-btn disabled" id="btn-simulation" data-mode="simulation" data-tooltip="Simulation (S)">
             <svg viewBox="0 0 24 24" id="icon-simulation">
                 <circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/>
@@ -1268,7 +895,6 @@
 
         <div class="sidebar-divider"></div>
 
-        <!-- 5. Layout Button (Dev Mode Only, Hidden by default) -->
         <button class="icon-btn disabled hidden" id="btn-layout" data-mode="layout" data-tooltip="Layout Editor">
             <svg viewBox="0 0 24 24" id="icon-layout">
                 <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
@@ -1277,14 +903,12 @@
 
         <div class="sidebar-spacer"></div>
         
-        <!-- [v2.7] Debug Button - Moved ABOVE Settings -->
         <button class="icon-btn disabled" id="btn-debug" data-mode="debug" data-tooltip="Debug Panel (D)">
             <svg viewBox="0 0 24 24" id="icon-debug">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
             </svg>
         </button>
         
-        <!-- 6. Settings Button with Submenu (Always at bottom, Always Normal) -->
         <div class="has-submenu" id="btn-settings-wrapper">
             <button class="icon-btn" id="btn-settings" data-mode="settings" data-tooltip="Settings">
                 <svg viewBox="0 0 24 24" id="icon-settings">
@@ -1295,7 +919,7 @@
                 <div class="submenu-header">Settings</div>
                 <div class="theme-toggle-item">
                     <div class="theme-toggle-label">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/></svg>
                         <span>Theme</span>
                     </div>
                     <div style="display: flex; align-items: center;">
@@ -1307,16 +931,7 @@
                     </div>
                 </div>
                 <div class="submenu-divider"></div>
-                <button class="submenu-item" data-submode="general" onclick="setSubMode('settings', 'general')">
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2"/><path d="M12 20v2"/></svg>
-                    General
-                </button>
-                <button class="submenu-item" data-submode="icon" onclick="openIconModal()">
-                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                    Icon
-                </button>
-                <div class="submenu-divider"></div>
-                <button class="submenu-item" id="dev-mode-toggle" data-submode="dev-mode" onclick="toggleDevMode()">
+                <button class="submenu-item" id="dev-mode-toggle" onclick="toggleDevMode()">
                     <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                     <span id="dev-mode-label">Dev Mode: OFF</span>
                 </button>
@@ -1325,106 +940,60 @@
         <div style="height: 50px;"></div>
     </aside>
 
-    <!-- =============================================
-         CONNECTION MODAL
-         ===========================================
-         [MIGRATION NOTE]
-         - BaseModal 상속 사용
-         - 3개의 패널: ConnectionStatusPanel, SiteSelectionPanel, DatabaseListPanel
-         - [v2.7] Internet Connection Status 추가됨
-         ============================================= -->
+    <!-- CONNECTION MODAL (Compact) -->
     <div class="modal-overlay" id="connection-modal">
         <div class="modal-container">
             <div class="modal-header">
                 <div class="modal-title">🔌 Database Connection Manager</div>
                 <button class="modal-close" onclick="closeConnectionModal()">✕</button>
             </div>
-            
             <div class="modal-body">
-                <!-- [v2.7] Internet Connection Status -->
                 <div class="internet-status" id="internet-status">
                     <span class="status-dot connected" id="internet-dot"></span>
                     <span class="internet-status-text" id="internet-text">Internet Connected</span>
                     <span class="internet-status-detail" id="internet-detail">Ping: 24ms</span>
                 </div>
-                
-                <!-- API Status Panel -->
                 <div class="connection-panel">
                     <div class="panel-header">
                         <h3>🔌 Backend API Status</h3>
-                        <div class="panel-actions">
-                            <button class="btn-refresh-styled" id="api-refresh-btn" onclick="refreshAPIStatus()">🔄 Check Status</button>
-                        </div>
+                        <button class="btn-refresh-styled" onclick="refreshAPIStatus()">🔄 Check</button>
                     </div>
                     <div class="api-status-content">
-                        <div class="status-indicator">
+                        <div class="status-indicator-box">
                             <span class="status-dot status-dot--checking" id="api-status-dot"></span>
                             <span class="status-text" id="api-status-text">Checking...</span>
                         </div>
                         <div class="status-details">
-                            <div class="status-detail">
-                                <span class="detail-label">API URL</span>
-                                <span class="detail-value" id="api-url">http://localhost:8000</span>
-                            </div>
-                            <div class="status-detail">
-                                <span class="detail-label">Response Time</span>
-                                <span class="detail-value" id="response-time">-</span>
-                            </div>
-                            <div class="status-detail">
-                                <span class="detail-label">Last Check</span>
-                                <span class="detail-value" id="last-check">-</span>
-                            </div>
-                            <div class="status-detail">
-                                <span class="detail-label">Retry Count</span>
-                                <span class="detail-value" id="retry-count">0/3</span>
-                            </div>
+                            <div class="status-detail"><span class="detail-label">API URL</span><span class="detail-value">http://localhost:8000</span></div>
+                            <div class="status-detail"><span class="detail-label">Response</span><span class="detail-value" id="response-time">-</span></div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Site Selection Panel -->
                 <div class="connection-panel">
                     <div class="panel-header">
                         <h3>🔍 Site Connection</h3>
                         <div class="panel-actions">
-                            <label class="auto-connect-label">
-                                <input type="checkbox" id="auto-connect-checkbox">
-                                <span>Auto Connect</span>
-                            </label>
-                            <button class="btn-icon" id="select-all-btn" title="Select All" onclick="selectAllSites()">☑️</button>
-                            <button class="btn-icon" id="deselect-all-btn" title="Deselect All" onclick="deselectAllSites()">☐</button>
+                            <label class="auto-connect-label"><input type="checkbox"><span>Auto</span></label>
+                            <button class="btn-icon" onclick="selectAllSites()">☑️</button>
+                            <button class="btn-icon" onclick="deselectAllSites()">☐</button>
                         </div>
                     </div>
                     <div class="site-list" id="site-list"></div>
                     <div class="panel-footer">
-                        <div class="selection-info">
-                            <span id="selection-count">Selected: 0</span>
-                        </div>
-                        <button class="btn-connect" id="connect-btn" disabled onclick="connectToSelectedSite()">
-                            🔌 Connect
-                        </button>
+                        <span id="selection-count">Selected: 0</span>
+                        <button class="btn-connect" id="connect-btn" disabled onclick="connectToSelectedSite()">🔌 Connect</button>
                     </div>
                 </div>
-                
-                <!-- Database List Panel -->
                 <div class="connection-panel">
                     <div class="panel-header">
                         <h3>📊 Connected Databases</h3>
-                        <div class="panel-actions">
-                            <button class="btn-refresh-styled" id="db-refresh-btn" onclick="refreshDatabaseInfo()">🔄 Refresh</button>
-                            <button class="btn-icon" id="export-status-btn" title="Export Status" onclick="exportDatabaseStatus()">📤</button>
-                        </div>
+                        <button class="btn-refresh-styled" onclick="refreshDatabaseInfo()">🔄 Refresh</button>
                     </div>
                     <div id="database-list">
-                        <div class="no-connection">
-                            <span class="no-connection-icon">📂</span>
-                            <p>No database connected</p>
-                            <small>Connect to a site to view tables</small>
-                        </div>
+                        <div class="no-connection"><span class="no-connection-icon">📂</span><p>No database connected</p></div>
                     </div>
                 </div>
             </div>
-            
             <div class="modal-footer">
                 <span class="footer-hint">Ctrl+K to toggle | Escape to close</span>
                 <button class="btn-secondary" onclick="closeConnectionModal()">Close</button>
@@ -1432,54 +1001,116 @@
         </div>
     </div>
 
-    <!-- ICON MODAL -->
-    <div class="modal-overlay" id="icon-modal">
-        <div class="modal-container">
-            <div class="modal-header">
-                <div class="modal-title">🎨 Icon Customization</div>
-                <button class="modal-close" onclick="closeIconModal()">✕</button>
+    <!-- =============================================
+         MAIN CONTENT with Three.js
+         [v2.8] 3D View implementation
+         ============================================= -->
+    <main class="main-content" id="main-content">
+        <!-- Three.js Canvas Container -->
+        <div id="threejs-container"></div>
+        
+        <!-- Overlay UI -->
+        <div class="overlay-ui" id="overlay-ui">
+            <div class="mode-indicator">
+                <div class="mode-label">Current Mode</div>
+                <div class="mode-value" id="current-mode">—</div>
+                <div class="submode-value" id="current-submode"></div>
             </div>
-            <div class="modal-body" id="icon-modal-body"></div>
-            <div class="modal-footer">
-                <span class="footer-hint">Select icons for each menu</span>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn-secondary" onclick="closeIconModal()">Cancel</button>
-                    <button class="btn-primary" onclick="applyIconChanges()">Apply</button>
+            
+            <!-- [v2.8] Test Controls Panel - Only visible in Monitoring Mode -->
+            <div class="test-controls" id="test-controls" style="display: none;">
+                <h4>🧪 Equipment Test Controls</h4>
+                
+                <button class="test-btn" onclick="simulateEquipmentClick('EQ-001')">
+                    <span class="test-btn-icon">📦</span> Click Equipment EQ-001 (RUN)
+                </button>
+                <button class="test-btn" onclick="simulateEquipmentClick('EQ-002')">
+                    <span class="test-btn-icon">📦</span> Click Equipment EQ-002 (IDLE)
+                </button>
+                <button class="test-btn" onclick="simulateEquipmentClick('EQ-003')">
+                    <span class="test-btn-icon">📦</span> Click Equipment EQ-003 (STOP)
+                </button>
+                <button class="test-btn" onclick="simulateMultiSelect()">
+                    <span class="test-btn-icon">📊</span> Multi-Select (3 Equipment)
+                </button>
+                <button class="test-btn" onclick="simulateUnmapped()">
+                    <span class="test-btn-icon">⚠️</span> Click Unmapped Equipment
+                </button>
+                
+                <h4 style="margin-top: 16px;">🔔 Toast Test</h4>
+                <button class="test-btn" onclick="toast.success('Success', 'Operation completed successfully')">
+                    <span class="test-btn-icon">✅</span> Success Toast
+                </button>
+                <button class="test-btn" onclick="toast.error('Error', 'Something went wrong')">
+                    <span class="test-btn-icon">❌</span> Error Toast
+                </button>
+                <button class="test-btn" onclick="toast.warning('Warning', 'Please check your input')">
+                    <span class="test-btn-icon">⚠️</span> Warning Toast
+                </button>
+                <button class="test-btn" onclick="toast.info('Info', 'New update available')">
+                    <span class="test-btn-icon">ℹ️</span> Info Toast
+                </button>
+                
+                <h4 style="margin-top: 16px;">⚡ Realtime Update Test</h4>
+                <button class="test-btn" onclick="simulateRealtimeUpdate()">
+                    <span class="test-btn-icon">🔄</span> Trigger Realtime Update
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- =============================================
+         EQUIPMENT INFO PANEL
+         [MIGRATE TO] src/ui/EquipmentInfoPanel.js
+         
+         [v2.8] Full implementation based on main branch
+         - Header: Equipment Name + Status
+         - Tabs: General / PC Info
+         - General Tab: Line, Product, Lot, Duration
+         - Real-time duration timer
+         ============================================= -->
+    <div id="equipmentInfo">
+        <button class="close-btn" onclick="hideEquipmentInfo()">×</button>
+        
+        <div class="equipment-panel-header">
+            <h2 id="equipName" class="equipment-panel-title">설비 정보</h2>
+            <div class="header-status" id="headerStatus">
+                <span class="status-indicator" id="headerStatusIndicator"></span>
+                <span class="status-text" id="headerStatusText">-</span>
+            </div>
+        </div>
+        
+        <div class="equipment-panel-tabs">
+            <button class="equipment-tab active" data-tab="general" onclick="switchEquipmentTab('general')">General</button>
+            <button class="equipment-tab" data-tab="pcinfo" onclick="switchEquipmentTab('pcinfo')">PC Info.</button>
+        </div>
+        
+        <div class="equipment-panel-content">
+            <div id="tab-general" class="equipment-tab-content active">
+                <div id="generalTabContent">
+                    <div class="info-row placeholder">
+                        <span class="info-label">설비를 선택해주세요</span>
+                    </div>
+                </div>
+            </div>
+            <div id="tab-pcinfo" class="equipment-tab-content">
+                <div id="pcinfoTabContent">
+                    <div class="info-row placeholder">
+                        <span class="info-label">설비를 선택해주세요</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- MAIN CONTENT -->
-    <main class="main-content">
-        <h1>🧪 Sidebar Test v2.7</h1>
-        <p>Migration Ready with Comments | Toast Notifications</p>
-        <div class="current-mode">
-            <div class="mode-label">Current Mode</div>
-            <div class="mode-value" id="current-mode">—</div>
-            <div class="submode-value" id="current-submode"></div>
-        </div>
-    </main>
-
-    <!-- =============================================
-         STATUS BAR
-         ===========================================
-         [MIGRATION NOTE]
-         - [v2.7] Left: Country Code (KR, CN, US) + Internet + Backend + DB
-         - [v2.7] Right: Performance gauges (width reduced 30%)
-         ============================================= -->
+    <!-- STATUS BAR -->
     <footer class="status-bar">
-        <!-- [v2.7] Left Group: Country + Connection Status -->
         <div class="status-group">
-            <!-- [v2.7] Country Code instead of "User" -->
-            <div class="status-item">
-                <span class="country-code" id="country-code">KR</span>
-            </div>
-            <!-- [v2.7] Internet Connection Status -->
+            <div class="status-item"><span class="country-code">KR</span></div>
             <div class="status-item">
                 <span class="status-dot connected" id="statusbar-internet-dot"></span>
                 <span class="status-label">NET</span>
-                <span class="status-value" id="statusbar-internet-value">Online</span>
+                <span class="status-value">Online</span>
             </div>
             <div class="status-item">
                 <span class="status-dot disconnected" id="backend-dot"></span>
@@ -1492,8 +1123,6 @@
                 <span class="status-value" id="db-value">None</span>
             </div>
         </div>
-        
-        <!-- [v2.7] Right Group: Performance (gauge width reduced 30%) -->
         <div class="status-group">
             <div class="status-item">
                 <span class="status-label">FPS</span>
@@ -1510,130 +1139,47 @@
 
     <script>
         // =============================================
-        // MIGRATION GUIDE - JavaScript
-        // ===========================================
-        // [MIGRATE TO] Separate module files:
-        // - src/ui/sidebar/SidebarManager.js
-        // - src/ui/ConnectionModal.js
-        // - src/ui/common/Toast.js
-        // - src/services/ThemeService.js
-        // =============================================
-        
         // Configuration
+        // =============================================
         let currentMode = null;
         let currentSubMode = null;
         let isConnected = false;
         let devModeEnabled = false;
         let selectedSite = null;
         let currentTheme = 'dark';
-        let retryCount = 0;
-        let expandedTables = new Set();
-        let isInternetOnline = true;
+        let durationTimerInterval = null;
+        let currentEquipmentData = null;
         
-        // [MIGRATE TO] src/config/userConfig.js
-        let userCountryCode = 'KR'; // Default country code
+        // Three.js variables
+        let scene, camera, renderer, equipmentMeshes = [];
         
-        let iconSelections = { connection: 0, monitoring: 0, analysis: 0, simulation: 0, layout: 0, debug: 0, settings: 0 };
-        let pendingIconSelections = {};
-        
-        // [MIGRATE TO] src/config/iconOptions.js
-        const iconOptions = {
-            connection: [
-                `<ellipse cx="7" cy="5" rx="5" ry="2"/><path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/><path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/><ellipse cx="17" cy="11" rx="5" ry="2"/><path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M7 13v2" stroke-dasharray="2 2"/><circle cx="12" cy="17" r="1.5" fill="currentColor" stroke="none"/>`,
-                `<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/>`,
-                `<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/>`,
-                `<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/><line x1="12" y1="13" x2="12" y2="17"/><line x1="10" y1="15" x2="14" y2="15"/>`,
-                `<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>`
-            ],
-            monitoring: [
-                `<rect x="3" y="4" width="18" height="12" rx="2"/><polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/><path d="M12 16v4"/><path d="M8 20h8"/>`,
-                `<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>`,
-                `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`,
-                `<circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/>`,
-                `<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/>`
-            ],
-            analysis: [
-                `<path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/><path d="M7 14l4-4 4 4 6-6"/><circle cx="21" cy="8" r="2"/>`,
-                `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`,
-                `<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>`,
-                `<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>`,
-                `<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/>`
-            ],
-            simulation: [
-                `<circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/>`,
-                `<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>`,
-                `<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>`,
-                `<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>`,
-                `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33"/>`
-            ],
-            layout: [
-                `<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>`,
-                `<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>`,
-                `<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>`,
-                `<path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7"/><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7"/>`,
-                `<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>`
-            ],
-            debug: [
-                `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`,
-                `<rect x="8" y="6" width="8" height="14" rx="4"/><path d="M8 6V4a4 4 0 0 1 8 0v2"/>`,
-                `<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>`,
-                `<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>`,
-                `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`
-            ],
-            settings: [
-                `<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4"/>`,
-                `<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>`,
-                `<rect x="1" y="5" width="22" height="14" rx="7"/><circle cx="8" cy="12" r="3"/>`,
-                `<circle cx="12" cy="12" r="3"/><path d="M12 2v2"/><path d="M12 20v2"/>`,
-                `<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>`
-            ]
-        };
-        
-        const menuLabels = {
-            connection: 'Database Connection', monitoring: 'System Monitoring', analysis: 'Data Analysis',
-            simulation: 'Simulation', layout: 'Layout Editor', debug: 'Debug Panel', settings: 'Settings'
-        };
-        
-        // [MIGRATE TO] src/services/SiteProfileService.js
+        // Mock data
         const siteProfiles = [
-            { id: 'kr_b_01', display_name: 'Korea Site B-01', region: 'Asia/Seoul', priority: 10, last_connected: '2026-01-09T14:30:00Z', response_time_ms: 45 },
-            { id: 'kr_b_02', display_name: 'Korea Site B-02', region: 'Asia/Seoul', priority: 8, last_connected: null, response_time_ms: null },
-            { id: 'vn_a_01', display_name: 'Vietnam Site A-01', region: 'Asia/Ho_Chi_Minh', priority: 5, last_connected: '2026-01-08T10:00:00Z', response_time_ms: 120 },
-            { id: 'us_w_01', display_name: 'USA West Site W-01', region: 'America/Los_Angeles', priority: 3, last_connected: null, response_time_ms: null }
-        ];
-        
-        const mockTables = [
-            { name: 'Equipment', schema: 'dbo', type: 'BASE TABLE', row_count: 117, size_mb: 2.5 },
-            { name: 'MonitoringLog', schema: 'dbo', type: 'BASE TABLE', row_count: 152340, size_mb: 48.2 },
-            { name: 'AlarmHistory', schema: 'dbo', type: 'BASE TABLE', row_count: 8921, size_mb: 5.1 },
-            { name: 'ProductionData', schema: 'dbo', type: 'BASE TABLE', row_count: 45000, size_mb: 22.8 }
+            { id: 'kr_b_01', display_name: 'Korea Site B-01', region: 'Asia/Seoul', priority: 10 },
+            { id: 'kr_b_02', display_name: 'Korea Site B-02', region: 'Asia/Seoul', priority: 8 },
+            { id: 'vn_a_01', display_name: 'Vietnam Site A-01', region: 'Asia/Ho_Chi_Minh', priority: 5 }
         ];
         
         let siteStatus = {};
 
         // =============================================
-        // Toast Notification System
-        // [MIGRATE TO] src/ui/common/Toast.js
+        // Toast System
         // =============================================
         const toast = {
             show(type, title, message, duration = 4000) {
                 const container = document.getElementById('toast-container');
                 const toastEl = document.createElement('div');
                 toastEl.className = `toast ${type}`;
-                
                 const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-                
                 toastEl.innerHTML = `
-                    <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+                    <span class="toast-icon">${icons[type]}</span>
                     <div class="toast-content">
                         <div class="toast-title">${title}</div>
                         <div class="toast-message">${message}</div>
                     </div>
                     <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
                 `;
-                
                 container.appendChild(toastEl);
-                
                 setTimeout(() => {
                     toastEl.classList.add('hiding');
                     setTimeout(() => toastEl.remove(), 300);
@@ -1647,7 +1193,6 @@
 
         // =============================================
         // Theme Functions
-        // [MIGRATE TO] src/services/ThemeService.js
         // =============================================
         function toggleTheme() {
             currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -1664,157 +1209,517 @@
         }
 
         // =============================================
-        // Initialize
+        // Three.js 3D View
+        // [v2.8] Simple cleanroom equipment visualization
         // =============================================
-        function init() {
-            loadTheme();
-            siteProfiles.forEach(site => { siteStatus[site.id] = { status: 'disconnected' }; });
-            renderSiteList();
-            setupSidebarEvents();
-            startPerformanceSimulation();
-            checkInternetConnection();
+        function initThreeJS() {
+            const container = document.getElementById('threejs-container');
             
-            // Start periodic internet check
-            setInterval(checkInternetConnection, 30000);
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(currentTheme === 'dark' ? 0x1e293b : 0xf1f5f9);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(15, 15, 15);
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+            
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 10);
+            scene.add(directionalLight);
+            
+            // Floor (Cleanroom)
+            const floorGeometry = new THREE.PlaneGeometry(30, 30);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: currentTheme === 'dark' ? 0x334155 : 0xe2e8f0,
+                roughness: 0.8
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -0.5;
+            scene.add(floor);
+            
+            // Grid
+            const gridHelper = new THREE.GridHelper(30, 30, 0x06B6D4, 0x475569);
+            gridHelper.position.y = -0.49;
+            scene.add(gridHelper);
+            
+            // Create Equipment (3x3 grid)
+            const statusColors = {
+                RUN: 0x4ADE80,
+                IDLE: 0xFBBF24,
+                STOP: 0xF87171
+            };
+            
+            const equipmentData = [
+                { id: 'EQ-001', status: 'RUN', x: -6, z: -6 },
+                { id: 'EQ-002', status: 'IDLE', x: 0, z: -6 },
+                { id: 'EQ-003', status: 'STOP', x: 6, z: -6 },
+                { id: 'EQ-004', status: 'RUN', x: -6, z: 0 },
+                { id: 'EQ-005', status: 'RUN', x: 0, z: 0 },
+                { id: 'EQ-006', status: 'IDLE', x: 6, z: 0 },
+                { id: 'EQ-007', status: 'RUN', x: -6, z: 6 },
+                { id: 'EQ-008', status: 'STOP', x: 0, z: 6 },
+                { id: 'EQ-009', status: 'RUN', x: 6, z: 6 }
+            ];
+            
+            equipmentData.forEach(eq => {
+                // Equipment body
+                const geometry = new THREE.BoxGeometry(3, 2, 3);
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: 0x64748b,
+                    roughness: 0.5,
+                    metalness: 0.3
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.set(eq.x, 0.5, eq.z);
+                mesh.userData = eq;
+                scene.add(mesh);
+                equipmentMeshes.push(mesh);
+                
+                // Status light (signal tower)
+                const lightGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.5, 16);
+                const lightMaterial = new THREE.MeshStandardMaterial({ 
+                    color: statusColors[eq.status],
+                    emissive: statusColors[eq.status],
+                    emissiveIntensity: 0.5
+                });
+                const light = new THREE.Mesh(lightGeometry, lightMaterial);
+                light.position.set(eq.x, 1.75, eq.z);
+                scene.add(light);
+            });
+            
+            // Animation
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Rotate camera slowly
+                const time = Date.now() * 0.0001;
+                camera.position.x = Math.sin(time) * 20;
+                camera.position.z = Math.cos(time) * 20;
+                camera.lookAt(0, 0, 0);
+                
+                renderer.render(scene, camera);
+            }
+            animate();
+            
+            // Handle resize
+            window.addEventListener('resize', () => {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
         }
 
         // =============================================
-        // Internet Connection Check
-        // [v2.7] New feature
-        // [MIGRATE TO] src/services/NetworkService.js
+        // Equipment Info Panel Functions
+        // [MIGRATE TO] src/ui/EquipmentInfoPanel.js
         // =============================================
-        function checkInternetConnection() {
-            const online = navigator.onLine;
-            isInternetOnline = online;
+        function showEquipmentInfo(data) {
+            const panel = document.getElementById('equipmentInfo');
+            const isMulti = Array.isArray(data) && data.length > 1;
             
-            // Update Modal
-            const modalDot = document.getElementById('internet-dot');
-            const modalText = document.getElementById('internet-text');
-            const modalDetail = document.getElementById('internet-detail');
-            
-            if (modalDot) {
-                modalDot.className = `status-dot ${online ? 'connected' : 'disconnected'}`;
-                modalText.textContent = online ? 'Internet Connected' : 'Internet Disconnected';
-                modalDetail.textContent = online ? `Ping: ${Math.floor(Math.random() * 30 + 10)}ms` : 'No connection';
+            if (isMulti) {
+                showMultiEquipmentInfo(data);
+            } else {
+                const eq = Array.isArray(data) ? data[0] : data;
+                showSingleEquipmentInfo(eq);
             }
             
-            // Update Status Bar
-            const statusbarDot = document.getElementById('statusbar-internet-dot');
-            const statusbarValue = document.getElementById('statusbar-internet-value');
+            panel.classList.add('active');
+        }
+        
+        function showSingleEquipmentInfo(eq) {
+            currentEquipmentData = eq;
             
-            if (statusbarDot) {
-                statusbarDot.className = `status-dot ${online ? 'connected' : 'disconnected'}`;
-                statusbarValue.textContent = online ? 'Online' : 'Offline';
+            // Update header
+            document.getElementById('equipName').textContent = eq.equipment_name || eq.id;
+            document.getElementById('equipName').classList.remove('multi-select');
+            
+            // Update status
+            updateHeaderStatus(eq.status);
+            
+            // Update General tab
+            const generalContent = document.getElementById('generalTabContent');
+            const isLotActive = eq.is_lot_active === true;
+            
+            if (isLotActive) {
+                startDurationTimer(eq.lot_start_time);
+                generalContent.innerHTML = `
+                    <div class="info-row">
+                        <span class="info-label">Line:</span>
+                        <span class="info-value">${eq.line_name || '-'}</span>
+                    </div>
+                    <div class="info-row-divider"></div>
+                    <div class="info-row">
+                        <span class="info-label">Product:</span>
+                        <span class="info-value">${eq.product_model || '-'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Lot No.:</span>
+                        <span class="info-value">${eq.lot_id || '-'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Lot Start:</span>
+                        <span class="info-value">${formatDateTime(eq.lot_start_time) || '-'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Lot Duration:</span>
+                        <span class="info-value" id="durationDisplay">${formatDuration(eq.lot_start_time)}</span>
+                    </div>
+                    <div class="info-row info-row-meta">
+                        <span class="info-label">Updated:</span>
+                        <span class="info-value info-value-meta">${formatDateTime(eq.last_updated)}</span>
+                    </div>
+                `;
+            } else {
+                if (eq.since_time) {
+                    startDurationTimer(eq.since_time);
+                } else {
+                    stopDurationTimer();
+                }
+                generalContent.innerHTML = `
+                    <div class="info-row">
+                        <span class="info-label">Line:</span>
+                        <span class="info-value">${eq.line_name || '-'}</span>
+                    </div>
+                    <div class="info-row-divider"></div>
+                    <div class="info-row">
+                        <span class="info-label">Product:</span>
+                        <span class="info-value">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Lot No.:</span>
+                        <span class="info-value">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Since:</span>
+                        <span class="info-value">${eq.since_time ? formatDateTime(eq.since_time) : '-'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Duration:</span>
+                        <span class="info-value" id="durationDisplay">${eq.since_time ? formatDuration(eq.since_time) : '-'}</span>
+                    </div>
+                `;
+            }
+            
+            // Update PC Info tab
+            const pcinfoContent = document.getElementById('pcinfoTabContent');
+            pcinfoContent.innerHTML = `
+                <div class="info-row">
+                    <span class="info-label">PC Name:</span>
+                    <span class="info-value">${eq.pc_name || '-'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">IP Address:</span>
+                    <span class="info-value">${eq.ip_address || '-'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">MAC Address:</span>
+                    <span class="info-value">${eq.mac_address || '-'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">OS Version:</span>
+                    <span class="info-value">${eq.os_version || '-'}</span>
+                </div>
+            `;
+        }
+        
+        function showMultiEquipmentInfo(dataArray) {
+            stopDurationTimer();
+            
+            const count = dataArray.length;
+            
+            // Update header
+            document.getElementById('equipName').textContent = `${count}개 설비 선택됨`;
+            document.getElementById('equipName').classList.add('multi-select');
+            
+            // Hide status
+            document.getElementById('headerStatus').style.display = 'none';
+            
+            // Count statuses
+            const statusCounts = { RUN: 0, IDLE: 0, STOP: 0 };
+            const lines = new Set();
+            const products = new Set();
+            
+            dataArray.forEach(eq => {
+                if (eq.status) statusCounts[eq.status]++;
+                if (eq.line_name) lines.add(eq.line_name);
+                if (eq.product_model) products.add(eq.product_model);
+            });
+            
+            // Update General tab
+            const generalContent = document.getElementById('generalTabContent');
+            generalContent.innerHTML = `
+                <div class="info-row multi-select-header">
+                    <span class="info-icon">📊</span>
+                    <span class="info-text">${count}개 설비 집계 정보</span>
+                    <span class="info-badge">${count}개 조회됨</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Line:</span>
+                    <span class="info-value">${[...lines].join(', ') || '-'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Status:</span>
+                    <div class="status-counts">
+                        ${statusCounts.RUN > 0 ? `<span class="status-count-item run">🟢 ${statusCounts.RUN}</span>` : ''}
+                        ${statusCounts.IDLE > 0 ? `<span class="status-count-item idle">🟡 ${statusCounts.IDLE}</span>` : ''}
+                        ${statusCounts.STOP > 0 ? `<span class="status-count-item stop">🔴 ${statusCounts.STOP}</span>` : ''}
+                    </div>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Product:</span>
+                    <span class="info-value">${[...products].join(', ') || '-'}</span>
+                </div>
+            `;
+            
+            // Update PC Info tab
+            const pcinfoContent = document.getElementById('pcinfoTabContent');
+            pcinfoContent.innerHTML = `
+                <div class="info-row multi-select-header">
+                    <span class="info-icon">💻</span>
+                    <span class="info-text">${count}개 설비 PC 정보</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">선택된 설비:</span>
+                    <span class="info-value">${dataArray.map(e => e.id).join(', ')}</span>
+                </div>
+            `;
+        }
+        
+        function showUnmappedEquipment(frontendId) {
+            stopDurationTimer();
+            
+            document.getElementById('equipName').textContent = frontendId;
+            updateHeaderStatus('DISCONNECTED');
+            
+            const generalContent = document.getElementById('generalTabContent');
+            generalContent.innerHTML = `
+                <div class="info-row unmapped-notice">
+                    <span class="info-icon">⚠️</span>
+                    <span class="info-text">DB에 연결되지 않은 설비입니다</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Frontend ID:</span>
+                    <span class="info-value">${frontendId}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Position:</span>
+                    <span class="info-value">Row 1, Col 1</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-text">Edit Mode (E키)에서 매핑해주세요</span>
+                </div>
+            `;
+            
+            document.getElementById('equipmentInfo').classList.add('active');
+        }
+        
+        function hideEquipmentInfo() {
+            document.getElementById('equipmentInfo').classList.remove('active');
+            document.getElementById('headerStatus').style.display = 'flex';
+            stopDurationTimer();
+        }
+        
+        function switchEquipmentTab(tab) {
+            document.querySelectorAll('.equipment-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+            document.querySelectorAll('.equipment-tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tab}`));
+        }
+        
+        function updateHeaderStatus(status) {
+            const indicator = document.getElementById('headerStatusIndicator');
+            const text = document.getElementById('headerStatusText');
+            const statusEl = document.getElementById('headerStatus');
+            
+            statusEl.style.display = 'flex';
+            
+            const statusClass = (status || 'DISCONNECTED').toLowerCase();
+            indicator.className = `status-indicator ${statusClass}`;
+            text.className = `status-text ${statusClass}`;
+            text.textContent = status || '-';
+        }
+        
+        // Duration Timer
+        function startDurationTimer(baseTime) {
+            stopDurationTimer();
+            
+            function update() {
+                const el = document.getElementById('durationDisplay');
+                if (el) {
+                    el.textContent = formatDuration(baseTime);
+                }
+            }
+            
+            update();
+            durationTimerInterval = setInterval(update, 1000);
+        }
+        
+        function stopDurationTimer() {
+            if (durationTimerInterval) {
+                clearInterval(durationTimerInterval);
+                durationTimerInterval = null;
             }
         }
         
-        // Listen for online/offline events
-        window.addEventListener('online', checkInternetConnection);
-        window.addEventListener('offline', checkInternetConnection);
-
-        // =============================================
-        // API Status Functions
-        // =============================================
-        function refreshAPIStatus() {
-            const btn = document.getElementById('api-refresh-btn');
-            const dot = document.getElementById('api-status-dot');
-            const text = document.getElementById('api-status-text');
+        function formatDuration(startTime) {
+            if (!startTime) return '-';
+            const start = new Date(startTime);
+            const now = new Date();
+            const diff = Math.floor((now - start) / 1000);
             
-            btn.disabled = true;
-            btn.textContent = '⏳ Checking...';
-            dot.className = 'status-dot status-dot--checking';
-            text.className = 'status-text';
-            text.textContent = 'Checking...';
+            const hours = Math.floor(diff / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            const seconds = diff % 60;
             
-            setTimeout(() => {
-                const isHealthy = Math.random() > 0.1;
-                
-                if (isHealthy) {
-                    dot.className = 'status-dot status-dot--connected';
-                    text.className = 'status-text status-text--connected';
-                    text.textContent = 'Connected';
-                    retryCount = 0;
-                } else {
-                    dot.className = 'status-dot status-dot--disconnected';
-                    text.className = 'status-text status-text--disconnected';
-                    text.textContent = 'Disconnected';
-                    retryCount = Math.min(retryCount + 1, 3);
-                }
-                
-                document.getElementById('response-time').textContent = `${Math.floor(Math.random() * 50 + 20)}ms`;
-                document.getElementById('last-check').textContent = new Date().toLocaleTimeString();
-                document.getElementById('retry-count').textContent = `${retryCount}/3`;
-                document.getElementById('retry-count').className = retryCount >= 3 ? 'detail-value detail-value--error' : 'detail-value';
-                
-                btn.disabled = false;
-                btn.textContent = '🔄 Check Status';
-            }, 1000);
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+        
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            const d = new Date(dateStr);
+            return d.toLocaleString('ko-KR');
         }
 
         // =============================================
-        // Connection Modal Functions
+        // Test Simulation Functions
+        // =============================================
+        function simulateEquipmentClick(eqId) {
+            const mockData = {
+                'EQ-001': {
+                    id: 'EQ-001',
+                    equipment_name: 'Etcher A-01',
+                    status: 'RUN',
+                    line_name: 'Line A',
+                    product_model: 'PRODUCT-X100',
+                    lot_id: 'LOT-2026-001234',
+                    is_lot_active: true,
+                    lot_start_time: new Date(Date.now() - 3600000).toISOString(),
+                    last_updated: new Date().toISOString(),
+                    pc_name: 'ETCHER-A01-PC',
+                    ip_address: '192.168.1.101',
+                    mac_address: 'AA:BB:CC:DD:EE:01',
+                    os_version: 'Windows 10 IoT'
+                },
+                'EQ-002': {
+                    id: 'EQ-002',
+                    equipment_name: 'CVD Unit B-02',
+                    status: 'IDLE',
+                    line_name: 'Line B',
+                    is_lot_active: false,
+                    since_time: new Date(Date.now() - 1800000).toISOString(),
+                    pc_name: 'CVD-B02-PC',
+                    ip_address: '192.168.1.102',
+                    mac_address: 'AA:BB:CC:DD:EE:02',
+                    os_version: 'Windows 10 IoT'
+                },
+                'EQ-003': {
+                    id: 'EQ-003',
+                    equipment_name: 'Sputter C-03',
+                    status: 'STOP',
+                    line_name: 'Line C',
+                    is_lot_active: false,
+                    since_time: new Date(Date.now() - 7200000).toISOString(),
+                    pc_name: 'SPUTTER-C03-PC',
+                    ip_address: '192.168.1.103',
+                    mac_address: 'AA:BB:CC:DD:EE:03',
+                    os_version: 'Windows 10 IoT'
+                }
+            };
+            
+            showEquipmentInfo(mockData[eqId]);
+            toast.info('Equipment Selected', `Clicked on ${eqId}`);
+        }
+        
+        function simulateMultiSelect() {
+            const mockData = [
+                { id: 'EQ-001', status: 'RUN', line_name: 'Line A', product_model: 'PRODUCT-X100' },
+                { id: 'EQ-002', status: 'IDLE', line_name: 'Line B', product_model: 'PRODUCT-Y200' },
+                { id: 'EQ-003', status: 'STOP', line_name: 'Line A', product_model: 'PRODUCT-X100' }
+            ];
+            
+            showEquipmentInfo(mockData);
+            toast.info('Multi-Select', '3 equipment selected');
+        }
+        
+        function simulateUnmapped() {
+            showUnmappedEquipment('UNMAPPED-EQ-099');
+            toast.warning('Unmapped Equipment', 'This equipment is not mapped to DB');
+        }
+        
+        function simulateRealtimeUpdate() {
+            if (!currentEquipmentData) {
+                toast.warning('No Equipment', 'Please select an equipment first');
+                return;
+            }
+            
+            // Simulate status change
+            const newStatuses = ['RUN', 'IDLE', 'STOP'];
+            const currentIdx = newStatuses.indexOf(currentEquipmentData.status);
+            const newStatus = newStatuses[(currentIdx + 1) % 3];
+            
+            currentEquipmentData.status = newStatus;
+            currentEquipmentData.last_updated = new Date().toISOString();
+            
+            updateHeaderStatus(newStatus);
+            toast.success('Realtime Update', `Status changed to ${newStatus}`);
+        }
+
+        // =============================================
+        // Connection Modal & Site Functions
         // =============================================
         function openConnectionModal() {
             document.getElementById('connection-modal').classList.add('active');
             refreshAPIStatus();
-            checkInternetConnection();
         }
         
         function closeConnectionModal() {
             document.getElementById('connection-modal').classList.remove('active');
         }
         
-        function toggleConnectionModal() {
-            const modal = document.getElementById('connection-modal');
-            modal.classList.contains('active') ? closeConnectionModal() : openConnectionModal();
-        }
-        
-        function selectAllSites() {
-            if (siteProfiles.length > 0) {
-                selectedSite = siteProfiles[0].id;
-                renderSiteList();
-            }
-        }
-        
-        function deselectAllSites() {
-            selectedSite = null;
-            renderSiteList();
+        function refreshAPIStatus() {
+            const dot = document.getElementById('api-status-dot');
+            const text = document.getElementById('api-status-text');
+            
+            dot.className = 'status-dot status-dot--checking';
+            text.textContent = 'Checking...';
+            
+            setTimeout(() => {
+                dot.className = 'status-dot status-dot--connected';
+                text.textContent = 'Connected';
+                text.className = 'status-text run';
+                document.getElementById('response-time').textContent = `${Math.floor(Math.random() * 50 + 20)}ms`;
+            }, 1000);
         }
         
         function renderSiteList() {
             const siteList = document.getElementById('site-list');
             siteList.innerHTML = siteProfiles.map(profile => {
-                const status = siteStatus[profile.id] || {};
                 const isSelected = selectedSite === profile.id;
+                const status = siteStatus[profile.id] || {};
                 const isConnectedSite = status.status === 'connected';
-                const isFailed = status.status === 'failed';
-                let itemClasses = ['site-item'];
-                if (isSelected) itemClasses.push('site-item--selected');
-                if (isConnectedSite) itemClasses.push('site-item--connected');
                 
                 return `
-                    <div class="${itemClasses.join(' ')}" onclick="toggleSiteSelection('${profile.id}')">
-                        <div class="site-checkbox">
-                            <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleSiteSelection('${profile.id}')">
-                        </div>
+                    <div class="site-item ${isSelected ? 'site-item--selected' : ''} ${isConnectedSite ? 'site-item--connected' : ''}" onclick="toggleSiteSelection('${profile.id}')">
+                        <div class="site-checkbox"><input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleSiteSelection('${profile.id}')"></div>
                         <div class="site-info">
                             <div class="site-main">
                                 <span class="site-name">${profile.display_name}</span>
                                 <span class="site-region">${profile.region}</span>
                             </div>
-                            <div class="site-meta">
-                                ${profile.last_connected ? `<span>Last: ${new Date(profile.last_connected).toLocaleString()}</span>` : ''}
-                                ${profile.response_time_ms ? `<span>${profile.response_time_ms}ms</span>` : ''}
-                            </div>
                         </div>
                         <div class="site-status">
-                            ${isConnectedSite ? `
-                                <span class="status-icon">✅</span>
-                                <button class="btn-disconnect" onclick="event.stopPropagation(); disconnectFromSite('${profile.id}')">Disconnect</button>
-                            ` : isFailed ? `
-                                <span class="status-icon">❌</span>
-                                <button class="btn-retry" onclick="event.stopPropagation(); retrySite('${profile.id}')">Retry</button>
-                            ` : `<span class="status-icon">⚪</span>`}
+                            ${isConnectedSite ? '<span>✅</span><button class="btn-disconnect" onclick="event.stopPropagation(); disconnectFromSite(\''+profile.id+'\')">Disconnect</button>' : '<span>⚪</span>'}
                         </div>
                     </div>
                 `;
@@ -1827,6 +1732,16 @@
             renderSiteList();
         }
         
+        function selectAllSites() {
+            if (siteProfiles.length > 0) selectedSite = siteProfiles[0].id;
+            renderSiteList();
+        }
+        
+        function deselectAllSites() {
+            selectedSite = null;
+            renderSiteList();
+        }
+        
         function updateSelectionUI() {
             document.getElementById('selection-count').textContent = `Selected: ${selectedSite ? 1 : 0}`;
             document.getElementById('connect-btn').disabled = !selectedSite;
@@ -1834,158 +1749,44 @@
         
         function connectToSelectedSite() {
             if (!selectedSite) return;
-            const connectBtn = document.getElementById('connect-btn');
-            connectBtn.disabled = true;
-            connectBtn.textContent = '⏳ Connecting...';
+            const btn = document.getElementById('connect-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Connecting...';
             
             setTimeout(() => {
                 siteStatus[selectedSite] = { status: 'connected' };
                 isConnected = true;
                 renderSiteList();
-                renderDatabaseInfo(selectedSite);
                 enableSidebarIcons();
                 updateStatusBar(selectedSite);
-                connectBtn.textContent = '🔌 Connect';
-                connectBtn.disabled = true;
+                btn.textContent = '🔌 Connect';
                 
-                // [v2.7] Show Toast on successful connection
                 const site = siteProfiles.find(s => s.id === selectedSite);
-                toast.success('Database Connected', `Successfully connected to ${site.display_name}`);
+                toast.success('Connected', `Successfully connected to ${site.display_name}`);
             }, 1500);
         }
         
-        function retrySite(siteId) {
-            selectedSite = siteId;
-            renderSiteList();
-            connectToSelectedSite();
-        }
-        
         function disconnectFromSite(siteId) {
-            const site = siteProfiles.find(s => s.id === siteId);
-            
             siteStatus[siteId] = { status: 'disconnected' };
             isConnected = false;
             selectedSite = null;
             renderSiteList();
-            clearDatabaseInfo();
             disableSidebarIcons();
             updateStatusBar(null);
+            hideEquipmentInfo();
             currentMode = null;
             document.getElementById('current-mode').textContent = '—';
             document.getElementById('current-submode').textContent = '';
+            document.getElementById('test-controls').style.display = 'none';
             
-            // [v2.7] Show Toast on disconnect
-            toast.info('Database Disconnected', `Disconnected from ${site.display_name}`);
-        }
-        
-        function renderDatabaseInfo(siteId) {
-            const site = siteProfiles.find(s => s.id === siteId);
-            const dbList = document.getElementById('database-list');
+            // Clear submenu active states
+            document.querySelectorAll('#monitoring-submenu .submenu-item').forEach(item => item.classList.remove('active'));
             
-            dbList.innerHTML = `
-                <div class="database-item">
-                    <div class="database-header">
-                        <h4>🗄️ ${site.display_name} - EquipmentDB</h4>
-                        <div class="database-stats">
-                            <span class="stat-item"><span class="stat-label">Tables:</span><span class="stat-value">${mockTables.length}</span></span>
-                            <span class="stat-item"><span class="stat-label">Type:</span><span class="stat-value">MSSQL</span></span>
-                        </div>
-                    </div>
-                    <div class="connection-info">
-                        <span class="info-label">Site ID:</span>
-                        <span class="info-value">${siteId}</span>
-                    </div>
-                    <div class="table-list">
-                        ${mockTables.map(table => {
-                            const key = `${siteId}-${table.name}`;
-                            const isExpanded = expandedTables.has(key);
-                            return `
-                                <div class="table-item ${isExpanded ? 'table-item--expanded' : ''}" data-key="${key}">
-                                    <div class="table-header" onclick="toggleTable('${key}')">
-                                        <div class="table-info-main">
-                                            <span class="expand-icon">${isExpanded ? '▼' : '▶'}</span>
-                                            <span class="table-name">${table.name}</span>
-                                            <span class="table-rows">${table.row_count.toLocaleString()} rows</span>
-                                        </div>
-                                        <div class="table-actions">
-                                            <span class="table-size">${table.size_mb.toFixed(2)} MB</span>
-                                            <span class="table-schema">${table.schema}</span>
-                                        </div>
-                                    </div>
-                                    ${isExpanded ? `
-                                        <div class="table-details">
-                                            <div class="table-detail-grid">
-                                                <div class="detail-item"><span class="detail-label">Schema:</span><span class="detail-value">${table.schema}</span></div>
-                                                <div class="detail-item"><span class="detail-label">Type:</span><span class="detail-value">${table.type}</span></div>
-                                                <div class="detail-item"><span class="detail-label">Row Count:</span><span class="detail-value">${table.row_count.toLocaleString()}</span></div>
-                                                <div class="detail-item"><span class="detail-label">Size:</span><span class="detail-value">${table.size_mb.toFixed(2)} MB</span></div>
-                                            </div>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-            `;
-        }
-        
-        function toggleTable(key) {
-            if (expandedTables.has(key)) {
-                expandedTables.delete(key);
-            } else {
-                expandedTables.add(key);
-            }
-            if (isConnected && selectedSite) {
-                renderDatabaseInfo(selectedSite);
-            }
-        }
-        
-        function clearDatabaseInfo() {
-            expandedTables.clear();
-            document.getElementById('database-list').innerHTML = `
-                <div class="no-connection">
-                    <span class="no-connection-icon">📂</span>
-                    <p>No database connected</p>
-                    <small>Connect to a site to view tables</small>
-                </div>
-            `;
+            toast.info('Disconnected', 'Database connection closed');
         }
         
         function refreshDatabaseInfo() {
-            if (!isConnected || !selectedSite) return;
-            const btn = document.getElementById('db-refresh-btn');
-            btn.disabled = true;
-            btn.textContent = '⏳ Refreshing...';
-            
-            setTimeout(() => {
-                renderDatabaseInfo(selectedSite);
-                btn.disabled = false;
-                btn.textContent = '🔄 Refresh';
-                toast.success('Refreshed', 'Database information updated');
-            }, 800);
-        }
-        
-        function exportDatabaseStatus() {
-            if (!isConnected) {
-                toast.warning('No Connection', 'Connect to a database first');
-                return;
-            }
-            const site = siteProfiles.find(s => s.id === selectedSite);
-            const exportData = {
-                exported_at: new Date().toISOString(),
-                site: site,
-                tables: mockTables
-            };
-            const dataStr = JSON.stringify(exportData, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `database_status_${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            URL.revokeObjectURL(url);
-            toast.success('Exported', 'Database status exported to JSON');
+            toast.success('Refreshed', 'Database information updated');
         }
         
         function enableSidebarIcons() {
@@ -2005,82 +1806,49 @@
         }
         
         function updateStatusBar(siteId) {
-            const backendDot = document.getElementById('backend-dot');
-            const backendValue = document.getElementById('backend-value');
-            const dbDot = document.getElementById('db-dot');
-            const dbValue = document.getElementById('db-value');
+            document.getElementById('backend-dot').className = `status-dot ${siteId ? 'connected' : 'disconnected'}`;
+            document.getElementById('backend-value').textContent = siteId ? 'Connected' : 'Disconnected';
+            document.getElementById('db-dot').className = `status-dot ${siteId ? 'connected' : 'disconnected'}`;
+            document.getElementById('db-value').textContent = siteId ? siteId.replace(/_/g, '-') : 'None';
+        }
+
+        // =============================================
+        // Mode & Submenu Functions
+        // =============================================
+        function setMode(mode) {
+            currentMode = mode;
+            currentSubMode = null;
+            document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+            document.getElementById('current-submode').textContent = '';
             
-            if (siteId) {
-                backendDot.className = 'status-dot connected';
-                backendValue.textContent = 'Connected';
-                dbDot.className = 'status-dot connected';
-                dbValue.textContent = siteId.replace(/_/g, '-');
-            } else {
-                backendDot.className = 'status-dot disconnected';
-                backendValue.textContent = 'Disconnected';
-                dbDot.className = 'status-dot disconnected';
-                dbValue.textContent = 'None';
-            }
+            // Hide test controls unless in monitoring mode
+            document.getElementById('test-controls').style.display = mode === 'monitoring' ? 'block' : 'none';
+            
+            // Clear submenu active states
+            document.querySelectorAll('.submenu-item').forEach(item => item.classList.remove('active'));
         }
 
-        // =============================================
-        // Icon Modal Functions
-        // [MIGRATE TO] src/ui/settings/IconModal.js
-        // =============================================
-        function openIconModal() {
-            pendingIconSelections = { ...iconSelections };
-            const body = document.getElementById('icon-modal-body');
-            body.innerHTML = Object.keys(iconOptions).map(menuKey => {
-                const icons = iconOptions[menuKey];
-                const currentIdx = iconSelections[menuKey];
-                return `
-                    <div class="icon-menu-section">
-                        <div class="icon-menu-header">
-                            <div class="current-icon"><svg viewBox="0 0 24 24">${icons[currentIdx]}</svg></div>
-                            <h4>${menuLabels[menuKey]}</h4>
-                        </div>
-                        <div class="icon-options">
-                            ${icons.map((icon, idx) => `
-                                <div class="icon-option ${idx === currentIdx ? 'selected' : ''}" data-menu="${menuKey}" data-index="${idx}" onclick="selectIcon('${menuKey}', ${idx})">
-                                    <svg viewBox="0 0 24 24">${icon}</svg>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            document.getElementById('icon-modal').classList.add('active');
-        }
-        
-        function closeIconModal() {
-            document.getElementById('icon-modal').classList.remove('active');
-        }
-        
-        function selectIcon(menuKey, idx) {
-            pendingIconSelections[menuKey] = idx;
-            document.querySelectorAll(`.icon-option[data-menu="${menuKey}"]`).forEach((opt, i) => {
-                opt.classList.toggle('selected', i === idx);
+        function setSubMode(mode, submode) {
+            currentMode = mode;
+            currentSubMode = submode;
+            
+            document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
+            if (mode === 'monitoring') document.getElementById('btn-monitoring').classList.add('selected');
+            
+            // [v2.8] Only add .active to the clicked submenu item
+            document.querySelectorAll(`#${mode}-submenu .submenu-item`).forEach(item => {
+                item.classList.toggle('active', item.dataset.submode === submode);
             });
-            const sections = document.querySelectorAll('.icon-menu-section');
-            const menuIndex = Object.keys(iconOptions).indexOf(menuKey);
-            if (sections[menuIndex]) {
-                sections[menuIndex].querySelector('.current-icon svg').innerHTML = iconOptions[menuKey][idx];
-            }
+            
+            document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
+            document.getElementById('current-submode').textContent = `→ ${submode === '3d-view' ? '3D View' : submode}`;
+            
+            // Show test controls in monitoring mode
+            document.getElementById('test-controls').style.display = mode === 'monitoring' ? 'block' : 'none';
+            
+            toast.info('Mode Changed', `${mode} → ${submode}`);
         }
         
-        function applyIconChanges() {
-            iconSelections = { ...pendingIconSelections };
-            Object.keys(iconSelections).forEach(menuKey => {
-                const iconEl = document.getElementById(`icon-${menuKey}`);
-                if (iconEl) iconEl.innerHTML = iconOptions[menuKey][iconSelections[menuKey]];
-            });
-            closeIconModal();
-            toast.success('Icons Updated', 'Icon customization applied');
-        }
-
-        // =============================================
-        // Dev Mode & Sidebar
-        // =============================================
         function toggleDevMode() {
             devModeEnabled = !devModeEnabled;
             const layoutBtn = document.getElementById('btn-layout');
@@ -2104,6 +1872,7 @@
                     if (this.id === 'btn-connection') { openConnectionModal(); return; }
                     if (this.id === 'btn-settings') return;
                     if (this.closest('.has-submenu')) return;
+                    
                     document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
                     this.classList.add('selected');
                     setMode(this.dataset.mode);
@@ -2118,36 +1887,23 @@
             });
         }
 
-        function setMode(mode) {
-            currentMode = mode;
-            currentSubMode = null;
-            document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
-            document.getElementById('current-submode').textContent = '';
-        }
-
-        function setSubMode(mode, submode) {
-            currentMode = mode;
-            currentSubMode = submode;
-            document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
-            if (mode === 'monitoring') document.getElementById('btn-monitoring').classList.add('selected');
-            document.querySelectorAll('.submenu-item').forEach(item => {
-                item.classList.toggle('active', item.dataset.submode === submode);
-            });
-            document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
-            const labels = { '3d-view': '3D View', 'ranking-view': 'Ranking View', 'general': 'General', 'icon': 'Icon', 'dev-mode': 'Dev Mode' };
-            document.getElementById('current-submode').textContent = `→ ${labels[submode] || submode}`;
-        }
-
-        function startPerformanceSimulation() {
+        // =============================================
+        // Initialize
+        // =============================================
+        function init() {
+            loadTheme();
+            siteProfiles.forEach(site => { siteStatus[site.id] = { status: 'disconnected' }; });
+            renderSiteList();
+            setupSidebarEvents();
+            initThreeJS();
+            
+            // Performance simulation
             setInterval(() => {
                 const fps = 58 + Math.floor(Math.random() * 5);
                 document.getElementById('fps-value').textContent = fps;
-                const bar = document.getElementById('fps-bar');
-                bar.style.width = `${Math.min(100, (fps / 60) * 100)}%`;
-                bar.className = 'perf-bar-fill ' + (fps >= 50 ? 'good' : fps >= 30 ? 'medium' : 'bad');
+                document.getElementById('fps-bar').style.width = `${(fps / 60) * 100}%`;
                 const mem = 128 + Math.floor((Math.random() - 0.5) * 20);
                 document.getElementById('memory-value').textContent = mem;
-                document.getElementById('memory-bar').style.width = `${Math.min(100, (mem / 500) * 100)}%`;
             }, 2000);
         }
 
@@ -2155,10 +1911,10 @@
         document.addEventListener('keydown', (e) => {
             if (e.target.matches('input, textarea')) return;
             const key = e.key.toLowerCase();
-            if ((e.ctrlKey || e.metaKey) && key === 'k') { e.preventDefault(); toggleConnectionModal(); return; }
+            if ((e.ctrlKey || e.metaKey) && key === 'k') { e.preventDefault(); document.getElementById('connection-modal').classList.toggle('active'); return; }
             if (key === 'escape') {
-                if (document.getElementById('icon-modal').classList.contains('active')) closeIconModal();
-                else if (document.getElementById('connection-modal').classList.contains('active')) closeConnectionModal();
+                document.getElementById('connection-modal').classList.remove('active');
+                hideEquipmentInfo();
                 return;
             }
             if (!isConnected) return;
@@ -2171,8 +1927,8 @@
         });
 
         document.addEventListener('DOMContentLoaded', init);
-        console.log('🧪 Sidebar Test v2.7 Loaded');
-        console.log('Features: Migration comments, Toast notifications, Internet status, Debug icon moved');
+        console.log('🧪 Sidebar Test v2.8 Loaded');
+        console.log('Features: Three.js 3D View, Equipment Info Panel, Test Controls');
     </script>
 
 </body>
