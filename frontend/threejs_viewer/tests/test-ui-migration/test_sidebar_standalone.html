@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.6</title>
+    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.7</title>
     
     <style>
         /* =============================================
-           1. Theme Configuration
-           v2.6: Full feature parity with main branch
+           MIGRATION GUIDE - CSS Variables
+           ===========================================
+           [MIGRATE TO] src/styles/variables.css
+           - All CSS custom properties (--bg-*, --text-*, etc.)
+           - Theme definitions (dark/light)
            ============================================= */
         
         /* Dark Theme (Default) */
@@ -92,7 +95,13 @@
         }
         
         /* =============================================
-           2. Sidebar (Left)
+           MIGRATION GUIDE - Sidebar Component
+           ===========================================
+           [MIGRATE TO] src/ui/sidebar/Sidebar.js
+           [MIGRATE TO] src/styles/components/sidebar.css
+           - Sidebar container styles
+           - Icon button styles
+           - Submenu system
            ============================================= */
         .sidebar {
             width: 80px;
@@ -132,7 +141,13 @@
         }
 
         /* =============================================
-           3. Interaction Logic
+           MIGRATION GUIDE - Icon Interaction States
+           ===========================================
+           [MIGRATE TO] src/styles/components/sidebar.css
+           - Hover effects
+           - Selected state
+           - Disabled state
+           - Float animation
            ============================================= */
         .icon-btn:not(.selected):not(.disabled):hover {
             transform: scale(1.1) translateY(-3px);
@@ -189,7 +204,13 @@
         }
 
         /* =============================================
-           4. Submenu System
+           MIGRATION GUIDE - Submenu System
+           ===========================================
+           [MIGRATE TO] src/ui/sidebar/Submenu.js
+           [MIGRATE TO] src/styles/components/submenu.css
+           - Submenu container
+           - Submenu items
+           - Position variants (top/bottom aligned)
            ============================================= */
         .has-submenu {
             position: relative;
@@ -212,6 +233,7 @@
             z-index: 100;
         }
         
+        /* [IMPORTANT] Settings submenu: bottom-aligned with icon */
         #btn-settings-wrapper .submenu {
             top: auto;
             bottom: 0;
@@ -224,6 +246,7 @@
             transform: translateX(0);
         }
         
+        /* [IMPORTANT] Disabled state prevents submenu from showing */
         .has-submenu.disabled .submenu {
             opacity: 0 !important;
             visibility: hidden !important;
@@ -298,7 +321,12 @@
             opacity: 0.3;
         }
         
-        /* Always Normal State Icons */
+        /* =============================================
+           MIGRATION GUIDE - Always Normal State Icons
+           ===========================================
+           [NOTE] Connection & Settings icons never show
+           selected state - they always appear "normal"
+           ============================================= */
         #btn-connection,
         #btn-settings-wrapper .icon-btn {
             transform: none !important;
@@ -322,7 +350,12 @@
             transform: scale(1.1) translateY(-3px) !important;
         }
 
-        /* Theme Toggle */
+        /* =============================================
+           MIGRATION GUIDE - Theme Toggle
+           ===========================================
+           [MIGRATE TO] src/ui/settings/ThemeToggle.js
+           [MIGRATE TO] src/styles/components/theme-toggle.css
+           ============================================= */
         .theme-toggle-item {
             display: flex;
             align-items: center;
@@ -399,7 +432,9 @@
         [data-theme="light"] .theme-icons .icon-moon { opacity: 0.5; }
 
         /* =============================================
-           5. Main Content Area
+           MIGRATION GUIDE - Main Content Area
+           ===========================================
+           [MIGRATE TO] src/styles/layout.css
            ============================================= */
         .main-content {
             flex-grow: 1;
@@ -457,7 +492,15 @@
         }
 
         /* =============================================
-           6. Status Bar
+           MIGRATION GUIDE - Status Bar
+           ===========================================
+           [MIGRATE TO] src/ui/StatusBar.js
+           [MIGRATE TO] src/styles/components/status-bar.css
+           
+           [v2.7 CHANGES]
+           - Country code display (KR, CN, US, etc.) instead of "User"
+           - Internet connection status added
+           - Performance gauges moved to right, width reduced 30%
            ============================================= */
         .status-bar {
             position: fixed;
@@ -484,11 +527,21 @@
         .status-dot.disconnected { background-color: var(--text-alarm); box-shadow: 0 0 4px var(--text-alarm); }
         .status-label { color: var(--text-muted); font-size: 9px; text-transform: uppercase; }
         .status-value { color: var(--text-normal); font-weight: 500; font-size: 11px; }
-        .perf-bar { width: 50px; height: 4px; background: var(--bg-input); border-radius: 2px; overflow: hidden; }
+        
+        /* [v2.7] Performance bar width reduced by 30% (50px -> 35px) */
+        .perf-bar { width: 35px; height: 4px; background: var(--bg-input); border-radius: 2px; overflow: hidden; }
         .perf-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s, background 0.3s; }
         .perf-bar-fill.good { background: var(--text-success); }
         .perf-bar-fill.medium { background: var(--text-warning); }
         .perf-bar-fill.bad { background: var(--text-alarm); }
+        
+        /* [v2.7] Country code display style */
+        .country-code {
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--icon-selected);
+            letter-spacing: 1px;
+        }
 
         /* Tooltip */
         .icon-btn[data-tooltip]::after {
@@ -518,7 +571,94 @@
         .sidebar-spacer { flex-grow: 1; }
         
         /* =============================================
-           7. Modal Styles
+           MIGRATION GUIDE - Toast Notification
+           ===========================================
+           [MIGRATE TO] src/ui/common/Toast.js
+           [MIGRATE TO] src/styles/components/toast.css
+           ============================================= */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: 0 8px 24px var(--shadow-color);
+            min-width: 300px;
+            max-width: 450px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .toast.hiding {
+            animation: slideOut 0.3s ease forwards;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        
+        .toast-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .toast-content {
+            flex: 1;
+        }
+        
+        .toast-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+        
+        .toast-message {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 16px;
+            transition: color 0.2s;
+        }
+        
+        .toast-close:hover {
+            color: var(--text-primary);
+        }
+        
+        .toast.success { border-left: 4px solid var(--text-success); }
+        .toast.error { border-left: 4px solid var(--text-alarm); }
+        .toast.warning { border-left: 4px solid var(--text-warning); }
+        .toast.info { border-left: 4px solid var(--icon-selected); }
+        
+        /* =============================================
+           MIGRATION GUIDE - Modal System
+           ===========================================
+           [MIGRATE TO] src/core/base/BaseModal.js
+           [MIGRATE TO] src/styles/components/modal.css
            ============================================= */
         .modal-overlay {
             position: fixed;
@@ -645,7 +785,14 @@
             cursor: not-allowed;
         }
         
-        /* Connection Panel Styles */
+        /* =============================================
+           MIGRATION GUIDE - Connection Panel Styles
+           ===========================================
+           [MIGRATE TO] src/ui/ConnectionStatusPanel.js
+           [MIGRATE TO] src/ui/SiteSelectionPanel.js
+           [MIGRATE TO] src/ui/DatabaseListPanel.js
+           [MIGRATE TO] src/styles/components/connection-panel.css
+           ============================================= */
         .connection-panel {
             background: var(--bg-panel-header);
             border: 1px solid var(--border-subtle);
@@ -675,7 +822,34 @@
             align-items: center;
         }
         
-        /* API Status Panel - Full Feature */
+        /* [v2.7] Internet Connection Status in Modal */
+        .internet-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--bg-input);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .internet-status .status-dot {
+            width: 10px;
+            height: 10px;
+        }
+        
+        .internet-status-text {
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+        
+        .internet-status-detail {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+        
+        /* API Status Panel */
         .api-status-content {
             padding: 16px;
         }
@@ -939,7 +1113,12 @@
         
         .no-tables { padding: 12px; text-align: center; color: var(--text-muted); font-size: 12px; }
         
-        /* Icon Modal */
+        /* =============================================
+           MIGRATION GUIDE - Icon Customization Modal
+           ===========================================
+           [MIGRATE TO] src/ui/settings/IconModal.js
+           [MIGRATE TO] src/styles/components/icon-modal.css
+           ============================================= */
         #icon-modal .modal-container { max-width: 800px; }
         
         .icon-menu-section {
@@ -1030,14 +1209,30 @@
 </head>
 <body>
 
-    <!-- SIDEBAR v2.6 -->
+    <!-- =============================================
+         TOAST CONTAINER
+         [v2.7] Added for connection notifications
+         ============================================= -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- =============================================
+         SIDEBAR COMPONENT v2.7
+         ===========================================
+         [MIGRATION NOTE]
+         - Icon order: Connection → Monitoring → Analysis → Simulation
+         - Divider separates main features from utility (Layout, Debug)
+         - [v2.7] Debug icon moved ABOVE Settings icon
+         - Settings always at bottom with spacer
+         ============================================= -->
     <aside class="sidebar" id="sidebar">
+        <!-- 1. Database Connection Button (Always Normal) -->
         <button class="icon-btn" id="btn-connection" data-mode="connection" data-tooltip="Database Connection (Ctrl+K)">
             <svg viewBox="0 0 24 24" id="icon-connection">
                 <ellipse cx="7" cy="5" rx="5" ry="2"/><path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/><path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/><ellipse cx="17" cy="11" rx="5" ry="2"/><path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M7 13v2" stroke-dasharray="2 2"/><circle cx="12" cy="17" r="1.5" fill="currentColor" stroke="none"/>
             </svg>
         </button>
 
+        <!-- 2. Monitoring Button with Submenu -->
         <div class="has-submenu disabled" id="btn-monitoring-wrapper">
             <button class="icon-btn disabled" id="btn-monitoring" data-mode="monitoring" data-tooltip="System Monitoring (M)">
                 <svg viewBox="0 0 24 24" id="icon-monitoring">
@@ -1057,34 +1252,39 @@
             </div>
         </div>
 
+        <!-- 3. Analysis Button -->
         <button class="icon-btn disabled" id="btn-analysis" data-mode="analysis" data-tooltip="Data Analysis (A)">
             <svg viewBox="0 0 24 24" id="icon-analysis">
                 <path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/><path d="M7 14l4-4 4 4 6-6"/><circle cx="21" cy="8" r="2"/>
             </svg>
         </button>
 
+        <!-- 4. Simulation Button -->
         <button class="icon-btn disabled" id="btn-simulation" data-mode="simulation" data-tooltip="Simulation (S)">
             <svg viewBox="0 0 24 24" id="icon-simulation">
-                <circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/>
+                <circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/>
             </svg>
         </button>
 
         <div class="sidebar-divider"></div>
 
+        <!-- 5. Layout Button (Dev Mode Only, Hidden by default) -->
         <button class="icon-btn disabled hidden" id="btn-layout" data-mode="layout" data-tooltip="Layout Editor">
             <svg viewBox="0 0 24 24" id="icon-layout">
                 <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
             </svg>
         </button>
 
+        <div class="sidebar-spacer"></div>
+        
+        <!-- [v2.7] Debug Button - Moved ABOVE Settings -->
         <button class="icon-btn disabled" id="btn-debug" data-mode="debug" data-tooltip="Debug Panel (D)">
             <svg viewBox="0 0 24 24" id="icon-debug">
                 <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
             </svg>
         </button>
-
-        <div class="sidebar-spacer"></div>
         
+        <!-- 6. Settings Button with Submenu (Always at bottom, Always Normal) -->
         <div class="has-submenu" id="btn-settings-wrapper">
             <button class="icon-btn" id="btn-settings" data-mode="settings" data-tooltip="Settings">
                 <svg viewBox="0 0 24 24" id="icon-settings">
@@ -1125,7 +1325,14 @@
         <div style="height: 50px;"></div>
     </aside>
 
-    <!-- CONNECTION MODAL (Full Feature Parity) -->
+    <!-- =============================================
+         CONNECTION MODAL
+         ===========================================
+         [MIGRATION NOTE]
+         - BaseModal 상속 사용
+         - 3개의 패널: ConnectionStatusPanel, SiteSelectionPanel, DatabaseListPanel
+         - [v2.7] Internet Connection Status 추가됨
+         ============================================= -->
     <div class="modal-overlay" id="connection-modal">
         <div class="modal-container">
             <div class="modal-header">
@@ -1134,7 +1341,14 @@
             </div>
             
             <div class="modal-body">
-                <!-- API Status Panel (Full) -->
+                <!-- [v2.7] Internet Connection Status -->
+                <div class="internet-status" id="internet-status">
+                    <span class="status-dot connected" id="internet-dot"></span>
+                    <span class="internet-status-text" id="internet-text">Internet Connected</span>
+                    <span class="internet-status-detail" id="internet-detail">Ping: 24ms</span>
+                </div>
+                
+                <!-- API Status Panel -->
                 <div class="connection-panel">
                     <div class="panel-header">
                         <h3>🔌 Backend API Status</h3>
@@ -1168,7 +1382,7 @@
                     </div>
                 </div>
                 
-                <!-- Site Selection Panel (Full) -->
+                <!-- Site Selection Panel -->
                 <div class="connection-panel">
                     <div class="panel-header">
                         <h3>🔍 Site Connection</h3>
@@ -1192,7 +1406,7 @@
                     </div>
                 </div>
                 
-                <!-- Database List Panel (Full) -->
+                <!-- Database List Panel -->
                 <div class="connection-panel">
                     <div class="panel-header">
                         <h3>📊 Connected Databases</h3>
@@ -1238,8 +1452,8 @@
 
     <!-- MAIN CONTENT -->
     <main class="main-content">
-        <h1>🧪 Sidebar Test v2.6</h1>
-        <p>Full Feature Parity with Main Branch</p>
+        <h1>🧪 Sidebar Test v2.7</h1>
+        <p>Migration Ready with Comments | Toast Notifications</p>
         <div class="current-mode">
             <div class="mode-label">Current Mode</div>
             <div class="mode-value" id="current-mode">—</div>
@@ -1247,12 +1461,29 @@
         </div>
     </main>
 
-    <!-- STATUS BAR -->
+    <!-- =============================================
+         STATUS BAR
+         ===========================================
+         [MIGRATION NOTE]
+         - [v2.7] Left: Country Code (KR, CN, US) + Internet + Backend + DB
+         - [v2.7] Right: Performance gauges (width reduced 30%)
+         ============================================= -->
     <footer class="status-bar">
+        <!-- [v2.7] Left Group: Country + Connection Status -->
         <div class="status-group">
+            <!-- [v2.7] Country Code instead of "User" -->
+            <div class="status-item">
+                <span class="country-code" id="country-code">KR</span>
+            </div>
+            <!-- [v2.7] Internet Connection Status -->
+            <div class="status-item">
+                <span class="status-dot connected" id="statusbar-internet-dot"></span>
+                <span class="status-label">NET</span>
+                <span class="status-value" id="statusbar-internet-value">Online</span>
+            </div>
             <div class="status-item">
                 <span class="status-dot disconnected" id="backend-dot"></span>
-                <span class="status-label">Backend</span>
+                <span class="status-label">API</span>
                 <span class="status-value" id="backend-value">Disconnected</span>
             </div>
             <div class="status-item">
@@ -1261,6 +1492,8 @@
                 <span class="status-value" id="db-value">None</span>
             </div>
         </div>
+        
+        <!-- [v2.7] Right Group: Performance (gauge width reduced 30%) -->
         <div class="status-group">
             <div class="status-item">
                 <span class="status-label">FPS</span>
@@ -1273,18 +1506,20 @@
                 <div class="perf-bar"><div class="perf-bar-fill good" id="memory-bar" style="width: 30%;"></div></div>
             </div>
         </div>
-        <div class="status-group">
-            <div class="status-item">
-                <span class="status-label">User</span>
-                <span class="status-value">Admin</span>
-            </div>
-        </div>
     </footer>
 
     <script>
         // =============================================
-        // Configuration
+        // MIGRATION GUIDE - JavaScript
+        // ===========================================
+        // [MIGRATE TO] Separate module files:
+        // - src/ui/sidebar/SidebarManager.js
+        // - src/ui/ConnectionModal.js
+        // - src/ui/common/Toast.js
+        // - src/services/ThemeService.js
         // =============================================
+        
+        // Configuration
         let currentMode = null;
         let currentSubMode = null;
         let isConnected = false;
@@ -1293,10 +1528,15 @@
         let currentTheme = 'dark';
         let retryCount = 0;
         let expandedTables = new Set();
+        let isInternetOnline = true;
+        
+        // [MIGRATE TO] src/config/userConfig.js
+        let userCountryCode = 'KR'; // Default country code
         
         let iconSelections = { connection: 0, monitoring: 0, analysis: 0, simulation: 0, layout: 0, debug: 0, settings: 0 };
         let pendingIconSelections = {};
         
+        // [MIGRATE TO] src/config/iconOptions.js
         const iconOptions = {
             connection: [
                 `<ellipse cx="7" cy="5" rx="5" ry="2"/><path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/><path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/><ellipse cx="17" cy="11" rx="5" ry="2"/><path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M7 13v2" stroke-dasharray="2 2"/><circle cx="12" cy="17" r="1.5" fill="currentColor" stroke="none"/>`,
@@ -1354,6 +1594,7 @@
             simulation: 'Simulation', layout: 'Layout Editor', debug: 'Debug Panel', settings: 'Settings'
         };
         
+        // [MIGRATE TO] src/services/SiteProfileService.js
         const siteProfiles = [
             { id: 'kr_b_01', display_name: 'Korea Site B-01', region: 'Asia/Seoul', priority: 10, last_connected: '2026-01-09T14:30:00Z', response_time_ms: 45 },
             { id: 'kr_b_02', display_name: 'Korea Site B-02', region: 'Asia/Seoul', priority: 8, last_connected: null, response_time_ms: null },
@@ -1371,7 +1612,42 @@
         let siteStatus = {};
 
         // =============================================
+        // Toast Notification System
+        // [MIGRATE TO] src/ui/common/Toast.js
+        // =============================================
+        const toast = {
+            show(type, title, message, duration = 4000) {
+                const container = document.getElementById('toast-container');
+                const toastEl = document.createElement('div');
+                toastEl.className = `toast ${type}`;
+                
+                const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+                
+                toastEl.innerHTML = `
+                    <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+                    <div class="toast-content">
+                        <div class="toast-title">${title}</div>
+                        <div class="toast-message">${message}</div>
+                    </div>
+                    <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+                `;
+                
+                container.appendChild(toastEl);
+                
+                setTimeout(() => {
+                    toastEl.classList.add('hiding');
+                    setTimeout(() => toastEl.remove(), 300);
+                }, duration);
+            },
+            success(title, message) { this.show('success', title, message); },
+            error(title, message) { this.show('error', title, message); },
+            warning(title, message) { this.show('warning', title, message); },
+            info(title, message) { this.show('info', title, message); }
+        };
+
+        // =============================================
         // Theme Functions
+        // [MIGRATE TO] src/services/ThemeService.js
         // =============================================
         function toggleTheme() {
             currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -1388,7 +1664,7 @@
         }
 
         // =============================================
-        // Initialize - NO AUTO MODAL
+        // Initialize
         // =============================================
         function init() {
             loadTheme();
@@ -1396,9 +1672,45 @@
             renderSiteList();
             setupSidebarEvents();
             startPerformanceSimulation();
-            // v2.6: Modal does NOT open automatically
-            // User must click Connection button to open modal
+            checkInternetConnection();
+            
+            // Start periodic internet check
+            setInterval(checkInternetConnection, 30000);
         }
+
+        // =============================================
+        // Internet Connection Check
+        // [v2.7] New feature
+        // [MIGRATE TO] src/services/NetworkService.js
+        // =============================================
+        function checkInternetConnection() {
+            const online = navigator.onLine;
+            isInternetOnline = online;
+            
+            // Update Modal
+            const modalDot = document.getElementById('internet-dot');
+            const modalText = document.getElementById('internet-text');
+            const modalDetail = document.getElementById('internet-detail');
+            
+            if (modalDot) {
+                modalDot.className = `status-dot ${online ? 'connected' : 'disconnected'}`;
+                modalText.textContent = online ? 'Internet Connected' : 'Internet Disconnected';
+                modalDetail.textContent = online ? `Ping: ${Math.floor(Math.random() * 30 + 10)}ms` : 'No connection';
+            }
+            
+            // Update Status Bar
+            const statusbarDot = document.getElementById('statusbar-internet-dot');
+            const statusbarValue = document.getElementById('statusbar-internet-value');
+            
+            if (statusbarDot) {
+                statusbarDot.className = `status-dot ${online ? 'connected' : 'disconnected'}`;
+                statusbarValue.textContent = online ? 'Online' : 'Offline';
+            }
+        }
+        
+        // Listen for online/offline events
+        window.addEventListener('online', checkInternetConnection);
+        window.addEventListener('offline', checkInternetConnection);
 
         // =============================================
         // API Status Functions
@@ -1445,6 +1757,7 @@
         function openConnectionModal() {
             document.getElementById('connection-modal').classList.add('active');
             refreshAPIStatus();
+            checkInternetConnection();
         }
         
         function closeConnectionModal() {
@@ -1534,6 +1847,10 @@
                 updateStatusBar(selectedSite);
                 connectBtn.textContent = '🔌 Connect';
                 connectBtn.disabled = true;
+                
+                // [v2.7] Show Toast on successful connection
+                const site = siteProfiles.find(s => s.id === selectedSite);
+                toast.success('Database Connected', `Successfully connected to ${site.display_name}`);
             }, 1500);
         }
         
@@ -1544,6 +1861,8 @@
         }
         
         function disconnectFromSite(siteId) {
+            const site = siteProfiles.find(s => s.id === siteId);
+            
             siteStatus[siteId] = { status: 'disconnected' };
             isConnected = false;
             selectedSite = null;
@@ -1554,6 +1873,9 @@
             currentMode = null;
             document.getElementById('current-mode').textContent = '—';
             document.getElementById('current-submode').textContent = '';
+            
+            // [v2.7] Show Toast on disconnect
+            toast.info('Database Disconnected', `Disconnected from ${site.display_name}`);
         }
         
         function renderDatabaseInfo(siteId) {
@@ -1640,12 +1962,13 @@
                 renderDatabaseInfo(selectedSite);
                 btn.disabled = false;
                 btn.textContent = '🔄 Refresh';
+                toast.success('Refreshed', 'Database information updated');
             }, 800);
         }
         
         function exportDatabaseStatus() {
             if (!isConnected) {
-                alert('No database connected');
+                toast.warning('No Connection', 'Connect to a database first');
                 return;
             }
             const site = siteProfiles.find(s => s.id === selectedSite);
@@ -1662,6 +1985,7 @@
             link.download = `database_status_${new Date().toISOString().split('T')[0]}.json`;
             link.click();
             URL.revokeObjectURL(url);
+            toast.success('Exported', 'Database status exported to JSON');
         }
         
         function enableSidebarIcons() {
@@ -1701,6 +2025,7 @@
 
         // =============================================
         // Icon Modal Functions
+        // [MIGRATE TO] src/ui/settings/IconModal.js
         // =============================================
         function openIconModal() {
             pendingIconSelections = { ...iconSelections };
@@ -1750,6 +2075,7 @@
                 if (iconEl) iconEl.innerHTML = iconOptions[menuKey][iconSelections[menuKey]];
             });
             closeIconModal();
+            toast.success('Icons Updated', 'Icon customization applied');
         }
 
         // =============================================
@@ -1763,9 +2089,11 @@
                 layoutBtn.classList.remove('hidden');
                 if (isConnected) layoutBtn.classList.remove('disabled');
                 label.textContent = 'Dev Mode: ON';
+                toast.info('Dev Mode', 'Developer mode enabled');
             } else {
                 layoutBtn.classList.add('hidden');
                 label.textContent = 'Dev Mode: OFF';
+                toast.info('Dev Mode', 'Developer mode disabled');
             }
         }
 
@@ -1843,8 +2171,8 @@
         });
 
         document.addEventListener('DOMContentLoaded', init);
-        console.log('🧪 Sidebar Test v2.6 Loaded');
-        console.log('Features: Full parity with main branch ConnectionModal');
+        console.log('🧪 Sidebar Test v2.7 Loaded');
+        console.log('Features: Migration comments, Toast notifications, Internet status, Debug icon moved');
     </script>
 
 </body>
