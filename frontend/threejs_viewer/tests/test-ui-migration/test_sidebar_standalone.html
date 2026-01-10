@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.9</title>
+    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.10</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <style>
@@ -64,7 +64,10 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { display: flex; height: 100vh; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: var(--bg-main); }
         
-        /* Sidebar */
+        /* =============================================
+           Sidebar
+           [MIGRATE TO] src/ui/sidebar/Sidebar.js
+           ============================================= */
         .sidebar { width: 80px; background-color: var(--bg-sidebar); display: flex; flex-direction: column; align-items: center; padding-top: 24px; z-index: 10; box-shadow: 4px 0 15px var(--shadow-color); }
         .icon-btn { width: 54px; height: 54px; margin-bottom: 12px; background: transparent; border: none; cursor: pointer; display: flex; justify-content: center; align-items: center; position: relative; transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1); }
         .icon-btn svg { width: var(--icon-size); height: var(--icon-size); fill: none; stroke: var(--icon-normal); stroke-width: 1px; stroke-linecap: round; stroke-linejoin: round; transition: all var(--transition-speed); }
@@ -80,16 +83,10 @@
         /* =============================================
            Submenu System
            [MIGRATE TO] src/ui/sidebar/Submenu.js
-           
-           [v2.9] Debug submenu: bottom-aligned like Settings
            ============================================= */
         .has-submenu { position: relative; }
         .submenu { position: absolute; left: 70px; top: 0; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 0; min-width: 200px; opacity: 0; visibility: hidden; transform: translateX(-10px); transition: all 0.2s ease; box-shadow: 4px 4px 20px var(--shadow-color); z-index: 100; }
-        
-        /* [v2.9] Bottom-aligned submenus for Settings and Debug */
-        #btn-settings-wrapper .submenu,
-        #btn-debug-wrapper .submenu { top: auto; bottom: 0; }
-        
+        #btn-settings-wrapper .submenu, #btn-debug-wrapper .submenu { top: auto; bottom: 0; }
         .has-submenu:not(.disabled):hover .submenu { opacity: 1; visibility: visible; transform: translateX(0); }
         .has-submenu.disabled .submenu { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
         .submenu-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: var(--text-secondary); font-size: 13px; cursor: pointer; transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; }
@@ -101,7 +98,6 @@
         .submenu-header { padding: 6px 16px; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
         .has-submenu::after { content: ''; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 4px solid transparent; border-left-color: var(--icon-normal); opacity: 0.5; }
         .has-submenu:not(.disabled):hover::after { border-left-color: var(--icon-selected); opacity: 1; }
-        .has-submenu.disabled::after { border-left-color: var(--icon-disabled); opacity: 0.3; }
         
         /* Always Normal State */
         #btn-connection, #btn-settings-wrapper .icon-btn, #btn-debug-wrapper .icon-btn { transform: none !important; }
@@ -119,9 +115,105 @@
         .theme-switch.active { background: var(--icon-selected); border-color: var(--icon-selected); }
         .theme-switch.active::before { left: 22px; background: white; }
 
-        /* Main Content */
+        /* =============================================
+           Main Content & Views
+           [MIGRATE TO] src/styles/layout.css
+           
+           [v2.10] Cover Screen: Default view on startup
+           [v2.10] Three.js: Only when Monitoring → 3D View
+           ============================================= */
         .main-content { flex-grow: 1; background: var(--bg-main-gradient); display: flex; flex-direction: column; color: var(--text-primary); margin-bottom: var(--status-bar-height); position: relative; overflow: hidden; }
-        #threejs-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        
+        /* [v2.10] Cover Screen - Default startup view */
+        #cover-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+            background: var(--bg-main-gradient);
+        }
+        #cover-screen.hidden { display: none; }
+        
+        .cover-logo {
+            font-size: 72px;
+            margin-bottom: 20px;
+            animation: float-logo 3s ease-in-out infinite;
+        }
+        @keyframes float-logo {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        
+        .cover-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--icon-selected);
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+        
+        .cover-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 40px;
+        }
+        
+        .cover-status {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .cover-status-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            min-width: 280px;
+        }
+        
+        .cover-status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .cover-status-dot.connected { background: var(--text-success); box-shadow: 0 0 8px var(--text-success); }
+        .cover-status-dot.disconnected { background: var(--text-alarm); }
+        .cover-status-dot.warning { background: var(--text-warning); }
+        
+        .cover-status-text { font-size: 13px; color: var(--text-secondary); flex: 1; }
+        .cover-status-value { font-size: 13px; color: var(--text-primary); font-weight: 500; }
+        
+        .cover-hint {
+            margin-top: 40px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .cover-hint kbd {
+            padding: 2px 8px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* [v2.10] Three.js Container - Hidden by default */
+        #threejs-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
+            display: none;
+        }
+        #threejs-container.active { display: block; }
+        
         .overlay-ui { position: absolute; top: 20px; left: 20px; z-index: 10; display: flex; flex-direction: column; gap: 10px; }
         .mode-indicator { padding: 12px 20px; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 10px; }
         .mode-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
@@ -135,7 +227,12 @@
         .test-btn:hover { background: var(--bg-selected); border-color: var(--icon-selected); }
         .test-btn-icon { margin-right: 8px; }
 
-        /* Equipment Info Panel */
+        /* =============================================
+           Equipment Info Panel
+           [MIGRATE TO] src/ui/EquipmentInfoPanel.js
+           [MIGRATE TO] src/ui/equipment-info/tabs/GeneralTab.js
+           [MIGRATE TO] src/ui/equipment-info/tabs/PCInfoTab.js
+           ============================================= */
         #equipmentInfo { position: fixed; top: 80px; right: 20px; width: 320px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 40px var(--shadow-color); z-index: 100; opacity: 0; visibility: hidden; transform: translateX(20px); transition: all 0.3s ease; }
         #equipmentInfo.active { opacity: 1; visibility: visible; transform: translateX(0); }
         .equipment-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-panel-header); border-radius: 12px 12px 0 0; }
@@ -165,6 +262,7 @@
         .info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
         .info-label { font-size: 12px; color: var(--text-muted); }
         .info-value { font-size: 12px; color: var(--text-primary); font-family: 'Consolas', monospace; }
+        .info-value-small { font-size: 11px; }
         .info-row-divider { height: 1px; background: var(--border-subtle); margin: 8px 0; }
         .info-row.unmapped-notice { background: rgba(248, 113, 113, 0.1); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; }
         .info-icon { margin-right: 8px; }
@@ -180,76 +278,105 @@
         .loading-spinner-small { width: 20px; height: 20px; border: 2px solid var(--border-color); border-top-color: var(--icon-selected); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .loading-text { font-size: 12px; color: var(--text-muted); }
 
         /* =============================================
-           Equipment Edit Modal
-           [MIGRATE TO] src/ui/EquipmentEditModal.js
+           PC Info Tab - Gauge System
+           [MIGRATE TO] src/ui/equipment-info/components/GaugeRenderer.js
            ============================================= */
-        .equip-edit-modal .modal-container { max-width: 600px; }
-        .equipment-edit-content { padding: 0; }
-        .edit-section { margin-bottom: 20px; }
-        .edit-section h3 { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .equip-edit__info-box { background: var(--bg-input); border-radius: 8px; padding: 12px; }
-        .equip-edit__info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); }
-        .equip-edit__info-row:last-child { border-bottom: none; }
-        .equip-edit__info-label { font-size: 12px; color: var(--text-muted); }
-        .equip-edit__info-value { font-size: 12px; color: var(--text-primary); font-family: 'Consolas', monospace; }
-        .equip-edit__info-value--muted { color: var(--text-muted); }
-        .equip-edit__info-value--success { color: var(--text-success); }
-        .equip-edit__search-box { display: flex; gap: 8px; margin-bottom: 12px; }
-        .equip-edit__search-input { flex: 1; padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 13px; }
-        .equip-edit__search-input:focus { outline: none; border-color: var(--icon-selected); }
-        .equip-edit__search-clear { padding: 10px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-muted); cursor: pointer; }
-        .equip-edit__list { max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; }
-        .equip-edit__item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-subtle); cursor: pointer; transition: background 0.2s; }
-        .equip-edit__item:hover { background: var(--bg-hover); }
-        .equip-edit__item:last-child { border-bottom: none; }
-        .equip-edit__item--selected { background: var(--bg-selected); }
-        .equip-edit__item--current { background: rgba(74, 222, 128, 0.1); }
-        .equip-edit__item--assigned { opacity: 0.6; }
-        .equip-edit__item-content { flex: 1; }
-        .equip-edit__item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-        .equip-edit__item-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
-        .equip-edit__item-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; }
-        .equip-edit__item-badge--current { background: var(--text-success); color: white; }
-        .equip-edit__item-badge--assigned { background: var(--text-warning); color: black; }
-        .equip-edit__item-details { font-size: 11px; color: var(--text-muted); display: flex; gap: 12px; }
-        .equip-edit__item-select-btn { padding: 6px 14px; border: none; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
-        .equip-edit__item-select-btn--primary { background: var(--icon-selected); color: white; }
-        .equip-edit__item-select-btn--success { background: var(--text-success); color: white; }
-        .equip-edit__progress { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-input); border-radius: 8px; }
-        .equip-edit__progress-text { font-size: 12px; color: var(--text-secondary); }
-        .equip-edit__validation { padding: 12px; border-radius: 8px; margin-bottom: 12px; }
-        .equip-edit__validation--valid { background: rgba(74, 222, 128, 0.1); border: 1px solid var(--text-success); }
-        .equip-edit__validation--invalid { background: rgba(248, 113, 113, 0.1); border: 1px solid var(--text-alarm); }
-        .equip-edit__footer { display: flex; justify-content: space-between; }
-        .equip-edit__footer-left, .equip-edit__footer-right { display: flex; gap: 8px; }
-
-        /* =============================================
-           Debug Panel
-           [MIGRATE TO] src/ui/debug/DebugPanel.js
-           ============================================= */
-        #debug-panel { position: fixed; bottom: 50px; right: 20px; width: 400px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 40px var(--shadow-color); z-index: 100; opacity: 0; visibility: hidden; transform: translateY(20px); transition: all 0.3s ease; }
-        #debug-panel.active { opacity: 1; visibility: visible; transform: translateY(0); }
-        .debug-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg-panel-header); border-radius: 12px 12px 0 0; border-bottom: 1px solid var(--border-subtle); }
-        .debug-panel-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-        .debug-panel-content { font-family: 'Consolas', 'Monaco', monospace; font-size: 12px; color: #0f0; background: #1a1a1a; padding: 12px; max-height: 350px; overflow-y: auto; border-radius: 0 0 12px 12px; }
-        .debug-section { margin-bottom: 12px; }
-        .debug-section-title { color: #0ff; margin-bottom: 8px; font-size: 11px; text-transform: uppercase; }
-        .debug-state-item { display: flex; justify-content: space-between; padding: 4px 0; }
-        .debug-state-label { color: #888; }
-        .debug-state-value { color: #ff0; }
-        .debug-state-value.on { color: #0f0; }
-        .debug-state-value.off { color: #f00; }
-        .debug-events-log { max-height: 80px; overflow-y: auto; padding: 8px; background: #0a0a0a; border-radius: 4px; }
-        .debug-event-item { font-size: 10px; color: #666; padding: 2px 0; }
-        .debug-event-time { color: #444; }
-        .debug-event-name { color: #0ff; }
-        .debug-command-box { display: flex; gap: 8px; margin-top: 8px; }
-        .debug-command-input { flex: 1; background: #0a0a0a; border: 1px solid #333; color: #0f0; padding: 6px 8px; font-family: inherit; font-size: 12px; border-radius: 4px; }
-        .debug-command-btn { background: #333; border: 1px solid #555; color: #0f0; padding: 6px 12px; cursor: pointer; border-radius: 4px; }
-        .debug-output { margin-top: 8px; padding: 8px; background: #0a0a0a; border: 1px solid #333; min-height: 40px; max-height: 80px; overflow-y: auto; white-space: pre-wrap; border-radius: 4px; font-size: 11px; }
+        .pcinfo-system-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+        }
+        .pcinfo-system-row .info-label {
+            min-width: 45px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .pcinfo-system-row .info-value {
+            font-size: 11px;
+            color: var(--text-primary);
+            text-align: right;
+            flex: 1;
+        }
+        .value-separator {
+            color: var(--text-muted);
+            margin: 0 4px;
+        }
+        
+        /* Boot Duration Colors */
+        .boot-duration {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .boot-duration.boot-green { background: rgba(74, 222, 128, 0.15); color: var(--text-success); }
+        .boot-duration.boot-yellow { background: rgba(251, 191, 36, 0.15); color: var(--text-warning); }
+        .boot-duration.boot-red { background: rgba(248, 113, 113, 0.15); color: var(--text-alarm); }
+        
+        /* Gauge Section */
+        .gauge-section {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-subtle);
+        }
+        .gauge-section-title {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        
+        /* Unified Gauge Row */
+        .unified-gauge-row {
+            display: flex;
+            align-items: center;
+            padding: 6px 0;
+            gap: 10px;
+        }
+        .unified-gauge-label {
+            min-width: 35px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        .unified-gauge-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .unified-gauge-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--bg-input);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .unified-gauge-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease, background 0.3s ease;
+        }
+        .unified-gauge-fill.gauge-green { background: var(--text-success); }
+        .unified-gauge-fill.gauge-yellow { background: var(--text-warning); }
+        .unified-gauge-fill.gauge-red { background: var(--text-alarm); }
+        .unified-gauge-fill.gauge-gray { background: var(--text-muted); }
+        
+        .unified-gauge-value {
+            min-width: 75px;
+            text-align: right;
+            font-size: 10px;
+            font-family: 'Consolas', monospace;
+            color: var(--text-secondary);
+        }
+        .unified-gauge-na {
+            flex: 1;
+            text-align: right;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
 
         /* Status Bar */
         .status-bar { position: fixed; bottom: 0; left: 0; width: 100%; height: var(--status-bar-height); background-color: var(--bg-sidebar); border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-family: 'Consolas', monospace; font-size: 11px; z-index: 20; }
@@ -281,11 +408,11 @@
         .toast.warning { border-left: 4px solid var(--text-warning); }
         .toast.info { border-left: 4px solid var(--icon-selected); }
 
-        /* Modal */
+        /* Modal (Compact) */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
         .modal-overlay.active { opacity: 1; visibility: visible; }
-        .modal-container { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 16px; width: 90%; max-width: 700px; max-height: 85vh; overflow: hidden; box-shadow: 0 25px 50px var(--shadow-color); transform: scale(0.9) translateY(20px); transition: transform 0.3s ease; }
-        .modal-overlay.active .modal-container { transform: scale(1) translateY(0); }
+        .modal-container { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 16px; width: 90%; max-width: 700px; max-height: 85vh; overflow: hidden; box-shadow: 0 25px 50px var(--shadow-color); transform: scale(0.9); transition: transform 0.3s ease; }
+        .modal-overlay.active .modal-container { transform: scale(1); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-panel-header); }
         .modal-title { font-size: 18px; font-weight: 600; color: var(--text-primary); }
         .modal-close { width: 32px; height: 32px; border: none; background: var(--bg-input); border-radius: 8px; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
@@ -294,11 +421,6 @@
         .modal-footer { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid var(--border-color); background: var(--bg-panel-header); }
         .footer-hint { font-size: 11px; color: var(--text-muted); }
         .btn-secondary { padding: 10px 20px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); cursor: pointer; }
-        .btn-primary { padding: 10px 20px; background: linear-gradient(135deg, #06B6D4, #0891B2); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; }
-        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-outline { padding: 8px 16px; background: transparent; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px; }
-        .btn-outline:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .btn-success { padding: 10px 20px; background: linear-gradient(135deg, #16A34A, #15803D); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; }
         .btn-connect { padding: 10px 20px; background: linear-gradient(135deg, #06B6D4, #0891B2); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; }
         .btn-connect:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -306,23 +428,18 @@
         .connection-panel { background: var(--bg-panel-header); border: 1px solid var(--border-subtle); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
         .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: var(--bg-panel-header); border-bottom: 1px solid var(--border-subtle); }
         .panel-header h3 { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-        .panel-actions { display: flex; gap: 8px; align-items: center; }
         .internet-status { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-input); border-radius: 8px; margin-bottom: 16px; }
         .internet-status .status-dot { width: 10px; height: 10px; }
         .internet-status-text { font-size: 13px; color: var(--text-primary); }
         .api-status-content { padding: 16px; }
-        .status-indicator-box { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px; background: var(--bg-input); border-radius: 8px; }
-        .status-indicator-box .status-dot { width: 12px; height: 12px; border-radius: 50%; animation: pulse 2s infinite; }
+        .status-indicator-box { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-input); border-radius: 8px; }
+        .status-indicator-box .status-dot { width: 12px; height: 12px; animation: pulse 2s infinite; }
         .status-dot--connected { background: var(--text-success); box-shadow: 0 0 10px var(--text-success); }
-        .status-dot--disconnected { background: var(--text-alarm); box-shadow: 0 0 10px var(--text-alarm); }
+        .status-dot--disconnected { background: var(--text-alarm); }
         .status-dot--checking { background: var(--text-muted); }
-        .status-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .status-detail { display: flex; flex-direction: column; gap: 4px; }
-        .detail-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
-        .detail-value { font-size: 13px; color: var(--text-primary); font-family: 'Consolas', monospace; }
         .site-list { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
         .site-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: 10px; cursor: pointer; }
-        .site-item:hover { background: var(--bg-hover); border-color: var(--border-color); }
+        .site-item:hover { background: var(--bg-hover); }
         .site-item.site-item--selected { background: var(--bg-selected); border-color: var(--icon-selected); }
         .site-item.site-item--connected { background: rgba(74, 222, 128, 0.1); border-color: var(--text-success); }
         .site-checkbox input { width: 16px; height: 16px; accent-color: var(--icon-selected); }
@@ -333,10 +450,22 @@
         .site-status { display: flex; align-items: center; gap: 8px; }
         .btn-disconnect { padding: 4px 10px; font-size: 11px; border: none; border-radius: 4px; cursor: pointer; background: rgba(248, 113, 113, 0.2); color: var(--text-alarm); }
         .panel-footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border-subtle); background: var(--bg-panel-header); }
-        .no-connection { text-align: center; padding: 32px; color: var(--text-muted); }
-        .no-connection-icon { font-size: 32px; display: block; margin-bottom: 8px; }
 
-        /* Dev Mode Indicator */
+        /* Debug Panel */
+        #debug-panel { position: fixed; bottom: 50px; right: 20px; width: 400px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 40px var(--shadow-color); z-index: 100; opacity: 0; visibility: hidden; transform: translateY(20px); transition: all 0.3s ease; }
+        #debug-panel.active { opacity: 1; visibility: visible; transform: translateY(0); }
+        .debug-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg-panel-header); border-radius: 12px 12px 0 0; border-bottom: 1px solid var(--border-subtle); }
+        .debug-panel-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .debug-panel-content { font-family: 'Consolas', monospace; font-size: 12px; color: #0f0; background: #1a1a1a; padding: 12px; max-height: 300px; overflow-y: auto; border-radius: 0 0 12px 12px; }
+        .debug-section { margin-bottom: 12px; }
+        .debug-section-title { color: #0ff; margin-bottom: 8px; font-size: 11px; text-transform: uppercase; }
+        .debug-state-item { display: flex; justify-content: space-between; padding: 4px 0; }
+        .debug-state-label { color: #888; }
+        .debug-state-value { color: #ff0; }
+        .debug-state-value.on { color: #0f0; }
+        .debug-state-value.off { color: #f00; }
+
+        /* Dev Mode Badge */
         .dev-mode-badge { position: fixed; top: 10px; left: 90px; padding: 4px 12px; background: rgba(251, 191, 36, 0.2); border: 1px solid var(--text-warning); border-radius: 20px; font-size: 11px; color: var(--text-warning); font-weight: 600; z-index: 1000; display: none; }
         .dev-mode-badge.active { display: block; }
 
@@ -344,7 +473,6 @@
         .mock-test-list { padding: 8px 16px; }
         .mock-test-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin-bottom: 4px; background: var(--bg-input); border-radius: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; }
         .mock-test-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .mock-test-icon { color: var(--icon-selected); }
 
         .sidebar-divider { width: 40px; height: 1px; background: var(--border-color); margin: 8px 0; }
         .sidebar-spacer { flex-grow: 1; }
@@ -355,19 +483,14 @@
     <div class="toast-container" id="toast-container"></div>
     <div class="dev-mode-badge" id="dev-mode-badge">⚡ DEV MODE</div>
 
-    <!-- =============================================
-         SIDEBAR v2.9
-         [v2.9] Layout Editor → Submenu (Layout Editor, Mapping)
-         [v2.9] Debug → Submenu (bottom-aligned)
-         ============================================= -->
+    <!-- SIDEBAR v2.10 -->
     <aside class="sidebar" id="sidebar">
         <button class="icon-btn" id="btn-connection" data-mode="connection" data-tooltip="Database Connection (Ctrl+K)">
             <svg viewBox="0 0 24 24"><ellipse cx="7" cy="5" rx="5" ry="2"/><path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/><path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/><ellipse cx="17" cy="11" rx="5" ry="2"/><path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/></svg>
         </button>
 
-        <!-- Monitoring with submenu -->
         <div class="has-submenu disabled" id="btn-monitoring-wrapper">
-            <button class="icon-btn disabled" id="btn-monitoring" data-mode="monitoring" data-tooltip="System Monitoring (M)">
+            <button class="icon-btn disabled" id="btn-monitoring" data-mode="monitoring">
                 <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/><path d="M12 16v4"/><path d="M8 20h8"/></svg>
             </button>
             <div class="submenu" id="monitoring-submenu">
@@ -383,25 +506,24 @@
             </div>
         </div>
 
-        <button class="icon-btn disabled" id="btn-analysis" data-mode="analysis" data-tooltip="Data Analysis (A)">
+        <button class="icon-btn disabled" id="btn-analysis" data-mode="analysis">
             <svg viewBox="0 0 24 24"><path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/><path d="M7 14l4-4 4 4 6-6"/><circle cx="21" cy="8" r="2"/></svg>
         </button>
 
-        <button class="icon-btn disabled" id="btn-simulation" data-mode="simulation" data-tooltip="Simulation (S)">
+        <button class="icon-btn disabled" id="btn-simulation" data-mode="simulation">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>
         </button>
 
         <div class="sidebar-divider"></div>
 
-        <!-- [v2.9] Layout Editor with Submenu -->
         <div class="has-submenu disabled hidden" id="btn-layout-wrapper">
-            <button class="icon-btn disabled" id="btn-layout" data-mode="layout" data-tooltip="Layout Editor">
+            <button class="icon-btn disabled" id="btn-layout" data-mode="layout">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             </button>
             <div class="submenu" id="layout-submenu">
                 <div class="submenu-header">Layout Tools</div>
                 <button class="submenu-item" data-submode="layout-editor" onclick="setSubMode('layout', 'layout-editor')">
-                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/></svg>
                     Layout Editor
                 </button>
                 <button class="submenu-item" data-submode="mapping" onclick="openEquipmentEditModal()">
@@ -413,71 +535,43 @@
 
         <div class="sidebar-spacer"></div>
         
-        <!-- [v2.9] Debug with Submenu (bottom-aligned) -->
         <div class="has-submenu disabled" id="btn-debug-wrapper">
-            <button class="icon-btn disabled" id="btn-debug" data-mode="debug" data-tooltip="Debug Panel (D)">
+            <button class="icon-btn disabled" id="btn-debug" data-mode="debug">
                 <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
             </button>
             <div class="submenu" id="debug-submenu">
                 <div class="submenu-header">Debug Tools</div>
-                <button class="submenu-item" data-submode="app-state" onclick="setDebugView('app-state')">
-                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-                    📊 Application State
-                </button>
-                <button class="submenu-item" data-submode="performance" onclick="setDebugView('performance')">
-                    <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                    ⚡ Performance
-                </button>
-                <button class="submenu-item" data-submode="event-log" onclick="setDebugView('event-log')">
-                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                    📝 Event Log
-                </button>
-                <button class="submenu-item" data-submode="console" onclick="setDebugView('console')">
-                    <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                    💻 Command Console
-                </button>
+                <button class="submenu-item" onclick="setDebugView('app-state')">📊 Application State</button>
+                <button class="submenu-item" onclick="setDebugView('performance')">⚡ Performance</button>
+                <button class="submenu-item" onclick="setDebugView('event-log')">📝 Event Log</button>
+                <button class="submenu-item" onclick="setDebugView('console')">💻 Command Console</button>
                 <div class="submenu-divider"></div>
-                <button class="submenu-item" onclick="toggleDebugPanel()">
-                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
-                    📋 Full Debug Panel
-                </button>
+                <button class="submenu-item" onclick="toggleDebugPanel()">📋 Full Debug Panel</button>
             </div>
         </div>
         
-        <!-- Settings with Submenu -->
         <div class="has-submenu" id="btn-settings-wrapper">
-            <button class="icon-btn" id="btn-settings" data-mode="settings" data-tooltip="Settings">
+            <button class="icon-btn" id="btn-settings" data-mode="settings">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </button>
             <div class="submenu" id="settings-submenu">
                 <div class="submenu-header">Settings</div>
                 <div class="theme-toggle-item">
-                    <div class="theme-toggle-label">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/></svg>
-                        <span>Theme</span>
-                    </div>
+                    <div class="theme-toggle-label"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg><span>Theme</span></div>
                     <div class="theme-switch" id="theme-switch" onclick="toggleTheme()"></div>
                 </div>
                 <div class="submenu-divider"></div>
-                <!-- [v2.9] Dev Mode with Mock Test capability -->
                 <button class="submenu-item" id="dev-mode-toggle" onclick="toggleDevMode()">
                     <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                     <span id="dev-mode-label">Dev Mode: OFF</span>
                 </button>
-                <!-- [v2.9] Mock Test Files (shown when Dev Mode is ON) -->
                 <div id="mock-test-section" style="display: none;">
                     <div class="submenu-divider"></div>
                     <div class="submenu-header">Mock Test Files</div>
-                    <div class="mock-test-list" id="mock-test-list">
-                        <div class="mock-test-item" onclick="loadMockTest('equipment-status')">
-                            <span class="mock-test-icon">📦</span> Equipment Status Test
-                        </div>
-                        <div class="mock-test-item" onclick="loadMockTest('realtime-update')">
-                            <span class="mock-test-icon">🔄</span> Realtime Update Test
-                        </div>
-                        <div class="mock-test-item" onclick="loadMockTest('multi-site')">
-                            <span class="mock-test-icon">🌐</span> Multi-Site Test
-                        </div>
+                    <div class="mock-test-list">
+                        <div class="mock-test-item" onclick="loadMockTest('equipment-status')">📦 Equipment Status Test</div>
+                        <div class="mock-test-item" onclick="loadMockTest('realtime-update')">🔄 Realtime Update Test</div>
+                        <div class="mock-test-item" onclick="loadMockTest('multi-site')">🌐 Multi-Site Test</div>
                     </div>
                 </div>
             </div>
@@ -493,141 +587,71 @@
                 <button class="modal-close" onclick="closeConnectionModal()">✕</button>
             </div>
             <div class="modal-body">
-                <div class="internet-status">
-                    <span class="status-dot connected" id="internet-dot"></span>
-                    <span class="internet-status-text">Internet Connected</span>
-                </div>
+                <div class="internet-status"><span class="status-dot connected"></span><span class="internet-status-text">Internet Connected</span></div>
                 <div class="connection-panel">
-                    <div class="panel-header">
-                        <h3>🔌 Backend API Status</h3>
-                        <button class="btn-connect" onclick="refreshAPIStatus()" style="padding: 6px 12px; font-size: 12px;">🔄 Check</button>
-                    </div>
-                    <div class="api-status-content">
-                        <div class="status-indicator-box">
-                            <span class="status-dot status-dot--checking" id="api-status-dot"></span>
-                            <span class="status-text" id="api-status-text">Checking...</span>
-                        </div>
-                    </div>
+                    <div class="panel-header"><h3>🔌 Backend API Status</h3><button class="btn-connect" onclick="refreshAPIStatus()" style="padding:6px 12px;font-size:12px">🔄 Check</button></div>
+                    <div class="api-status-content"><div class="status-indicator-box"><span class="status-dot status-dot--checking" id="api-status-dot"></span><span id="api-status-text">Checking...</span></div></div>
                 </div>
                 <div class="connection-panel">
                     <div class="panel-header"><h3>🔍 Site Connection</h3></div>
                     <div class="site-list" id="site-list"></div>
-                    <div class="panel-footer">
-                        <span id="selection-count">Selected: 0</span>
-                        <button class="btn-connect" id="connect-btn" disabled onclick="connectToSelectedSite()">🔌 Connect</button>
-                    </div>
+                    <div class="panel-footer"><span id="selection-count">Selected: 0</span><button class="btn-connect" id="connect-btn" disabled onclick="connectToSelectedSite()">🔌 Connect</button></div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <span class="footer-hint">Ctrl+K to toggle | Escape to close</span>
-                <button class="btn-secondary" onclick="closeConnectionModal()">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- EQUIPMENT EDIT MODAL -->
-    <div class="modal-overlay equip-edit-modal" id="equipment-edit-modal">
-        <div class="modal-container">
-            <div class="modal-header">
-                <div class="modal-title">🛠️ Equipment Mapping Editor</div>
-                <button class="modal-close" onclick="closeEquipmentEditModal()">✕</button>
-            </div>
-            <div class="modal-body">
-                <div class="equipment-edit-content">
-                    <div class="edit-section">
-                        <h3>Selected Equipment</h3>
-                        <div class="equip-edit__info-box">
-                            <div class="equip-edit__info-row">
-                                <span class="equip-edit__info-label">Frontend ID:</span>
-                                <span class="equip-edit__info-value" id="edit-frontend-id">EQ-001</span>
-                            </div>
-                            <div class="equip-edit__info-row">
-                                <span class="equip-edit__info-label">Position:</span>
-                                <span class="equip-edit__info-value" id="edit-position">Row 1, Col 1</span>
-                            </div>
-                            <div class="equip-edit__info-row">
-                                <span class="equip-edit__info-label">Current Mapping:</span>
-                                <span class="equip-edit__info-value equip-edit__info-value--muted" id="edit-current-mapping">Not Assigned</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="edit-section">
-                        <h3>Equipment Name</h3>
-                        <div class="equip-edit__search-box">
-                            <input type="text" class="equip-edit__search-input" id="equipment-search" placeholder="Search equipment name...">
-                            <button class="equip-edit__search-clear" onclick="clearEquipmentSearch()">✕</button>
-                        </div>
-                        <div class="equip-edit__list" id="equipment-list"></div>
-                    </div>
-                    
-                    <div class="edit-section">
-                        <div class="equip-edit__progress">
-                            <span class="equip-edit__progress-text" id="mapping-progress">0 / 9 Mapped</span>
-                            <span id="sync-status" style="font-size: 11px; color: var(--text-muted);">Not synced</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <div class="equip-edit__footer">
-                    <div class="equip-edit__footer-left">
-                        <button class="btn-outline" onclick="validateMappings()">🔍 Validate</button>
-                        <button class="btn-outline" onclick="syncFromServer()">🔄 Sync</button>
-                    </div>
-                    <div class="equip-edit__footer-right">
-                        <button class="btn-secondary" onclick="closeEquipmentEditModal()">Cancel</button>
-                        <button class="btn-success" onclick="saveToServer()">💾 Save All</button>
-                        <button class="btn-primary" id="confirm-mapping-btn" disabled onclick="confirmMapping()">Confirm</button>
-                    </div>
-                </div>
-            </div>
+            <div class="modal-footer"><span class="footer-hint">Ctrl+K to toggle | Escape to close</span><button class="btn-secondary" onclick="closeConnectionModal()">Close</button></div>
         </div>
     </div>
 
     <!-- DEBUG PANEL -->
     <div id="debug-panel">
-        <div class="debug-panel-header">
-            <span class="debug-panel-title">🐛 Debug Panel</span>
-            <button class="close-btn" onclick="toggleDebugPanel()">×</button>
-        </div>
+        <div class="debug-panel-header"><span class="debug-panel-title">🐛 Debug Panel</span><button class="close-btn" onclick="toggleDebugPanel()">×</button></div>
         <div class="debug-panel-content">
             <div class="debug-section">
                 <div class="debug-section-title">📊 Application State</div>
-                <div id="debug-state">
-                    <div class="debug-state-item"><span class="debug-state-label">Mode:</span><span class="debug-state-value" id="debug-mode">N/A</span></div>
-                    <div class="debug-state-item"><span class="debug-state-label">Connected:</span><span class="debug-state-value off" id="debug-connected">NO</span></div>
-                    <div class="debug-state-item"><span class="debug-state-label">Dev Mode:</span><span class="debug-state-value off" id="debug-devmode">OFF</span></div>
-                </div>
+                <div class="debug-state-item"><span class="debug-state-label">Mode:</span><span class="debug-state-value" id="debug-mode">N/A</span></div>
+                <div class="debug-state-item"><span class="debug-state-label">SubMode:</span><span class="debug-state-value" id="debug-submode">N/A</span></div>
+                <div class="debug-state-item"><span class="debug-state-label">Connected:</span><span class="debug-state-value off" id="debug-connected">NO</span></div>
+                <div class="debug-state-item"><span class="debug-state-label">Dev Mode:</span><span class="debug-state-value off" id="debug-devmode">OFF</span></div>
+                <div class="debug-state-item"><span class="debug-state-label">3D Active:</span><span class="debug-state-value off" id="debug-3d">NO</span></div>
             </div>
             <div class="debug-section">
                 <div class="debug-section-title">⚡ Performance</div>
-                <div id="debug-performance">
-                    <div class="debug-state-item"><span class="debug-state-label">Time:</span><span class="debug-state-value" id="debug-time">-</span></div>
-                    <div class="debug-state-item"><span class="debug-state-label">Memory:</span><span class="debug-state-value" id="debug-memory">-</span></div>
-                </div>
-            </div>
-            <div class="debug-section">
-                <div class="debug-section-title">📝 Recent Events</div>
-                <div class="debug-events-log" id="debug-events">
-                    <div class="debug-event-item"><span class="debug-event-time">-</span> <span class="debug-event-name">No events</span></div>
-                </div>
-            </div>
-            <div class="debug-section">
-                <div class="debug-section-title">💻 Command Console</div>
-                <div class="debug-command-box">
-                    <input type="text" class="debug-command-input" id="debug-command-input" placeholder="Enter command (type 'help')">
-                    <button class="debug-command-btn" onclick="executeDebugCommand()">Run</button>
-                </div>
-                <div class="debug-output" id="debug-output"></div>
+                <div class="debug-state-item"><span class="debug-state-label">Time:</span><span class="debug-state-value" id="debug-time">-</span></div>
+                <div class="debug-state-item"><span class="debug-state-label">Memory:</span><span class="debug-state-value" id="debug-memory">-</span></div>
             </div>
         </div>
     </div>
 
     <!-- MAIN CONTENT -->
     <main class="main-content" id="main-content">
+        <!-- [v2.10] Cover Screen - Default startup view -->
+        <div id="cover-screen">
+            <div class="cover-logo">🏭</div>
+            <div class="cover-title">SHERLOCK SKY 3D SIM</div>
+            <div class="cover-subtitle">Industrial Equipment Monitoring & Simulation Platform</div>
+            
+            <div class="cover-status">
+                <div class="cover-status-item">
+                    <span class="cover-status-dot disconnected" id="cover-api-dot"></span>
+                    <span class="cover-status-text">Backend API</span>
+                    <span class="cover-status-value" id="cover-api-status">Disconnected</span>
+                </div>
+                <div class="cover-status-item">
+                    <span class="cover-status-dot disconnected" id="cover-db-dot"></span>
+                    <span class="cover-status-text">Database</span>
+                    <span class="cover-status-value" id="cover-db-status">Not Connected</span>
+                </div>
+            </div>
+            
+            <div class="cover-hint">
+                Press <kbd>Ctrl+K</kbd> to connect database, or select <kbd>Monitoring → 3D View</kbd> after connection
+            </div>
+        </div>
+
+        <!-- [v2.10] Three.js Container - Hidden by default, shown only in Monitoring/3D View -->
         <div id="threejs-container"></div>
-        <div class="overlay-ui" id="overlay-ui">
+        
+        <div class="overlay-ui" id="overlay-ui" style="display: none;">
             <div class="mode-indicator">
                 <div class="mode-label">Current Mode</div>
                 <div class="mode-value" id="current-mode">—</div>
@@ -639,7 +663,6 @@
                 <button class="test-btn" onclick="simulateEquipmentClick('EQ-002')"><span class="test-btn-icon">📦</span> Click EQ-002 (IDLE)</button>
                 <button class="test-btn" onclick="simulateEquipmentClick('EQ-003')"><span class="test-btn-icon">📦</span> Click EQ-003 (STOP)</button>
                 <button class="test-btn" onclick="simulateMultiSelect()"><span class="test-btn-icon">📊</span> Multi-Select (3)</button>
-                <button class="test-btn" onclick="simulateUnmapped()"><span class="test-btn-icon">⚠️</span> Unmapped Equipment</button>
                 <h4 style="margin-top: 16px;">🔔 Toast Test</h4>
                 <button class="test-btn" onclick="toast.success('Success', 'Done!')"><span class="test-btn-icon">✅</span> Success</button>
                 <button class="test-btn" onclick="toast.error('Error', 'Failed!')"><span class="test-btn-icon">❌</span> Error</button>
@@ -686,30 +709,23 @@
     </footer>
 
     <script>
+        // =============================================
         // Configuration
+        // =============================================
         let currentMode = null, currentSubMode = null, isConnected = false, devModeEnabled = false, selectedSite = null, currentTheme = 'dark';
-        let durationTimerInterval = null, currentEquipmentData = null, debugPanelVisible = false, currentDebugView = 'app-state';
-        let scene, camera, renderer, equipmentMeshes = [];
-        let eventLog = [];
-        let equipmentMappings = {};
-        let selectedMappingId = null;
+        let durationTimerInterval = null, currentEquipmentData = null, debugPanelVisible = false;
+        let scene, camera, renderer, animationId = null;
+        let threejsInitialized = false;
         
         const siteProfiles = [
             { id: 'kr_b_01', display_name: 'Korea Site B-01', region: 'Asia/Seoul' },
             { id: 'vn_a_01', display_name: 'Vietnam Site A-01', region: 'Asia/Ho_Chi_Minh' }
         ];
         let siteStatus = {};
-        
-        // Available equipment for mapping
-        const availableEquipments = [
-            { equipment_id: 1, equipment_name: 'Etcher A-01', line_name: 'Line A' },
-            { equipment_id: 2, equipment_name: 'CVD Unit B-02', line_name: 'Line B' },
-            { equipment_id: 3, equipment_name: 'Sputter C-03', line_name: 'Line C' },
-            { equipment_id: 4, equipment_name: 'Cleaner D-04', line_name: 'Line A' },
-            { equipment_id: 5, equipment_name: 'Coater E-05', line_name: 'Line B' }
-        ];
 
-        // Toast
+        // =============================================
+        // Toast System
+        // =============================================
         const toast = {
             show(type, title, message, duration = 4000) {
                 const container = document.getElementById('toast-container');
@@ -717,7 +733,6 @@
                 toastEl.className = `toast ${type}`;
                 toastEl.innerHTML = `<span class="toast-icon">${{success:'✅',error:'❌',warning:'⚠️',info:'ℹ️'}[type]}</span><div class="toast-content"><div class="toast-title">${title}</div><div class="toast-message">${message}</div></div><button class="toast-close" onclick="this.parentElement.remove()">✕</button>`;
                 container.appendChild(toastEl);
-                logEvent(`toast:${type}`, title);
                 setTimeout(() => { toastEl.classList.add('hiding'); setTimeout(() => toastEl.remove(), 300); }, duration);
             },
             success(t,m) { this.show('success',t,m); },
@@ -726,19 +741,15 @@
             info(t,m) { this.show('info',t,m); }
         };
 
-        // Event logging for debug
-        function logEvent(name, detail = '') {
-            eventLog.unshift({ time: new Date(), name, detail });
-            if (eventLog.length > 50) eventLog.pop();
-            updateDebugEvents();
-        }
-
+        // =============================================
         // Theme
+        // =============================================
         function toggleTheme() {
             currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', currentTheme);
             document.getElementById('theme-switch').classList.toggle('active', currentTheme === 'light');
             localStorage.setItem('theme', currentTheme);
+            if (scene) scene.background = new THREE.Color(currentTheme === 'dark' ? 0x1e293b : 0xf1f5f9);
         }
         function loadTheme() {
             currentTheme = localStorage.getItem('theme') || 'dark';
@@ -746,7 +757,37 @@
             document.getElementById('theme-switch').classList.toggle('active', currentTheme === 'light');
         }
 
-        // Three.js
+        // =============================================
+        // [v2.10] View Management
+        // Cover Screen: Default | Three.js: Only in Monitoring/3D View
+        // =============================================
+        function showCoverScreen() {
+            document.getElementById('cover-screen').classList.remove('hidden');
+            document.getElementById('threejs-container').classList.remove('active');
+            document.getElementById('overlay-ui').style.display = 'none';
+            stopThreeJS();
+        }
+        
+        function show3DView() {
+            document.getElementById('cover-screen').classList.add('hidden');
+            document.getElementById('threejs-container').classList.add('active');
+            document.getElementById('overlay-ui').style.display = 'flex';
+            document.getElementById('test-controls').style.display = 'block';
+            if (!threejsInitialized) initThreeJS();
+            else startThreeJS();
+        }
+        
+        function hideAllViews() {
+            document.getElementById('cover-screen').classList.add('hidden');
+            document.getElementById('threejs-container').classList.remove('active');
+            document.getElementById('overlay-ui').style.display = 'flex';
+            document.getElementById('test-controls').style.display = 'none';
+            stopThreeJS();
+        }
+
+        // =============================================
+        // Three.js 3D View
+        // =============================================
         function initThreeJS() {
             const container = document.getElementById('threejs-container');
             scene = new THREE.Scene();
@@ -757,18 +798,18 @@
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(container.clientWidth, container.clientHeight);
             container.appendChild(renderer.domElement);
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(10, 20, 10);
-            scene.add(directionalLight);
+            
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(10, 20, 10);
+            scene.add(dirLight);
+            
             const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x334155 }));
             floor.rotation.x = -Math.PI / 2;
             floor.position.y = -0.5;
             scene.add(floor);
-            const grid = new THREE.GridHelper(30, 30, 0x06B6D4, 0x475569);
-            grid.position.y = -0.49;
-            scene.add(grid);
+            scene.add(new THREE.GridHelper(30, 30, 0x06B6D4, 0x475569));
+            
             const statusColors = { RUN: 0x4ADE80, IDLE: 0xFBBF24, STOP: 0xF87171 };
             const eqData = [
                 { id: 'EQ-001', status: 'RUN', x: -6, z: -6 }, { id: 'EQ-002', status: 'IDLE', x: 0, z: -6 }, { id: 'EQ-003', status: 'STOP', x: 6, z: -6 },
@@ -778,66 +819,209 @@
             eqData.forEach(eq => {
                 const mesh = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 3), new THREE.MeshStandardMaterial({ color: 0x64748b }));
                 mesh.position.set(eq.x, 0.5, eq.z);
-                mesh.userData = eq;
                 scene.add(mesh);
-                equipmentMeshes.push(mesh);
                 const light = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.5, 16), new THREE.MeshStandardMaterial({ color: statusColors[eq.status], emissive: statusColors[eq.status], emissiveIntensity: 0.5 }));
                 light.position.set(eq.x, 1.75, eq.z);
                 scene.add(light);
             });
-            function animate() {
-                requestAnimationFrame(animate);
-                const time = Date.now() * 0.0001;
-                camera.position.x = Math.sin(time) * 20;
-                camera.position.z = Math.cos(time) * 20;
-                camera.lookAt(0, 0, 0);
-                renderer.render(scene, camera);
+            
+            threejsInitialized = true;
+            startThreeJS();
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        function startThreeJS() {
+            if (!animationId) animate();
+        }
+        
+        function stopThreeJS() {
+            if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+        }
+        
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+            const time = Date.now() * 0.0001;
+            camera.position.x = Math.sin(time) * 20;
+            camera.position.z = Math.cos(time) * 20;
+            camera.lookAt(0, 0, 0);
+            renderer.render(scene, camera);
+        }
+        
+        function onWindowResize() {
+            const container = document.getElementById('threejs-container');
+            if (camera && renderer) {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
             }
-            animate();
-            window.addEventListener('resize', () => { camera.aspect = container.clientWidth / container.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(container.clientWidth, container.clientHeight); });
         }
 
+        // =============================================
+        // GaugeRenderer - [MIGRATE TO] components/GaugeRenderer.js
+        // =============================================
+        const GaugeRenderer = {
+            getColor(percent) {
+                if (percent === null || percent === undefined) return 'gauge-gray';
+                if (percent < 50) return 'gauge-green';
+                if (percent < 80) return 'gauge-yellow';
+                return 'gauge-red';
+            },
+            render(label, percent, options = {}) {
+                const { type = 'percent', used = null, total = null, unit = 'GB' } = options;
+                const colorClass = this.getColor(percent);
+                const widthPercent = percent ?? 0;
+                let valueDisplay;
+                if (type === 'usage' && used !== null && total !== null) {
+                    valueDisplay = `${used.toFixed(1)}/${total.toFixed(0)} ${unit}`;
+                } else {
+                    valueDisplay = percent !== null ? `${percent.toFixed(1)}%` : '-';
+                }
+                return `<div class="unified-gauge-row"><span class="unified-gauge-label">${label}</span><div class="unified-gauge-container"><div class="unified-gauge-bar"><div class="unified-gauge-fill ${colorClass}" style="width: ${widthPercent}%"></div></div><span class="unified-gauge-value">${valueDisplay}</span></div></div>`;
+            },
+            renderNA(label, message = 'N/A') {
+                return `<div class="unified-gauge-row"><span class="unified-gauge-label">${label}</span><span class="unified-gauge-na">${message}</span></div>`;
+            },
+            renderCPU(percent) { return this.render('CPU', percent, { type: 'percent' }); },
+            renderMemory(usedGb, totalGb) {
+                const percent = (totalGb && usedGb) ? Math.round((usedGb / totalGb) * 100) : null;
+                return this.render('Mem', percent, { type: 'usage', used: usedGb, total: totalGb, unit: 'GB' });
+            },
+            renderDisk(label, usedGb, totalGb) {
+                if (!totalGb || totalGb <= 0) return this.renderNA(label);
+                const percent = Math.round((usedGb / totalGb) * 100);
+                return this.render(label, percent, { type: 'usage', used: usedGb, total: totalGb, unit: 'GB' });
+            }
+        };
+
+        // =============================================
+        // DataFormatter - [MIGRATE TO] utils/DataFormatter.js
+        // =============================================
+        const DataFormatter = {
+            shortenCpuName(name) {
+                if (!name) return '-';
+                return name.replace(/\(R\)|\(TM\)|CPU|@.*$/gi, '').trim().substring(0, 25);
+            },
+            formatBootDuration(bootTime) {
+                if (!bootTime) return '-';
+                const diff = Math.floor((Date.now() - new Date(bootTime).getTime()) / 1000);
+                const days = Math.floor(diff / 86400);
+                const hours = Math.floor((diff % 86400) / 3600);
+                if (days > 0) return `${days}d ${hours}h`;
+                const minutes = Math.floor((diff % 3600) / 60);
+                return `${hours}h ${minutes}m`;
+            },
+            getBootDurationClass(bootTime) {
+                if (!bootTime) return '';
+                const days = Math.floor((Date.now() - new Date(bootTime).getTime()) / 86400000);
+                if (days < 7) return 'boot-green';
+                if (days < 30) return 'boot-yellow';
+                return 'boot-red';
+            },
+            formatDateTime(dateStr) {
+                if (!dateStr) return '-';
+                return new Date(dateStr).toLocaleString('ko-KR');
+            }
+        };
+
+        // =============================================
         // Equipment Info Panel
+        // [v2.10] PC Info Tab: Full implementation based on PCInfoTab.js
+        // =============================================
         function showEquipmentInfo(data) {
-            const panel = document.getElementById('equipmentInfo');
             const isMulti = Array.isArray(data) && data.length > 1;
             if (isMulti) showMultiEquipmentInfo(data);
             else showSingleEquipmentInfo(Array.isArray(data) ? data[0] : data);
-            panel.classList.add('active');
+            document.getElementById('equipmentInfo').classList.add('active');
         }
+        
         function showSingleEquipmentInfo(eq) {
             currentEquipmentData = eq;
             document.getElementById('equipName').textContent = eq.equipment_name || eq.id;
             document.getElementById('equipName').classList.remove('multi-select');
             updateHeaderStatus(eq.status);
+            
+            // General Tab
             const generalContent = document.getElementById('generalTabContent');
             const isLotActive = eq.is_lot_active === true;
             if (isLotActive) {
                 startDurationTimer(eq.lot_start_time);
-                generalContent.innerHTML = `<div class="info-row"><span class="info-label">Line:</span><span class="info-value">${eq.line_name||'-'}</span></div><div class="info-row-divider"></div><div class="info-row"><span class="info-label">Product:</span><span class="info-value">${eq.product_model||'-'}</span></div><div class="info-row"><span class="info-label">Lot No.:</span><span class="info-value">${eq.lot_id||'-'}</span></div><div class="info-row"><span class="info-label">Lot Start:</span><span class="info-value">${formatDateTime(eq.lot_start_time)||'-'}</span></div><div class="info-row"><span class="info-label">Lot Duration:</span><span class="info-value" id="durationDisplay">${formatDuration(eq.lot_start_time)}</span></div>`;
+                generalContent.innerHTML = `<div class="info-row"><span class="info-label">Line:</span><span class="info-value">${eq.line_name||'-'}</span></div><div class="info-row-divider"></div><div class="info-row"><span class="info-label">Product:</span><span class="info-value">${eq.product_model||'-'}</span></div><div class="info-row"><span class="info-label">Lot No.:</span><span class="info-value">${eq.lot_id||'-'}</span></div><div class="info-row"><span class="info-label">Lot Start:</span><span class="info-value">${DataFormatter.formatDateTime(eq.lot_start_time)}</span></div><div class="info-row"><span class="info-label">Lot Duration:</span><span class="info-value" id="durationDisplay">${formatDuration(eq.lot_start_time)}</span></div><div class="info-row" style="opacity:0.7"><span class="info-label">Updated:</span><span class="info-value" style="font-size:10px">${DataFormatter.formatDateTime(eq.last_updated)}</span></div>`;
             } else {
                 if (eq.since_time) startDurationTimer(eq.since_time); else stopDurationTimer();
-                generalContent.innerHTML = `<div class="info-row"><span class="info-label">Line:</span><span class="info-value">${eq.line_name||'-'}</span></div><div class="info-row-divider"></div><div class="info-row"><span class="info-label">Product:</span><span class="info-value">-</span></div><div class="info-row"><span class="info-label">Since:</span><span class="info-value">${eq.since_time?formatDateTime(eq.since_time):'-'}</span></div><div class="info-row"><span class="info-label">Duration:</span><span class="info-value" id="durationDisplay">${eq.since_time?formatDuration(eq.since_time):'-'}</span></div>`;
+                generalContent.innerHTML = `<div class="info-row"><span class="info-label">Line:</span><span class="info-value">${eq.line_name||'-'}</span></div><div class="info-row-divider"></div><div class="info-row"><span class="info-label">Product:</span><span class="info-value">-</span></div><div class="info-row"><span class="info-label">Lot No.:</span><span class="info-value">-</span></div><div class="info-row"><span class="info-label">Since:</span><span class="info-value">${eq.since_time?DataFormatter.formatDateTime(eq.since_time):'-'}</span></div><div class="info-row"><span class="info-label">Duration:</span><span class="info-value" id="durationDisplay">${eq.since_time?formatDuration(eq.since_time):'-'}</span></div>`;
             }
-            document.getElementById('pcinfoTabContent').innerHTML = `<div class="info-row"><span class="info-label">PC Name:</span><span class="info-value">${eq.pc_name||'-'}</span></div><div class="info-row"><span class="info-label">IP Address:</span><span class="info-value">${eq.ip_address||'-'}</span></div>`;
+            
+            // [v2.10] PC Info Tab - Full implementation based on PCInfoTab.js
+            const pcinfoContent = document.getElementById('pcinfoTabContent');
+            const cpuShortName = DataFormatter.shortenCpuName(eq.cpu_name);
+            const bootDuration = DataFormatter.formatBootDuration(eq.last_boot_time);
+            const bootClass = DataFormatter.getBootDurationClass(eq.last_boot_time);
+            const hasDiskD = eq.disk_d_total_gb && eq.disk_d_total_gb > 0;
+            
+            pcinfoContent.innerHTML = `
+                <!-- System Info -->
+                <div class="pcinfo-system-row">
+                    <span class="info-label">CPU</span>
+                    <span class="info-value">${cpuShortName}<span class="value-separator">,</span>${eq.cpu_logical_count || '-'} Cores</span>
+                </div>
+                <div class="pcinfo-system-row">
+                    <span class="info-label">GPU</span>
+                    <span class="info-value info-value-small">${eq.gpu_name || '-'}</span>
+                </div>
+                <div class="pcinfo-system-row">
+                    <span class="info-label">OS</span>
+                    <span class="info-value">${eq.os_name || '-'}<span class="value-separator">,</span>${eq.os_architecture || '-'}</span>
+                </div>
+                <div class="pcinfo-system-row">
+                    <span class="info-label">Boot</span>
+                    <span class="info-value"><span class="boot-duration ${bootClass}"><span class="boot-duration-value">${bootDuration}</span></span></span>
+                </div>
+                
+                <!-- Resource Usage Gauges -->
+                <div class="gauge-section">
+                    <div class="gauge-section-title">Resource Usage</div>
+                    ${GaugeRenderer.renderCPU(eq.cpu_usage_percent)}
+                    ${GaugeRenderer.renderMemory(eq.memory_used_gb, eq.memory_total_gb)}
+                    ${GaugeRenderer.renderDisk('C:', eq.disk_c_used_gb, eq.disk_c_total_gb)}
+                    ${hasDiskD ? GaugeRenderer.renderDisk('D:', eq.disk_d_used_gb, eq.disk_d_total_gb) : GaugeRenderer.renderNA('D:')}
+                </div>
+                
+                ${eq.pc_last_update_time ? `<div class="info-row" style="opacity:0.7;margin-top:8px"><span class="info-label">Updated:</span><span class="info-value" style="font-size:10px">${DataFormatter.formatDateTime(eq.pc_last_update_time)}</span></div>` : ''}
+            `;
         }
+        
         function showMultiEquipmentInfo(dataArray) {
             stopDurationTimer();
             const count = dataArray.length;
             document.getElementById('equipName').textContent = `${count}개 설비 선택됨`;
             document.getElementById('equipName').classList.add('multi-select');
             document.getElementById('headerStatus').style.display = 'none';
+            
             const statusCounts = { RUN: 0, IDLE: 0, STOP: 0 };
             dataArray.forEach(eq => { if (eq.status) statusCounts[eq.status]++; });
+            
             document.getElementById('generalTabContent').innerHTML = `<div class="info-row multi-select-header"><span class="info-icon">📊</span><span class="info-text">${count}개 설비 집계</span><span class="info-badge">${count}개</span></div><div class="info-row"><span class="info-label">Status:</span><div class="status-counts">${statusCounts.RUN>0?`<span class="status-count-item run">🟢 ${statusCounts.RUN}</span>`:''}${statusCounts.IDLE>0?`<span class="status-count-item idle">🟡 ${statusCounts.IDLE}</span>`:''}${statusCounts.STOP>0?`<span class="status-count-item stop">🔴 ${statusCounts.STOP}</span>`:''}</div></div>`;
+            
+            // Multi PC Info with average gauges
+            const avgCpu = 35 + Math.random() * 30;
+            const avgMem = 45 + Math.random() * 25;
+            const avgDiskC = 40 + Math.random() * 30;
+            
+            document.getElementById('pcinfoTabContent').innerHTML = `
+                <div class="info-row multi-select-header"><span class="info-icon">💻</span><span class="info-text">${count}개 설비 PC 정보</span></div>
+                <div class="pcinfo-system-row"><span class="info-label">CPU</span><span class="info-value info-value-small">Intel Core i7 외 ${count-1}종</span></div>
+                <div class="pcinfo-system-row"><span class="info-label">GPU</span><span class="info-value info-value-small">NVIDIA GeForce 외 ${count-1}종</span></div>
+                <div class="pcinfo-system-row"><span class="info-label">OS</span><span class="info-value">Windows 10 IoT</span></div>
+                <div class="gauge-section">
+                    <div class="gauge-section-title">Avg Resource Usage</div>
+                    ${GaugeRenderer.render('CPU', avgCpu, { type: 'percent' })}
+                    ${GaugeRenderer.render('Mem', avgMem, { type: 'percent' })}
+                    ${GaugeRenderer.render('C:', avgDiskC, { type: 'percent' })}
+                    ${GaugeRenderer.renderNA('D:', 'N/A (일부 D: 없음)')}
+                </div>
+            `;
         }
-        function showUnmappedEquipment(frontendId) {
-            stopDurationTimer();
-            document.getElementById('equipName').textContent = frontendId;
-            updateHeaderStatus('DISCONNECTED');
-            document.getElementById('generalTabContent').innerHTML = `<div class="info-row unmapped-notice"><span class="info-icon">⚠️</span><span class="info-text">DB에 연결되지 않은 설비</span></div><div class="info-row"><span class="info-label">Frontend ID:</span><span class="info-value">${frontendId}</span></div>`;
-            document.getElementById('equipmentInfo').classList.add('active');
-        }
+        
         function hideEquipmentInfo() { document.getElementById('equipmentInfo').classList.remove('active'); document.getElementById('headerStatus').style.display = 'flex'; stopDurationTimer(); }
         function switchEquipmentTab(tab) {
             document.querySelectorAll('.equipment-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
@@ -855,162 +1039,58 @@
         function startDurationTimer(baseTime) { stopDurationTimer(); function update() { const el = document.getElementById('durationDisplay'); if (el) el.textContent = formatDuration(baseTime); } update(); durationTimerInterval = setInterval(update, 1000); }
         function stopDurationTimer() { if (durationTimerInterval) { clearInterval(durationTimerInterval); durationTimerInterval = null; } }
         function formatDuration(startTime) { if (!startTime) return '-'; const diff = Math.floor((new Date() - new Date(startTime)) / 1000); return `${String(Math.floor(diff/3600)).padStart(2,'0')}:${String(Math.floor((diff%3600)/60)).padStart(2,'0')}:${String(diff%60).padStart(2,'0')}`; }
-        function formatDateTime(dateStr) { if (!dateStr) return '-'; return new Date(dateStr).toLocaleString('ko-KR'); }
 
-        // Test simulations
+        // Test simulations with FULL PC Info data
         function simulateEquipmentClick(eqId) {
             const mockData = {
-                'EQ-001': { id: 'EQ-001', equipment_name: 'Etcher A-01', status: 'RUN', line_name: 'Line A', product_model: 'PRODUCT-X100', lot_id: 'LOT-2026-001234', is_lot_active: true, lot_start_time: new Date(Date.now()-3600000).toISOString(), pc_name: 'ETCHER-A01-PC', ip_address: '192.168.1.101' },
-                'EQ-002': { id: 'EQ-002', equipment_name: 'CVD Unit B-02', status: 'IDLE', line_name: 'Line B', is_lot_active: false, since_time: new Date(Date.now()-1800000).toISOString(), pc_name: 'CVD-B02-PC', ip_address: '192.168.1.102' },
-                'EQ-003': { id: 'EQ-003', equipment_name: 'Sputter C-03', status: 'STOP', line_name: 'Line C', is_lot_active: false, since_time: new Date(Date.now()-7200000).toISOString(), pc_name: 'SPUTTER-C03-PC', ip_address: '192.168.1.103' }
+                'EQ-001': { 
+                    id: 'EQ-001', equipment_name: 'Etcher A-01', status: 'RUN', line_name: 'Line A', product_model: 'PRODUCT-X100', lot_id: 'LOT-2026-001234', is_lot_active: true, 
+                    lot_start_time: new Date(Date.now()-3600000).toISOString(), last_updated: new Date().toISOString(),
+                    // PC Info
+                    cpu_name: 'Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz', cpu_logical_count: 16, cpu_usage_percent: 45.5,
+                    gpu_name: 'NVIDIA GeForce RTX 2060', os_name: 'Windows 10 IoT Enterprise', os_architecture: '64-bit',
+                    memory_used_gb: 12.4, memory_total_gb: 32, disk_c_used_gb: 180, disk_c_total_gb: 256, disk_d_used_gb: 450, disk_d_total_gb: 1024,
+                    last_boot_time: new Date(Date.now() - 86400000 * 3).toISOString(), pc_last_update_time: new Date().toISOString()
+                },
+                'EQ-002': { 
+                    id: 'EQ-002', equipment_name: 'CVD Unit B-02', status: 'IDLE', line_name: 'Line B', is_lot_active: false, 
+                    since_time: new Date(Date.now()-1800000).toISOString(),
+                    cpu_name: 'Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz', cpu_logical_count: 6, cpu_usage_percent: 12.3,
+                    gpu_name: 'Intel UHD Graphics 630', os_name: 'Windows 10 IoT', os_architecture: '64-bit',
+                    memory_used_gb: 6.8, memory_total_gb: 16, disk_c_used_gb: 95, disk_c_total_gb: 256, disk_d_total_gb: 0,
+                    last_boot_time: new Date(Date.now() - 86400000 * 45).toISOString(), pc_last_update_time: new Date().toISOString()
+                },
+                'EQ-003': { 
+                    id: 'EQ-003', equipment_name: 'Sputter C-03', status: 'STOP', line_name: 'Line C', is_lot_active: false, 
+                    since_time: new Date(Date.now()-7200000).toISOString(),
+                    cpu_name: 'AMD Ryzen 7 5800X', cpu_logical_count: 16, cpu_usage_percent: 85.7,
+                    gpu_name: 'AMD Radeon RX 6700 XT', os_name: 'Windows 11 IoT Enterprise', os_architecture: '64-bit',
+                    memory_used_gb: 28.5, memory_total_gb: 32, disk_c_used_gb: 220, disk_c_total_gb: 512, disk_d_used_gb: 800, disk_d_total_gb: 2048,
+                    last_boot_time: new Date(Date.now() - 86400000 * 120).toISOString(), pc_last_update_time: new Date().toISOString()
+                }
             };
             showEquipmentInfo(mockData[eqId]);
-            logEvent('equipment:click', eqId);
             toast.info('Equipment Selected', `Clicked on ${eqId}`);
         }
-        function simulateMultiSelect() { showEquipmentInfo([{ id: 'EQ-001', status: 'RUN' },{ id: 'EQ-002', status: 'IDLE' },{ id: 'EQ-003', status: 'STOP' }]); logEvent('equipment:multi-select', '3 items'); }
-        function simulateUnmapped() { showUnmappedEquipment('UNMAPPED-EQ-099'); logEvent('equipment:unmapped', 'UNMAPPED-EQ-099'); }
+        function simulateMultiSelect() { showEquipmentInfo([{ id: 'EQ-001', status: 'RUN' },{ id: 'EQ-002', status: 'IDLE' },{ id: 'EQ-003', status: 'STOP' }]); }
 
-        // Equipment Edit Modal
-        function openEquipmentEditModal() {
-            renderEquipmentList();
-            document.getElementById('equipment-edit-modal').classList.add('active');
-            logEvent('modal:equipment-edit', 'opened');
-        }
-        function closeEquipmentEditModal() { document.getElementById('equipment-edit-modal').classList.remove('active'); }
-        function renderEquipmentList(filter = '') {
-            const list = document.getElementById('equipment-list');
-            const filtered = filter ? availableEquipments.filter(e => e.equipment_name.toLowerCase().includes(filter.toLowerCase())) : availableEquipments;
-            list.innerHTML = filtered.map(eq => {
-                const isAssigned = Object.values(equipmentMappings).includes(eq.equipment_id);
-                return `<div class="equip-edit__item ${selectedMappingId === eq.equipment_id ? 'equip-edit__item--selected' : ''} ${isAssigned ? 'equip-edit__item--assigned' : ''}" onclick="selectEquipmentForMapping(${eq.equipment_id}, '${eq.equipment_name}', '${eq.line_name}')"><div class="equip-edit__item-content"><div class="equip-edit__item-header"><span class="equip-edit__item-name">${eq.equipment_name}</span>${isAssigned ? '<span class="equip-edit__item-badge equip-edit__item-badge--assigned">Assigned</span>' : ''}</div><div class="equip-edit__item-details"><span>ID: ${eq.equipment_id}</span><span>Line: ${eq.line_name}</span></div></div><button class="equip-edit__item-select-btn equip-edit__item-select-btn--primary" ${isAssigned?'disabled':''}>Select</button></div>`;
-            }).join('');
-            document.getElementById('mapping-progress').textContent = `${Object.keys(equipmentMappings).length} / 9 Mapped`;
-        }
-        function selectEquipmentForMapping(id, name, line) { selectedMappingId = id; document.getElementById('confirm-mapping-btn').disabled = false; document.getElementById('confirm-mapping-btn').textContent = `Confirm: ${name}`; renderEquipmentList(document.getElementById('equipment-search').value); }
-        function confirmMapping() { if (selectedMappingId) { equipmentMappings['EQ-001'] = selectedMappingId; toast.success('Mapped', 'Equipment mapping confirmed'); closeEquipmentEditModal(); logEvent('mapping:confirmed', selectedMappingId); } }
-        function clearEquipmentSearch() { document.getElementById('equipment-search').value = ''; renderEquipmentList(); }
-        function validateMappings() { toast.info('Validating', 'Checking all mappings...'); logEvent('mapping:validate', ''); }
-        function syncFromServer() { toast.info('Syncing', 'Loading mappings from server...'); logEvent('mapping:sync', ''); }
-        function saveToServer() { toast.success('Saved', `${Object.keys(equipmentMappings).length} mappings saved`); logEvent('mapping:save', ''); }
-        document.getElementById('equipment-search')?.addEventListener('input', (e) => renderEquipmentList(e.target.value));
-
-        // Debug Panel
-        function toggleDebugPanel() { debugPanelVisible = !debugPanelVisible; document.getElementById('debug-panel').classList.toggle('active', debugPanelVisible); if (debugPanelVisible) updateDebugPanel(); }
-        function setDebugView(view) { currentDebugView = view; logEvent('debug:view-change', view); toast.info('Debug View', `Switched to ${view}`); }
-        function updateDebugPanel() {
-            document.getElementById('debug-mode').textContent = currentMode || 'N/A';
-            document.getElementById('debug-connected').textContent = isConnected ? 'YES' : 'NO';
-            document.getElementById('debug-connected').className = `debug-state-value ${isConnected ? 'on' : 'off'}`;
-            document.getElementById('debug-devmode').textContent = devModeEnabled ? 'ON' : 'OFF';
-            document.getElementById('debug-devmode').className = `debug-state-value ${devModeEnabled ? 'on' : 'off'}`;
-            document.getElementById('debug-time').textContent = new Date().toLocaleTimeString();
-            if (performance.memory) { document.getElementById('debug-memory').textContent = `${(performance.memory.usedJSHeapSize/1024/1024).toFixed(1)} MB`; }
-        }
-        function updateDebugEvents() {
-            const el = document.getElementById('debug-events');
-            if (!el) return;
-            if (eventLog.length === 0) { el.innerHTML = '<div class="debug-event-item"><span class="debug-event-time">-</span> <span class="debug-event-name">No events</span></div>'; return; }
-            el.innerHTML = eventLog.slice(0, 10).map(e => `<div class="debug-event-item"><span class="debug-event-time">${e.time.toLocaleTimeString()}</span> <span class="debug-event-name">${e.name}</span></div>`).join('');
-        }
-        function executeDebugCommand() {
-            const input = document.getElementById('debug-command-input');
-            const output = document.getElementById('debug-output');
-            const cmd = input.value.trim();
-            if (!cmd) return;
-            let result = '';
-            if (cmd === 'help') result = 'Commands: help, clear, status, events, mode [name]';
-            else if (cmd === 'clear') { output.innerHTML = ''; input.value = ''; return; }
-            else if (cmd === 'status') result = `Connected: ${isConnected}, Mode: ${currentMode}, DevMode: ${devModeEnabled}`;
-            else if (cmd === 'events') result = `${eventLog.length} events logged`;
-            else if (cmd.startsWith('mode ')) { setMode(cmd.split(' ')[1]); result = `Mode set to ${cmd.split(' ')[1]}`; }
-            else result = `Unknown command: ${cmd}`;
-            output.innerHTML = `<span style="color:#888">&gt; ${cmd}</span>\n<span style="color:#0f0">${result}</span>`;
-            input.value = '';
-            logEvent('debug:command', cmd);
-        }
-        document.getElementById('debug-command-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') executeDebugCommand(); });
-
-        // [v2.9] Dev Mode with Mock Test capability
-        function toggleDevMode() {
-            devModeEnabled = !devModeEnabled;
-            const layoutWrapper = document.getElementById('btn-layout-wrapper');
-            const debugWrapper = document.getElementById('btn-debug-wrapper');
-            const label = document.getElementById('dev-mode-label');
-            const mockSection = document.getElementById('mock-test-section');
-            const badge = document.getElementById('dev-mode-badge');
-            
-            if (devModeEnabled) {
-                layoutWrapper.classList.remove('hidden');
-                if (isConnected) {
-                    layoutWrapper.classList.remove('disabled');
-                    document.getElementById('btn-layout').classList.remove('disabled');
-                }
-                // [v2.9] Enable Debug even without connection in Dev Mode
-                debugWrapper.classList.remove('disabled');
-                document.getElementById('btn-debug').classList.remove('disabled');
-                
-                label.textContent = 'Dev Mode: ON';
-                mockSection.style.display = 'block';
-                badge.classList.add('active');
-                toast.warning('Dev Mode ON', 'Mock testing enabled without backend');
-                logEvent('devmode:on', '');
-            } else {
-                layoutWrapper.classList.add('hidden');
-                if (!isConnected) {
-                    debugWrapper.classList.add('disabled');
-                    document.getElementById('btn-debug').classList.add('disabled');
-                }
-                label.textContent = 'Dev Mode: OFF';
-                mockSection.style.display = 'none';
-                badge.classList.remove('active');
-                toast.info('Dev Mode OFF', 'Normal operation mode');
-                logEvent('devmode:off', '');
-            }
-            updateDebugPanel();
-        }
-
-        // [v2.9] Mock Test Loader
-        function loadMockTest(testName) {
-            logEvent('mock:load', testName);
-            toast.info('Mock Test', `Loading: ${testName}`);
-            
-            // Simulate loading mock test
-            switch(testName) {
-                case 'equipment-status':
-                    simulateEquipmentClick('EQ-001');
-                    break;
-                case 'realtime-update':
-                    if (currentEquipmentData) {
-                        currentEquipmentData.status = currentEquipmentData.status === 'RUN' ? 'IDLE' : 'RUN';
-                        updateHeaderStatus(currentEquipmentData.status);
-                        toast.success('Realtime Update', `Status: ${currentEquipmentData.status}`);
-                    } else {
-                        toast.warning('No Equipment', 'Select equipment first');
-                    }
-                    break;
-                case 'multi-site':
-                    simulateMultiSelect();
-                    break;
-            }
-        }
-
-        // Connection Modal
-        function openConnectionModal() { document.getElementById('connection-modal').classList.add('active'); refreshAPIStatus(); logEvent('modal:connection', 'opened'); }
+        // =============================================
+        // Connection & Sidebar
+        // =============================================
+        function openConnectionModal() { document.getElementById('connection-modal').classList.add('active'); refreshAPIStatus(); }
         function closeConnectionModal() { document.getElementById('connection-modal').classList.remove('active'); }
         function refreshAPIStatus() {
             const dot = document.getElementById('api-status-dot');
             const text = document.getElementById('api-status-text');
             dot.className = 'status-dot status-dot--checking';
             text.textContent = 'Checking...';
-            setTimeout(() => { dot.className = 'status-dot status-dot--connected'; text.textContent = 'Connected'; text.className = 'status-text run'; }, 1000);
+            setTimeout(() => { dot.className = 'status-dot status-dot--connected'; text.textContent = 'Connected'; }, 1000);
         }
         function renderSiteList() {
             document.getElementById('site-list').innerHTML = siteProfiles.map(p => {
                 const isSelected = selectedSite === p.id;
-                const status = siteStatus[p.id] || {};
-                const isConn = status.status === 'connected';
-                return `<div class="site-item ${isSelected?'site-item--selected':''} ${isConn?'site-item--connected':''}" onclick="toggleSiteSelection('${p.id}')"><div class="site-checkbox"><input type="checkbox" ${isSelected?'checked':''} onclick="event.stopPropagation();toggleSiteSelection('${p.id}')"></div><div class="site-info"><div class="site-main"><span class="site-name">${p.display_name}</span><span class="site-region">${p.region}</span></div></div><div class="site-status">${isConn?'<span>✅</span><button class="btn-disconnect" onclick="event.stopPropagation();disconnectFromSite(\''+p.id+'\')">Disconnect</button>':'<span>⚪</span>'}</div></div>`;
+                const isConn = siteStatus[p.id]?.status === 'connected';
+                return `<div class="site-item ${isSelected?'site-item--selected':''} ${isConn?'site-item--connected':''}" onclick="toggleSiteSelection('${p.id}')"><div class="site-checkbox"><input type="checkbox" ${isSelected?'checked':''}></div><div class="site-info"><div class="site-main"><span class="site-name">${p.display_name}</span><span class="site-region">${p.region}</span></div></div><div class="site-status">${isConn?'<span>✅</span><button class="btn-disconnect" onclick="event.stopPropagation();disconnectFromSite(\''+p.id+'\')">Disconnect</button>':'<span>⚪</span>'}</div></div>`;
             }).join('');
             document.getElementById('selection-count').textContent = `Selected: ${selectedSite ? 1 : 0}`;
             document.getElementById('connect-btn').disabled = !selectedSite;
@@ -1018,18 +1098,17 @@
         function toggleSiteSelection(id) { selectedSite = selectedSite === id ? null : id; renderSiteList(); }
         function connectToSelectedSite() {
             if (!selectedSite) return;
-            const btn = document.getElementById('connect-btn');
-            btn.disabled = true;
-            btn.textContent = '⏳ Connecting...';
+            document.getElementById('connect-btn').disabled = true;
+            document.getElementById('connect-btn').textContent = '⏳ Connecting...';
             setTimeout(() => {
                 siteStatus[selectedSite] = { status: 'connected' };
                 isConnected = true;
                 renderSiteList();
                 enableSidebarIcons();
                 updateStatusBar(selectedSite);
-                btn.textContent = '🔌 Connect';
+                updateCoverStatus(true, selectedSite);
+                document.getElementById('connect-btn').textContent = '🔌 Connect';
                 toast.success('Connected', `Connected to ${siteProfiles.find(s=>s.id===selectedSite).display_name}`);
-                logEvent('connection:connected', selectedSite);
             }, 1500);
         }
         function disconnectFromSite(id) {
@@ -1039,14 +1118,21 @@
             renderSiteList();
             disableSidebarIcons();
             updateStatusBar(null);
+            updateCoverStatus(false, null);
             hideEquipmentInfo();
+            showCoverScreen();
             currentMode = null;
+            currentSubMode = null;
             document.getElementById('current-mode').textContent = '—';
             document.getElementById('current-submode').textContent = '';
-            document.getElementById('test-controls').style.display = 'none';
             document.querySelectorAll('.submenu-item').forEach(item => item.classList.remove('active'));
             toast.info('Disconnected', 'Database connection closed');
-            logEvent('connection:disconnected', id);
+        }
+        function updateCoverStatus(connected, siteId) {
+            document.getElementById('cover-api-dot').className = `cover-status-dot ${connected ? 'connected' : 'disconnected'}`;
+            document.getElementById('cover-api-status').textContent = connected ? 'Connected' : 'Disconnected';
+            document.getElementById('cover-db-dot').className = `cover-status-dot ${connected ? 'connected' : 'disconnected'}`;
+            document.getElementById('cover-db-status').textContent = siteId ? siteProfiles.find(s=>s.id===siteId)?.display_name : 'Not Connected';
         }
         function enableSidebarIcons() {
             ['btn-monitoring', 'btn-analysis', 'btn-simulation'].forEach(id => document.getElementById(id).classList.remove('disabled'));
@@ -1075,16 +1161,23 @@
             document.getElementById('db-value').textContent = siteId ? siteId.replace(/_/g, '-') : 'None';
         }
 
+        // =============================================
         // Mode & Submenu
+        // =============================================
         function setMode(mode) {
             currentMode = mode;
             currentSubMode = null;
             document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
             document.getElementById('current-submode').textContent = '';
-            document.getElementById('test-controls').style.display = mode === 'monitoring' ? 'block' : 'none';
             document.querySelectorAll('.submenu-item').forEach(item => item.classList.remove('active'));
-            logEvent('mode:change', mode);
+            
+            // [v2.10] Show cover screen for non-monitoring modes (or show mode indicator only)
+            hideAllViews();
+            document.getElementById('overlay-ui').style.display = 'flex';
+            
+            updateDebugPanel();
         }
+        
         function setSubMode(mode, submode) {
             currentMode = mode;
             currentSubMode = submode;
@@ -1093,11 +1186,64 @@
             if (mode === 'layout') document.getElementById('btn-layout').classList.add('selected');
             document.querySelectorAll(`#${mode}-submenu .submenu-item`).forEach(item => item.classList.toggle('active', item.dataset.submode === submode));
             document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
-            const labels = { '3d-view': '3D View', 'layout-editor': 'Layout Editor', 'mapping': 'Mapping' };
-            document.getElementById('current-submode').textContent = `→ ${labels[submode] || submode}`;
-            document.getElementById('test-controls').style.display = mode === 'monitoring' ? 'block' : 'none';
-            logEvent('submode:change', `${mode}/${submode}`);
+            document.getElementById('current-submode').textContent = `→ ${submode === '3d-view' ? '3D View' : submode}`;
+            
+            // [v2.10] Only show 3D View when Monitoring → 3D View selected
+            if (mode === 'monitoring' && submode === '3d-view') {
+                show3DView();
+            } else {
+                hideAllViews();
+                document.getElementById('overlay-ui').style.display = 'flex';
+            }
+            
+            updateDebugPanel();
             toast.info('Mode Changed', `${mode} → ${submode}`);
+        }
+        
+        function toggleDevMode() {
+            devModeEnabled = !devModeEnabled;
+            const layoutWrapper = document.getElementById('btn-layout-wrapper');
+            const debugWrapper = document.getElementById('btn-debug-wrapper');
+            if (devModeEnabled) {
+                layoutWrapper.classList.remove('hidden');
+                if (isConnected) { layoutWrapper.classList.remove('disabled'); document.getElementById('btn-layout').classList.remove('disabled'); }
+                debugWrapper.classList.remove('disabled');
+                document.getElementById('btn-debug').classList.remove('disabled');
+                document.getElementById('dev-mode-label').textContent = 'Dev Mode: ON';
+                document.getElementById('mock-test-section').style.display = 'block';
+                document.getElementById('dev-mode-badge').classList.add('active');
+                toast.warning('Dev Mode ON', 'Mock testing enabled');
+            } else {
+                layoutWrapper.classList.add('hidden');
+                if (!isConnected) { debugWrapper.classList.add('disabled'); document.getElementById('btn-debug').classList.add('disabled'); }
+                document.getElementById('dev-mode-label').textContent = 'Dev Mode: OFF';
+                document.getElementById('mock-test-section').style.display = 'none';
+                document.getElementById('dev-mode-badge').classList.remove('active');
+                toast.info('Dev Mode OFF', '');
+            }
+            updateDebugPanel();
+        }
+        
+        function loadMockTest(testName) {
+            toast.info('Mock Test', `Loading: ${testName}`);
+            if (testName === 'equipment-status') simulateEquipmentClick('EQ-001');
+            else if (testName === 'multi-site') simulateMultiSelect();
+        }
+
+        // Debug
+        function toggleDebugPanel() { debugPanelVisible = !debugPanelVisible; document.getElementById('debug-panel').classList.toggle('active', debugPanelVisible); if (debugPanelVisible) updateDebugPanel(); }
+        function setDebugView(view) { toast.info('Debug View', view); }
+        function updateDebugPanel() {
+            document.getElementById('debug-mode').textContent = currentMode || 'N/A';
+            document.getElementById('debug-submode').textContent = currentSubMode || 'N/A';
+            document.getElementById('debug-connected').textContent = isConnected ? 'YES' : 'NO';
+            document.getElementById('debug-connected').className = `debug-state-value ${isConnected ? 'on' : 'off'}`;
+            document.getElementById('debug-devmode').textContent = devModeEnabled ? 'ON' : 'OFF';
+            document.getElementById('debug-devmode').className = `debug-state-value ${devModeEnabled ? 'on' : 'off'}`;
+            document.getElementById('debug-3d').textContent = (currentMode === 'monitoring' && currentSubMode === '3d-view') ? 'YES' : 'NO';
+            document.getElementById('debug-3d').className = `debug-state-value ${(currentMode === 'monitoring' && currentSubMode === '3d-view') ? 'on' : 'off'}`;
+            document.getElementById('debug-time').textContent = new Date().toLocaleTimeString();
+            if (performance.memory) document.getElementById('debug-memory').textContent = `${(performance.memory.usedJSHeapSize/1024/1024).toFixed(1)} MB`;
         }
 
         function setupSidebarEvents() {
@@ -1118,12 +1264,6 @@
                 this.classList.add('selected');
                 setMode('monitoring');
             });
-            document.getElementById('btn-layout').addEventListener('click', function() {
-                if (this.classList.contains('disabled')) return;
-                document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
-                this.classList.add('selected');
-                setMode('layout');
-            });
         }
 
         // Init
@@ -1132,13 +1272,12 @@
             siteProfiles.forEach(site => { siteStatus[site.id] = { status: 'disconnected' }; });
             renderSiteList();
             setupSidebarEvents();
-            initThreeJS();
+            showCoverScreen(); // [v2.10] Start with cover screen
             setInterval(() => {
                 document.getElementById('fps-value').textContent = 58 + Math.floor(Math.random() * 5);
                 document.getElementById('memory-value').textContent = 128 + Math.floor((Math.random() - 0.5) * 20);
                 if (debugPanelVisible) updateDebugPanel();
             }, 2000);
-            logEvent('app:init', 'v2.9');
         }
 
         // Keyboard
@@ -1148,23 +1287,17 @@
             if ((e.ctrlKey || e.metaKey) && key === 'k') { e.preventDefault(); document.getElementById('connection-modal').classList.toggle('active'); return; }
             if (key === 'escape') {
                 document.getElementById('connection-modal').classList.remove('active');
-                document.getElementById('equipment-edit-modal').classList.remove('active');
                 hideEquipmentInfo();
                 if (debugPanelVisible) toggleDebugPanel();
                 return;
             }
             if (!isConnected && !devModeEnabled) return;
-            switch(key) {
-                case 'm': if (!document.getElementById('btn-monitoring').classList.contains('disabled')) document.getElementById('btn-monitoring').click(); break;
-                case 'a': if (!document.getElementById('btn-analysis').classList.contains('disabled')) document.getElementById('btn-analysis').click(); break;
-                case 's': if (!e.ctrlKey && !document.getElementById('btn-simulation').classList.contains('disabled')) document.getElementById('btn-simulation').click(); break;
-                case 'd': toggleDebugPanel(); break;
-            }
+            if (key === 'd') toggleDebugPanel();
         });
 
         document.addEventListener('DOMContentLoaded', init);
-        console.log('🧪 Sidebar Test v2.9 Loaded');
-        console.log('Features: Layout Editor Submenu, Debug Submenu, Dev Mode Mock Testing');
+        console.log('🧪 Sidebar Test v2.10 Loaded');
+        console.log('Features: Cover Screen, Conditional 3D View, Full PC Info Tab');
     </script>
 
 </body>
