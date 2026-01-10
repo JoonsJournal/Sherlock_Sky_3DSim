@@ -125,93 +125,24 @@
         .main-content { flex-grow: 1; background: var(--bg-main-gradient); display: flex; flex-direction: column; color: var(--text-primary); margin-bottom: var(--status-bar-height); position: relative; overflow: hidden; }
         
         /* [v2.10] Cover Screen - Default startup view */
-        #cover-screen {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 5;
-            background: var(--bg-main-gradient);
-        }
+        #cover-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5; background: var(--bg-main-gradient); }
         #cover-screen.hidden { display: none; }
-        
-        .cover-logo {
-            font-size: 72px;
-            margin-bottom: 20px;
-            animation: float-logo 3s ease-in-out infinite;
-        }
-        @keyframes float-logo {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-15px); }
-        }
-        
-        .cover-title {
-            font-size: 32px;
-            font-weight: 700;
-            color: var(--icon-selected);
-            margin-bottom: 8px;
-            letter-spacing: 2px;
-        }
-        
-        .cover-subtitle {
-            font-size: 14px;
-            color: var(--text-muted);
-            margin-bottom: 40px;
-        }
-        
-        .cover-status {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-        }
-        
-        .cover-status-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 24px;
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            min-width: 280px;
-        }
-        
-        .cover-status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
+        .cover-logo { font-size: 72px; margin-bottom: 20px; animation: float-logo 3s ease-in-out infinite; }
+        @keyframes float-logo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+        .cover-title { font-size: 32px; font-weight: 700; color: var(--icon-selected); margin-bottom: 8px; letter-spacing: 2px; }
+        .cover-subtitle { font-size: 14px; color: var(--text-muted); margin-bottom: 40px; }
+        .cover-status { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+        .cover-status-item { display: flex; align-items: center; gap: 12px; padding: 12px 24px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 10px; min-width: 280px; }
+        .cover-status-dot { width: 10px; height: 10px; border-radius: 50%; animation: pulse 2s infinite; }
         .cover-status-dot.connected { background: var(--text-success); box-shadow: 0 0 8px var(--text-success); }
         .cover-status-dot.disconnected { background: var(--text-alarm); }
-        .cover-status-dot.warning { background: var(--text-warning); }
-        
         .cover-status-text { font-size: 13px; color: var(--text-secondary); flex: 1; }
         .cover-status-value { font-size: 13px; color: var(--text-primary); font-weight: 500; }
-        
-        .cover-hint {
-            margin-top: 40px;
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-        .cover-hint kbd {
-            padding: 2px 8px;
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-family: 'Consolas', monospace;
-        }
+        .cover-hint { margin-top: 40px; font-size: 12px; color: var(--text-muted); }
+        .cover-hint kbd { padding: 2px 8px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 4px; font-family: 'Consolas', monospace; }
 
         /* [v2.10] Three.js Container - Hidden by default */
-        #threejs-container {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 1;
-            display: none;
-        }
+        #threejs-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; display: none; }
         #threejs-container.active { display: block; }
         
         .overlay-ui { position: absolute; top: 20px; left: 20px; z-index: 10; display: flex; flex-direction: column; gap: 10px; }
@@ -229,9 +160,6 @@
 
         /* =============================================
            Equipment Info Panel
-           [MIGRATE TO] src/ui/EquipmentInfoPanel.js
-           [MIGRATE TO] src/ui/equipment-info/tabs/GeneralTab.js
-           [MIGRATE TO] src/ui/equipment-info/tabs/PCInfoTab.js
            ============================================= */
         #equipmentInfo { position: fixed; top: 80px; right: 20px; width: 320px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 40px var(--shadow-color); z-index: 100; opacity: 0; visibility: hidden; transform: translateX(20px); transition: all 0.3s ease; }
         #equipmentInfo.active { opacity: 1; visibility: visible; transform: translateX(0); }
@@ -264,119 +192,40 @@
         .info-value { font-size: 12px; color: var(--text-primary); font-family: 'Consolas', monospace; }
         .info-value-small { font-size: 11px; }
         .info-row-divider { height: 1px; background: var(--border-subtle); margin: 8px 0; }
-        .info-row.unmapped-notice { background: rgba(248, 113, 113, 0.1); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; }
+        .multi-select-header { background: var(--bg-selected); padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; }
         .info-icon { margin-right: 8px; }
         .info-text { font-size: 12px; color: var(--text-secondary); }
-        .multi-select-header { background: var(--bg-selected); padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; }
         .info-badge { font-size: 10px; padding: 2px 8px; background: var(--icon-selected); color: white; border-radius: 10px; margin-left: 8px; }
         .status-counts { display: flex; gap: 8px; flex-wrap: wrap; }
         .status-count-item { display: flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--bg-input); border-radius: 4px; font-size: 11px; }
         .status-count-item.run { color: var(--text-success); }
         .status-count-item.idle { color: var(--text-warning); }
         .status-count-item.stop { color: var(--text-alarm); }
-        .loading-container { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px; }
-        .loading-spinner-small { width: 20px; height: 20px; border: 2px solid var(--border-color); border-top-color: var(--icon-selected); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-        /* =============================================
-           PC Info Tab - Gauge System
-           [MIGRATE TO] src/ui/equipment-info/components/GaugeRenderer.js
-           ============================================= */
-        .pcinfo-system-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 6px 0;
-        }
-        .pcinfo-system-row .info-label {
-            min-width: 45px;
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-        .pcinfo-system-row .info-value {
-            font-size: 11px;
-            color: var(--text-primary);
-            text-align: right;
-            flex: 1;
-        }
-        .value-separator {
-            color: var(--text-muted);
-            margin: 0 4px;
-        }
-        
-        /* Boot Duration Colors */
-        .boot-duration {
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-        }
+        /* PC Info Tab - Gauge System */
+        .pcinfo-system-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+        .pcinfo-system-row .info-label { min-width: 45px; font-size: 11px; color: var(--text-muted); }
+        .pcinfo-system-row .info-value { font-size: 11px; color: var(--text-primary); text-align: right; flex: 1; }
+        .value-separator { color: var(--text-muted); margin: 0 4px; }
+        .boot-duration { padding: 2px 8px; border-radius: 4px; font-size: 11px; }
         .boot-duration.boot-green { background: rgba(74, 222, 128, 0.15); color: var(--text-success); }
         .boot-duration.boot-yellow { background: rgba(251, 191, 36, 0.15); color: var(--text-warning); }
         .boot-duration.boot-red { background: rgba(248, 113, 113, 0.15); color: var(--text-alarm); }
-        
-        /* Gauge Section */
-        .gauge-section {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid var(--border-subtle);
-        }
-        .gauge-section-title {
-            font-size: 10px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 10px;
-        }
-        
-        /* Unified Gauge Row */
-        .unified-gauge-row {
-            display: flex;
-            align-items: center;
-            padding: 6px 0;
-            gap: 10px;
-        }
-        .unified-gauge-label {
-            min-width: 35px;
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-        .unified-gauge-container {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .unified-gauge-bar {
-            flex: 1;
-            height: 6px;
-            background: var(--bg-input);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-        .unified-gauge-fill {
-            height: 100%;
-            border-radius: 3px;
-            transition: width 0.3s ease, background 0.3s ease;
-        }
+        .gauge-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle); }
+        .gauge-section-title { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+        .unified-gauge-row { display: flex; align-items: center; padding: 6px 0; gap: 10px; }
+        .unified-gauge-label { min-width: 35px; font-size: 11px; color: var(--text-muted); }
+        .unified-gauge-container { flex: 1; display: flex; align-items: center; gap: 10px; }
+        .unified-gauge-bar { flex: 1; height: 6px; background: var(--bg-input); border-radius: 3px; overflow: hidden; }
+        .unified-gauge-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease, background 0.3s ease; }
         .unified-gauge-fill.gauge-green { background: var(--text-success); }
         .unified-gauge-fill.gauge-yellow { background: var(--text-warning); }
         .unified-gauge-fill.gauge-red { background: var(--text-alarm); }
         .unified-gauge-fill.gauge-gray { background: var(--text-muted); }
-        
-        .unified-gauge-value {
-            min-width: 75px;
-            text-align: right;
-            font-size: 10px;
-            font-family: 'Consolas', monospace;
-            color: var(--text-secondary);
-        }
-        .unified-gauge-na {
-            flex: 1;
-            text-align: right;
-            font-size: 10px;
-            color: var(--text-muted);
-        }
+        .unified-gauge-value { min-width: 75px; text-align: right; font-size: 10px; font-family: 'Consolas', monospace; color: var(--text-secondary); }
+        .unified-gauge-na { flex: 1; text-align: right; font-size: 10px; color: var(--text-muted); }
 
         /* Status Bar */
         .status-bar { position: fixed; bottom: 0; left: 0; width: 100%; height: var(--status-bar-height); background-color: var(--bg-sidebar); border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-family: 'Consolas', monospace; font-size: 11px; z-index: 20; }
@@ -408,7 +257,10 @@
         .toast.warning { border-left: 4px solid var(--text-warning); }
         .toast.info { border-left: 4px solid var(--icon-selected); }
 
-        /* Modal (Compact) */
+        /* =============================================
+           Modal Styles (v2.9 Full Version)
+           [MIGRATE TO] src/ui/modals/ConnectionModal.js
+           ============================================= */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
         .modal-overlay.active { opacity: 1; visibility: visible; }
         .modal-container { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 16px; width: 90%; max-width: 700px; max-height: 85vh; overflow: hidden; box-shadow: 0 25px 50px var(--shadow-color); transform: scale(0.9); transition: transform 0.3s ease; }
@@ -421,35 +273,57 @@
         .modal-footer { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid var(--border-color); background: var(--bg-panel-header); }
         .footer-hint { font-size: 11px; color: var(--text-muted); }
         .btn-secondary { padding: 10px 20px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); cursor: pointer; }
-        .btn-connect { padding: 10px 20px; background: linear-gradient(135deg, #06B6D4, #0891B2); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; }
-        .btn-connect:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Connection Panel (Compact) */
+        /* Connection Panel Styles (v2.9 Full Version) */
         .connection-panel { background: var(--bg-panel-header); border: 1px solid var(--border-subtle); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
         .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: var(--bg-panel-header); border-bottom: 1px solid var(--border-subtle); }
         .panel-header h3 { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .panel-actions { display: flex; gap: 8px; align-items: center; }
         .internet-status { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-input); border-radius: 8px; margin-bottom: 16px; }
         .internet-status .status-dot { width: 10px; height: 10px; }
         .internet-status-text { font-size: 13px; color: var(--text-primary); }
+        .internet-status-detail { font-size: 11px; color: var(--text-muted); margin-left: auto; }
         .api-status-content { padding: 16px; }
-        .status-indicator-box { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-input); border-radius: 8px; }
+        .status-indicator-box { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px; background: var(--bg-input); border-radius: 8px; }
         .status-indicator-box .status-dot { width: 12px; height: 12px; animation: pulse 2s infinite; }
         .status-dot--connected { background: var(--text-success); box-shadow: 0 0 10px var(--text-success); }
         .status-dot--disconnected { background: var(--text-alarm); }
         .status-dot--checking { background: var(--text-muted); }
+        .status-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .status-detail { display: flex; flex-direction: column; gap: 4px; }
+        .detail-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
+        .detail-value { font-size: 13px; color: var(--text-primary); font-family: 'Consolas', monospace; }
         .site-list { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
-        .site-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: 10px; cursor: pointer; }
-        .site-item:hover { background: var(--bg-hover); }
+        .site-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+        .site-item:hover { background: var(--bg-hover); border-color: var(--border-color); }
         .site-item.site-item--selected { background: var(--bg-selected); border-color: var(--icon-selected); }
         .site-item.site-item--connected { background: rgba(74, 222, 128, 0.1); border-color: var(--text-success); }
         .site-checkbox input { width: 16px; height: 16px; accent-color: var(--icon-selected); }
         .site-info { flex: 1; }
-        .site-main { display: flex; align-items: center; gap: 8px; }
+        .site-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .site-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
         .site-region { font-size: 11px; padding: 2px 8px; background: var(--bg-hover); border-radius: 4px; color: var(--text-secondary); }
+        .site-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: flex; gap: 12px; }
         .site-status { display: flex; align-items: center; gap: 8px; }
         .btn-disconnect { padding: 4px 10px; font-size: 11px; border: none; border-radius: 4px; cursor: pointer; background: rgba(248, 113, 113, 0.2); color: var(--text-alarm); }
         .panel-footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border-subtle); background: var(--bg-panel-header); }
+        .selection-info { font-size: 12px; color: var(--text-secondary); }
+        .btn-connect { padding: 10px 20px; background: linear-gradient(135deg, #06B6D4, #0891B2); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; font-size: 13px; }
+        .btn-connect:hover:not(:disabled) { box-shadow: 0 0 20px var(--glow-color); }
+        .btn-connect:disabled { opacity: 0.5; cursor: not-allowed; }
+        .auto-connect-label { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
+        .auto-connect-label input { accent-color: var(--icon-selected); }
+        .btn-icon { background: none; border: none; cursor: pointer; font-size: 14px; padding: 4px 8px; opacity: 0.7; border-radius: 4px; }
+        .btn-icon:hover { opacity: 1; background: var(--bg-hover); }
+        .database-item { padding: 16px; }
+        .database-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .database-header h4 { font-size: 14px; color: var(--text-primary); }
+        .database-stats { display: flex; gap: 16px; }
+        .stat-item { display: flex; gap: 4px; font-size: 12px; }
+        .stat-label { color: var(--text-muted); }
+        .stat-value { color: var(--icon-selected); font-weight: 600; }
+        .no-connection { text-align: center; padding: 32px; color: var(--text-muted); }
+        .no-connection-icon { font-size: 32px; display: block; margin-bottom: 8px; }
 
         /* Debug Panel */
         #debug-panel { position: fixed; bottom: 50px; right: 20px; width: 400px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 40px var(--shadow-color); z-index: 100; opacity: 0; visibility: hidden; transform: translateY(20px); transition: all 0.3s ease; }
@@ -579,7 +453,10 @@
         <div style="height: 50px;"></div>
     </aside>
 
-    <!-- CONNECTION MODAL -->
+    <!-- =============================================
+         CONNECTION MODAL (Full v2.9 Version)
+         [MIGRATE TO] src/ui/modals/ConnectionModal.js
+         ============================================= -->
     <div class="modal-overlay" id="connection-modal">
         <div class="modal-container">
             <div class="modal-header">
@@ -587,18 +464,75 @@
                 <button class="modal-close" onclick="closeConnectionModal()">✕</button>
             </div>
             <div class="modal-body">
-                <div class="internet-status"><span class="status-dot connected"></span><span class="internet-status-text">Internet Connected</span></div>
-                <div class="connection-panel">
-                    <div class="panel-header"><h3>🔌 Backend API Status</h3><button class="btn-connect" onclick="refreshAPIStatus()" style="padding:6px 12px;font-size:12px">🔄 Check</button></div>
-                    <div class="api-status-content"><div class="status-indicator-box"><span class="status-dot status-dot--checking" id="api-status-dot"></span><span id="api-status-text">Checking...</span></div></div>
+                <!-- Internet Status with Ping -->
+                <div class="internet-status" id="internet-status">
+                    <span class="status-dot connected" id="internet-dot"></span>
+                    <span class="internet-status-text" id="internet-text">Internet Connected</span>
+                    <span class="internet-status-detail" id="internet-detail">Ping: 24ms</span>
                 </div>
+                
+                <!-- Backend API Status Panel -->
                 <div class="connection-panel">
-                    <div class="panel-header"><h3>🔍 Site Connection</h3></div>
+                    <div class="panel-header">
+                        <h3>🔌 Backend API Status</h3>
+                        <button class="btn-connect" onclick="refreshAPIStatus()" style="padding:6px 12px;font-size:12px">🔄 Check</button>
+                    </div>
+                    <div class="api-status-content">
+                        <div class="status-indicator-box">
+                            <span class="status-dot status-dot--checking" id="api-status-dot"></span>
+                            <span class="status-text" id="api-status-text">Checking...</span>
+                        </div>
+                        <div class="status-details">
+                            <div class="status-detail">
+                                <span class="detail-label">API URL</span>
+                                <span class="detail-value">http://localhost:8000</span>
+                            </div>
+                            <div class="status-detail">
+                                <span class="detail-label">Response</span>
+                                <span class="detail-value" id="response-time">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Site Connection Panel -->
+                <div class="connection-panel">
+                    <div class="panel-header">
+                        <h3>🔍 Site Connection</h3>
+                        <div class="panel-actions">
+                            <label class="auto-connect-label">
+                                <input type="checkbox" id="auto-connect-checkbox">
+                                <span>Auto</span>
+                            </label>
+                            <button class="btn-icon" onclick="selectAllSites()" title="Select All">☑️</button>
+                            <button class="btn-icon" onclick="deselectAllSites()" title="Deselect All">☐</button>
+                        </div>
+                    </div>
                     <div class="site-list" id="site-list"></div>
-                    <div class="panel-footer"><span id="selection-count">Selected: 0</span><button class="btn-connect" id="connect-btn" disabled onclick="connectToSelectedSite()">🔌 Connect</button></div>
+                    <div class="panel-footer">
+                        <span class="selection-info" id="selection-count">Selected: 0</span>
+                        <button class="btn-connect" id="connect-btn" disabled onclick="connectToSelectedSite()">🔌 Connect</button>
+                    </div>
+                </div>
+                
+                <!-- Connected Databases Panel -->
+                <div class="connection-panel">
+                    <div class="panel-header">
+                        <h3>📊 Connected Databases</h3>
+                        <button class="btn-connect" onclick="refreshDatabaseInfo()" style="padding:6px 12px;font-size:12px">🔄 Refresh</button>
+                    </div>
+                    <div id="database-list">
+                        <div class="no-connection">
+                            <span class="no-connection-icon">📂</span>
+                            <p>No database connected</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer"><span class="footer-hint">Ctrl+K to toggle | Escape to close</span><button class="btn-secondary" onclick="closeConnectionModal()">Close</button></div>
+            <div class="modal-footer">
+                <span class="footer-hint">Ctrl+K to toggle | Escape to close</span>
+                <button class="btn-secondary" onclick="closeConnectionModal()">Close</button>
+            </div>
         </div>
     </div>
 
@@ -717,9 +651,11 @@
         let scene, camera, renderer, animationId = null;
         let threejsInitialized = false;
         
+        // [v2.9] Extended site profiles with priority
         const siteProfiles = [
-            { id: 'kr_b_01', display_name: 'Korea Site B-01', region: 'Asia/Seoul' },
-            { id: 'vn_a_01', display_name: 'Vietnam Site A-01', region: 'Asia/Ho_Chi_Minh' }
+            { id: 'kr_b_01', display_name: 'Korea Site B-01', region: 'Asia/Seoul', priority: 10 },
+            { id: 'kr_b_02', display_name: 'Korea Site B-02', region: 'Asia/Seoul', priority: 8 },
+            { id: 'vn_a_01', display_name: 'Vietnam Site A-01', region: 'Asia/Ho_Chi_Minh', priority: 5 }
         ];
         let siteStatus = {};
 
@@ -759,7 +695,6 @@
 
         // =============================================
         // [v2.10] View Management
-        // Cover Screen: Default | Three.js: Only in Monitoring/3D View
         // =============================================
         function showCoverScreen() {
             document.getElementById('cover-screen').classList.remove('hidden');
@@ -830,14 +765,8 @@
             window.addEventListener('resize', onWindowResize);
         }
         
-        function startThreeJS() {
-            if (!animationId) animate();
-        }
-        
-        function stopThreeJS() {
-            if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
-        }
-        
+        function startThreeJS() { if (!animationId) animate(); }
+        function stopThreeJS() { if (animationId) { cancelAnimationFrame(animationId); animationId = null; } }
         function animate() {
             animationId = requestAnimationFrame(animate);
             const time = Date.now() * 0.0001;
@@ -846,7 +775,6 @@
             camera.lookAt(0, 0, 0);
             renderer.render(scene, camera);
         }
-        
         function onWindowResize() {
             const container = document.getElementById('threejs-container');
             if (camera && renderer) {
@@ -857,7 +785,7 @@
         }
 
         // =============================================
-        // GaugeRenderer - [MIGRATE TO] components/GaugeRenderer.js
+        // GaugeRenderer
         // =============================================
         const GaugeRenderer = {
             getColor(percent) {
@@ -870,17 +798,12 @@
                 const { type = 'percent', used = null, total = null, unit = 'GB' } = options;
                 const colorClass = this.getColor(percent);
                 const widthPercent = percent ?? 0;
-                let valueDisplay;
-                if (type === 'usage' && used !== null && total !== null) {
-                    valueDisplay = `${used.toFixed(1)}/${total.toFixed(0)} ${unit}`;
-                } else {
-                    valueDisplay = percent !== null ? `${percent.toFixed(1)}%` : '-';
-                }
+                let valueDisplay = type === 'usage' && used !== null && total !== null 
+                    ? `${used.toFixed(1)}/${total.toFixed(0)} ${unit}` 
+                    : (percent !== null ? `${percent.toFixed(1)}%` : '-');
                 return `<div class="unified-gauge-row"><span class="unified-gauge-label">${label}</span><div class="unified-gauge-container"><div class="unified-gauge-bar"><div class="unified-gauge-fill ${colorClass}" style="width: ${widthPercent}%"></div></div><span class="unified-gauge-value">${valueDisplay}</span></div></div>`;
             },
-            renderNA(label, message = 'N/A') {
-                return `<div class="unified-gauge-row"><span class="unified-gauge-label">${label}</span><span class="unified-gauge-na">${message}</span></div>`;
-            },
+            renderNA(label, message = 'N/A') { return `<div class="unified-gauge-row"><span class="unified-gauge-label">${label}</span><span class="unified-gauge-na">${message}</span></div>`; },
             renderCPU(percent) { return this.render('CPU', percent, { type: 'percent' }); },
             renderMemory(usedGb, totalGb) {
                 const percent = (totalGb && usedGb) ? Math.round((usedGb / totalGb) * 100) : null;
@@ -894,38 +817,27 @@
         };
 
         // =============================================
-        // DataFormatter - [MIGRATE TO] utils/DataFormatter.js
+        // DataFormatter
         // =============================================
         const DataFormatter = {
-            shortenCpuName(name) {
-                if (!name) return '-';
-                return name.replace(/\(R\)|\(TM\)|CPU|@.*$/gi, '').trim().substring(0, 25);
-            },
+            shortenCpuName(name) { return name ? name.replace(/\(R\)|\(TM\)|CPU|@.*$/gi, '').trim().substring(0, 25) : '-'; },
             formatBootDuration(bootTime) {
                 if (!bootTime) return '-';
                 const diff = Math.floor((Date.now() - new Date(bootTime).getTime()) / 1000);
-                const days = Math.floor(diff / 86400);
-                const hours = Math.floor((diff % 86400) / 3600);
+                const days = Math.floor(diff / 86400), hours = Math.floor((diff % 86400) / 3600);
                 if (days > 0) return `${days}d ${hours}h`;
-                const minutes = Math.floor((diff % 3600) / 60);
-                return `${hours}h ${minutes}m`;
+                return `${hours}h ${Math.floor((diff % 3600) / 60)}m`;
             },
             getBootDurationClass(bootTime) {
                 if (!bootTime) return '';
                 const days = Math.floor((Date.now() - new Date(bootTime).getTime()) / 86400000);
-                if (days < 7) return 'boot-green';
-                if (days < 30) return 'boot-yellow';
-                return 'boot-red';
+                return days < 7 ? 'boot-green' : days < 30 ? 'boot-yellow' : 'boot-red';
             },
-            formatDateTime(dateStr) {
-                if (!dateStr) return '-';
-                return new Date(dateStr).toLocaleString('ko-KR');
-            }
+            formatDateTime(dateStr) { return dateStr ? new Date(dateStr).toLocaleString('ko-KR') : '-'; }
         };
 
         // =============================================
         // Equipment Info Panel
-        // [v2.10] PC Info Tab: Full implementation based on PCInfoTab.js
         // =============================================
         function showEquipmentInfo(data) {
             const isMulti = Array.isArray(data) && data.length > 1;
@@ -940,7 +852,6 @@
             document.getElementById('equipName').classList.remove('multi-select');
             updateHeaderStatus(eq.status);
             
-            // General Tab
             const generalContent = document.getElementById('generalTabContent');
             const isLotActive = eq.is_lot_active === true;
             if (isLotActive) {
@@ -951,43 +862,13 @@
                 generalContent.innerHTML = `<div class="info-row"><span class="info-label">Line:</span><span class="info-value">${eq.line_name||'-'}</span></div><div class="info-row-divider"></div><div class="info-row"><span class="info-label">Product:</span><span class="info-value">-</span></div><div class="info-row"><span class="info-label">Lot No.:</span><span class="info-value">-</span></div><div class="info-row"><span class="info-label">Since:</span><span class="info-value">${eq.since_time?DataFormatter.formatDateTime(eq.since_time):'-'}</span></div><div class="info-row"><span class="info-label">Duration:</span><span class="info-value" id="durationDisplay">${eq.since_time?formatDuration(eq.since_time):'-'}</span></div>`;
             }
             
-            // [v2.10] PC Info Tab - Full implementation based on PCInfoTab.js
             const pcinfoContent = document.getElementById('pcinfoTabContent');
             const cpuShortName = DataFormatter.shortenCpuName(eq.cpu_name);
             const bootDuration = DataFormatter.formatBootDuration(eq.last_boot_time);
             const bootClass = DataFormatter.getBootDurationClass(eq.last_boot_time);
             const hasDiskD = eq.disk_d_total_gb && eq.disk_d_total_gb > 0;
             
-            pcinfoContent.innerHTML = `
-                <!-- System Info -->
-                <div class="pcinfo-system-row">
-                    <span class="info-label">CPU</span>
-                    <span class="info-value">${cpuShortName}<span class="value-separator">,</span>${eq.cpu_logical_count || '-'} Cores</span>
-                </div>
-                <div class="pcinfo-system-row">
-                    <span class="info-label">GPU</span>
-                    <span class="info-value info-value-small">${eq.gpu_name || '-'}</span>
-                </div>
-                <div class="pcinfo-system-row">
-                    <span class="info-label">OS</span>
-                    <span class="info-value">${eq.os_name || '-'}<span class="value-separator">,</span>${eq.os_architecture || '-'}</span>
-                </div>
-                <div class="pcinfo-system-row">
-                    <span class="info-label">Boot</span>
-                    <span class="info-value"><span class="boot-duration ${bootClass}"><span class="boot-duration-value">${bootDuration}</span></span></span>
-                </div>
-                
-                <!-- Resource Usage Gauges -->
-                <div class="gauge-section">
-                    <div class="gauge-section-title">Resource Usage</div>
-                    ${GaugeRenderer.renderCPU(eq.cpu_usage_percent)}
-                    ${GaugeRenderer.renderMemory(eq.memory_used_gb, eq.memory_total_gb)}
-                    ${GaugeRenderer.renderDisk('C:', eq.disk_c_used_gb, eq.disk_c_total_gb)}
-                    ${hasDiskD ? GaugeRenderer.renderDisk('D:', eq.disk_d_used_gb, eq.disk_d_total_gb) : GaugeRenderer.renderNA('D:')}
-                </div>
-                
-                ${eq.pc_last_update_time ? `<div class="info-row" style="opacity:0.7;margin-top:8px"><span class="info-label">Updated:</span><span class="info-value" style="font-size:10px">${DataFormatter.formatDateTime(eq.pc_last_update_time)}</span></div>` : ''}
-            `;
+            pcinfoContent.innerHTML = `<div class="pcinfo-system-row"><span class="info-label">CPU</span><span class="info-value">${cpuShortName}<span class="value-separator">,</span>${eq.cpu_logical_count || '-'} Cores</span></div><div class="pcinfo-system-row"><span class="info-label">GPU</span><span class="info-value info-value-small">${eq.gpu_name || '-'}</span></div><div class="pcinfo-system-row"><span class="info-label">OS</span><span class="info-value">${eq.os_name || '-'}<span class="value-separator">,</span>${eq.os_architecture || '-'}</span></div><div class="pcinfo-system-row"><span class="info-label">Boot</span><span class="info-value"><span class="boot-duration ${bootClass}">${bootDuration}</span></span></div><div class="gauge-section"><div class="gauge-section-title">Resource Usage</div>${GaugeRenderer.renderCPU(eq.cpu_usage_percent)}${GaugeRenderer.renderMemory(eq.memory_used_gb, eq.memory_total_gb)}${GaugeRenderer.renderDisk('C:', eq.disk_c_used_gb, eq.disk_c_total_gb)}${hasDiskD ? GaugeRenderer.renderDisk('D:', eq.disk_d_used_gb, eq.disk_d_total_gb) : GaugeRenderer.renderNA('D:')}</div>${eq.pc_last_update_time ? `<div class="info-row" style="opacity:0.7;margin-top:8px"><span class="info-label">Updated:</span><span class="info-value" style="font-size:10px">${DataFormatter.formatDateTime(eq.pc_last_update_time)}</span></div>` : ''}`;
         }
         
         function showMultiEquipmentInfo(dataArray) {
@@ -1002,24 +883,8 @@
             
             document.getElementById('generalTabContent').innerHTML = `<div class="info-row multi-select-header"><span class="info-icon">📊</span><span class="info-text">${count}개 설비 집계</span><span class="info-badge">${count}개</span></div><div class="info-row"><span class="info-label">Status:</span><div class="status-counts">${statusCounts.RUN>0?`<span class="status-count-item run">🟢 ${statusCounts.RUN}</span>`:''}${statusCounts.IDLE>0?`<span class="status-count-item idle">🟡 ${statusCounts.IDLE}</span>`:''}${statusCounts.STOP>0?`<span class="status-count-item stop">🔴 ${statusCounts.STOP}</span>`:''}</div></div>`;
             
-            // Multi PC Info with average gauges
-            const avgCpu = 35 + Math.random() * 30;
-            const avgMem = 45 + Math.random() * 25;
-            const avgDiskC = 40 + Math.random() * 30;
-            
-            document.getElementById('pcinfoTabContent').innerHTML = `
-                <div class="info-row multi-select-header"><span class="info-icon">💻</span><span class="info-text">${count}개 설비 PC 정보</span></div>
-                <div class="pcinfo-system-row"><span class="info-label">CPU</span><span class="info-value info-value-small">Intel Core i7 외 ${count-1}종</span></div>
-                <div class="pcinfo-system-row"><span class="info-label">GPU</span><span class="info-value info-value-small">NVIDIA GeForce 외 ${count-1}종</span></div>
-                <div class="pcinfo-system-row"><span class="info-label">OS</span><span class="info-value">Windows 10 IoT</span></div>
-                <div class="gauge-section">
-                    <div class="gauge-section-title">Avg Resource Usage</div>
-                    ${GaugeRenderer.render('CPU', avgCpu, { type: 'percent' })}
-                    ${GaugeRenderer.render('Mem', avgMem, { type: 'percent' })}
-                    ${GaugeRenderer.render('C:', avgDiskC, { type: 'percent' })}
-                    ${GaugeRenderer.renderNA('D:', 'N/A (일부 D: 없음)')}
-                </div>
-            `;
+            const avgCpu = 35 + Math.random() * 30, avgMem = 45 + Math.random() * 25, avgDiskC = 40 + Math.random() * 30;
+            document.getElementById('pcinfoTabContent').innerHTML = `<div class="info-row multi-select-header"><span class="info-icon">💻</span><span class="info-text">${count}개 설비 PC 정보</span></div><div class="pcinfo-system-row"><span class="info-label">CPU</span><span class="info-value info-value-small">Intel Core i7 외 ${count-1}종</span></div><div class="pcinfo-system-row"><span class="info-label">GPU</span><span class="info-value info-value-small">NVIDIA GeForce 외 ${count-1}종</span></div><div class="pcinfo-system-row"><span class="info-label">OS</span><span class="info-value">Windows 10 IoT</span></div><div class="gauge-section"><div class="gauge-section-title">Avg Resource Usage</div>${GaugeRenderer.render('CPU', avgCpu, { type: 'percent' })}${GaugeRenderer.render('Mem', avgMem, { type: 'percent' })}${GaugeRenderer.render('C:', avgDiskC, { type: 'percent' })}${GaugeRenderer.renderNA('D:', 'N/A (일부 D: 없음)')}</div>`;
         }
         
         function hideEquipmentInfo() { document.getElementById('equipmentInfo').classList.remove('active'); document.getElementById('headerStatus').style.display = 'flex'; stopDurationTimer(); }
@@ -1028,8 +893,7 @@
             document.querySelectorAll('.equipment-tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tab}`));
         }
         function updateHeaderStatus(status) {
-            const indicator = document.getElementById('headerStatusIndicator');
-            const text = document.getElementById('headerStatusText');
+            const indicator = document.getElementById('headerStatusIndicator'), text = document.getElementById('headerStatusText');
             document.getElementById('headerStatus').style.display = 'flex';
             const statusClass = (status || 'DISCONNECTED').toLowerCase();
             indicator.className = `status-indicator ${statusClass}`;
@@ -1040,66 +904,64 @@
         function stopDurationTimer() { if (durationTimerInterval) { clearInterval(durationTimerInterval); durationTimerInterval = null; } }
         function formatDuration(startTime) { if (!startTime) return '-'; const diff = Math.floor((new Date() - new Date(startTime)) / 1000); return `${String(Math.floor(diff/3600)).padStart(2,'0')}:${String(Math.floor((diff%3600)/60)).padStart(2,'0')}:${String(diff%60).padStart(2,'0')}`; }
 
-        // Test simulations with FULL PC Info data
+        // Test simulations
         function simulateEquipmentClick(eqId) {
             const mockData = {
-                'EQ-001': { 
-                    id: 'EQ-001', equipment_name: 'Etcher A-01', status: 'RUN', line_name: 'Line A', product_model: 'PRODUCT-X100', lot_id: 'LOT-2026-001234', is_lot_active: true, 
-                    lot_start_time: new Date(Date.now()-3600000).toISOString(), last_updated: new Date().toISOString(),
-                    // PC Info
-                    cpu_name: 'Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz', cpu_logical_count: 16, cpu_usage_percent: 45.5,
-                    gpu_name: 'NVIDIA GeForce RTX 2060', os_name: 'Windows 10 IoT Enterprise', os_architecture: '64-bit',
-                    memory_used_gb: 12.4, memory_total_gb: 32, disk_c_used_gb: 180, disk_c_total_gb: 256, disk_d_used_gb: 450, disk_d_total_gb: 1024,
-                    last_boot_time: new Date(Date.now() - 86400000 * 3).toISOString(), pc_last_update_time: new Date().toISOString()
-                },
-                'EQ-002': { 
-                    id: 'EQ-002', equipment_name: 'CVD Unit B-02', status: 'IDLE', line_name: 'Line B', is_lot_active: false, 
-                    since_time: new Date(Date.now()-1800000).toISOString(),
-                    cpu_name: 'Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz', cpu_logical_count: 6, cpu_usage_percent: 12.3,
-                    gpu_name: 'Intel UHD Graphics 630', os_name: 'Windows 10 IoT', os_architecture: '64-bit',
-                    memory_used_gb: 6.8, memory_total_gb: 16, disk_c_used_gb: 95, disk_c_total_gb: 256, disk_d_total_gb: 0,
-                    last_boot_time: new Date(Date.now() - 86400000 * 45).toISOString(), pc_last_update_time: new Date().toISOString()
-                },
-                'EQ-003': { 
-                    id: 'EQ-003', equipment_name: 'Sputter C-03', status: 'STOP', line_name: 'Line C', is_lot_active: false, 
-                    since_time: new Date(Date.now()-7200000).toISOString(),
-                    cpu_name: 'AMD Ryzen 7 5800X', cpu_logical_count: 16, cpu_usage_percent: 85.7,
-                    gpu_name: 'AMD Radeon RX 6700 XT', os_name: 'Windows 11 IoT Enterprise', os_architecture: '64-bit',
-                    memory_used_gb: 28.5, memory_total_gb: 32, disk_c_used_gb: 220, disk_c_total_gb: 512, disk_d_used_gb: 800, disk_d_total_gb: 2048,
-                    last_boot_time: new Date(Date.now() - 86400000 * 120).toISOString(), pc_last_update_time: new Date().toISOString()
-                }
+                'EQ-001': { id: 'EQ-001', equipment_name: 'Etcher A-01', status: 'RUN', line_name: 'Line A', product_model: 'PRODUCT-X100', lot_id: 'LOT-2026-001234', is_lot_active: true, lot_start_time: new Date(Date.now()-3600000).toISOString(), last_updated: new Date().toISOString(), cpu_name: 'Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz', cpu_logical_count: 16, cpu_usage_percent: 45.5, gpu_name: 'NVIDIA GeForce RTX 2060', os_name: 'Windows 10 IoT Enterprise', os_architecture: '64-bit', memory_used_gb: 12.4, memory_total_gb: 32, disk_c_used_gb: 180, disk_c_total_gb: 256, disk_d_used_gb: 450, disk_d_total_gb: 1024, last_boot_time: new Date(Date.now() - 86400000 * 3).toISOString(), pc_last_update_time: new Date().toISOString() },
+                'EQ-002': { id: 'EQ-002', equipment_name: 'CVD Unit B-02', status: 'IDLE', line_name: 'Line B', is_lot_active: false, since_time: new Date(Date.now()-1800000).toISOString(), cpu_name: 'Intel(R) Core(TM) i5-9500 CPU @ 3.00GHz', cpu_logical_count: 6, cpu_usage_percent: 12.3, gpu_name: 'Intel UHD Graphics 630', os_name: 'Windows 10 IoT', os_architecture: '64-bit', memory_used_gb: 6.8, memory_total_gb: 16, disk_c_used_gb: 95, disk_c_total_gb: 256, disk_d_total_gb: 0, last_boot_time: new Date(Date.now() - 86400000 * 45).toISOString(), pc_last_update_time: new Date().toISOString() },
+                'EQ-003': { id: 'EQ-003', equipment_name: 'Sputter C-03', status: 'STOP', line_name: 'Line C', is_lot_active: false, since_time: new Date(Date.now()-7200000).toISOString(), cpu_name: 'AMD Ryzen 7 5800X', cpu_logical_count: 16, cpu_usage_percent: 85.7, gpu_name: 'AMD Radeon RX 6700 XT', os_name: 'Windows 11 IoT Enterprise', os_architecture: '64-bit', memory_used_gb: 28.5, memory_total_gb: 32, disk_c_used_gb: 220, disk_c_total_gb: 512, disk_d_used_gb: 800, disk_d_total_gb: 2048, last_boot_time: new Date(Date.now() - 86400000 * 120).toISOString(), pc_last_update_time: new Date().toISOString() }
             };
             showEquipmentInfo(mockData[eqId]);
             toast.info('Equipment Selected', `Clicked on ${eqId}`);
         }
         function simulateMultiSelect() { showEquipmentInfo([{ id: 'EQ-001', status: 'RUN' },{ id: 'EQ-002', status: 'IDLE' },{ id: 'EQ-003', status: 'STOP' }]); }
+        function openEquipmentEditModal() { toast.info('Equipment Mapping', 'Opening equipment mapping editor...'); }
 
         // =============================================
-        // Connection & Sidebar
+        // Connection Modal (v2.9 Full Version)
         // =============================================
         function openConnectionModal() { document.getElementById('connection-modal').classList.add('active'); refreshAPIStatus(); }
         function closeConnectionModal() { document.getElementById('connection-modal').classList.remove('active'); }
+        
         function refreshAPIStatus() {
             const dot = document.getElementById('api-status-dot');
             const text = document.getElementById('api-status-text');
+            const responseTime = document.getElementById('response-time');
             dot.className = 'status-dot status-dot--checking';
             text.textContent = 'Checking...';
-            setTimeout(() => { dot.className = 'status-dot status-dot--connected'; text.textContent = 'Connected'; }, 1000);
+            responseTime.textContent = '-';
+            setTimeout(() => {
+                dot.className = 'status-dot status-dot--connected';
+                text.textContent = 'Connected';
+                text.className = 'status-text run';
+                responseTime.textContent = `${Math.floor(Math.random() * 50 + 20)}ms`;
+            }, 1000);
         }
+        
         function renderSiteList() {
-            document.getElementById('site-list').innerHTML = siteProfiles.map(p => {
-                const isSelected = selectedSite === p.id;
-                const isConn = siteStatus[p.id]?.status === 'connected';
-                return `<div class="site-item ${isSelected?'site-item--selected':''} ${isConn?'site-item--connected':''}" onclick="toggleSiteSelection('${p.id}')"><div class="site-checkbox"><input type="checkbox" ${isSelected?'checked':''}></div><div class="site-info"><div class="site-main"><span class="site-name">${p.display_name}</span><span class="site-region">${p.region}</span></div></div><div class="site-status">${isConn?'<span>✅</span><button class="btn-disconnect" onclick="event.stopPropagation();disconnectFromSite(\''+p.id+'\')">Disconnect</button>':'<span>⚪</span>'}</div></div>`;
+            const siteList = document.getElementById('site-list');
+            siteList.innerHTML = siteProfiles.map(profile => {
+                const isSelected = selectedSite === profile.id;
+                const status = siteStatus[profile.id] || {};
+                const isConnectedSite = status.status === 'connected';
+                return `<div class="site-item ${isSelected ? 'site-item--selected' : ''} ${isConnectedSite ? 'site-item--connected' : ''}" onclick="toggleSiteSelection('${profile.id}')"><div class="site-checkbox"><input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleSiteSelection('${profile.id}')"></div><div class="site-info"><div class="site-main"><span class="site-name">${profile.display_name}</span><span class="site-region">${profile.region}</span></div><div class="site-meta"><span>Priority: ${profile.priority}</span></div></div><div class="site-status">${isConnectedSite ? '<span>✅</span><button class="btn-disconnect" onclick="event.stopPropagation(); disconnectFromSite(\''+profile.id+'\')">Disconnect</button>' : '<span>⚪</span>'}</div></div>`;
             }).join('');
+            updateSelectionUI();
+        }
+        
+        function toggleSiteSelection(siteId) { selectedSite = selectedSite === siteId ? null : siteId; renderSiteList(); }
+        function selectAllSites() { if (siteProfiles.length > 0) selectedSite = siteProfiles[0].id; renderSiteList(); toast.info('Select All', 'First site selected (single selection mode)'); }
+        function deselectAllSites() { selectedSite = null; renderSiteList(); toast.info('Deselect All', 'Selection cleared'); }
+        function updateSelectionUI() {
             document.getElementById('selection-count').textContent = `Selected: ${selectedSite ? 1 : 0}`;
             document.getElementById('connect-btn').disabled = !selectedSite;
         }
-        function toggleSiteSelection(id) { selectedSite = selectedSite === id ? null : id; renderSiteList(); }
+        
         function connectToSelectedSite() {
             if (!selectedSite) return;
-            document.getElementById('connect-btn').disabled = true;
-            document.getElementById('connect-btn').textContent = '⏳ Connecting...';
+            const btn = document.getElementById('connect-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Connecting...';
             setTimeout(() => {
                 siteStatus[selectedSite] = { status: 'connected' };
                 isConnected = true;
@@ -1107,18 +969,22 @@
                 enableSidebarIcons();
                 updateStatusBar(selectedSite);
                 updateCoverStatus(true, selectedSite);
-                document.getElementById('connect-btn').textContent = '🔌 Connect';
-                toast.success('Connected', `Connected to ${siteProfiles.find(s=>s.id===selectedSite).display_name}`);
+                updateDatabaseList(selectedSite);
+                btn.textContent = '🔌 Connect';
+                const site = siteProfiles.find(s => s.id === selectedSite);
+                toast.success('Connected', `Successfully connected to ${site.display_name}`);
             }, 1500);
         }
-        function disconnectFromSite(id) {
-            siteStatus[id] = { status: 'disconnected' };
+        
+        function disconnectFromSite(siteId) {
+            siteStatus[siteId] = { status: 'disconnected' };
             isConnected = false;
             selectedSite = null;
             renderSiteList();
             disableSidebarIcons();
             updateStatusBar(null);
             updateCoverStatus(false, null);
+            updateDatabaseList(null);
             hideEquipmentInfo();
             showCoverScreen();
             currentMode = null;
@@ -1128,12 +994,26 @@
             document.querySelectorAll('.submenu-item').forEach(item => item.classList.remove('active'));
             toast.info('Disconnected', 'Database connection closed');
         }
+        
+        function updateDatabaseList(siteId) {
+            const dbList = document.getElementById('database-list');
+            if (siteId) {
+                const site = siteProfiles.find(s => s.id === siteId);
+                dbList.innerHTML = `<div class="database-item"><div class="database-header"><h4>📊 ${site.display_name}</h4></div><div class="database-stats"><div class="stat-item"><span class="stat-label">Equipment:</span><span class="stat-value">117</span></div><div class="stat-item"><span class="stat-label">Lines:</span><span class="stat-value">6</span></div><div class="stat-item"><span class="stat-label">Active Lots:</span><span class="stat-value">85</span></div></div></div>`;
+            } else {
+                dbList.innerHTML = `<div class="no-connection"><span class="no-connection-icon">📂</span><p>No database connected</p></div>`;
+            }
+        }
+        
+        function refreshDatabaseInfo() { toast.success('Refreshed', 'Database information updated'); }
+        
         function updateCoverStatus(connected, siteId) {
             document.getElementById('cover-api-dot').className = `cover-status-dot ${connected ? 'connected' : 'disconnected'}`;
             document.getElementById('cover-api-status').textContent = connected ? 'Connected' : 'Disconnected';
             document.getElementById('cover-db-dot').className = `cover-status-dot ${connected ? 'connected' : 'disconnected'}`;
             document.getElementById('cover-db-status').textContent = siteId ? siteProfiles.find(s=>s.id===siteId)?.display_name : 'Not Connected';
         }
+        
         function enableSidebarIcons() {
             ['btn-monitoring', 'btn-analysis', 'btn-simulation'].forEach(id => document.getElementById(id).classList.remove('disabled'));
             document.getElementById('btn-monitoring-wrapper').classList.remove('disabled');
@@ -1144,6 +1024,7 @@
                 document.getElementById('btn-layout').classList.remove('disabled');
             }
         }
+        
         function disableSidebarIcons() {
             ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-layout'].forEach(id => document.getElementById(id).classList.add('disabled'));
             document.getElementById('btn-monitoring-wrapper').classList.add('disabled');
@@ -1154,6 +1035,7 @@
             }
             document.querySelectorAll('.icon-btn').forEach(btn => btn.classList.remove('selected'));
         }
+        
         function updateStatusBar(siteId) {
             document.getElementById('backend-dot').className = `status-dot ${siteId ? 'connected' : 'disconnected'}`;
             document.getElementById('backend-value').textContent = siteId ? 'Connected' : 'Disconnected';
@@ -1170,11 +1052,8 @@
             document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
             document.getElementById('current-submode').textContent = '';
             document.querySelectorAll('.submenu-item').forEach(item => item.classList.remove('active'));
-            
-            // [v2.10] Show cover screen for non-monitoring modes (or show mode indicator only)
             hideAllViews();
             document.getElementById('overlay-ui').style.display = 'flex';
-            
             updateDebugPanel();
         }
         
@@ -1188,13 +1067,8 @@
             document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
             document.getElementById('current-submode').textContent = `→ ${submode === '3d-view' ? '3D View' : submode}`;
             
-            // [v2.10] Only show 3D View when Monitoring → 3D View selected
-            if (mode === 'monitoring' && submode === '3d-view') {
-                show3DView();
-            } else {
-                hideAllViews();
-                document.getElementById('overlay-ui').style.display = 'flex';
-            }
+            if (mode === 'monitoring' && submode === '3d-view') show3DView();
+            else { hideAllViews(); document.getElementById('overlay-ui').style.display = 'flex'; }
             
             updateDebugPanel();
             toast.info('Mode Changed', `${mode} → ${submode}`);
@@ -1272,7 +1146,7 @@
             siteProfiles.forEach(site => { siteStatus[site.id] = { status: 'disconnected' }; });
             renderSiteList();
             setupSidebarEvents();
-            showCoverScreen(); // [v2.10] Start with cover screen
+            showCoverScreen();
             setInterval(() => {
                 document.getElementById('fps-value').textContent = 58 + Math.floor(Math.random() * 5);
                 document.getElementById('memory-value').textContent = 128 + Math.floor((Math.random() - 0.5) * 20);
@@ -1297,7 +1171,7 @@
 
         document.addEventListener('DOMContentLoaded', init);
         console.log('🧪 Sidebar Test v2.10 Loaded');
-        console.log('Features: Cover Screen, Conditional 3D View, Full PC Info Tab');
+        console.log('Features: Cover Screen, Conditional 3D View, Full PC Info Tab, Full Connection Modal (v2.9)');
     </script>
 
 </body>
