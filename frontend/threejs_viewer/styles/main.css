@@ -6,13 +6,15 @@
  * 
  * 사용법: <link rel="stylesheet" href="styles/main.css">
  * 
- * @version 1.1.0
+ * @version 2.0.0
  * @changelog
+ * - v2.0.0: Cleanroom Sidebar Theme CSS 추가 (UI Migration Phase 1)
+ *           _sidebar.css, _status-bar.css, _cover-screen.css
  * - v1.1.0: Equipment Info Panel CSS import 추가 (Phase 2 - Tab UI)
  * - v1.0.0: 초기 버전 - 테마 통일, Toast 중복 스타일 제거
  * 
  * 작성일: 2026-01-02
- * 수정일: 2026-01-08 (Equipment Info Panel 추가)
+ * 수정일: 2026-01-11 (Cleanroom Sidebar Theme 추가)
  */
 
 /* =============================================
@@ -54,8 +56,16 @@
 @import './components/_file-controls.css';
 @import './components/_equipment-edit-button.css';
 
-/* Phase 8: Equipment Info Panel (Tab UI) - 🆕 v1.1.0 */
+/* Phase 8: Equipment Info Panel (Tab UI) - v1.1.0 */
 @import './components/_equipment-info-panel.css';
+
+/* =============================================
+   🆕 Cleanroom Sidebar Theme (v2.0.0)
+   UI Migration Phase 1 - 사이드바 기반 UI
+   ============================================= */
+@import './components/_sidebar.css';
+@import './components/_status-bar.css';
+@import './components/_cover-screen.css';
 
 /* =============================================
    Page Styles (페이지별)
@@ -85,6 +95,11 @@
     z-index: var(--z-overlay-indicator);
     box-shadow: var(--shadow-overlay);
     font-family: var(--font-family);
+}
+
+/* 🆕 v2.0.0: Status Bar 사용 시 Status Panel 위치 조정 */
+body:has(.status-bar) .status-panel {
+    bottom: calc(var(--status-bar-height, 36px) + 20px);
 }
 
 .status-item {
@@ -229,6 +244,11 @@
     z-index: 100;
 }
 
+/* 🆕 v2.0.0: Sidebar 사용 시 Legend 위치 조정 */
+body:has(.sidebar) .monitoring-legend {
+    left: calc(80px + 20px);
+}
+
 .legend-title {
     color: var(--overlay-text-primary);
     font-size: var(--font-size-sm);
@@ -261,4 +281,60 @@
 .legend-color.disconnected {
     background: #666;
     opacity: 0.5;
+}
+
+
+/* ============================================
+   🆕 v2.0.0: Sidebar Mode - Floating Buttons 숨김
+   Sidebar 사용 시 기존 floating-btn 숨김
+   ============================================ */
+
+/* 
+ * 🆕 v2.0.0: Sidebar Mode - Floating Buttons 숨김
+ * Sidebar 사용 시 기존 floating-btn 숨김
+ * 
+ * [MIGRATION NOTE]
+ * 점진적 마이그레이션을 위해 주석 처리되어 있습니다.
+ * 마이그레이션 완료 후 아래 규칙을 활성화하세요:
+ *
+ * body:has(.sidebar) .floating-btn {
+ *     display: none !important;
+ * }
+ */
+
+ body:has(.status-bar) .status-panel {
+    /* 점진적 마이그레이션: Status Bar 사용 시 위치 조정 완료 */
+    /* 추가 조정 필요시 아래 주석 해제 */
+    /* bottom: calc(var(--status-bar-height, 36px) + 20px); */
+    position: relative; /* placeholder to avoid empty ruleset warning */
+}
+
+/* 
+ * [MIGRATION NOTE]
+ * 위 규칙을 활성화하면 기존 floating-btn이 모두 숨겨집니다.
+ * 점진적 마이그레이션을 위해 기본적으로 주석 처리되어 있습니다.
+ * 
+ * 마이그레이션 완료 후 다음 순서로 진행:
+ * 1. 위 CSS 규칙 활성화
+ * 2. index.html에서 .floating-btn 요소 제거
+ * 3. _buttons.css에서 .floating-btn 관련 스타일 제거 (선택사항)
+ */
+
+
+/* ============================================
+   🆕 v2.0.0: Theme Transition Support
+   테마 전환 시 부드러운 애니메이션
+   ============================================ */
+
+html[data-theme] * {
+    transition-property: background-color, border-color, color, box-shadow;
+    transition-duration: 0.25s;
+    transition-timing-function: ease;
+}
+
+/* 애니메이션 중 transition 제외 요소 */
+html[data-theme] canvas,
+html[data-theme] video,
+html[data-theme] iframe {
+    transition: none;
 }

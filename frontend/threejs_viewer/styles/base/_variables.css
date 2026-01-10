@@ -10,6 +10,12 @@
  * 
  * 작성일: 2026-01-02
  * 수정일: 2026-01-06 (테마 통일 - 라이트 테마 기준)
+ * 수정일: 2026-01-11 (Cleanroom Sidebar Theme 통합 v2.10)
+ * 
+ * [MIGRATION NOTE]
+ * - test_sidebar_standalone.html v2.10 CSS 변수 통합
+ * - data-theme="dark" / "light" 테마 시스템 추가
+ * - 기존 변수와 호환성 유지 (레거시 섹션)
  */
 
 :root {
@@ -180,7 +186,7 @@
     --gradient-preview: linear-gradient(90deg, #9b59b6 0%, #8e44ad 100%);
 
     /* =============================================
-       배경 색상
+       배경 색상 (레거시)
        ============================================= */
     --bg-primary: #f5f5f5;
     --bg-secondary: #f8f9fa;
@@ -189,7 +195,7 @@
     --bg-panel: rgba(255, 255, 255, 0.95);
 
     /* =============================================
-       텍스트 색상
+       텍스트 색상 (레거시)
        ============================================= */
     --text-primary: #212529;
     --text-secondary: #6c757d;
@@ -198,7 +204,7 @@
     --text-dark: #333333;
 
     /* =============================================
-       테두리 색상
+       테두리 색상 (레거시)
        ============================================= */
     --border-color: #dee2e6;
     --border-light: #e9ecef;
@@ -303,4 +309,308 @@
     --success-hover: #229954;
     --secondary-color: var(--color-secondary);
     --secondary-hover: var(--color-secondary-dark);
+}
+
+
+/* =============================================
+   🌙 CLEANROOM SIDEBAR THEME - DARK MODE
+   =============================================
+   Source: test_sidebar_standalone.html v2.10
+   
+   [NOTE] data-theme="dark"가 기본값으로 적용됨
+   HTML에서 <html data-theme="dark"> 설정 필요
+   ============================================= */
+
+:root[data-theme="dark"],
+[data-theme="dark"] {
+    /* -----------------------------------------
+       Sidebar Core
+       ----------------------------------------- */
+    --bg-sidebar: #0F172A;
+    --bg-main: #1e293b;
+    --bg-main-gradient: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    --bg-panel: #1E293B;
+    --bg-panel-header: rgba(0, 0, 0, 0.2);
+    --bg-input: rgba(255, 255, 255, 0.05);
+    --bg-hover: rgba(255, 255, 255, 0.05);
+    --bg-selected: rgba(6, 182, 212, 0.1);
+    
+    /* -----------------------------------------
+       Border Colors (Override)
+       ----------------------------------------- */
+    --border-color: rgba(255, 255, 255, 0.1);
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    
+    /* -----------------------------------------
+       Icon States
+       ----------------------------------------- */
+    --icon-normal: #E2E8F0;
+    --icon-selected: #06B6D4;
+    --icon-disabled: #334155;
+    --icon-hover: #FFFFFF;
+    
+    /* -----------------------------------------
+       Text Colors (Override)
+       ----------------------------------------- */
+    --text-primary: #E2E8F0;
+    --text-secondary: #9CA3AF;
+    --text-muted: #6B7280;
+    --text-normal: #CBD5E1;
+    --text-warning: #FBBF24;
+    --text-alarm: #F87171;
+    --text-success: #4ADE80;
+    
+    /* -----------------------------------------
+       Effects
+       ----------------------------------------- */
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    --glow-color: rgba(6, 182, 212, 0.4);
+    
+    /* -----------------------------------------
+       Dimensions
+       ----------------------------------------- */
+    --icon-size: 36px;
+    --transition-speed: 0.25s;
+    --status-bar-height: 36px;
+    
+    /* -----------------------------------------
+       Dark Theme Specific - Additional
+       ----------------------------------------- */
+    --bg-dark-overlay: rgba(0, 0, 0, 0.7);
+    --modal-backdrop: rgba(0, 0, 0, 0.7);
+    
+    /* Toast Colors (Dark) */
+    --toast-bg: var(--bg-panel);
+    --toast-border: var(--border-color);
+    --toast-shadow: 0 8px 24px var(--shadow-color);
+    
+    /* Cover Screen */
+    --cover-logo-size: 72px;
+    --cover-title-color: var(--icon-selected);
+    
+    /* Gauge Colors */
+    --gauge-green: var(--text-success);
+    --gauge-yellow: var(--text-warning);
+    --gauge-red: var(--text-alarm);
+    --gauge-gray: var(--text-muted);
+    --gauge-bg: var(--bg-input);
+    
+    /* Connection Panel */
+    --site-item-bg: var(--bg-input);
+    --site-item-selected-bg: var(--bg-selected);
+    --site-item-connected-bg: rgba(74, 222, 128, 0.1);
+    --site-item-selected-border: var(--icon-selected);
+    --site-item-connected-border: var(--text-success);
+    
+    /* Debug Panel */
+    --debug-bg: #1a1a1a;
+    --debug-text: #0f0;
+    --debug-label: #888;
+    --debug-value: #ff0;
+    --debug-on: #0f0;
+    --debug-off: #f00;
+    --debug-section-title: #0ff;
+}
+
+
+/* =============================================
+   ☀️ CLEANROOM SIDEBAR THEME - LIGHT MODE
+   =============================================
+   Source: test_sidebar_standalone.html v2.10
+   ============================================= */
+
+:root[data-theme="light"],
+[data-theme="light"] {
+    /* -----------------------------------------
+       Sidebar Core
+       ----------------------------------------- */
+    --bg-sidebar: #F8FAFC;
+    --bg-main: #FFFFFF;
+    --bg-main-gradient: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
+    --bg-panel: #FFFFFF;
+    --bg-panel-header: rgba(0, 0, 0, 0.02);
+    --bg-input: rgba(0, 0, 0, 0.03);
+    --bg-hover: rgba(0, 0, 0, 0.05);
+    --bg-selected: rgba(8, 145, 178, 0.1);
+    
+    /* -----------------------------------------
+       Border Colors (Override)
+       ----------------------------------------- */
+    --border-color: rgba(0, 0, 0, 0.1);
+    --border-subtle: rgba(0, 0, 0, 0.05);
+    
+    /* -----------------------------------------
+       Icon States
+       ----------------------------------------- */
+    --icon-normal: #475569;
+    --icon-selected: #0891B2;
+    --icon-disabled: #CBD5E1;
+    --icon-hover: #0F172A;
+    
+    /* -----------------------------------------
+       Text Colors (Override)
+       ----------------------------------------- */
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #94A3B8;
+    --text-normal: #64748B;
+    --text-warning: #D97706;
+    --text-alarm: #DC2626;
+    --text-success: #16A34A;
+    
+    /* -----------------------------------------
+       Effects
+       ----------------------------------------- */
+    --shadow-color: rgba(0, 0, 0, 0.15);
+    --glow-color: rgba(8, 145, 178, 0.3);
+    
+    /* -----------------------------------------
+       Light Theme Specific - Additional
+       ----------------------------------------- */
+    --bg-dark-overlay: rgba(0, 0, 0, 0.5);
+    --modal-backdrop: rgba(0, 0, 0, 0.5);
+    
+    /* Toast Colors (Light) */
+    --toast-bg: var(--bg-panel);
+    --toast-border: var(--border-color);
+    --toast-shadow: 0 8px 24px var(--shadow-color);
+    
+    /* Cover Screen */
+    --cover-logo-size: 72px;
+    --cover-title-color: var(--icon-selected);
+    
+    /* Gauge Colors */
+    --gauge-green: var(--text-success);
+    --gauge-yellow: var(--text-warning);
+    --gauge-red: var(--text-alarm);
+    --gauge-gray: var(--text-muted);
+    --gauge-bg: var(--bg-input);
+    
+    /* Connection Panel */
+    --site-item-bg: var(--bg-input);
+    --site-item-selected-bg: var(--bg-selected);
+    --site-item-connected-bg: rgba(22, 163, 74, 0.1);
+    --site-item-selected-border: var(--icon-selected);
+    --site-item-connected-border: var(--text-success);
+    
+    /* Debug Panel */
+    --debug-bg: #f5f5f5;
+    --debug-text: #333;
+    --debug-label: #666;
+    --debug-value: #0066cc;
+    --debug-on: #16A34A;
+    --debug-off: #DC2626;
+    --debug-section-title: #0891B2;
+}
+
+
+/* =============================================
+   🔄 THEME TRANSITION (Smooth switching)
+   ============================================= */
+
+body,
+.sidebar,
+.main-content,
+.status-bar,
+.modal-overlay,
+.modal-container,
+#equipmentInfo,
+#debug-panel,
+.toast {
+    transition: 
+        background-color var(--transition-speed) ease,
+        border-color var(--transition-speed) ease,
+        color var(--transition-speed) ease,
+        box-shadow var(--transition-speed) ease;
+}
+
+
+/* =============================================
+   📐 SIDEBAR LAYOUT VARIABLES
+   =============================================
+   Cleanroom Sidebar specific dimensions
+   ============================================= */
+
+:root {
+    /* Sidebar Dimensions */
+    --sidebar-width: 80px;
+    --sidebar-width-collapsed: 60px;
+    --sidebar-width-expanded: 200px;
+    
+    /* Icon Button */
+    --icon-btn-size: 54px;
+    --icon-btn-margin: 12px;
+    
+    /* Submenu */
+    --submenu-min-width: 200px;
+    --submenu-offset-left: 70px;
+    
+    /* Status Bar */
+    --status-bar-height: 36px;
+    
+    /* Cover Screen */
+    --cover-logo-size: 72px;
+    --cover-title-size: 32px;
+    --cover-subtitle-size: 14px;
+    
+    /* Equipment Info Panel */
+    --equipment-panel-width: 320px;
+    --equipment-panel-top: 80px;
+    --equipment-panel-right: 20px;
+    
+    /* Modal */
+    --modal-max-width: 700px;
+    --modal-max-height: 85vh;
+    
+    /* Animation */
+    --sidebar-hover-scale: 1.1;
+    --sidebar-hover-translate: -3px;
+    --sidebar-selected-scale: 1.08;
+    --sidebar-selected-translate: -2px;
+}
+
+
+/* =============================================
+   🎯 NEON ACCENT COLORS
+   =============================================
+   Cyan accent for Cleanroom theme
+   ============================================= */
+
+:root {
+    /* Primary Accent (Cyan) */
+    --neon-cyan: #06B6D4;
+    --neon-cyan-light: #22D3EE;
+    --neon-cyan-dark: #0891B2;
+    --neon-cyan-glow: 0 0 8px rgba(6, 182, 212, 0.6);
+    --neon-cyan-glow-strong: 0 0 20px rgba(6, 182, 212, 0.8);
+    
+    /* Gradient Accents */
+    --gradient-cyan: linear-gradient(135deg, #06B6D4, #0891B2);
+    --gradient-cyan-button: linear-gradient(135deg, #06B6D4 0%, #0891B2 100%);
+}
+
+
+/* =============================================
+   📊 STATUS INDICATOR VARIABLES
+   =============================================
+   For equipment status visualization
+   ============================================= */
+
+:root {
+    /* Signal Tower Colors (Enhanced) */
+    --signal-run: #4ADE80;
+    --signal-run-glow: 0 0 8px #4ADE80;
+    
+    --signal-idle: #FBBF24;
+    --signal-idle-glow: 0 0 8px #FBBF24;
+    
+    --signal-stop: #F87171;
+    --signal-stop-glow: 0 0 8px #F87171;
+    
+    --signal-disconnected: #6B7280;
+    
+    /* Performance Bar Colors */
+    --perf-good: var(--text-success);
+    --perf-warning: var(--text-warning);
+    --perf-critical: var(--text-alarm);
 }

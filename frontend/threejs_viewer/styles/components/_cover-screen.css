@@ -1,0 +1,1085 @@
+/**
+ * _cover-screen.css
+ * =================
+ * Cleanroom Sidebar Theme - 커버 스크린 및 메인 레이아웃 스타일
+ * 
+ * Source: test_sidebar_standalone.html v2.10
+ * 
+ * @version 1.0.0
+ * @created 2026-01-11
+ * 
+ * 구조:
+ * - Main Content Layout
+ * - Cover Screen (기본 시작 화면)
+ * - Three.js Container (조건부 표시)
+ * - Overlay UI (모드 표시)
+ * - Test Controls (개발용)
+ * - Equipment Info Panel (새 테마 적용)
+ * - Toast (다크 테마 오버라이드)
+ * - Modal (다크 테마 오버라이드)
+ * 
+ * 의존성:
+ * - _variables.css (CSS 변수)
+ * - _sidebar.css (사이드바)
+ * - _status-bar.css (상태바)
+ * 
+ * [MIGRATION NOTE]
+ * - body에 flex 레이아웃 적용 필요
+ * - 기존 #equipmentInfo와 호환 유지
+ * - Toast, Modal은 테마별 오버라이드
+ */
+
+/* =============================================
+   Body & Base Layout
+   ============================================= */
+body {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-main);
+    margin: 0;
+    padding: 0;
+}
+
+/* =============================================
+   Main Content Container
+   ============================================= */
+.main-content {
+    flex-grow: 1;
+    background: var(--bg-main-gradient);
+    display: flex;
+    flex-direction: column;
+    color: var(--text-primary);
+    margin-bottom: var(--status-bar-height, 36px);
+    position: relative;
+    overflow: hidden;
+}
+
+/* =============================================
+   Cover Screen - Default Startup View
+   ============================================= */
+#cover-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    background: var(--bg-main-gradient);
+}
+
+#cover-screen.hidden {
+    display: none;
+}
+
+/* Cover Logo */
+.cover-logo {
+    font-size: 72px;
+    margin-bottom: 20px;
+    animation: float-logo 3s ease-in-out infinite;
+}
+
+@keyframes float-logo {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
+/* Cover Title */
+.cover-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--icon-selected);
+    margin-bottom: 8px;
+    letter-spacing: 2px;
+}
+
+/* Cover Subtitle */
+.cover-subtitle {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-bottom: 40px;
+}
+
+/* Cover Status Container */
+.cover-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+/* Cover Status Item */
+.cover-status-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    min-width: 280px;
+}
+
+/* Cover Status Dot */
+.cover-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+    flex-shrink: 0;
+}
+
+.cover-status-dot.connected {
+    background: var(--text-success);
+    box-shadow: 0 0 8px var(--text-success);
+}
+
+.cover-status-dot.disconnected {
+    background: var(--text-alarm);
+}
+
+.cover-status-dot.checking {
+    background: var(--text-warning);
+    box-shadow: 0 0 8px var(--text-warning);
+    animation: pulse 1s infinite;
+}
+
+/* Cover Status Text */
+.cover-status-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+.cover-status-value {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* Cover Hint */
+.cover-hint {
+    margin-top: 40px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.cover-hint kbd {
+    padding: 2px 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+}
+
+/* =============================================
+   Three.js Container - Conditional Display
+   ============================================= */
+#threejs-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    display: none;
+}
+
+#threejs-container.active {
+    display: block;
+}
+
+/* =============================================
+   Overlay UI
+   ============================================= */
+.overlay-ui {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Mode Indicator */
+.mode-indicator {
+    padding: 12px 20px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+
+.mode-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.mode-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--icon-selected);
+}
+
+.submode-value {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* =============================================
+   Test Controls (Dev Mode)
+   ============================================= */
+.test-controls {
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    max-width: 280px;
+}
+
+.test-controls h4 {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+    margin-top: 0;
+}
+
+.test-btn {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.test-btn:hover {
+    background: var(--bg-selected);
+    border-color: var(--icon-selected);
+}
+
+.test-btn-icon {
+    margin-right: 8px;
+}
+
+/* =============================================
+   Equipment Info Panel - Cleanroom Theme Override
+   ============================================= */
+#equipmentInfo {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    width: 320px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px var(--shadow-color);
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(20px);
+    transition: all 0.3s ease;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+#equipmentInfo.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+}
+
+/* Equipment Panel Header */
+.equipment-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-panel-header);
+    border-radius: 12px 12px 0 0;
+}
+
+.equipment-panel-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.equipment-panel-title.multi-select {
+    color: var(--icon-selected);
+}
+
+/* Header Status */
+.header-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--bg-input);
+    border-radius: 12px;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.status-indicator.run {
+    background: var(--text-success);
+    box-shadow: 0 0 8px var(--text-success);
+}
+
+.status-indicator.idle {
+    background: var(--text-warning);
+    box-shadow: 0 0 8px var(--text-warning);
+}
+
+.status-indicator.stop {
+    background: var(--text-alarm);
+    box-shadow: 0 0 8px var(--text-alarm);
+}
+
+.status-indicator.disconnected {
+    background: var(--text-muted);
+}
+
+.status-text {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-text.run {
+    color: var(--text-success);
+}
+
+.status-text.idle {
+    color: var(--text-warning);
+}
+
+.status-text.stop {
+    color: var(--text-alarm);
+}
+
+.status-text.disconnected {
+    color: var(--text-muted);
+}
+
+/* Close Button */
+.close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 24px;
+    height: 24px;
+    background: var(--bg-input);
+    border: none;
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.close-btn:hover {
+    background: rgba(248, 113, 113, 0.2);
+    color: var(--text-alarm);
+}
+
+/* Equipment Panel Tabs */
+.equipment-panel-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0 16px;
+}
+
+.equipment-tab {
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    position: relative;
+    font-family: inherit;
+    transition: color 0.15s;
+}
+
+.equipment-tab:hover {
+    color: var(--text-primary);
+}
+
+.equipment-tab.active {
+    color: var(--icon-selected);
+}
+
+.equipment-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--icon-selected);
+}
+
+/* Equipment Panel Content */
+.equipment-panel-content {
+    padding: 16px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.equipment-tab-content {
+    display: none;
+}
+
+.equipment-tab-content.active {
+    display: block;
+}
+
+/* Info Rows */
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.info-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.info-value {
+    font-size: 12px;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+
+.info-value-small {
+    font-size: 11px;
+}
+
+.info-row-divider {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: 8px 0;
+}
+
+/* Multi-select Header */
+.multi-select-header {
+    background: var(--bg-selected);
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+
+.info-icon {
+    margin-right: 8px;
+}
+
+.info-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.info-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    background: var(--icon-selected);
+    color: white;
+    border-radius: 10px;
+    margin-left: 8px;
+}
+
+/* Status Counts */
+.status-counts {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.status-count-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: var(--bg-input);
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.status-count-item.run {
+    color: var(--text-success);
+}
+
+.status-count-item.idle {
+    color: var(--text-warning);
+}
+
+.status-count-item.stop {
+    color: var(--text-alarm);
+}
+
+/* =============================================
+   PC Info Tab - Gauge System
+   ============================================= */
+.pcinfo-system-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+}
+
+.pcinfo-system-row .info-label {
+    min-width: 45px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.pcinfo-system-row .info-value {
+    font-size: 11px;
+    color: var(--text-primary);
+    text-align: right;
+    flex: 1;
+}
+
+.value-separator {
+    color: var(--text-muted);
+    margin: 0 4px;
+}
+
+/* Boot Duration Badge */
+.boot-duration {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.boot-duration.boot-green {
+    background: rgba(74, 222, 128, 0.15);
+    color: var(--text-success);
+}
+
+.boot-duration.boot-yellow {
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--text-warning);
+}
+
+.boot-duration.boot-red {
+    background: rgba(248, 113, 113, 0.15);
+    color: var(--text-alarm);
+}
+
+/* Gauge Section */
+.gauge-section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.gauge-section-title {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+/* Unified Gauge Row */
+.unified-gauge-row {
+    display: flex;
+    align-items: center;
+    padding: 6px 0;
+    gap: 10px;
+}
+
+.unified-gauge-label {
+    min-width: 35px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.unified-gauge-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.unified-gauge-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-input);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.unified-gauge-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+.unified-gauge-fill.gauge-green {
+    background: var(--text-success);
+}
+
+.unified-gauge-fill.gauge-yellow {
+    background: var(--text-warning);
+}
+
+.unified-gauge-fill.gauge-red {
+    background: var(--text-alarm);
+}
+
+.unified-gauge-fill.gauge-gray {
+    background: var(--text-muted);
+}
+
+.unified-gauge-value {
+    min-width: 75px;
+    text-align: right;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+}
+
+.unified-gauge-na {
+    flex: 1;
+    text-align: right;
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+/* =============================================
+   Toast - Dark Theme Override
+   ============================================= */
+[data-theme="dark"] .toast-container {
+    z-index: 2000;
+}
+
+[data-theme="dark"] .toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px var(--shadow-color);
+    min-width: 300px;
+    animation: slideIn 0.3s ease;
+}
+
+[data-theme="dark"] .toast.hiding {
+    animation: slideOut 0.3s ease forwards;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+[data-theme="dark"] .toast-icon {
+    font-size: 20px;
+}
+
+[data-theme="dark"] .toast-content {
+    flex: 1;
+}
+
+[data-theme="dark"] .toast-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .toast-message {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .toast-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    font-size: 16px;
+}
+
+[data-theme="dark"] .toast.success {
+    border-left: 4px solid var(--text-success);
+}
+
+[data-theme="dark"] .toast.error {
+    border-left: 4px solid var(--text-alarm);
+}
+
+[data-theme="dark"] .toast.warning {
+    border-left: 4px solid var(--text-warning);
+}
+
+[data-theme="dark"] .toast.info {
+    border-left: 4px solid var(--icon-selected);
+}
+
+/* =============================================
+   Modal - Dark Theme Override
+   ============================================= */
+[data-theme="dark"] .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+[data-theme="dark"] .modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+[data-theme="dark"] .modal-container {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 85vh;
+    overflow: hidden;
+    box-shadow: 0 25px 50px var(--shadow-color);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+[data-theme="dark"] .modal-overlay.active .modal-container {
+    transform: scale(1);
+}
+
+[data-theme="dark"] .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-panel-header);
+}
+
+[data-theme="dark"] .modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .modal-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--bg-input);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.15s;
+}
+
+[data-theme="dark"] .modal-close:hover {
+    background: rgba(248, 113, 113, 0.2);
+    color: var(--text-alarm);
+}
+
+[data-theme="dark"] .modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    max-height: calc(85vh - 140px);
+}
+
+[data-theme="dark"] .modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-panel-header);
+}
+
+[data-theme="dark"] .footer-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] .btn-secondary {
+    padding: 10px 20px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+    background: var(--bg-hover);
+}
+
+/* =============================================
+   Connection Panel Styles (Dark Theme)
+   ============================================= */
+[data-theme="dark"] .connection-panel {
+    background: var(--bg-panel-header);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+[data-theme="dark"] .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--bg-panel-header);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+[data-theme="dark"] .panel-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+[data-theme="dark"] .internet-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--bg-input);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+[data-theme="dark"] .internet-status .status-dot {
+    width: 10px;
+    height: 10px;
+}
+
+[data-theme="dark"] .internet-status-text {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .internet-status-detail {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+[data-theme="dark"] .site-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+}
+
+[data-theme="dark"] .site-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+[data-theme="dark"] .site-item:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .site-item.site-item--selected {
+    background: var(--bg-selected);
+    border-color: var(--icon-selected);
+}
+
+[data-theme="dark"] .site-item.site-item--connected {
+    background: rgba(74, 222, 128, 0.1);
+    border-color: var(--text-success);
+}
+
+[data-theme="dark"] .site-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .site-region {
+    font-size: 11px;
+    padding: 2px 8px;
+    background: var(--bg-hover);
+    border-radius: 4px;
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .btn-connect {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #06B6D4, #0891B2);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+
+[data-theme="dark"] .btn-connect:hover:not(:disabled) {
+    box-shadow: 0 0 20px var(--glow-color);
+}
+
+[data-theme="dark"] .btn-connect:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* =============================================
+   Animations
+   ============================================= */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* =============================================
+   Responsive
+   ============================================= */
+@media (max-width: 1024px) {
+    #equipmentInfo {
+        width: 280px;
+        right: 10px;
+    }
+    
+    .cover-title {
+        font-size: 24px;
+    }
+    
+    .cover-logo {
+        font-size: 56px;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        margin-bottom: 30px;
+    }
+    
+    #equipmentInfo {
+        width: calc(100% - 20px);
+        left: 10px;
+        right: 10px;
+        top: auto;
+        bottom: 40px;
+        max-height: 50vh;
+    }
+    
+    .cover-title {
+        font-size: 20px;
+    }
+    
+    .cover-logo {
+        font-size: 48px;
+    }
+    
+    .cover-status-item {
+        min-width: auto;
+        width: 100%;
+        max-width: 280px;
+    }
+    
+    .overlay-ui {
+        top: 10px;
+        left: 10px;
+    }
+    
+    .mode-indicator {
+        padding: 8px 12px;
+    }
+    
+    .mode-value {
+        font-size: 14px;
+    }
+}

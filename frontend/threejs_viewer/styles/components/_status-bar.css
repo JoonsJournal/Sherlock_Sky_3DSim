@@ -1,0 +1,372 @@
+/**
+ * _status-bar.css
+ * ===============
+ * Cleanroom Sidebar Theme - 하단 상태바 스타일
+ * 
+ * Source: test_sidebar_standalone.html v2.10
+ * 
+ * @version 1.0.0
+ * @created 2026-01-11
+ * 
+ * 구조:
+ * - Status Bar Container (36px 높이)
+ * - Status Groups (좌/우 그룹)
+ * - Status Items (NET, API, DB, FPS, MEM)
+ * - Status Dots (연결 상태 표시)
+ * - Performance Bars (FPS, Memory)
+ * 
+ * 의존성:
+ * - _variables.css (CSS 변수)
+ * 
+ * [MIGRATION NOTE]
+ * - 기존 main.css의 .status-panel과 충돌 없음 (다른 클래스명)
+ * - 새로운 하단 고정 상태바 UI
+ */
+
+/* =============================================
+   Status Bar Container
+   ============================================= */
+.status-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--status-bar-height, 36px);
+    background-color: var(--bg-sidebar);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    z-index: 20;
+}
+
+/* =============================================
+   Status Groups
+   ============================================= */
+.status-group {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+/* =============================================
+   Status Item
+   ============================================= */
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--bg-input);
+    border-radius: 4px;
+}
+
+/* =============================================
+   Status Dot (Connection Indicator)
+   ============================================= */
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-dot.connected {
+    background-color: var(--text-success);
+    box-shadow: 0 0 4px var(--text-success);
+    animation: pulse 2s infinite;
+}
+
+.status-dot.disconnected {
+    background-color: var(--text-alarm);
+    box-shadow: 0 0 4px var(--text-alarm);
+}
+
+.status-dot.checking {
+    background-color: var(--text-warning);
+    box-shadow: 0 0 4px var(--text-warning);
+    animation: pulse 1s infinite;
+}
+
+.status-dot.idle {
+    background-color: var(--text-muted);
+}
+
+/* =============================================
+   Status Label & Value
+   ============================================= */
+.status-label {
+    color: var(--text-muted);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-value {
+    color: var(--text-normal);
+    font-weight: 500;
+}
+
+/* =============================================
+   Country Code Badge
+   ============================================= */
+.country-code {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--icon-selected);
+    letter-spacing: 1px;
+}
+
+/* =============================================
+   Performance Bar (FPS, Memory)
+   ============================================= */
+.perf-bar {
+    width: 35px;
+    height: 4px;
+    background: var(--bg-input);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.perf-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+/* Performance States */
+.perf-bar-fill.good {
+    background: var(--text-success);
+}
+
+.perf-bar-fill.warning {
+    background: var(--text-warning);
+}
+
+.perf-bar-fill.critical {
+    background: var(--text-alarm);
+}
+
+/* =============================================
+   Site Badge (Optional)
+   ============================================= */
+.site-badge {
+    padding: 2px 8px;
+    background: var(--bg-selected);
+    border: 1px solid var(--icon-selected);
+    border-radius: 4px;
+    color: var(--icon-selected);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+/* =============================================
+   Mode Indicator in Status Bar
+   ============================================= */
+.status-mode {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: var(--bg-hover);
+    border-radius: 4px;
+    font-size: 10px;
+}
+
+.status-mode-icon {
+    font-size: 12px;
+}
+
+.status-mode-text {
+    color: var(--text-secondary);
+}
+
+.status-mode-text.active {
+    color: var(--icon-selected);
+    font-weight: 600;
+}
+
+/* =============================================
+   Equipment Count Badge
+   ============================================= */
+.equipment-count {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.equipment-count-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 10px;
+}
+
+.equipment-count-item.run {
+    color: var(--text-success);
+}
+
+.equipment-count-item.idle {
+    color: var(--text-warning);
+}
+
+.equipment-count-item.stop {
+    color: var(--text-alarm);
+}
+
+/* =============================================
+   Time Display
+   ============================================= */
+.status-time {
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-family: var(--font-mono);
+}
+
+/* =============================================
+   Interactive Status Items
+   ============================================= */
+.status-item.clickable {
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.status-item.clickable:hover {
+    background: var(--bg-hover);
+}
+
+.status-item.clickable:active {
+    background: var(--bg-selected);
+}
+
+/* =============================================
+   Status Bar - Compact Mode
+   ============================================= */
+.status-bar.compact {
+    height: 28px;
+    padding: 0 12px;
+}
+
+.status-bar.compact .status-item {
+    padding: 2px 6px;
+}
+
+.status-bar.compact .status-label {
+    font-size: 8px;
+}
+
+.status-bar.compact .perf-bar {
+    width: 25px;
+    height: 3px;
+}
+
+/* =============================================
+   Animations
+   ============================================= */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes blink {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
+}
+
+/* Warning animation for critical states */
+.status-dot.critical {
+    animation: blink 0.5s infinite;
+}
+
+/* =============================================
+   Light Theme Overrides
+   ============================================= */
+[data-theme="light"] .status-bar {
+    border-top-color: var(--border-color);
+}
+
+[data-theme="light"] .status-dot.connected {
+    box-shadow: 0 0 6px var(--text-success);
+}
+
+[data-theme="light"] .status-dot.disconnected {
+    box-shadow: 0 0 6px var(--text-alarm);
+}
+
+/* =============================================
+   Responsive - 태블릿
+   ============================================= */
+@media (max-width: 1024px) {
+    .status-bar {
+        padding: 0 12px;
+    }
+    
+    .status-group {
+        gap: 10px;
+    }
+    
+    .status-item {
+        padding: 3px 8px;
+    }
+    
+    .status-label {
+        display: none;
+    }
+    
+    .perf-bar {
+        width: 25px;
+    }
+}
+
+/* =============================================
+   Responsive - 모바일
+   ============================================= */
+@media (max-width: 768px) {
+    .status-bar {
+        height: 30px;
+        padding: 0 8px;
+        font-size: 10px;
+    }
+    
+    .status-group {
+        gap: 6px;
+    }
+    
+    .status-item {
+        padding: 2px 6px;
+        gap: 4px;
+    }
+    
+    .country-code {
+        font-size: 10px;
+    }
+    
+    .perf-bar {
+        display: none;
+    }
+    
+    /* Hide less important items on mobile */
+    .status-item.hide-mobile {
+        display: none;
+    }
+}
+
+/* =============================================
+   Print - Status Bar Hidden
+   ============================================= */
+@media print {
+    .status-bar {
+        display: none;
+    }
+}

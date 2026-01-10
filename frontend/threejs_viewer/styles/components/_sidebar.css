@@ -1,0 +1,593 @@
+/**
+ * _sidebar.css
+ * ============
+ * Cleanroom Sidebar Theme - 사이드바 및 서브메뉴 스타일
+ * 
+ * Source: test_sidebar_standalone.html v2.10
+ * 
+ * @version 1.0.0
+ * @created 2026-01-11
+ * 
+ * 구조:
+ * - Sidebar (80px 너비)
+ * - Icon Buttons (선택/비활성/호버 상태)
+ * - Submenu System (드롭다운)
+ * - Theme Toggle
+ * - Dev Mode Badge
+ * - Debug Panel
+ * 
+ * 의존성:
+ * - _variables.css (CSS 변수)
+ * 
+ * [MIGRATION NOTE]
+ * - 기존 .floating-btn 시스템과 공존 가능
+ * - data-theme 속성으로 테마 전환
+ */
+
+/* =============================================
+   Sidebar Container
+   ============================================= */
+.sidebar {
+    width: 80px;
+    min-width: 80px;
+    height: 100vh;
+    background-color: var(--bg-sidebar);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 24px;
+    z-index: 10;
+    box-shadow: 4px 0 15px var(--shadow-color);
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* =============================================
+   Sidebar Divider & Spacer
+   ============================================= */
+.sidebar-divider {
+    width: 40px;
+    height: 1px;
+    background: var(--border-color);
+    margin: 8px 0;
+}
+
+.sidebar-spacer {
+    flex-grow: 1;
+}
+
+/* =============================================
+   Icon Button Base
+   ============================================= */
+.icon-btn {
+    width: 54px;
+    height: 54px;
+    margin-bottom: 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: var(--radius-md);
+}
+
+/* Icon Button - SVG Icons */
+.icon-btn svg {
+    width: var(--icon-size);
+    height: var(--icon-size);
+    fill: none;
+    stroke: var(--icon-normal);
+    stroke-width: 1px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: all var(--transition-speed);
+}
+
+/* =============================================
+   Icon Button - Hover State
+   ============================================= */
+.icon-btn:not(.selected):not(.disabled):hover {
+    transform: scale(1.1) translateY(-3px);
+}
+
+.icon-btn:not(.selected):not(.disabled):hover svg {
+    stroke: var(--icon-hover);
+    filter: drop-shadow(0 0 3px var(--glow-color));
+}
+
+/* =============================================
+   Icon Button - Selected State
+   ============================================= */
+.icon-btn.selected {
+    transform: scale(1.08) translateY(-2px);
+}
+
+.icon-btn.selected svg {
+    stroke: var(--icon-selected);
+    filter: drop-shadow(0 0 6px var(--icon-selected));
+}
+
+/* Selected Indicator Bar */
+.icon-btn.selected::before {
+    content: '';
+    position: absolute;
+    left: -13px;
+    width: 3px;
+    height: 28px;
+    background-color: var(--icon-selected);
+    border-radius: 0 3px 3px 0;
+    box-shadow: 0 0 6px var(--icon-selected);
+}
+
+/* =============================================
+   Icon Button - Disabled State
+   ============================================= */
+.icon-btn.disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.icon-btn.disabled svg {
+    stroke: var(--icon-disabled);
+}
+
+/* =============================================
+   Icon Button - Hidden State
+   ============================================= */
+.icon-btn.hidden {
+    display: none !important;
+}
+
+/* =============================================
+   Submenu System
+   ============================================= */
+.has-submenu {
+    position: relative;
+}
+
+/* Submenu Arrow Indicator */
+.has-submenu::after {
+    content: '';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 4px solid transparent;
+    border-left-color: var(--icon-normal);
+    opacity: 0.5;
+}
+
+.has-submenu:not(.disabled):hover::after {
+    border-left-color: var(--icon-selected);
+    opacity: 1;
+}
+
+/* Submenu Container */
+.submenu {
+    position: absolute;
+    left: 70px;
+    top: 0;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 0;
+    min-width: 200px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-10px);
+    transition: all 0.2s ease;
+    box-shadow: 4px 4px 20px var(--shadow-color);
+    z-index: 100;
+}
+
+/* Submenu - Bottom positioned (Settings, Debug) */
+#btn-settings-wrapper .submenu,
+#btn-debug-wrapper .submenu {
+    top: auto;
+    bottom: 0;
+}
+
+/* Submenu - Show on Hover */
+.has-submenu:not(.disabled):hover .submenu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+}
+
+/* Submenu - Disabled State */
+.has-submenu.disabled .submenu {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* Hidden wrapper state */
+.has-submenu.hidden {
+    display: none !important;
+}
+
+/* =============================================
+   Submenu Items
+   ============================================= */
+.submenu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+}
+
+.submenu-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.submenu-item.active {
+    background: var(--bg-selected);
+    color: var(--icon-selected);
+}
+
+.submenu-item.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.submenu-item svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    stroke-width: 1.5px;
+    fill: none;
+}
+
+/* =============================================
+   Submenu Divider & Header
+   ============================================= */
+.submenu-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 6px 12px;
+}
+
+.submenu-header {
+    padding: 6px 16px;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* =============================================
+   Always Normal State (Non-selectable buttons)
+   Connection, Settings, Debug buttons
+   ============================================= */
+#btn-connection,
+#btn-settings-wrapper .icon-btn,
+#btn-debug-wrapper .icon-btn {
+    transform: none !important;
+}
+
+#btn-connection::before,
+#btn-settings-wrapper .icon-btn::before,
+#btn-debug-wrapper .icon-btn::before {
+    display: none !important;
+}
+
+#btn-connection svg,
+#btn-settings-wrapper .icon-btn svg,
+#btn-debug-wrapper .icon-btn svg {
+    stroke: var(--icon-normal) !important;
+    filter: none !important;
+}
+
+#btn-connection:hover svg,
+#btn-settings-wrapper .icon-btn:hover svg,
+#btn-debug-wrapper .icon-btn:hover svg {
+    stroke: var(--icon-hover) !important;
+    filter: drop-shadow(0 0 3px var(--glow-color)) !important;
+}
+
+#btn-connection:hover,
+#btn-settings-wrapper:hover .icon-btn,
+#btn-debug-wrapper:hover .icon-btn {
+    transform: scale(1.1) translateY(-3px) !important;
+}
+
+/* =============================================
+   Theme Toggle
+   ============================================= */
+.theme-toggle-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.theme-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.theme-toggle-label svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    stroke-width: 1.5px;
+    fill: none;
+}
+
+.theme-switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.theme-switch::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: var(--icon-normal);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.theme-switch.active {
+    background: var(--icon-selected);
+    border-color: var(--icon-selected);
+}
+
+.theme-switch.active::before {
+    left: 22px;
+    background: white;
+}
+
+/* =============================================
+   Mock Test List (Dev Mode)
+   ============================================= */
+.mock-test-list {
+    padding: 8px 16px;
+}
+
+.mock-test-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    background: var(--bg-input);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.mock-test-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* =============================================
+   Dev Mode Badge
+   ============================================= */
+.dev-mode-badge {
+    position: fixed;
+    top: 10px;
+    left: 90px;
+    padding: 4px 12px;
+    background: rgba(251, 191, 36, 0.2);
+    border: 1px solid var(--text-warning);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--text-warning);
+    font-weight: 600;
+    z-index: 1000;
+    display: none;
+    font-family: var(--font-family);
+}
+
+.dev-mode-badge.active {
+    display: block;
+}
+
+/* =============================================
+   Debug Panel
+   ============================================= */
+#debug-panel {
+    position: fixed;
+    bottom: 50px;
+    right: 20px;
+    width: 400px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 40px var(--shadow-color);
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    font-family: var(--font-family);
+}
+
+#debug-panel.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.debug-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg-panel-header);
+    border-radius: 12px 12px 0 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.debug-panel-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.debug-panel-content {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--debug-text);
+    background: var(--debug-bg);
+    padding: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    border-radius: 0 0 12px 12px;
+}
+
+.debug-section {
+    margin-bottom: 12px;
+}
+
+.debug-section-title {
+    color: var(--debug-section-title);
+    margin-bottom: 8px;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.debug-state-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+}
+
+.debug-state-label {
+    color: var(--debug-label);
+}
+
+.debug-state-value {
+    color: var(--debug-value);
+}
+
+.debug-state-value.on {
+    color: var(--debug-on);
+}
+
+.debug-state-value.off {
+    color: var(--debug-off);
+}
+
+/* =============================================
+   Tooltip Support for Icon Buttons
+   ============================================= */
+.icon-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--bg-panel);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    pointer-events: none;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    z-index: 1000;
+}
+
+.icon-btn[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* =============================================
+   Animation Keyframes
+   ============================================= */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* =============================================
+   Responsive - 태블릿
+   ============================================= */
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 60px;
+        min-width: 60px;
+        padding-top: 16px;
+    }
+    
+    .icon-btn {
+        width: 44px;
+        height: 44px;
+        margin-bottom: 8px;
+    }
+    
+    .icon-btn svg {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .submenu {
+        left: 55px;
+    }
+    
+    .dev-mode-badge {
+        left: 70px;
+    }
+}
+
+/* =============================================
+   Responsive - 모바일 (사이드바 숨김)
+   ============================================= */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: -80px;
+        transition: left 0.3s ease;
+    }
+    
+    .sidebar.mobile-open {
+        left: 0;
+    }
+    
+    .dev-mode-badge {
+        left: 10px;
+        top: auto;
+        bottom: 50px;
+    }
+}
