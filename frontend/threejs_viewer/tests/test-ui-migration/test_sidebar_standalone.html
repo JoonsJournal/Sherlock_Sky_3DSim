@@ -3,19 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.8</title>
-    
-    <!-- Three.js CDN -->
+    <title>🧪 Test: Cleanroom Sidebar (Standalone) v2.9</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <style>
         /* =============================================
-           MIGRATION GUIDE - CSS Variables
-           ===========================================
+           CSS Variables
            [MIGRATE TO] src/styles/variables.css
            ============================================= */
-        
-        /* Dark Theme (Default) */
         :root, [data-theme="dark"] {
             --bg-sidebar: #0F172A;
             --bg-main: #1e293b;
@@ -25,15 +20,12 @@
             --bg-input: rgba(255,255,255,0.05);
             --bg-hover: rgba(255,255,255,0.05);
             --bg-selected: rgba(6, 182, 212, 0.1);
-            
             --border-color: rgba(255,255,255,0.1);
             --border-subtle: rgba(255,255,255,0.05);
-            
             --icon-normal: #E2E8F0;
             --icon-selected: #06B6D4;
             --icon-disabled: #334155;
             --icon-hover: #FFFFFF;
-            
             --text-primary: #E2E8F0;
             --text-secondary: #9CA3AF;
             --text-muted: #6B7280;
@@ -41,19 +33,13 @@
             --text-warning: #FBBF24;
             --text-alarm: #F87171;
             --text-success: #4ADE80;
-            
             --shadow-color: rgba(0,0,0,0.5);
             --glow-color: rgba(6, 182, 212, 0.4);
-            
             --icon-size: 36px;
-            --icon-stroke-normal: 1px;
-            --icon-stroke-hover: 1.5px;
-            --icon-stroke-selected: 1.5px;
             --transition-speed: 0.25s;
             --status-bar-height: 36px;
         }
         
-        /* Light Theme */
         [data-theme="light"] {
             --bg-sidebar: #F8FAFC;
             --bg-main: #FFFFFF;
@@ -62,239 +48,67 @@
             --bg-panel-header: rgba(0,0,0,0.02);
             --bg-input: rgba(0,0,0,0.03);
             --bg-hover: rgba(0,0,0,0.05);
-            --bg-selected: rgba(6, 182, 212, 0.1);
-            
             --border-color: rgba(0,0,0,0.1);
-            --border-subtle: rgba(0,0,0,0.05);
-            
             --icon-normal: #475569;
             --icon-selected: #0891B2;
             --icon-disabled: #CBD5E1;
             --icon-hover: #0F172A;
-            
             --text-primary: #0F172A;
             --text-secondary: #475569;
             --text-muted: #94A3B8;
-            --text-normal: #334155;
-            --text-warning: #D97706;
             --text-alarm: #DC2626;
             --text-success: #16A34A;
-            
             --shadow-color: rgba(0,0,0,0.15);
-            --glow-color: rgba(6, 182, 212, 0.3);
         }
 
-        /* Reset & Layout */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            display: flex; 
-            height: 100vh; 
-            overflow: hidden; 
-            font-family: 'Segoe UI', sans-serif;
-            background: var(--bg-main);
-            transition: background 0.3s ease;
-        }
+        body { display: flex; height: 100vh; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: var(--bg-main); }
         
-        /* =============================================
-           MIGRATION GUIDE - Sidebar Component
-           [MIGRATE TO] src/ui/sidebar/Sidebar.js
-           ============================================= */
-        .sidebar {
-            width: 80px;
-            background-color: var(--bg-sidebar);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 24px;
-            z-index: 10;
-            box-shadow: 4px 0 15px var(--shadow-color);
-            transition: background-color 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .icon-btn {
-            width: 54px;
-            height: 54px;
-            margin-bottom: 12px;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
-            transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        .icon-btn svg {
-            width: var(--icon-size);
-            height: var(--icon-size);
-            fill: none;
-            stroke: var(--icon-normal);
-            stroke-width: var(--icon-stroke-normal);
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            transition: all var(--transition-speed);
-        }
-
-        /* Icon Interaction States */
-        .icon-btn:not(.selected):not(.disabled):hover {
-            transform: scale(1.1) translateY(-3px);
-        }
-        .icon-btn:not(.selected):not(.disabled):hover svg {
-            stroke: var(--icon-hover);
-            stroke-width: var(--icon-stroke-hover);
-            filter: drop-shadow(0 0 3px var(--glow-color));
-        }
-
-        .icon-btn.selected {
-            transform: scale(1.08) translateY(-2px);
-        }
-        .icon-btn.selected svg {
-            stroke: var(--icon-selected);
-            stroke-width: var(--icon-stroke-selected);
-            filter: drop-shadow(0 0 6px var(--icon-selected));
-        }
-
-        @keyframes float {
-            0%, 100% { transform: scale(1.12) translateY(-4px); }
-            50% { transform: scale(1.12) translateY(-8px); }
-        }
-        
-        .icon-btn.selected:hover {
-            animation: float 2s ease-in-out infinite;
-        }
-        .icon-btn.selected:hover svg {
-            filter: drop-shadow(0 0 12px var(--icon-selected));
-        }
-
-        .icon-btn.selected::before {
-            content: '';
-            position: absolute;
-            left: -13px;
-            width: 3px;
-            height: 28px;
-            background-color: var(--icon-selected);
-            border-radius: 0 3px 3px 0;
-            box-shadow: 0 0 6px var(--icon-selected);
-        }
-
-        .icon-btn.disabled {
-            cursor: not-allowed;
-            opacity: 0.4;
-            pointer-events: none;
-        }
-        .icon-btn.disabled svg {
-            stroke: var(--icon-disabled);
-        }
-
+        /* Sidebar */
+        .sidebar { width: 80px; background-color: var(--bg-sidebar); display: flex; flex-direction: column; align-items: center; padding-top: 24px; z-index: 10; box-shadow: 4px 0 15px var(--shadow-color); }
+        .icon-btn { width: 54px; height: 54px; margin-bottom: 12px; background: transparent; border: none; cursor: pointer; display: flex; justify-content: center; align-items: center; position: relative; transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .icon-btn svg { width: var(--icon-size); height: var(--icon-size); fill: none; stroke: var(--icon-normal); stroke-width: 1px; stroke-linecap: round; stroke-linejoin: round; transition: all var(--transition-speed); }
+        .icon-btn:not(.selected):not(.disabled):hover { transform: scale(1.1) translateY(-3px); }
+        .icon-btn:not(.selected):not(.disabled):hover svg { stroke: var(--icon-hover); filter: drop-shadow(0 0 3px var(--glow-color)); }
+        .icon-btn.selected { transform: scale(1.08) translateY(-2px); }
+        .icon-btn.selected svg { stroke: var(--icon-selected); filter: drop-shadow(0 0 6px var(--icon-selected)); }
+        .icon-btn.selected::before { content: ''; position: absolute; left: -13px; width: 3px; height: 28px; background-color: var(--icon-selected); border-radius: 0 3px 3px 0; box-shadow: 0 0 6px var(--icon-selected); }
+        .icon-btn.disabled { cursor: not-allowed; opacity: 0.4; pointer-events: none; }
+        .icon-btn.disabled svg { stroke: var(--icon-disabled); }
         .icon-btn.hidden { display: none !important; }
 
         /* =============================================
-           MIGRATION GUIDE - Submenu System
+           Submenu System
            [MIGRATE TO] src/ui/sidebar/Submenu.js
            
-           [v2.8 FIX] Submenu items: Normal by default, 
-           Active color only when .active class is present
+           [v2.9] Debug submenu: bottom-aligned like Settings
            ============================================= */
         .has-submenu { position: relative; }
+        .submenu { position: absolute; left: 70px; top: 0; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 0; min-width: 200px; opacity: 0; visibility: hidden; transform: translateX(-10px); transition: all 0.2s ease; box-shadow: 4px 4px 20px var(--shadow-color); z-index: 100; }
         
-        .submenu {
-            position: absolute;
-            left: 70px;
-            top: 0;
-            background: var(--bg-sidebar);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 8px 0;
-            min-width: 180px;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateX(-10px);
-            transition: all 0.2s ease;
-            box-shadow: 4px 4px 20px var(--shadow-color);
-            z-index: 100;
-        }
+        /* [v2.9] Bottom-aligned submenus for Settings and Debug */
+        #btn-settings-wrapper .submenu,
+        #btn-debug-wrapper .submenu { top: auto; bottom: 0; }
         
-        #btn-settings-wrapper .submenu { top: auto; bottom: 0; }
-        
-        .has-submenu:not(.disabled):hover .submenu,
-        .has-submenu:not(.disabled).submenu-open .submenu {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(0);
-        }
-        
-        .has-submenu.disabled .submenu {
-            opacity: 0 !important;
-            visibility: hidden !important;
-            pointer-events: none !important;
-        }
-        
-        /* [v2.8] Submenu item - NORMAL state by default */
-        .submenu-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 16px;
-            color: var(--text-secondary);  /* Normal: secondary color */
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.15s;
-            border: none;
-            background: none;
-            width: 100%;
-            text-align: left;
-        }
-        
-        .submenu-item:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-        }
-        
-        /* [v2.8] Submenu item - ACTIVE state only with .active class */
-        .submenu-item.active {
-            background: var(--bg-selected);
-            color: var(--icon-selected);
-        }
-        
-        .submenu-item svg {
-            width: 18px;
-            height: 18px;
-            stroke: currentColor;
-            stroke-width: 1.5px;
-            fill: none;
-        }
-        
-        /* [v2.8] Disabled submenu item */
-        .submenu-item.disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-        
+        .has-submenu:not(.disabled):hover .submenu { opacity: 1; visibility: visible; transform: translateX(0); }
+        .has-submenu.disabled .submenu { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
+        .submenu-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: var(--text-secondary); font-size: 13px; cursor: pointer; transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; }
+        .submenu-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .submenu-item.active { background: var(--bg-selected); color: var(--icon-selected); }
+        .submenu-item.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+        .submenu-item svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5px; fill: none; }
         .submenu-divider { height: 1px; background: var(--border-color); margin: 6px 12px; }
         .submenu-header { padding: 6px 16px; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .has-submenu::after {
-            content: '';
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            border: 4px solid transparent;
-            border-left-color: var(--icon-normal);
-            opacity: 0.5;
-        }
-        
+        .has-submenu::after { content: ''; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 4px solid transparent; border-left-color: var(--icon-normal); opacity: 0.5; }
         .has-submenu:not(.disabled):hover::after { border-left-color: var(--icon-selected); opacity: 1; }
         .has-submenu.disabled::after { border-left-color: var(--icon-disabled); opacity: 0.3; }
         
-        /* Always Normal State Icons */
-        #btn-connection, #btn-settings-wrapper .icon-btn { transform: none !important; }
-        #btn-connection::before, #btn-settings-wrapper .icon-btn::before { display: none !important; }
-        #btn-connection svg, #btn-settings-wrapper .icon-btn svg { stroke: var(--icon-normal) !important; filter: none !important; }
-        #btn-connection:hover svg, #btn-settings-wrapper .icon-btn:hover svg { stroke: var(--icon-hover) !important; filter: drop-shadow(0 0 3px var(--glow-color)) !important; }
-        #btn-connection:hover, #btn-settings-wrapper:hover .icon-btn { transform: scale(1.1) translateY(-3px) !important; }
+        /* Always Normal State */
+        #btn-connection, #btn-settings-wrapper .icon-btn, #btn-debug-wrapper .icon-btn { transform: none !important; }
+        #btn-connection::before, #btn-settings-wrapper .icon-btn::before, #btn-debug-wrapper .icon-btn::before { display: none !important; }
+        #btn-connection svg, #btn-settings-wrapper .icon-btn svg, #btn-debug-wrapper .icon-btn svg { stroke: var(--icon-normal) !important; filter: none !important; }
+        #btn-connection:hover svg, #btn-settings-wrapper .icon-btn:hover svg, #btn-debug-wrapper .icon-btn:hover svg { stroke: var(--icon-hover) !important; filter: drop-shadow(0 0 3px var(--glow-color)) !important; }
+        #btn-connection:hover, #btn-settings-wrapper:hover .icon-btn, #btn-debug-wrapper:hover .icon-btn { transform: scale(1.1) translateY(-3px) !important; }
 
         /* Theme Toggle */
         .theme-toggle-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; color: var(--text-secondary); font-size: 13px; }
@@ -304,481 +118,173 @@
         .theme-switch::before { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: var(--icon-normal); border-radius: 50%; transition: all 0.3s ease; }
         .theme-switch.active { background: var(--icon-selected); border-color: var(--icon-selected); }
         .theme-switch.active::before { left: 22px; background: white; }
-        .theme-icons { display: flex; align-items: center; gap: 6px; margin-left: 8px; }
-        .theme-icons svg { width: 14px; height: 14px; stroke: var(--text-muted); transition: all 0.3s ease; }
-        .theme-icons .icon-sun { stroke: var(--text-warning); opacity: 0.5; }
-        .theme-icons .icon-moon { stroke: var(--icon-selected); }
-        [data-theme="light"] .theme-icons .icon-sun { opacity: 1; }
-        [data-theme="light"] .theme-icons .icon-moon { opacity: 0.5; }
 
-        /* =============================================
-           MIGRATION GUIDE - Main Content Area
-           [MIGRATE TO] src/styles/layout.css
-           
-           [v2.8] Three.js canvas container for 3D View
-           ============================================= */
-        .main-content {
-            flex-grow: 1;
-            background: var(--bg-main-gradient);
-            display: flex;
-            flex-direction: column;
-            color: var(--text-primary);
-            margin-bottom: var(--status-bar-height);
-            transition: background 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        /* [v2.8] Three.js Canvas Container */
-        #threejs-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-
-        /* [v2.8] Overlay UI on top of Three.js */
-        .overlay-ui {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .mode-indicator {
-            padding: 12px 20px;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-        }
-
+        /* Main Content */
+        .main-content { flex-grow: 1; background: var(--bg-main-gradient); display: flex; flex-direction: column; color: var(--text-primary); margin-bottom: var(--status-bar-height); position: relative; overflow: hidden; }
+        #threejs-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        .overlay-ui { position: absolute; top: 20px; left: 20px; z-index: 10; display: flex; flex-direction: column; gap: 10px; }
+        .mode-indicator { padding: 12px 20px; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 10px; }
         .mode-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
         .mode-value { font-size: 18px; font-weight: bold; color: var(--icon-selected); }
         .submode-value { font-size: 12px; color: var(--text-secondary); }
 
-        /* [v2.8] Test Controls Panel */
-        .test-controls {
-            padding: 16px;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            max-width: 280px;
-        }
-
-        .test-controls h4 {
-            font-size: 12px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            margin-bottom: 12px;
-            letter-spacing: 0.5px;
-        }
-
-        .test-btn {
-            display: block;
-            width: 100%;
-            padding: 10px 14px;
-            margin-bottom: 8px;
-            background: var(--bg-input);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            color: var(--text-primary);
-            font-size: 12px;
-            cursor: pointer;
-            text-align: left;
-            transition: all 0.2s;
-        }
-
-        .test-btn:hover {
-            background: var(--bg-selected);
-            border-color: var(--icon-selected);
-        }
-
+        /* Test Controls */
+        .test-controls { padding: 16px; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 10px; max-width: 280px; }
+        .test-controls h4 { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; }
+        .test-btn { display: block; width: 100%; padding: 10px 14px; margin-bottom: 8px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 12px; cursor: pointer; text-align: left; transition: all 0.2s; }
+        .test-btn:hover { background: var(--bg-selected); border-color: var(--icon-selected); }
         .test-btn-icon { margin-right: 8px; }
 
-        /* =============================================
-           MIGRATION GUIDE - Equipment Info Panel
-           [MIGRATE TO] src/ui/EquipmentInfoPanel.js
-           [MIGRATE TO] src/styles/components/equipment-info.css
-           
-           [v2.8] Full implementation based on main branch
-           ============================================= */
-        #equipmentInfo {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            width: 320px;
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            box-shadow: 0 10px 40px var(--shadow-color);
-            z-index: 100;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateX(20px);
-            transition: all 0.3s ease;
-        }
-
-        #equipmentInfo.active {
-            opacity: 1;
-            visibility: visible;
-            transform: translateX(0);
-        }
-
-        .equipment-panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px;
-            border-bottom: 1px solid var(--border-subtle);
-            background: var(--bg-panel-header);
-            border-radius: 12px 12px 0 0;
-        }
-
-        .equipment-panel-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .equipment-panel-title.multi-select {
-            color: var(--icon-selected);
-        }
-
-        .header-status {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            background: var(--bg-input);
-            border-radius: 12px;
-        }
-
-        .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
+        /* Equipment Info Panel */
+        #equipmentInfo { position: fixed; top: 80px; right: 20px; width: 320px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 40px var(--shadow-color); z-index: 100; opacity: 0; visibility: hidden; transform: translateX(20px); transition: all 0.3s ease; }
+        #equipmentInfo.active { opacity: 1; visibility: visible; transform: translateX(0); }
+        .equipment-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-panel-header); border-radius: 12px 12px 0 0; }
+        .equipment-panel-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .equipment-panel-title.multi-select { color: var(--icon-selected); }
+        .header-status { display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--bg-input); border-radius: 12px; }
+        .status-indicator { width: 8px; height: 8px; border-radius: 50%; animation: pulse 2s infinite; }
         .status-indicator.run { background: var(--text-success); box-shadow: 0 0 8px var(--text-success); }
         .status-indicator.idle { background: var(--text-warning); box-shadow: 0 0 8px var(--text-warning); }
         .status-indicator.stop { background: var(--text-alarm); box-shadow: 0 0 8px var(--text-alarm); }
         .status-indicator.disconnected { background: var(--text-muted); }
-
-        .status-text {
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
+        .status-text { font-size: 11px; font-weight: 600; text-transform: uppercase; }
         .status-text.run { color: var(--text-success); }
         .status-text.idle { color: var(--text-warning); }
         .status-text.stop { color: var(--text-alarm); }
         .status-text.disconnected { color: var(--text-muted); }
-
-        .close-btn {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            width: 24px;
-            height: 24px;
-            background: var(--bg-input);
-            border: none;
-            border-radius: 6px;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .close-btn:hover {
-            background: rgba(248, 113, 113, 0.2);
-            color: var(--text-alarm);
-        }
-
-        /* Equipment Panel Tabs */
-        .equipment-panel-tabs {
-            display: flex;
-            border-bottom: 1px solid var(--border-subtle);
-            padding: 0 16px;
-        }
-
-        .equipment-tab {
-            padding: 10px 16px;
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 12px;
-            cursor: pointer;
-            position: relative;
-            transition: color 0.2s;
-        }
-
+        .close-btn { position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; background: var(--bg-input); border: none; border-radius: 6px; color: var(--text-muted); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .close-btn:hover { background: rgba(248, 113, 113, 0.2); color: var(--text-alarm); }
+        .equipment-panel-tabs { display: flex; border-bottom: 1px solid var(--border-subtle); padding: 0 16px; }
+        .equipment-tab { padding: 10px 16px; background: none; border: none; color: var(--text-muted); font-size: 12px; cursor: pointer; position: relative; }
         .equipment-tab:hover { color: var(--text-primary); }
-
-        .equipment-tab.active {
-            color: var(--icon-selected);
-        }
-
-        .equipment-tab.active::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: var(--icon-selected);
-        }
-
-        /* Equipment Panel Content */
-        .equipment-panel-content {
-            padding: 16px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .equipment-tab-content {
-            display: none;
-        }
-
-        .equipment-tab-content.active {
-            display: block;
-        }
-
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-        }
-
-        .info-label {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .info-value {
-            font-size: 12px;
-            color: var(--text-primary);
-            font-family: 'Consolas', monospace;
-        }
-
-        .info-row-divider {
-            height: 1px;
-            background: var(--border-subtle);
-            margin: 8px 0;
-        }
-
-        .info-row-meta { opacity: 0.7; }
-        .info-value-meta { font-size: 10px; }
-
-        .info-row.unmapped-notice,
-        .info-row.error-notice {
-            background: rgba(248, 113, 113, 0.1);
-            padding: 10px 12px;
-            border-radius: 6px;
-            margin-bottom: 8px;
-        }
-
+        .equipment-tab.active { color: var(--icon-selected); }
+        .equipment-tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; width: 100%; height: 2px; background: var(--icon-selected); }
+        .equipment-panel-content { padding: 16px; max-height: 400px; overflow-y: auto; }
+        .equipment-tab-content { display: none; }
+        .equipment-tab-content.active { display: block; }
+        .info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+        .info-label { font-size: 12px; color: var(--text-muted); }
+        .info-value { font-size: 12px; color: var(--text-primary); font-family: 'Consolas', monospace; }
+        .info-row-divider { height: 1px; background: var(--border-subtle); margin: 8px 0; }
+        .info-row.unmapped-notice { background: rgba(248, 113, 113, 0.1); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; }
         .info-icon { margin-right: 8px; }
         .info-text { font-size: 12px; color: var(--text-secondary); }
-
-        .multi-select-header {
-            background: var(--bg-selected);
-            padding: 10px 12px;
-            border-radius: 6px;
-            margin-bottom: 12px;
-        }
-
-        .info-badge {
-            font-size: 10px;
-            padding: 2px 8px;
-            background: var(--icon-selected);
-            color: white;
-            border-radius: 10px;
-            margin-left: 8px;
-        }
-
-        .status-counts {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .status-count-item {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            padding: 2px 8px;
-            background: var(--bg-input);
-            border-radius: 4px;
-            font-size: 11px;
-        }
-
+        .multi-select-header { background: var(--bg-selected); padding: 10px 12px; border-radius: 6px; margin-bottom: 12px; }
+        .info-badge { font-size: 10px; padding: 2px 8px; background: var(--icon-selected); color: white; border-radius: 10px; margin-left: 8px; }
+        .status-counts { display: flex; gap: 8px; flex-wrap: wrap; }
+        .status-count-item { display: flex; align-items: center; gap: 4px; padding: 2px 8px; background: var(--bg-input); border-radius: 4px; font-size: 11px; }
         .status-count-item.run { color: var(--text-success); }
         .status-count-item.idle { color: var(--text-warning); }
         .status-count-item.stop { color: var(--text-alarm); }
-
-        .loading-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 40px;
-        }
-
-        .loading-spinner-small {
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--border-color);
-            border-top-color: var(--icon-selected);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .loading-text {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
+        .loading-container { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px; }
+        .loading-spinner-small { width: 20px; height: 20px; border: 2px solid var(--border-color); border-top-color: var(--icon-selected); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .loading-text { font-size: 12px; color: var(--text-muted); }
 
         /* =============================================
-           MIGRATION GUIDE - Status Bar
-           [MIGRATE TO] src/ui/StatusBar.js
+           Equipment Edit Modal
+           [MIGRATE TO] src/ui/EquipmentEditModal.js
            ============================================= */
-        .status-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: var(--status-bar-height);
-            background-color: var(--bg-sidebar);
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 16px;
-            font-family: 'Consolas', monospace;
-            font-size: 11px;
-            z-index: 20;
-            transition: background-color 0.3s ease;
-        }
+        .equip-edit-modal .modal-container { max-width: 600px; }
+        .equipment-edit-content { padding: 0; }
+        .edit-section { margin-bottom: 20px; }
+        .edit-section h3 { font-size: 13px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .equip-edit__info-box { background: var(--bg-input); border-radius: 8px; padding: 12px; }
+        .equip-edit__info-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-subtle); }
+        .equip-edit__info-row:last-child { border-bottom: none; }
+        .equip-edit__info-label { font-size: 12px; color: var(--text-muted); }
+        .equip-edit__info-value { font-size: 12px; color: var(--text-primary); font-family: 'Consolas', monospace; }
+        .equip-edit__info-value--muted { color: var(--text-muted); }
+        .equip-edit__info-value--success { color: var(--text-success); }
+        .equip-edit__search-box { display: flex; gap: 8px; margin-bottom: 12px; }
+        .equip-edit__search-input { flex: 1; padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 13px; }
+        .equip-edit__search-input:focus { outline: none; border-color: var(--icon-selected); }
+        .equip-edit__search-clear { padding: 10px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-muted); cursor: pointer; }
+        .equip-edit__list { max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; }
+        .equip-edit__item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border-subtle); cursor: pointer; transition: background 0.2s; }
+        .equip-edit__item:hover { background: var(--bg-hover); }
+        .equip-edit__item:last-child { border-bottom: none; }
+        .equip-edit__item--selected { background: var(--bg-selected); }
+        .equip-edit__item--current { background: rgba(74, 222, 128, 0.1); }
+        .equip-edit__item--assigned { opacity: 0.6; }
+        .equip-edit__item-content { flex: 1; }
+        .equip-edit__item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .equip-edit__item-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+        .equip-edit__item-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+        .equip-edit__item-badge--current { background: var(--text-success); color: white; }
+        .equip-edit__item-badge--assigned { background: var(--text-warning); color: black; }
+        .equip-edit__item-details { font-size: 11px; color: var(--text-muted); display: flex; gap: 12px; }
+        .equip-edit__item-select-btn { padding: 6px 14px; border: none; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+        .equip-edit__item-select-btn--primary { background: var(--icon-selected); color: white; }
+        .equip-edit__item-select-btn--success { background: var(--text-success); color: white; }
+        .equip-edit__progress { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-input); border-radius: 8px; }
+        .equip-edit__progress-text { font-size: 12px; color: var(--text-secondary); }
+        .equip-edit__validation { padding: 12px; border-radius: 8px; margin-bottom: 12px; }
+        .equip-edit__validation--valid { background: rgba(74, 222, 128, 0.1); border: 1px solid var(--text-success); }
+        .equip-edit__validation--invalid { background: rgba(248, 113, 113, 0.1); border: 1px solid var(--text-alarm); }
+        .equip-edit__footer { display: flex; justify-content: space-between; }
+        .equip-edit__footer-left, .equip-edit__footer-right { display: flex; gap: 8px; }
 
+        /* =============================================
+           Debug Panel
+           [MIGRATE TO] src/ui/debug/DebugPanel.js
+           ============================================= */
+        #debug-panel { position: fixed; bottom: 50px; right: 20px; width: 400px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 40px var(--shadow-color); z-index: 100; opacity: 0; visibility: hidden; transform: translateY(20px); transition: all 0.3s ease; }
+        #debug-panel.active { opacity: 1; visibility: visible; transform: translateY(0); }
+        .debug-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg-panel-header); border-radius: 12px 12px 0 0; border-bottom: 1px solid var(--border-subtle); }
+        .debug-panel-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .debug-panel-content { font-family: 'Consolas', 'Monaco', monospace; font-size: 12px; color: #0f0; background: #1a1a1a; padding: 12px; max-height: 350px; overflow-y: auto; border-radius: 0 0 12px 12px; }
+        .debug-section { margin-bottom: 12px; }
+        .debug-section-title { color: #0ff; margin-bottom: 8px; font-size: 11px; text-transform: uppercase; }
+        .debug-state-item { display: flex; justify-content: space-between; padding: 4px 0; }
+        .debug-state-label { color: #888; }
+        .debug-state-value { color: #ff0; }
+        .debug-state-value.on { color: #0f0; }
+        .debug-state-value.off { color: #f00; }
+        .debug-events-log { max-height: 80px; overflow-y: auto; padding: 8px; background: #0a0a0a; border-radius: 4px; }
+        .debug-event-item { font-size: 10px; color: #666; padding: 2px 0; }
+        .debug-event-time { color: #444; }
+        .debug-event-name { color: #0ff; }
+        .debug-command-box { display: flex; gap: 8px; margin-top: 8px; }
+        .debug-command-input { flex: 1; background: #0a0a0a; border: 1px solid #333; color: #0f0; padding: 6px 8px; font-family: inherit; font-size: 12px; border-radius: 4px; }
+        .debug-command-btn { background: #333; border: 1px solid #555; color: #0f0; padding: 6px 12px; cursor: pointer; border-radius: 4px; }
+        .debug-output { margin-top: 8px; padding: 8px; background: #0a0a0a; border: 1px solid #333; min-height: 40px; max-height: 80px; overflow-y: auto; white-space: pre-wrap; border-radius: 4px; font-size: 11px; }
+
+        /* Status Bar */
+        .status-bar { position: fixed; bottom: 0; left: 0; width: 100%; height: var(--status-bar-height); background-color: var(--bg-sidebar); border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-family: 'Consolas', monospace; font-size: 11px; z-index: 20; }
         .status-group { display: flex; gap: 16px; align-items: center; }
         .status-item { display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--bg-input); border-radius: 4px; }
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; }
         .status-dot.connected { background-color: var(--text-success); box-shadow: 0 0 4px var(--text-success); }
         .status-dot.disconnected { background-color: var(--text-alarm); box-shadow: 0 0 4px var(--text-alarm); }
         .status-label { color: var(--text-muted); font-size: 9px; text-transform: uppercase; }
-        .status-value { color: var(--text-normal); font-weight: 500; font-size: 11px; }
+        .status-value { color: var(--text-normal); font-weight: 500; }
         .perf-bar { width: 35px; height: 4px; background: var(--bg-input); border-radius: 2px; overflow: hidden; }
-        .perf-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s, background 0.3s; }
+        .perf-bar-fill { height: 100%; border-radius: 2px; }
         .perf-bar-fill.good { background: var(--text-success); }
-        .perf-bar-fill.medium { background: var(--text-warning); }
-        .perf-bar-fill.bad { background: var(--text-alarm); }
         .country-code { font-weight: 700; font-size: 12px; color: var(--icon-selected); letter-spacing: 1px; }
 
-        /* Tooltip */
-        .icon-btn[data-tooltip]::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            left: 70px;
-            background: var(--bg-panel);
-            color: var(--text-primary);
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s, transform 0.2s;
-            transform: translateX(-10px);
-            z-index: 50;
-            border: 1px solid var(--border-color);
-        }
-
-        .icon-btn:not(.has-submenu):hover[data-tooltip]::after { opacity: 1; transform: translateX(0); }
-
-        .sidebar-divider { width: 40px; height: 1px; background: var(--border-color); margin: 8px 0; }
-        .sidebar-spacer { flex-grow: 1; }
-        
-        /* =============================================
-           MIGRATION GUIDE - Toast Notification
-           [MIGRATE TO] src/ui/common/Toast.js
-           ============================================= */
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 2000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .toast {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 20px;
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            box-shadow: 0 8px 24px var(--shadow-color);
-            min-width: 300px;
-            max-width: 450px;
-            animation: slideIn 0.3s ease;
-        }
-        
+        /* Toast */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: 0 8px 24px var(--shadow-color); min-width: 300px; animation: slideIn 0.3s ease; }
         .toast.hiding { animation: slideOut 0.3s ease forwards; }
-        
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
-        
-        .toast-icon { font-size: 20px; flex-shrink: 0; }
+        .toast-icon { font-size: 20px; }
         .toast-content { flex: 1; }
-        .toast-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+        .toast-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
         .toast-message { font-size: 12px; color: var(--text-secondary); }
-        .toast-close { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; font-size: 16px; transition: color 0.2s; }
-        .toast-close:hover { color: var(--text-primary); }
-        
+        .toast-close { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; font-size: 16px; }
         .toast.success { border-left: 4px solid var(--text-success); }
         .toast.error { border-left: 4px solid var(--text-alarm); }
         .toast.warning { border-left: 4px solid var(--text-warning); }
         .toast.info { border-left: 4px solid var(--icon-selected); }
 
-        /* Modal Styles - Compact version */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease;
-        }
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
         .modal-overlay.active { opacity: 1; visibility: visible; }
-        .modal-container {
-            background: var(--bg-panel); border: 1px solid var(--border-color);
-            border-radius: 16px; width: 90%; max-width: 700px; max-height: 85vh;
-            overflow: hidden; box-shadow: 0 25px 50px var(--shadow-color);
-            transform: scale(0.9) translateY(20px); transition: transform 0.3s ease;
-        }
+        .modal-container { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 16px; width: 90%; max-width: 700px; max-height: 85vh; overflow: hidden; box-shadow: 0 25px 50px var(--shadow-color); transform: scale(0.9) translateY(20px); transition: transform 0.3s ease; }
         .modal-overlay.active .modal-container { transform: scale(1) translateY(0); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-panel-header); }
         .modal-title { font-size: 18px; font-weight: 600; color: var(--text-primary); }
@@ -788,9 +294,15 @@
         .modal-footer { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-top: 1px solid var(--border-color); background: var(--bg-panel-header); }
         .footer-hint { font-size: 11px; color: var(--text-muted); }
         .btn-secondary { padding: 10px 20px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); cursor: pointer; }
-        .btn-secondary:hover { background: var(--bg-hover); }
+        .btn-primary { padding: 10px 20px; background: linear-gradient(135deg, #06B6D4, #0891B2); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-outline { padding: 8px 16px; background: transparent; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px; }
+        .btn-outline:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .btn-success { padding: 10px 20px; background: linear-gradient(135deg, #16A34A, #15803D); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; }
+        .btn-connect { padding: 10px 20px; background: linear-gradient(135deg, #06B6D4, #0891B2); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; }
+        .btn-connect:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Connection Panel Styles - Compact */
+        /* Connection Panel (Compact) */
         .connection-panel { background: var(--bg-panel-header); border: 1px solid var(--border-subtle); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
         .panel-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: var(--bg-panel-header); border-bottom: 1px solid var(--border-subtle); }
         .panel-header h3 { font-size: 14px; font-weight: 600; color: var(--text-primary); }
@@ -798,7 +310,6 @@
         .internet-status { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--bg-input); border-radius: 8px; margin-bottom: 16px; }
         .internet-status .status-dot { width: 10px; height: 10px; }
         .internet-status-text { font-size: 13px; color: var(--text-primary); }
-        .internet-status-detail { font-size: 11px; color: var(--text-muted); margin-left: auto; }
         .api-status-content { padding: 16px; }
         .status-indicator-box { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 12px; background: var(--bg-input); border-radius: 8px; }
         .status-indicator-box .status-dot { width: 12px; height: 12px; border-radius: 50%; animation: pulse 2s infinite; }
@@ -810,70 +321,61 @@
         .detail-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
         .detail-value { font-size: 13px; color: var(--text-primary); font-family: 'Consolas', monospace; }
         .site-list { display: flex; flex-direction: column; gap: 8px; padding: 16px; }
-        .site-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+        .site-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--bg-input); border: 1px solid var(--border-subtle); border-radius: 10px; cursor: pointer; }
         .site-item:hover { background: var(--bg-hover); border-color: var(--border-color); }
         .site-item.site-item--selected { background: var(--bg-selected); border-color: var(--icon-selected); }
         .site-item.site-item--connected { background: rgba(74, 222, 128, 0.1); border-color: var(--text-success); }
         .site-checkbox input { width: 16px; height: 16px; accent-color: var(--icon-selected); }
         .site-info { flex: 1; }
-        .site-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .site-main { display: flex; align-items: center; gap: 8px; }
         .site-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
         .site-region { font-size: 11px; padding: 2px 8px; background: var(--bg-hover); border-radius: 4px; color: var(--text-secondary); }
-        .site-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: flex; gap: 12px; }
         .site-status { display: flex; align-items: center; gap: 8px; }
-        .btn-disconnect, .btn-retry { padding: 4px 10px; font-size: 11px; border: none; border-radius: 4px; cursor: pointer; }
-        .btn-disconnect { background: rgba(248, 113, 113, 0.2); color: var(--text-alarm); }
-        .btn-retry { background: rgba(251, 191, 36, 0.2); color: var(--text-warning); }
+        .btn-disconnect { padding: 4px 10px; font-size: 11px; border: none; border-radius: 4px; cursor: pointer; background: rgba(248, 113, 113, 0.2); color: var(--text-alarm); }
         .panel-footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border-subtle); background: var(--bg-panel-header); }
-        .selection-info { font-size: 12px; color: var(--text-secondary); }
-        .btn-connect, .btn-refresh-styled { padding: 10px 20px; background: linear-gradient(135deg, #06B6D4, #0891B2); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; font-size: 13px; }
-        .btn-connect:hover:not(:disabled), .btn-refresh-styled:hover:not(:disabled) { box-shadow: 0 0 20px var(--glow-color); }
-        .btn-connect:disabled, .btn-refresh-styled:disabled { opacity: 0.5; cursor: not-allowed; }
-        .auto-connect-label { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); cursor: pointer; }
-        .auto-connect-label input { accent-color: var(--icon-selected); }
-        .btn-icon { background: none; border: none; cursor: pointer; font-size: 14px; padding: 4px 8px; opacity: 0.7; border-radius: 4px; }
-        .btn-icon:hover { opacity: 1; background: var(--bg-hover); }
-        .database-item { padding: 16px; }
-        .database-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-        .database-header h4 { font-size: 14px; color: var(--text-primary); }
-        .database-stats { display: flex; gap: 16px; }
-        .stat-item { display: flex; gap: 4px; font-size: 12px; }
-        .stat-label { color: var(--text-muted); }
-        .stat-value { color: var(--icon-selected); font-weight: 600; }
         .no-connection { text-align: center; padding: 32px; color: var(--text-muted); }
         .no-connection-icon { font-size: 32px; display: block; margin-bottom: 8px; }
+
+        /* Dev Mode Indicator */
+        .dev-mode-badge { position: fixed; top: 10px; left: 90px; padding: 4px 12px; background: rgba(251, 191, 36, 0.2); border: 1px solid var(--text-warning); border-radius: 20px; font-size: 11px; color: var(--text-warning); font-weight: 600; z-index: 1000; display: none; }
+        .dev-mode-badge.active { display: block; }
+
+        /* Mock Test List */
+        .mock-test-list { padding: 8px 16px; }
+        .mock-test-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin-bottom: 4px; background: var(--bg-input); border-radius: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+        .mock-test-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .mock-test-icon { color: var(--icon-selected); }
+
+        .sidebar-divider { width: 40px; height: 1px; background: var(--border-color); margin: 8px 0; }
+        .sidebar-spacer { flex-grow: 1; }
     </style>
 </head>
 <body>
 
     <div class="toast-container" id="toast-container"></div>
+    <div class="dev-mode-badge" id="dev-mode-badge">⚡ DEV MODE</div>
 
     <!-- =============================================
-         SIDEBAR v2.8
-         [v2.8] Ranking View is disabled
+         SIDEBAR v2.9
+         [v2.9] Layout Editor → Submenu (Layout Editor, Mapping)
+         [v2.9] Debug → Submenu (bottom-aligned)
          ============================================= -->
     <aside class="sidebar" id="sidebar">
         <button class="icon-btn" id="btn-connection" data-mode="connection" data-tooltip="Database Connection (Ctrl+K)">
-            <svg viewBox="0 0 24 24" id="icon-connection">
-                <ellipse cx="7" cy="5" rx="5" ry="2"/><path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/><path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/><ellipse cx="17" cy="11" rx="5" ry="2"/><path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/>
-            </svg>
+            <svg viewBox="0 0 24 24"><ellipse cx="7" cy="5" rx="5" ry="2"/><path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/><path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/><ellipse cx="17" cy="11" rx="5" ry="2"/><path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/></svg>
         </button>
 
-        <!-- [v2.8] Monitoring with submenu - 3D View active only when clicked -->
+        <!-- Monitoring with submenu -->
         <div class="has-submenu disabled" id="btn-monitoring-wrapper">
             <button class="icon-btn disabled" id="btn-monitoring" data-mode="monitoring" data-tooltip="System Monitoring (M)">
-                <svg viewBox="0 0 24 24" id="icon-monitoring">
-                    <rect x="3" y="4" width="18" height="12" rx="2"/><polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/><path d="M12 16v4"/><path d="M8 20h8"/>
-                </svg>
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/><path d="M12 16v4"/><path d="M8 20h8"/></svg>
             </button>
             <div class="submenu" id="monitoring-submenu">
                 <div class="submenu-header">Monitoring Views</div>
-                <!-- [v2.8] NO .active class by default - only added when clicked -->
-                <button class="submenu-item" id="submenu-3d-view" data-submode="3d-view" onclick="setSubMode('monitoring', '3d-view')">
+                <button class="submenu-item" data-submode="3d-view" onclick="setSubMode('monitoring', '3d-view')">
                     <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                     3D View
                 </button>
-                <!-- [v2.8] Ranking View is DISABLED -->
                 <button class="submenu-item disabled" data-submode="ranking-view">
                     <svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
                     Ranking View (Coming Soon)
@@ -882,38 +384,70 @@
         </div>
 
         <button class="icon-btn disabled" id="btn-analysis" data-mode="analysis" data-tooltip="Data Analysis (A)">
-            <svg viewBox="0 0 24 24" id="icon-analysis">
-                <path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/><path d="M7 14l4-4 4 4 6-6"/><circle cx="21" cy="8" r="2"/>
-            </svg>
+            <svg viewBox="0 0 24 24"><path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/><path d="M7 14l4-4 4 4 6-6"/><circle cx="21" cy="8" r="2"/></svg>
         </button>
 
         <button class="icon-btn disabled" id="btn-simulation" data-mode="simulation" data-tooltip="Simulation (S)">
-            <svg viewBox="0 0 24 24" id="icon-simulation">
-                <circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/>
-            </svg>
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>
         </button>
 
         <div class="sidebar-divider"></div>
 
-        <button class="icon-btn disabled hidden" id="btn-layout" data-mode="layout" data-tooltip="Layout Editor">
-            <svg viewBox="0 0 24 24" id="icon-layout">
-                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-            </svg>
-        </button>
+        <!-- [v2.9] Layout Editor with Submenu -->
+        <div class="has-submenu disabled hidden" id="btn-layout-wrapper">
+            <button class="icon-btn disabled" id="btn-layout" data-mode="layout" data-tooltip="Layout Editor">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </button>
+            <div class="submenu" id="layout-submenu">
+                <div class="submenu-header">Layout Tools</div>
+                <button class="submenu-item" data-submode="layout-editor" onclick="setSubMode('layout', 'layout-editor')">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    Layout Editor
+                </button>
+                <button class="submenu-item" data-submode="mapping" onclick="openEquipmentEditModal()">
+                    <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Equipment Mapping
+                </button>
+            </div>
+        </div>
 
         <div class="sidebar-spacer"></div>
         
-        <button class="icon-btn disabled" id="btn-debug" data-mode="debug" data-tooltip="Debug Panel (D)">
-            <svg viewBox="0 0 24 24" id="icon-debug">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-            </svg>
-        </button>
+        <!-- [v2.9] Debug with Submenu (bottom-aligned) -->
+        <div class="has-submenu disabled" id="btn-debug-wrapper">
+            <button class="icon-btn disabled" id="btn-debug" data-mode="debug" data-tooltip="Debug Panel (D)">
+                <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            </button>
+            <div class="submenu" id="debug-submenu">
+                <div class="submenu-header">Debug Tools</div>
+                <button class="submenu-item" data-submode="app-state" onclick="setDebugView('app-state')">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                    📊 Application State
+                </button>
+                <button class="submenu-item" data-submode="performance" onclick="setDebugView('performance')">
+                    <svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    ⚡ Performance
+                </button>
+                <button class="submenu-item" data-submode="event-log" onclick="setDebugView('event-log')">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    📝 Event Log
+                </button>
+                <button class="submenu-item" data-submode="console" onclick="setDebugView('console')">
+                    <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    💻 Command Console
+                </button>
+                <div class="submenu-divider"></div>
+                <button class="submenu-item" onclick="toggleDebugPanel()">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+                    📋 Full Debug Panel
+                </button>
+            </div>
+        </div>
         
+        <!-- Settings with Submenu -->
         <div class="has-submenu" id="btn-settings-wrapper">
             <button class="icon-btn" id="btn-settings" data-mode="settings" data-tooltip="Settings">
-                <svg viewBox="0 0 24 24" id="icon-settings">
-                    <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                </svg>
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </button>
             <div class="submenu" id="settings-submenu">
                 <div class="submenu-header">Settings</div>
@@ -922,25 +456,36 @@
                         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/></svg>
                         <span>Theme</span>
                     </div>
-                    <div style="display: flex; align-items: center;">
-                        <div class="theme-switch" id="theme-switch" onclick="toggleTheme()"></div>
-                        <div class="theme-icons">
-                            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/></svg>
-                            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                        </div>
-                    </div>
+                    <div class="theme-switch" id="theme-switch" onclick="toggleTheme()"></div>
                 </div>
                 <div class="submenu-divider"></div>
+                <!-- [v2.9] Dev Mode with Mock Test capability -->
                 <button class="submenu-item" id="dev-mode-toggle" onclick="toggleDevMode()">
                     <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                     <span id="dev-mode-label">Dev Mode: OFF</span>
                 </button>
+                <!-- [v2.9] Mock Test Files (shown when Dev Mode is ON) -->
+                <div id="mock-test-section" style="display: none;">
+                    <div class="submenu-divider"></div>
+                    <div class="submenu-header">Mock Test Files</div>
+                    <div class="mock-test-list" id="mock-test-list">
+                        <div class="mock-test-item" onclick="loadMockTest('equipment-status')">
+                            <span class="mock-test-icon">📦</span> Equipment Status Test
+                        </div>
+                        <div class="mock-test-item" onclick="loadMockTest('realtime-update')">
+                            <span class="mock-test-icon">🔄</span> Realtime Update Test
+                        </div>
+                        <div class="mock-test-item" onclick="loadMockTest('multi-site')">
+                            <span class="mock-test-icon">🌐</span> Multi-Site Test
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         <div style="height: 50px;"></div>
     </aside>
 
-    <!-- CONNECTION MODAL (Compact) -->
+    <!-- CONNECTION MODAL -->
     <div class="modal-overlay" id="connection-modal">
         <div class="modal-container">
             <div class="modal-header">
@@ -948,49 +493,28 @@
                 <button class="modal-close" onclick="closeConnectionModal()">✕</button>
             </div>
             <div class="modal-body">
-                <div class="internet-status" id="internet-status">
+                <div class="internet-status">
                     <span class="status-dot connected" id="internet-dot"></span>
-                    <span class="internet-status-text" id="internet-text">Internet Connected</span>
-                    <span class="internet-status-detail" id="internet-detail">Ping: 24ms</span>
+                    <span class="internet-status-text">Internet Connected</span>
                 </div>
                 <div class="connection-panel">
                     <div class="panel-header">
                         <h3>🔌 Backend API Status</h3>
-                        <button class="btn-refresh-styled" onclick="refreshAPIStatus()">🔄 Check</button>
+                        <button class="btn-connect" onclick="refreshAPIStatus()" style="padding: 6px 12px; font-size: 12px;">🔄 Check</button>
                     </div>
                     <div class="api-status-content">
                         <div class="status-indicator-box">
                             <span class="status-dot status-dot--checking" id="api-status-dot"></span>
                             <span class="status-text" id="api-status-text">Checking...</span>
                         </div>
-                        <div class="status-details">
-                            <div class="status-detail"><span class="detail-label">API URL</span><span class="detail-value">http://localhost:8000</span></div>
-                            <div class="status-detail"><span class="detail-label">Response</span><span class="detail-value" id="response-time">-</span></div>
-                        </div>
                     </div>
                 </div>
                 <div class="connection-panel">
-                    <div class="panel-header">
-                        <h3>🔍 Site Connection</h3>
-                        <div class="panel-actions">
-                            <label class="auto-connect-label"><input type="checkbox"><span>Auto</span></label>
-                            <button class="btn-icon" onclick="selectAllSites()">☑️</button>
-                            <button class="btn-icon" onclick="deselectAllSites()">☐</button>
-                        </div>
-                    </div>
+                    <div class="panel-header"><h3>🔍 Site Connection</h3></div>
                     <div class="site-list" id="site-list"></div>
                     <div class="panel-footer">
                         <span id="selection-count">Selected: 0</span>
                         <button class="btn-connect" id="connect-btn" disabled onclick="connectToSelectedSite()">🔌 Connect</button>
-                    </div>
-                </div>
-                <div class="connection-panel">
-                    <div class="panel-header">
-                        <h3>📊 Connected Databases</h3>
-                        <button class="btn-refresh-styled" onclick="refreshDatabaseInfo()">🔄 Refresh</button>
-                    </div>
-                    <div id="database-list">
-                        <div class="no-connection"><span class="no-connection-icon">📂</span><p>No database connected</p></div>
                     </div>
                 </div>
             </div>
@@ -1001,77 +525,131 @@
         </div>
     </div>
 
-    <!-- =============================================
-         MAIN CONTENT with Three.js
-         [v2.8] 3D View implementation
-         ============================================= -->
+    <!-- EQUIPMENT EDIT MODAL -->
+    <div class="modal-overlay equip-edit-modal" id="equipment-edit-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title">🛠️ Equipment Mapping Editor</div>
+                <button class="modal-close" onclick="closeEquipmentEditModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="equipment-edit-content">
+                    <div class="edit-section">
+                        <h3>Selected Equipment</h3>
+                        <div class="equip-edit__info-box">
+                            <div class="equip-edit__info-row">
+                                <span class="equip-edit__info-label">Frontend ID:</span>
+                                <span class="equip-edit__info-value" id="edit-frontend-id">EQ-001</span>
+                            </div>
+                            <div class="equip-edit__info-row">
+                                <span class="equip-edit__info-label">Position:</span>
+                                <span class="equip-edit__info-value" id="edit-position">Row 1, Col 1</span>
+                            </div>
+                            <div class="equip-edit__info-row">
+                                <span class="equip-edit__info-label">Current Mapping:</span>
+                                <span class="equip-edit__info-value equip-edit__info-value--muted" id="edit-current-mapping">Not Assigned</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="edit-section">
+                        <h3>Equipment Name</h3>
+                        <div class="equip-edit__search-box">
+                            <input type="text" class="equip-edit__search-input" id="equipment-search" placeholder="Search equipment name...">
+                            <button class="equip-edit__search-clear" onclick="clearEquipmentSearch()">✕</button>
+                        </div>
+                        <div class="equip-edit__list" id="equipment-list"></div>
+                    </div>
+                    
+                    <div class="edit-section">
+                        <div class="equip-edit__progress">
+                            <span class="equip-edit__progress-text" id="mapping-progress">0 / 9 Mapped</span>
+                            <span id="sync-status" style="font-size: 11px; color: var(--text-muted);">Not synced</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="equip-edit__footer">
+                    <div class="equip-edit__footer-left">
+                        <button class="btn-outline" onclick="validateMappings()">🔍 Validate</button>
+                        <button class="btn-outline" onclick="syncFromServer()">🔄 Sync</button>
+                    </div>
+                    <div class="equip-edit__footer-right">
+                        <button class="btn-secondary" onclick="closeEquipmentEditModal()">Cancel</button>
+                        <button class="btn-success" onclick="saveToServer()">💾 Save All</button>
+                        <button class="btn-primary" id="confirm-mapping-btn" disabled onclick="confirmMapping()">Confirm</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DEBUG PANEL -->
+    <div id="debug-panel">
+        <div class="debug-panel-header">
+            <span class="debug-panel-title">🐛 Debug Panel</span>
+            <button class="close-btn" onclick="toggleDebugPanel()">×</button>
+        </div>
+        <div class="debug-panel-content">
+            <div class="debug-section">
+                <div class="debug-section-title">📊 Application State</div>
+                <div id="debug-state">
+                    <div class="debug-state-item"><span class="debug-state-label">Mode:</span><span class="debug-state-value" id="debug-mode">N/A</span></div>
+                    <div class="debug-state-item"><span class="debug-state-label">Connected:</span><span class="debug-state-value off" id="debug-connected">NO</span></div>
+                    <div class="debug-state-item"><span class="debug-state-label">Dev Mode:</span><span class="debug-state-value off" id="debug-devmode">OFF</span></div>
+                </div>
+            </div>
+            <div class="debug-section">
+                <div class="debug-section-title">⚡ Performance</div>
+                <div id="debug-performance">
+                    <div class="debug-state-item"><span class="debug-state-label">Time:</span><span class="debug-state-value" id="debug-time">-</span></div>
+                    <div class="debug-state-item"><span class="debug-state-label">Memory:</span><span class="debug-state-value" id="debug-memory">-</span></div>
+                </div>
+            </div>
+            <div class="debug-section">
+                <div class="debug-section-title">📝 Recent Events</div>
+                <div class="debug-events-log" id="debug-events">
+                    <div class="debug-event-item"><span class="debug-event-time">-</span> <span class="debug-event-name">No events</span></div>
+                </div>
+            </div>
+            <div class="debug-section">
+                <div class="debug-section-title">💻 Command Console</div>
+                <div class="debug-command-box">
+                    <input type="text" class="debug-command-input" id="debug-command-input" placeholder="Enter command (type 'help')">
+                    <button class="debug-command-btn" onclick="executeDebugCommand()">Run</button>
+                </div>
+                <div class="debug-output" id="debug-output"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
     <main class="main-content" id="main-content">
-        <!-- Three.js Canvas Container -->
         <div id="threejs-container"></div>
-        
-        <!-- Overlay UI -->
         <div class="overlay-ui" id="overlay-ui">
             <div class="mode-indicator">
                 <div class="mode-label">Current Mode</div>
                 <div class="mode-value" id="current-mode">—</div>
                 <div class="submode-value" id="current-submode"></div>
             </div>
-            
-            <!-- [v2.8] Test Controls Panel - Only visible in Monitoring Mode -->
             <div class="test-controls" id="test-controls" style="display: none;">
                 <h4>🧪 Equipment Test Controls</h4>
-                
-                <button class="test-btn" onclick="simulateEquipmentClick('EQ-001')">
-                    <span class="test-btn-icon">📦</span> Click Equipment EQ-001 (RUN)
-                </button>
-                <button class="test-btn" onclick="simulateEquipmentClick('EQ-002')">
-                    <span class="test-btn-icon">📦</span> Click Equipment EQ-002 (IDLE)
-                </button>
-                <button class="test-btn" onclick="simulateEquipmentClick('EQ-003')">
-                    <span class="test-btn-icon">📦</span> Click Equipment EQ-003 (STOP)
-                </button>
-                <button class="test-btn" onclick="simulateMultiSelect()">
-                    <span class="test-btn-icon">📊</span> Multi-Select (3 Equipment)
-                </button>
-                <button class="test-btn" onclick="simulateUnmapped()">
-                    <span class="test-btn-icon">⚠️</span> Click Unmapped Equipment
-                </button>
-                
+                <button class="test-btn" onclick="simulateEquipmentClick('EQ-001')"><span class="test-btn-icon">📦</span> Click EQ-001 (RUN)</button>
+                <button class="test-btn" onclick="simulateEquipmentClick('EQ-002')"><span class="test-btn-icon">📦</span> Click EQ-002 (IDLE)</button>
+                <button class="test-btn" onclick="simulateEquipmentClick('EQ-003')"><span class="test-btn-icon">📦</span> Click EQ-003 (STOP)</button>
+                <button class="test-btn" onclick="simulateMultiSelect()"><span class="test-btn-icon">📊</span> Multi-Select (3)</button>
+                <button class="test-btn" onclick="simulateUnmapped()"><span class="test-btn-icon">⚠️</span> Unmapped Equipment</button>
                 <h4 style="margin-top: 16px;">🔔 Toast Test</h4>
-                <button class="test-btn" onclick="toast.success('Success', 'Operation completed successfully')">
-                    <span class="test-btn-icon">✅</span> Success Toast
-                </button>
-                <button class="test-btn" onclick="toast.error('Error', 'Something went wrong')">
-                    <span class="test-btn-icon">❌</span> Error Toast
-                </button>
-                <button class="test-btn" onclick="toast.warning('Warning', 'Please check your input')">
-                    <span class="test-btn-icon">⚠️</span> Warning Toast
-                </button>
-                <button class="test-btn" onclick="toast.info('Info', 'New update available')">
-                    <span class="test-btn-icon">ℹ️</span> Info Toast
-                </button>
-                
-                <h4 style="margin-top: 16px;">⚡ Realtime Update Test</h4>
-                <button class="test-btn" onclick="simulateRealtimeUpdate()">
-                    <span class="test-btn-icon">🔄</span> Trigger Realtime Update
-                </button>
+                <button class="test-btn" onclick="toast.success('Success', 'Done!')"><span class="test-btn-icon">✅</span> Success</button>
+                <button class="test-btn" onclick="toast.error('Error', 'Failed!')"><span class="test-btn-icon">❌</span> Error</button>
             </div>
         </div>
     </main>
 
-    <!-- =============================================
-         EQUIPMENT INFO PANEL
-         [MIGRATE TO] src/ui/EquipmentInfoPanel.js
-         
-         [v2.8] Full implementation based on main branch
-         - Header: Equipment Name + Status
-         - Tabs: General / PC Info
-         - General Tab: Line, Product, Lot, Duration
-         - Real-time duration timer
-         ============================================= -->
+    <!-- EQUIPMENT INFO PANEL -->
     <div id="equipmentInfo">
         <button class="close-btn" onclick="hideEquipmentInfo()">×</button>
-        
         <div class="equipment-panel-header">
             <h2 id="equipName" class="equipment-panel-title">설비 정보</h2>
             <div class="header-status" id="headerStatus">
@@ -1079,26 +657,16 @@
                 <span class="status-text" id="headerStatusText">-</span>
             </div>
         </div>
-        
         <div class="equipment-panel-tabs">
             <button class="equipment-tab active" data-tab="general" onclick="switchEquipmentTab('general')">General</button>
             <button class="equipment-tab" data-tab="pcinfo" onclick="switchEquipmentTab('pcinfo')">PC Info.</button>
         </div>
-        
         <div class="equipment-panel-content">
             <div id="tab-general" class="equipment-tab-content active">
-                <div id="generalTabContent">
-                    <div class="info-row placeholder">
-                        <span class="info-label">설비를 선택해주세요</span>
-                    </div>
-                </div>
+                <div id="generalTabContent"><div class="info-row placeholder"><span class="info-label">설비를 선택해주세요</span></div></div>
             </div>
             <div id="tab-pcinfo" class="equipment-tab-content">
-                <div id="pcinfoTabContent">
-                    <div class="info-row placeholder">
-                        <span class="info-label">설비를 선택해주세요</span>
-                    </div>
-                </div>
+                <div id="pcinfoTabContent"><div class="info-row placeholder"><span class="info-label">설비를 선택해주세요</span></div></div>
             </div>
         </div>
     </div>
@@ -1107,652 +675,352 @@
     <footer class="status-bar">
         <div class="status-group">
             <div class="status-item"><span class="country-code">KR</span></div>
-            <div class="status-item">
-                <span class="status-dot connected" id="statusbar-internet-dot"></span>
-                <span class="status-label">NET</span>
-                <span class="status-value">Online</span>
-            </div>
-            <div class="status-item">
-                <span class="status-dot disconnected" id="backend-dot"></span>
-                <span class="status-label">API</span>
-                <span class="status-value" id="backend-value">Disconnected</span>
-            </div>
-            <div class="status-item">
-                <span class="status-dot disconnected" id="db-dot"></span>
-                <span class="status-label">DB</span>
-                <span class="status-value" id="db-value">None</span>
-            </div>
+            <div class="status-item"><span class="status-dot connected"></span><span class="status-label">NET</span><span class="status-value">Online</span></div>
+            <div class="status-item"><span class="status-dot disconnected" id="backend-dot"></span><span class="status-label">API</span><span class="status-value" id="backend-value">Disconnected</span></div>
+            <div class="status-item"><span class="status-dot disconnected" id="db-dot"></span><span class="status-label">DB</span><span class="status-value" id="db-value">None</span></div>
         </div>
         <div class="status-group">
-            <div class="status-item">
-                <span class="status-label">FPS</span>
-                <span class="status-value" id="fps-value">60</span>
-                <div class="perf-bar"><div class="perf-bar-fill good" id="fps-bar" style="width: 100%;"></div></div>
-            </div>
-            <div class="status-item">
-                <span class="status-label">MEM</span>
-                <span class="status-value"><span id="memory-value">128</span>MB</span>
-                <div class="perf-bar"><div class="perf-bar-fill good" id="memory-bar" style="width: 30%;"></div></div>
-            </div>
+            <div class="status-item"><span class="status-label">FPS</span><span class="status-value" id="fps-value">60</span><div class="perf-bar"><div class="perf-bar-fill good" style="width: 100%;"></div></div></div>
+            <div class="status-item"><span class="status-label">MEM</span><span class="status-value"><span id="memory-value">128</span>MB</span><div class="perf-bar"><div class="perf-bar-fill good" style="width: 30%;"></div></div></div>
         </div>
     </footer>
 
     <script>
-        // =============================================
         // Configuration
-        // =============================================
-        let currentMode = null;
-        let currentSubMode = null;
-        let isConnected = false;
-        let devModeEnabled = false;
-        let selectedSite = null;
-        let currentTheme = 'dark';
-        let durationTimerInterval = null;
-        let currentEquipmentData = null;
-        
-        // Three.js variables
+        let currentMode = null, currentSubMode = null, isConnected = false, devModeEnabled = false, selectedSite = null, currentTheme = 'dark';
+        let durationTimerInterval = null, currentEquipmentData = null, debugPanelVisible = false, currentDebugView = 'app-state';
         let scene, camera, renderer, equipmentMeshes = [];
+        let eventLog = [];
+        let equipmentMappings = {};
+        let selectedMappingId = null;
         
-        // Mock data
         const siteProfiles = [
-            { id: 'kr_b_01', display_name: 'Korea Site B-01', region: 'Asia/Seoul', priority: 10 },
-            { id: 'kr_b_02', display_name: 'Korea Site B-02', region: 'Asia/Seoul', priority: 8 },
-            { id: 'vn_a_01', display_name: 'Vietnam Site A-01', region: 'Asia/Ho_Chi_Minh', priority: 5 }
+            { id: 'kr_b_01', display_name: 'Korea Site B-01', region: 'Asia/Seoul' },
+            { id: 'vn_a_01', display_name: 'Vietnam Site A-01', region: 'Asia/Ho_Chi_Minh' }
         ];
-        
         let siteStatus = {};
+        
+        // Available equipment for mapping
+        const availableEquipments = [
+            { equipment_id: 1, equipment_name: 'Etcher A-01', line_name: 'Line A' },
+            { equipment_id: 2, equipment_name: 'CVD Unit B-02', line_name: 'Line B' },
+            { equipment_id: 3, equipment_name: 'Sputter C-03', line_name: 'Line C' },
+            { equipment_id: 4, equipment_name: 'Cleaner D-04', line_name: 'Line A' },
+            { equipment_id: 5, equipment_name: 'Coater E-05', line_name: 'Line B' }
+        ];
 
-        // =============================================
-        // Toast System
-        // =============================================
+        // Toast
         const toast = {
             show(type, title, message, duration = 4000) {
                 const container = document.getElementById('toast-container');
                 const toastEl = document.createElement('div');
                 toastEl.className = `toast ${type}`;
-                const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-                toastEl.innerHTML = `
-                    <span class="toast-icon">${icons[type]}</span>
-                    <div class="toast-content">
-                        <div class="toast-title">${title}</div>
-                        <div class="toast-message">${message}</div>
-                    </div>
-                    <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
-                `;
+                toastEl.innerHTML = `<span class="toast-icon">${{success:'✅',error:'❌',warning:'⚠️',info:'ℹ️'}[type]}</span><div class="toast-content"><div class="toast-title">${title}</div><div class="toast-message">${message}</div></div><button class="toast-close" onclick="this.parentElement.remove()">✕</button>`;
                 container.appendChild(toastEl);
-                setTimeout(() => {
-                    toastEl.classList.add('hiding');
-                    setTimeout(() => toastEl.remove(), 300);
-                }, duration);
+                logEvent(`toast:${type}`, title);
+                setTimeout(() => { toastEl.classList.add('hiding'); setTimeout(() => toastEl.remove(), 300); }, duration);
             },
-            success(title, message) { this.show('success', title, message); },
-            error(title, message) { this.show('error', title, message); },
-            warning(title, message) { this.show('warning', title, message); },
-            info(title, message) { this.show('info', title, message); }
+            success(t,m) { this.show('success',t,m); },
+            error(t,m) { this.show('error',t,m); },
+            warning(t,m) { this.show('warning',t,m); },
+            info(t,m) { this.show('info',t,m); }
         };
 
-        // =============================================
-        // Theme Functions
-        // =============================================
+        // Event logging for debug
+        function logEvent(name, detail = '') {
+            eventLog.unshift({ time: new Date(), name, detail });
+            if (eventLog.length > 50) eventLog.pop();
+            updateDebugEvents();
+        }
+
+        // Theme
         function toggleTheme() {
             currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', currentTheme);
             document.getElementById('theme-switch').classList.toggle('active', currentTheme === 'light');
             localStorage.setItem('theme', currentTheme);
         }
-        
         function loadTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            currentTheme = savedTheme;
+            currentTheme = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', currentTheme);
             document.getElementById('theme-switch').classList.toggle('active', currentTheme === 'light');
         }
 
-        // =============================================
-        // Three.js 3D View
-        // [v2.8] Simple cleanroom equipment visualization
-        // =============================================
+        // Three.js
         function initThreeJS() {
             const container = document.getElementById('threejs-container');
-            
-            // Scene
             scene = new THREE.Scene();
             scene.background = new THREE.Color(currentTheme === 'dark' ? 0x1e293b : 0xf1f5f9);
-            
-            // Camera
             camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
             camera.position.set(15, 15, 15);
             camera.lookAt(0, 0, 0);
-            
-            // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
             container.appendChild(renderer.domElement);
-            
-            // Lights
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
-            
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
             directionalLight.position.set(10, 20, 10);
             scene.add(directionalLight);
-            
-            // Floor (Cleanroom)
-            const floorGeometry = new THREE.PlaneGeometry(30, 30);
-            const floorMaterial = new THREE.MeshStandardMaterial({ 
-                color: currentTheme === 'dark' ? 0x334155 : 0xe2e8f0,
-                roughness: 0.8
-            });
-            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0x334155 }));
             floor.rotation.x = -Math.PI / 2;
             floor.position.y = -0.5;
             scene.add(floor);
-            
-            // Grid
-            const gridHelper = new THREE.GridHelper(30, 30, 0x06B6D4, 0x475569);
-            gridHelper.position.y = -0.49;
-            scene.add(gridHelper);
-            
-            // Create Equipment (3x3 grid)
-            const statusColors = {
-                RUN: 0x4ADE80,
-                IDLE: 0xFBBF24,
-                STOP: 0xF87171
-            };
-            
-            const equipmentData = [
-                { id: 'EQ-001', status: 'RUN', x: -6, z: -6 },
-                { id: 'EQ-002', status: 'IDLE', x: 0, z: -6 },
-                { id: 'EQ-003', status: 'STOP', x: 6, z: -6 },
-                { id: 'EQ-004', status: 'RUN', x: -6, z: 0 },
-                { id: 'EQ-005', status: 'RUN', x: 0, z: 0 },
-                { id: 'EQ-006', status: 'IDLE', x: 6, z: 0 },
-                { id: 'EQ-007', status: 'RUN', x: -6, z: 6 },
-                { id: 'EQ-008', status: 'STOP', x: 0, z: 6 },
-                { id: 'EQ-009', status: 'RUN', x: 6, z: 6 }
+            const grid = new THREE.GridHelper(30, 30, 0x06B6D4, 0x475569);
+            grid.position.y = -0.49;
+            scene.add(grid);
+            const statusColors = { RUN: 0x4ADE80, IDLE: 0xFBBF24, STOP: 0xF87171 };
+            const eqData = [
+                { id: 'EQ-001', status: 'RUN', x: -6, z: -6 }, { id: 'EQ-002', status: 'IDLE', x: 0, z: -6 }, { id: 'EQ-003', status: 'STOP', x: 6, z: -6 },
+                { id: 'EQ-004', status: 'RUN', x: -6, z: 0 }, { id: 'EQ-005', status: 'RUN', x: 0, z: 0 }, { id: 'EQ-006', status: 'IDLE', x: 6, z: 0 },
+                { id: 'EQ-007', status: 'RUN', x: -6, z: 6 }, { id: 'EQ-008', status: 'STOP', x: 0, z: 6 }, { id: 'EQ-009', status: 'RUN', x: 6, z: 6 }
             ];
-            
-            equipmentData.forEach(eq => {
-                // Equipment body
-                const geometry = new THREE.BoxGeometry(3, 2, 3);
-                const material = new THREE.MeshStandardMaterial({ 
-                    color: 0x64748b,
-                    roughness: 0.5,
-                    metalness: 0.3
-                });
-                const mesh = new THREE.Mesh(geometry, material);
+            eqData.forEach(eq => {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 3), new THREE.MeshStandardMaterial({ color: 0x64748b }));
                 mesh.position.set(eq.x, 0.5, eq.z);
                 mesh.userData = eq;
                 scene.add(mesh);
                 equipmentMeshes.push(mesh);
-                
-                // Status light (signal tower)
-                const lightGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.5, 16);
-                const lightMaterial = new THREE.MeshStandardMaterial({ 
-                    color: statusColors[eq.status],
-                    emissive: statusColors[eq.status],
-                    emissiveIntensity: 0.5
-                });
-                const light = new THREE.Mesh(lightGeometry, lightMaterial);
+                const light = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.5, 16), new THREE.MeshStandardMaterial({ color: statusColors[eq.status], emissive: statusColors[eq.status], emissiveIntensity: 0.5 }));
                 light.position.set(eq.x, 1.75, eq.z);
                 scene.add(light);
             });
-            
-            // Animation
             function animate() {
                 requestAnimationFrame(animate);
-                
-                // Rotate camera slowly
                 const time = Date.now() * 0.0001;
                 camera.position.x = Math.sin(time) * 20;
                 camera.position.z = Math.cos(time) * 20;
                 camera.lookAt(0, 0, 0);
-                
                 renderer.render(scene, camera);
             }
             animate();
-            
-            // Handle resize
-            window.addEventListener('resize', () => {
-                camera.aspect = container.clientWidth / container.clientHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(container.clientWidth, container.clientHeight);
-            });
+            window.addEventListener('resize', () => { camera.aspect = container.clientWidth / container.clientHeight; camera.updateProjectionMatrix(); renderer.setSize(container.clientWidth, container.clientHeight); });
         }
 
-        // =============================================
-        // Equipment Info Panel Functions
-        // [MIGRATE TO] src/ui/EquipmentInfoPanel.js
-        // =============================================
+        // Equipment Info Panel
         function showEquipmentInfo(data) {
             const panel = document.getElementById('equipmentInfo');
             const isMulti = Array.isArray(data) && data.length > 1;
-            
-            if (isMulti) {
-                showMultiEquipmentInfo(data);
-            } else {
-                const eq = Array.isArray(data) ? data[0] : data;
-                showSingleEquipmentInfo(eq);
-            }
-            
+            if (isMulti) showMultiEquipmentInfo(data);
+            else showSingleEquipmentInfo(Array.isArray(data) ? data[0] : data);
             panel.classList.add('active');
         }
-        
         function showSingleEquipmentInfo(eq) {
             currentEquipmentData = eq;
-            
-            // Update header
             document.getElementById('equipName').textContent = eq.equipment_name || eq.id;
             document.getElementById('equipName').classList.remove('multi-select');
-            
-            // Update status
             updateHeaderStatus(eq.status);
-            
-            // Update General tab
             const generalContent = document.getElementById('generalTabContent');
             const isLotActive = eq.is_lot_active === true;
-            
             if (isLotActive) {
                 startDurationTimer(eq.lot_start_time);
-                generalContent.innerHTML = `
-                    <div class="info-row">
-                        <span class="info-label">Line:</span>
-                        <span class="info-value">${eq.line_name || '-'}</span>
-                    </div>
-                    <div class="info-row-divider"></div>
-                    <div class="info-row">
-                        <span class="info-label">Product:</span>
-                        <span class="info-value">${eq.product_model || '-'}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Lot No.:</span>
-                        <span class="info-value">${eq.lot_id || '-'}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Lot Start:</span>
-                        <span class="info-value">${formatDateTime(eq.lot_start_time) || '-'}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Lot Duration:</span>
-                        <span class="info-value" id="durationDisplay">${formatDuration(eq.lot_start_time)}</span>
-                    </div>
-                    <div class="info-row info-row-meta">
-                        <span class="info-label">Updated:</span>
-                        <span class="info-value info-value-meta">${formatDateTime(eq.last_updated)}</span>
-                    </div>
-                `;
+                generalContent.innerHTML = `<div class="info-row"><span class="info-label">Line:</span><span class="info-value">${eq.line_name||'-'}</span></div><div class="info-row-divider"></div><div class="info-row"><span class="info-label">Product:</span><span class="info-value">${eq.product_model||'-'}</span></div><div class="info-row"><span class="info-label">Lot No.:</span><span class="info-value">${eq.lot_id||'-'}</span></div><div class="info-row"><span class="info-label">Lot Start:</span><span class="info-value">${formatDateTime(eq.lot_start_time)||'-'}</span></div><div class="info-row"><span class="info-label">Lot Duration:</span><span class="info-value" id="durationDisplay">${formatDuration(eq.lot_start_time)}</span></div>`;
             } else {
-                if (eq.since_time) {
-                    startDurationTimer(eq.since_time);
-                } else {
-                    stopDurationTimer();
-                }
-                generalContent.innerHTML = `
-                    <div class="info-row">
-                        <span class="info-label">Line:</span>
-                        <span class="info-value">${eq.line_name || '-'}</span>
-                    </div>
-                    <div class="info-row-divider"></div>
-                    <div class="info-row">
-                        <span class="info-label">Product:</span>
-                        <span class="info-value">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Lot No.:</span>
-                        <span class="info-value">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Since:</span>
-                        <span class="info-value">${eq.since_time ? formatDateTime(eq.since_time) : '-'}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Duration:</span>
-                        <span class="info-value" id="durationDisplay">${eq.since_time ? formatDuration(eq.since_time) : '-'}</span>
-                    </div>
-                `;
+                if (eq.since_time) startDurationTimer(eq.since_time); else stopDurationTimer();
+                generalContent.innerHTML = `<div class="info-row"><span class="info-label">Line:</span><span class="info-value">${eq.line_name||'-'}</span></div><div class="info-row-divider"></div><div class="info-row"><span class="info-label">Product:</span><span class="info-value">-</span></div><div class="info-row"><span class="info-label">Since:</span><span class="info-value">${eq.since_time?formatDateTime(eq.since_time):'-'}</span></div><div class="info-row"><span class="info-label">Duration:</span><span class="info-value" id="durationDisplay">${eq.since_time?formatDuration(eq.since_time):'-'}</span></div>`;
             }
-            
-            // Update PC Info tab
-            const pcinfoContent = document.getElementById('pcinfoTabContent');
-            pcinfoContent.innerHTML = `
-                <div class="info-row">
-                    <span class="info-label">PC Name:</span>
-                    <span class="info-value">${eq.pc_name || '-'}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">IP Address:</span>
-                    <span class="info-value">${eq.ip_address || '-'}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">MAC Address:</span>
-                    <span class="info-value">${eq.mac_address || '-'}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">OS Version:</span>
-                    <span class="info-value">${eq.os_version || '-'}</span>
-                </div>
-            `;
+            document.getElementById('pcinfoTabContent').innerHTML = `<div class="info-row"><span class="info-label">PC Name:</span><span class="info-value">${eq.pc_name||'-'}</span></div><div class="info-row"><span class="info-label">IP Address:</span><span class="info-value">${eq.ip_address||'-'}</span></div>`;
         }
-        
         function showMultiEquipmentInfo(dataArray) {
             stopDurationTimer();
-            
             const count = dataArray.length;
-            
-            // Update header
             document.getElementById('equipName').textContent = `${count}개 설비 선택됨`;
             document.getElementById('equipName').classList.add('multi-select');
-            
-            // Hide status
             document.getElementById('headerStatus').style.display = 'none';
-            
-            // Count statuses
             const statusCounts = { RUN: 0, IDLE: 0, STOP: 0 };
-            const lines = new Set();
-            const products = new Set();
-            
-            dataArray.forEach(eq => {
-                if (eq.status) statusCounts[eq.status]++;
-                if (eq.line_name) lines.add(eq.line_name);
-                if (eq.product_model) products.add(eq.product_model);
-            });
-            
-            // Update General tab
-            const generalContent = document.getElementById('generalTabContent');
-            generalContent.innerHTML = `
-                <div class="info-row multi-select-header">
-                    <span class="info-icon">📊</span>
-                    <span class="info-text">${count}개 설비 집계 정보</span>
-                    <span class="info-badge">${count}개 조회됨</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Line:</span>
-                    <span class="info-value">${[...lines].join(', ') || '-'}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Status:</span>
-                    <div class="status-counts">
-                        ${statusCounts.RUN > 0 ? `<span class="status-count-item run">🟢 ${statusCounts.RUN}</span>` : ''}
-                        ${statusCounts.IDLE > 0 ? `<span class="status-count-item idle">🟡 ${statusCounts.IDLE}</span>` : ''}
-                        ${statusCounts.STOP > 0 ? `<span class="status-count-item stop">🔴 ${statusCounts.STOP}</span>` : ''}
-                    </div>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Product:</span>
-                    <span class="info-value">${[...products].join(', ') || '-'}</span>
-                </div>
-            `;
-            
-            // Update PC Info tab
-            const pcinfoContent = document.getElementById('pcinfoTabContent');
-            pcinfoContent.innerHTML = `
-                <div class="info-row multi-select-header">
-                    <span class="info-icon">💻</span>
-                    <span class="info-text">${count}개 설비 PC 정보</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">선택된 설비:</span>
-                    <span class="info-value">${dataArray.map(e => e.id).join(', ')}</span>
-                </div>
-            `;
+            dataArray.forEach(eq => { if (eq.status) statusCounts[eq.status]++; });
+            document.getElementById('generalTabContent').innerHTML = `<div class="info-row multi-select-header"><span class="info-icon">📊</span><span class="info-text">${count}개 설비 집계</span><span class="info-badge">${count}개</span></div><div class="info-row"><span class="info-label">Status:</span><div class="status-counts">${statusCounts.RUN>0?`<span class="status-count-item run">🟢 ${statusCounts.RUN}</span>`:''}${statusCounts.IDLE>0?`<span class="status-count-item idle">🟡 ${statusCounts.IDLE}</span>`:''}${statusCounts.STOP>0?`<span class="status-count-item stop">🔴 ${statusCounts.STOP}</span>`:''}</div></div>`;
         }
-        
         function showUnmappedEquipment(frontendId) {
             stopDurationTimer();
-            
             document.getElementById('equipName').textContent = frontendId;
             updateHeaderStatus('DISCONNECTED');
-            
-            const generalContent = document.getElementById('generalTabContent');
-            generalContent.innerHTML = `
-                <div class="info-row unmapped-notice">
-                    <span class="info-icon">⚠️</span>
-                    <span class="info-text">DB에 연결되지 않은 설비입니다</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Frontend ID:</span>
-                    <span class="info-value">${frontendId}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Position:</span>
-                    <span class="info-value">Row 1, Col 1</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-text">Edit Mode (E키)에서 매핑해주세요</span>
-                </div>
-            `;
-            
+            document.getElementById('generalTabContent').innerHTML = `<div class="info-row unmapped-notice"><span class="info-icon">⚠️</span><span class="info-text">DB에 연결되지 않은 설비</span></div><div class="info-row"><span class="info-label">Frontend ID:</span><span class="info-value">${frontendId}</span></div>`;
             document.getElementById('equipmentInfo').classList.add('active');
         }
-        
-        function hideEquipmentInfo() {
-            document.getElementById('equipmentInfo').classList.remove('active');
-            document.getElementById('headerStatus').style.display = 'flex';
-            stopDurationTimer();
-        }
-        
+        function hideEquipmentInfo() { document.getElementById('equipmentInfo').classList.remove('active'); document.getElementById('headerStatus').style.display = 'flex'; stopDurationTimer(); }
         function switchEquipmentTab(tab) {
             document.querySelectorAll('.equipment-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
             document.querySelectorAll('.equipment-tab-content').forEach(c => c.classList.toggle('active', c.id === `tab-${tab}`));
         }
-        
         function updateHeaderStatus(status) {
             const indicator = document.getElementById('headerStatusIndicator');
             const text = document.getElementById('headerStatusText');
-            const statusEl = document.getElementById('headerStatus');
-            
-            statusEl.style.display = 'flex';
-            
+            document.getElementById('headerStatus').style.display = 'flex';
             const statusClass = (status || 'DISCONNECTED').toLowerCase();
             indicator.className = `status-indicator ${statusClass}`;
             text.className = `status-text ${statusClass}`;
             text.textContent = status || '-';
         }
-        
-        // Duration Timer
-        function startDurationTimer(baseTime) {
-            stopDurationTimer();
-            
-            function update() {
-                const el = document.getElementById('durationDisplay');
-                if (el) {
-                    el.textContent = formatDuration(baseTime);
-                }
-            }
-            
-            update();
-            durationTimerInterval = setInterval(update, 1000);
-        }
-        
-        function stopDurationTimer() {
-            if (durationTimerInterval) {
-                clearInterval(durationTimerInterval);
-                durationTimerInterval = null;
-            }
-        }
-        
-        function formatDuration(startTime) {
-            if (!startTime) return '-';
-            const start = new Date(startTime);
-            const now = new Date();
-            const diff = Math.floor((now - start) / 1000);
-            
-            const hours = Math.floor(diff / 3600);
-            const minutes = Math.floor((diff % 3600) / 60);
-            const seconds = diff % 60;
-            
-            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-        }
-        
-        function formatDateTime(dateStr) {
-            if (!dateStr) return '-';
-            const d = new Date(dateStr);
-            return d.toLocaleString('ko-KR');
-        }
+        function startDurationTimer(baseTime) { stopDurationTimer(); function update() { const el = document.getElementById('durationDisplay'); if (el) el.textContent = formatDuration(baseTime); } update(); durationTimerInterval = setInterval(update, 1000); }
+        function stopDurationTimer() { if (durationTimerInterval) { clearInterval(durationTimerInterval); durationTimerInterval = null; } }
+        function formatDuration(startTime) { if (!startTime) return '-'; const diff = Math.floor((new Date() - new Date(startTime)) / 1000); return `${String(Math.floor(diff/3600)).padStart(2,'0')}:${String(Math.floor((diff%3600)/60)).padStart(2,'0')}:${String(diff%60).padStart(2,'0')}`; }
+        function formatDateTime(dateStr) { if (!dateStr) return '-'; return new Date(dateStr).toLocaleString('ko-KR'); }
 
-        // =============================================
-        // Test Simulation Functions
-        // =============================================
+        // Test simulations
         function simulateEquipmentClick(eqId) {
             const mockData = {
-                'EQ-001': {
-                    id: 'EQ-001',
-                    equipment_name: 'Etcher A-01',
-                    status: 'RUN',
-                    line_name: 'Line A',
-                    product_model: 'PRODUCT-X100',
-                    lot_id: 'LOT-2026-001234',
-                    is_lot_active: true,
-                    lot_start_time: new Date(Date.now() - 3600000).toISOString(),
-                    last_updated: new Date().toISOString(),
-                    pc_name: 'ETCHER-A01-PC',
-                    ip_address: '192.168.1.101',
-                    mac_address: 'AA:BB:CC:DD:EE:01',
-                    os_version: 'Windows 10 IoT'
-                },
-                'EQ-002': {
-                    id: 'EQ-002',
-                    equipment_name: 'CVD Unit B-02',
-                    status: 'IDLE',
-                    line_name: 'Line B',
-                    is_lot_active: false,
-                    since_time: new Date(Date.now() - 1800000).toISOString(),
-                    pc_name: 'CVD-B02-PC',
-                    ip_address: '192.168.1.102',
-                    mac_address: 'AA:BB:CC:DD:EE:02',
-                    os_version: 'Windows 10 IoT'
-                },
-                'EQ-003': {
-                    id: 'EQ-003',
-                    equipment_name: 'Sputter C-03',
-                    status: 'STOP',
-                    line_name: 'Line C',
-                    is_lot_active: false,
-                    since_time: new Date(Date.now() - 7200000).toISOString(),
-                    pc_name: 'SPUTTER-C03-PC',
-                    ip_address: '192.168.1.103',
-                    mac_address: 'AA:BB:CC:DD:EE:03',
-                    os_version: 'Windows 10 IoT'
-                }
+                'EQ-001': { id: 'EQ-001', equipment_name: 'Etcher A-01', status: 'RUN', line_name: 'Line A', product_model: 'PRODUCT-X100', lot_id: 'LOT-2026-001234', is_lot_active: true, lot_start_time: new Date(Date.now()-3600000).toISOString(), pc_name: 'ETCHER-A01-PC', ip_address: '192.168.1.101' },
+                'EQ-002': { id: 'EQ-002', equipment_name: 'CVD Unit B-02', status: 'IDLE', line_name: 'Line B', is_lot_active: false, since_time: new Date(Date.now()-1800000).toISOString(), pc_name: 'CVD-B02-PC', ip_address: '192.168.1.102' },
+                'EQ-003': { id: 'EQ-003', equipment_name: 'Sputter C-03', status: 'STOP', line_name: 'Line C', is_lot_active: false, since_time: new Date(Date.now()-7200000).toISOString(), pc_name: 'SPUTTER-C03-PC', ip_address: '192.168.1.103' }
             };
-            
             showEquipmentInfo(mockData[eqId]);
+            logEvent('equipment:click', eqId);
             toast.info('Equipment Selected', `Clicked on ${eqId}`);
         }
-        
-        function simulateMultiSelect() {
-            const mockData = [
-                { id: 'EQ-001', status: 'RUN', line_name: 'Line A', product_model: 'PRODUCT-X100' },
-                { id: 'EQ-002', status: 'IDLE', line_name: 'Line B', product_model: 'PRODUCT-Y200' },
-                { id: 'EQ-003', status: 'STOP', line_name: 'Line A', product_model: 'PRODUCT-X100' }
-            ];
+        function simulateMultiSelect() { showEquipmentInfo([{ id: 'EQ-001', status: 'RUN' },{ id: 'EQ-002', status: 'IDLE' },{ id: 'EQ-003', status: 'STOP' }]); logEvent('equipment:multi-select', '3 items'); }
+        function simulateUnmapped() { showUnmappedEquipment('UNMAPPED-EQ-099'); logEvent('equipment:unmapped', 'UNMAPPED-EQ-099'); }
+
+        // Equipment Edit Modal
+        function openEquipmentEditModal() {
+            renderEquipmentList();
+            document.getElementById('equipment-edit-modal').classList.add('active');
+            logEvent('modal:equipment-edit', 'opened');
+        }
+        function closeEquipmentEditModal() { document.getElementById('equipment-edit-modal').classList.remove('active'); }
+        function renderEquipmentList(filter = '') {
+            const list = document.getElementById('equipment-list');
+            const filtered = filter ? availableEquipments.filter(e => e.equipment_name.toLowerCase().includes(filter.toLowerCase())) : availableEquipments;
+            list.innerHTML = filtered.map(eq => {
+                const isAssigned = Object.values(equipmentMappings).includes(eq.equipment_id);
+                return `<div class="equip-edit__item ${selectedMappingId === eq.equipment_id ? 'equip-edit__item--selected' : ''} ${isAssigned ? 'equip-edit__item--assigned' : ''}" onclick="selectEquipmentForMapping(${eq.equipment_id}, '${eq.equipment_name}', '${eq.line_name}')"><div class="equip-edit__item-content"><div class="equip-edit__item-header"><span class="equip-edit__item-name">${eq.equipment_name}</span>${isAssigned ? '<span class="equip-edit__item-badge equip-edit__item-badge--assigned">Assigned</span>' : ''}</div><div class="equip-edit__item-details"><span>ID: ${eq.equipment_id}</span><span>Line: ${eq.line_name}</span></div></div><button class="equip-edit__item-select-btn equip-edit__item-select-btn--primary" ${isAssigned?'disabled':''}>Select</button></div>`;
+            }).join('');
+            document.getElementById('mapping-progress').textContent = `${Object.keys(equipmentMappings).length} / 9 Mapped`;
+        }
+        function selectEquipmentForMapping(id, name, line) { selectedMappingId = id; document.getElementById('confirm-mapping-btn').disabled = false; document.getElementById('confirm-mapping-btn').textContent = `Confirm: ${name}`; renderEquipmentList(document.getElementById('equipment-search').value); }
+        function confirmMapping() { if (selectedMappingId) { equipmentMappings['EQ-001'] = selectedMappingId; toast.success('Mapped', 'Equipment mapping confirmed'); closeEquipmentEditModal(); logEvent('mapping:confirmed', selectedMappingId); } }
+        function clearEquipmentSearch() { document.getElementById('equipment-search').value = ''; renderEquipmentList(); }
+        function validateMappings() { toast.info('Validating', 'Checking all mappings...'); logEvent('mapping:validate', ''); }
+        function syncFromServer() { toast.info('Syncing', 'Loading mappings from server...'); logEvent('mapping:sync', ''); }
+        function saveToServer() { toast.success('Saved', `${Object.keys(equipmentMappings).length} mappings saved`); logEvent('mapping:save', ''); }
+        document.getElementById('equipment-search')?.addEventListener('input', (e) => renderEquipmentList(e.target.value));
+
+        // Debug Panel
+        function toggleDebugPanel() { debugPanelVisible = !debugPanelVisible; document.getElementById('debug-panel').classList.toggle('active', debugPanelVisible); if (debugPanelVisible) updateDebugPanel(); }
+        function setDebugView(view) { currentDebugView = view; logEvent('debug:view-change', view); toast.info('Debug View', `Switched to ${view}`); }
+        function updateDebugPanel() {
+            document.getElementById('debug-mode').textContent = currentMode || 'N/A';
+            document.getElementById('debug-connected').textContent = isConnected ? 'YES' : 'NO';
+            document.getElementById('debug-connected').className = `debug-state-value ${isConnected ? 'on' : 'off'}`;
+            document.getElementById('debug-devmode').textContent = devModeEnabled ? 'ON' : 'OFF';
+            document.getElementById('debug-devmode').className = `debug-state-value ${devModeEnabled ? 'on' : 'off'}`;
+            document.getElementById('debug-time').textContent = new Date().toLocaleTimeString();
+            if (performance.memory) { document.getElementById('debug-memory').textContent = `${(performance.memory.usedJSHeapSize/1024/1024).toFixed(1)} MB`; }
+        }
+        function updateDebugEvents() {
+            const el = document.getElementById('debug-events');
+            if (!el) return;
+            if (eventLog.length === 0) { el.innerHTML = '<div class="debug-event-item"><span class="debug-event-time">-</span> <span class="debug-event-name">No events</span></div>'; return; }
+            el.innerHTML = eventLog.slice(0, 10).map(e => `<div class="debug-event-item"><span class="debug-event-time">${e.time.toLocaleTimeString()}</span> <span class="debug-event-name">${e.name}</span></div>`).join('');
+        }
+        function executeDebugCommand() {
+            const input = document.getElementById('debug-command-input');
+            const output = document.getElementById('debug-output');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            let result = '';
+            if (cmd === 'help') result = 'Commands: help, clear, status, events, mode [name]';
+            else if (cmd === 'clear') { output.innerHTML = ''; input.value = ''; return; }
+            else if (cmd === 'status') result = `Connected: ${isConnected}, Mode: ${currentMode}, DevMode: ${devModeEnabled}`;
+            else if (cmd === 'events') result = `${eventLog.length} events logged`;
+            else if (cmd.startsWith('mode ')) { setMode(cmd.split(' ')[1]); result = `Mode set to ${cmd.split(' ')[1]}`; }
+            else result = `Unknown command: ${cmd}`;
+            output.innerHTML = `<span style="color:#888">&gt; ${cmd}</span>\n<span style="color:#0f0">${result}</span>`;
+            input.value = '';
+            logEvent('debug:command', cmd);
+        }
+        document.getElementById('debug-command-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') executeDebugCommand(); });
+
+        // [v2.9] Dev Mode with Mock Test capability
+        function toggleDevMode() {
+            devModeEnabled = !devModeEnabled;
+            const layoutWrapper = document.getElementById('btn-layout-wrapper');
+            const debugWrapper = document.getElementById('btn-debug-wrapper');
+            const label = document.getElementById('dev-mode-label');
+            const mockSection = document.getElementById('mock-test-section');
+            const badge = document.getElementById('dev-mode-badge');
             
-            showEquipmentInfo(mockData);
-            toast.info('Multi-Select', '3 equipment selected');
-        }
-        
-        function simulateUnmapped() {
-            showUnmappedEquipment('UNMAPPED-EQ-099');
-            toast.warning('Unmapped Equipment', 'This equipment is not mapped to DB');
-        }
-        
-        function simulateRealtimeUpdate() {
-            if (!currentEquipmentData) {
-                toast.warning('No Equipment', 'Please select an equipment first');
-                return;
+            if (devModeEnabled) {
+                layoutWrapper.classList.remove('hidden');
+                if (isConnected) {
+                    layoutWrapper.classList.remove('disabled');
+                    document.getElementById('btn-layout').classList.remove('disabled');
+                }
+                // [v2.9] Enable Debug even without connection in Dev Mode
+                debugWrapper.classList.remove('disabled');
+                document.getElementById('btn-debug').classList.remove('disabled');
+                
+                label.textContent = 'Dev Mode: ON';
+                mockSection.style.display = 'block';
+                badge.classList.add('active');
+                toast.warning('Dev Mode ON', 'Mock testing enabled without backend');
+                logEvent('devmode:on', '');
+            } else {
+                layoutWrapper.classList.add('hidden');
+                if (!isConnected) {
+                    debugWrapper.classList.add('disabled');
+                    document.getElementById('btn-debug').classList.add('disabled');
+                }
+                label.textContent = 'Dev Mode: OFF';
+                mockSection.style.display = 'none';
+                badge.classList.remove('active');
+                toast.info('Dev Mode OFF', 'Normal operation mode');
+                logEvent('devmode:off', '');
             }
-            
-            // Simulate status change
-            const newStatuses = ['RUN', 'IDLE', 'STOP'];
-            const currentIdx = newStatuses.indexOf(currentEquipmentData.status);
-            const newStatus = newStatuses[(currentIdx + 1) % 3];
-            
-            currentEquipmentData.status = newStatus;
-            currentEquipmentData.last_updated = new Date().toISOString();
-            
-            updateHeaderStatus(newStatus);
-            toast.success('Realtime Update', `Status changed to ${newStatus}`);
+            updateDebugPanel();
         }
 
-        // =============================================
-        // Connection Modal & Site Functions
-        // =============================================
-        function openConnectionModal() {
-            document.getElementById('connection-modal').classList.add('active');
-            refreshAPIStatus();
+        // [v2.9] Mock Test Loader
+        function loadMockTest(testName) {
+            logEvent('mock:load', testName);
+            toast.info('Mock Test', `Loading: ${testName}`);
+            
+            // Simulate loading mock test
+            switch(testName) {
+                case 'equipment-status':
+                    simulateEquipmentClick('EQ-001');
+                    break;
+                case 'realtime-update':
+                    if (currentEquipmentData) {
+                        currentEquipmentData.status = currentEquipmentData.status === 'RUN' ? 'IDLE' : 'RUN';
+                        updateHeaderStatus(currentEquipmentData.status);
+                        toast.success('Realtime Update', `Status: ${currentEquipmentData.status}`);
+                    } else {
+                        toast.warning('No Equipment', 'Select equipment first');
+                    }
+                    break;
+                case 'multi-site':
+                    simulateMultiSelect();
+                    break;
+            }
         }
-        
-        function closeConnectionModal() {
-            document.getElementById('connection-modal').classList.remove('active');
-        }
-        
+
+        // Connection Modal
+        function openConnectionModal() { document.getElementById('connection-modal').classList.add('active'); refreshAPIStatus(); logEvent('modal:connection', 'opened'); }
+        function closeConnectionModal() { document.getElementById('connection-modal').classList.remove('active'); }
         function refreshAPIStatus() {
             const dot = document.getElementById('api-status-dot');
             const text = document.getElementById('api-status-text');
-            
             dot.className = 'status-dot status-dot--checking';
             text.textContent = 'Checking...';
-            
-            setTimeout(() => {
-                dot.className = 'status-dot status-dot--connected';
-                text.textContent = 'Connected';
-                text.className = 'status-text run';
-                document.getElementById('response-time').textContent = `${Math.floor(Math.random() * 50 + 20)}ms`;
-            }, 1000);
+            setTimeout(() => { dot.className = 'status-dot status-dot--connected'; text.textContent = 'Connected'; text.className = 'status-text run'; }, 1000);
         }
-        
         function renderSiteList() {
-            const siteList = document.getElementById('site-list');
-            siteList.innerHTML = siteProfiles.map(profile => {
-                const isSelected = selectedSite === profile.id;
-                const status = siteStatus[profile.id] || {};
-                const isConnectedSite = status.status === 'connected';
-                
-                return `
-                    <div class="site-item ${isSelected ? 'site-item--selected' : ''} ${isConnectedSite ? 'site-item--connected' : ''}" onclick="toggleSiteSelection('${profile.id}')">
-                        <div class="site-checkbox"><input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleSiteSelection('${profile.id}')"></div>
-                        <div class="site-info">
-                            <div class="site-main">
-                                <span class="site-name">${profile.display_name}</span>
-                                <span class="site-region">${profile.region}</span>
-                            </div>
-                        </div>
-                        <div class="site-status">
-                            ${isConnectedSite ? '<span>✅</span><button class="btn-disconnect" onclick="event.stopPropagation(); disconnectFromSite(\''+profile.id+'\')">Disconnect</button>' : '<span>⚪</span>'}
-                        </div>
-                    </div>
-                `;
+            document.getElementById('site-list').innerHTML = siteProfiles.map(p => {
+                const isSelected = selectedSite === p.id;
+                const status = siteStatus[p.id] || {};
+                const isConn = status.status === 'connected';
+                return `<div class="site-item ${isSelected?'site-item--selected':''} ${isConn?'site-item--connected':''}" onclick="toggleSiteSelection('${p.id}')"><div class="site-checkbox"><input type="checkbox" ${isSelected?'checked':''} onclick="event.stopPropagation();toggleSiteSelection('${p.id}')"></div><div class="site-info"><div class="site-main"><span class="site-name">${p.display_name}</span><span class="site-region">${p.region}</span></div></div><div class="site-status">${isConn?'<span>✅</span><button class="btn-disconnect" onclick="event.stopPropagation();disconnectFromSite(\''+p.id+'\')">Disconnect</button>':'<span>⚪</span>'}</div></div>`;
             }).join('');
-            updateSelectionUI();
-        }
-        
-        function toggleSiteSelection(siteId) {
-            selectedSite = selectedSite === siteId ? null : siteId;
-            renderSiteList();
-        }
-        
-        function selectAllSites() {
-            if (siteProfiles.length > 0) selectedSite = siteProfiles[0].id;
-            renderSiteList();
-        }
-        
-        function deselectAllSites() {
-            selectedSite = null;
-            renderSiteList();
-        }
-        
-        function updateSelectionUI() {
             document.getElementById('selection-count').textContent = `Selected: ${selectedSite ? 1 : 0}`;
             document.getElementById('connect-btn').disabled = !selectedSite;
         }
-        
+        function toggleSiteSelection(id) { selectedSite = selectedSite === id ? null : id; renderSiteList(); }
         function connectToSelectedSite() {
             if (!selectedSite) return;
             const btn = document.getElementById('connect-btn');
             btn.disabled = true;
             btn.textContent = '⏳ Connecting...';
-            
             setTimeout(() => {
                 siteStatus[selectedSite] = { status: 'connected' };
                 isConnected = true;
@@ -1760,14 +1028,12 @@
                 enableSidebarIcons();
                 updateStatusBar(selectedSite);
                 btn.textContent = '🔌 Connect';
-                
-                const site = siteProfiles.find(s => s.id === selectedSite);
-                toast.success('Connected', `Successfully connected to ${site.display_name}`);
+                toast.success('Connected', `Connected to ${siteProfiles.find(s=>s.id===selectedSite).display_name}`);
+                logEvent('connection:connected', selectedSite);
             }, 1500);
         }
-        
-        function disconnectFromSite(siteId) {
-            siteStatus[siteId] = { status: 'disconnected' };
+        function disconnectFromSite(id) {
+            siteStatus[id] = { status: 'disconnected' };
             isConnected = false;
             selectedSite = null;
             renderSiteList();
@@ -1778,33 +1044,30 @@
             document.getElementById('current-mode').textContent = '—';
             document.getElementById('current-submode').textContent = '';
             document.getElementById('test-controls').style.display = 'none';
-            
-            // Clear submenu active states
-            document.querySelectorAll('#monitoring-submenu .submenu-item').forEach(item => item.classList.remove('active'));
-            
+            document.querySelectorAll('.submenu-item').forEach(item => item.classList.remove('active'));
             toast.info('Disconnected', 'Database connection closed');
+            logEvent('connection:disconnected', id);
         }
-        
-        function refreshDatabaseInfo() {
-            toast.success('Refreshed', 'Database information updated');
-        }
-        
         function enableSidebarIcons() {
-            ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-debug'].forEach(id => {
-                document.getElementById(id).classList.remove('disabled');
-            });
+            ['btn-monitoring', 'btn-analysis', 'btn-simulation'].forEach(id => document.getElementById(id).classList.remove('disabled'));
             document.getElementById('btn-monitoring-wrapper').classList.remove('disabled');
-            if (devModeEnabled) document.getElementById('btn-layout').classList.remove('disabled');
+            document.getElementById('btn-debug-wrapper').classList.remove('disabled');
+            document.getElementById('btn-debug').classList.remove('disabled');
+            if (devModeEnabled) {
+                document.getElementById('btn-layout-wrapper').classList.remove('disabled');
+                document.getElementById('btn-layout').classList.remove('disabled');
+            }
         }
-        
         function disableSidebarIcons() {
-            ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-debug', 'btn-layout'].forEach(id => {
-                document.getElementById(id).classList.add('disabled');
-            });
+            ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-layout'].forEach(id => document.getElementById(id).classList.add('disabled'));
             document.getElementById('btn-monitoring-wrapper').classList.add('disabled');
+            document.getElementById('btn-layout-wrapper').classList.add('disabled');
+            if (!devModeEnabled) {
+                document.getElementById('btn-debug-wrapper').classList.add('disabled');
+                document.getElementById('btn-debug').classList.add('disabled');
+            }
             document.querySelectorAll('.icon-btn').forEach(btn => btn.classList.remove('selected'));
         }
-        
         function updateStatusBar(siteId) {
             document.getElementById('backend-dot').className = `status-dot ${siteId ? 'connected' : 'disconnected'}`;
             document.getElementById('backend-value').textContent = siteId ? 'Connected' : 'Disconnected';
@@ -1812,57 +1075,29 @@
             document.getElementById('db-value').textContent = siteId ? siteId.replace(/_/g, '-') : 'None';
         }
 
-        // =============================================
-        // Mode & Submenu Functions
-        // =============================================
+        // Mode & Submenu
         function setMode(mode) {
             currentMode = mode;
             currentSubMode = null;
             document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
             document.getElementById('current-submode').textContent = '';
-            
-            // Hide test controls unless in monitoring mode
             document.getElementById('test-controls').style.display = mode === 'monitoring' ? 'block' : 'none';
-            
-            // Clear submenu active states
             document.querySelectorAll('.submenu-item').forEach(item => item.classList.remove('active'));
+            logEvent('mode:change', mode);
         }
-
         function setSubMode(mode, submode) {
             currentMode = mode;
             currentSubMode = submode;
-            
             document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
             if (mode === 'monitoring') document.getElementById('btn-monitoring').classList.add('selected');
-            
-            // [v2.8] Only add .active to the clicked submenu item
-            document.querySelectorAll(`#${mode}-submenu .submenu-item`).forEach(item => {
-                item.classList.toggle('active', item.dataset.submode === submode);
-            });
-            
+            if (mode === 'layout') document.getElementById('btn-layout').classList.add('selected');
+            document.querySelectorAll(`#${mode}-submenu .submenu-item`).forEach(item => item.classList.toggle('active', item.dataset.submode === submode));
             document.getElementById('current-mode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
-            document.getElementById('current-submode').textContent = `→ ${submode === '3d-view' ? '3D View' : submode}`;
-            
-            // Show test controls in monitoring mode
+            const labels = { '3d-view': '3D View', 'layout-editor': 'Layout Editor', 'mapping': 'Mapping' };
+            document.getElementById('current-submode').textContent = `→ ${labels[submode] || submode}`;
             document.getElementById('test-controls').style.display = mode === 'monitoring' ? 'block' : 'none';
-            
+            logEvent('submode:change', `${mode}/${submode}`);
             toast.info('Mode Changed', `${mode} → ${submode}`);
-        }
-        
-        function toggleDevMode() {
-            devModeEnabled = !devModeEnabled;
-            const layoutBtn = document.getElementById('btn-layout');
-            const label = document.getElementById('dev-mode-label');
-            if (devModeEnabled) {
-                layoutBtn.classList.remove('hidden');
-                if (isConnected) layoutBtn.classList.remove('disabled');
-                label.textContent = 'Dev Mode: ON';
-                toast.info('Dev Mode', 'Developer mode enabled');
-            } else {
-                layoutBtn.classList.add('hidden');
-                label.textContent = 'Dev Mode: OFF';
-                toast.info('Dev Mode', 'Developer mode disabled');
-            }
         }
 
         function setupSidebarEvents() {
@@ -1870,65 +1105,66 @@
                 btn.addEventListener('click', function() {
                     if (this.classList.contains('disabled')) return;
                     if (this.id === 'btn-connection') { openConnectionModal(); return; }
-                    if (this.id === 'btn-settings') return;
+                    if (this.id === 'btn-settings' || this.id === 'btn-debug') return;
                     if (this.closest('.has-submenu')) return;
-                    
                     document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
                     this.classList.add('selected');
                     setMode(this.dataset.mode);
                 });
             });
-            
             document.getElementById('btn-monitoring').addEventListener('click', function() {
                 if (this.classList.contains('disabled')) return;
                 document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
                 this.classList.add('selected');
                 setMode('monitoring');
             });
+            document.getElementById('btn-layout').addEventListener('click', function() {
+                if (this.classList.contains('disabled')) return;
+                document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
+                this.classList.add('selected');
+                setMode('layout');
+            });
         }
 
-        // =============================================
-        // Initialize
-        // =============================================
+        // Init
         function init() {
             loadTheme();
             siteProfiles.forEach(site => { siteStatus[site.id] = { status: 'disconnected' }; });
             renderSiteList();
             setupSidebarEvents();
             initThreeJS();
-            
-            // Performance simulation
             setInterval(() => {
-                const fps = 58 + Math.floor(Math.random() * 5);
-                document.getElementById('fps-value').textContent = fps;
-                document.getElementById('fps-bar').style.width = `${(fps / 60) * 100}%`;
-                const mem = 128 + Math.floor((Math.random() - 0.5) * 20);
-                document.getElementById('memory-value').textContent = mem;
+                document.getElementById('fps-value').textContent = 58 + Math.floor(Math.random() * 5);
+                document.getElementById('memory-value').textContent = 128 + Math.floor((Math.random() - 0.5) * 20);
+                if (debugPanelVisible) updateDebugPanel();
             }, 2000);
+            logEvent('app:init', 'v2.9');
         }
 
-        // Keyboard Shortcuts
+        // Keyboard
         document.addEventListener('keydown', (e) => {
             if (e.target.matches('input, textarea')) return;
             const key = e.key.toLowerCase();
             if ((e.ctrlKey || e.metaKey) && key === 'k') { e.preventDefault(); document.getElementById('connection-modal').classList.toggle('active'); return; }
             if (key === 'escape') {
                 document.getElementById('connection-modal').classList.remove('active');
+                document.getElementById('equipment-edit-modal').classList.remove('active');
                 hideEquipmentInfo();
+                if (debugPanelVisible) toggleDebugPanel();
                 return;
             }
-            if (!isConnected) return;
+            if (!isConnected && !devModeEnabled) return;
             switch(key) {
                 case 'm': if (!document.getElementById('btn-monitoring').classList.contains('disabled')) document.getElementById('btn-monitoring').click(); break;
                 case 'a': if (!document.getElementById('btn-analysis').classList.contains('disabled')) document.getElementById('btn-analysis').click(); break;
                 case 's': if (!e.ctrlKey && !document.getElementById('btn-simulation').classList.contains('disabled')) document.getElementById('btn-simulation').click(); break;
-                case 'd': if (!document.getElementById('btn-debug').classList.contains('disabled')) document.getElementById('btn-debug').click(); break;
+                case 'd': toggleDebugPanel(); break;
             }
         });
 
         document.addEventListener('DOMContentLoaded', init);
-        console.log('🧪 Sidebar Test v2.8 Loaded');
-        console.log('Features: Three.js 3D View, Equipment Info Panel, Test Controls');
+        console.log('🧪 Sidebar Test v2.9 Loaded');
+        console.log('Features: Layout Editor Submenu, Debug Submenu, Dev Mode Mock Testing');
     </script>
 
 </body>
