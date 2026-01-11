@@ -5,20 +5,17 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 1.4.0
+ * @version 1.5.0
  * @created 2026-01-11
  * @updated 2026-01-11
  * 
  * @changelog
+ * - v1.5.0: 🔧 버튼/서브메뉴 컴포넌트 분리 (Phase 4 리팩토링)
+ *           - SidebarButtonFactory.js로 버튼 생성 함수 분리
+ *           - SidebarSubmenuFactory.js로 서브메뉴 생성 함수 분리
+ *           - 약 150줄 감소
  * - v1.4.0: 🔧 Connection Modal 분리 (Phase 3 리팩토링)
- *           - ConnectionModalManager.js로 Modal 코드 분리
- *           - 약 440줄 감소
- *           - Sidebar는 Modal 컨트롤만 담당
  * - v1.3.0: 🔧 상수/설정 분리 (Phase 2 리팩토링)
- *           - SIDEBAR_BUTTONS → SidebarConfig.js
- *           - SUBMENUS → SidebarConfig.js
- *           - SITE_LIST → SidebarConfig.js
- *           - MODE_MAP → SidebarConfig.js
  * - v1.2.0: 🔧 Connection Modal v2.9 Full Version 복원
  * - v1.1.0: Connection Modal 동적 생성 추가
  * - v1.0.0: 초기 버전
@@ -27,7 +24,7 @@
  * - 기존 floating-btn 시스템 대체
  * - AppModeManager와 연동하여 모드 전환
  * - ConnectionStatusService와 연동하여 상태 관리
- * - ConnectionModalManager를 통한 연결 관리
+ * - 모듈화된 Factory 함수 사용
  * 
  * 의존성:
  * - AppModeManager (core/managers)
@@ -35,14 +32,16 @@
  * - ConnectionStatusService (services)
  * - IconRegistry (ui/sidebar)
  * - SidebarConfig (ui/sidebar)
- * - ConnectionModalManager (ui/sidebar) 🆕 v1.4.0
+ * - ConnectionModalManager (ui/sidebar)
+ * - SidebarButtonFactory (ui/sidebar) 🆕 v1.5.0
+ * - SidebarSubmenuFactory (ui/sidebar) 🆕 v1.5.0
  * 
  * 위치: frontend/threejs_viewer/src/ui/sidebar/Sidebar.js
  */
 
 import { ICONS, getIcon } from './IconRegistry.js';
 
-// 🆕 v1.3.0: 상수/설정 import
+// 상수/설정 import
 import { 
     SIDEBAR_BUTTONS, 
     SUBMENUS, 
@@ -51,8 +50,30 @@ import {
     getSiteById 
 } from './SidebarConfig.js';
 
-// 🆕 v1.4.0: Connection Modal Manager import
+// Connection Modal Manager import
 import { ConnectionModalManager } from './ConnectionModalManager.js';
+
+// 🆕 v1.5.0: Factory 함수 import
+import {
+    createButton,
+    createButtonWithSubmenu,
+    createDivider,
+    createSpacer,
+    createDevModeBadge,
+    createBottomPadding,
+    calculateButtonState,
+    applyButtonState,
+    setButtonSelected
+} from './SidebarButtonFactory.js';
+
+import {
+    createSubmenu,
+    updateSubmenuActiveState,
+    setMockTestSectionVisible,
+    updateThemeSwitchState,
+    updateDevModeLabel,
+    updateDevModeBadge
+} from './SidebarSubmenuFactory.js';
 
 // ============================================
 // Sidebar Class
@@ -91,15 +112,12 @@ export class Sidebar {
         this.currentSubMode = null;
         this.currentTheme = 'dark';
         
-        // 🆕 v1.4.0: selectedSite는 ConnectionModalManager에서 관리
-        // Sidebar는 isConnected 상태만 추적
-        
         // DOM 참조
         this.element = null;
         this.buttons = new Map();
         this.submenus = new Map();
         
-        // 🆕 v1.4.0: Connection Modal Manager
+        // Connection Modal Manager
         this.connectionModalManager = null;
         
         // 이벤트 리스너 정리용
@@ -116,13 +134,13 @@ export class Sidebar {
     _init() {
         this._loadTheme();
         this._createDOM();
-        this._createConnectionModalManager();  // 🆕 v1.4.0
+        this._createConnectionModalManager();
         this._setupEventListeners();
         this._setupAppModeListeners();
         this._setupConnectionListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v1.4.0');
+        console.log('[Sidebar] 초기화 완료 v1.5.0');
     }
     
     _loadTheme() {
@@ -131,7 +149,7 @@ export class Sidebar {
     }
     
     // ========================================
-    // DOM Creation
+    // DOM Creation (🆕 v1.5.0: Factory 함수 사용)
     // ========================================
     
     _createDOM() {
@@ -144,233 +162,98 @@ export class Sidebar {
         this.element.className = 'sidebar';
         this.element.id = 'sidebar';
         
-        // 버튼들 생성
-        this._createButton('connection');
-        this._createButtonWithSubmenu('monitoring');
-        this._createButton('analysis');
-        this._createButton('simulation');
+        // 버튼들 생성 (Factory 함수 사용)
+        this._addButton('connection');
+        this._addButtonWithSubmenu('monitoring');
+        this._addButton('analysis');
+        this._addButton('simulation');
         
         // 구분선
-        this._createDivider();
+        this.element.appendChild(createDivider());
         
         // Layout (Dev Mode용)
-        this._createButtonWithSubmenu('layout');
+        this._addButtonWithSubmenu('layout');
         
         // 스페이서
-        this._createSpacer();
+        this.element.appendChild(createSpacer());
         
         // 하단 버튼들
-        this._createButtonWithSubmenu('debug');
-        this._createButtonWithSubmenu('settings');
+        this._addButtonWithSubmenu('debug');
+        this._addButtonWithSubmenu('settings');
         
         // 하단 여백
-        const bottomPadding = document.createElement('div');
-        bottomPadding.style.height = '50px';
-        this.element.appendChild(bottomPadding);
+        this.element.appendChild(createBottomPadding());
         
         // body에 삽입 (맨 앞에)
         document.body.insertBefore(this.element, document.body.firstChild);
         
         // Dev Mode Badge 생성
-        this._createDevModeBadge();
+        createDevModeBadge();
     }
     
-    _createButton(key) {
+    /**
+     * 🆕 v1.5.0: 단일 버튼 추가 (Factory 함수 사용)
+     */
+    _addButton(key) {
         const config = SIDEBAR_BUTTONS[key];
         if (!config) return null;
         
-        const btn = document.createElement('button');
-        btn.className = 'icon-btn';
-        btn.id = config.id;
-        btn.dataset.mode = config.mode;
-        if (config.tooltip) btn.dataset.tooltip = config.tooltip;
+        const btn = createButton(
+            config,
+            getIcon,
+            (e) => this._handleButtonClick(key, e)
+        );
         
-        btn.innerHTML = getIcon(config.icon);
-        
-        // 초기 상태
-        if (config.disabled) btn.classList.add('disabled');
-        if (config.hidden) btn.classList.add('hidden');
-        
-        // 클릭 이벤트
-        btn.addEventListener('click', (e) => this._handleButtonClick(key, e));
-        
-        this.element.appendChild(btn);
-        this.buttons.set(key, btn);
+        if (btn) {
+            this.element.appendChild(btn);
+            this.buttons.set(key, btn);
+        }
         
         return btn;
     }
     
-    _createButtonWithSubmenu(key) {
+    /**
+     * 🆕 v1.5.0: 서브메뉴 포함 버튼 추가 (Factory 함수 사용)
+     */
+    _addButtonWithSubmenu(key) {
         const config = SIDEBAR_BUTTONS[key];
         if (!config || !config.hasSubmenu) {
-            return this._createButton(key);
+            return this._addButton(key);
         }
         
-        // Wrapper
-        const wrapper = document.createElement('div');
-        wrapper.className = 'has-submenu';
-        wrapper.id = `${config.id}-wrapper`;
-        if (config.tooltip) wrapper.dataset.tooltip = config.tooltip;
-        if (config.hidden) wrapper.classList.add('hidden');
-        if (config.disabled || config.requiresConnection) wrapper.classList.add('disabled');
-        
-        // Button
-        const btn = document.createElement('button');
-        btn.className = 'icon-btn';
-        btn.id = config.id;
-        btn.dataset.mode = config.mode;
-        if (config.disabled || config.requiresConnection) btn.classList.add('disabled');
-        
-        btn.innerHTML = getIcon(config.icon);
-        
-        // Submenu
-        const submenu = this._createSubmenu(config.submenuId);
-        
-        wrapper.appendChild(btn);
-        wrapper.appendChild(submenu);
-        
-        // 클릭 이벤트
-        btn.addEventListener('click', (e) => {
-            if (!btn.classList.contains('disabled')) {
-                this._handleButtonClick(key, e);
+        // 서브메뉴 생성 (컨텍스트 전달)
+        const submenu = createSubmenu(
+            { ...SUBMENUS[config.submenuId], id: config.submenuId },
+            getIcon,
+            (item) => this._handleSubmenuClick(item),
+            {
+                currentTheme: this.currentTheme,
+                onThemeToggle: () => this.toggleTheme(),
+                onMockTestSelect: (testName) => this._loadMockTest(testName)
             }
-        });
+        );
         
-        this.element.appendChild(wrapper);
-        this.buttons.set(key, btn);
-        this.submenus.set(config.submenuId, submenu);
+        // 버튼 + 래퍼 생성
+        const { wrapper, button } = createButtonWithSubmenu(
+            config,
+            getIcon,
+            submenu,
+            (e) => this._handleButtonClick(key, e)
+        );
+        
+        if (wrapper) {
+            this.element.appendChild(wrapper);
+            this.buttons.set(key, button);
+            this.submenus.set(config.submenuId, submenu);
+        }
         
         return wrapper;
     }
     
-    _createSubmenu(submenuId) {
-        const config = SUBMENUS[submenuId];
-        if (!config) return document.createElement('div');
-        
-        const submenu = document.createElement('div');
-        submenu.className = 'submenu';
-        submenu.id = submenuId;
-        
-        // Header
-        if (config.header) {
-            const header = document.createElement('div');
-            header.className = 'submenu-header';
-            header.textContent = config.header;
-            submenu.appendChild(header);
-        }
-        
-        // Items
-        config.items.forEach(item => {
-            if (item.type === 'divider') {
-                const divider = document.createElement('div');
-                divider.className = 'submenu-divider';
-                submenu.appendChild(divider);
-            } else if (item.type === 'theme-toggle') {
-                submenu.appendChild(this._createThemeToggle());
-            } else if (item.type === 'mock-tests') {
-                submenu.appendChild(this._createMockTestSection());
-            } else {
-                const menuItem = document.createElement('button');
-                menuItem.className = 'submenu-item';
-                menuItem.id = item.id;
-                if (item.disabled) menuItem.classList.add('disabled');
-                if (item.requiresDevMode) menuItem.dataset.requiresDevMode = 'true';
-                if (item.submode) menuItem.dataset.submode = item.submode;
-                
-                if (item.icon) {
-                    menuItem.innerHTML = `${getIcon(item.icon)}<span>${item.label}</span>`;
-                } else {
-                    menuItem.textContent = item.label;
-                }
-                
-                // 클릭 이벤트
-                menuItem.addEventListener('click', () => {
-                    if (menuItem.classList.contains('disabled')) return;
-                    this._handleSubmenuClick(item);
-                });
-                
-                submenu.appendChild(menuItem);
-            }
-        });
-        
-        return submenu;
-    }
-    
-    _createThemeToggle() {
-        const container = document.createElement('div');
-        container.className = 'theme-toggle-item';
-        container.innerHTML = `
-            <div class="theme-toggle-label">
-                ${getIcon('sun')}
-                <span>Theme</span>
-            </div>
-            <div class="theme-switch" id="theme-switch"></div>
-        `;
-        
-        const themeSwitch = container.querySelector('.theme-switch');
-        if (this.currentTheme === 'light') {
-            themeSwitch.classList.add('active');
-        }
-        
-        themeSwitch.addEventListener('click', () => this.toggleTheme());
-        
-        return container;
-    }
-    
-    _createMockTestSection() {
-        const section = document.createElement('div');
-        section.id = 'mock-test-section';
-        section.style.display = 'none';
-        section.innerHTML = `
-            <div class="submenu-divider"></div>
-            <div class="submenu-header">Mock Test Files</div>
-            <div class="mock-test-list">
-                <div class="mock-test-item" data-test="equipment-status">📦 Equipment Status Test</div>
-                <div class="mock-test-item" data-test="realtime-update">🔄 Realtime Update Test</div>
-                <div class="mock-test-item" data-test="multi-site">🌐 Multi-Site Test</div>
-            </div>
-        `;
-        
-        section.querySelectorAll('.mock-test-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const testName = item.dataset.test;
-                this._loadMockTest(testName);
-            });
-        });
-        
-        return section;
-    }
-    
-    _createDivider() {
-        const divider = document.createElement('div');
-        divider.className = 'sidebar-divider';
-        this.element.appendChild(divider);
-    }
-    
-    _createSpacer() {
-        const spacer = document.createElement('div');
-        spacer.className = 'sidebar-spacer';
-        this.element.appendChild(spacer);
-    }
-    
-    _createDevModeBadge() {
-        let badge = document.getElementById('dev-mode-badge');
-        if (!badge) {
-            badge = document.createElement('div');
-            badge.className = 'dev-mode-badge';
-            badge.id = 'dev-mode-badge';
-            badge.textContent = '⚡ DEV MODE';
-            document.body.appendChild(badge);
-        }
-    }
-    
     // ========================================
-    // 🆕 v1.4.0: Connection Modal Manager
+    // Connection Modal Manager
     // ========================================
     
-    /**
-     * ConnectionModalManager 생성
-     */
     _createConnectionModalManager() {
         this.connectionModalManager = new ConnectionModalManager({
             toast: this.toast,
@@ -383,78 +266,53 @@ export class Sidebar {
         });
     }
     
-    /**
-     * 사이트 연결 성공 콜백
-     */
     _onSiteConnected(siteId, siteName) {
         this.isConnected = true;
         this._updateButtonStates();
         this._updateCoverStatus(true, siteId);
         
-        // 전역 상태 동기화
         if (window.sidebarState) {
             window.sidebarState.isConnected = true;
         }
     }
     
-    /**
-     * 사이트 연결 해제 콜백
-     */
     _onSiteDisconnected(siteId) {
         this.isConnected = false;
         this._updateButtonStates();
         this._updateCoverStatus(false, null);
         
-        // Cover Screen 표시
         this.showCoverScreen();
         
-        // 모드 초기화
         this.currentMode = null;
         this.currentSubMode = null;
         this._updateButtonSelection();
         this._updateOverlayUI();
         
-        // 전역 상태 동기화
         if (window.sidebarState) {
             window.sidebarState.isConnected = false;
         }
     }
     
     // ========================================
-    // Connection Modal Public API (Delegated)
+    // Connection Modal Public API
     // ========================================
     
-    /**
-     * Connection Modal 열기
-     */
     openConnectionModal() {
         this.connectionModalManager?.open();
     }
     
-    /**
-     * Connection Modal 닫기
-     */
     closeConnectionModal() {
         this.connectionModalManager?.close();
     }
     
-    /**
-     * Connection Modal 토글
-     */
     toggleConnectionModal() {
         this.connectionModalManager?.toggle();
     }
     
-    /**
-     * Connection Modal 열림 상태 확인
-     */
     get connectionModalOpen() {
         return this.connectionModalManager?.isOpen || false;
     }
     
-    /**
-     * 선택된 사이트 반환
-     */
     get selectedSite() {
         return this.connectionModalManager?.getSelectedSite() || null;
     }
@@ -464,7 +322,6 @@ export class Sidebar {
     // ========================================
     
     _setupEventListeners() {
-        // ESC 키로 모달 닫기
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.connectionModalOpen) {
                 this.closeConnectionModal();
@@ -515,7 +372,6 @@ export class Sidebar {
         
         switch (key) {
             case 'connection':
-                // 🆕 v1.4.0: ConnectionModalManager 사용
                 this.toggleConnectionModal();
                 break;
                 
@@ -542,12 +398,8 @@ export class Sidebar {
         }
     }
     
-    /**
-     * 서브메뉴 클릭 처리
-     */
     _handleSubmenuClick(item) {
         if (item.action) {
-            // 1. callbacks에서 먼저 찾기
             const callback = this.callbacks[item.action];
             if (callback) {
                 if (item.params) {
@@ -558,13 +410,11 @@ export class Sidebar {
                 return;
             }
             
-            // 2. this 인스턴스에서 찾기 (public 메서드)
             if (typeof this[item.action] === 'function') {
                 this[item.action](...(item.params || []));
                 return;
             }
             
-            // 3. private 메서드 (_prefix)에서 찾기
             if (typeof this[`_${item.action}`] === 'function') {
                 this[`_${item.action}`](...(item.params || []));
                 return;
@@ -599,7 +449,8 @@ export class Sidebar {
             this.appModeManager.setSubMode(submode);
         }
         
-        this._updateSubmenuActiveState();
+        // 🆕 v1.5.0: Factory 함수 사용
+        updateSubmenuActiveState(this.currentSubMode);
         
         if (this.currentMode === 'monitoring' && submode === '3d-view') {
             this._show3DView();
@@ -686,21 +537,21 @@ export class Sidebar {
     }
     
     // ========================================
-    // Button State Management
+    // Button State Management (🆕 v1.5.0: Factory 함수 사용)
     // ========================================
     
     _selectButton(key) {
         this.buttons.forEach((btn, k) => {
             const config = SIDEBAR_BUTTONS[k];
             if (config?.selectable !== false) {
-                btn.classList.remove('selected');
+                setButtonSelected(btn, false);
             }
         });
         
         const btn = this.buttons.get(key);
         const config = SIDEBAR_BUTTONS[key];
         if (btn && config?.selectable !== false) {
-            btn.classList.add('selected');
+            setButtonSelected(btn, true);
         }
     }
     
@@ -710,74 +561,26 @@ export class Sidebar {
             if (config?.selectable === false) return;
             
             const isSelected = (config.mode === this.currentMode);
-            btn.classList.toggle('selected', isSelected);
+            setButtonSelected(btn, isSelected);
         });
     }
     
     _updateButtonStates() {
+        const state = {
+            isConnected: this.isConnected,
+            devModeEnabled: this.devModeEnabled
+        };
+        
         Object.entries(SIDEBAR_BUTTONS).forEach(([key, config]) => {
             const btn = this.buttons.get(key);
             const wrapper = document.getElementById(`${config.id}-wrapper`);
             
             if (!btn) return;
             
-            let shouldDisable = false;
-            let shouldHide = false;
-            
-            // 연결 또는 Dev Mode 체크
-            if (config.requiresConnection && !this.isConnected && !this.devModeEnabled) {
-                shouldDisable = true;
-            }
-            
-            if (config.requiresDevMode && !this.devModeEnabled) {
-                shouldHide = true;
-            }
-            
-            if (config.requiresDevModeOrConnection) {
-                if (!this.devModeEnabled && !this.isConnected) {
-                    shouldDisable = true;
-                }
-            }
-            
-            if (config.alwaysEnabled) {
-                shouldDisable = false;
-            }
-            
-            if (config.disabled) {
-                shouldDisable = true;
-            }
-            
-            btn.classList.toggle('disabled', shouldDisable);
-            
-            // Tooltip 업데이트
-            const tooltip = shouldDisable && !config.alwaysEnabled
-                ? `${config.tooltip} (Enable Dev Mode)`
-                : config.tooltip;
-            
-            if (wrapper) {
-                wrapper.classList.toggle('disabled', shouldDisable);
-                wrapper.classList.toggle('hidden', shouldHide);
-                wrapper.dataset.tooltip = tooltip;
-            } else {
-                btn.classList.toggle('hidden', shouldHide);
-                btn.dataset.tooltip = tooltip;
-            }
+            // 🆕 v1.5.0: Factory 함수 사용
+            const stateResult = calculateButtonState(config, state);
+            applyButtonState(btn, wrapper, stateResult);
         });
-    }
-    
-    _updateSubmenuActiveState() {
-        document.querySelectorAll('.submenu-item').forEach(item => {
-            item.classList.remove('active');
-        });
-        
-        if (this.currentSubMode) {
-            const activeItem = document.querySelector(
-                `.submenu-item[data-submode="${this.currentSubMode}"]`
-            );
-            if (activeItem) {
-                activeItem.classList.add('active');
-            }
-        }
     }
     
     // ========================================
@@ -802,7 +605,6 @@ export class Sidebar {
         this._updateButtonSelection();
         this._updateOverlayUI();
         
-        // Dev Mode가 아니면 Cover Screen 표시
         if (!this.devModeEnabled) {
             this.showCoverScreen();
         }
@@ -810,9 +612,6 @@ export class Sidebar {
         console.log('[Sidebar] Backend 연결 해제 - UI 비활성화');
     }
     
-    /**
-     * Cover Status 업데이트
-     */
     _updateCoverStatus(connected, siteId) {
         const apiDot = document.getElementById('cover-api-dot');
         const apiStatus = document.getElementById('cover-api-status');
@@ -837,17 +636,15 @@ export class Sidebar {
     }
     
     // ========================================
-    // Theme Management
+    // Theme Management (🆕 v1.5.0: Factory 함수 사용)
     // ========================================
     
     toggleTheme() {
         this.currentTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', this.currentTheme);
         
-        const themeSwitch = document.getElementById('theme-switch');
-        if (themeSwitch) {
-            themeSwitch.classList.toggle('active', this.currentTheme === 'light');
-        }
+        // 🆕 v1.5.0: Factory 함수 사용
+        updateThemeSwitchState(this.currentTheme);
         
         localStorage.setItem('theme', this.currentTheme);
         
@@ -861,51 +658,19 @@ export class Sidebar {
     }
     
     // ========================================
-    // Dev Mode
+    // Dev Mode (🆕 v1.5.0: Factory 함수 사용)
     // ========================================
     
-    /**
-     * Dev Mode 토글 (public 메서드)
-     */
     toggleDevMode() {
         this.devModeEnabled = !this.devModeEnabled;
         
-        const badge = document.getElementById('dev-mode-badge');
-        const devModeLabel = document.getElementById('dev-mode-toggle');
-        const mockTestSection = document.getElementById('mock-test-section');
-        
-        if (badge) {
-            badge.classList.toggle('active', this.devModeEnabled);
-        }
-        
-        // 레이블 업데이트
-        const labelText = `Dev Mode: ${this.devModeEnabled ? 'ON' : 'OFF'}`;
-        
-        if (devModeLabel) {
-            const labelSpan = devModeLabel.querySelector('span');
-            if (labelSpan) {
-                labelSpan.textContent = labelText;
-            } else {
-                const icon = devModeLabel.querySelector('svg');
-                if (icon) {
-                    devModeLabel.innerHTML = '';
-                    devModeLabel.appendChild(icon);
-                    const span = document.createElement('span');
-                    span.textContent = labelText;
-                    devModeLabel.appendChild(span);
-                } else {
-                    devModeLabel.textContent = labelText;
-                }
-            }
-        }
-        
-        if (mockTestSection) {
-            mockTestSection.style.display = this.devModeEnabled ? 'block' : 'none';
-        }
+        // 🆕 v1.5.0: Factory 함수 사용
+        updateDevModeBadge(this.devModeEnabled);
+        updateDevModeLabel(this.devModeEnabled);
+        setMockTestSectionVisible(this.devModeEnabled);
         
         this._updateButtonStates();
         
-        // 전역 상태 동기화
         if (window.sidebarState) {
             window.sidebarState.devModeEnabled = this.devModeEnabled;
         }
@@ -1001,7 +766,6 @@ export class Sidebar {
             this.element = null;
         }
         
-        // 🆕 v1.4.0: ConnectionModalManager 정리
         if (this.connectionModalManager) {
             this.connectionModalManager.destroy();
             this.connectionModalManager = null;
