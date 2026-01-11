@@ -1,21 +1,21 @@
 <!DOCTYPE html>
 <html lang="ko" data-theme="dark">
 <!--
- * index.html v6.0.0
+ * index.html v7.0.0
  * SHERLOCK SKY 3DSim - Cleanroom Sidebar Theme
  * 
- * @version 6.0.0
+ * @version 7.0.0
  * @created 2026-01-11
  * 
  * @changelog
- * - v6.0.0: 🔧 CSS 리팩토링 완료 (2026-01-11)
- *           - :root CSS 변수 블록 완전 삭제
- *           - _variables.css를 SSOT(Single Source of Truth)로 사용
- *           - 인라인 스타일 최소화 (외부 CSS로 이전)
- *           - 컴포넌트 스타일 외부화 완료
+ * - v7.0.0: 🔧 JS 리팩토링 완료 (2026-01-11)
+ *           - 인라인 JS 79% 삭제 (~70줄 → ~15줄)
+ *           - 7개 함수 main.js로 이전
+ *           - FOUC 방지용 최소 코드만 유지
+ *           - 전역 상태 초기화 + 테마 로드만 유지
+ * - v6.0.0: CSS 리팩토링 완료
  * - v5.3.0: ModeIndicatorPanel pill 스타일 통일
  * - v5.2.2: 기존 스타일 완전 유지
- * - v5.2.0: ModeIndicatorPanel 적용
  * 
  * 위치: frontend/threejs_viewer/index.html
  * 
@@ -28,18 +28,23 @@
  *   ├── components/_status-bar.css
  *   ├── components/_cover-screen.css
  *   ├── components/_mode-indicator.css
- *   ├── components/_overlay-ui.css (신규)
- *   ├── components/_misc.css (신규)
+ *   ├── components/_overlay-ui.css
+ *   ├── components/_misc.css
  *   ├── components/_modals.css
  *   ├── components/_toast.css
  *   ├── components/_equipment-info-panel.css
  *   └── pages/_viewer-3d.css
+ * 
+ * JS 의존성:
+ * - src/main.js (ES Module 진입점)
+ *   - 모든 전역 함수가 main.js에서 window 객체에 노출됨
+ *   - window.showToast, window.toggleTheme, window.toggleDevMode 등
 -->
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏭 Sherlock Sky 3DSim v6.0</title>
+    <title>🏭 Sherlock Sky 3DSim v7.0</title>
     
     <!-- 
         =============================================
@@ -143,10 +148,21 @@
     
     <script>
         // =============================================
-        // 전역 상태 및 유틸리티 함수
+        // ⚠️ 최소 인라인 JS (FOUC 방지용만 유지)
         // =============================================
-        // 이 스크립트는 index.html에 유지 (FOUC 방지 및 초기화)
+        // 모든 함수는 main.js로 이전됨
+        // 여기에는 main.js 로드 전 필요한 최소 코드만 유지
+        // 
+        // 🔧 v7.0.0 변경사항:
+        // - canAccessFeatures() → main.js
+        // - showToast() → main.js  
+        // - toggleConnectionModal() → main.js
+        // - closeConnectionModal() → main.js
+        // - toggleDebugPanel() → main.js
+        // - toggleDevMode() → main.js
+        // - toggleTheme() → main.js
         
+        // 1. 전역 상태 초기화 (main.js 로드 전 보장)
         window.sidebarState = window.sidebarState || {
             currentMode: null,
             currentSubMode: null,
@@ -155,89 +171,13 @@
             debugPanelVisible: false
         };
         
-        window.canAccessFeatures = function() {
-            return window.sidebarState.isConnected || window.sidebarState.devModeEnabled;
-        };
-        
-        window.showToast = function(message, type = 'info') {
-            const container = document.getElementById('toast-container');
-            if (!container) return;
-            
-            const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.innerHTML = `
-                <span class="toast-icon">${icons[type]}</span>
-                <div class="toast-content"><div class="toast-message">${message}</div></div>
-                <button class="toast-close" onclick="this.parentElement.classList.add('toast-hide'); setTimeout(() => this.parentElement.remove(), 300);">×</button>
-            `;
-            container.appendChild(toast);
-            
-            requestAnimationFrame(() => toast.classList.add('toast-show'));
-            setTimeout(() => { 
-                toast.classList.remove('toast-show');
-                toast.classList.add('toast-hide');
-                setTimeout(() => toast.remove(), 300); 
-            }, 3000);
-        };
-        
-        window.toggleConnectionModal = window.toggleConnectionModal || function() {
-            const modal = document.getElementById('connection-modal');
-            if (modal) modal.classList.toggle('active');
-        };
-        
-        window.closeConnectionModal = window.closeConnectionModal || function() {
-            const modal = document.getElementById('connection-modal');
-            if (modal) modal.classList.remove('active');
-        };
-        
-        window.toggleDebugPanel = window.toggleDebugPanel || function() {
-            if (!window.canAccessFeatures()) {
-                window.showToast('Enable Dev Mode first', 'warning');
-                return;
-            }
-            const panel = document.getElementById('debug-panel');
-            if (panel) {
-                panel.classList.toggle('active');
-                window.sidebarState.debugPanelVisible = panel.classList.contains('active');
-            }
-        };
-        
-        window.toggleDevMode = window.toggleDevMode || function() {
-            window.sidebarState.devModeEnabled = !window.sidebarState.devModeEnabled;
-            const devMode = window.sidebarState.devModeEnabled;
-            
-            const badge = document.getElementById('dev-mode-badge');
-            if (badge) badge.classList.toggle('active', devMode);
-            
-            const label = document.getElementById('dev-mode-toggle');
-            if (label) {
-                const span = label.querySelector('span') || label;
-                if (span.tagName === 'SPAN') {
-                    span.textContent = `Dev Mode: ${devMode ? 'ON' : 'OFF'}`;
-                }
-            }
-            
-            window.showToast(devMode ? '⚡ Dev Mode ON' : 'Dev Mode OFF', devMode ? 'warning' : 'info');
-        };
-        
-        window.toggleTheme = window.toggleTheme || function() {
-            const html = document.documentElement;
-            const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            
-            const themeSwitch = document.getElementById('theme-switch');
-            if (themeSwitch) themeSwitch.classList.toggle('active', newTheme === 'light');
-        };
-        
-        // FOUC 방지: 저장된 테마 즉시 적용
+        // 2. FOUC 방지: 저장된 테마 즉시 적용
         (function loadTheme() {
             const saved = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', saved);
         })();
         
-        console.log('🏭 Sherlock Sky 3DSim v6.0.0 (CSS Refactored)');
+        console.log('🏭 Sherlock Sky 3DSim v7.0.0 (JS Refactored)');
     </script>
     
     <!-- Main Application (ES Module) -->

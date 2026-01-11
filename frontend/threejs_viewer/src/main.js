@@ -4,15 +4,20 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 5.1.0
- * @description createSidebarUI() 활성화, 중복 코드 제거
+ * @version 5.2.0
+ * @description 전역 유틸리티 함수 추가 (index.html 인라인 JS 이전)
  * 
  * @changelog
- * - v5.1.0: 🔧 createSidebarUI() 활성화
- *           - Sidebar.js, StatusBar.js, CoverScreen.js 동적 렌더링
- *           - 기존 setupSidebarEvents() 제거 (중복 이벤트 해결)
- *           - index.html 인라인 스크립트와 충돌 해결
- * - v5.0.1: Settings 항상 활성화, Dev Mode 시 Connect 없이 사용 가능
+ * - v5.2.0: 🔧 전역 유틸리티 함수 추가 (2026-01-11)
+ *           - window.showToast() 추가 (HTML onclick 호환)
+ *           - window.closeConnectionModal() 추가
+ *           - window.toggleTheme() 추가
+ *           - window.canAccessFeatures() 전역 노출
+ *           - window.toggleConnectionModal() 전역 노출
+ *           - window.toggleDebugPanel() 전역 노출
+ *           - index.html 인라인 JS 79% 삭제 지원
+ * - v5.1.0: createSidebarUI() 활성화
+ * - v5.0.1: Settings 항상 활성화
  * - v5.0.0: Cleanroom Sidebar Theme 통합
  * 
  * 위치: frontend/threejs_viewer/src/main.js
@@ -102,6 +107,100 @@ window.sidebarState = window.sidebarState || {
     isConnected: false,
     devModeEnabled: false,
     debugPanelVisible: false
+};
+
+// ============================================
+// 🆕 v5.2.0: 전역 유틸리티 함수 (HTML onclick 호환)
+// ============================================
+// index.html 인라인 JS에서 이전된 함수들
+// HTML onclick 속성에서 직접 호출 가능
+
+/**
+ * Toast 알림 표시 (전역)
+ * HTML onclick에서 사용 가능: onclick="window.showToast('메시지', 'success')"
+ * 
+ * @param {string} message - 표시할 메시지
+ * @param {string} type - 알림 타입 (success, error, warning, info)
+ */
+window.showToast = function(message, type = 'info') {
+    // toast 모듈 사용 가능하면 위임
+    if (toast?.show) {
+        toast.show(message, type);
+        return;
+    }
+    
+    // 폴백: 직접 DOM 생성
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    
+    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+    const toastEl = document.createElement('div');
+    toastEl.className = `toast toast-${type}`;
+    toastEl.innerHTML = `
+        <span class="toast-icon">${icons[type]}</span>
+        <div class="toast-content"><div class="toast-message">${message}</div></div>
+        <button class="toast-close" onclick="this.parentElement.classList.add('toast-hide'); setTimeout(() => this.parentElement.remove(), 300);">×</button>
+    `;
+    container.appendChild(toastEl);
+    
+    requestAnimationFrame(() => toastEl.classList.add('toast-show'));
+    setTimeout(() => { 
+        toastEl.classList.remove('toast-show');
+        toastEl.classList.add('toast-hide');
+        setTimeout(() => toastEl.remove(), 300); 
+    }, 3000);
+};
+
+/**
+ * 테마 토글 (전역)
+ * HTML onclick에서 사용 가능: onclick="window.toggleTheme()"
+ */
+window.toggleTheme = function() {
+    const html = document.documentElement;
+    const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    
+    // Theme Switch 버튼 상태 업데이트
+    const themeSwitch = document.getElementById('theme-switch');
+    if (themeSwitch) themeSwitch.classList.toggle('active', newTheme === 'light');
+    
+    // Sidebar.js 동기화
+    if (sidebarUI?.sidebar?.setTheme) {
+        sidebarUI.sidebar.setTheme(newTheme);
+    }
+    
+    console.log(`🎨 Theme: ${newTheme}`);
+};
+
+/**
+ * Connection Modal 닫기 (전역)
+ * HTML onclick에서 사용 가능: onclick="window.closeConnectionModal()"
+ */
+window.closeConnectionModal = function() {
+    // services.ui 사용 가능하면 위임
+    if (services.ui?.connectionModal?.close) {
+        services.ui.connectionModal.close();
+    }
+    
+    // DOM 직접 조작
+    const modal = document.getElementById('connection-modal');
+    if (modal) modal.classList.remove('active');
+};
+
+/**
+ * 접근 권한 체크 (전역)
+ * HTML onclick에서 사용 가능: if (window.canAccessFeatures()) { ... }
+ * 
+ * @returns {boolean} 연결됨 또는 Dev Mode 활성화 여부
+ */
+window.canAccessFeatures = function() {
+    // Sidebar.js 인스턴스 있으면 위임
+    if (sidebarUI?.sidebar) {
+        return sidebarUI.sidebar.getIsConnected() || sidebarUI.sidebar.getDevModeEnabled();
+    }
+    // 폴백: 전역 상태 사용
+    return window.sidebarState?.isConnected || window.sidebarState?.devModeEnabled;
 };
 
 // ============================================
@@ -264,7 +363,7 @@ const viewManager = {
             
         } catch (error) {
             console.error('❌ Three.js 초기화 실패:', error);
-            toast?.show('3D View 초기화 실패', 'error');
+            window.showToast?.('3D View 초기화 실패', 'error');
         }
     },
     
@@ -314,7 +413,7 @@ function updateModeIndicator(mode, submode) {
 }
 
 // ============================================
-// 접근 권한 체크 헬퍼
+// 접근 권한 체크 헬퍼 (내부용)
 // ============================================
 
 function canAccessFeatures() {
@@ -334,7 +433,7 @@ function canAccessFeatures() {
  */
 function toggleEditMode() {
     if (!canAccessFeatures()) {
-        toast?.show('Connect DB or enable Dev Mode first', 'warning');
+        window.showToast?.('Connect DB or enable Dev Mode first', 'warning');
         return;
     }
     
@@ -356,7 +455,7 @@ function toggleEditMode() {
  */
 function toggleMonitoringMode(submode = '3d-view') {
     if (!canAccessFeatures()) {
-        toast?.show('Connect DB or enable Dev Mode first', 'warning');
+        window.showToast?.('Connect DB or enable Dev Mode first', 'warning');
         return;
     }
     
@@ -378,7 +477,7 @@ function toggleMonitoringMode(submode = '3d-view') {
     }
     
     updateModeIndicator('Monitoring', submode);
-    toast?.show(`Monitoring: ${submode}`, 'info');
+    window.showToast?.(`Monitoring: ${submode}`, 'info');
 }
 
 /**
@@ -398,12 +497,15 @@ function toggleConnectionModal() {
     }
 }
 
+// 🆕 v5.2.0: 전역 노출
+window.toggleConnectionModal = toggleConnectionModal;
+
 /**
  * Debug Panel 토글
  */
 function toggleDebugPanel() {
     if (!canAccessFeatures()) {
-        toast?.show('Connect DB or enable Dev Mode first', 'warning');
+        window.showToast?.('Connect DB or enable Dev Mode first', 'warning');
         return;
     }
     
@@ -415,6 +517,9 @@ function toggleDebugPanel() {
         window.sidebarState.debugPanelVisible = debugPanel.classList.contains('active');
     }
 }
+
+// 🆕 v5.2.0: 전역 노출
+window.toggleDebugPanel = toggleDebugPanel;
 
 /**
  * Equipment Edit Modal 열기
@@ -472,12 +577,12 @@ function toggleDevMode() {
         
         if (devModeEnabled) {
             _enableSidebarIcons();
-            toast?.show('⚡ Dev Mode ON', 'warning');
+            window.showToast?.('⚡ Dev Mode ON', 'warning');
         } else {
             if (!window.sidebarState.isConnected) {
                 _disableSidebarIcons();
             }
-            toast?.show('Dev Mode OFF', 'info');
+            window.showToast?.('Dev Mode OFF', 'info');
         }
     }
     
@@ -517,13 +622,13 @@ function toggleAdaptivePerformance() {
     
     if (!adaptivePerformance) {
         console.warn('⚠️ AdaptivePerformance가 초기화되지 않았습니다');
-        toast?.show('AdaptivePerformance 미초기화', 'warning');
+        window.showToast?.('AdaptivePerformance 미초기화', 'warning');
         return false;
     }
     
     if (!adaptivePerformance.enabled) {
         console.warn('⚠️ AdaptivePerformance가 Feature Flag로 비활성화되어 있습니다');
-        toast?.show('AdaptivePerformance Feature Flag 비활성화', 'warning');
+        window.showToast?.('AdaptivePerformance Feature Flag 비활성화', 'warning');
         return false;
     }
     
@@ -533,9 +638,9 @@ function toggleAdaptivePerformance() {
     updateButtonState('adaptiveBtn', newState);
     
     if (newState) {
-        toast?.show('✅ AdaptivePerformance ON', 'success');
+        window.showToast?.('✅ AdaptivePerformance ON', 'success');
     } else {
-        toast?.show('🛑 AdaptivePerformance OFF', 'info');
+        window.showToast?.('🛑 AdaptivePerformance OFF', 'info');
     }
     
     return newState;
@@ -618,7 +723,7 @@ function setupConnectionEvents() {
             // sidebarUI?.sidebar?.enableAfterConnection() 호출 불필요
             
             if (data.recoveredAfter > 0) {
-                toast?.show('Backend 연결 복구', 'success');
+                window.showToast?.('Backend 연결 복구', 'success');
             }
         });
         
@@ -628,7 +733,7 @@ function setupConnectionEvents() {
             // 🆕 v5.1.0: Sidebar.js가 자동으로 처리
             
             window.sidebarState.isConnected = false;
-            toast?.show('Backend 연결 끊김', 'warning');
+            window.showToast?.('Backend 연결 끊김', 'warning');
         });
     }
     
@@ -749,7 +854,7 @@ function showEquipmentRecoveryDialog(recoveryData) {
         if (services.ui?.equipmentEditState) {
             services.ui.equipmentEditState.applyAutoSaveRecovery(recoveryData);
             services.ui.equipmentEditState.clearAutoSaveRecovery(storageService);
-            toast?.show('✅ Equipment 매핑 복구 완료!', 'success');
+            window.showToast?.('✅ Equipment 매핑 복구 완료!', 'success');
         }
         dialog.remove();
     };
@@ -757,7 +862,7 @@ function showEquipmentRecoveryDialog(recoveryData) {
     document.getElementById('recovery-discard-btn').onclick = () => {
         if (services.ui?.equipmentEditState) {
             services.ui.equipmentEditState.clearAutoSaveRecovery(storageService);
-            toast?.show('AutoSave 데이터 삭제됨', 'info');
+            window.showToast?.('AutoSave 데이터 삭제됨', 'info');
         }
         dialog.remove();
     };
@@ -786,7 +891,7 @@ function initEquipmentAutoSave(equipmentEditState) {
     eventBus.on('autosave:error', (data) => {
         if (data.namespace === 'equipment') {
             console.error('[Equipment AutoSave] 저장 실패:', data.error);
-            toast?.show('⚠️ Equipment AutoSave 실패', 'warning');
+            window.showToast?.('⚠️ Equipment AutoSave 실패', 'warning');
         }
     });
     
@@ -1042,7 +1147,7 @@ function _exposeGlobalObjectsAfterSceneInit() {
 // ============================================
 
 function init() {
-    console.log('🚀 Sherlock Sky 3DSim 초기화 (v5.1.0 - Sidebar UI 컴포넌트 활성화)...');
+    console.log('🚀 Sherlock Sky 3DSim 초기화 (v5.2.0 - 전역 유틸리티 함수 추가)...');
     console.log(`📍 Site ID: ${SITE_ID}`);
     
     try {
@@ -1119,7 +1224,7 @@ function init() {
             timestamp: Date.now(),
             mode: appModeManager.getCurrentMode(),
             siteId: SITE_ID,
-            version: '5.1.0'
+            version: '5.2.0'
         });
         
         // 11. 성능 업데이트 인터벌 (StatusBar.js가 자체 처리하므로 간소화)
@@ -1130,11 +1235,20 @@ function init() {
         }, 2000);
         
         console.log('');
-        console.log('✅ 모든 초기화 완료! (v5.1.0 - Sidebar UI 컴포넌트 활성화)');
+        console.log('✅ 모든 초기화 완료! (v5.2.0 - 전역 유틸리티 함수 추가)');
         console.log('');
         console.log('📺 Cover Screen 표시 중 (CoverScreen.js)');
         console.log('🎨 Sidebar 렌더링 완료 (Sidebar.js)');
         console.log('📊 StatusBar 렌더링 완료 (StatusBar.js)');
+        console.log('');
+        console.log('🆕 전역 함수 (HTML onclick 호환):');
+        console.log('   window.showToast(message, type)');
+        console.log('   window.toggleTheme()');
+        console.log('   window.toggleDevMode()');
+        console.log('   window.toggleConnectionModal()');
+        console.log('   window.closeConnectionModal()');
+        console.log('   window.toggleDebugPanel()');
+        console.log('   window.canAccessFeatures()');
         console.log('');
         console.log('💡 키보드 단축키:');
         console.log('   Ctrl+K - Connection Modal');
