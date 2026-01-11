@@ -5,7 +5,13 @@
  * 
  * 기존: src/styles/toast.css 내용 이동
  * 작성일: 2026-01-02
- * 수정일: 2026-01-06 (테마 통일 - 라이트 테마, CSS 변수 적용)
+ * 수정일: 2026-01-11 (v1.1.0 - .hiding 클래스 추가, 하위 호환성 확보)
+ * 
+ * @version 1.1.0
+ * @changelog
+ * - v1.1.0: .hiding 클래스 추가 (index.html 폴백과 호환)
+ *           Toast 자동 사라짐 버그 수정
+ * - v1.0.0: 초기 버전
  * 
  * 구조:
  * - 라이트 배경 (#ffffff)
@@ -56,10 +62,10 @@
     transform: translateX(120%);
     pointer-events: auto;
     
-    /* 트랜지션 */
+    /* 트랜지션 - !important로 main.css 전역 규칙보다 우선 */
     transition: 
         opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 /* =============================================
@@ -70,7 +76,9 @@
     transform: translateX(0);
 }
 
-.toast.toast-hide {
+/* 🆕 v1.1.0: .toast-hide와 .hiding 모두 지원 (하위 호환) */
+.toast.toast-hide,
+.toast.hiding {
     opacity: 0;
     transform: translateX(120%);
 }
@@ -368,16 +376,17 @@
    ============================================= */
 @media (prefers-reduced-motion: reduce) {
     .toast {
-        transition: opacity 0.15s ease;
-        transform: none;
+        transition: opacity 0.15s ease !important;
+        transform: none !important;
     }
     
     .toast.toast-show {
-        transform: none;
+        transform: none !important;
     }
     
-    .toast.toast-hide {
-        transform: none;
+    .toast.toast-hide,
+    .toast.hiding {
+        transform: none !important;
     }
     
     .toast-progress-bar {

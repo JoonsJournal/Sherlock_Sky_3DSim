@@ -6,15 +6,17 @@
  * 
  * 사용법: <link rel="stylesheet" href="styles/main.css">
  * 
- * @version 2.0.0
+ * @version 2.1.0
  * @changelog
+ * - v2.1.0: Toast 전역 transition 제외 (Toast 자동 사라짐 버그 수정)
+ *           _connection-modal.css import 추가
  * - v2.0.0: Cleanroom Sidebar Theme CSS 추가 (UI Migration Phase 1)
  *           _sidebar.css, _status-bar.css, _cover-screen.css
  * - v1.1.0: Equipment Info Panel CSS import 추가 (Phase 2 - Tab UI)
  * - v1.0.0: 초기 버전 - 테마 통일, Toast 중복 스타일 제거
  * 
  * 작성일: 2026-01-02
- * 수정일: 2026-01-11 (Cleanroom Sidebar Theme 추가)
+ * 수정일: 2026-01-11 (v2.1.0 - Toast transition 버그 수정)
  */
 
 /* =============================================
@@ -41,7 +43,7 @@
 /* Phase 3: Modal 시스템 */
 @import './components/_equipment-edit-modal.css';
 @import './components/_recovery-dialog.css';
-@import './components/_connection-modal.css';  /* 🆕 추가: Light Mode 버그 수정 */
+@import './components/_connection-modal.css';  /* 🆕 v2.1.0: Light Mode 버그 수정 */
 
 /* Phase 4: Indicator 시스템 */
 @import './components/_connection-indicator.css'; 
@@ -325,6 +327,8 @@ body:has(.sidebar) .monitoring-legend {
 /* ============================================
    🆕 v2.0.0: Theme Transition Support
    테마 전환 시 부드러운 애니메이션
+   
+   🔧 v2.1.0: Toast 요소 제외 (자동 사라짐 버그 수정)
    ============================================ */
 
 html[data-theme] * {
@@ -337,5 +341,12 @@ html[data-theme] * {
 html[data-theme] canvas,
 html[data-theme] video,
 html[data-theme] iframe {
+    transition: none;
+}
+
+/* 🆕 v2.1.0: Toast 요소는 자체 transition 사용 (전역 transition 제외) */
+html[data-theme] .toast,
+html[data-theme] .toast *,
+html[data-theme] .toast-container {
     transition: none;
 }
