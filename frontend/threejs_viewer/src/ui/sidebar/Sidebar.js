@@ -5,15 +5,15 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 1.5.0
+ * @version 1.6.0
  * @created 2026-01-11
  * @updated 2026-01-11
  * 
  * @changelog
+ * - v1.6.0: 🆕 Dev Mode ↔ ConnectionModalManager Mock 모드 연동 (2026-01-11)
+ *           - toggleDevMode()에서 connectionModalManager.enableMockMode() 호출
+ *           - Dev Mode OFF 시 disableMockMode() 호출
  * - v1.5.0: 🔧 버튼/서브메뉴 컴포넌트 분리 (Phase 4 리팩토링)
- *           - SidebarButtonFactory.js로 버튼 생성 함수 분리
- *           - SidebarSubmenuFactory.js로 서브메뉴 생성 함수 분리
- *           - 약 150줄 감소
  * - v1.4.0: 🔧 Connection Modal 분리 (Phase 3 리팩토링)
  * - v1.3.0: 🔧 상수/설정 분리 (Phase 2 리팩토링)
  * - v1.2.0: 🔧 Connection Modal v2.9 Full Version 복원
@@ -33,8 +33,8 @@
  * - IconRegistry (ui/sidebar)
  * - SidebarConfig (ui/sidebar)
  * - ConnectionModalManager (ui/sidebar)
- * - SidebarButtonFactory (ui/sidebar) 🆕 v1.5.0
- * - SidebarSubmenuFactory (ui/sidebar) 🆕 v1.5.0
+ * - SidebarButtonFactory (ui/sidebar)
+ * - SidebarSubmenuFactory (ui/sidebar)
  * 
  * 위치: frontend/threejs_viewer/src/ui/sidebar/Sidebar.js
  */
@@ -140,7 +140,7 @@ export class Sidebar {
         this._setupConnectionListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v1.5.0');
+        console.log('[Sidebar] 초기화 완료 v1.6.0');
     }
     
     _loadTheme() {
@@ -658,9 +658,12 @@ export class Sidebar {
     }
     
     // ========================================
-    // Dev Mode (🆕 v1.5.0: Factory 함수 사용)
+    // Dev Mode (🆕 v1.6.0: Mock 모드 연동)
     // ========================================
     
+    /**
+     * 🆕 v1.6.0: Dev Mode 토글 + ConnectionModalManager Mock 모드 연동
+     */
     toggleDevMode() {
         this.devModeEnabled = !this.devModeEnabled;
         
@@ -668,6 +671,24 @@ export class Sidebar {
         updateDevModeBadge(this.devModeEnabled);
         updateDevModeLabel(this.devModeEnabled);
         setMockTestSectionVisible(this.devModeEnabled);
+        
+        // ============================================
+        // 🆕 v1.6.0: ConnectionModalManager Mock 모드 연동
+        // ============================================
+        if (this.connectionModalManager) {
+            if (this.devModeEnabled) {
+                // Dev Mode ON → Mock 모드 활성화
+                this.connectionModalManager.enableMockMode({
+                    responseDelay: 500  // 네트워크 시뮬레이션 지연
+                });
+                console.log('[Sidebar] 🎭 ConnectionModalManager Mock 모드 활성화');
+            } else {
+                // Dev Mode OFF → Mock 모드 비활성화 (실제 API 모드)
+                this.connectionModalManager.disableMockMode();
+                console.log('[Sidebar] 🔌 ConnectionModalManager 실제 API 모드로 전환');
+            }
+        }
+        // ============================================
         
         this._updateButtonStates();
         
@@ -677,13 +698,13 @@ export class Sidebar {
         
         if (this.toast) {
             if (this.devModeEnabled) {
-                this.toast.warning('Dev Mode ON', 'All features enabled without backend');
+                this.toast.warning('Dev Mode ON', 'All features enabled without backend (Mock mode)');
             } else {
-                this.toast.info('Dev Mode OFF', '');
+                this.toast.info('Dev Mode OFF', 'Switched to real API mode');
             }
         }
         
-        console.log(`⚡ Dev Mode: ${this.devModeEnabled ? 'ON' : 'OFF'}`);
+        console.log(`⚡ Dev Mode: ${this.devModeEnabled ? 'ON (Mock)' : 'OFF (Real)'}`);
     }
     
     _loadMockTest(testName) {
