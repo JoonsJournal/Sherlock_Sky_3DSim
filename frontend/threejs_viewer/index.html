@@ -1,88 +1,65 @@
 <!DOCTYPE html>
 <html lang="ko" data-theme="dark">
 <!--
- * index.html v5.3.0
+ * index.html v6.0.0
  * SHERLOCK SKY 3DSim - Cleanroom Sidebar Theme
  * 
- * @version 5.3.0
+ * @version 6.0.0
  * @created 2026-01-11
  * 
  * @changelog
- * - v5.3.0: 🎨 ModeIndicatorPanel pill 스타일 통일 (2026-01-11)
- *           - .mode-indicator-pill 스타일 추가 (cyan)
- *           - .dev-mode-badge 스타일 유지 (amber)
- *           - 기존 .mode-indicator 레거시 유지
+ * - v6.0.0: 🔧 CSS 리팩토링 완료 (2026-01-11)
+ *           - :root CSS 변수 블록 완전 삭제
+ *           - _variables.css를 SSOT(Single Source of Truth)로 사용
+ *           - 인라인 스타일 최소화 (외부 CSS로 이전)
+ *           - 컴포넌트 스타일 외부화 완료
+ * - v5.3.0: ModeIndicatorPanel pill 스타일 통일
  * - v5.2.2: 기존 스타일 완전 유지
  * - v5.2.0: ModeIndicatorPanel 적용
  * 
  * 위치: frontend/threejs_viewer/index.html
+ * 
+ * CSS 의존성:
+ * - styles/main.css (진입점)
+ *   ├── base/_variables.css (CSS 변수 SSOT)
+ *   ├── base/_reset.css
+ *   ├── base/_typography.css
+ *   ├── components/_sidebar.css
+ *   ├── components/_status-bar.css
+ *   ├── components/_cover-screen.css
+ *   ├── components/_mode-indicator.css
+ *   ├── components/_overlay-ui.css (신규)
+ *   ├── components/_misc.css (신규)
+ *   ├── components/_modals.css
+ *   ├── components/_toast.css
+ *   ├── components/_equipment-info-panel.css
+ *   └── pages/_viewer-3d.css
 -->
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏭 Sherlock Sky 3DSim v5.3</title>
+    <title>🏭 Sherlock Sky 3DSim v6.0</title>
     
+    <!-- 
+        =============================================
+        CSS 로드 순서 (중요!)
+        =============================================
+        main.css가 모든 CSS를 @import로 로드
+        _variables.css가 가장 먼저 로드되어 CSS 변수 정의
+    -->
     <link rel="stylesheet" href="styles/main.css">
     
     <style>
         /* =============================================
-           CSS Variables (전역)
+           ⚠️ 최소 인라인 스타일 (FOUC 방지용만 유지)
+           =============================================
+           모든 컴포넌트 스타일은 외부 CSS로 이전됨
+           여기에는 FOUC(Flash of Unstyled Content) 방지를 위한
+           최소한의 critical CSS만 유지
            ============================================= */
-        :root, [data-theme="dark"] {
-            --bg-sidebar: #0F172A;
-            --bg-main: #1e293b;
-            --bg-main-gradient: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            --bg-panel: #1E293B;
-            --bg-panel-header: rgba(0,0,0,0.2);
-            --bg-input: rgba(255,255,255,0.05);
-            --bg-hover: rgba(255,255,255,0.05);
-            --bg-selected: rgba(6, 182, 212, 0.1);
-            --border-color: rgba(255,255,255,0.1);
-            --border-subtle: rgba(255,255,255,0.05);
-            --icon-normal: #E2E8F0;
-            --icon-selected: #06B6D4;
-            --icon-disabled: #334155;
-            --icon-hover: #FFFFFF;
-            --text-primary: #E2E8F0;
-            --text-secondary: #9CA3AF;
-            --text-muted: #6B7280;
-            --text-normal: #CBD5E1;
-            --text-warning: #FBBF24;
-            --text-alarm: #F87171;
-            --text-success: #4ADE80;
-            --shadow-color: rgba(0,0,0,0.5);
-            --glow-color: rgba(6, 182, 212, 0.4);
-            --icon-size: 36px;
-            --transition-speed: 0.25s;
-            --status-bar-height: 36px;
-        }
         
-        [data-theme="light"] {
-            --bg-sidebar: #F8FAFC;
-            --bg-main: #FFFFFF;
-            --bg-main-gradient: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
-            --bg-panel: #FFFFFF;
-            --bg-panel-header: rgba(0,0,0,0.02);
-            --bg-input: rgba(0,0,0,0.03);
-            --bg-hover: rgba(0,0,0,0.05);
-            --border-color: rgba(0,0,0,0.1);
-            --icon-normal: #475569;
-            --icon-selected: #0891B2;
-            --icon-disabled: #CBD5E1;
-            --icon-hover: #0F172A;
-            --text-primary: #0F172A;
-            --text-secondary: #475569;
-            --text-muted: #94A3B8;
-            --text-warning: #D97706;
-            --text-alarm: #DC2626;
-            --text-success: #16A34A;
-            --shadow-color: rgba(0,0,0,0.15);
-        }
-
-        /* =============================================
-           기본 레이아웃
-           ============================================= */
+        /* Body 기본 레이아웃 (FOUC 방지) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body { 
@@ -93,782 +70,20 @@
             background: var(--bg-main); 
         }
         
-        /* =============================================
-           Sidebar
-           ============================================= */
-        .sidebar { 
-            width: 80px; 
-            background-color: var(--bg-sidebar); 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            padding-top: 24px; 
-            z-index: 10; 
-            box-shadow: 4px 0 15px var(--shadow-color); 
-        }
-        
-        .icon-btn, .has-submenu { position: relative; }
-        
-        .icon-btn[data-tooltip]::after,
-        .has-submenu[data-tooltip]::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            left: 70px;
-            top: 50%;
-            transform: translateY(-50%);
-            padding: 8px 12px;
-            background: var(--bg-panel);
-            color: var(--text-primary);
-            font-size: 12px;
-            font-weight: 500;
-            white-space: nowrap;
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 4px 12px var(--shadow-color);
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.2s ease;
-            z-index: 1000;
-            pointer-events: none;
-        }
-        
-        .icon-btn[data-tooltip]:hover::after,
-        .has-submenu[data-tooltip]:hover::after {
-            opacity: 1;
-            visibility: visible;
-        }
-        
-        .has-submenu:not(.disabled)[data-tooltip]:hover::after {
-            opacity: 0;
-            visibility: hidden;
-        }
-        
-        .icon-btn { 
-            width: 54px; 
-            height: 54px; 
-            margin-bottom: 12px; 
-            background: transparent; 
-            border: none; 
-            cursor: pointer; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1); 
-        }
-        
-        .icon-btn svg { 
-            width: var(--icon-size); 
-            height: var(--icon-size); 
-            fill: none; 
-            stroke: var(--icon-normal); 
-            stroke-width: 1px; 
-            stroke-linecap: round; 
-            stroke-linejoin: round; 
-            transition: all var(--transition-speed); 
-        }
-        
-        .icon-btn:not(.selected):not(.disabled):hover { 
-            transform: scale(1.1) translateY(-3px); 
-        }
-        
-        .icon-btn:not(.selected):not(.disabled):hover svg { 
-            stroke: var(--icon-hover); 
-            filter: drop-shadow(0 0 3px var(--glow-color)); 
-        }
-        
-        .icon-btn.selected { 
-            transform: scale(1.08) translateY(-2px); 
-        }
-        
-        .icon-btn.selected svg { 
-            stroke: var(--icon-selected); 
-            filter: drop-shadow(0 0 6px var(--icon-selected)); 
-        }
-        
-        .icon-btn.selected::after { 
-            content: ''; 
-            position: absolute; 
-            left: -13px; 
-            top: 50%;
-            transform: translateY(-50%);
-            width: 3px; 
-            height: 28px; 
-            background-color: var(--icon-selected); 
-            border-radius: 0 3px 3px 0; 
-            box-shadow: 0 0 6px var(--icon-selected); 
-        }
-        
-        .icon-btn.disabled { 
-            cursor: not-allowed; 
-            opacity: 0.4; 
-        }
-        
-        .icon-btn.disabled svg { 
-            stroke: var(--icon-disabled); 
-        }
-        
-        .has-submenu.disabled {
-            cursor: not-allowed;
-            opacity: 0.4;
-        }
-
-        /* =============================================
-           Submenu
-           ============================================= */
-        .has-submenu::before {
-            content: '';
-            position: absolute;
-            right: -16px;
-            top: 0;
-            width: 20px;
-            height: 100%;
-            background: transparent;
-            z-index: 99;
-        }
-        
-        .submenu { 
-            position: absolute; 
-            left: 64px;
-            top: 0; 
-            background: var(--bg-sidebar); 
-            border: 1px solid var(--border-color); 
-            border-radius: 8px; 
-            padding: 8px 0; 
-            min-width: 200px; 
-            opacity: 0; 
-            visibility: hidden; 
-            transform: translateX(-10px); 
-            transition: all 0.2s ease; 
-            box-shadow: 4px 4px 20px var(--shadow-color); 
-            z-index: 100; 
-        }
-        
-        .submenu::before {
-            content: '';
-            position: absolute;
-            left: -16px;
-            top: 0;
-            width: 20px;
-            height: 100%;
-            background: transparent;
-        }
-        
-        #btn-settings-wrapper .submenu, 
-        #btn-debug-wrapper .submenu { 
-            top: auto; 
-            bottom: 0; 
-        }
-        
-        .has-submenu:not(.disabled):hover .submenu { 
-            opacity: 1; 
-            visibility: visible; 
-            transform: translateX(0); 
-        }
-        
-        .has-submenu.disabled .submenu { 
-            opacity: 0 !important; 
-            visibility: hidden !important; 
-        }
-        
-        .submenu-item { 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-            padding: 10px 16px; 
-            color: var(--text-secondary); 
-            font-size: 13px; 
-            cursor: pointer; 
-            transition: all 0.15s; 
-            border: none; 
-            background: none; 
-            width: 100%; 
-            text-align: left; 
-        }
-        
-        .submenu-item:hover { 
-            background: var(--bg-hover); 
-            color: var(--text-primary); 
-        }
-        
-        .submenu-item.active { 
-            background: var(--bg-selected); 
-            color: var(--icon-selected); 
-        }
-        
-        .submenu-item.disabled { 
-            opacity: 0.4; 
-            cursor: not-allowed; 
-            pointer-events: none; 
-        }
-        
-        .submenu-item svg { 
-            width: 18px; 
-            height: 18px; 
-            stroke: currentColor; 
-            stroke-width: 1.5px; 
-            fill: none; 
-        }
-        
-        .submenu-divider { 
-            height: 1px; 
-            background: var(--border-color); 
-            margin: 6px 12px; 
-        }
-        
-        .submenu-header { 
-            padding: 6px 16px; 
-            font-size: 10px; 
-            color: var(--text-muted); 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px; 
-        }
-        
-        .has-submenu > .icon-btn::after { 
-            content: ''; 
-            position: absolute; 
-            right: 2px; 
-            top: 50%; 
-            transform: translateY(-50%); 
-            border: 4px solid transparent; 
-            border-left-color: var(--icon-normal); 
-            opacity: 0.5; 
-        }
-        
-        .has-submenu:not(.disabled):hover > .icon-btn::after { 
-            border-left-color: var(--icon-selected); 
-            opacity: 1; 
-        }
-
-        /* =============================================
-           Theme Toggle
-           ============================================= */
-        .theme-toggle-item { 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            padding: 10px 16px; 
-            color: var(--text-secondary); 
-            font-size: 13px; 
-        }
-        
-        .theme-toggle-label { 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-        }
-        
-        .theme-toggle-label svg { 
-            width: 18px; 
-            height: 18px; 
-            stroke: currentColor; 
-            stroke-width: 1.5px; 
-            fill: none; 
-        }
-        
-        .theme-switch { 
-            position: relative; 
-            width: 44px; 
-            height: 24px; 
-            background: var(--bg-input); 
-            border: 1px solid var(--border-color); 
-            border-radius: 12px; 
-            cursor: pointer; 
-            transition: all 0.3s ease; 
-        }
-        
-        .theme-switch::before { 
-            content: ''; 
-            position: absolute; 
-            top: 2px; 
-            left: 2px; 
-            width: 18px; 
-            height: 18px; 
-            background: var(--icon-normal); 
-            border-radius: 50%; 
-            transition: all 0.3s ease; 
-        }
-        
-        .theme-switch.active { 
-            background: var(--icon-selected); 
-            border-color: var(--icon-selected); 
-        }
-        
-        .theme-switch.active::before { 
-            left: 22px; 
-            background: white; 
-        }
-
-        /* =============================================
-           Main Content
-           ============================================= */
-        .main-content { 
-            flex-grow: 1; 
-            background: var(--bg-main-gradient); 
-            display: flex; 
-            flex-direction: column; 
-            color: var(--text-primary); 
-            margin-bottom: var(--status-bar-height); 
-            position: relative; 
-            overflow: hidden; 
-        }
-        
-        /* =============================================
-           Cover Screen
-           ============================================= */
-        #cover-screen { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            z-index: 5; 
-            background: var(--bg-main-gradient); 
-        }
-        
-        #cover-screen.hidden { display: none; }
-        
-        .cover-logo { 
-            font-size: 72px; 
-            margin-bottom: 20px; 
-            animation: float-logo 3s ease-in-out infinite; 
-        }
-        
-        @keyframes float-logo { 
-            0%, 100% { transform: translateY(0); } 
-            50% { transform: translateY(-15px); } 
-        }
-        
-        .cover-title { 
-            font-size: 32px; 
-            font-weight: 700; 
-            color: var(--icon-selected); 
-            margin-bottom: 8px; 
-            letter-spacing: 2px; 
-        }
-        
-        .cover-subtitle { 
-            font-size: 14px; 
-            color: var(--text-muted); 
-            margin-bottom: 40px; 
-        }
-        
-        .cover-status { 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            gap: 16px; 
-        }
-        
-        .cover-status-item { 
-            display: flex; 
-            align-items: center; 
-            gap: 12px; 
-            padding: 12px 24px; 
-            background: var(--bg-input); 
-            border: 1px solid var(--border-color); 
-            border-radius: 10px; 
-            min-width: 280px; 
-        }
-        
-        .cover-status-dot { 
-            width: 10px; 
-            height: 10px; 
-            border-radius: 50%; 
-            animation: pulse 2s infinite; 
-        }
-        
-        .cover-status-dot.connected { 
-            background: var(--text-success); 
-            box-shadow: 0 0 8px var(--text-success); 
-        }
-        
-        .cover-status-dot.disconnected { background: var(--text-alarm); }
-        
-        .cover-status-text { 
-            font-size: 13px; 
-            color: var(--text-secondary); 
-            flex: 1; 
-        }
-        
-        .cover-status-value { 
-            font-size: 13px; 
-            color: var(--text-primary); 
-            font-weight: 500; 
-        }
-        
-        .cover-hint { 
-            margin-top: 40px; 
-            font-size: 12px; 
-            color: var(--text-muted); 
-        }
-        
-        .cover-hint kbd { 
-            padding: 2px 8px; 
-            background: var(--bg-input); 
-            border: 1px solid var(--border-color); 
-            border-radius: 4px; 
-            font-family: 'Consolas', monospace; 
-        }
-
-        /* =============================================
-           Three.js Container
-           ============================================= */
-        #threejs-container { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            z-index: 1; 
-            display: none; 
-        }
-        
-        #threejs-container.active { display: block; }
-        
-        /* =============================================
-           Overlay UI (레거시 호환)
-           ============================================= */
-        .overlay-ui { 
-            position: absolute; 
-            top: 20px; 
-            left: 20px; 
-            z-index: 10; 
-            display: none;
-            flex-direction: column; 
-            gap: 10px; 
-        }
-        
-        /* 🔧 레거시: 기존 박스형 mode-indicator (호환성 유지) */
-        .mode-indicator { 
-            padding: 12px 20px; 
-            background: rgba(0, 0, 0, 0.7); 
-            backdrop-filter: blur(10px); 
-            border: 1px solid var(--border-color); 
-            border-radius: 10px; 
-        }
-        
-        .mode-label { 
-            font-size: 10px; 
-            color: var(--text-muted); 
-            text-transform: uppercase; 
-            letter-spacing: 1px; 
-        }
-        
-        .mode-value { 
-            font-size: 18px; 
-            font-weight: bold; 
-            color: var(--icon-selected); 
-        }
-        
-        .submode-value { 
-            font-size: 12px; 
-            color: var(--text-secondary); 
-        }
-        
-        [data-theme="light"] .mode-indicator {
-            background: rgba(255, 255, 255, 0.9);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        /* =============================================
-           🆕 v5.3.0: CURRENT MODE Pill (Cyan)
-           ============================================= */
-        .mode-indicator-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 14px;
-            background: rgba(6, 182, 212, 0.2);
-            border: 1px solid var(--icon-selected);
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--icon-selected);
-            white-space: nowrap;
-        }
-        
-        .mode-indicator-pill .mode-icon {
-            font-size: 12px;
-        }
-        
-        .mode-indicator-pill .mode-text {
-            color: inherit;
-        }
-        
-        .mode-indicator-pill .mode-subtext {
-            color: inherit;
-            opacity: 0.85;
-            font-weight: 500;
-        }
-        
-        [data-theme="light"] .mode-indicator-pill {
-            background: rgba(8, 145, 178, 0.15);
-            border-color: #0891B2;
-            color: #0891B2;
-        }
-
-        /* =============================================
-           DEV MODE Badge (Amber) - 기존 스타일 유지
-           ============================================= */
-        .dev-mode-badge { 
-            position: fixed; 
-            top: 10px; 
-            left: 90px; 
-            padding: 6px 14px; 
-            background: rgba(251, 191, 36, 0.2); 
-            border: 1px solid var(--text-warning); 
-            border-radius: 20px; 
-            font-size: 12px; 
-            color: var(--text-warning); 
-            font-weight: 600; 
-            z-index: 1000; 
-            display: none; 
-            white-space: nowrap;
-        }
-        
-        .dev-mode-badge.active { 
-            display: inline-flex;
-            align-items: center;
-        }
-        
-        [data-theme="light"] .dev-mode-badge {
-            background: rgba(217, 119, 6, 0.15);
-            border-color: #D97706;
-            color: #D97706;
-        }
-
-        /* =============================================
-           Status Bar
-           ============================================= */
-        .status-bar { 
-            position: fixed; 
-            bottom: 0; 
-            left: 0; 
-            width: 100%; 
-            height: var(--status-bar-height); 
-            background-color: var(--bg-sidebar); 
-            border-top: 1px solid var(--border-color); 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            padding: 0 16px; 
-            font-family: 'Consolas', monospace; 
-            font-size: 11px; 
-            z-index: 20; 
-        }
-        
-        .status-group { display: flex; gap: 16px; align-items: center; }
-        
-        .status-item { 
-            display: flex; 
-            align-items: center; 
-            gap: 6px; 
-            padding: 4px 10px; 
-            background: var(--bg-input); 
-            border-radius: 4px; 
-        }
-        
-        .status-dot { width: 6px; height: 6px; border-radius: 50%; }
-        .status-dot.connected { background-color: var(--text-success); box-shadow: 0 0 4px var(--text-success); }
-        .status-dot.disconnected { background-color: var(--text-alarm); box-shadow: 0 0 4px var(--text-alarm); }
-        
-        .status-label { color: var(--text-muted); font-size: 9px; text-transform: uppercase; }
-        .status-value { color: var(--text-normal); font-weight: 500; }
-        
-        .perf-bar { width: 35px; height: 4px; background: var(--bg-input); border-radius: 2px; overflow: hidden; }
-        .perf-bar-fill { height: 100%; border-radius: 2px; }
-        .perf-bar-fill.good { background: var(--text-success); }
-        .perf-bar-fill.warning { background: var(--text-warning); }
-        .perf-bar-fill.critical { background: var(--text-alarm); }
-        
-        .country-code { font-weight: 700; font-size: 12px; color: var(--icon-selected); letter-spacing: 1px; }
-
-        /* =============================================
-           Debug Panel
-           ============================================= */
-        #debug-panel { 
-            position: fixed; 
-            bottom: 50px; 
-            right: 20px; 
-            width: 400px; 
-            background: var(--bg-panel); 
-            border: 1px solid var(--border-color); 
-            border-radius: 12px; 
-            box-shadow: 0 10px 40px var(--shadow-color); 
-            z-index: 100; 
-            opacity: 0; 
-            visibility: hidden; 
-            transform: translateY(20px); 
-            transition: all 0.3s ease; 
-        }
-        
-        #debug-panel.active { opacity: 1; visibility: visible; transform: translateY(0); }
-        
-        .debug-panel-header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 12px 16px; 
-            background: var(--bg-panel-header); 
-            border-radius: 12px 12px 0 0; 
-            border-bottom: 1px solid var(--border-subtle); 
-        }
-        
-        .debug-panel-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-        
-        .debug-panel-content { 
-            font-family: 'Consolas', monospace; 
-            font-size: 12px; 
-            color: #0f0; 
-            background: #1a1a1a; 
-            padding: 12px; 
-            max-height: 300px; 
-            overflow-y: auto; 
-            border-radius: 0 0 12px 12px; 
-        }
-        
-        .debug-section { margin-bottom: 12px; }
-        .debug-section-title { color: #0ff; margin-bottom: 8px; font-size: 11px; text-transform: uppercase; }
-        .debug-state-item { display: flex; justify-content: space-between; padding: 4px 0; }
-        .debug-state-label { color: #888; }
-        .debug-state-value { color: #ff0; }
-        .debug-state-value.on { color: #0f0; }
-        .debug-state-value.off { color: #f00; }
-
-        /* =============================================
-           Modals
-           ============================================= */
-        .modal { 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            z-index: 1000; 
-            display: none; 
-        }
-        
-        .modal.active { display: flex; align-items: center; justify-content: center; }
-        
-        .modal-overlay { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            background: rgba(0, 0, 0, 0.7); 
-            backdrop-filter: blur(4px); 
-        }
-        
-        .modal-content { 
-            position: relative; 
-            background: var(--bg-panel); 
-            border: 1px solid var(--border-color); 
-            border-radius: 16px; 
-            width: 90%; 
-            max-width: 700px; 
-            max-height: 85vh; 
-            overflow: hidden; 
-            box-shadow: 0 25px 50px var(--shadow-color); 
-        }
-        
-        .modal-header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 20px 24px; 
-            border-bottom: 1px solid var(--border-color); 
-            background: var(--bg-panel-header); 
-        }
-        
-        .modal-header h2 { font-size: 18px; font-weight: 600; color: var(--text-primary); margin: 0; }
-        
-        .modal-close { 
-            width: 32px; 
-            height: 32px; 
-            border: none; 
-            background: var(--bg-input); 
-            border-radius: 8px; 
-            color: var(--text-secondary); 
-            cursor: pointer; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-size: 20px; 
-        }
-        
-        .modal-close:hover { background: rgba(248, 113, 113, 0.2); color: var(--text-alarm); }
-        
-        .modal-body { padding: 24px; overflow-y: auto; max-height: calc(85vh - 140px); }
-
-        /* =============================================
-           Equipment Info Panel
-           ============================================= */
-        #equipmentInfo { 
-            position: fixed; 
-            top: 80px; 
-            right: 20px; 
-            width: 320px; 
-            background: var(--bg-panel); 
-            border: 1px solid var(--border-color); 
-            border-radius: 12px; 
-            box-shadow: 0 10px 40px var(--shadow-color); 
-            z-index: 100; 
-            opacity: 0; 
-            visibility: hidden; 
-            transform: translateX(20px); 
-            transition: all 0.3s ease; 
-            padding: 16px;
-        }
-        
-        #equipmentInfo.active { opacity: 1; visibility: visible; transform: translateX(0); }
-
-        /* =============================================
-           Misc
-           ============================================= */
-        .sidebar-divider { width: 40px; height: 1px; background: var(--border-color); margin: 8px 0; }
-        .sidebar-spacer { flex-grow: 1; }
-
-        .mock-test-list { padding: 8px 16px; }
-        .mock-test-item { 
-            display: flex; 
-            align-items: center; 
-            gap: 8px; 
-            padding: 8px 12px; 
-            margin-bottom: 4px; 
-            background: var(--bg-input); 
-            border-radius: 6px; 
-            font-size: 12px; 
-            color: var(--text-secondary); 
-            cursor: pointer; 
-        }
-        .mock-test-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-
-        .close-btn { 
-            position: absolute; 
-            top: 12px; 
-            right: 12px; 
-            width: 24px; 
-            height: 24px; 
-            background: var(--bg-input); 
-            border: none; 
-            border-radius: 6px; 
-            color: var(--text-muted); 
-            cursor: pointer; 
-            font-size: 16px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-        }
-        .close-btn:hover { background: rgba(248, 113, 113, 0.2); color: var(--text-alarm); }
-        
-        .hidden { display: none !important; }
+        /* 
+         * 나머지 모든 스타일은 외부 CSS 파일에서 관리:
+         * 
+         * - Sidebar → _sidebar.css
+         * - Status Bar → _status-bar.css
+         * - Cover Screen → _cover-screen.css
+         * - Mode Indicator → _mode-indicator.css
+         * - Main Content, Three.js Container → _overlay-ui.css
+         * - Close Button, Hidden 유틸리티 → _misc.css
+         * - Modals → _modals.css
+         * - Toast → _toast.css
+         * - Equipment Info Panel → _equipment-info-panel.css
+         * - Debug Panel → _sidebar.css
+         */
     </style>
 </head>
 
@@ -927,7 +142,11 @@
     </script>
     
     <script>
-        // 전역 상태
+        // =============================================
+        // 전역 상태 및 유틸리티 함수
+        // =============================================
+        // 이 스크립트는 index.html에 유지 (FOUC 방지 및 초기화)
+        
         window.sidebarState = window.sidebarState || {
             currentMode: null,
             currentSubMode: null,
@@ -1012,12 +231,13 @@
             if (themeSwitch) themeSwitch.classList.toggle('active', newTheme === 'light');
         };
         
+        // FOUC 방지: 저장된 테마 즉시 적용
         (function loadTheme() {
             const saved = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', saved);
         })();
         
-        console.log('🏭 Sherlock Sky 3DSim v5.3.0 (Pill Style)');
+        console.log('🏭 Sherlock Sky 3DSim v6.0.0 (CSS Refactored)');
     </script>
     
     <!-- Main Application (ES Module) -->
