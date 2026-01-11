@@ -1,0 +1,93 @@
+/**
+ * CSS Variables - Theme System
+ * 
+ * @description 다크/라이트 테마를 위한 CSS 변수 정의
+ * @version 1.0.0
+ * @source test_sidebar_standalone.html v2.10 (라인 13-62)
+ * @location frontend/threejs_viewer/src/styles/variables.css
+ * 
+ * @usage
+ * - index.html에서 @import 또는 <link>로 로드
+ * - Sidebar.js, StatusBar.js, CoverScreen.js, ConnectionModal에서 참조
+ * 
+ * @compatibility
+ * - 기존 index.html 인라인 CSS Variables와 100% 동일
+ * - test_sidebar_standalone.html과 100% 동일
+ */
+
+/* =============================================
+   Dark Theme (Default)
+   ============================================= */
+:root,
+[data-theme="dark"] {
+    /* Background Colors */
+    --bg-sidebar: #0F172A;
+    --bg-main: #1e293b;
+    --bg-main-gradient: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    --bg-panel: #1E293B;
+    --bg-panel-header: rgba(0,0,0,0.2);
+    --bg-input: rgba(255,255,255,0.05);
+    --bg-hover: rgba(255,255,255,0.05);
+    --bg-selected: rgba(6, 182, 212, 0.1);
+    
+    /* Border Colors */
+    --border-color: rgba(255,255,255,0.1);
+    --border-subtle: rgba(255,255,255,0.05);
+    
+    /* Icon Colors */
+    --icon-normal: #E2E8F0;
+    --icon-selected: #06B6D4;
+    --icon-disabled: #334155;
+    --icon-hover: #FFFFFF;
+    
+    /* Text Colors */
+    --text-primary: #E2E8F0;
+    --text-secondary: #9CA3AF;
+    --text-muted: #6B7280;
+    --text-normal: #CBD5E1;
+    --text-warning: #FBBF24;
+    --text-alarm: #F87171;
+    --text-success: #4ADE80;
+    
+    /* Effects */
+    --shadow-color: rgba(0,0,0,0.5);
+    --glow-color: rgba(6, 182, 212, 0.4);
+    
+    /* Sizing */
+    --icon-size: 36px;
+    --transition-speed: 0.25s;
+    --status-bar-height: 36px;
+}
+
+/* =============================================
+   Light Theme
+   ============================================= */
+[data-theme="light"] {
+    /* Background Colors */
+    --bg-sidebar: #F8FAFC;
+    --bg-main: #FFFFFF;
+    --bg-main-gradient: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
+    --bg-panel: #FFFFFF;
+    --bg-panel-header: rgba(0,0,0,0.02);
+    --bg-input: rgba(0,0,0,0.03);
+    --bg-hover: rgba(0,0,0,0.05);
+    
+    /* Border Colors */
+    --border-color: rgba(0,0,0,0.1);
+    
+    /* Icon Colors */
+    --icon-normal: #475569;
+    --icon-selected: #0891B2;
+    --icon-disabled: #CBD5E1;
+    --icon-hover: #0F172A;
+    
+    /* Text Colors */
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #94A3B8;
+    --text-alarm: #DC2626;
+    --text-success: #16A34A;
+    
+    /* Effects */
+    --shadow-color: rgba(0,0,0,0.15);
+}

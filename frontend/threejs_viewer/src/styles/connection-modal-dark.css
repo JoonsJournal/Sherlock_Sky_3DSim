@@ -1,0 +1,363 @@
+/**
+ * Connection Modal Styles (Dark Theme)
+ * 
+ * @description Connection Modal 전용 스타일 (v2.9 Full Version)
+ * @version 1.0.0
+ * @source test_sidebar_standalone.html v2.10 (라인 256-330)
+ * @location frontend/threejs_viewer/src/styles/connection-modal-dark.css
+ * 
+ * @requires variables.css
+ * @requires modal-dark.css
+ * 
+ * @note 기존 connection-panel.css는 라이트 테마 기반 (background: white)
+ *       이 파일은 다크 테마 기반 (CSS Variables 사용)
+ * 
+ * @components
+ * - .internet-status - 인터넷 상태 표시
+ * - .connection-panel - 연결 패널 (API, Site, Database)
+ * - .panel-header / .panel-footer - 패널 헤더/푸터
+ * - .site-list / .site-item - 사이트 목록
+ * - .database-* - 데이터베이스 관련
+ */
+
+/* =============================================
+   Internet Status
+   ============================================= */
+.internet-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--bg-input);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.internet-status .status-dot {
+    width: 10px;
+    height: 10px;
+}
+
+.internet-status-text {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.internet-status-detail {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+/* =============================================
+   Connection Panel
+   ============================================= */
+.connection-panel {
+    background: var(--bg-panel-header);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+/* Panel Header */
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--bg-panel-header);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.panel-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.panel-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Panel Footer */
+.panel-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--bg-panel-header);
+}
+
+.selection-info {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* =============================================
+   API Status Content
+   ============================================= */
+.api-status-content {
+    padding: 16px;
+}
+
+.status-indicator-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--bg-input);
+    border-radius: 8px;
+}
+
+.status-indicator-box .status-dot {
+    width: 12px;
+    height: 12px;
+    animation: pulse 2s infinite;
+}
+
+/* Status Dot Variants */
+.status-dot--connected {
+    background: var(--text-success);
+    box-shadow: 0 0 10px var(--text-success);
+}
+
+.status-dot--disconnected {
+    background: var(--text-alarm);
+}
+
+.status-dot--checking {
+    background: var(--text-muted);
+}
+
+/* Status Details Grid */
+.status-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.status-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.detail-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.detail-value {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-family: 'Consolas', monospace;
+}
+
+/* =============================================
+   Site List
+   ============================================= */
+.site-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+}
+
+/* Site Item */
+.site-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.site-item:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-color);
+}
+
+.site-item.site-item--selected {
+    background: var(--bg-selected);
+    border-color: var(--icon-selected);
+}
+
+.site-item.site-item--connected {
+    background: rgba(74, 222, 128, 0.1);
+    border-color: var(--text-success);
+}
+
+/* Site Checkbox */
+.site-checkbox input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--icon-selected);
+}
+
+/* Site Info */
+.site-info {
+    flex: 1;
+}
+
+.site-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.site-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.site-region {
+    font-size: 11px;
+    padding: 2px 8px;
+    background: var(--bg-hover);
+    border-radius: 4px;
+    color: var(--text-secondary);
+}
+
+.site-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    display: flex;
+    gap: 12px;
+}
+
+/* Site Status */
+.site-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* =============================================
+   Auto Connect
+   ============================================= */
+.auto-connect-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.auto-connect-label input {
+    accent-color: var(--icon-selected);
+}
+
+/* =============================================
+   Database List
+   ============================================= */
+.database-item {
+    padding: 16px;
+}
+
+.database-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.database-header h4 {
+    font-size: 14px;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.database-stats {
+    display: flex;
+    gap: 16px;
+}
+
+.stat-item {
+    display: flex;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.stat-label {
+    color: var(--text-muted);
+}
+
+.stat-value {
+    color: var(--icon-selected);
+    font-weight: 600;
+}
+
+/* No Connection State */
+.no-connection {
+    text-align: center;
+    padding: 32px;
+    color: var(--text-muted);
+}
+
+.no-connection-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 8px;
+}
+
+/* =============================================
+   Status Dot (Common)
+   ============================================= */
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.status-dot.connected {
+    background-color: var(--text-success);
+    box-shadow: 0 0 4px var(--text-success);
+}
+
+.status-dot.disconnected {
+    background-color: var(--text-alarm);
+    box-shadow: 0 0 4px var(--text-alarm);
+}
+
+/* =============================================
+   Responsive Design
+   ============================================= */
+@media (max-width: 600px) {
+    .modal-container {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .status-details {
+        grid-template-columns: 1fr;
+    }
+    
+    .site-item {
+        flex-wrap: wrap;
+    }
+    
+    .site-status {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 8px;
+    }
+    
+    .database-stats {
+        flex-wrap: wrap;
+    }
+}

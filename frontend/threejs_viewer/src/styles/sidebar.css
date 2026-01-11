@@ -1,0 +1,383 @@
+/**
+ * Sidebar Styles
+ * 
+ * @description Sidebar, Icon Button, Submenu, Theme Toggle 스타일
+ * @version 1.0.0
+ * @source test_sidebar_standalone.html v2.10 (라인 64-160)
+ * @location frontend/threejs_viewer/src/styles/sidebar.css
+ * 
+ * @requires variables.css
+ * 
+ * @components
+ * - .sidebar - 메인 사이드바 컨테이너
+ * - .icon-btn - 아이콘 버튼
+ * - .has-submenu - 서브메뉴가 있는 버튼 래퍼
+ * - .submenu - 서브메뉴 패널
+ * - .submenu-item - 서브메뉴 아이템
+ * - .theme-toggle-* - 테마 토글 스위치
+ * - .sidebar-divider - 구분선
+ * - .sidebar-spacer - 스페이서
+ */
+
+/* =============================================
+   Sidebar Container
+   ============================================= */
+.sidebar {
+    width: 80px;
+    background-color: var(--bg-sidebar);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 24px;
+    z-index: 10;
+    box-shadow: 4px 0 15px var(--shadow-color);
+}
+
+/* =============================================
+   Icon Button
+   ============================================= */
+.icon-btn {
+    width: 54px;
+    height: 54px;
+    margin-bottom: 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.icon-btn svg {
+    width: var(--icon-size);
+    height: var(--icon-size);
+    fill: none;
+    stroke: var(--icon-normal);
+    stroke-width: 1px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: all var(--transition-speed);
+}
+
+/* Hover State */
+.icon-btn:not(.selected):not(.disabled):hover {
+    transform: scale(1.1) translateY(-3px);
+}
+
+.icon-btn:not(.selected):not(.disabled):hover svg {
+    stroke: var(--icon-hover);
+    filter: drop-shadow(0 0 3px var(--glow-color));
+}
+
+/* Selected State */
+.icon-btn.selected {
+    transform: scale(1.08) translateY(-2px);
+}
+
+.icon-btn.selected svg {
+    stroke: var(--icon-selected);
+    filter: drop-shadow(0 0 6px var(--icon-selected));
+}
+
+.icon-btn.selected::before {
+    content: '';
+    position: absolute;
+    left: -13px;
+    width: 3px;
+    height: 28px;
+    background-color: var(--icon-selected);
+    border-radius: 0 3px 3px 0;
+    box-shadow: 0 0 6px var(--icon-selected);
+}
+
+/* Disabled State */
+.icon-btn.disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.icon-btn.disabled svg {
+    stroke: var(--icon-disabled);
+}
+
+/* Hidden State */
+.icon-btn.hidden {
+    display: none !important;
+}
+
+/* =============================================
+   Submenu System
+   ============================================= */
+.has-submenu {
+    position: relative;
+}
+
+.submenu {
+    position: absolute;
+    left: 70px;
+    top: 0;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 0;
+    min-width: 200px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-10px);
+    transition: all 0.2s ease;
+    box-shadow: 4px 4px 20px var(--shadow-color);
+    z-index: 100;
+}
+
+/* Settings/Debug submenu - Bottom aligned */
+#btn-settings-wrapper .submenu,
+#btn-debug-wrapper .submenu {
+    top: auto;
+    bottom: 0;
+}
+
+/* Submenu hover activation */
+.has-submenu:not(.disabled):hover .submenu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+}
+
+/* Disabled submenu parent */
+.has-submenu.disabled .submenu {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* Submenu Items */
+.submenu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.submenu-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.submenu-item.active {
+    background: var(--bg-selected);
+    color: var(--icon-selected);
+}
+
+.submenu-item.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.submenu-item svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    stroke-width: 1.5px;
+    fill: none;
+}
+
+/* Submenu Divider */
+.submenu-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 6px 12px;
+}
+
+/* Submenu Header */
+.submenu-header {
+    padding: 6px 16px;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Submenu Arrow Indicator */
+.has-submenu::after {
+    content: '';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 4px solid transparent;
+    border-left-color: var(--icon-normal);
+    opacity: 0.5;
+}
+
+.has-submenu:not(.disabled):hover::after {
+    border-left-color: var(--icon-selected);
+    opacity: 1;
+}
+
+/* =============================================
+   Always Normal State Buttons
+   (Connection, Settings, Debug - no selected state)
+   ============================================= */
+#btn-connection,
+#btn-settings-wrapper .icon-btn,
+#btn-debug-wrapper .icon-btn {
+    transform: none !important;
+}
+
+#btn-connection::before,
+#btn-settings-wrapper .icon-btn::before,
+#btn-debug-wrapper .icon-btn::before {
+    display: none !important;
+}
+
+#btn-connection svg,
+#btn-settings-wrapper .icon-btn svg,
+#btn-debug-wrapper .icon-btn svg {
+    stroke: var(--icon-normal) !important;
+    filter: none !important;
+}
+
+#btn-connection:hover svg,
+#btn-settings-wrapper .icon-btn:hover svg,
+#btn-debug-wrapper .icon-btn:hover svg {
+    stroke: var(--icon-hover) !important;
+    filter: drop-shadow(0 0 3px var(--glow-color)) !important;
+}
+
+#btn-connection:hover,
+#btn-settings-wrapper:hover .icon-btn,
+#btn-debug-wrapper:hover .icon-btn {
+    transform: scale(1.1) translateY(-3px) !important;
+}
+
+/* =============================================
+   Theme Toggle Switch
+   ============================================= */
+.theme-toggle-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.theme-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.theme-toggle-label svg {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    stroke-width: 1.5px;
+    fill: none;
+}
+
+.theme-switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.theme-switch::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: var(--icon-normal);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.theme-switch.active {
+    background: var(--icon-selected);
+    border-color: var(--icon-selected);
+}
+
+.theme-switch.active::before {
+    left: 22px;
+    background: white;
+}
+
+/* =============================================
+   Sidebar Utilities
+   ============================================= */
+.sidebar-divider {
+    width: 40px;
+    height: 1px;
+    background: var(--border-color);
+    margin: 8px 0;
+}
+
+.sidebar-spacer {
+    flex-grow: 1;
+}
+
+/* =============================================
+   Mock Test List (Dev Mode)
+   ============================================= */
+.mock-test-list {
+    padding: 8px 16px;
+}
+
+.mock-test-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    background: var(--bg-input);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.mock-test-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* =============================================
+   Dev Mode Badge
+   ============================================= */
+.dev-mode-badge {
+    position: fixed;
+    top: 10px;
+    left: 90px;
+    padding: 4px 12px;
+    background: rgba(251, 191, 36, 0.2);
+    border: 1px solid var(--text-warning);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--text-warning);
+    font-weight: 600;
+    z-index: 1000;
+    display: none;
+}
+
+.dev-mode-badge.active {
+    display: block;
+}
