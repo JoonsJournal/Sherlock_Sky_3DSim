@@ -2,34 +2,25 @@
  * main.css
  * ========
  * SHERLOCK SKY 3DSim - CSS 진입점
- * 모든 CSS 파일을 통합하여 import
  * 
- * 사용법: <link rel="stylesheet" href="styles/main.css">
- * 
- * @version 2.1.0
+ * @version 2.3.0
  * @changelog
- * - v2.1.0: Toast 전역 transition 제외 (Toast 자동 사라짐 버그 수정)
- *           _connection-modal.css import 추가
- * - v2.0.0: Cleanroom Sidebar Theme CSS 추가 (UI Migration Phase 1)
- *           _sidebar.css, _status-bar.css, _cover-screen.css
- * - v1.1.0: Equipment Info Panel CSS import 추가 (Phase 2 - Tab UI)
- * - v1.0.0: 초기 버전 - 테마 통일, Toast 중복 스타일 제거
+ * - v2.3.0: 🆕 _mode-indicator.css import 추가 (ModeIndicatorPanel 스타일)
+ * - v2.1.0: Toast 전역 transition 제외
+ * - v2.0.0: Cleanroom Sidebar Theme CSS 추가
  * 
- * 작성일: 2026-01-02
- * 수정일: 2026-01-11 (v2.1.0 - Toast transition 버그 수정)
+ * 위치: frontend/threejs_viewer/styles/main.css
  */
 
 /* =============================================
-   Base Styles (기본 스타일)
-   - 변수, 리셋, 타이포그래피
+   Base Styles
    ============================================= */
 @import './base/_variables.css';
 @import './base/_reset.css';
 @import './base/_typography.css';
 
 /* =============================================
-   Component Styles (컴포넌트)
-   - 버튼, 모달, 패널, 폼, 토스트
+   Component Styles
    ============================================= */
 @import './components/_buttons.css';
 @import './components/_modals.css';
@@ -37,49 +28,47 @@
 @import './components/_forms.css';
 @import './components/_toast.css';
 
-/* =============================================
-   신규 컴포넌트 CSS (Phase 2~7에서 추가 예정)
-   ============================================= */
-/* Phase 3: Modal 시스템 */
+/* Modal 시스템 */
 @import './components/_equipment-edit-modal.css';
 @import './components/_recovery-dialog.css';
-@import './components/_connection-modal.css';  /* 🆕 v2.1.0: Light Mode 버그 수정 */
+@import './components/_connection-modal.css';
 
-/* Phase 4: Indicator 시스템 */
+/* Indicator 시스템 */
 @import './components/_connection-indicator.css'; 
 @import './components/_autosave-indicator.css'; 
 
-/* Phase 5: Panel 시스템 */
+/* Panel 시스템 */
 @import './components/_connection-panels.css';
 
-/* Phase 6: 공통 UI 컴포넌트 */
+/* 공통 UI 컴포넌트 */
 @import './components/_common-ui.css';
-
-/* Phase 7: 기타 */
 @import './components/_file-controls.css';
 @import './components/_equipment-edit-button.css';
 
-/* Phase 8: Equipment Info Panel (Tab UI) - v1.1.0 */
+/* Equipment Info Panel */
 @import './components/_equipment-info-panel.css';
 
 /* =============================================
-   🆕 Cleanroom Sidebar Theme (v2.0.0)
-   UI Migration Phase 1 - 사이드바 기반 UI
+   Cleanroom Sidebar Theme (v2.0.0)
    ============================================= */
 @import './components/_sidebar.css';
 @import './components/_status-bar.css';
 @import './components/_cover-screen.css';
 
 /* =============================================
-   Page Styles (페이지별)
-   - 3D Viewer, Layout Editor
+   🆕 Mode Indicator Panel (v2.3.0)
+   CURRENT MODE + DEV MODE 가로 배치
+   ============================================= */
+@import './components/_mode-indicator.css';
+
+/* =============================================
+   Page Styles
    ============================================= */
 @import './pages/_viewer-3d.css';
 @import './pages/_layout-editor.css';
 
 /* ============================================
    Monitoring Mode Status Panel
-   "✅ 30개 연결 | ⚠️ 87개 미연결 | 📊 26% 완료"
    ============================================ */
 
 .status-panel {
@@ -100,7 +89,6 @@
     font-family: var(--font-family);
 }
 
-/* 🆕 v2.0.0: Status Bar 사용 시 Status Panel 위치 조정 */
 body:has(.status-bar) .status-panel {
     bottom: calc(var(--status-bar-height, 36px) + 20px);
 }
@@ -134,14 +122,12 @@ body:has(.status-bar) .status-panel {
     font-size: var(--font-size-base);
 }
 
-/* ⭐ 구분자 스타일 */
 .status-divider {
     color: var(--overlay-border-default);
     font-size: var(--font-size-base);
     margin: 0 4px;
 }
 
-/* ⭐ 프로그레스 컨테이너 */
 .status-progress-container {
     display: flex;
     flex-direction: column;
@@ -171,7 +157,6 @@ body:has(.status-bar) .status-panel {
     white-space: nowrap;
 }
 
-
 /* ============================================
    Equipment Labels (CSS2D)
    ============================================ */
@@ -198,7 +183,6 @@ body:has(.status-bar) .status-panel {
     50% { opacity: 0.8; transform: scale(1.05); }
 }
 
-
 /* ============================================
    Monitoring Mode Button Active State
    ============================================ */
@@ -213,24 +197,6 @@ body:has(.status-bar) .status-panel {
     0%, 100% { box-shadow: 0 0 10px rgba(255, 87, 34, 0.3); }
     50% { box-shadow: 0 0 25px rgba(255, 87, 34, 0.6); }
 }
-
-
-/* ============================================
-   Toast Messages
-   ============================================
-   
-   ⚠️ 제거됨 (2026-01-06)
-   - Toast 스타일은 _toast.css로 통합
-   - 이전 코드와의 충돌 방지를 위해 주석 처리
-   
-   중복되었던 스타일:
-   - .toast-container
-   - .toast
-   - .toast-info / .toast-success / .toast-warning / .toast-error
-   - @keyframes toast-in
-   
-   ============================================ */
-
 
 /* ============================================
    Legend Panel (Monitoring Mode)
@@ -247,7 +213,6 @@ body:has(.status-bar) .status-panel {
     z-index: 100;
 }
 
-/* 🆕 v2.0.0: Sidebar 사용 시 Legend 위치 조정 */
 body:has(.sidebar) .monitoring-legend {
     left: calc(80px + 20px);
 }
@@ -286,49 +251,8 @@ body:has(.sidebar) .monitoring-legend {
     opacity: 0.5;
 }
 
-
 /* ============================================
-   🆕 v2.0.0: Sidebar Mode - Floating Buttons 숨김
-   Sidebar 사용 시 기존 floating-btn 숨김
-   ============================================ */
-
-/* 
- * 🆕 v2.0.0: Sidebar Mode - Floating Buttons 숨김
- * Sidebar 사용 시 기존 floating-btn 숨김
- * 
- * [MIGRATION NOTE]
- * 점진적 마이그레이션을 위해 주석 처리되어 있습니다.
- * 마이그레이션 완료 후 아래 규칙을 활성화하세요:
- *
- * body:has(.sidebar) .floating-btn {
- *     display: none !important;
- * }
- */
-
- body:has(.status-bar) .status-panel {
-    /* 점진적 마이그레이션: Status Bar 사용 시 위치 조정 완료 */
-    /* 추가 조정 필요시 아래 주석 해제 */
-    /* bottom: calc(var(--status-bar-height, 36px) + 20px); */
-    position: relative; /* placeholder to avoid empty ruleset warning */
-}
-
-/* 
- * [MIGRATION NOTE]
- * 위 규칙을 활성화하면 기존 floating-btn이 모두 숨겨집니다.
- * 점진적 마이그레이션을 위해 기본적으로 주석 처리되어 있습니다.
- * 
- * 마이그레이션 완료 후 다음 순서로 진행:
- * 1. 위 CSS 규칙 활성화
- * 2. index.html에서 .floating-btn 요소 제거
- * 3. _buttons.css에서 .floating-btn 관련 스타일 제거 (선택사항)
- */
-
-
-/* ============================================
-   🆕 v2.0.0: Theme Transition Support
-   테마 전환 시 부드러운 애니메이션
-   
-   🔧 v2.1.0: Toast 요소 제외 (자동 사라짐 버그 수정)
+   Theme Transition Support
    ============================================ */
 
 html[data-theme] * {
@@ -337,14 +261,12 @@ html[data-theme] * {
     transition-timing-function: ease;
 }
 
-/* 애니메이션 중 transition 제외 요소 */
 html[data-theme] canvas,
 html[data-theme] video,
 html[data-theme] iframe {
     transition: none;
 }
 
-/* 🆕 v2.1.0: Toast 요소는 자체 transition 사용 (전역 transition 제외) */
 html[data-theme] .toast,
 html[data-theme] .toast *,
 html[data-theme] .toast-container {

@@ -1,21 +1,19 @@
 <!DOCTYPE html>
 <html lang="ko" data-theme="dark">
 <!--
- * index.html v5.2.0
+ * index.html v5.2.2
  * SHERLOCK SKY 3DSim - Cleanroom Sidebar Theme
  * 
- * @version 5.2.0
+ * @version 5.2.2
  * @created 2026-01-11
  * 
  * @changelog
- * - v5.2.0: 🆕 ModeIndicatorPanel 적용 (2026-01-11)
- *           - #overlay-ui 내 .mode-indicator 제거 (동적 생성으로 대체)
- *           - .dev-mode-badge 인라인 스타일 제거 (_mode-indicator.css로 이관)
- *           - .overlay-ui 스타일 간소화
- * - v5.1.1: 🔧 Toast 인라인 CSS 제거 (_toast.css와 충돌 해결)
- * - v5.1.0: 🔧 정적 HTML 제거, 동적 렌더링으로 전환
- * - v5.0.3: Dev Mode 전체 시나리오 동작
- * - v5.0.2: 서브메뉴 hover gap 문제 해결
+ * - v5.2.2: 🔧 기존 스타일 완전 유지 + Light/Dark 테마 색상 확인 (2026-01-11)
+ *           - .mode-indicator: 기존 스타일 100% 유지
+ *           - .dev-mode-badge: 기존 스타일 100% 유지 (pill 형태)
+ *           - Light 테마 색상 추가 확인
+ * - v5.2.1: 기존 스타일 복원 시도
+ * - v5.2.0: ModeIndicatorPanel 적용
  * 
  * 위치: frontend/threejs_viewer/index.html
 -->
@@ -30,7 +28,6 @@
     <style>
         /* =============================================
            CSS Variables (전역)
-           Sidebar.js, StatusBar.js, CoverScreen.js에서 참조
            ============================================= */
         :root, [data-theme="dark"] {
             --bg-sidebar: #0F172A;
@@ -77,6 +74,7 @@
             --text-primary: #0F172A;
             --text-secondary: #475569;
             --text-muted: #94A3B8;
+            --text-warning: #D97706;  /* 🔑 Light 테마 warning 색상 */
             --text-alarm: #DC2626;
             --text-success: #16A34A;
             --shadow-color: rgba(0,0,0,0.15);
@@ -96,7 +94,7 @@
         }
         
         /* =============================================
-           Sidebar (Sidebar.js가 내용 렌더링)
+           Sidebar
            ============================================= */
         .sidebar { 
             width: 80px; 
@@ -109,7 +107,6 @@
             box-shadow: 4px 0 15px var(--shadow-color); 
         }
         
-        /* 🆕 v5.1.0: CSS Tooltip */
         .icon-btn, .has-submenu { position: relative; }
         
         .icon-btn[data-tooltip]::after,
@@ -416,7 +413,7 @@
         }
         
         /* =============================================
-           Cover Screen (CoverScreen.js가 렌더링)
+           Cover Screen
            ============================================= */
         #cover-screen { 
             position: absolute; 
@@ -533,23 +530,25 @@
         #threejs-container.active { display: block; }
         
         /* =============================================
-           🔧 v5.2.0: Overlay UI (레거시 - ModeIndicatorPanel로 대체)
-           하위 호환을 위해 스타일 유지, 내용은 동적 생성
+           Overlay UI (레거시 호환)
            ============================================= */
         .overlay-ui { 
             position: absolute; 
             top: 20px; 
             left: 20px; 
             z-index: 10; 
-            display: none;  /* 🔧 v5.2.0: ModeIndicatorPanel 사용으로 기본 숨김 */
+            display: none;
             flex-direction: column; 
             gap: 10px; 
         }
         
-        /* 🔧 v5.2.0: 기존 mode-indicator 스타일 (레거시 호환) */
+        /* =============================================
+           🔑 CURRENT MODE - 기존 스타일 100% 유지
+           Dark Mode
+           ============================================= */
         .mode-indicator { 
             padding: 12px 20px; 
-            background: rgba(0,0,0,0.7); 
+            background: rgba(0, 0, 0, 0.7); 
             backdrop-filter: blur(10px); 
             border: 1px solid var(--border-color); 
             border-radius: 10px; 
@@ -572,9 +571,45 @@
             font-size: 12px; 
             color: var(--text-secondary); 
         }
+        
+        /* 🔑 CURRENT MODE - Light 테마 */
+        [data-theme="light"] .mode-indicator {
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
 
         /* =============================================
-           Status Bar (StatusBar.js가 렌더링)
+           🔑 DEV MODE Badge - 기존 스타일 100% 유지 (pill 형태)
+           Dark Mode
+           ============================================= */
+        .dev-mode-badge { 
+            position: fixed; 
+            top: 10px; 
+            left: 90px; 
+            padding: 4px 12px; 
+            background: rgba(251, 191, 36, 0.2);  /* 🔑 Dark: 노란색 배경 */
+            border: 1px solid var(--text-warning); /* 🔑 Dark: #FBBF24 */
+            border-radius: 20px;  /* 🔑 pill 형태 */
+            font-size: 11px; 
+            color: var(--text-warning);  /* 🔑 Dark: #FBBF24 */
+            font-weight: 600; 
+            z-index: 1000; 
+            display: none;  /* 기본 숨김 */
+        }
+        
+        .dev-mode-badge.active { 
+            display: block; 
+        }
+        
+        /* 🔑 DEV MODE Badge - Light 테마 */
+        [data-theme="light"] .dev-mode-badge {
+            background: rgba(217, 119, 6, 0.15);  /* 🔑 Light: 진한 오렌지 배경 */
+            border-color: #D97706;  /* 🔑 Light: 진한 오렌지 테두리 */
+            color: #D97706;  /* 🔑 Light: 진한 오렌지 텍스트 */
+        }
+
+        /* =============================================
+           Status Bar
            ============================================= */
         .status-bar { 
             position: fixed; 
@@ -618,15 +653,6 @@
         .perf-bar-fill.critical { background: var(--text-alarm); }
         
         .country-code { font-weight: 700; font-size: 12px; color: var(--icon-selected); letter-spacing: 1px; }
-
-        /* =============================================
-           🔧 v5.2.0: Dev Mode Badge 스타일 제거
-           → _mode-indicator.css로 이관
-           
-           기존 스타일 (레거시 호환을 위해 주석 처리):
-           .dev-mode-badge { ... }
-           .dev-mode-badge.active { ... }
-           ============================================= */
 
         /* =============================================
            Debug Panel
@@ -679,12 +705,6 @@
         .debug-state-value { color: #ff0; }
         .debug-state-value.on { color: #0f0; }
         .debug-state-value.off { color: #f00; }
-
-        /* =============================================
-           Toast Container (기본 위치만)
-           🆕 v5.1.1: 스타일은 _toast.css로 완전 이관
-           ============================================= */
-        /* Toast 스타일은 styles/components/_toast.css에서 관리 */
 
         /* =============================================
            Modals
@@ -823,24 +843,13 @@
     <!-- Toast Container -->
     <div class="toast-container" id="toast-container"></div>
 
-    <!-- ============================================
-         SIDEBAR - 🆕 v5.1.0: 빈 컨테이너
-         Sidebar.js가 동적으로 내용 렌더링
-         ============================================ -->
-    <!-- Sidebar.js가 생성하므로 제거 -->
-
     <!-- MAIN CONTENT -->
     <main class="main-content" id="main-content">
-        <!-- CoverScreen.js가 동적으로 생성 -->
-        
         <!-- Three.js Container -->
         <div id="threejs-container"></div>
 
-        <!-- 🔧 v5.2.0: Overlay UI (레거시 - ModeIndicatorPanel로 대체) -->
-        <!-- ModeIndicatorPanel.js가 동적으로 생성하므로 내용 제거 -->
-        <div class="overlay-ui" id="overlay-ui">
-            <!-- 기존 mode-indicator 제거 - ModeIndicatorPanel.js가 관리 -->
-        </div>
+        <!-- Overlay UI (레거시) -->
+        <div class="overlay-ui" id="overlay-ui"></div>
     </main>
 
     <!-- Equipment Info Panel -->
@@ -879,19 +888,13 @@
         </div>
     </div>
 
-    <!-- StatusBar.js가 동적으로 생성 -->
-
     <!-- Three.js Import Map -->
     <script type="importmap">
     { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
     </script>
     
-    <!-- 🆕 v5.1.0: 인라인 스크립트 최소화 -->
     <script>
-        // =============================================
-        // 🆕 v5.1.0: 전역 상태 초기화 (하위 호환)
-        // main.js 로드 전 초기화 필요
-        // =============================================
+        // 전역 상태
         window.sidebarState = window.sidebarState || {
             currentMode: null,
             currentSubMode: null,
@@ -900,17 +903,10 @@
             debugPanelVisible: false
         };
         
-        /**
-         * 기능 접근 가능 여부 (하위 호환)
-         */
         window.canAccessFeatures = function() {
             return window.sidebarState.isConnected || window.sidebarState.devModeEnabled;
         };
         
-        /**
-         * 🆕 v5.1.1: Toast 표시 유틸 (폴백용)
-         * _toast.css와 호환되도록 수정 (toast-show, toast-hide 사용)
-         */
         window.showToast = function(message, type = 'info') {
             const container = document.getElementById('toast-container');
             if (!container) return;
@@ -925,12 +921,7 @@
             `;
             container.appendChild(toast);
             
-            // 🆕 v5.1.1: toast-show 클래스로 표시 (transition 기반)
-            requestAnimationFrame(() => {
-                toast.classList.add('toast-show');
-            });
-            
-            // 자동 제거 (toast-hide 클래스 사용)
+            requestAnimationFrame(() => toast.classList.add('toast-show'));
             setTimeout(() => { 
                 toast.classList.remove('toast-show');
                 toast.classList.add('toast-hide');
@@ -938,34 +929,16 @@
             }, 3000);
         };
         
-        // =============================================
-        // 전역 함수 폴백 (main.js 로드 전 호출 대비)
-        // main.js가 로드되면 실제 함수로 대체됨
-        // =============================================
-        
-        /**
-         * Connection Modal 토글 (폴백)
-         */
         window.toggleConnectionModal = window.toggleConnectionModal || function() {
             const modal = document.getElementById('connection-modal');
-            if (modal) {
-                modal.classList.toggle('active');
-            } else {
-                console.warn('[Fallback] Connection Modal not found - waiting for Sidebar.js');
-            }
+            if (modal) modal.classList.toggle('active');
         };
         
-        /**
-         * Connection Modal 닫기 (폴백)
-         */
         window.closeConnectionModal = window.closeConnectionModal || function() {
             const modal = document.getElementById('connection-modal');
             if (modal) modal.classList.remove('active');
         };
         
-        /**
-         * Debug Panel 토글 (폴백)
-         */
         window.toggleDebugPanel = window.toggleDebugPanel || function() {
             if (!window.canAccessFeatures()) {
                 window.showToast('Enable Dev Mode first', 'warning');
@@ -978,20 +951,13 @@
             }
         };
         
-        /**
-         * 🔧 v5.2.0: Dev Mode 토글 (폴백)
-         * ModeIndicatorPanel 지원 추가
-         */
         window.toggleDevMode = window.toggleDevMode || function() {
             window.sidebarState.devModeEnabled = !window.sidebarState.devModeEnabled;
             const devMode = window.sidebarState.devModeEnabled;
             
-            // 🔧 v5.2.0: dev-mode-badge는 ModeIndicatorPanel이 관리
-            // 폴백으로 기존 방식도 지원
             const badge = document.getElementById('dev-mode-badge');
             if (badge) badge.classList.toggle('active', devMode);
             
-            // Label
             const label = document.getElementById('dev-mode-toggle');
             if (label) {
                 const span = label.querySelector('span') || label;
@@ -1001,12 +967,8 @@
             }
             
             window.showToast(devMode ? '⚡ Dev Mode ON' : 'Dev Mode OFF', devMode ? 'warning' : 'info');
-            console.log(`⚡ Dev Mode: ${devMode ? 'ON' : 'OFF'}`);
         };
         
-        /**
-         * Theme 토글 (폴백)
-         */
         window.toggleTheme = window.toggleTheme || function() {
             const html = document.documentElement;
             const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -1017,16 +979,12 @@
             if (themeSwitch) themeSwitch.classList.toggle('active', newTheme === 'light');
         };
         
-        /**
-         * 테마 로드 (localStorage)
-         */
         (function loadTheme() {
             const saved = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', saved);
         })();
         
-        console.log('🏭 Sherlock Sky 3DSim v5.2.0');
-        console.log('📦 ModeIndicatorPanel 적용 - 동적 UI 로딩 대기 중...');
+        console.log('🏭 Sherlock Sky 3DSim v5.2.2');
     </script>
     
     <!-- Main Application (ES Module) -->

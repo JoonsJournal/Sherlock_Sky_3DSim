@@ -3,26 +3,27 @@
  * =====================
  * 통합 모드 표시 패널 (CURRENT MODE + DEV MODE)
  * 
- * @version 1.0.0
+ * @version 1.3.0
  * @created 2026-01-11
+ * @updated 2026-01-11
  * 
- * @description
- * - CURRENT MODE 박스와 DEV MODE 뱃지를 통합 관리
- * - 가로 배치로 툴팁 가림 방지
- * - 동일한 스타일, 색상만 다름
- * - 확장 가능한 구조 (Analysis Mode, Simulation Mode 등 추가 용이)
+ * @changelog
+ * - v1.3.0: 🔧 position override 확실히 적용 (2026-01-11)
+ *           - dev-mode-badge에 인라인 스타일로 position: static 강제
+ *           - 가로 배치 (CURRENT MODE 왼쪽, DEV MODE 오른쪽)
+ * - v1.2.0: 가로 배치 시도
+ * - v1.1.0: 기존 스타일 유지 시도
+ * - v1.0.0: 초기 버전
  * 
- * @features
- * - setMode(mode, submode): 현재 모드 업데이트
- * - setDevMode(enabled): Dev Mode 표시/숨김
- * - show() / hide(): 전체 패널 표시/숨김
- * - destroy(): 정리
- * 
- * @compatibility
- * - 기존 ID 유지: #current-mode, #current-submode, #dev-mode-badge
- * - Sidebar._updateOverlayUI() 호환
- * - SidebarSubmenuFactory.updateDevModeBadge() 호환
- * - index.html 폴백 함수 호환
+ * @layout
+ * ┌───────────────────────────────────────────────────┐
+ * │ ┌─────────────────┐  ┌─────────────────────────┐  │
+ * │ │ CURRENT MODE    │  │ ⚡ DEV MODE (pill)      │  │
+ * │ │ Monitoring      │  └─────────────────────────┘  │
+ * │ │ → 3D View       │                               │
+ * │ └─────────────────┘                               │
+ * │      (왼쪽)              (오른쪽)                  │
+ * └───────────────────────────────────────────────────┘
  * 
  * 위치: frontend/threejs_viewer/src/ui/overlay/ModeIndicatorPanel.js
  */
@@ -50,22 +51,19 @@ export class ModeIndicatorPanel {
         
         // DOM 참조
         this.container = null;
-        this.modeBox = null;
+        this.modeIndicator = null;
         this.devBadge = null;
         
         // 초기화
         this._create();
         
-        console.log('[ModeIndicatorPanel] 초기화 완료 v1.0.0');
+        console.log('[ModeIndicatorPanel] 초기화 완료 v1.3.0');
     }
     
     // ========================================
     // DOM Creation
     // ========================================
     
-    /**
-     * DOM 생성
-     */
     _create() {
         // 기존 요소 제거
         this._removeExisting();
@@ -75,52 +73,55 @@ export class ModeIndicatorPanel {
         this.container.id = 'mode-indicator-panel';
         this.container.className = 'mode-indicator-panel';
         
+        // 🔑 인라인 스타일로 가로 배치 강제
+        Object.assign(this.container.style, {
+            position: 'fixed',
+            zIndex: '100',
+            display: 'flex',
+            flexDirection: 'row',      // 🔑 가로 배치
+            alignItems: 'flex-start',
+            gap: '10px'
+        });
+        
         // 위치 설정
         this._applyPosition();
         
-        // Mode Box 생성 (항상 표시)
-        this.modeBox = this._createModeBox();
-        this.container.appendChild(this.modeBox);
+        // ============================================
+        // 🔑 순서: CURRENT MODE 먼저 (왼쪽), DEV MODE 뒤 (오른쪽)
+        // ============================================
         
-        // Dev Badge 생성 (숨김 상태)
+        // 1. CURRENT MODE 박스
+        this.modeIndicator = this._createModeIndicator();
+        this.container.appendChild(this.modeIndicator);
+        
+        // 2. DEV MODE 뱃지
         this.devBadge = this._createDevBadge();
         this.container.appendChild(this.devBadge);
         
         // body에 추가
         document.body.appendChild(this.container);
         
-        // 초기 상태: 숨김
-        this.hide();
+        // 초기 상태: 표시
+        this.show();
     }
     
-    /**
-     * 기존 요소 제거 (중복 방지)
-     */
     _removeExisting() {
         // 기존 패널 제거
         const existingPanel = document.getElementById('mode-indicator-panel');
         if (existingPanel) existingPanel.remove();
         
-        // 기존 overlay-ui 내 mode-indicator 제거 (정적 HTML)
+        // 기존 overlay-ui 내 mode-indicator 제거
         const existingOverlay = document.querySelector('#overlay-ui .mode-indicator');
         if (existingOverlay) existingOverlay.remove();
         
-        // 기존 dev-mode-badge 제거
+        // 🔑 body에 직접 붙은 기존 dev-mode-badge 제거
         const existingBadge = document.getElementById('dev-mode-badge');
         if (existingBadge) existingBadge.remove();
     }
     
-    /**
-     * 위치 적용
-     */
     _applyPosition() {
         if (!this.container) return;
         
-        // 기본 위치 스타일
-        this.container.style.position = 'fixed';
-        this.container.style.zIndex = '100';
-        
-        // position에 따른 위치 설정
         switch (this.position) {
             case 'top-left':
                 this.container.style.top = `${this.offsetY}px`;
@@ -141,38 +142,39 @@ export class ModeIndicatorPanel {
     }
     
     /**
-     * Mode Box 생성
-     * @returns {HTMLElement}
+     * CURRENT MODE 박스 생성 (기존 스타일 적용)
      */
-    _createModeBox() {
-        const box = document.createElement('div');
-        box.className = 'mode-indicator-box';
-        box.innerHTML = `
-            <div class="mode-indicator-label">CURRENT MODE</div>
-            <div class="mode-indicator-content">
-                <span class="mode-indicator-value" id="current-mode">—</span>
-                <span class="mode-indicator-subvalue" id="current-submode"></span>
-            </div>
+    _createModeIndicator() {
+        const indicator = document.createElement('div');
+        indicator.className = 'mode-indicator';
+        indicator.innerHTML = `
+            <div class="mode-label">CURRENT MODE</div>
+            <div class="mode-value" id="current-mode">—</div>
+            <div class="submode-value" id="current-submode"></div>
         `;
-        return box;
+        return indicator;
     }
     
     /**
-     * Dev Badge 생성
-     * @returns {HTMLElement}
+     * DEV MODE 뱃지 생성 (기존 스타일 + position override)
      */
     _createDevBadge() {
         const badge = document.createElement('div');
-        badge.className = 'mode-indicator-box mode-indicator-box--dev';
-        badge.id = 'dev-mode-badge';  // 🔑 기존 ID 유지 (호환성)
-        badge.innerHTML = `
-            <div class="mode-indicator-label">DEV MODE</div>
-            <div class="mode-indicator-content">
-                <span class="mode-indicator-icon">⚡</span>
-            </div>
-        `;
-        // 초기 상태: 숨김
-        badge.style.display = 'none';
+        badge.className = 'dev-mode-badge';
+        badge.id = 'dev-mode-badge';
+        badge.textContent = '⚡ DEV MODE';
+        
+        // ============================================
+        // 🔑🔑🔑 핵심: position을 인라인으로 강제 override
+        // index.html의 position: fixed를 무시하고 static 적용
+        // ============================================
+        Object.assign(badge.style, {
+            position: 'static',    // 🔑 fixed → static
+            top: 'auto',
+            left: 'auto',
+            marginTop: '4px'       // 세로 정렬 미세 조정
+        });
+        
         return badge;
     }
     
@@ -180,30 +182,17 @@ export class ModeIndicatorPanel {
     // Public API - Mode Control
     // ========================================
     
-    /**
-     * 현재 모드 설정
-     * @param {string|null} mode - 모드 이름 (null이면 '—')
-     * @param {string|null} submode - 서브모드 이름 (선택)
-     */
     setMode(mode, submode = null) {
         this.currentMode = mode;
         this.currentSubMode = submode;
-        
         this._updateModeDisplay();
     }
     
-    /**
-     * 서브모드만 설정
-     * @param {string|null} submode
-     */
     setSubMode(submode) {
         this.currentSubMode = submode;
         this._updateModeDisplay();
     }
     
-    /**
-     * Mode 표시 업데이트
-     */
     _updateModeDisplay() {
         const modeEl = document.getElementById('current-mode');
         const submodeEl = document.getElementById('current-submode');
@@ -221,17 +210,11 @@ export class ModeIndicatorPanel {
         }
     }
     
-    /**
-     * 모드 이름 포맷팅
-     */
     _formatModeName(mode) {
         if (!mode) return '—';
         return mode.charAt(0).toUpperCase() + mode.slice(1);
     }
     
-    /**
-     * 서브모드 이름 포맷팅
-     */
     _formatSubModeName(submode) {
         if (!submode) return '';
         if (submode === '3d-view') return '3D View';
@@ -242,30 +225,18 @@ export class ModeIndicatorPanel {
     // Public API - Dev Mode Control
     // ========================================
     
-    /**
-     * Dev Mode 설정
-     * @param {boolean} enabled
-     */
     setDevMode(enabled) {
         this.devModeEnabled = enabled;
         
         if (this.devBadge) {
-            this.devBadge.style.display = enabled ? 'flex' : 'none';
-            
-            // 🔑 호환성: active 클래스 토글 (기존 코드 호환)
             this.devBadge.classList.toggle('active', enabled);
         }
         
-        // 이벤트 발생 (선택)
         if (this.eventBus) {
             this.eventBus.emit('modeIndicator:devModeChanged', { enabled });
         }
     }
     
-    /**
-     * Dev Mode 상태 반환
-     * @returns {boolean}
-     */
     isDevModeEnabled() {
         return this.devModeEnabled;
     }
@@ -274,9 +245,6 @@ export class ModeIndicatorPanel {
     // Public API - Visibility Control
     // ========================================
     
-    /**
-     * 패널 표시
-     */
     show() {
         if (this.container) {
             this.container.style.display = 'flex';
@@ -284,9 +252,6 @@ export class ModeIndicatorPanel {
         }
     }
     
-    /**
-     * 패널 숨김
-     */
     hide() {
         if (this.container) {
             this.container.style.display = 'none';
@@ -294,21 +259,10 @@ export class ModeIndicatorPanel {
         }
     }
     
-    /**
-     * 패널 토글
-     */
     toggle() {
-        if (this.isVisible) {
-            this.hide();
-        } else {
-            this.show();
-        }
+        this.isVisible ? this.hide() : this.show();
     }
     
-    /**
-     * 표시 상태 반환
-     * @returns {boolean}
-     */
     isShown() {
         return this.isVisible;
     }
@@ -317,37 +271,20 @@ export class ModeIndicatorPanel {
     // Public API - Configuration
     // ========================================
     
-    /**
-     * 위치 변경
-     * @param {number} x - X 오프셋
-     * @param {number} y - Y 오프셋
-     */
     setPosition(x, y) {
         this.offsetX = x;
         this.offsetY = y;
         this._applyPosition();
     }
     
-    /**
-     * DOM 요소 반환 (직접 접근용)
-     * @returns {HTMLElement|null}
-     */
     getElement() {
         return this.container;
     }
     
-    /**
-     * Mode Box 요소 반환
-     * @returns {HTMLElement|null}
-     */
-    getModeBox() {
-        return this.modeBox;
+    getModeIndicator() {
+        return this.modeIndicator;
     }
     
-    /**
-     * Dev Badge 요소 반환
-     * @returns {HTMLElement|null}
-     */
     getDevBadge() {
         return this.devBadge;
     }
@@ -356,16 +293,13 @@ export class ModeIndicatorPanel {
     // Cleanup
     // ========================================
     
-    /**
-     * 정리
-     */
     destroy() {
         if (this.container) {
             this.container.remove();
             this.container = null;
         }
         
-        this.modeBox = null;
+        this.modeIndicator = null;
         this.devBadge = null;
         this.currentMode = null;
         this.currentSubMode = null;

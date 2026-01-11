@@ -3,49 +3,22 @@
  * ==========
  * Cleanroom Sidebar UI 컴포넌트
  * 
- * Source: test_sidebar_standalone.html v2.10
- * 
- * @version 1.7.0
+ * @version 1.7.2
  * @created 2026-01-11
  * @updated 2026-01-11
  * 
  * @changelog
- * - v1.7.0: 🆕 ModeIndicatorPanel 연동 (2026-01-11)
- *           - createDevModeBadge() 제거 → ModeIndicatorPanel로 대체
- *           - _updateOverlayUI() → modeIndicatorPanel.setMode() 사용
- *           - CURRENT MODE + DEV MODE 통합 표시
- * - v1.6.0: 🆕 Dev Mode ↔ ConnectionModalManager Mock 모드 연동
- * - v1.5.0: 🔧 버튼/서브메뉴 컴포넌트 분리 (Phase 4 리팩토링)
- * - v1.4.0: 🔧 Connection Modal 분리 (Phase 3 리팩토링)
- * - v1.3.0: 🔧 상수/설정 분리 (Phase 2 리팩토링)
- * - v1.2.0: 🔧 Connection Modal v2.9 Full Version 복원
- * - v1.1.0: Connection Modal 동적 생성 추가
- * - v1.0.0: 초기 버전
- * 
- * @description
- * - 기존 floating-btn 시스템 대체
- * - AppModeManager와 연동하여 모드 전환
- * - ConnectionStatusService와 연동하여 상태 관리
- * - 모듈화된 Factory 함수 사용
- * - 🆕 ModeIndicatorPanel로 모드/Dev 표시 통합
- * 
- * 의존성:
- * - AppModeManager (core/managers)
- * - EventBus (core/managers)
- * - ConnectionStatusService (services)
- * - IconRegistry (ui/sidebar)
- * - SidebarConfig (ui/sidebar)
- * - ConnectionModalManager (ui/sidebar)
- * - SidebarButtonFactory (ui/sidebar)
- * - SidebarSubmenuFactory (ui/sidebar)
- * - 🆕 ModeIndicatorPanel (ui/overlay)
+ * - v1.7.2: 🔧 ModeIndicatorPanel 연동 + 기존 스타일 유지 (2026-01-11)
+ * - v1.7.1: ModeIndicatorPanel 표시 버그 수정
+ * - v1.7.0: ModeIndicatorPanel 연동
+ * - v1.6.0: Dev Mode ↔ ConnectionModalManager Mock 모드 연동
+ * - v1.5.0: 버튼/서브메뉴 컴포넌트 분리
  * 
  * 위치: frontend/threejs_viewer/src/ui/sidebar/Sidebar.js
  */
 
 import { ICONS, getIcon } from './IconRegistry.js';
 
-// 상수/설정 import
 import { 
     SIDEBAR_BUTTONS, 
     SUBMENUS, 
@@ -54,20 +27,16 @@ import {
     getSiteById 
 } from './SidebarConfig.js';
 
-// Connection Modal Manager import
 import { ConnectionModalManager } from './ConnectionModalManager.js';
 
 // 🆕 v1.7.0: ModeIndicatorPanel import
 import { ModeIndicatorPanel } from '../overlay/ModeIndicatorPanel.js';
 
-// 🆕 v1.5.0: Factory 함수 import
 import {
     createButton,
     createButtonWithSubmenu,
     createDivider,
     createSpacer,
-    // 🔧 v1.7.0: createDevModeBadge 제거 (ModeIndicatorPanel로 대체)
-    // createDevModeBadge,
     createBottomPadding,
     calculateButtonState,
     applyButtonState,
@@ -88,24 +57,13 @@ import {
 // ============================================
 
 export class Sidebar {
-    /**
-     * @param {Object} options
-     * @param {Object} options.appModeManager - AppModeManager 인스턴스
-     * @param {Object} options.eventBus - EventBus 인스턴스
-     * @param {Object} options.connectionStatusService - ConnectionStatusService 인스턴스
-     * @param {Object} options.toast - Toast 인스턴스
-     * @param {Object} options.APP_MODE - APP_MODE 상수
-     * @param {Object} options.callbacks - 콜백 함수들
-     */
     constructor(options = {}) {
-        // 의존성 주입
         this.appModeManager = options.appModeManager || null;
         this.eventBus = options.eventBus || null;
         this.connectionStatusService = options.connectionStatusService || null;
         this.toast = options.toast || null;
         this.APP_MODE = options.APP_MODE || {};
         
-        // 콜백 함수들
         this.callbacks = {
             toggleConnectionModal: options.callbacks?.toggleConnectionModal || null,
             toggleDebugPanel: options.callbacks?.toggleDebugPanel || (() => {}),
@@ -113,28 +71,21 @@ export class Sidebar {
             ...options.callbacks
         };
         
-        // 상태
         this.isConnected = false;
         this.devModeEnabled = false;
         this.currentMode = null;
         this.currentSubMode = null;
         this.currentTheme = 'dark';
         
-        // DOM 참조
         this.element = null;
         this.buttons = new Map();
         this.submenus = new Map();
         
-        // Connection Modal Manager
         this.connectionModalManager = null;
-        
-        // 🆕 v1.7.0: Mode Indicator Panel
         this.modeIndicatorPanel = null;
         
-        // 이벤트 리스너 정리용
         this._eventUnsubscribers = [];
         
-        // 초기화
         this._init();
     }
     
@@ -146,13 +97,13 @@ export class Sidebar {
         this._loadTheme();
         this._createDOM();
         this._createConnectionModalManager();
-        this._createModeIndicatorPanel();  // 🆕 v1.7.0
+        this._createModeIndicatorPanel();
         this._setupEventListeners();
         this._setupAppModeListeners();
         this._setupConnectionListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v1.7.0');
+        console.log('[Sidebar] 초기화 완료 v1.7.2');
     }
     
     _loadTheme() {
@@ -161,51 +112,36 @@ export class Sidebar {
     }
     
     // ========================================
-    // DOM Creation (🆕 v1.5.0: Factory 함수 사용)
+    // DOM Creation
     // ========================================
     
     _createDOM() {
-        // 기존 사이드바가 있으면 제거
         const existing = document.getElementById('sidebar');
         if (existing) existing.remove();
         
-        // 사이드바 컨테이너
         this.element = document.createElement('aside');
         this.element.className = 'sidebar';
         this.element.id = 'sidebar';
         
-        // 버튼들 생성 (Factory 함수 사용)
         this._addButton('connection');
         this._addButtonWithSubmenu('monitoring');
         this._addButton('analysis');
         this._addButton('simulation');
         
-        // 구분선
         this.element.appendChild(createDivider());
         
-        // Layout (Dev Mode용)
         this._addButtonWithSubmenu('layout');
         
-        // 스페이서
         this.element.appendChild(createSpacer());
         
-        // 하단 버튼들
         this._addButtonWithSubmenu('debug');
         this._addButtonWithSubmenu('settings');
         
-        // 하단 여백
         this.element.appendChild(createBottomPadding());
         
-        // body에 삽입 (맨 앞에)
         document.body.insertBefore(this.element, document.body.firstChild);
-        
-        // 🔧 v1.7.0: createDevModeBadge() 제거 (ModeIndicatorPanel로 대체)
-        // createDevModeBadge();
     }
     
-    /**
-     * 🆕 v1.5.0: 단일 버튼 추가 (Factory 함수 사용)
-     */
     _addButton(key) {
         const config = SIDEBAR_BUTTONS[key];
         if (!config) return null;
@@ -224,16 +160,12 @@ export class Sidebar {
         return btn;
     }
     
-    /**
-     * 🆕 v1.5.0: 서브메뉴 포함 버튼 추가 (Factory 함수 사용)
-     */
     _addButtonWithSubmenu(key) {
         const config = SIDEBAR_BUTTONS[key];
         if (!config || !config.hasSubmenu) {
             return this._addButton(key);
         }
         
-        // 서브메뉴 생성 (컨텍스트 전달)
         const submenu = createSubmenu(
             { ...SUBMENUS[config.submenuId], id: config.submenuId },
             getIcon,
@@ -245,7 +177,6 @@ export class Sidebar {
             }
         );
         
-        // 버튼 + 래퍼 생성
         const { wrapper, button } = createButtonWithSubmenu(
             config,
             getIcon,
@@ -263,22 +194,19 @@ export class Sidebar {
     }
     
     // ========================================
-    // 🆕 v1.7.0: Mode Indicator Panel
+    // ModeIndicatorPanel
     // ========================================
     
-    /**
-     * ModeIndicatorPanel 생성
-     */
     _createModeIndicatorPanel() {
         this.modeIndicatorPanel = new ModeIndicatorPanel({
             position: 'top-left',
-            offsetX: 100,   // 사이드바(80px) + 여백(20px)
+            offsetX: 100,
             offsetY: 12,
             eventBus: this.eventBus
         });
         
-        // 초기 상태: 숨김 (3D View 활성화 시 표시)
-        this.modeIndicatorPanel.hide();
+        // 🔑 항상 표시 (Cover Screen에서만 숨김)
+        this.modeIndicatorPanel.show();
         
         console.log('[Sidebar] ModeIndicatorPanel 생성 완료');
     }
@@ -319,7 +247,7 @@ export class Sidebar {
         this.currentMode = null;
         this.currentSubMode = null;
         this._updateButtonSelection();
-        this._updateModeIndicator();  // 🔧 v1.7.0
+        this._updateModeIndicator();
         
         if (window.sidebarState) {
             window.sidebarState.isConnected = false;
@@ -467,7 +395,7 @@ export class Sidebar {
         if (!this.appModeManager) {
             console.warn('[Sidebar] AppModeManager not connected');
             this.currentMode = mode;
-            this._updateModeIndicator();  // 🔧 v1.7.0
+            this._updateModeIndicator();
             return;
         }
         
@@ -482,7 +410,6 @@ export class Sidebar {
             this.appModeManager.setSubMode(submode);
         }
         
-        // 🆕 v1.5.0: Factory 함수 사용
         updateSubmenuActiveState(this.currentSubMode);
         
         if (this.currentMode === 'monitoring' && submode === '3d-view') {
@@ -491,7 +418,7 @@ export class Sidebar {
             this._hideAllViews();
         }
         
-        this._updateModeIndicator();  // 🔧 v1.7.0
+        this._updateModeIndicator();
         
         if (this.toast) {
             this.toast.info('Mode Changed', `${this.currentMode} → ${submode}`);
@@ -507,7 +434,7 @@ export class Sidebar {
         this.currentSubMode = null;
         
         this._updateButtonSelection();
-        this._updateModeIndicator();  // 🔧 v1.7.0
+        this._updateModeIndicator();
     }
     
     // ========================================
@@ -521,11 +448,8 @@ export class Sidebar {
         
         if (coverScreen) coverScreen.classList.add('hidden');
         if (threejsContainer) threejsContainer.classList.add('active');
+        if (overlayUI) overlayUI.style.display = 'none';
         
-        // 🔧 v1.7.0: 기존 overlay-ui 대신 ModeIndicatorPanel 사용
-        if (overlayUI) overlayUI.style.display = 'none';  // 기존 overlay-ui 숨김
-        
-        // ModeIndicatorPanel 표시
         if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.show();
         }
@@ -542,12 +466,9 @@ export class Sidebar {
         
         if (coverScreen) coverScreen.classList.add('hidden');
         if (threejsContainer) threejsContainer.classList.remove('active');
-        
-        // 🔧 v1.7.0: 기존 overlay-ui 대신 ModeIndicatorPanel 사용
         if (overlayUI) overlayUI.style.display = 'none';
         
-        // ModeIndicatorPanel 표시 (모드가 있을 때)
-        if (this.modeIndicatorPanel && this.currentMode) {
+        if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.show();
         }
     }
@@ -561,7 +482,7 @@ export class Sidebar {
         if (threejsContainer) threejsContainer.classList.remove('active');
         if (overlayUI) overlayUI.style.display = 'none';
         
-        // 🔧 v1.7.0: ModeIndicatorPanel 숨김
+        // 🔑 Cover Screen에서만 숨김
         if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.hide();
         }
@@ -571,31 +492,23 @@ export class Sidebar {
         }
     }
     
-    /**
-     * 🆕 v1.7.0: Mode Indicator 업데이트 (기존 _updateOverlayUI 대체)
-     */
     _updateModeIndicator() {
         if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.setMode(this.currentMode, this.currentSubMode);
         }
         
-        // 🔑 호환성: window.sidebarState 업데이트
         if (window.sidebarState) {
             window.sidebarState.currentMode = this.currentMode;
             window.sidebarState.currentSubMode = this.currentSubMode;
         }
     }
     
-    /**
-     * @deprecated v1.7.0: _updateModeIndicator() 사용
-     * 기존 코드 호환성을 위해 유지
-     */
     _updateOverlayUI() {
         this._updateModeIndicator();
     }
     
     // ========================================
-    // Button State Management (🆕 v1.5.0: Factory 함수 사용)
+    // Button State Management
     // ========================================
     
     _selectButton(key) {
@@ -635,7 +548,6 @@ export class Sidebar {
             
             if (!btn) return;
             
-            // 🆕 v1.5.0: Factory 함수 사용
             const stateResult = calculateButtonState(config, state);
             applyButtonState(btn, wrapper, stateResult);
         });
@@ -661,7 +573,7 @@ export class Sidebar {
         this.currentMode = null;
         this.currentSubMode = null;
         this._updateButtonSelection();
-        this._updateModeIndicator();  // 🔧 v1.7.0
+        this._updateModeIndicator();
         
         if (!this.devModeEnabled) {
             this.showCoverScreen();
@@ -694,14 +606,13 @@ export class Sidebar {
     }
     
     // ========================================
-    // Theme Management (🆕 v1.5.0: Factory 함수 사용)
+    // Theme Management
     // ========================================
     
     toggleTheme() {
         this.currentTheme = this.currentTheme === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', this.currentTheme);
         
-        // 🆕 v1.5.0: Factory 함수 사용
         updateThemeSwitchState(this.currentTheme);
         
         localStorage.setItem('theme', this.currentTheme);
@@ -716,45 +627,34 @@ export class Sidebar {
     }
     
     // ========================================
-    // Dev Mode (🆕 v1.6.0: Mock 모드 연동, v1.7.0: ModeIndicatorPanel 연동)
+    // Dev Mode
     // ========================================
     
-    /**
-     * 🆕 v1.6.0: Dev Mode 토글 + ConnectionModalManager Mock 모드 연동
-     * 🆕 v1.7.0: ModeIndicatorPanel Dev Mode 연동
-     */
     toggleDevMode() {
         this.devModeEnabled = !this.devModeEnabled;
         
-        // 🆕 v1.5.0: Factory 함수 사용
-        updateDevModeBadge(this.devModeEnabled);  // 🔑 호환성: 기존 함수 유지
+        // 🔑 기존 함수들 호출 (호환성)
+        updateDevModeBadge(this.devModeEnabled);
         updateDevModeLabel(this.devModeEnabled);
         setMockTestSectionVisible(this.devModeEnabled);
         
-        // ============================================
-        // 🆕 v1.7.0: ModeIndicatorPanel Dev Mode 연동
-        // ============================================
+        // 🔑 ModeIndicatorPanel Dev Mode 연동
         if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.setDevMode(this.devModeEnabled);
         }
         
-        // ============================================
-        // 🆕 v1.6.0: ConnectionModalManager Mock 모드 연동
-        // ============================================
+        // Mock 모드 연동
         if (this.connectionModalManager) {
             if (this.devModeEnabled) {
-                // Dev Mode ON → Mock 모드 활성화
                 this.connectionModalManager.enableMockMode({
-                    responseDelay: 500  // 네트워크 시뮬레이션 지연
+                    responseDelay: 500
                 });
                 console.log('[Sidebar] 🎭 ConnectionModalManager Mock 모드 활성화');
             } else {
-                // Dev Mode OFF → Mock 모드 비활성화 (실제 API 모드)
                 this.connectionModalManager.disableMockMode();
                 console.log('[Sidebar] 🔌 ConnectionModalManager 실제 API 모드로 전환');
             }
         }
-        // ============================================
         
         this._updateButtonStates();
         
@@ -813,9 +713,6 @@ export class Sidebar {
         return this.devModeEnabled;
     }
     
-    /**
-     * 🆕 v1.7.0: ModeIndicatorPanel 접근
-     */
     getModeIndicatorPanel() {
         return this.modeIndicatorPanel;
     }
@@ -865,13 +762,11 @@ export class Sidebar {
             this.connectionModalManager = null;
         }
         
-        // 🆕 v1.7.0: ModeIndicatorPanel 정리
         if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.destroy();
             this.modeIndicatorPanel = null;
         }
         
-        // 🔧 v1.7.0: 기존 dev-mode-badge 제거 (ModeIndicatorPanel이 관리)
         const badge = document.getElementById('dev-mode-badge');
         if (badge) badge.remove();
         

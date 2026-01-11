@@ -3,14 +3,12 @@
  * ===================
  * ModeIndicatorPanel 스타일
  * 
- * @version 1.0.0
+ * @version 1.3.0
  * @created 2026-01-11
+ * @updated 2026-01-11
  * 
- * @description
- * - CURRENT MODE 박스와 DEV MODE 뱃지 통합 스타일
- * - 동일한 스타일, 색상만 다름
- * - 가로 배치 (flex)
- * - 테마 대응 (CSS 변수)
+ * @changelog
+ * - v1.3.0: 🔧 position override + 가로 배치 확실히 적용
  * 
  * 위치: frontend/threejs_viewer/styles/components/_mode-indicator.css
  */
@@ -19,202 +17,44 @@
    Container - 가로 배치
    ============================================= */
 .mode-indicator-panel {
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    gap: 8px;
+    position: fixed;
     z-index: 100;
-}
-
-/* =============================================
-   Box - 공통 스타일
-   ============================================= */
-.mode-indicator-box {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 8px 14px;
-    background: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
-    border-radius: 8px;
-    min-width: 100px;
-    transition: all 0.25s ease;
-}
-
-/* Light Theme */
-[data-theme="light"] .mode-indicator-box {
-    background: rgba(255, 255, 255, 0.9);
-    border-color: var(--border-color, rgba(0, 0, 0, 0.1));
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    flex-direction: row;  /* 🔑 가로 배치 */
+    align-items: flex-start;
+    gap: 10px;
 }
 
 /* =============================================
-   Label - 상단 작은 텍스트
+   Dev Badge - 컨테이너 내 배치 강제
+   index.html의 position: fixed 무시
    ============================================= */
-.mode-indicator-label {
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    color: var(--text-muted, #6B7280);
-    margin-bottom: 2px;
-}
-
-[data-theme="light"] .mode-indicator-label {
-    color: var(--text-muted, #94A3B8);
+.mode-indicator-panel .dev-mode-badge {
+    position: static !important;  /* 🔑 fixed → static 강제 */
+    top: auto !important;
+    left: auto !important;
+    margin-top: 4px;
 }
 
 /* =============================================
-   Content - 메인 영역
+   호환성: 중복 요소 숨김
    ============================================= */
-.mode-indicator-content {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+
+/* body에 직접 붙은 기존 dev-mode-badge 숨김 */
+body > .dev-mode-badge {
+    display: none !important;
+}
+
+/* 기존 overlay-ui의 mode-indicator 숨김 */
+body:has(.mode-indicator-panel) #overlay-ui .mode-indicator {
+    display: none !important;
 }
 
 /* =============================================
-   Value - 모드 이름 (CURRENT MODE용)
-   ============================================= */
-.mode-indicator-value {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--icon-selected, #06B6D4);
-    line-height: 1.2;
-}
-
-[data-theme="light"] .mode-indicator-value {
-    color: var(--icon-selected, #0891B2);
-}
-
-/* =============================================
-   SubValue - 서브모드 (→ 3D View)
-   ============================================= */
-.mode-indicator-subvalue {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--text-secondary, #9CA3AF);
-    margin-left: 2px;
-}
-
-[data-theme="light"] .mode-indicator-subvalue {
-    color: var(--text-secondary, #475569);
-}
-
-/* =============================================
-   Icon - DEV MODE 아이콘
-   ============================================= */
-.mode-indicator-icon {
-    font-size: 14px;
-    line-height: 1;
-}
-
-/* =============================================
-   DEV MODE Box - 특별 스타일
-   ============================================= */
-.mode-indicator-box--dev {
-    background: rgba(251, 191, 36, 0.15);
-    border-color: var(--text-warning, #FBBF24);
-    min-width: 70px;
-}
-
-.mode-indicator-box--dev .mode-indicator-label {
-    color: var(--text-warning, #FBBF24);
-}
-
-.mode-indicator-box--dev .mode-indicator-icon {
-    color: var(--text-warning, #FBBF24);
-}
-
-/* Light Theme - DEV MODE */
-[data-theme="light"] .mode-indicator-box--dev {
-    background: rgba(251, 191, 36, 0.2);
-    border-color: #D97706;
-}
-
-[data-theme="light"] .mode-indicator-box--dev .mode-indicator-label {
-    color: #D97706;
-}
-
-[data-theme="light"] .mode-indicator-box--dev .mode-indicator-icon {
-    color: #D97706;
-}
-
-/* =============================================
-   Animation - Dev Mode 활성화 시
-   ============================================= */
-.mode-indicator-box--dev.active {
-    animation: dev-mode-pulse 2s ease-in-out infinite;
-}
-
-@keyframes dev-mode-pulse {
-    0%, 100% {
-        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.3);
-    }
-    50% {
-        box-shadow: 0 0 8px 2px rgba(251, 191, 36, 0.4);
-    }
-}
-
-/* =============================================
-   Hover Effects
-   ============================================= */
-.mode-indicator-box:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-[data-theme="light"] .mode-indicator-box:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* =============================================
-   Responsive - 작은 화면
+   Responsive
    ============================================= */
 @media (max-width: 768px) {
     .mode-indicator-panel {
         gap: 6px;
     }
-    
-    .mode-indicator-box {
-        padding: 6px 10px;
-        min-width: 80px;
-    }
-    
-    .mode-indicator-label {
-        font-size: 8px;
-    }
-    
-    .mode-indicator-value {
-        font-size: 12px;
-    }
-    
-    .mode-indicator-subvalue {
-        font-size: 10px;
-    }
-    
-    .mode-indicator-box--dev {
-        min-width: 60px;
-    }
-}
-
-/* =============================================
-   🔑 호환성: 기존 #dev-mode-badge 스타일 오버라이드
-   SidebarButtonFactory에서 생성한 요소와 충돌 방지
-   ============================================= */
-
-/* 기존 dev-mode-badge 스타일 무효화 (ModeIndicatorPanel 사용 시) */
-body:has(.mode-indicator-panel) .dev-mode-badge:not(.mode-indicator-box--dev) {
-    display: none !important;
-}
-
-/* =============================================
-   🔑 호환성: 기존 overlay-ui 스타일 공존
-   점진적 마이그레이션을 위해 유지
-   ============================================= */
-
-/* ModeIndicatorPanel 사용 시 기존 overlay-ui의 mode-indicator 숨김 */
-body:has(.mode-indicator-panel) #overlay-ui .mode-indicator {
-    display: none !important;
 }
