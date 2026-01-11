@@ -5,8 +5,17 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @created 2026-01-11
+ * @updated 2026-01-11
+ * 
+ * @changelog
+ * - v1.1.0: 🔧 Phase 4-5 리팩토링 파일 export 추가
+ *           - ConnectionModalManager export
+ *           - SidebarConfig export
+ *           - SidebarButtonFactory export
+ *           - SidebarSubmenuFactory export
+ * - v1.0.0: 초기 버전
  * 
  * 사용법:
  *   import { Sidebar, StatusBar, CoverScreen, ICONS, getIcon } from './ui/sidebar/index.js';
@@ -17,11 +26,17 @@
  * 
  * 파일 구조:
  *   src/ui/sidebar/
- *   ├── index.js           # 이 파일
- *   ├── Sidebar.js         # 메인 사이드바 컴포넌트
- *   ├── StatusBar.js       # 하단 상태바 컴포넌트
- *   ├── CoverScreen.js     # 커버 스크린 컴포넌트
- *   └── IconRegistry.js    # SVG 아이콘 레지스트리
+ *   ├── index.js                    # 이 파일
+ *   ├── Sidebar.js                  # 메인 사이드바 컴포넌트
+ *   ├── StatusBar.js                # 하단 상태바 컴포넌트
+ *   ├── CoverScreen.js              # 커버 스크린 컴포넌트
+ *   ├── IconRegistry.js             # SVG 아이콘 레지스트리
+ *   ├── SidebarConfig.js            # 상수/설정 (Phase 2)
+ *   ├── ConnectionModalManager.js   # Connection Modal 관리자 (Phase 3)
+ *   ├── SidebarButtonFactory.js     # 버튼 생성 유틸리티 (Phase 4)
+ *   └── SidebarSubmenuFactory.js    # 서브메뉴 생성 유틸리티 (Phase 4)
+ * 
+ * 위치: frontend/threejs_viewer/src/ui/sidebar/index.js
  */
 
 // ============================================
@@ -42,6 +57,59 @@ export {
     getIconList, 
     hasIcon 
 } from './IconRegistry.js';
+
+// ============================================
+// 🆕 v1.1.0: Config & Constants Exports (Phase 2)
+// ============================================
+
+export {
+    SIDEBAR_BUTTONS,
+    SUBMENUS,
+    SITE_LIST,
+    MODE_MAP,
+    getSiteById,
+    getSitesByCountry
+} from './SidebarConfig.js';
+
+// ============================================
+// 🆕 v1.1.0: Connection Modal Manager Export (Phase 3)
+// ============================================
+
+export { ConnectionModalManager } from './ConnectionModalManager.js';
+
+// ============================================
+// 🆕 v1.1.0: Factory Functions Exports (Phase 4)
+// ============================================
+
+// Button Factory
+export {
+    createButton,
+    createButtonWithSubmenu,
+    createDivider,
+    createSpacer,
+    createDevModeBadge,
+    createBottomPadding,
+    calculateButtonState,
+    applyButtonState,
+    setButtonSelected,
+    setButtonEnabled,
+    setButtonVisible
+} from './SidebarButtonFactory.js';
+
+// Submenu Factory
+export {
+    createSubmenu,
+    createSubmenuItem,
+    createThemeToggle,
+    createMockTestSection,
+    updateSubmenuActiveState,
+    setMockTestSectionVisible,
+    updateThemeSwitchState,
+    updateDevModeLabel,
+    updateDevModeBadge,
+    findSubmenuItem,
+    setSubmenuItemEnabled
+} from './SidebarSubmenuFactory.js';
 
 // ============================================
 // Helper Functions
@@ -86,6 +154,9 @@ import { CoverScreen } from './CoverScreen.js';
  *         openEquipmentEditModal
  *     }
  * });
+ * 
+ * // Connection Modal 열기
+ * ui.sidebar.openConnectionModal();
  * 
  * // 나중에 정리
  * ui.destroy();
@@ -258,12 +329,24 @@ export async function createSidebarUIAsync(options = {}) {
 // Version Info
 // ============================================
 
-export const VERSION = '1.0.0';
+export const VERSION = '1.1.0';
 export const SOURCE = 'test_sidebar_standalone.html v2.10';
 
 // ============================================
-// Re-export for convenience
+// Default Export (convenience)
 // ============================================
 
-// Note: Use named imports for tree-shaking support
-// import { Sidebar, StatusBar, CoverScreen, createSidebarUI } from './ui/sidebar/index.js';
+export default {
+    // Components
+    Sidebar,
+    StatusBar,
+    CoverScreen,
+    
+    // Factories
+    createSidebarUI,
+    createSidebarUIAsync,
+    
+    // Version
+    VERSION,
+    SOURCE
+};

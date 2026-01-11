@@ -1,8 +1,33 @@
 /**
  * ConnectionModal.js
+ * ==================
  * 데이터베이스 연결 관리 모달
  * 
  * @version 2.0.0
+ * @deprecated v2.1.0 - Sidebar.js의 ConnectionModalManager.js로 대체됨
+ * 
+ * ⚠️ DEPRECATED NOTICE ⚠️
+ * ========================
+ * 이 파일은 더 이상 사용되지 않습니다.
+ * 
+ * 대체 방법:
+ * - Sidebar.js 사용 시: ConnectionModalManager.js가 자동으로 모달 관리
+ * - 독립 사용 시: 아래 마이그레이션 가이드 참조
+ * 
+ * 마이그레이션 가이드:
+ * ------------------
+ * // 기존 코드
+ * import { ConnectionModal } from './ui/ConnectionModal.js';
+ * const modal = new ConnectionModal();
+ * modal.open();
+ * 
+ * // 새 코드 (Sidebar 사용 시)
+ * import { Sidebar } from './ui/sidebar/index.js';
+ * const sidebar = new Sidebar({ ... });
+ * sidebar.openConnectionModal();
+ * 
+ * 삭제 예정일: 2026-02-01
+ * 
  * @description BaseModal 상속 적용
  */
 
@@ -13,12 +38,21 @@ import { ConnectionStatusPanel } from './ConnectionStatusPanel.js';
 import { SiteSelectionPanel } from './SiteSelectionPanel.js';
 import { DatabaseListPanel } from './DatabaseListPanel.js';
 
+// ⚠️ Deprecation 경고 출력
+console.warn(
+    '[DEPRECATED] ConnectionModal.js is deprecated and will be removed in v2.1.0.\n' +
+    'Please migrate to Sidebar.js with ConnectionModalManager.js.\n' +
+    'See migration guide: https://github.com/JoonsJournal/Sherlock_Sky_3DSim/docs/migration/connection-modal.md'
+);
+
 /**
- * ConnectionModal
- * 데이터베이스 연결 관리 모달
+ * @deprecated Use Sidebar.js + ConnectionModalManager.js instead
  */
 export class ConnectionModal extends BaseModal {
     constructor(options = {}) {
+        // Deprecation 경고
+        console.warn('[ConnectionModal] This class is deprecated. Use Sidebar.openConnectionModal() instead.');
+        
         super({
             ...options,
             title: '🔌 Database Connection Manager',
