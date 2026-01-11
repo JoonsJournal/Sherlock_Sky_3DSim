@@ -131,7 +131,8 @@ export class Toast extends BaseComponent {
      * Toast 표시
      * @param {string} message - 메시지
      * @param {string} type - 타입 ('success' | 'error' | 'warning' | 'info')
-     * @param {number} duration - 표시 시간 (ms), 0이면 자동 닫기 안함
+     * @param {number|string} duration - 표시 시간 (ms), 0이면 자동 닫기 안함
+     *                                   🆕 v3.1.0: 문자열이면 title로 처리 (Sidebar.js 호환)
      * @param {Object} options - 추가 옵션
      * @returns {string} Toast ID
      */
@@ -142,7 +143,22 @@ export class Toast extends BaseComponent {
         
         const config = TOAST_CONFIG[type] || TOAST_CONFIG.info;
         const toastId = `toast-${++this._toastIdCounter}`;
-        const finalDuration = duration !== null ? duration : config.defaultDuration;
+        
+        // 🆕 v3.1.0: duration이 문자열이면 title로 처리 (Sidebar.js 호환)
+        // toast.warning('Title', 'Message') 형태 지원
+        let finalDuration;
+        let finalOptions = options;
+        
+        if (typeof duration === 'string') {
+            // duration 자리에 문자열이 오면 → title로 처리
+            finalOptions = { ...options, title: message };
+            message = duration;  // 두 번째 인자가 실제 메시지
+            finalDuration = config.defaultDuration;
+        } else if (typeof duration === 'number') {
+            finalDuration = duration;
+        } else {
+            finalDuration = config.defaultDuration;
+        }
         
         // 최대 개수 초과 시 가장 오래된 Toast 제거
         if (this._toasts.size >= this._maxToasts) {
@@ -158,7 +174,7 @@ export class Toast extends BaseComponent {
         toast.setAttribute('aria-live', 'polite');
         
         // Toast 내용 구성
-        toast.innerHTML = this._buildToastHTML(message, config, finalDuration, options);
+        toast.innerHTML = this._buildToastHTML(message, config, finalDuration, finalOptions);
         
         // 닫기 버튼 이벤트
         const closeBtn = toast.querySelector('.toast-close');
@@ -167,8 +183,8 @@ export class Toast extends BaseComponent {
         }
         
         // 액션 버튼 이벤트 (있는 경우)
-        if (options.actions) {
-            options.actions.forEach((action, index) => {
+        if (finalOptions.actions) {
+            finalOptions.actions.forEach((action, index) => {
                 const btn = toast.querySelector(`[data-action-index="${index}"]`);
                 if (btn && action.onClick) {
                     btn.addEventListener('click', () => {

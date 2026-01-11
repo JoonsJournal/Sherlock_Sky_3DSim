@@ -5,12 +5,19 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 2.0.0
+ * @version 2.1.0
  * @created 2026-01-11
- * @updated 2026-01-11 - 호환성 개선, CSS 변수 통일
+ * @updated 2026-01-11
+ * 
+ * @changelog
+ * - v2.1.0: 🔧 UI 간소화 (2026-01-11)
+ *           - NET, API에서 "Online", "Disconnected" 텍스트 제거
+ *           - DB는 연결 시 DB Name만 표시
+ *           - FPS, MEM 폰트를 라벨과 동일하게 통일
+ * - v2.0.0: 호환성 개선, CSS 변수 통일
  * 
  * @description
- * - NET, API, DB 연결 상태 표시
+ * - NET, API, DB 연결 상태 표시 (dot + label만)
  * - FPS, Memory 성능 표시 (perf-bar 게이지)
  * - Site/Country 정보 표시
  * - ConnectionStatusService, PerformanceMonitor 연동
@@ -108,13 +115,19 @@ export class StatusBar {
         this._startUpdateLoop();
         this._updateInitialState();
         
-        console.log('[StatusBar] 초기화 완료');
+        console.log('[StatusBar] 초기화 완료 (v2.1.0)');
     }
     
     // ========================================
     // DOM Creation
     // ========================================
     
+    /**
+     * 🔧 v2.1.0: DOM 구조 간소화
+     * - NET, API: status-value 제거 (dot + label만)
+     * - DB: 연결 시 DB Name 표시
+     * - FPS, MEM: 폰트 통일
+     */
     _createDOM() {
         // 기존 상태바가 있으면 제거
         const existing = document.querySelector('.status-bar');
@@ -130,43 +143,41 @@ export class StatusBar {
                     <span class="country-code" id="status-country">${this.countryCode}</span>
                 </div>
                 
-                <!-- Network Status -->
+                <!-- Network Status (v2.1.0: 텍스트 제거) -->
                 <div class="status-item" id="status-net-item">
                     <span class="status-dot connected" id="net-dot"></span>
                     <span class="status-label">NET</span>
-                    <span class="status-value" id="net-value">Online</span>
                 </div>
                 
-                <!-- API Status -->
+                <!-- API Status (v2.1.0: 텍스트 제거) -->
                 <div class="status-item" id="status-api-item">
                     <span class="status-dot disconnected" id="api-dot"></span>
                     <span class="status-label">API</span>
-                    <span class="status-value" id="api-value">Disconnected</span>
                 </div>
                 
-                <!-- Database Status -->
+                <!-- Database Status (v2.1.0: DB Name만 표시) -->
                 <div class="status-item" id="status-db-item">
                     <span class="status-dot disconnected" id="db-dot"></span>
                     <span class="status-label">DB</span>
-                    <span class="status-value" id="db-value">None</span>
+                    <span class="status-value status-db-name" id="db-value"></span>
                 </div>
             </div>
             
             <!-- 오른쪽 그룹: 성능 지표 -->
             <div class="status-group">
-                <!-- FPS -->
+                <!-- FPS (v2.1.0: 폰트 통일) -->
                 <div class="status-item" id="status-fps-item">
                     <span class="status-label">FPS</span>
-                    <span class="status-value" id="fps-value">60</span>
+                    <span class="status-label status-perf-value" id="fps-value">60</span>
                     <div class="perf-bar">
                         <div class="perf-bar-fill good" id="fps-bar" style="width: 100%;"></div>
                     </div>
                 </div>
                 
-                <!-- Memory -->
+                <!-- Memory (v2.1.0: 폰트 통일) -->
                 <div class="status-item" id="status-mem-item">
                     <span class="status-label">MEM</span>
-                    <span class="status-value"><span id="memory-value">128</span>MB</span>
+                    <span class="status-label status-perf-value"><span id="memory-value">128</span>MB</span>
                     <div class="perf-bar">
                         <div class="perf-bar-fill good" id="memory-bar" style="width: 30%;"></div>
                     </div>
@@ -187,10 +198,8 @@ export class StatusBar {
             country: document.getElementById('status-country'),
             // Network
             netDot: document.getElementById('net-dot'),
-            netValue: document.getElementById('net-value'),
             // API
             apiDot: document.getElementById('api-dot'),
-            apiValue: document.getElementById('api-value'),
             // Database
             dbDot: document.getElementById('db-dot'),
             dbValue: document.getElementById('db-value'),
@@ -334,40 +343,39 @@ export class StatusBar {
     
     /**
      * 네트워크 상태 업데이트
+     * 🔧 v2.1.0: 텍스트 업데이트 제거 (dot만 변경)
      * @private
      */
     _updateNetStatus(isOnline) {
         this.state.isNetOnline = isOnline;
         
-        const { netDot, netValue } = this.elements;
+        const { netDot } = this.elements;
         
         if (netDot) {
             netDot.className = `status-dot ${isOnline ? 'connected' : 'disconnected'}`;
         }
-        if (netValue) {
-            netValue.textContent = isOnline ? 'Online' : 'Offline';
-        }
+        // v2.1.0: 텍스트 업데이트 제거
     }
     
     /**
      * API 연결 상태 업데이트
+     * 🔧 v2.1.0: 텍스트 업데이트 제거 (dot만 변경)
      * @private
      */
     _updateApiStatus(isConnected) {
         this.state.isApiConnected = isConnected;
         
-        const { apiDot, apiValue } = this.elements;
+        const { apiDot } = this.elements;
         
         if (apiDot) {
             apiDot.className = `status-dot ${isConnected ? 'connected' : 'disconnected'}`;
         }
-        if (apiValue) {
-            apiValue.textContent = isConnected ? 'Connected' : 'Disconnected';
-        }
+        // v2.1.0: 텍스트 업데이트 제거
     }
     
     /**
      * DB 연결 상태 업데이트
+     * 🔧 v2.1.0: 연결 시 DB Name만 표시, 미연결 시 빈 값
      * @private
      */
     _updateDbStatus(isConnected, siteId = null, siteName = null) {
@@ -382,12 +390,13 @@ export class StatusBar {
         }
         if (dbValue) {
             if (isConnected && siteId) {
-                // siteId를 표시용으로 변환 (kr_b_01 → KR-B-01)
+                // v2.1.0: siteId를 표시용으로 변환 (kr_b_01 → KR-B-01)
                 const displayId = siteId.replace(/_/g, '-').toUpperCase();
                 dbValue.textContent = displayId;
                 dbValue.title = siteName || siteId; // 툴팁으로 전체 이름
             } else {
-                dbValue.textContent = 'None';
+                // v2.1.0: 미연결 시 빈 값 (None 제거)
+                dbValue.textContent = '';
                 dbValue.title = '';
             }
         }
@@ -610,6 +619,7 @@ export class StatusBar {
 
 /**
  * StatusBar에 필요한 CSS를 동적으로 주입
+ * 🔧 v2.1.0: 폰트 통일 스타일 추가
  * 이미 variables.css에 포함되어 있다면 호출하지 않아도 됨
  */
 export function injectStatusBarStyles() {
@@ -619,7 +629,7 @@ export function injectStatusBarStyles() {
     style.id = 'statusbar-styles';
     style.textContent = `
         /* =============================================
-           StatusBar Styles (from test_sidebar_standalone.html v2.10)
+           StatusBar Styles (v2.1.0)
            ============================================= */
         
         .status-bar {
@@ -671,11 +681,27 @@ export function injectStatusBarStyles() {
             box-shadow: 0 0 4px var(--text-alarm, #F87171);
         }
         
+        /* 🔧 v2.1.0: 라벨 스타일 (통일된 폰트) */
         .status-label {
             color: var(--text-muted, #6B7280);
             font-size: 9px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+        
+        /* 🔧 v2.1.0: 성능 값 스타일 (라벨과 동일하게 통일) */
+        .status-perf-value {
+            color: var(--text-normal, #CBD5E1);
+        }
+        
+        /* 🔧 v2.1.0: DB Name 스타일 */
+        .status-db-name {
+            color: var(--text-normal, #CBD5E1);
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
         }
         
         .status-value {

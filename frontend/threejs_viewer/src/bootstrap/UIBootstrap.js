@@ -4,10 +4,11 @@
  * 
  * UI 컴포넌트 초기화 담당
  * 
- * @version 1.2.1
+ * @version 1.3.0
  * @module UIBootstrap
  * 
  * @changelog
+ * - v1.3.0: 🔧 ConnectionIndicator 비활성화 (오른쪽 상단 패널 제거)
  * - v1.2.1: 🐛 isActive 버그 수정 - 함수 호출() → 속성 접근으로 변경
  * - v1.2.0: EquipmentInfoPanel 초기화 위치 수정 (initConnectionStatus → initUIComponents)
  * - v1.1.0: EquipmentEditButton 초기화 - 기존 #editBtn 인계 방식
@@ -30,7 +31,8 @@ import { SignalTowerManager } from '../services/SignalTowerManager.js';
 
 // Connection Status 관련 import
 import ConnectionStatusService, { ConnectionEvents } from '../services/ConnectionStatusService.js';
-import ConnectionIndicator from '../ui/ConnectionIndicator.js';
+// 🔧 v1.3.0: ConnectionIndicator import 유지하되 사용하지 않음
+// import ConnectionIndicator from '../ui/ConnectionIndicator.js';
 
 // EventBus import
 import { eventBus } from '../core/managers/EventBus.js';
@@ -40,6 +42,7 @@ import { EquipmentInfoPanel } from '../ui/EquipmentInfoPanel.js';
 
 /**
  * Connection Status 서비스 및 UI 초기화
+ * 🔧 v1.3.0: ConnectionIndicator 생성 비활성화
  * @param {Object} options - 초기화 옵션
  * @returns {Object} { connectionStatusService, connectionIndicator }
  */
@@ -74,19 +77,21 @@ export function initConnectionStatus(options = {}) {
         console.log('  ⚠️ Mock 모드 활성화됨');
     }
     
-    const connectionIndicator = new ConnectionIndicator({
-        position: indicatorPosition,
-        offsetX: indicatorOffsetX,
-        offsetY: indicatorOffsetY,
-        showLabel: true,
-        showTooltip: true,
-        showMockControls: showMockControls,
-        animate: true,
-        size: 'medium'
-    });
-    console.log('  ✅ ConnectionIndicator UI 생성 완료');
-
-    // 🆕 v1.2.0: EquipmentInfoPanel 초기화 코드 제거됨 (initUIComponents로 이동)
+    // 🔧 v1.3.0: ConnectionIndicator 생성 비활성화 (오른쪽 상단 패널 제거)
+    // const connectionIndicator = new ConnectionIndicator({
+    //     position: indicatorPosition,
+    //     offsetX: indicatorOffsetX,
+    //     offsetY: indicatorOffsetY,
+    //     showLabel: true,
+    //     showTooltip: true,
+    //     showMockControls: showMockControls,
+    //     animate: true,
+    //     size: 'medium'
+    // });
+    // console.log('  ✅ ConnectionIndicator UI 생성 완료');
+    
+    console.log('  ⚠️ ConnectionIndicator 비활성화됨 (v1.3.0)');
+    const connectionIndicator = null;
 
     if (autoStart) {
         connectionStatusService.start();
@@ -104,7 +109,6 @@ export function initConnectionStatus(options = {}) {
     return {
         connectionStatusService,
         connectionIndicator
-        // 🆕 v1.2.0: equipmentInfoPanel 제거됨 (initUIComponents에서 반환)
     };
 }
 
@@ -354,7 +358,8 @@ export {
     DebugPanel, 
     PerformanceMonitorUI,
     ConnectionStatusService,
-    ConnectionIndicator,
+    // 🔧 v1.3.0: ConnectionIndicator export 제거
+    // ConnectionIndicator,
     ConnectionEvents,
     EquipmentEditButton,
     EquipmentInfoPanel  // 🆕 v1.2.0: export 추가
