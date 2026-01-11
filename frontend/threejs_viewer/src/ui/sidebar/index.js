@@ -62,13 +62,21 @@ export {
 // 🆕 v1.1.0: Config & Constants Exports (Phase 2)
 // ============================================
 
+/**
+ * SidebarConfig.js에서 export하는 항목들
+ * ⚠️ getSitesByCountry 없음! getSitesSortedByPriority 사용
+ */
 export {
     SIDEBAR_BUTTONS,
     SUBMENUS,
     SITE_LIST,
     MODE_MAP,
+    getButtonKeys,
+    getButtonsWithSubmenu,
+    getButtonConfig,
+    getSubmenuConfig,
     getSiteById,
-    getSitesByCountry
+    getSitesSortedByPriority
 } from './SidebarConfig.js';
 
 // ============================================
