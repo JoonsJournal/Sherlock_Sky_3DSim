@@ -3,11 +3,11 @@
  * ========
  * SHERLOCK SKY 3DSim - CSS 진입점
  * 
- * @version 2.3.0
+ * @version 2.4.0
  * @changelog
- * - v2.3.0: 🆕 _mode-indicator.css import 추가 (ModeIndicatorPanel 스타일)
+ * - v2.4.0: 🎨 ModeIndicatorPanel pill 스타일 지원
+ * - v2.3.0: _mode-indicator.css import 추가
  * - v2.1.0: Toast 전역 transition 제외
- * - v2.0.0: Cleanroom Sidebar Theme CSS 추가
  * 
  * 위치: frontend/threejs_viewer/styles/main.css
  */
@@ -49,15 +49,15 @@
 @import './components/_equipment-info-panel.css';
 
 /* =============================================
-   Cleanroom Sidebar Theme (v2.0.0)
+   Cleanroom Sidebar Theme
    ============================================= */
 @import './components/_sidebar.css';
 @import './components/_status-bar.css';
 @import './components/_cover-screen.css';
 
 /* =============================================
-   🆕 Mode Indicator Panel (v2.3.0)
-   CURRENT MODE + DEV MODE 가로 배치
+   🆕 Mode Indicator Panel (Pill Style)
+   CURRENT MODE (cyan) + DEV MODE (amber)
    ============================================= */
 @import './components/_mode-indicator.css';
 

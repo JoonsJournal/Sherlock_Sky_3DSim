@@ -3,16 +3,17 @@
  * ==========
  * Cleanroom Sidebar UI 컴포넌트
  * 
- * @version 1.7.2
+ * @version 1.8.0
  * @created 2026-01-11
  * @updated 2026-01-11
  * 
  * @changelog
- * - v1.7.2: 🔧 ModeIndicatorPanel 연동 + 기존 스타일 유지 (2026-01-11)
+ * - v1.8.0: 🎨 ModeIndicatorPanel pill 스타일 + 위치 조정 (2026-01-11)
+ *           - offsetX: 100 → 130 (오른쪽으로 이동)
+ * - v1.7.2: ModeIndicatorPanel 연동 + 기존 스타일 유지
  * - v1.7.1: ModeIndicatorPanel 표시 버그 수정
  * - v1.7.0: ModeIndicatorPanel 연동
  * - v1.6.0: Dev Mode ↔ ConnectionModalManager Mock 모드 연동
- * - v1.5.0: 버튼/서브메뉴 컴포넌트 분리
  * 
  * 위치: frontend/threejs_viewer/src/ui/sidebar/Sidebar.js
  */
@@ -29,7 +30,7 @@ import {
 
 import { ConnectionModalManager } from './ConnectionModalManager.js';
 
-// 🆕 v1.7.0: ModeIndicatorPanel import
+// ModeIndicatorPanel import
 import { ModeIndicatorPanel } from '../overlay/ModeIndicatorPanel.js';
 
 import {
@@ -103,7 +104,7 @@ export class Sidebar {
         this._setupConnectionListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v1.7.2');
+        console.log('[Sidebar] 초기화 완료 v1.8.0');
     }
     
     _loadTheme() {
@@ -195,20 +196,21 @@ export class Sidebar {
     
     // ========================================
     // ModeIndicatorPanel
+    // 🔧 v1.8.0: offsetX 130으로 변경
     // ========================================
     
     _createModeIndicatorPanel() {
         this.modeIndicatorPanel = new ModeIndicatorPanel({
             position: 'top-left',
-            offsetX: 100,
+            offsetX: 130,   // 🔧 v1.8.0: 100 → 130 (오른쪽으로 이동)
             offsetY: 12,
             eventBus: this.eventBus
         });
         
-        // 🔑 항상 표시 (Cover Screen에서만 숨김)
+        // 항상 표시 (Cover Screen에서만 숨김)
         this.modeIndicatorPanel.show();
         
-        console.log('[Sidebar] ModeIndicatorPanel 생성 완료');
+        console.log('[Sidebar] ModeIndicatorPanel 생성 완료 (offsetX: 130)');
     }
     
     // ========================================
@@ -482,7 +484,7 @@ export class Sidebar {
         if (threejsContainer) threejsContainer.classList.remove('active');
         if (overlayUI) overlayUI.style.display = 'none';
         
-        // 🔑 Cover Screen에서만 숨김
+        // Cover Screen에서만 숨김
         if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.hide();
         }
@@ -633,12 +635,12 @@ export class Sidebar {
     toggleDevMode() {
         this.devModeEnabled = !this.devModeEnabled;
         
-        // 🔑 기존 함수들 호출 (호환성)
+        // 기존 함수들 호출 (호환성)
         updateDevModeBadge(this.devModeEnabled);
         updateDevModeLabel(this.devModeEnabled);
         setMockTestSectionVisible(this.devModeEnabled);
         
-        // 🔑 ModeIndicatorPanel Dev Mode 연동
+        // ModeIndicatorPanel Dev Mode 연동
         if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.setDevMode(this.devModeEnabled);
         }

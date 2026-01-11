@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="ko" data-theme="dark">
 <!--
- * index.html v5.2.2
+ * index.html v5.3.0
  * SHERLOCK SKY 3DSim - Cleanroom Sidebar Theme
  * 
- * @version 5.2.2
+ * @version 5.3.0
  * @created 2026-01-11
  * 
  * @changelog
- * - v5.2.2: 🔧 기존 스타일 완전 유지 + Light/Dark 테마 색상 확인 (2026-01-11)
- *           - .mode-indicator: 기존 스타일 100% 유지
- *           - .dev-mode-badge: 기존 스타일 100% 유지 (pill 형태)
- *           - Light 테마 색상 추가 확인
- * - v5.2.1: 기존 스타일 복원 시도
+ * - v5.3.0: 🎨 ModeIndicatorPanel pill 스타일 통일 (2026-01-11)
+ *           - .mode-indicator-pill 스타일 추가 (cyan)
+ *           - .dev-mode-badge 스타일 유지 (amber)
+ *           - 기존 .mode-indicator 레거시 유지
+ * - v5.2.2: 기존 스타일 완전 유지
  * - v5.2.0: ModeIndicatorPanel 적용
  * 
  * 위치: frontend/threejs_viewer/index.html
@@ -21,7 +21,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏭 Sherlock Sky 3DSim v5.2</title>
+    <title>🏭 Sherlock Sky 3DSim v5.3</title>
     
     <link rel="stylesheet" href="styles/main.css">
     
@@ -74,7 +74,7 @@
             --text-primary: #0F172A;
             --text-secondary: #475569;
             --text-muted: #94A3B8;
-            --text-warning: #D97706;  /* 🔑 Light 테마 warning 색상 */
+            --text-warning: #D97706;
             --text-alarm: #DC2626;
             --text-success: #16A34A;
             --shadow-color: rgba(0,0,0,0.15);
@@ -542,10 +542,7 @@
             gap: 10px; 
         }
         
-        /* =============================================
-           🔑 CURRENT MODE - 기존 스타일 100% 유지
-           Dark Mode
-           ============================================= */
+        /* 🔧 레거시: 기존 박스형 mode-indicator (호환성 유지) */
         .mode-indicator { 
             padding: 12px 20px; 
             background: rgba(0, 0, 0, 0.7); 
@@ -572,40 +569,76 @@
             color: var(--text-secondary); 
         }
         
-        /* 🔑 CURRENT MODE - Light 테마 */
         [data-theme="light"] .mode-indicator {
             background: rgba(255, 255, 255, 0.9);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         /* =============================================
-           🔑 DEV MODE Badge - 기존 스타일 100% 유지 (pill 형태)
-           Dark Mode
+           🆕 v5.3.0: CURRENT MODE Pill (Cyan)
+           ============================================= */
+        .mode-indicator-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: rgba(6, 182, 212, 0.2);
+            border: 1px solid var(--icon-selected);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--icon-selected);
+            white-space: nowrap;
+        }
+        
+        .mode-indicator-pill .mode-icon {
+            font-size: 12px;
+        }
+        
+        .mode-indicator-pill .mode-text {
+            color: inherit;
+        }
+        
+        .mode-indicator-pill .mode-subtext {
+            color: inherit;
+            opacity: 0.85;
+            font-weight: 500;
+        }
+        
+        [data-theme="light"] .mode-indicator-pill {
+            background: rgba(8, 145, 178, 0.15);
+            border-color: #0891B2;
+            color: #0891B2;
+        }
+
+        /* =============================================
+           DEV MODE Badge (Amber) - 기존 스타일 유지
            ============================================= */
         .dev-mode-badge { 
             position: fixed; 
             top: 10px; 
             left: 90px; 
-            padding: 4px 12px; 
-            background: rgba(251, 191, 36, 0.2);  /* 🔑 Dark: 노란색 배경 */
-            border: 1px solid var(--text-warning); /* 🔑 Dark: #FBBF24 */
-            border-radius: 20px;  /* 🔑 pill 형태 */
-            font-size: 11px; 
-            color: var(--text-warning);  /* 🔑 Dark: #FBBF24 */
+            padding: 6px 14px; 
+            background: rgba(251, 191, 36, 0.2); 
+            border: 1px solid var(--text-warning); 
+            border-radius: 20px; 
+            font-size: 12px; 
+            color: var(--text-warning); 
             font-weight: 600; 
             z-index: 1000; 
-            display: none;  /* 기본 숨김 */
+            display: none; 
+            white-space: nowrap;
         }
         
         .dev-mode-badge.active { 
-            display: block; 
+            display: inline-flex;
+            align-items: center;
         }
         
-        /* 🔑 DEV MODE Badge - Light 테마 */
         [data-theme="light"] .dev-mode-badge {
-            background: rgba(217, 119, 6, 0.15);  /* 🔑 Light: 진한 오렌지 배경 */
-            border-color: #D97706;  /* 🔑 Light: 진한 오렌지 테두리 */
-            color: #D97706;  /* 🔑 Light: 진한 오렌지 텍스트 */
+            background: rgba(217, 119, 6, 0.15);
+            border-color: #D97706;
+            color: #D97706;
         }
 
         /* =============================================
@@ -984,7 +1017,7 @@
             document.documentElement.setAttribute('data-theme', saved);
         })();
         
-        console.log('🏭 Sherlock Sky 3DSim v5.2.2');
+        console.log('🏭 Sherlock Sky 3DSim v5.3.0 (Pill Style)');
     </script>
     
     <!-- Main Application (ES Module) -->

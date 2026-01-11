@@ -5,10 +5,9 @@
  * 
  * @version 1.1.0
  * @created 2026-01-11
- * @updated 2026-01-11
  * 
  * @changelog
- * - v1.1.0: 🔧 createDevModeBadge() deprecated (ModeIndicatorPanel로 대체)
+ * - v1.1.0: createDevModeBadge() deprecated (ModeIndicatorPanel로 대체)
  * - v1.0.0: 초기 버전
  * 
  * 위치: frontend/threejs_viewer/src/ui/sidebar/SidebarButtonFactory.js

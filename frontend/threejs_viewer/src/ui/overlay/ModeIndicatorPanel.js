@@ -3,27 +3,28 @@
  * =====================
  * 통합 모드 표시 패널 (CURRENT MODE + DEV MODE)
  * 
- * @version 1.3.0
+ * @version 1.4.0
  * @created 2026-01-11
  * @updated 2026-01-11
  * 
  * @changelog
- * - v1.3.0: 🔧 position override 확실히 적용 (2026-01-11)
- *           - dev-mode-badge에 인라인 스타일로 position: static 강제
- *           - 가로 배치 (CURRENT MODE 왼쪽, DEV MODE 오른쪽)
+ * - v1.4.0: 🎨 CURRENT MODE pill 스타일 통일 + 위치 오른쪽 이동 (2026-01-11)
+ *           - CURRENT MODE: pill 형태 (cyan 색상)
+ *           - DEV MODE: pill 형태 (amber 색상) - 기존 유지
+ *           - offsetX: 100 → 130 (오른쪽으로 이동)
+ * - v1.3.0: position override 확실히 적용
  * - v1.2.0: 가로 배치 시도
  * - v1.1.0: 기존 스타일 유지 시도
  * - v1.0.0: 초기 버전
  * 
  * @layout
- * ┌───────────────────────────────────────────────────┐
- * │ ┌─────────────────┐  ┌─────────────────────────┐  │
- * │ │ CURRENT MODE    │  │ ⚡ DEV MODE (pill)      │  │
- * │ │ Monitoring      │  └─────────────────────────┘  │
- * │ │ → 3D View       │                               │
- * │ └─────────────────┘                               │
- * │      (왼쪽)              (오른쪽)                  │
- * └───────────────────────────────────────────────────┘
+ * ┌──────────────────────────────────────────────────────────────┐
+ * │  ┌──────────────────────────┐  ┌───────────────────────────┐ │
+ * │  │ 📍 Monitoring → 3D View  │  │ ⚡ DEV MODE               │ │
+ * │  │ (pill, cyan)             │  │ (pill, amber)             │ │
+ * │  └──────────────────────────┘  └───────────────────────────┘ │
+ * │         (왼쪽)                        (오른쪽)                │
+ * └──────────────────────────────────────────────────────────────┘
  * 
  * 위치: frontend/threejs_viewer/src/ui/overlay/ModeIndicatorPanel.js
  */
@@ -32,14 +33,14 @@ export class ModeIndicatorPanel {
     /**
      * @param {Object} options
      * @param {string} options.position - 위치 ('top-left', 'top-right' 등)
-     * @param {number} options.offsetX - X 오프셋 (기본: 100)
+     * @param {number} options.offsetX - X 오프셋 (기본: 130)
      * @param {number} options.offsetY - Y 오프셋 (기본: 12)
      * @param {Object} options.eventBus - EventBus 인스턴스 (선택)
      */
     constructor(options = {}) {
         // 설정
         this.position = options.position || 'top-left';
-        this.offsetX = options.offsetX ?? 100;  // 사이드바(80px) + 여백(20px)
+        this.offsetX = options.offsetX ?? 130;  // 🔧 v1.4.0: 100 → 130 (오른쪽으로 이동)
         this.offsetY = options.offsetY ?? 12;
         this.eventBus = options.eventBus || null;
         
@@ -57,7 +58,7 @@ export class ModeIndicatorPanel {
         // 초기화
         this._create();
         
-        console.log('[ModeIndicatorPanel] 초기화 완료 v1.3.0');
+        console.log('[ModeIndicatorPanel] 초기화 완료 v1.4.0 (pill 스타일 통일)');
     }
     
     // ========================================
@@ -73,13 +74,13 @@ export class ModeIndicatorPanel {
         this.container.id = 'mode-indicator-panel';
         this.container.className = 'mode-indicator-panel';
         
-        // 🔑 인라인 스타일로 가로 배치 강제
+        // 인라인 스타일로 가로 배치 강제
         Object.assign(this.container.style, {
             position: 'fixed',
             zIndex: '100',
             display: 'flex',
-            flexDirection: 'row',      // 🔑 가로 배치
-            alignItems: 'flex-start',
+            flexDirection: 'row',
+            alignItems: 'center',  // 🔧 v1.4.0: flex-start → center (pill 세로 정렬)
             gap: '10px'
         });
         
@@ -90,11 +91,11 @@ export class ModeIndicatorPanel {
         // 🔑 순서: CURRENT MODE 먼저 (왼쪽), DEV MODE 뒤 (오른쪽)
         // ============================================
         
-        // 1. CURRENT MODE 박스
+        // 1. CURRENT MODE pill 생성
         this.modeIndicator = this._createModeIndicator();
         this.container.appendChild(this.modeIndicator);
         
-        // 2. DEV MODE 뱃지
+        // 2. DEV MODE pill 생성
         this.devBadge = this._createDevBadge();
         this.container.appendChild(this.devBadge);
         
@@ -114,7 +115,7 @@ export class ModeIndicatorPanel {
         const existingOverlay = document.querySelector('#overlay-ui .mode-indicator');
         if (existingOverlay) existingOverlay.remove();
         
-        // 🔑 body에 직접 붙은 기존 dev-mode-badge 제거
+        // body에 직접 붙은 기존 dev-mode-badge 제거
         const existingBadge = document.getElementById('dev-mode-badge');
         if (existingBadge) existingBadge.remove();
     }
@@ -142,21 +143,26 @@ export class ModeIndicatorPanel {
     }
     
     /**
-     * CURRENT MODE 박스 생성 (기존 스타일 적용)
+     * 🔧 v1.4.0: CURRENT MODE pill 생성 (DEV MODE와 동일한 스타일)
      */
     _createModeIndicator() {
         const indicator = document.createElement('div');
-        indicator.className = 'mode-indicator';
+        // 🔧 v1.4.0: 새로운 클래스명 사용 (pill 스타일)
+        indicator.className = 'mode-indicator-pill';
+        indicator.id = 'mode-indicator-pill';
+        
+        // 🔧 v1.4.0: pill 형태 - 한 줄에 아이콘 + 모드 + 서브모드
         indicator.innerHTML = `
-            <div class="mode-label">CURRENT MODE</div>
-            <div class="mode-value" id="current-mode">—</div>
-            <div class="submode-value" id="current-submode"></div>
+            <span class="mode-icon">📍</span>
+            <span class="mode-text" id="current-mode">—</span>
+            <span class="mode-subtext" id="current-submode"></span>
         `;
+        
         return indicator;
     }
     
     /**
-     * DEV MODE 뱃지 생성 (기존 스타일 + position override)
+     * DEV MODE pill 생성 (기존 스타일 유지)
      */
     _createDevBadge() {
         const badge = document.createElement('div');
@@ -164,15 +170,11 @@ export class ModeIndicatorPanel {
         badge.id = 'dev-mode-badge';
         badge.textContent = '⚡ DEV MODE';
         
-        // ============================================
-        // 🔑🔑🔑 핵심: position을 인라인으로 강제 override
-        // index.html의 position: fixed를 무시하고 static 적용
-        // ============================================
+        // 컨테이너 내 배치를 위해 position 변경
         Object.assign(badge.style, {
-            position: 'static',    // 🔑 fixed → static
+            position: 'static',
             top: 'auto',
-            left: 'auto',
-            marginTop: '4px'       // 세로 정렬 미세 조정
+            left: 'auto'
         });
         
         return badge;
@@ -193,6 +195,9 @@ export class ModeIndicatorPanel {
         this._updateModeDisplay();
     }
     
+    /**
+     * 🔧 v1.4.0: Mode 표시 업데이트 (pill 형태)
+     */
     _updateModeDisplay() {
         const modeEl = document.getElementById('current-mode');
         const submodeEl = document.getElementById('current-submode');
@@ -204,9 +209,14 @@ export class ModeIndicatorPanel {
         }
         
         if (submodeEl) {
-            submodeEl.textContent = this.currentSubMode 
-                ? `→ ${this._formatSubModeName(this.currentSubMode)}`
-                : '';
+            // 🔧 v1.4.0: 서브모드가 있으면 "→ 서브모드" 형식으로 표시
+            if (this.currentSubMode) {
+                submodeEl.textContent = `→ ${this._formatSubModeName(this.currentSubMode)}`;
+                submodeEl.style.display = 'inline';
+            } else {
+                submodeEl.textContent = '';
+                submodeEl.style.display = 'none';
+            }
         }
     }
     
@@ -218,7 +228,7 @@ export class ModeIndicatorPanel {
     _formatSubModeName(submode) {
         if (!submode) return '';
         if (submode === '3d-view') return '3D View';
-        return submode;
+        return submode.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
     
     // ========================================

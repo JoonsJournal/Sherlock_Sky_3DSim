@@ -1,14 +1,17 @@
 /**
  * _mode-indicator.css
  * ===================
- * ModeIndicatorPanel 스타일
+ * ModeIndicatorPanel 스타일 - Pill 스타일 통일
  * 
- * @version 1.3.0
+ * @version 1.4.0
  * @created 2026-01-11
  * @updated 2026-01-11
  * 
  * @changelog
- * - v1.3.0: 🔧 position override + 가로 배치 확실히 적용
+ * - v1.4.0: 🎨 pill 스타일 통일 (2026-01-11)
+ *           - CURRENT MODE: pill 형태, cyan 색상
+ *           - DEV MODE: pill 형태, amber 색상 (기존 유지)
+ * - v1.3.0: position override + 가로 배치
  * 
  * 위치: frontend/threejs_viewer/styles/components/_mode-indicator.css
  */
@@ -20,20 +23,81 @@
     position: fixed;
     z-index: 100;
     display: flex;
-    flex-direction: row;  /* 🔑 가로 배치 */
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
     gap: 10px;
 }
 
 /* =============================================
-   Dev Badge - 컨테이너 내 배치 강제
-   index.html의 position: fixed 무시
+   🆕 v1.4.0: CURRENT MODE Pill (Cyan)
+   DEV MODE와 동일한 pill 스타일, 색상만 다름
+   ============================================= */
+.mode-indicator-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: rgba(6, 182, 212, 0.2);  /* Cyan 배경 */
+    border: 1px solid var(--icon-selected, #06B6D4);
+    border-radius: 20px;  /* pill 형태 */
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--icon-selected, #06B6D4);
+    white-space: nowrap;
+}
+
+.mode-indicator-pill .mode-icon {
+    font-size: 12px;
+}
+
+.mode-indicator-pill .mode-text {
+    color: inherit;
+}
+
+.mode-indicator-pill .mode-subtext {
+    color: inherit;
+    opacity: 0.85;
+    font-weight: 500;
+}
+
+/* Light Theme - CURRENT MODE Pill */
+[data-theme="light"] .mode-indicator-pill {
+    background: rgba(8, 145, 178, 0.15);
+    border-color: #0891B2;
+    color: #0891B2;
+}
+
+/* =============================================
+   DEV MODE Pill (Amber) - 기존 스타일 유지
+   컨테이너 내 배치 조정
    ============================================= */
 .mode-indicator-panel .dev-mode-badge {
-    position: static !important;  /* 🔑 fixed → static 강제 */
+    position: static !important;
     top: auto !important;
     left: auto !important;
-    margin-top: 4px;
+    
+    /* 기존 스타일 유지 */
+    display: none;  /* 기본 숨김, .active로 표시 */
+    padding: 6px 14px;  /* CURRENT MODE와 동일하게 조정 */
+    background: rgba(251, 191, 36, 0.2);
+    border: 1px solid var(--text-warning, #FBBF24);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-warning, #FBBF24);
+    white-space: nowrap;
+}
+
+.mode-indicator-panel .dev-mode-badge.active {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Light Theme - DEV MODE Pill */
+[data-theme="light"] .mode-indicator-panel .dev-mode-badge {
+    background: rgba(217, 119, 6, 0.15);
+    border-color: #D97706;
+    color: #D97706;
 }
 
 /* =============================================
@@ -50,11 +114,22 @@ body:has(.mode-indicator-panel) #overlay-ui .mode-indicator {
     display: none !important;
 }
 
+/* 기존 .mode-indicator 박스 스타일 숨김 (레거시) */
+body:has(.mode-indicator-panel) .mode-indicator:not(.mode-indicator-pill) {
+    display: none !important;
+}
+
 /* =============================================
-   Responsive
+   Responsive - 작은 화면
    ============================================= */
 @media (max-width: 768px) {
     .mode-indicator-panel {
         gap: 6px;
+    }
+    
+    .mode-indicator-pill,
+    .mode-indicator-panel .dev-mode-badge {
+        padding: 4px 10px;
+        font-size: 11px;
     }
 }
