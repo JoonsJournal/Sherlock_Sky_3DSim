@@ -5,25 +5,21 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 1.3.0
+ * @version 1.4.0
  * @created 2026-01-11
  * @updated 2026-01-11
  * 
  * @changelog
+ * - v1.4.0: 🔧 Connection Modal 분리 (Phase 3 리팩토링)
+ *           - ConnectionModalManager.js로 Modal 코드 분리
+ *           - 약 440줄 감소
+ *           - Sidebar는 Modal 컨트롤만 담당
  * - v1.3.0: 🔧 상수/설정 분리 (Phase 2 리팩토링)
  *           - SIDEBAR_BUTTONS → SidebarConfig.js
  *           - SUBMENUS → SidebarConfig.js
  *           - SITE_LIST → SidebarConfig.js
  *           - MODE_MAP → SidebarConfig.js
- *           - 약 130줄 감소
  * - v1.2.0: 🔧 Connection Modal v2.9 Full Version 복원
- *           - Internet Status with Ping
- *           - Backend API Panel (API URL, Response Time)
- *           - Site Connection Panel (Priority, Auto-connect, Select/Deselect All)
- *           - Connected Databases Panel (Equipment 수, Lines, Active Lots)
- *           - Modal Footer (단축키 힌트, Close 버튼)
- *           🔧 _handleSubmenuClick 로직 수정 (Dev Mode 문제 해결)
- *           - public 메서드 직접 호출 지원 (언더스코어 없이)
  * - v1.1.0: Connection Modal 동적 생성 추가
  * - v1.0.0: 초기 버전
  * 
@@ -31,14 +27,15 @@
  * - 기존 floating-btn 시스템 대체
  * - AppModeManager와 연동하여 모드 전환
  * - ConnectionStatusService와 연동하여 상태 관리
- * - 기존 main.js 함수들 호출
+ * - ConnectionModalManager를 통한 연결 관리
  * 
  * 의존성:
  * - AppModeManager (core/managers)
  * - EventBus (core/managers)
  * - ConnectionStatusService (services)
  * - IconRegistry (ui/sidebar)
- * - SidebarConfig (ui/sidebar) 🆕 v1.3.0
+ * - SidebarConfig (ui/sidebar)
+ * - ConnectionModalManager (ui/sidebar) 🆕 v1.4.0
  * 
  * 위치: frontend/threejs_viewer/src/ui/sidebar/Sidebar.js
  */
@@ -53,6 +50,9 @@ import {
     MODE_MAP,
     getSiteById 
 } from './SidebarConfig.js';
+
+// 🆕 v1.4.0: Connection Modal Manager import
+import { ConnectionModalManager } from './ConnectionModalManager.js';
 
 // ============================================
 // Sidebar Class
@@ -90,20 +90,17 @@ export class Sidebar {
         this.currentMode = null;
         this.currentSubMode = null;
         this.currentTheme = 'dark';
-        this.connectionModalOpen = false;
         
-        // 🆕 v1.2.0: Site 상태 관리
-        this.selectedSite = null;
-        this.siteStatus = {};
-        SITE_LIST.forEach(site => {
-            this.siteStatus[site.id] = { status: 'disconnected' };
-        });
+        // 🆕 v1.4.0: selectedSite는 ConnectionModalManager에서 관리
+        // Sidebar는 isConnected 상태만 추적
         
         // DOM 참조
         this.element = null;
-        this.connectionModal = null;
         this.buttons = new Map();
         this.submenus = new Map();
+        
+        // 🆕 v1.4.0: Connection Modal Manager
+        this.connectionModalManager = null;
         
         // 이벤트 리스너 정리용
         this._eventUnsubscribers = [];
@@ -119,13 +116,13 @@ export class Sidebar {
     _init() {
         this._loadTheme();
         this._createDOM();
-        this._createConnectionModal();
+        this._createConnectionModalManager();  // 🆕 v1.4.0
         this._setupEventListeners();
         this._setupAppModeListeners();
         this._setupConnectionListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v1.3.0');
+        console.log('[Sidebar] 초기화 완료 v1.4.0');
     }
     
     _loadTheme() {
@@ -368,385 +365,45 @@ export class Sidebar {
     }
     
     // ========================================
-    // 🆕 v1.2.0: Connection Modal v2.9 Full Version
+    // 🆕 v1.4.0: Connection Modal Manager
     // ========================================
     
-    _createConnectionModal() {
-        // 기존 모달이 있으면 제거
-        const existing = document.getElementById('connection-modal');
-        if (existing) existing.remove();
-        
-        this.connectionModal = document.createElement('div');
-        this.connectionModal.id = 'connection-modal';
-        this.connectionModal.className = 'modal-overlay';
-        
-        this.connectionModal.innerHTML = `
-            <div class="modal-container">
-                <div class="modal-header">
-                    <div class="modal-title">🔌 Database Connection Manager</div>
-                    <button class="modal-close">✕</button>
-                </div>
-                <div class="modal-body">
-                    <!-- Internet Status with Ping -->
-                    <div class="internet-status" id="internet-status">
-                        <span class="status-dot connected" id="internet-dot"></span>
-                        <span class="internet-status-text" id="internet-text">Internet Connected</span>
-                        <span class="internet-status-detail" id="internet-detail">Ping: --ms</span>
-                    </div>
-                    
-                    <!-- Backend API Status Panel -->
-                    <div class="connection-panel">
-                        <div class="panel-header">
-                            <h3>🔌 Backend API Status</h3>
-                            <button class="btn-connect btn-check" style="padding:6px 12px;font-size:12px">🔄 Check</button>
-                        </div>
-                        <div class="api-status-content">
-                            <div class="status-indicator-box">
-                                <span class="status-dot status-dot--checking" id="api-status-dot"></span>
-                                <span class="status-text" id="api-status-text">Checking...</span>
-                            </div>
-                            <div class="status-details">
-                                <div class="status-detail">
-                                    <span class="detail-label">API URL</span>
-                                    <span class="detail-value" id="api-url-value">http://localhost:8000</span>
-                                </div>
-                                <div class="status-detail">
-                                    <span class="detail-label">Response</span>
-                                    <span class="detail-value" id="response-time">-</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Site Connection Panel -->
-                    <div class="connection-panel">
-                        <div class="panel-header">
-                            <h3>🔍 Site Connection</h3>
-                            <div class="panel-actions">
-                                <label class="auto-connect-label">
-                                    <input type="checkbox" id="auto-connect-checkbox">
-                                    <span>Auto</span>
-                                </label>
-                                <button class="btn-icon btn-select-all" title="Select All">☑️</button>
-                                <button class="btn-icon btn-deselect-all" title="Deselect All">☐</button>
-                            </div>
-                        </div>
-                        <div class="site-list" id="site-list"></div>
-                        <div class="panel-footer">
-                            <span class="selection-info" id="selection-count">Selected: 0</span>
-                            <button class="btn-connect" id="connect-btn" disabled>🔌 Connect</button>
-                        </div>
-                    </div>
-                    
-                    <!-- Connected Databases Panel -->
-                    <div class="connection-panel">
-                        <div class="panel-header">
-                            <h3>📊 Connected Databases</h3>
-                            <button class="btn-connect btn-refresh-db" style="padding:6px 12px;font-size:12px">🔄 Refresh</button>
-                        </div>
-                        <div id="database-list">
-                            <div class="no-connection">
-                                <span class="no-connection-icon">📂</span>
-                                <p>No database connected</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <span class="footer-hint">Ctrl+K to toggle | Escape to close</span>
-                    <button class="btn-secondary btn-close-modal">Close</button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(this.connectionModal);
-        
-        // Site List 렌더링
-        this._renderSiteList();
-        
-        // 이벤트 설정
-        this._setupConnectionModalEvents();
-        
-        // 초기 Ping 체크
-        this._checkInternetStatus();
-    }
-    
-    _setupConnectionModalEvents() {
-        if (!this.connectionModal) return;
-        
-        // 오버레이 클릭으로 닫기
-        this.connectionModal.addEventListener('click', (e) => {
-            if (e.target === this.connectionModal) {
-                this.closeConnectionModal();
-            }
+    /**
+     * ConnectionModalManager 생성
+     */
+    _createConnectionModalManager() {
+        this.connectionModalManager = new ConnectionModalManager({
+            toast: this.toast,
+            eventBus: this.eventBus,
+            connectionStatusService: this.connectionStatusService,
+            siteList: SITE_LIST,
+            getDevModeEnabled: () => this.devModeEnabled,
+            onConnect: (siteId, siteName) => this._onSiteConnected(siteId, siteName),
+            onDisconnect: (siteId) => this._onSiteDisconnected(siteId)
         });
-        
-        // 닫기 버튼 (헤더)
-        const closeBtn = this.connectionModal.querySelector('.modal-close');
-        closeBtn?.addEventListener('click', () => this.closeConnectionModal());
-        
-        // 닫기 버튼 (푸터)
-        const closeModalBtn = this.connectionModal.querySelector('.btn-close-modal');
-        closeModalBtn?.addEventListener('click', () => this.closeConnectionModal());
-        
-        // API Check 버튼
-        const checkBtn = this.connectionModal.querySelector('.btn-check');
-        checkBtn?.addEventListener('click', () => this._refreshAPIStatus());
-        
-        // Select All / Deselect All 버튼
-        const selectAllBtn = this.connectionModal.querySelector('.btn-select-all');
-        selectAllBtn?.addEventListener('click', () => this._selectAllSites());
-        
-        const deselectAllBtn = this.connectionModal.querySelector('.btn-deselect-all');
-        deselectAllBtn?.addEventListener('click', () => this._deselectAllSites());
-        
-        // Connect 버튼
-        const connectBtn = this.connectionModal.querySelector('#connect-btn');
-        connectBtn?.addEventListener('click', () => this._connectToSelectedSite());
-        
-        // Refresh Database 버튼
-        const refreshDbBtn = this.connectionModal.querySelector('.btn-refresh-db');
-        refreshDbBtn?.addEventListener('click', () => this._refreshDatabaseInfo());
     }
     
     /**
-     * 🆕 v1.2.0: Site List 렌더링 (v2.9 스타일)
-     * 🆕 v1.3.0: SITE_LIST를 SidebarConfig.js에서 import
+     * 사이트 연결 성공 콜백
      */
-    _renderSiteList() {
-        const siteList = this.connectionModal?.querySelector('#site-list');
-        if (!siteList) return;
-        
-        siteList.innerHTML = SITE_LIST.map(site => {
-            const isSelected = this.selectedSite === site.id;
-            const status = this.siteStatus[site.id] || {};
-            const isConnectedSite = status.status === 'connected';
-            
-            return `
-                <div class="site-item ${isSelected ? 'site-item--selected' : ''} ${isConnectedSite ? 'site-item--connected' : ''}" 
-                     data-site-id="${site.id}">
-                    <div class="site-checkbox">
-                        <input type="checkbox" ${isSelected ? 'checked' : ''} data-site-checkbox="${site.id}">
-                    </div>
-                    <div class="site-info">
-                        <div class="site-main">
-                            <span style="font-size: 20px; margin-right: 8px;">${site.flag}</span>
-                            <span class="site-name">${site.name}</span>
-                            <span class="site-region">${site.region}</span>
-                        </div>
-                        <div class="site-meta">
-                            <span>Priority: ${site.priority}</span>
-                        </div>
-                    </div>
-                    <div class="site-status">
-                        ${isConnectedSite 
-                            ? `<span>✅</span><button class="btn-disconnect" data-disconnect="${site.id}">Disconnect</button>` 
-                            : '<span>⚪</span>'}
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        // Site Item 클릭 이벤트
-        siteList.querySelectorAll('.site-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                if (e.target.closest('.btn-disconnect')) return;
-                if (e.target.tagName === 'INPUT') return;
-                const siteId = item.dataset.siteId;
-                this._toggleSiteSelection(siteId);
-            });
-        });
-        
-        // Checkbox 클릭 이벤트
-        siteList.querySelectorAll('[data-site-checkbox]').forEach(checkbox => {
-            checkbox.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const siteId = checkbox.dataset.siteCheckbox;
-                this._toggleSiteSelection(siteId);
-            });
-        });
-        
-        // Disconnect 버튼 이벤트
-        siteList.querySelectorAll('.btn-disconnect').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const siteId = btn.dataset.disconnect;
-                this._disconnectFromSite(siteId);
-            });
-        });
-        
-        this._updateSelectionUI();
-    }
-    
-    _toggleSiteSelection(siteId) {
-        this.selectedSite = this.selectedSite === siteId ? null : siteId;
-        this._renderSiteList();
-    }
-    
-    _selectAllSites() {
-        if (SITE_LIST.length > 0) {
-            this.selectedSite = SITE_LIST[0].id;
-        }
-        this._renderSiteList();
-        if (this.toast) {
-            this.toast.info('Select All', 'First site selected (single selection mode)');
-        }
-    }
-    
-    _deselectAllSites() {
-        this.selectedSite = null;
-        this._renderSiteList();
-        if (this.toast) {
-            this.toast.info('Deselect All', 'Selection cleared');
-        }
-    }
-    
-    _updateSelectionUI() {
-        const selectionCount = this.connectionModal?.querySelector('#selection-count');
-        const connectBtn = this.connectionModal?.querySelector('#connect-btn');
-        
-        if (selectionCount) {
-            selectionCount.textContent = `Selected: ${this.selectedSite ? 1 : 0}`;
-        }
-        if (connectBtn) {
-            connectBtn.disabled = !this.selectedSite;
-        }
-    }
-    
-    /**
-     * 🆕 v1.2.0: Internet Status 체크
-     */
-    _checkInternetStatus() {
-        const dot = this.connectionModal?.querySelector('#internet-dot');
-        const text = this.connectionModal?.querySelector('#internet-text');
-        const detail = this.connectionModal?.querySelector('#internet-detail');
-        
-        // 시뮬레이션
-        const ping = Math.floor(Math.random() * 50 + 10);
-        
-        if (dot) dot.className = 'status-dot connected';
-        if (text) text.textContent = 'Internet Connected';
-        if (detail) detail.textContent = `Ping: ${ping}ms`;
-    }
-    
-    /**
-     * 🆕 v1.2.0: API Status 체크
-     */
-    _refreshAPIStatus() {
-        const dot = this.connectionModal?.querySelector('#api-status-dot');
-        const text = this.connectionModal?.querySelector('#api-status-text');
-        const responseTime = this.connectionModal?.querySelector('#response-time');
-        
-        if (dot) dot.className = 'status-dot status-dot--checking';
-        if (text) text.textContent = 'Checking...';
-        if (responseTime) responseTime.textContent = '-';
-        
-        setTimeout(() => {
-            // ConnectionStatusService 사용
-            const isOnline = this.connectionStatusService?.isOnline?.() || this.devModeEnabled;
-            
-            if (isOnline || this.devModeEnabled) {
-                if (dot) dot.className = 'status-dot status-dot--connected';
-                if (text) {
-                    text.textContent = 'Connected';
-                    text.className = 'status-text run';
-                }
-                if (responseTime) responseTime.textContent = `${Math.floor(Math.random() * 50 + 20)}ms`;
-                
-                if (this.toast) {
-                    this.toast.success('Backend Online', 'API is available');
-                }
-            } else {
-                if (dot) dot.className = 'status-dot status-dot--disconnected';
-                if (text) {
-                    text.textContent = 'Disconnected';
-                    text.className = 'status-text stop';
-                }
-                if (responseTime) responseTime.textContent = 'Timeout';
-                
-                if (this.toast) {
-                    this.toast.warning('Backend Offline', 'API is not available');
-                }
-            }
-        }, 1000);
-    }
-    
-    /**
-     * 🆕 v1.2.0: 사이트 연결
-     * 🆕 v1.3.0: getSiteById 헬퍼 함수 사용
-     */
-    async _connectToSelectedSite() {
-        if (!this.selectedSite) return;
-        
-        const connectBtn = this.connectionModal?.querySelector('#connect-btn');
-        if (connectBtn) {
-            connectBtn.disabled = true;
-            connectBtn.textContent = '⏳ Connecting...';
-        }
-        
-        if (this.toast) {
-            this.toast.info('Connecting', `Connecting to ${this.selectedSite}...`);
-        }
-        
-        try {
-            // 시뮬레이션
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            
-            // Dev Mode면 성공으로 처리
-            this.siteStatus[this.selectedSite] = { status: 'connected' };
-            this.isConnected = true;
-            
-            this._renderSiteList();
-            this._updateButtonStates();
-            this._updateCoverStatus(true);
-            this._updateDatabaseList(this.selectedSite);
-            
-            if (connectBtn) {
-                connectBtn.textContent = '🔌 Connect';
-            }
-            
-            // 🆕 v1.3.0: getSiteById 헬퍼 함수 사용
-            const site = getSiteById(this.selectedSite);
-            if (this.toast) {
-                this.toast.success('Connected', `Successfully connected to ${site?.name || this.selectedSite}`);
-            }
-            
-            if (this.eventBus) {
-                this.eventBus.emit('site:connected', { 
-                    siteId: this.selectedSite, 
-                    siteName: site?.name || this.selectedSite 
-                });
-            }
-            
-            // 전역 상태 동기화
-            if (window.sidebarState) {
-                window.sidebarState.isConnected = true;
-            }
-            
-        } catch (error) {
-            console.error('Connection failed:', error);
-            if (connectBtn) {
-                connectBtn.textContent = '🔌 Connect';
-                connectBtn.disabled = false;
-            }
-            if (this.toast) {
-                this.toast.error('Connection Failed', error.message);
-            }
-        }
-    }
-    
-    /**
-     * 🆕 v1.2.0: 사이트 연결 해제
-     */
-    _disconnectFromSite(siteId) {
-        this.siteStatus[siteId] = { status: 'disconnected' };
-        this.isConnected = false;
-        this.selectedSite = null;
-        
-        this._renderSiteList();
+    _onSiteConnected(siteId, siteName) {
+        this.isConnected = true;
         this._updateButtonStates();
-        this._updateCoverStatus(false);
-        this._updateDatabaseList(null);
+        this._updateCoverStatus(true, siteId);
+        
+        // 전역 상태 동기화
+        if (window.sidebarState) {
+            window.sidebarState.isConnected = true;
+        }
+    }
+    
+    /**
+     * 사이트 연결 해제 콜백
+     */
+    _onSiteDisconnected(siteId) {
+        this.isConnected = false;
+        this._updateButtonStates();
+        this._updateCoverStatus(false, null);
         
         // Cover Screen 표시
         this.showCoverScreen();
@@ -757,107 +414,49 @@ export class Sidebar {
         this._updateButtonSelection();
         this._updateOverlayUI();
         
-        if (this.toast) {
-            this.toast.info('Disconnected', 'Database connection closed');
-        }
-        
-        if (this.eventBus) {
-            this.eventBus.emit('site:disconnected');
-        }
-        
         // 전역 상태 동기화
         if (window.sidebarState) {
             window.sidebarState.isConnected = false;
         }
     }
     
-    /**
-     * 🆕 v1.2.0: Database List 업데이트 (v2.9 스타일)
-     * 🆕 v1.3.0: getSiteById 헬퍼 함수 사용
-     */
-    _updateDatabaseList(siteId) {
-        const dbList = this.connectionModal?.querySelector('#database-list');
-        if (!dbList) return;
-        
-        if (siteId) {
-            // 🆕 v1.3.0: getSiteById 헬퍼 함수 사용
-            const site = getSiteById(siteId);
-            dbList.innerHTML = `
-                <div class="database-item">
-                    <div class="database-header">
-                        <h4>📊 ${site?.name || siteId}</h4>
-                    </div>
-                    <div class="database-stats">
-                        <div class="stat-item">
-                            <span class="stat-label">Equipment:</span>
-                            <span class="stat-value">117</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Lines:</span>
-                            <span class="stat-value">6</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Active Lots:</span>
-                            <span class="stat-value">85</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        } else {
-            dbList.innerHTML = `
-                <div class="no-connection">
-                    <span class="no-connection-icon">📂</span>
-                    <p>No database connected</p>
-                </div>
-            `;
-        }
-    }
-    
-    _refreshDatabaseInfo() {
-        if (this.toast) {
-            this.toast.success('Refreshed', 'Database information updated');
-        }
-    }
+    // ========================================
+    // Connection Modal Public API (Delegated)
+    // ========================================
     
     /**
      * Connection Modal 열기
      */
     openConnectionModal() {
-        if (this.connectionModal) {
-            this.connectionModal.classList.add('active');
-            this.connectionModalOpen = true;
-            this._checkInternetStatus();
-            this._refreshAPIStatus();
-            
-            if (this.eventBus) {
-                this.eventBus.emit('connectionModal:opened');
-            }
-        }
+        this.connectionModalManager?.open();
     }
     
     /**
      * Connection Modal 닫기
      */
     closeConnectionModal() {
-        if (this.connectionModal) {
-            this.connectionModal.classList.remove('active');
-            this.connectionModalOpen = false;
-            
-            if (this.eventBus) {
-                this.eventBus.emit('connectionModal:closed');
-            }
-        }
+        this.connectionModalManager?.close();
     }
     
     /**
      * Connection Modal 토글
      */
     toggleConnectionModal() {
-        if (this.connectionModalOpen) {
-            this.closeConnectionModal();
-        } else {
-            this.openConnectionModal();
-        }
+        this.connectionModalManager?.toggle();
+    }
+    
+    /**
+     * Connection Modal 열림 상태 확인
+     */
+    get connectionModalOpen() {
+        return this.connectionModalManager?.isOpen || false;
+    }
+    
+    /**
+     * 선택된 사이트 반환
+     */
+    get selectedSite() {
+        return this.connectionModalManager?.getSelectedSite() || null;
     }
     
     // ========================================
@@ -916,7 +515,7 @@ export class Sidebar {
         
         switch (key) {
             case 'connection':
-                // 자체 모달 사용
+                // 🆕 v1.4.0: ConnectionModalManager 사용
                 this.toggleConnectionModal();
                 break;
                 
@@ -944,12 +543,7 @@ export class Sidebar {
     }
     
     /**
-     * 🆕 v1.2.0: _handleSubmenuClick 수정 - public 메서드 직접 호출 지원
-     * 
-     * 호출 순서:
-     * 1. callbacks 객체에서 찾기 (외부 주입된 콜백)
-     * 2. this 인스턴스의 public 메서드에서 찾기 (언더스코어 없이)
-     * 3. this 인스턴스의 private 메서드에서 찾기 (_prefix)
+     * 서브메뉴 클릭 처리
      */
     _handleSubmenuClick(item) {
         if (item.action) {
@@ -964,7 +558,7 @@ export class Sidebar {
                 return;
             }
             
-            // 2. 🆕 v1.2.0: this 인스턴스에서 찾기 (public 메서드 - 언더스코어 없이)
+            // 2. this 인스턴스에서 찾기 (public 메서드)
             if (typeof this[item.action] === 'function') {
                 this[item.action](...(item.params || []));
                 return;
@@ -1193,7 +787,7 @@ export class Sidebar {
     enableAfterConnection() {
         this.isConnected = true;
         this._updateButtonStates();
-        this._updateCoverStatus(true);
+        this._updateCoverStatus(true, this.selectedSite);
         
         console.log('[Sidebar] Backend 연결됨 - UI 활성화');
     }
@@ -1201,7 +795,7 @@ export class Sidebar {
     disableBeforeConnection() {
         this.isConnected = false;
         this._updateButtonStates();
-        this._updateCoverStatus(false);
+        this._updateCoverStatus(false, null);
         
         this.currentMode = null;
         this.currentSubMode = null;
@@ -1217,9 +811,9 @@ export class Sidebar {
     }
     
     /**
-     * 🆕 v1.3.0: getSiteById 헬퍼 함수 사용
+     * Cover Status 업데이트
      */
-    _updateCoverStatus(connected) {
+    _updateCoverStatus(connected, siteId) {
         const apiDot = document.getElementById('cover-api-dot');
         const apiStatus = document.getElementById('cover-api-status');
         const dbDot = document.getElementById('cover-db-dot');
@@ -1233,10 +827,9 @@ export class Sidebar {
         if (dbDot) dbDot.className = `cover-status-dot ${dotClass}`;
         
         if (dbStatus) {
-            if (connected && this.selectedSite) {
-                // 🆕 v1.3.0: getSiteById 헬퍼 함수 사용
-                const site = getSiteById(this.selectedSite);
-                dbStatus.textContent = site?.name || this.selectedSite;
+            if (connected && siteId) {
+                const site = getSiteById(siteId);
+                dbStatus.textContent = site?.name || siteId;
             } else {
                 dbStatus.textContent = 'Not Connected';
             }
@@ -1272,7 +865,7 @@ export class Sidebar {
     // ========================================
     
     /**
-     * 🆕 v1.2.0: Dev Mode 토글 (public 메서드)
+     * Dev Mode 토글 (public 메서드)
      */
     toggleDevMode() {
         this.devModeEnabled = !this.devModeEnabled;
@@ -1289,12 +882,10 @@ export class Sidebar {
         const labelText = `Dev Mode: ${this.devModeEnabled ? 'ON' : 'OFF'}`;
         
         if (devModeLabel) {
-            // submenu-item 내부의 span 찾기
             const labelSpan = devModeLabel.querySelector('span');
             if (labelSpan) {
                 labelSpan.textContent = labelText;
             } else {
-                // span이 없으면 전체 텍스트 변경 (아이콘 제외)
                 const icon = devModeLabel.querySelector('svg');
                 if (icon) {
                     devModeLabel.innerHTML = '';
@@ -1410,9 +1001,10 @@ export class Sidebar {
             this.element = null;
         }
         
-        if (this.connectionModal) {
-            this.connectionModal.remove();
-            this.connectionModal = null;
+        // 🆕 v1.4.0: ConnectionModalManager 정리
+        if (this.connectionModalManager) {
+            this.connectionModalManager.destroy();
+            this.connectionModalManager = null;
         }
         
         const badge = document.getElementById('dev-mode-badge');
