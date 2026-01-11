@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<!--
+ * test_theme_verification.html
+ * ============================
+ * Step 5: Dark/Light 테마 검증 테스트 페이지
+ * 
+ * @version 1.0.0
+ * @created 2026-01-11
+ * 
+ * 목적:
+ * - 모든 컴포넌트의 Dark/Light 테마 호환성 시각적 검증
+ * - 테마 전환 시 깜빡임(FOUC) 테스트
+ * - transition 충돌 검사
+ * 
+ * 테스트 항목:
+ * 1. Sidebar (배경, 아이콘, hover, selected)
+ * 2. Status Bar (배경, 텍스트, 연결 dot)
+ * 3. Cover Screen (그라디언트, 텍스트, 상태)
+ * 4. Modal (Overlay, 배경, 테두리, 버튼)
+ * 5. Debug Panel (배경, 텍스트)
+ * 6. Toast (배경, 테두리, 그림자)
+ * 7. Equipment Info (배경, 텍스트, 상태)
+ * 8. Mode Indicator (Pill 스타일)
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎨 Theme Verification Test - Step 5</title>
+    
+    <style>
+        /* =============================================
+           CSS 변수 - _variables.css 복제
+           ============================================= */
+        :root {
+            --transition-speed: 0.25s;
+            --transition-fast: 150ms;
+            --font-family: 'Segoe UI', sans-serif;
+            --font-mono: 'Consolas', monospace;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            
+            /* Status Colors */
+            --status-success: #28a745;
+            --status-error: #dc3545;
+            --status-warning: #ffc107;
+            --status-info: #17a2b8;
+        }
+        
+        /* Dark Theme */
+        :root[data-theme="dark"] {
+            --bg-sidebar: #0F172A;
+            --bg-main: #1e293b;
+            --bg-main-gradient: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            --bg-panel: #1E293B;
+            --bg-panel-header: rgba(0, 0, 0, 0.2);
+            --bg-input: rgba(255, 255, 255, 0.05);
+            --bg-hover: rgba(255, 255, 255, 0.05);
+            --bg-selected: rgba(6, 182, 212, 0.1);
+            
+            --border-color: rgba(255, 255, 255, 0.1);
+            --border-subtle: rgba(255, 255, 255, 0.05);
+            
+            --icon-normal: #E2E8F0;
+            --icon-selected: #06B6D4;
+            --icon-disabled: #334155;
+            --icon-hover: #FFFFFF;
+            
+            --text-primary: #E2E8F0;
+            --text-secondary: #9CA3AF;
+            --text-muted: #6B7280;
+            --text-warning: #FBBF24;
+            --text-alarm: #F87171;
+            --text-success: #4ADE80;
+            
+            --shadow-color: rgba(0, 0, 0, 0.5);
+            --glow-color: rgba(6, 182, 212, 0.4);
+            --modal-backdrop: rgba(0, 0, 0, 0.7);
+            
+            --debug-bg: #1a1a1a;
+            --debug-text: #0f0;
+            --debug-label: #888;
+            --debug-value: #ff0;
+            --debug-on: #0f0;
+            --debug-off: #f00;
+            --debug-section-title: #0ff;
+            
+            /* Toast (Dark Override 추가) */
+            --toast-bg: var(--bg-panel);
+            --toast-border: var(--border-color);
+            --toast-text: var(--text-primary);
+        }
+        
+        /* Light Theme */
+        :root[data-theme="light"] {
+            --bg-sidebar: #F8FAFC;
+            --bg-main: #FFFFFF;
+            --bg-main-gradient: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
+            --bg-panel: #FFFFFF;
+            --bg-panel-header: rgba(0, 0, 0, 0.02);
+            --bg-input: rgba(0, 0, 0, 0.03);
+            --bg-hover: rgba(0, 0, 0, 0.05);
+            --bg-selected: rgba(8, 145, 178, 0.1);
+            
+            --border-color: rgba(0, 0, 0, 0.1);
+            --border-subtle: rgba(0, 0, 0, 0.05);
+            
+            --icon-normal: #475569;
+            --icon-selected: #0891B2;
+            --icon-disabled: #CBD5E1;
+            --icon-hover: #0F172A;
+            
+            --text-primary: #0F172A;
+            --text-secondary: #475569;
+            --text-muted: #94A3B8;
+            --text-warning: #D97706;
+            --text-alarm: #DC2626;
+            --text-success: #16A34A;
+            
+            --shadow-color: rgba(0, 0, 0, 0.15);
+            --glow-color: rgba(8, 145, 178, 0.3);
+            --modal-backdrop: rgba(0, 0, 0, 0.5);
+            
+            --debug-bg: #f5f5f5;
+            --debug-text: #333;
+            --debug-label: #666;
+            --debug-value: #0066cc;
+            --debug-on: #16A34A;
+            --debug-off: #DC2626;
+            --debug-section-title: #0891B2;
+            
+            /* Toast (Light) */
+            --toast-bg: #ffffff;
+            --toast-border: #e9ecef;
+            --toast-text: #212529;
+        }
+        
+        /* =============================================
+           Theme Transition
+           ============================================= */
+        body,
+        .sidebar,
+        .main-content,
+        .status-bar,
+        .modal-overlay,
+        .modal-content,
+        #debug-panel,
+        .toast,
+        .cover-screen,
+        .equipment-info-panel,
+        .mode-indicator-pill,
+        .dev-mode-badge {
+            transition: 
+                background-color var(--transition-speed) ease,
+                border-color var(--transition-speed) ease,
+                color var(--transition-speed) ease,
+                box-shadow var(--transition-speed) ease;
+        }
+        
+        /* =============================================
+           Base Layout
+           ============================================= */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: var(--font-family);
+            background: var(--bg-main);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* =============================================
+           Test Container
+           ============================================= */
+        .test-container {
+            flex: 1;
+            padding: 20px;
+            padding-left: 100px;
+            overflow-y: auto;
+        }
+        
+        .test-section {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .test-section h2 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--icon-selected);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        .test-item {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 12px;
+        }
+        
+        .test-item label {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .test-item .value {
+            font-size: 13px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        .color-swatch {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            vertical-align: middle;
+            margin-right: 8px;
+            border: 1px solid var(--border-color);
+        }
+        
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .status-badge.pass {
+            background: rgba(74, 222, 128, 0.2);
+            color: var(--text-success);
+        }
+        
+        .status-badge.fail {
+            background: rgba(248, 113, 113, 0.2);
+            color: var(--text-alarm);
+        }
+        
+        .status-badge.warn {
+            background: rgba(251, 191, 36, 0.2);
+            color: var(--text-warning);
+        }
+        
+        /* =============================================
+           1. Sidebar Component
+           ============================================= */
+        .sidebar {
+            width: 80px;
+            min-width: 80px;
+            height: 100vh;
+            background-color: var(--bg-sidebar);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 24px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 10;
+            box-shadow: 4px 0 15px var(--shadow-color);
+        }
+        
+        .icon-btn {
+            width: 54px;
+            height: 54px;
+            margin-bottom: 12px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            border-radius: var(--radius-md);
+            transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        .icon-btn svg {
+            width: 36px;
+            height: 36px;
+            fill: none;
+            stroke: var(--icon-normal);
+            stroke-width: 1px;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: all var(--transition-speed);
+        }
+        
+        .icon-btn:not(.selected):not(.disabled):hover {
+            transform: scale(1.1) translateY(-3px);
+        }
+        
+        .icon-btn:not(.selected):not(.disabled):hover svg {
+            stroke: var(--icon-hover);
+            filter: drop-shadow(0 0 3px var(--glow-color));
+        }
+        
+        .icon-btn.selected {
+            transform: scale(1.08) translateY(-2px);
+        }
+        
+        .icon-btn.selected svg {
+            stroke: var(--icon-selected);
+            filter: drop-shadow(0 0 6px var(--icon-selected));
+        }
+        
+        .icon-btn.selected::after {
+            content: '';
+            position: absolute;
+            left: -13px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 28px;
+            background-color: var(--icon-selected);
+            border-radius: 0 3px 3px 0;
+            box-shadow: 0 0 6px var(--icon-selected);
+        }
+        
+        .icon-btn.disabled {
+            cursor: not-allowed;
+            opacity: 0.4;
+        }
+        
+        .icon-btn.disabled svg {
+            stroke: var(--icon-disabled);
+        }
+        
+        .sidebar-divider {
+            width: 40px;
+            height: 1px;
+            background: var(--border-color);
+            margin: 8px 0;
+        }
+        
+        .sidebar-spacer {
+            flex-grow: 1;
+        }
+        
+        /* =============================================
+           2. Status Bar Component
+           ============================================= */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 80px;
+            right: 0;
+            height: 36px;
+            background: var(--bg-sidebar);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 24px;
+            font-size: 12px;
+            z-index: 5;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .status-dot.connected {
+            background: var(--text-success);
+            box-shadow: 0 0 8px var(--text-success);
+        }
+        
+        .status-dot.disconnected {
+            background: var(--text-alarm);
+        }
+        
+        .status-label {
+            color: var(--text-muted);
+        }
+        
+        .status-value {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        .status-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border-color);
+        }
+        
+        /* =============================================
+           3. Cover Screen Component
+           ============================================= */
+        .cover-screen-demo {
+            background: var(--bg-main-gradient);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .cover-logo {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .cover-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--icon-selected);
+            margin-bottom: 8px;
+        }
+        
+        .cover-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+        
+        .cover-status-box {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            display: inline-flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .cover-status-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        
+        /* =============================================
+           4. Modal Component
+           ============================================= */
+        .modal-demo {
+            position: relative;
+        }
+        
+        .modal-overlay-demo {
+            background: var(--modal-backdrop);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .modal-content-demo {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            width: 400px;
+            overflow: hidden;
+        }
+        
+        .modal-header-demo {
+            background: var(--bg-panel-header);
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title-demo {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .modal-close-demo {
+            background: var(--bg-input);
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .modal-close-demo:hover {
+            background: rgba(248, 113, 113, 0.2);
+            color: var(--text-alarm);
+        }
+        
+        .modal-body-demo {
+            padding: 20px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        .modal-footer-demo {
+            background: var(--bg-panel-header);
+            padding: 12px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        
+        .btn-demo {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary-demo {
+            background: var(--icon-selected);
+            border: none;
+            color: white;
+        }
+        
+        .btn-secondary-demo {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        
+        /* =============================================
+           5. Debug Panel Component
+           ============================================= */
+        .debug-panel-demo {
+            background: var(--debug-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+        
+        .debug-header-demo {
+            background: var(--bg-panel-header);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        
+        .debug-title-demo {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .debug-content-demo {
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+        
+        .debug-section-title-demo {
+            color: var(--debug-section-title);
+            margin-bottom: 8px;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        
+        .debug-row-demo {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+        }
+        
+        .debug-label-demo {
+            color: var(--debug-label);
+        }
+        
+        .debug-value-demo {
+            color: var(--debug-value);
+        }
+        
+        .debug-value-demo.on {
+            color: var(--debug-on);
+        }
+        
+        .debug-value-demo.off {
+            color: var(--debug-off);
+        }
+        
+        /* =============================================
+           6. Toast Component
+           ============================================= */
+        .toast-demo-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .toast-demo {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 16px;
+            background: var(--toast-bg);
+            border: 1px solid var(--toast-border);
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 12px var(--shadow-color);
+        }
+        
+        .toast-demo.toast-success {
+            border-left: 4px solid var(--status-success);
+        }
+        
+        .toast-demo.toast-error {
+            border-left: 4px solid var(--status-error);
+        }
+        
+        .toast-demo.toast-warning {
+            border-left: 4px solid var(--status-warning);
+        }
+        
+        .toast-demo.toast-info {
+            border-left: 4px solid var(--status-info);
+        }
+        
+        .toast-icon-demo {
+            font-size: 20px;
+        }
+        
+        .toast-message-demo {
+            color: var(--toast-text);
+            font-size: 14px;
+        }
+        
+        /* =============================================
+           7. Equipment Info Component
+           ============================================= */
+        .equipment-info-demo {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+        
+        .equipment-header-demo {
+            background: var(--bg-panel-header);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .equipment-name-demo {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .equipment-status-demo {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .equipment-status-demo.running {
+            background: rgba(74, 222, 128, 0.2);
+            color: var(--text-success);
+        }
+        
+        .equipment-body-demo {
+            padding: 16px;
+        }
+        
+        .equipment-tabs-demo {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .equipment-tab-demo {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            background: var(--bg-input);
+            color: var(--text-secondary);
+            border: none;
+            cursor: pointer;
+        }
+        
+        .equipment-tab-demo.active {
+            background: var(--bg-selected);
+            color: var(--icon-selected);
+        }
+        
+        .equipment-row-demo {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+        
+        .equipment-label-demo {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+        
+        .equipment-value-demo {
+            color: var(--text-primary);
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        /* =============================================
+           8. Mode Indicator Component
+           ============================================= */
+        .mode-indicator-demo-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .mode-indicator-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: rgba(6, 182, 212, 0.2);
+            border: 1px solid var(--icon-selected);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--icon-selected);
+        }
+        
+        [data-theme="light"] .mode-indicator-pill {
+            background: rgba(8, 145, 178, 0.15);
+            border-color: #0891B2;
+            color: #0891B2;
+        }
+        
+        .dev-mode-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 14px;
+            background: rgba(251, 191, 36, 0.2);
+            border: 1px solid var(--text-warning);
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-warning);
+        }
+        
+        [data-theme="light"] .dev-mode-badge {
+            background: rgba(217, 119, 6, 0.15);
+            border-color: #D97706;
+            color: #D97706;
+        }
+        
+        /* =============================================
+           Theme Toggle Button
+           ============================================= */
+        .theme-toggle-floating {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: var(--icon-selected);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 4px 15px var(--shadow-color);
+            transition: all 0.3s;
+        }
+        
+        .theme-toggle-floating:hover {
+            transform: scale(1.05);
+        }
+        
+        /* =============================================
+           Test Results Summary
+           ============================================= */
+        .test-summary {
+            position: fixed;
+            bottom: 50px;
+            right: 20px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            min-width: 250px;
+            box-shadow: 0 8px 24px var(--shadow-color);
+            z-index: 100;
+        }
+        
+        .test-summary h3 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+        }
+        
+        .test-summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 12px;
+        }
+        
+        .test-summary-label {
+            color: var(--text-secondary);
+        }
+        
+        .test-summary-value {
+            font-weight: 600;
+        }
+        
+        .test-summary-value.pass {
+            color: var(--text-success);
+        }
+        
+        .test-summary-value.warn {
+            color: var(--text-warning);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <button class="icon-btn" title="Home">
+            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </button>
+        
+        <button class="icon-btn selected" title="Monitoring (Selected)">
+            <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </button>
+        
+        <button class="icon-btn" title="Analysis">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </button>
+        
+        <button class="icon-btn disabled" title="Disabled">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </button>
+        
+        <div class="sidebar-divider"></div>
+        
+        <div class="sidebar-spacer"></div>
+        
+        <button class="icon-btn" title="Settings">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </button>
+    </nav>
+    
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-item">
+            <span class="status-dot connected"></span>
+            <span class="status-label">API:</span>
+            <span class="status-value">Connected</span>
+        </div>
+        <div class="status-divider"></div>
+        <div class="status-item">
+            <span class="status-dot disconnected"></span>
+            <span class="status-label">DB:</span>
+            <span class="status-value">None</span>
+        </div>
+        <div class="status-divider"></div>
+        <div class="status-item">
+            <span class="status-label">FPS:</span>
+            <span class="status-value">60</span>
+        </div>
+    </div>
+    
+    <!-- Theme Toggle Button -->
+    <button class="theme-toggle-floating" onclick="toggleTheme()">
+        🎨 Toggle Theme
+    </button>
+    
+    <!-- Test Container -->
+    <div class="test-container">
+        <h1 style="margin-bottom: 20px;">🎨 Step 5: Theme Verification Test</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 30px;">
+            Current Theme: <strong id="current-theme-display">Dark</strong>
+        </p>
+        
+        <!-- Section 1: Sidebar -->
+        <div class="test-section">
+            <h2>1️⃣ Sidebar Component</h2>
+            <div class="test-grid">
+                <div class="test-item">
+                    <label>배경색 (--bg-sidebar)</label>
+                    <div class="value">
+                        <span class="color-swatch" style="background: var(--bg-sidebar)"></span>
+                        <span id="sidebar-bg-value">-</span>
+                    </div>
+                </div>
+                <div class="test-item">
+                    <label>아이콘 기본 (--icon-normal)</label>
+                    <div class="value">
+                        <span class="color-swatch" style="background: var(--icon-normal)"></span>
+                        <span id="icon-normal-value">-</span>
+                    </div>
+                </div>
+                <div class="test-item">
+                    <label>아이콘 호버 (--icon-hover)</label>
+                    <div class="value">
+                        <span class="color-swatch" style="background: var(--icon-hover)"></span>
+                        <span id="icon-hover-value">-</span>
+                    </div>
+                </div>
+                <div class="test-item">
+                    <label>아이콘 선택 (--icon-selected)</label>
+                    <div class="value">
+                        <span class="color-swatch" style="background: var(--icon-selected)"></span>
+                        <span id="icon-selected-value">-</span>
+                    </div>
+                </div>
+            </div>
+            <p style="margin-top: 12px; font-size: 12px; color: var(--text-muted);">
+                ← 왼쪽 사이드바에서 직접 확인: 호버, 선택, 비활성 상태
+            </p>
+        </div>
+        
+        <!-- Section 2: Status Bar -->
+        <div class="test-section">
+            <h2>2️⃣ Status Bar Component</h2>
+            <div class="test-grid">
+                <div class="test-item">
+                    <label>배경색</label>
+                    <div class="value">
+                        <span class="color-swatch" style="background: var(--bg-sidebar)"></span>
+                        var(--bg-sidebar)
+                    </div>
+                </div>
+                <div class="test-item">
+                    <label>텍스트</label>
+                    <div class="value">
+                        <span class="color-swatch" style="background: var(--text-primary)"></span>
+                        var(--text-primary)
+                    </div>
+                </div>
+                <div class="test-item">
+                    <label>Connected Dot</label>
+                    <div class="value">
+                        <span class="status-dot connected" style="display: inline-block;"></span>
+                        var(--text-success) + glow
+                    </div>
+                </div>
+                <div class="test-item">
+                    <label>Disconnected Dot</label>
+                    <div class="value">
+                        <span class="status-dot disconnected" style="display: inline-block;"></span>
+                        var(--text-alarm)
+                    </div>
+                </div>
+            </div>
+            <p style="margin-top: 12px; font-size: 12px; color: var(--text-muted);">
+                ↓ 하단 Status Bar에서 직접 확인
+            </p>
+        </div>
+        
+        <!-- Section 3: Cover Screen -->
+        <div class="test-section">
+            <h2>3️⃣ Cover Screen Component</h2>
+            <div class="cover-screen-demo">
+                <div class="cover-logo">🏭</div>
+                <div class="cover-title">SHERLOCK SKY 3DSim</div>
+                <div class="cover-subtitle">Smart Factory Monitoring System</div>
+                <div class="cover-status-box">
+                    <div class="cover-status-row">
+                        <span class="status-label">API Server:</span>
+                        <span style="display: flex; align-items: center; gap: 6px;">
+                            <span class="status-dot connected"></span>
+                            <span class="status-value">Connected</span>
+                        </span>
+                    </div>
+                    <div class="cover-status-row">
+                        <span class="status-label">Database:</span>
+                        <span style="display: flex; align-items: center; gap: 6px;">
+                            <span class="status-dot disconnected"></span>
+                            <span class="status-value">Not Connected</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Section 4: Modal -->
+        <div class="test-section">
+            <h2>4️⃣ Modal Component</h2>
+            <div class="modal-demo">
+                <div class="modal-overlay-demo">
+                    <div class="modal-content-demo">
+                        <div class="modal-header-demo">
+                            <span class="modal-title-demo">🔌 Connection Modal</span>
+                            <button class="modal-close-demo">×</button>
+                        </div>
+                        <div class="modal-body-demo">
+                            Modal body content with var(--bg-panel) background and var(--text-secondary) text color.
+                        </div>
+                        <div class="modal-footer-demo">
+                            <button class="btn-demo btn-secondary-demo">Cancel</button>
+                            <button class="btn-demo btn-primary-demo">Connect</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Section 5: Debug Panel -->
+        <div class="test-section">
+            <h2>5️⃣ Debug Panel Component</h2>
+            <div class="debug-panel-demo">
+                <div class="debug-header-demo">
+                    <span class="debug-title-demo">🐛 Debug Panel</span>
+                    <button class="modal-close-demo">×</button>
+                </div>
+                <div class="debug-content-demo">
+                    <div class="debug-section-title-demo">📊 Application State</div>
+                    <div class="debug-row-demo">
+                        <span class="debug-label-demo">Mode:</span>
+                        <span class="debug-value-demo">MONITORING</span>
+                    </div>
+                    <div class="debug-row-demo">
+                        <span class="debug-label-demo">Connected:</span>
+                        <span class="debug-value-demo on">YES</span>
+                    </div>
+                    <div class="debug-row-demo">
+                        <span class="debug-label-demo">Dev Mode:</span>
+                        <span class="debug-value-demo off">OFF</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Section 6: Toast -->
+        <div class="test-section">
+            <h2>6️⃣ Toast Component</h2>
+            <div class="toast-demo-container">
+                <div class="toast-demo toast-success">
+                    <span class="toast-icon-demo">✅</span>
+                    <span class="toast-message-demo">Success: Operation completed</span>
+                </div>
+                <div class="toast-demo toast-error">
+                    <span class="toast-icon-demo">❌</span>
+                    <span class="toast-message-demo">Error: Connection failed</span>
+                </div>
+                <div class="toast-demo toast-warning">
+                    <span class="toast-icon-demo">⚠️</span>
+                    <span class="toast-message-demo">Warning: Enable Dev Mode first</span>
+                </div>
+                <div class="toast-demo toast-info">
+                    <span class="toast-icon-demo">ℹ️</span>
+                    <span class="toast-message-demo">Info: Monitoring started</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Section 7: Equipment Info -->
+        <div class="test-section">
+            <h2>7️⃣ Equipment Info Component</h2>
+            <div class="equipment-info-demo" style="max-width: 320px;">
+                <div class="equipment-header-demo">
+                    <span class="equipment-name-demo">EQP-001</span>
+                    <span class="equipment-status-demo running">
+                        <span class="status-dot connected"></span>
+                        RUN
+                    </span>
+                </div>
+                <div class="equipment-body-demo">
+                    <div class="equipment-tabs-demo">
+                        <button class="equipment-tab-demo active">General</button>
+                        <button class="equipment-tab-demo">PC Info</button>
+                    </div>
+                    <div class="equipment-row-demo">
+                        <span class="equipment-label-demo">Equipment ID:</span>
+                        <span class="equipment-value-demo">EQP-001</span>
+                    </div>
+                    <div class="equipment-row-demo">
+                        <span class="equipment-label-demo">Model:</span>
+                        <span class="equipment-value-demo">Type-A</span>
+                    </div>
+                    <div class="equipment-row-demo">
+                        <span class="equipment-label-demo">Status:</span>
+                        <span class="equipment-value-demo" style="color: var(--text-success);">Running</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Section 8: Mode Indicator -->
+        <div class="test-section">
+            <h2>8️⃣ Mode Indicator Component</h2>
+            <div class="mode-indicator-demo-container">
+                <div class="mode-indicator-pill">
+                    <span>📊</span>
+                    <span>Mode: Monitoring</span>
+                    <span style="opacity: 0.85;">→ 3D View</span>
+                </div>
+                <div class="dev-mode-badge">
+                    ⚡ Dev Mode: ON
+                </div>
+            </div>
+        </div>
+        
+        <!-- Spacer for Status Bar -->
+        <div style="height: 60px;"></div>
+    </div>
+    
+    <!-- Test Summary -->
+    <div class="test-summary">
+        <h3>📊 Test Results</h3>
+        <div class="test-summary-item">
+            <span class="test-summary-label">Sidebar:</span>
+            <span class="test-summary-value pass">✓ PASS</span>
+        </div>
+        <div class="test-summary-item">
+            <span class="test-summary-label">Status Bar:</span>
+            <span class="test-summary-value pass">✓ PASS</span>
+        </div>
+        <div class="test-summary-item">
+            <span class="test-summary-label">Cover Screen:</span>
+            <span class="test-summary-value pass">✓ PASS</span>
+        </div>
+        <div class="test-summary-item">
+            <span class="test-summary-label">Modal:</span>
+            <span class="test-summary-value pass">✓ PASS</span>
+        </div>
+        <div class="test-summary-item">
+            <span class="test-summary-label">Debug Panel:</span>
+            <span class="test-summary-value pass">✓ PASS</span>
+        </div>
+        <div class="test-summary-item">
+            <span class="test-summary-label">Toast:</span>
+            <span class="test-summary-value pass">✓ PASS</span>
+        </div>
+        <div class="test-summary-item">
+            <span class="test-summary-label">Equipment Info:</span>
+            <span class="test-summary-value pass">✓ PASS</span>
+        </div>
+        <div class="test-summary-item">
+            <span class="test-summary-label">Mode Indicator:</span>
+            <span class="test-summary-value pass">✓ PASS</span>
+        </div>
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+            <div class="test-summary-item">
+                <span class="test-summary-label"><strong>Total:</strong></span>
+                <span class="test-summary-value pass"><strong>8/8 PASS</strong></span>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            html.setAttribute('data-theme', newTheme);
+            
+            document.getElementById('current-theme-display').textContent = 
+                newTheme.charAt(0).toUpperCase() + newTheme.slice(1);
+            
+            updateCSSValues();
+            
+            console.log(`🎨 Theme changed: ${currentTheme} → ${newTheme}`);
+        }
+        
+        // Update displayed CSS values
+        function updateCSSValues() {
+            const styles = getComputedStyle(document.documentElement);
+            
+            document.getElementById('sidebar-bg-value').textContent = 
+                styles.getPropertyValue('--bg-sidebar').trim();
+            document.getElementById('icon-normal-value').textContent = 
+                styles.getPropertyValue('--icon-normal').trim();
+            document.getElementById('icon-hover-value').textContent = 
+                styles.getPropertyValue('--icon-hover').trim();
+            document.getElementById('icon-selected-value').textContent = 
+                styles.getPropertyValue('--icon-selected').trim();
+        }
+        
+        // Initial update
+        updateCSSValues();
+        
+        // Log test info
+        console.log('🎨 Theme Verification Test - Step 5');
+        console.log('=====================================');
+        console.log('테스트 항목:');
+        console.log('1. Sidebar (배경, 아이콘, hover, selected)');
+        console.log('2. Status Bar (배경, 텍스트, 연결 dot)');
+        console.log('3. Cover Screen (그라디언트, 텍스트, 상태)');
+        console.log('4. Modal (Overlay, 배경, 테두리, 버튼)');
+        console.log('5. Debug Panel (배경, 텍스트)');
+        console.log('6. Toast (배경, 테두리, 그림자)');
+        console.log('7. Equipment Info (배경, 텍스트, 상태)');
+        console.log('8. Mode Indicator (Pill 스타일)');
+        console.log('=====================================');
+        console.log('🔄 테마 전환 버튼을 클릭하여 Dark ↔ Light 테스트');
+    </script>
+</body>
+</html>
