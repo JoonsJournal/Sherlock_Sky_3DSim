@@ -614,3 +614,21 @@ body,
     --perf-warning: var(--text-warning);
     --perf-critical: var(--text-alarm);
 }
+
+/* =============================================
+   CSS 변수 추가 (_variables.css에 추가 권장)
+   ============================================= */
+
+:root[data-theme="dark"] {
+    --toast-bg: var(--bg-panel);
+    --toast-border: var(--border-color);
+    --toast-text: var(--text-primary);
+    --toast-shadow: 0 4px 12px var(--shadow-color);
+}
+
+:root[data-theme="light"] {
+    --toast-bg: #ffffff;
+    --toast-border: #e9ecef;
+    --toast-text: #212529;
+    --toast-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
