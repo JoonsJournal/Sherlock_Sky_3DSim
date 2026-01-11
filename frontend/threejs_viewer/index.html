@@ -1,21 +1,19 @@
 <!DOCTYPE html>
 <html lang="ko" data-theme="dark">
 <!--
- * index.html
- * ==========
+ * index.html v5.0.3
  * SHERLOCK SKY 3DSim - Cleanroom Sidebar Theme
  * 
- * @version 5.0.1
+ * @version 5.0.3
  * @created 2026-01-11
  * 
  * @changelog
- * - v5.0.1: 🔧 하이브리드 방식 적용
- *           - Sidebar 정적 HTML 추가
- *           - Settings 항상 활성화
- *           - Dev Mode: Connect 없이 전체 기능 사용
- *           - 인라인 스크립트: 기본 이벤트 처리
- *           - main.js: 고급 기능 연결
- * - v5.0.0: Cleanroom Sidebar Theme 통합
+ * - v5.0.3: 🔧 Dev Mode 전체 시나리오 동작
+ *           - CSS Tooltip 추가 (모든 버튼)
+ *           - Dev Mode시 모든 UI 활성화
+ *           - Connection Modal 정상 동작
+ * - v5.0.2: 서브메뉴 hover gap 문제 해결
+ * - v5.0.1: 하이브리드 방식, Settings 항상 활성화
  * 
  * 위치: frontend/threejs_viewer/index.html
 -->
@@ -25,14 +23,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🏭 Sherlock Sky 3DSim v5.0</title>
     
-    <!-- 통합 스타일시트 -->
     <link rel="stylesheet" href="styles/main.css">
     
-    <!-- =============================================
-         Sidebar 스타일 (인라인 - main.css 보완)
-         ============================================= -->
     <style>
-        /* CSS Variables */
+        /* =============================================
+           CSS Variables
+           ============================================= */
         :root, [data-theme="dark"] {
             --bg-sidebar: #0F172A;
             --bg-main: #1e293b;
@@ -86,105 +82,635 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { display: flex; height: 100vh; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: var(--bg-main); }
         
-        /* Sidebar */
-        .sidebar { width: 80px; background-color: var(--bg-sidebar); display: flex; flex-direction: column; align-items: center; padding-top: 24px; z-index: 10; box-shadow: 4px 0 15px var(--shadow-color); }
-        .icon-btn { width: 54px; height: 54px; margin-bottom: 12px; background: transparent; border: none; cursor: pointer; display: flex; justify-content: center; align-items: center; position: relative; transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1); }
-        .icon-btn svg { width: var(--icon-size); height: var(--icon-size); fill: none; stroke: var(--icon-normal); stroke-width: 1px; stroke-linecap: round; stroke-linejoin: round; transition: all var(--transition-speed); }
-        .icon-btn:not(.selected):not(.disabled):hover { transform: scale(1.1) translateY(-3px); }
-        .icon-btn:not(.selected):not(.disabled):hover svg { stroke: var(--icon-hover); filter: drop-shadow(0 0 3px var(--glow-color)); }
-        .icon-btn.selected { transform: scale(1.08) translateY(-2px); }
-        .icon-btn.selected svg { stroke: var(--icon-selected); filter: drop-shadow(0 0 6px var(--icon-selected)); }
-        .icon-btn.selected::before { content: ''; position: absolute; left: -13px; width: 3px; height: 28px; background-color: var(--icon-selected); border-radius: 0 3px 3px 0; box-shadow: 0 0 6px var(--icon-selected); }
-        .icon-btn.disabled { cursor: not-allowed; opacity: 0.4; pointer-events: none; }
-        .icon-btn.disabled svg { stroke: var(--icon-disabled); }
-
-        /* Submenu */
-        .has-submenu { position: relative; }
-        .submenu { position: absolute; left: 70px; top: 0; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 0; min-width: 200px; opacity: 0; visibility: hidden; transform: translateX(-10px); transition: all 0.2s ease; box-shadow: 4px 4px 20px var(--shadow-color); z-index: 100; }
-        #btn-settings-wrapper .submenu, #btn-debug-wrapper .submenu { top: auto; bottom: 0; }
-        .has-submenu:not(.disabled):hover .submenu { opacity: 1; visibility: visible; transform: translateX(0); }
-        .has-submenu.disabled .submenu { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
-        .submenu-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: var(--text-secondary); font-size: 13px; cursor: pointer; transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; }
-        .submenu-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .submenu-item.active { background: var(--bg-selected); color: var(--icon-selected); }
-        .submenu-item.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
-        .submenu-item svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5px; fill: none; }
-        .submenu-divider { height: 1px; background: var(--border-color); margin: 6px 12px; }
-        .submenu-header { padding: 6px 16px; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-        .has-submenu::after { content: ''; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 4px solid transparent; border-left-color: var(--icon-normal); opacity: 0.5; }
-        .has-submenu:not(.disabled):hover::after { border-left-color: var(--icon-selected); opacity: 1; }
+        /* =============================================
+           Sidebar
+           ============================================= */
+        .sidebar { 
+            width: 80px; 
+            background-color: var(--bg-sidebar); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding-top: 24px; 
+            z-index: 10; 
+            box-shadow: 4px 0 15px var(--shadow-color); 
+        }
         
-        /* Always Normal State (Connection, Settings, Debug 버튼은 selected 표시 안함) */
-        #btn-connection, #btn-settings-wrapper .icon-btn, #btn-debug-wrapper .icon-btn { transform: none !important; }
-        #btn-connection::before, #btn-settings-wrapper .icon-btn::before, #btn-debug-wrapper .icon-btn::before { display: none !important; }
-        #btn-connection svg, #btn-settings-wrapper .icon-btn svg, #btn-debug-wrapper .icon-btn svg { stroke: var(--icon-normal) !important; filter: none !important; }
-        #btn-connection:hover svg, #btn-settings-wrapper:hover .icon-btn svg, #btn-debug-wrapper:hover .icon-btn svg { stroke: var(--icon-hover) !important; filter: drop-shadow(0 0 3px var(--glow-color)) !important; }
-        #btn-connection:hover, #btn-settings-wrapper:hover .icon-btn, #btn-debug-wrapper:hover .icon-btn { transform: scale(1.1) translateY(-3px) !important; }
-
-        /* Theme Toggle */
-        .theme-toggle-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; color: var(--text-secondary); font-size: 13px; }
-        .theme-toggle-label { display: flex; align-items: center; gap: 10px; }
-        .theme-toggle-label svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5px; fill: none; }
-        .theme-switch { position: relative; width: 44px; height: 24px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: all 0.3s ease; }
-        .theme-switch::before { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: var(--icon-normal); border-radius: 50%; transition: all 0.3s ease; }
-        .theme-switch.active { background: var(--icon-selected); border-color: var(--icon-selected); }
-        .theme-switch.active::before { left: 22px; background: white; }
-
-        /* Main Content */
-        .main-content { flex-grow: 1; background: var(--bg-main-gradient); display: flex; flex-direction: column; color: var(--text-primary); margin-bottom: var(--status-bar-height); position: relative; overflow: hidden; }
+        /* =============================================
+           🆕 CSS Tooltip (모든 버튼에 적용)
+           ============================================= */
+        .icon-btn, .has-submenu { 
+            position: relative; 
+        }
         
-        /* Cover Screen */
-        #cover-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 5; background: var(--bg-main-gradient); }
+        /* Tooltip 기본 스타일 */
+        .icon-btn[data-tooltip]::after,
+        .has-submenu[data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: 70px;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 8px 12px;
+            background: var(--bg-panel);
+            color: var(--text-primary);
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px var(--shadow-color);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        /* Tooltip 화살표 */
+        .icon-btn[data-tooltip]::before,
+        .has-submenu[data-tooltip]::before {
+            content: '';
+            position: absolute;
+            left: 60px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 6px solid transparent;
+            border-right-color: var(--border-color);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 1001;
+        }
+        
+        /* Hover 시 Tooltip 표시 - 🆕 disabled 상태에서도 표시! */
+        .icon-btn[data-tooltip]:hover::after,
+        .icon-btn[data-tooltip]:hover::before,
+        .has-submenu[data-tooltip]:hover::after,
+        .has-submenu[data-tooltip]:hover::before {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* 서브메뉴 있는 버튼은 서브메뉴가 tooltip 역할 */
+        .has-submenu:not(.disabled)[data-tooltip]:hover::after,
+        .has-submenu:not(.disabled)[data-tooltip]:hover::before {
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        .icon-btn { 
+            width: 54px; 
+            height: 54px; 
+            margin-bottom: 12px; 
+            background: transparent; 
+            border: none; 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1); 
+        }
+        
+        .icon-btn svg { 
+            width: var(--icon-size); 
+            height: var(--icon-size); 
+            fill: none; 
+            stroke: var(--icon-normal); 
+            stroke-width: 1px; 
+            stroke-linecap: round; 
+            stroke-linejoin: round; 
+            transition: all var(--transition-speed); 
+        }
+        
+        .icon-btn:not(.selected):not(.disabled):hover { 
+            transform: scale(1.1) translateY(-3px); 
+        }
+        
+        .icon-btn:not(.selected):not(.disabled):hover svg { 
+            stroke: var(--icon-hover); 
+            filter: drop-shadow(0 0 3px var(--glow-color)); 
+        }
+        
+        .icon-btn.selected { 
+            transform: scale(1.08) translateY(-2px); 
+        }
+        
+        .icon-btn.selected svg { 
+            stroke: var(--icon-selected); 
+            filter: drop-shadow(0 0 6px var(--icon-selected)); 
+        }
+        
+        .icon-btn.selected::after { 
+            content: ''; 
+            position: absolute; 
+            left: -13px; 
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px; 
+            height: 28px; 
+            background-color: var(--icon-selected); 
+            border-radius: 0 3px 3px 0; 
+            box-shadow: 0 0 6px var(--icon-selected); 
+        }
+        
+        /* 🔧 disabled 스타일 - pointer-events 유지 (tooltip 위해) */
+        .icon-btn.disabled { 
+            cursor: not-allowed; 
+            opacity: 0.4; 
+            /* pointer-events: none; 제거! */
+        }
+        
+        .icon-btn.disabled svg { 
+            stroke: var(--icon-disabled); 
+        }
+        
+        /* disabled 버튼 클릭 방지는 JS에서 처리 */
+        .has-submenu.disabled {
+            cursor: not-allowed;
+            opacity: 0.4;
+        }
+        
+        .has-submenu.disabled .icon-btn {
+            pointer-events: none;
+        }
+
+        /* =============================================
+           Submenu - Gap 문제 해결
+           ============================================= */
+        .has-submenu::before {
+            content: '';
+            position: absolute;
+            right: -16px;
+            top: 0;
+            width: 20px;
+            height: 100%;
+            background: transparent;
+            z-index: 99;
+        }
+        
+        .submenu { 
+            position: absolute; 
+            left: 64px;
+            top: 0; 
+            background: var(--bg-sidebar); 
+            border: 1px solid var(--border-color); 
+            border-radius: 8px; 
+            padding: 8px 0; 
+            min-width: 200px; 
+            opacity: 0; 
+            visibility: hidden; 
+            transform: translateX(-10px); 
+            transition: all 0.2s ease; 
+            box-shadow: 4px 4px 20px var(--shadow-color); 
+            z-index: 100; 
+        }
+        
+        .submenu::before {
+            content: '';
+            position: absolute;
+            left: -16px;
+            top: 0;
+            width: 20px;
+            height: 100%;
+            background: transparent;
+        }
+        
+        #btn-settings-wrapper .submenu, 
+        #btn-debug-wrapper .submenu { 
+            top: auto; 
+            bottom: 0; 
+        }
+        
+        .has-submenu:not(.disabled):hover .submenu { 
+            opacity: 1; 
+            visibility: visible; 
+            transform: translateX(0); 
+        }
+        
+        .has-submenu.disabled .submenu { 
+            opacity: 0 !important; 
+            visibility: hidden !important; 
+        }
+        
+        .submenu-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            padding: 10px 16px; 
+            color: var(--text-secondary); 
+            font-size: 13px; 
+            cursor: pointer; 
+            transition: all 0.15s; 
+            border: none; 
+            background: none; 
+            width: 100%; 
+            text-align: left; 
+        }
+        
+        .submenu-item:hover { 
+            background: var(--bg-hover); 
+            color: var(--text-primary); 
+        }
+        
+        .submenu-item.active { 
+            background: var(--bg-selected); 
+            color: var(--icon-selected); 
+        }
+        
+        .submenu-item.disabled { 
+            opacity: 0.4; 
+            cursor: not-allowed; 
+            pointer-events: none; 
+        }
+        
+        .submenu-item svg { 
+            width: 18px; 
+            height: 18px; 
+            stroke: currentColor; 
+            stroke-width: 1.5px; 
+            fill: none; 
+        }
+        
+        .submenu-divider { 
+            height: 1px; 
+            background: var(--border-color); 
+            margin: 6px 12px; 
+        }
+        
+        .submenu-header { 
+            padding: 6px 16px; 
+            font-size: 10px; 
+            color: var(--text-muted); 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+        }
+        
+        /* Submenu 화살표 */
+        .has-submenu > .icon-btn::after { 
+            content: ''; 
+            position: absolute; 
+            right: 2px; 
+            top: 50%; 
+            transform: translateY(-50%); 
+            border: 4px solid transparent; 
+            border-left-color: var(--icon-normal); 
+            opacity: 0.5; 
+        }
+        
+        .has-submenu:not(.disabled):hover > .icon-btn::after { 
+            border-left-color: var(--icon-selected); 
+            opacity: 1; 
+        }
+        
+        /* Always Normal State */
+        #btn-connection svg { 
+            stroke: var(--icon-normal) !important; 
+            filter: none !important; 
+        }
+        
+        #btn-connection:hover svg { 
+            stroke: var(--icon-hover) !important; 
+            filter: drop-shadow(0 0 3px var(--glow-color)) !important; 
+        }
+
+        /* =============================================
+           Theme Toggle
+           ============================================= */
+        .theme-toggle-item { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 10px 16px; 
+            color: var(--text-secondary); 
+            font-size: 13px; 
+        }
+        
+        .theme-toggle-label { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        
+        .theme-toggle-label svg { 
+            width: 18px; 
+            height: 18px; 
+            stroke: currentColor; 
+            stroke-width: 1.5px; 
+            fill: none; 
+        }
+        
+        .theme-switch { 
+            position: relative; 
+            width: 44px; 
+            height: 24px; 
+            background: var(--bg-input); 
+            border: 1px solid var(--border-color); 
+            border-radius: 12px; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+        }
+        
+        .theme-switch::before { 
+            content: ''; 
+            position: absolute; 
+            top: 2px; 
+            left: 2px; 
+            width: 18px; 
+            height: 18px; 
+            background: var(--icon-normal); 
+            border-radius: 50%; 
+            transition: all 0.3s ease; 
+        }
+        
+        .theme-switch.active { 
+            background: var(--icon-selected); 
+            border-color: var(--icon-selected); 
+        }
+        
+        .theme-switch.active::before { 
+            left: 22px; 
+            background: white; 
+        }
+
+        /* =============================================
+           Main Content
+           ============================================= */
+        .main-content { 
+            flex-grow: 1; 
+            background: var(--bg-main-gradient); 
+            display: flex; 
+            flex-direction: column; 
+            color: var(--text-primary); 
+            margin-bottom: var(--status-bar-height); 
+            position: relative; 
+            overflow: hidden; 
+        }
+        
+        /* =============================================
+           Cover Screen
+           ============================================= */
+        #cover-screen { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 5; 
+            background: var(--bg-main-gradient); 
+        }
+        
         #cover-screen.hidden { display: none; }
-        .cover-logo { font-size: 72px; margin-bottom: 20px; animation: float-logo 3s ease-in-out infinite; }
-        @keyframes float-logo { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
-        .cover-title { font-size: 32px; font-weight: 700; color: var(--icon-selected); margin-bottom: 8px; letter-spacing: 2px; }
-        .cover-subtitle { font-size: 14px; color: var(--text-muted); margin-bottom: 40px; }
-        .cover-status { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-        .cover-status-item { display: flex; align-items: center; gap: 12px; padding: 12px 24px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 10px; min-width: 280px; }
-        .cover-status-dot { width: 10px; height: 10px; border-radius: 50%; animation: pulse 2s infinite; }
-        .cover-status-dot.connected { background: var(--text-success); box-shadow: 0 0 8px var(--text-success); }
+        
+        .cover-logo { 
+            font-size: 72px; 
+            margin-bottom: 20px; 
+            animation: float-logo 3s ease-in-out infinite; 
+        }
+        
+        @keyframes float-logo { 
+            0%, 100% { transform: translateY(0); } 
+            50% { transform: translateY(-15px); } 
+        }
+        
+        .cover-title { 
+            font-size: 32px; 
+            font-weight: 700; 
+            color: var(--icon-selected); 
+            margin-bottom: 8px; 
+            letter-spacing: 2px; 
+        }
+        
+        .cover-subtitle { 
+            font-size: 14px; 
+            color: var(--text-muted); 
+            margin-bottom: 40px; 
+        }
+        
+        .cover-status { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 16px; 
+        }
+        
+        .cover-status-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            padding: 12px 24px; 
+            background: var(--bg-input); 
+            border: 1px solid var(--border-color); 
+            border-radius: 10px; 
+            min-width: 280px; 
+        }
+        
+        .cover-status-dot { 
+            width: 10px; 
+            height: 10px; 
+            border-radius: 50%; 
+            animation: pulse 2s infinite; 
+        }
+        
+        .cover-status-dot.connected { 
+            background: var(--text-success); 
+            box-shadow: 0 0 8px var(--text-success); 
+        }
+        
         .cover-status-dot.disconnected { background: var(--text-alarm); }
-        .cover-status-text { font-size: 13px; color: var(--text-secondary); flex: 1; }
-        .cover-status-value { font-size: 13px; color: var(--text-primary); font-weight: 500; }
-        .cover-hint { margin-top: 40px; font-size: 12px; color: var(--text-muted); }
-        .cover-hint kbd { padding: 2px 8px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 4px; font-family: 'Consolas', monospace; }
+        
+        .cover-status-text { 
+            font-size: 13px; 
+            color: var(--text-secondary); 
+            flex: 1; 
+        }
+        
+        .cover-status-value { 
+            font-size: 13px; 
+            color: var(--text-primary); 
+            font-weight: 500; 
+        }
+        
+        .cover-hint { 
+            margin-top: 40px; 
+            font-size: 12px; 
+            color: var(--text-muted); 
+        }
+        
+        .cover-hint kbd { 
+            padding: 2px 8px; 
+            background: var(--bg-input); 
+            border: 1px solid var(--border-color); 
+            border-radius: 4px; 
+            font-family: 'Consolas', monospace; 
+        }
 
-        /* Three.js Container */
-        #threejs-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; display: none; }
+        /* =============================================
+           Three.js Container
+           ============================================= */
+        #threejs-container { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: 1; 
+            display: none; 
+        }
+        
         #threejs-container.active { display: block; }
         
-        /* Overlay UI */
-        .overlay-ui { position: absolute; top: 20px; left: 20px; z-index: 10; display: none; flex-direction: column; gap: 10px; }
-        .mode-indicator { padding: 12px 20px; background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); border: 1px solid var(--border-color); border-radius: 10px; }
-        .mode-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
-        .mode-value { font-size: 18px; font-weight: bold; color: var(--icon-selected); }
-        .submode-value { font-size: 12px; color: var(--text-secondary); }
+        /* =============================================
+           Overlay UI
+           ============================================= */
+        .overlay-ui { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            z-index: 10; 
+            display: none; 
+            flex-direction: column; 
+            gap: 10px; 
+        }
+        
+        .mode-indicator { 
+            padding: 12px 20px; 
+            background: rgba(0,0,0,0.7); 
+            backdrop-filter: blur(10px); 
+            border: 1px solid var(--border-color); 
+            border-radius: 10px; 
+        }
+        
+        .mode-label { 
+            font-size: 10px; 
+            color: var(--text-muted); 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+        }
+        
+        .mode-value { 
+            font-size: 18px; 
+            font-weight: bold; 
+            color: var(--icon-selected); 
+        }
+        
+        .submode-value { 
+            font-size: 12px; 
+            color: var(--text-secondary); 
+        }
 
-        /* Status Bar */
-        .status-bar { position: fixed; bottom: 0; left: 0; width: 100%; height: var(--status-bar-height); background-color: var(--bg-sidebar); border-top: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-family: 'Consolas', monospace; font-size: 11px; z-index: 20; }
+        /* =============================================
+           Status Bar
+           ============================================= */
+        .status-bar { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%; 
+            height: var(--status-bar-height); 
+            background-color: var(--bg-sidebar); 
+            border-top: 1px solid var(--border-color); 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            padding: 0 16px; 
+            font-family: 'Consolas', monospace; 
+            font-size: 11px; 
+            z-index: 20; 
+        }
+        
         .status-group { display: flex; gap: 16px; align-items: center; }
-        .status-item { display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--bg-input); border-radius: 4px; }
+        
+        .status-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+            padding: 4px 10px; 
+            background: var(--bg-input); 
+            border-radius: 4px; 
+        }
+        
         .status-dot { width: 6px; height: 6px; border-radius: 50%; }
         .status-dot.connected { background-color: var(--text-success); box-shadow: 0 0 4px var(--text-success); }
         .status-dot.disconnected { background-color: var(--text-alarm); box-shadow: 0 0 4px var(--text-alarm); }
+        
         .status-label { color: var(--text-muted); font-size: 9px; text-transform: uppercase; }
         .status-value { color: var(--text-normal); font-weight: 500; }
+        
         .perf-bar { width: 35px; height: 4px; background: var(--bg-input); border-radius: 2px; overflow: hidden; }
         .perf-bar-fill { height: 100%; border-radius: 2px; }
         .perf-bar-fill.good { background: var(--text-success); }
+        
         .country-code { font-weight: 700; font-size: 12px; color: var(--icon-selected); letter-spacing: 1px; }
 
-        /* Dev Mode Badge */
-        .dev-mode-badge { position: fixed; top: 10px; left: 90px; padding: 4px 12px; background: rgba(251, 191, 36, 0.2); border: 1px solid var(--text-warning); border-radius: 20px; font-size: 11px; color: var(--text-warning); font-weight: 600; z-index: 1000; display: none; }
+        /* =============================================
+           Dev Mode Badge
+           ============================================= */
+        .dev-mode-badge { 
+            position: fixed; 
+            top: 10px; 
+            left: 90px; 
+            padding: 4px 12px; 
+            background: rgba(251, 191, 36, 0.2); 
+            border: 1px solid var(--text-warning); 
+            border-radius: 20px; 
+            font-size: 11px; 
+            color: var(--text-warning); 
+            font-weight: 600; 
+            z-index: 1000; 
+            display: none; 
+        }
+        
         .dev-mode-badge.active { display: block; }
 
-        /* Debug Panel */
-        #debug-panel { position: fixed; bottom: 50px; right: 20px; width: 400px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 40px var(--shadow-color); z-index: 100; opacity: 0; visibility: hidden; transform: translateY(20px); transition: all 0.3s ease; }
+        /* =============================================
+           Debug Panel
+           ============================================= */
+        #debug-panel { 
+            position: fixed; 
+            bottom: 50px; 
+            right: 20px; 
+            width: 400px; 
+            background: var(--bg-panel); 
+            border: 1px solid var(--border-color); 
+            border-radius: 12px; 
+            box-shadow: 0 10px 40px var(--shadow-color); 
+            z-index: 100; 
+            opacity: 0; 
+            visibility: hidden; 
+            transform: translateY(20px); 
+            transition: all 0.3s ease; 
+        }
+        
         #debug-panel.active { opacity: 1; visibility: visible; transform: translateY(0); }
-        .debug-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg-panel-header); border-radius: 12px 12px 0 0; border-bottom: 1px solid var(--border-subtle); }
+        
+        .debug-panel-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 12px 16px; 
+            background: var(--bg-panel-header); 
+            border-radius: 12px 12px 0 0; 
+            border-bottom: 1px solid var(--border-subtle); 
+        }
+        
         .debug-panel-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-        .debug-panel-content { font-family: 'Consolas', monospace; font-size: 12px; color: #0f0; background: #1a1a1a; padding: 12px; max-height: 300px; overflow-y: auto; border-radius: 0 0 12px 12px; }
+        
+        .debug-panel-content { 
+            font-family: 'Consolas', monospace; 
+            font-size: 12px; 
+            color: #0f0; 
+            background: #1a1a1a; 
+            padding: 12px; 
+            max-height: 300px; 
+            overflow-y: auto; 
+            border-radius: 0 0 12px 12px; 
+        }
+        
         .debug-section { margin-bottom: 12px; }
         .debug-section-title { color: #0ff; margin-bottom: 8px; font-size: 11px; text-transform: uppercase; }
         .debug-state-item { display: flex; justify-content: space-between; padding: 4px 0; }
@@ -193,35 +719,134 @@
         .debug-state-value.on { color: #0f0; }
         .debug-state-value.off { color: #f00; }
 
-        /* Toast */
-        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
-        .toast { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: 0 8px 24px var(--shadow-color); min-width: 300px; animation: slideIn 0.3s ease; }
+        /* =============================================
+           Toast
+           ============================================= */
+        .toast-container { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            z-index: 2000; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+        }
+        
+        .toast { 
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            padding: 14px 20px; 
+            background: var(--bg-panel); 
+            border: 1px solid var(--border-color); 
+            border-radius: 10px; 
+            box-shadow: 0 8px 24px var(--shadow-color); 
+            min-width: 300px; 
+            animation: slideIn 0.3s ease; 
+        }
+        
         .toast.hiding { animation: slideOut 0.3s ease forwards; }
+        
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+        
         .toast-icon { font-size: 20px; }
         .toast-content { flex: 1; }
         .toast-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
         .toast-message { font-size: 12px; color: var(--text-secondary); }
         .toast-close { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; font-size: 16px; }
+        
         .toast.success { border-left: 4px solid var(--text-success); }
         .toast.error { border-left: 4px solid var(--text-alarm); }
         .toast.warning { border-left: 4px solid var(--text-warning); }
         .toast.info { border-left: 4px solid var(--icon-selected); }
 
-        /* Modals */
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; display: none; }
+        /* =============================================
+           Modals
+           ============================================= */
+        .modal { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: 1000; 
+            display: none; 
+        }
+        
         .modal.active { display: flex; align-items: center; justify-content: center; }
-        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); }
-        .modal-content { position: relative; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 16px; width: 90%; max-width: 700px; max-height: 85vh; overflow: hidden; box-shadow: 0 25px 50px var(--shadow-color); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border-color); background: var(--bg-panel-header); }
+        
+        .modal-overlay { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0, 0, 0, 0.7); 
+            backdrop-filter: blur(4px); 
+        }
+        
+        .modal-content { 
+            position: relative; 
+            background: var(--bg-panel); 
+            border: 1px solid var(--border-color); 
+            border-radius: 16px; 
+            width: 90%; 
+            max-width: 700px; 
+            max-height: 85vh; 
+            overflow: hidden; 
+            box-shadow: 0 25px 50px var(--shadow-color); 
+        }
+        
+        .modal-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 20px 24px; 
+            border-bottom: 1px solid var(--border-color); 
+            background: var(--bg-panel-header); 
+        }
+        
         .modal-header h2 { font-size: 18px; font-weight: 600; color: var(--text-primary); margin: 0; }
-        .modal-close { width: 32px; height: 32px; border: none; background: var(--bg-input); border-radius: 8px; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        
+        .modal-close { 
+            width: 32px; 
+            height: 32px; 
+            border: none; 
+            background: var(--bg-input); 
+            border-radius: 8px; 
+            color: var(--text-secondary); 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 20px; 
+        }
+        
         .modal-close:hover { background: rgba(248, 113, 113, 0.2); color: var(--text-alarm); }
+        
         .modal-body { padding: 24px; overflow-y: auto; max-height: calc(85vh - 140px); }
 
-        /* Equipment Info Panel */
-        #equipmentInfo { position: fixed; top: 80px; right: 20px; width: 320px; background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 10px 40px var(--shadow-color); z-index: 100; opacity: 0; visibility: hidden; transform: translateX(20px); transition: all 0.3s ease; }
+        /* =============================================
+           Equipment Info Panel
+           ============================================= */
+        #equipmentInfo { 
+            position: fixed; 
+            top: 80px; 
+            right: 20px; 
+            width: 320px; 
+            background: var(--bg-panel); 
+            border: 1px solid var(--border-color); 
+            border-radius: 12px; 
+            box-shadow: 0 10px 40px var(--shadow-color); 
+            z-index: 100; 
+            opacity: 0; 
+            visibility: hidden; 
+            transform: translateX(20px); 
+            transition: all 0.3s ease; 
+            padding: 16px;
+        }
+        
         #equipmentInfo.active { opacity: 1; visibility: visible; transform: translateX(0); }
 
         .sidebar-divider { width: 40px; height: 1px; background: var(--border-color); margin: 8px 0; }
@@ -229,39 +854,61 @@
 
         /* Mock Test */
         .mock-test-list { padding: 8px 16px; }
-        .mock-test-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin-bottom: 4px; background: var(--bg-input); border-radius: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+        .mock-test-item { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            padding: 8px 12px; 
+            margin-bottom: 4px; 
+            background: var(--bg-input); 
+            border-radius: 6px; 
+            font-size: 12px; 
+            color: var(--text-secondary); 
+            cursor: pointer; 
+        }
         .mock-test-item:hover { background: var(--bg-hover); color: var(--text-primary); }
 
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-        /* Close button */
-        .close-btn { position: absolute; top: 12px; right: 12px; width: 24px; height: 24px; background: var(--bg-input); border: none; border-radius: 6px; color: var(--text-muted); cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .close-btn { 
+            position: absolute; 
+            top: 12px; 
+            right: 12px; 
+            width: 24px; 
+            height: 24px; 
+            background: var(--bg-input); 
+            border: none; 
+            border-radius: 6px; 
+            color: var(--text-muted); 
+            cursor: pointer; 
+            font-size: 16px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
         .close-btn:hover { background: rgba(248, 113, 113, 0.2); color: var(--text-alarm); }
         
-        /* Hidden utility */
         .hidden { display: none !important; }
     </style>
 </head>
 
 <body>
-    <!-- ============================================
-         LAYER 1: Global Notifications
-         ============================================ -->
+    <!-- Toast & Dev Badge -->
     <div class="toast-container" id="toast-container"></div>
     <div class="dev-mode-badge" id="dev-mode-badge">⚡ DEV MODE</div>
 
     <!-- ============================================
-         SIDEBAR (정적 HTML)
+         SIDEBAR - 🆕 data-tooltip 추가
          ============================================ -->
     <aside class="sidebar" id="sidebar">
-        <!-- Connection Button (항상 활성화) -->
-        <button class="icon-btn" id="btn-connection" data-mode="connection" title="Database Connection (Ctrl+K)">
+        <!-- Connection Button -->
+        <button class="icon-btn" id="btn-connection" data-mode="connection" data-tooltip="Database Connection (Ctrl+K)">
             <svg viewBox="0 0 24 24"><ellipse cx="7" cy="5" rx="5" ry="2"/><path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/><path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/><ellipse cx="17" cy="11" rx="5" ry="2"/><path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/></svg>
         </button>
 
-        <!-- Monitoring Button (초기 disabled) -->
-        <div class="has-submenu disabled" id="btn-monitoring-wrapper">
-            <button class="icon-btn disabled" id="btn-monitoring" data-mode="monitoring" title="Monitoring">
+        <!-- Monitoring -->
+        <div class="has-submenu disabled" id="btn-monitoring-wrapper" data-tooltip="Monitoring (Disabled)">
+            <button class="icon-btn disabled" id="btn-monitoring" data-mode="monitoring">
                 <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/><path d="M12 16v4"/><path d="M8 20h8"/></svg>
             </button>
             <div class="submenu" id="monitoring-submenu">
@@ -277,56 +924,48 @@
             </div>
         </div>
 
-        <!-- Analysis Button (초기 disabled) -->
-        <button class="icon-btn disabled" id="btn-analysis" data-mode="analysis" title="Analysis">
+        <!-- Analysis -->
+        <button class="icon-btn disabled" id="btn-analysis" data-mode="analysis" data-tooltip="Analysis (Disabled)">
             <svg viewBox="0 0 24 24"><path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/><path d="M7 14l4-4 4 4 6-6"/><circle cx="21" cy="8" r="2"/></svg>
         </button>
 
-        <!-- Simulation Button (초기 disabled) -->
-        <button class="icon-btn disabled" id="btn-simulation" data-mode="simulation" title="Simulation">
+        <!-- Simulation -->
+        <button class="icon-btn disabled" id="btn-simulation" data-mode="simulation" data-tooltip="Simulation (Disabled)">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>
         </button>
 
         <div class="sidebar-divider"></div>
 
-        <!-- Layout Button (Dev Mode에서만 표시) -->
-        <div class="has-submenu disabled hidden" id="btn-layout-wrapper">
-            <button class="icon-btn disabled" id="btn-layout" data-mode="layout" title="Layout Editor">
+        <!-- Layout (Dev Mode only) -->
+        <div class="has-submenu disabled hidden" id="btn-layout-wrapper" data-tooltip="Layout Editor">
+            <button class="icon-btn disabled" id="btn-layout" data-mode="layout">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             </button>
             <div class="submenu" id="layout-submenu">
                 <div class="submenu-header">Layout Tools</div>
-                <button class="submenu-item" data-submode="layout-editor">
-                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/></svg>
-                    Layout Editor
-                </button>
-                <button class="submenu-item" data-submode="mapping">
-                    <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                    Equipment Mapping
-                </button>
+                <button class="submenu-item" data-submode="layout-editor">Layout Editor</button>
+                <button class="submenu-item" data-submode="mapping">Equipment Mapping</button>
             </div>
         </div>
 
         <div class="sidebar-spacer"></div>
         
-        <!-- Debug Button (Dev Mode 또는 연결 시 활성화) -->
-        <div class="has-submenu disabled" id="btn-debug-wrapper">
-            <button class="icon-btn disabled" id="btn-debug" data-mode="debug" title="Debug Tools">
+        <!-- Debug -->
+        <div class="has-submenu disabled" id="btn-debug-wrapper" data-tooltip="Debug Tools (Disabled)">
+            <button class="icon-btn disabled" id="btn-debug" data-mode="debug">
                 <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
             </button>
             <div class="submenu" id="debug-submenu">
                 <div class="submenu-header">Debug Tools</div>
                 <button class="submenu-item" onclick="setDebugView('app-state')">📊 Application State</button>
                 <button class="submenu-item" onclick="setDebugView('performance')">⚡ Performance</button>
-                <button class="submenu-item" onclick="setDebugView('event-log')">📝 Event Log</button>
-                <div class="submenu-divider"></div>
                 <button class="submenu-item" onclick="toggleDebugPanel()">📋 Full Debug Panel</button>
             </div>
         </div>
         
-        <!-- Settings Button (🆕 항상 활성화!) -->
-        <div class="has-submenu" id="btn-settings-wrapper">
-            <button class="icon-btn" id="btn-settings" data-mode="settings" title="Settings">
+        <!-- Settings (항상 활성화) -->
+        <div class="has-submenu" id="btn-settings-wrapper" data-tooltip="Settings">
+            <button class="icon-btn" id="btn-settings" data-mode="settings">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </button>
             <div class="submenu" id="settings-submenu">
@@ -349,7 +988,6 @@
                     <div class="mock-test-list">
                         <div class="mock-test-item" onclick="loadMockTest('equipment-status')">📦 Equipment Status</div>
                         <div class="mock-test-item" onclick="loadMockTest('realtime-update')">🔄 Realtime Update</div>
-                        <div class="mock-test-item" onclick="loadMockTest('multi-site')">🌐 Multi-Site</div>
                     </div>
                 </div>
             </div>
@@ -357,11 +995,8 @@
         <div style="height: 50px;"></div>
     </aside>
 
-    <!-- ============================================
-         MAIN CONTENT
-         ============================================ -->
+    <!-- MAIN CONTENT -->
     <main class="main-content" id="main-content">
-        <!-- Cover Screen -->
         <div id="cover-screen">
             <div class="cover-logo">🏭</div>
             <div class="cover-title">SHERLOCK SKY 3D SIM</div>
@@ -385,10 +1020,8 @@
             </div>
         </div>
 
-        <!-- Three.js Container -->
         <div id="threejs-container"></div>
 
-        <!-- Overlay UI -->
         <div class="overlay-ui" id="overlay-ui">
             <div class="mode-indicator">
                 <div class="mode-label">Current Mode</div>
@@ -398,10 +1031,6 @@
         </div>
     </main>
 
-    <!-- ============================================
-         MODALS & PANELS
-         ============================================ -->
-    
     <!-- Connection Modal -->
     <div id="connection-modal" class="modal">
         <div class="modal-overlay" onclick="closeConnectionModal()"></div>
@@ -410,10 +1039,22 @@
                 <h2>🔌 Database Connection Manager</h2>
                 <button class="modal-close" onclick="closeConnectionModal()">&times;</button>
             </div>
-            <div class="modal-body">
-                <div id="connection-status-panel"></div>
-                <div id="site-selection-panel"></div>
-                <div id="database-list-panel"></div>
+            <div class="modal-body" id="connection-modal-body">
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                    Select a site to connect to the database.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button class="submenu-item" onclick="connectToSite('korea_site1')" style="background: var(--bg-input); border-radius: 8px;">
+                        🇰🇷 Korea Site 1
+                    </button>
+                    <button class="submenu-item" onclick="connectToSite('vietnam_site1')" style="background: var(--bg-input); border-radius: 8px;">
+                        🇻🇳 Vietnam Site 1
+                    </button>
+                    <button class="submenu-item" onclick="connectToSite('usa_site1')" style="background: var(--bg-input); border-radius: 8px;">
+                        🇺🇸 USA Site 1
+                    </button>
+                </div>
+                <div id="connection-status-panel" style="margin-top: 20px;"></div>
             </div>
         </div>
     </div>
@@ -421,7 +1062,7 @@
     <!-- Equipment Info Panel -->
     <div id="equipmentInfo">
         <button class="close-btn" onclick="closeEquipmentInfo()">×</button>
-        <h2 id="equipName">설비 정보</h2>
+        <h2 id="equipName" style="font-size: 16px; margin-bottom: 12px;">설비 정보</h2>
         <div id="equipDetails"></div>
     </div>
 
@@ -450,53 +1091,14 @@
                     <span class="debug-state-label">Dev Mode:</span>
                     <span class="debug-state-value off" id="debug-devmode">OFF</span>
                 </div>
-                <div class="debug-state-item">
-                    <span class="debug-state-label">3D Active:</span>
-                    <span class="debug-state-value off" id="debug-3d">NO</span>
-                </div>
-            </div>
-            <div class="debug-section">
-                <div class="debug-section-title">⚡ Performance</div>
-                <div class="debug-state-item">
-                    <span class="debug-state-label">Time:</span>
-                    <span class="debug-state-value" id="debug-time">-</span>
-                </div>
-                <div class="debug-state-item">
-                    <span class="debug-state-label">Memory:</span>
-                    <span class="debug-state-value" id="debug-memory">-</span>
-                </div>
             </div>
         </div>
     </div>
 
-    <!-- Legacy Debug Controls (hidden) -->
-    <div id="debugControls" style="display: none;"></div>
-
-    <!-- Preview Modal -->
-    <div id="preview-modal" class="modal hidden">
-        <div class="modal-overlay"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>🔍 3D Preview</h2>
-                <button class="modal-close" id="preview-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <canvas id="preview-canvas"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Loading Status -->
-    <div id="loadingStatus" style="display: none;">🔄 초기화 중...</div>
-
-    <!-- ============================================
-         STATUS BAR
-         ============================================ -->
+    <!-- Status Bar -->
     <footer class="status-bar" id="status-bar">
         <div class="status-group">
-            <div class="status-item">
-                <span class="country-code" id="status-country">KR</span>
-            </div>
+            <div class="status-item"><span class="country-code" id="status-country">KR</span></div>
             <div class="status-item">
                 <span class="status-dot connected" id="net-dot"></span>
                 <span class="status-label">NET</span>
@@ -517,38 +1119,19 @@
             <div class="status-item">
                 <span class="status-label">FPS</span>
                 <span class="status-value" id="fps-value">0</span>
-                <div class="perf-bar">
-                    <div class="perf-bar-fill good" id="fps-bar" style="width: 0%;"></div>
-                </div>
             </div>
             <div class="status-item">
                 <span class="status-label">MEM</span>
                 <span class="status-value"><span id="memory-value">0</span>MB</span>
-                <div class="perf-bar">
-                    <div class="perf-bar-fill good" id="memory-bar" style="width: 0%;"></div>
-                </div>
             </div>
         </div>
     </footer>
 
-    <!-- ============================================
-         SCRIPTS
-         ============================================ -->
-    
-    <!-- Three.js Import Map -->
+    <!-- Three.js -->
     <script type="importmap">
-    {
-        "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-        }
-    }
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
     </script>
     
-    <!-- =============================================
-         인라인 스크립트: 기본 이벤트 처리
-         main.js에서 고급 기능 오버라이드
-         ============================================= -->
     <script>
         // =============================================
         // 전역 상태
@@ -561,62 +1144,59 @@
             debugPanelVisible: false
         };
 
-        // =============================================
-        // 🆕 접근 권한 체크 (Dev Mode 또는 Connected)
-        // =============================================
         function canAccessFeatures() {
             return window.sidebarState.isConnected || window.sidebarState.devModeEnabled;
         }
 
         // =============================================
-        // Toast 알림 (간단 버전)
+        // Toast
         // =============================================
         function showToast(message, type = 'info') {
-            // main.js의 toast가 있으면 사용
-            if (window.toast?.show) {
-                window.toast.show(message, type);
-                return;
-            }
-            
-            // 간단한 fallback
             const container = document.getElementById('toast-container');
-            if (!container) return;
-            
             const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
             toast.innerHTML = `
                 <span class="toast-icon">${icons[type]}</span>
-                <div class="toast-content">
-                    <div class="toast-title">${message}</div>
-                </div>
+                <div class="toast-content"><div class="toast-title">${message}</div></div>
                 <button class="toast-close" onclick="this.parentElement.remove()">×</button>
             `;
             container.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.classList.add('hiding');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, 3000);
         }
 
         // =============================================
-        // Connection Modal
+        // Connection Modal - 🆕 항상 동작!
         // =============================================
         function toggleConnectionModal() {
             const modal = document.getElementById('connection-modal');
-            if (modal) {
-                modal.classList.toggle('active');
-            }
-            // main.js의 toggleConnectionModal이 있으면 호출
-            if (window._mainToggleConnectionModal) {
-                window._mainToggleConnectionModal();
-            }
+            modal.classList.toggle('active');
+            console.log('🔌 Connection Modal toggled');
         }
         
         function closeConnectionModal() {
-            const modal = document.getElementById('connection-modal');
-            if (modal) modal.classList.remove('active');
+            document.getElementById('connection-modal').classList.remove('active');
+        }
+        
+        function connectToSite(siteId) {
+            console.log(`🔗 Connecting to: ${siteId}`);
+            showToast(`Connecting to ${siteId}...`, 'info');
+            
+            // 실제 연결 시도 (Backend 없으면 실패)
+            const statusPanel = document.getElementById('connection-status-panel');
+            statusPanel.innerHTML = `<div style="color: var(--text-warning);">⏳ Connecting to ${siteId}...</div>`;
+            
+            // 시뮬레이션: 2초 후 결과
+            setTimeout(() => {
+                if (window.sidebarState.devModeEnabled) {
+                    // Dev Mode: 연결 시도했지만 Backend 없음
+                    statusPanel.innerHTML = `<div style="color: var(--text-alarm);">❌ Backend not available (Dev Mode)</div>`;
+                    showToast('Backend not available', 'error');
+                } else {
+                    statusPanel.innerHTML = `<div style="color: var(--text-alarm);">❌ Connection failed - Backend offline</div>`;
+                    showToast('Connection failed', 'error');
+                }
+            }, 1500);
         }
 
         // =============================================
@@ -624,301 +1204,180 @@
         // =============================================
         function toggleDebugPanel() {
             if (!canAccessFeatures()) {
-                showToast('Enable Dev Mode or Connect first', 'warning');
+                showToast('Enable Dev Mode first', 'warning');
                 return;
             }
-            
             const panel = document.getElementById('debug-panel');
-            if (panel) {
-                window.sidebarState.debugPanelVisible = !window.sidebarState.debugPanelVisible;
-                panel.classList.toggle('active', window.sidebarState.debugPanelVisible);
-                updateDebugPanelContent();
-            }
-            
-            // main.js의 debugManager가 있으면 호출
-            if (window.debugManager?.toggle) {
-                window.debugManager.toggle();
-            }
+            window.sidebarState.debugPanelVisible = !window.sidebarState.debugPanelVisible;
+            panel.classList.toggle('active', window.sidebarState.debugPanelVisible);
+            updateDebugPanel();
         }
         
         function setDebugView(view) {
-            console.log('Debug view:', view);
             toggleDebugPanel();
         }
         
-        function updateDebugPanelContent() {
-            const debugMode = document.getElementById('debug-mode');
-            const debugSubmode = document.getElementById('debug-submode');
-            const debugConnected = document.getElementById('debug-connected');
-            const debugDevmode = document.getElementById('debug-devmode');
-            const debug3d = document.getElementById('debug-3d');
-            const debugTime = document.getElementById('debug-time');
-            const debugMemory = document.getElementById('debug-memory');
+        function updateDebugPanel() {
+            document.getElementById('debug-mode').textContent = window.sidebarState.currentMode || 'N/A';
+            document.getElementById('debug-submode').textContent = window.sidebarState.currentSubMode || 'N/A';
             
-            if (debugMode) debugMode.textContent = window.sidebarState.currentMode || 'N/A';
-            if (debugSubmode) debugSubmode.textContent = window.sidebarState.currentSubMode || 'N/A';
+            const connEl = document.getElementById('debug-connected');
+            connEl.textContent = window.sidebarState.isConnected ? 'YES' : 'NO';
+            connEl.className = `debug-state-value ${window.sidebarState.isConnected ? 'on' : 'off'}`;
             
-            if (debugConnected) {
-                const isConn = window.sidebarState.isConnected;
-                debugConnected.textContent = isConn ? 'YES' : 'NO';
-                debugConnected.className = `debug-state-value ${isConn ? 'on' : 'off'}`;
-            }
-            
-            if (debugDevmode) {
-                const isDev = window.sidebarState.devModeEnabled;
-                debugDevmode.textContent = isDev ? 'ON' : 'OFF';
-                debugDevmode.className = `debug-state-value ${isDev ? 'on' : 'off'}`;
-            }
-            
-            if (debug3d) {
-                const is3d = window.viewManager?.animationRunning || false;
-                debug3d.textContent = is3d ? 'YES' : 'NO';
-                debug3d.className = `debug-state-value ${is3d ? 'on' : 'off'}`;
-            }
-            
-            if (debugTime) debugTime.textContent = new Date().toLocaleTimeString();
-            if (debugMemory && performance.memory) {
-                debugMemory.textContent = `${(performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1)} MB`;
-            }
+            const devEl = document.getElementById('debug-devmode');
+            devEl.textContent = window.sidebarState.devModeEnabled ? 'ON' : 'OFF';
+            devEl.className = `debug-state-value ${window.sidebarState.devModeEnabled ? 'on' : 'off'}`;
         }
 
-        // =============================================
-        // Equipment Info Panel
-        // =============================================
         function closeEquipmentInfo() {
-            const panel = document.getElementById('equipmentInfo');
-            if (panel) panel.classList.remove('active');
-            if (window.equipmentInfoPanel?.hide) window.equipmentInfoPanel.hide();
-            if (window.clearSelections) window.clearSelections();
+            document.getElementById('equipmentInfo').classList.remove('active');
         }
 
         // =============================================
-        // Theme 관리
+        // Theme
         // =============================================
         function toggleTheme() {
             const html = document.documentElement;
-            const currentTheme = html.getAttribute('data-theme') || 'dark';
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            
+            const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             html.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
-            
-            const themeSwitch = document.getElementById('theme-switch');
-            if (themeSwitch) themeSwitch.classList.toggle('active', newTheme === 'light');
-            
-            // Three.js 배경색 업데이트
-            if (window.sceneManager?.scene) {
-                const bgColor = newTheme === 'dark' ? 0x1e293b : 0xf1f5f9;
-                window.sceneManager.scene.background = new THREE.Color(bgColor);
-            }
-            
+            document.getElementById('theme-switch').classList.toggle('active', newTheme === 'light');
             console.log(`🎨 Theme: ${newTheme}`);
         }
         
         function loadSavedTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-            
-            const themeSwitch = document.getElementById('theme-switch');
-            if (themeSwitch) themeSwitch.classList.toggle('active', savedTheme === 'light');
+            const saved = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', saved);
+            document.getElementById('theme-switch')?.classList.toggle('active', saved === 'light');
         }
 
         // =============================================
-        // 🆕 Dev Mode 토글
+        // 🆕 Dev Mode - 전체 UI 시나리오 활성화
         // =============================================
         function toggleDevMode() {
             window.sidebarState.devModeEnabled = !window.sidebarState.devModeEnabled;
             const devMode = window.sidebarState.devModeEnabled;
             
             // Badge
-            const badge = document.getElementById('dev-mode-badge');
-            if (badge) badge.classList.toggle('active', devMode);
+            document.getElementById('dev-mode-badge').classList.toggle('active', devMode);
             
             // Label
-            const label = document.getElementById('dev-mode-label');
-            if (label) label.textContent = `Dev Mode: ${devMode ? 'ON' : 'OFF'}`;
+            document.getElementById('dev-mode-label').textContent = `Dev Mode: ${devMode ? 'ON' : 'OFF'}`;
             
             // Mock Test Section
-            const mockSection = document.getElementById('mock-test-section');
-            if (mockSection) mockSection.style.display = devMode ? 'block' : 'none';
+            document.getElementById('mock-test-section').style.display = devMode ? 'block' : 'none';
             
-            // Layout Button
-            const layoutWrapper = document.getElementById('btn-layout-wrapper');
-            const layoutBtn = document.getElementById('btn-layout');
-            if (layoutWrapper) {
-                layoutWrapper.classList.toggle('hidden', !devMode);
-                if (devMode) {
-                    layoutWrapper.classList.remove('disabled');
-                    if (layoutBtn) layoutBtn.classList.remove('disabled');
-                }
-            }
-            
-            // 🆕 Dev Mode ON → Sidebar 아이콘 활성화
             if (devMode) {
-                enableSidebarIcons();
-                showToast('⚡ Dev Mode ON - All features enabled', 'warning');
+                enableAllFeatures();
+                showToast('⚡ Dev Mode ON - All UI enabled', 'warning');
             } else {
                 if (!window.sidebarState.isConnected) {
-                    disableSidebarIcons();
+                    disableFeatures();
                 }
                 showToast('Dev Mode OFF', 'info');
             }
             
-            // main.js의 toggleDevMode가 있으면 동기화
-            if (window._mainToggleDevMode) {
-                window._mainToggleDevMode();
-            }
-            
-            updateDebugPanelContent();
+            updateDebugPanel();
+            updateTooltips();
             console.log(`⚡ Dev Mode: ${devMode ? 'ON' : 'OFF'}`);
         }
-
-        // =============================================
-        // Sidebar 아이콘 활성화/비활성화
-        // =============================================
-        function enableSidebarIcons() {
-            const icons = ['btn-monitoring', 'btn-analysis', 'btn-simulation'];
-            const wrappers = ['btn-monitoring-wrapper', 'btn-debug-wrapper'];
+        
+        // 🆕 모든 기능 활성화
+        function enableAllFeatures() {
+            // Monitoring
+            const monitoringWrapper = document.getElementById('btn-monitoring-wrapper');
+            const monitoringBtn = document.getElementById('btn-monitoring');
+            monitoringWrapper.classList.remove('disabled');
+            monitoringWrapper.setAttribute('data-tooltip', 'Monitoring');
+            monitoringBtn.classList.remove('disabled');
             
-            icons.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.remove('disabled');
-            });
+            // Analysis
+            const analysisBtn = document.getElementById('btn-analysis');
+            analysisBtn.classList.remove('disabled');
+            analysisBtn.setAttribute('data-tooltip', 'Analysis');
             
-            wrappers.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.remove('disabled');
-            });
+            // Simulation
+            const simBtn = document.getElementById('btn-simulation');
+            simBtn.classList.remove('disabled');
+            simBtn.setAttribute('data-tooltip', 'Simulation');
             
+            // Debug
+            const debugWrapper = document.getElementById('btn-debug-wrapper');
             const debugBtn = document.getElementById('btn-debug');
-            if (debugBtn) debugBtn.classList.remove('disabled');
+            debugWrapper.classList.remove('disabled');
+            debugWrapper.setAttribute('data-tooltip', 'Debug Tools');
+            debugBtn.classList.remove('disabled');
             
-            // Dev Mode면 Layout도 활성화
-            if (window.sidebarState.devModeEnabled) {
-                const layoutWrapper = document.getElementById('btn-layout-wrapper');
-                const layoutBtn = document.getElementById('btn-layout');
-                if (layoutWrapper) {
-                    layoutWrapper.classList.remove('hidden');
-                    layoutWrapper.classList.remove('disabled');
-                }
-                if (layoutBtn) layoutBtn.classList.remove('disabled');
-            }
+            // Layout
+            const layoutWrapper = document.getElementById('btn-layout-wrapper');
+            const layoutBtn = document.getElementById('btn-layout');
+            layoutWrapper.classList.remove('hidden', 'disabled');
+            layoutBtn.classList.remove('disabled');
         }
         
-        function disableSidebarIcons() {
-            const icons = ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-layout'];
-            const wrappers = ['btn-monitoring-wrapper', 'btn-layout-wrapper'];
+        function disableFeatures() {
+            const ids = ['btn-monitoring-wrapper', 'btn-debug-wrapper'];
+            const btnIds = ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-debug'];
             
-            icons.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.add('disabled');
-            });
+            ids.forEach(id => document.getElementById(id)?.classList.add('disabled'));
+            btnIds.forEach(id => document.getElementById(id)?.classList.add('disabled'));
             
-            wrappers.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.add('disabled');
-            });
+            document.getElementById('btn-layout-wrapper')?.classList.add('hidden', 'disabled');
+            document.getElementById('btn-layout')?.classList.add('disabled');
             
-            if (!window.sidebarState.devModeEnabled) {
-                const debugWrapper = document.getElementById('btn-debug-wrapper');
-                const debugBtn = document.getElementById('btn-debug');
-                if (debugWrapper) debugWrapper.classList.add('disabled');
-                if (debugBtn) debugBtn.classList.add('disabled');
-            }
+            updateTooltips();
+        }
+        
+        // 🆕 Tooltip 업데이트
+        function updateTooltips() {
+            const devMode = window.sidebarState.devModeEnabled;
+            const connected = window.sidebarState.isConnected;
+            const enabled = devMode || connected;
+            
+            document.getElementById('btn-monitoring-wrapper').setAttribute('data-tooltip', 
+                enabled ? 'Monitoring' : 'Monitoring (Enable Dev Mode)');
+            document.getElementById('btn-analysis').setAttribute('data-tooltip', 
+                enabled ? 'Analysis' : 'Analysis (Enable Dev Mode)');
+            document.getElementById('btn-simulation').setAttribute('data-tooltip', 
+                enabled ? 'Simulation' : 'Simulation (Enable Dev Mode)');
+            document.getElementById('btn-debug-wrapper').setAttribute('data-tooltip', 
+                enabled ? 'Debug Tools' : 'Debug Tools (Enable Dev Mode)');
         }
 
         // =============================================
-        // Cover Screen / 3D View 전환
+        // View Management
         // =============================================
         function showCoverScreen() {
-            const cover = document.getElementById('cover-screen');
-            const threejs = document.getElementById('threejs-container');
-            const overlay = document.getElementById('overlay-ui');
-            
-            if (cover) cover.classList.remove('hidden');
-            if (threejs) threejs.classList.remove('active');
-            if (overlay) overlay.style.display = 'none';
+            document.getElementById('cover-screen').classList.remove('hidden');
+            document.getElementById('threejs-container').classList.remove('active');
+            document.getElementById('overlay-ui').style.display = 'none';
         }
         
         function show3DView() {
-            const cover = document.getElementById('cover-screen');
-            const threejs = document.getElementById('threejs-container');
-            const overlay = document.getElementById('overlay-ui');
-            
-            if (cover) cover.classList.add('hidden');
-            if (threejs) threejs.classList.add('active');
-            if (overlay) overlay.style.display = 'flex';
+            document.getElementById('cover-screen').classList.add('hidden');
+            document.getElementById('threejs-container').classList.add('active');
+            document.getElementById('overlay-ui').style.display = 'flex';
         }
-
-        // =============================================
-        // Mode Indicator 업데이트
-        // =============================================
+        
         function updateModeIndicator(mode, submode) {
-            const modeEl = document.getElementById('current-mode');
-            const submodeEl = document.getElementById('current-submode');
-            
-            if (modeEl) {
-                modeEl.textContent = mode ? mode.charAt(0).toUpperCase() + mode.slice(1) : '—';
-            }
-            if (submodeEl) {
-                submodeEl.textContent = submode ? `→ ${submode === '3d-view' ? '3D View' : submode}` : '';
-            }
-            
+            document.getElementById('current-mode').textContent = mode || '—';
+            document.getElementById('current-submode').textContent = submode ? `→ ${submode}` : '';
             window.sidebarState.currentMode = mode;
             window.sidebarState.currentSubMode = submode;
         }
-
-        // =============================================
-        // Status 업데이트
-        // =============================================
-        function updateCoverStatus(apiConnected, dbConnected, dbName) {
-            const apiDot = document.getElementById('cover-api-dot');
-            const apiStatus = document.getElementById('cover-api-status');
-            const dbDot = document.getElementById('cover-db-dot');
-            const dbStatus = document.getElementById('cover-db-status');
-            
-            if (apiDot) {
-                apiDot.classList.toggle('connected', apiConnected);
-                apiDot.classList.toggle('disconnected', !apiConnected);
-            }
-            if (apiStatus) apiStatus.textContent = apiConnected ? 'Connected' : 'Disconnected';
-            
-            if (dbDot) {
-                dbDot.classList.toggle('connected', dbConnected);
-                dbDot.classList.toggle('disconnected', !dbConnected);
-            }
-            if (dbStatus) dbStatus.textContent = dbConnected ? (dbName || 'Connected') : 'Not Connected';
-        }
         
-        function updateStatusBar(apiConnected, dbConnected, siteId) {
-            const apiDot = document.getElementById('api-dot');
-            const apiValue = document.getElementById('api-value');
-            const dbDot = document.getElementById('db-dot');
-            const dbValue = document.getElementById('db-value');
-            
-            if (apiDot) {
-                apiDot.classList.toggle('connected', apiConnected);
-                apiDot.classList.toggle('disconnected', !apiConnected);
-            }
-            if (apiValue) apiValue.textContent = apiConnected ? 'Connected' : 'Disconnected';
-            
-            if (dbDot) {
-                dbDot.classList.toggle('connected', dbConnected);
-                dbDot.classList.toggle('disconnected', !dbConnected);
-            }
-            if (dbValue) dbValue.textContent = siteId ? siteId.replace(/_/g, '-').toUpperCase() : 'None';
+        function updateSidebarSelection(mode) {
+            document.querySelectorAll('#sidebar .icon-btn').forEach(btn => btn.classList.remove('selected'));
+            if (mode) document.getElementById(`btn-${mode}`)?.classList.add('selected');
         }
 
-        // =============================================
-        // Mock Test
-        // =============================================
         function loadMockTest(testName) {
-            console.log('Loading mock test:', testName);
-            showToast(`Mock Test: ${testName}`, 'info');
+            showToast(`Loading: ${testName}`, 'info');
         }
 
         // =============================================
-        // Sidebar 클릭 이벤트
+        // Event Handlers
         // =============================================
         document.addEventListener('click', (e) => {
             // Connection 버튼
@@ -927,7 +1386,20 @@
                 return;
             }
             
-            // Submenu Item 클릭
+            // disabled 버튼 클릭 차단 + 안내
+            const disabledBtn = e.target.closest('.icon-btn.disabled');
+            if (disabledBtn) {
+                showToast('Enable Dev Mode in Settings first', 'warning');
+                return;
+            }
+            
+            const disabledWrapper = e.target.closest('.has-submenu.disabled');
+            if (disabledWrapper && !e.target.closest('.submenu')) {
+                showToast('Enable Dev Mode in Settings first', 'warning');
+                return;
+            }
+            
+            // Submenu Item
             const submenuItem = e.target.closest('.submenu-item');
             if (submenuItem && !submenuItem.classList.contains('disabled')) {
                 const submode = submenuItem.dataset.submode;
@@ -936,187 +1408,91 @@
                 const mode = btn?.dataset.mode;
                 
                 if (mode && submode) {
-                    handleSidebarModeChange(mode, submode);
+                    handleModeChange(mode, submode);
                 }
-                return;
             }
         });
         
-        function handleSidebarModeChange(mode, submode) {
+        function handleModeChange(mode, submode) {
             if (!canAccessFeatures()) {
-                showToast('Enable Dev Mode or Connect first', 'warning');
+                showToast('Enable Dev Mode first', 'warning');
                 return;
             }
             
             console.log(`🔄 Mode: ${mode} → ${submode}`);
             
-            // main.js의 함수가 있으면 위임
-            if (mode === 'monitoring' && window.toggleMonitoringMode) {
-                window.toggleMonitoringMode(submode);
-                return;
-            }
-            
-            // Fallback: 직접 처리
             if (mode === 'monitoring' && submode === '3d-view') {
                 show3DView();
                 updateModeIndicator('Monitoring', '3D View');
-                updateSidebarButtonState('monitoring');
+                updateSidebarSelection('monitoring');
+                showToast('3D View activated', 'success');
                 
-                // Three.js 초기화 시도
+                // main.js의 viewManager가 있으면 호출
                 if (window.viewManager?.show3DView) {
                     window.viewManager.show3DView();
                 }
             }
         }
-        
-        function updateSidebarButtonState(mode) {
-            document.querySelectorAll('#sidebar .icon-btn').forEach(btn => {
-                btn.classList.remove('selected');
-            });
-            
-            if (mode) {
-                const btn = document.getElementById(`btn-${mode}`);
-                if (btn) btn.classList.add('selected');
-            }
-        }
 
         // =============================================
-        // 키보드 단축키
+        // Keyboard Shortcuts
         // =============================================
         document.addEventListener('keydown', (e) => {
-            if (e.target.matches('input, textarea, select')) return;
+            if (e.target.matches('input, textarea')) return;
             
             const key = e.key.toLowerCase();
             
-            // Ctrl+K: Connection Modal
+            // Ctrl+K: Connection Modal (항상 동작)
             if ((e.ctrlKey || e.metaKey) && key === 'k') {
                 e.preventDefault();
                 toggleConnectionModal();
                 return;
             }
             
-            // ESC: 모달/패널 닫기
+            // ESC
             if (key === 'escape') {
-                const connModal = document.getElementById('connection-modal');
-                if (connModal?.classList.contains('active')) {
+                if (document.getElementById('connection-modal').classList.contains('active')) {
                     closeConnectionModal();
                     return;
                 }
-                
-                const equipInfo = document.getElementById('equipmentInfo');
-                if (equipInfo?.classList.contains('active')) {
-                    closeEquipmentInfo();
-                    return;
-                }
-                
                 if (window.sidebarState.debugPanelVisible) {
                     toggleDebugPanel();
                     return;
                 }
             }
             
-            // Dev Mode 또는 Connected 상태에서만 동작
             if (!canAccessFeatures()) return;
             
-            // D: Debug Panel
-            if (key === 'd') {
-                toggleDebugPanel();
-                return;
-            }
-            
-            // E: Equipment Edit Mode
-            if (key === 'e') {
-                if (window.toggleEditMode) window.toggleEditMode();
-                return;
-            }
-            
-            // M: Monitoring Mode
-            if (key === 'm') {
-                if (window.toggleMonitoringMode) {
-                    window.toggleMonitoringMode('3d-view');
-                } else {
-                    handleSidebarModeChange('monitoring', '3d-view');
-                }
-                return;
-            }
+            if (key === 'd') toggleDebugPanel();
+            if (key === 'm') handleModeChange('monitoring', '3d-view');
         });
 
         // =============================================
-        // 초기화
+        // Init
         // =============================================
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('🏭 Sherlock Sky 3DSim v5.0.1 - Hybrid Mode');
-            
-            // 테마 로드
+            console.log('🏭 Sherlock Sky 3DSim v5.0.3');
             loadSavedTheme();
+            updateTooltips();
             
-            // 네트워크 상태
-            const netDot = document.getElementById('net-dot');
-            const netValue = document.getElementById('net-value');
-            if (netDot) {
-                netDot.classList.toggle('connected', navigator.onLine);
-                netDot.classList.toggle('disconnected', !navigator.onLine);
-            }
-            if (netValue) netValue.textContent = navigator.onLine ? 'Online' : 'Offline';
-            
-            window.addEventListener('online', () => {
-                if (netDot) { netDot.classList.add('connected'); netDot.classList.remove('disconnected'); }
-                if (netValue) netValue.textContent = 'Online';
-            });
-            
-            window.addEventListener('offline', () => {
-                if (netDot) { netDot.classList.remove('connected'); netDot.classList.add('disconnected'); }
-                if (netValue) netValue.textContent = 'Offline';
-            });
-            
-            // FPS/Memory 시뮬레이션 (main.js 로드 전)
-            setInterval(() => {
-                const fpsValue = document.getElementById('fps-value');
-                const memValue = document.getElementById('memory-value');
-                
-                // main.js의 viewManager가 있으면 실제 값, 없으면 0
-                if (fpsValue) {
-                    if (window.viewManager?.animationRunning) {
-                        fpsValue.textContent = 58 + Math.floor(Math.random() * 5);
-                    } else {
-                        fpsValue.textContent = '0';
-                    }
-                }
-                if (memValue && performance.memory) {
-                    memValue.textContent = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
-                }
-                
-                // Debug Panel 업데이트
-                if (window.sidebarState.debugPanelVisible) {
-                    updateDebugPanelContent();
-                }
-            }, 2000);
+            // Network status
+            const updateNet = () => {
+                const dot = document.getElementById('net-dot');
+                const val = document.getElementById('net-value');
+                dot.classList.toggle('connected', navigator.onLine);
+                dot.classList.toggle('disconnected', !navigator.onLine);
+                val.textContent = navigator.onLine ? 'Online' : 'Offline';
+            };
+            updateNet();
+            window.addEventListener('online', updateNet);
+            window.addEventListener('offline', updateNet);
             
             console.log('');
-            console.log('💡 키보드 단축키:');
-            console.log('   Ctrl+K - Connection Modal');
-            console.log('   D - Debug Panel');
-            console.log('   E - Equipment Edit Mode');
-            console.log('   M - Monitoring Mode (3D View)');
-            console.log('   ESC - 모달/패널 닫기');
-            console.log('');
-            console.log('💡 Settings → Dev Mode ON: Connect 없이 모든 기능 사용');
-        });
-        
-        window.addEventListener('load', () => {
-            console.log('✅ 페이지 로드 완료');
-            console.log('📦 main.js 모듈 로딩 시작...');
-        });
-        
-        window.addEventListener('error', (e) => {
-            console.error('❌ Error:', e.error);
+            console.log('💡 Ctrl+K: Connection Modal');
+            console.log('💡 Settings → Dev Mode: Enable all UI');
         });
     </script>
     
-    <!-- =============================================
-         메인 스크립트 (ES Module)
-         ============================================= -->
     <script type="module" src="./src/main.js"></script>
 </body>
-
 </html>
