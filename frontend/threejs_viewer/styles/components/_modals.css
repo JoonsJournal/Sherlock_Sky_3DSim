@@ -3,13 +3,20 @@
  * ===========
  * 모든 모달 스타일 통합 - 라이트 테마
  * 
+ * @version 1.1.0
+ * @changelog
+ * - v1.1.0: 🔧 .active 클래스 지원 추가 (Sidebar.js Connection Modal 호환)
+ *           - .modal.active와 .modal.modal-show 모두 지원
+ *           - Connection Modal 스타일 추가
+ * - v1.0.0: 초기 버전
+ * 
  * 구조:
  * - 오버레이: 다크 반투명 (3D 씬 위 떠있는 느낌)
  * - 콘텐츠: 라이트 테마 (가독성)
  * - 헤더: 컬러풀 그라디언트 (모드별 구분)
  * 
  * 작성일: 2026-01-02
- * 수정일: 2026-01-06 (테마 통일 - 라이트 테마)
+ * 수정일: 2026-01-11 (Sidebar.js 호환성 추가)
  */
 
 /* =============================================
@@ -27,7 +34,9 @@
     transition: opacity 0.3s ease;
 }
 
-.modal.modal-show {
+/* 🆕 v1.1.0: .modal-show와 .active 모두 지원 */
+.modal.modal-show,
+.modal.active {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -63,6 +72,14 @@
     flex-direction: column;
     animation: modalSlideIn 0.3s ease;
     overflow: hidden;
+}
+
+/* 🆕 v1.1.0: Sidebar Theme용 모달 컨텐츠 (다크 테마) */
+[data-theme="dark"] .modal-content,
+.modal-content.modal-content--sidebar {
+    background: var(--bg-panel, #1E293B);
+    border-color: var(--border-color, rgba(255,255,255,0.1));
+    color: var(--text-primary, #E2E8F0);
 }
 
 @keyframes modalSlideIn {
@@ -103,6 +120,13 @@
     background: var(--gradient-primary, linear-gradient(90deg, #667eea 0%, #764ba2 100%));
 }
 
+/* 🆕 v1.1.0: Sidebar Theme용 모달 헤더 */
+[data-theme="dark"] .modal-header,
+.modal-header.modal-header--sidebar {
+    background: var(--bg-panel-header, rgba(0,0,0,0.2));
+    border-bottom-color: var(--border-color, rgba(255,255,255,0.1));
+}
+
 .modal-header h2,
 .modal-header .modal-title {
     margin: 0;
@@ -112,6 +136,12 @@
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+/* 🆕 v1.1.0: Sidebar Theme용 헤더 타이틀 */
+[data-theme="dark"] .modal-header h2,
+[data-theme="dark"] .modal-header .modal-title {
+    color: var(--text-primary, #E2E8F0);
 }
 
 .modal-close {
@@ -130,8 +160,20 @@
     line-height: 1;
 }
 
+/* 🆕 v1.1.0: Sidebar Theme용 닫기 버튼 */
+[data-theme="dark"] .modal-close {
+    background: var(--bg-input, rgba(255,255,255,0.05));
+    color: var(--text-secondary, #9CA3AF);
+}
+
 .modal-close:hover {
     background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+[data-theme="dark"] .modal-close:hover {
+    background: rgba(248, 113, 113, 0.2);
+    color: var(--text-alarm, #F87171);
     transform: rotate(90deg);
 }
 
@@ -149,6 +191,12 @@
     padding: var(--spacing-lg, 24px) var(--spacing-xl, 32px);
     background: var(--theme-bg-primary, #ffffff);
     color: var(--theme-text-primary, #212529);
+}
+
+/* 🆕 v1.1.0: Sidebar Theme용 모달 바디 */
+[data-theme="dark"] .modal-body {
+    background: var(--bg-panel, #1E293B);
+    color: var(--text-primary, #E2E8F0);
 }
 
 .modal-body::-webkit-scrollbar {
@@ -170,6 +218,86 @@
 }
 
 /* =============================================
+   🆕 v1.1.0: Connection Modal 특화 스타일
+   Sidebar.js에서 생성하는 Connection Modal용
+   ============================================= */
+
+/* Connection Status Box */
+.connection-status-box {
+    background: var(--bg-input, rgba(255,255,255,0.05));
+    border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+/* Status Dot (Modal 내부) */
+.connection-status-box .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.connection-status-box .status-dot.connected {
+    background: var(--text-success, #4ADE80);
+    box-shadow: 0 0 8px var(--text-success, #4ADE80);
+}
+
+.connection-status-box .status-dot.disconnected {
+    background: var(--text-alarm, #F87171);
+}
+
+/* Site List */
+.site-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.site-item {
+    background: var(--bg-input, rgba(255,255,255,0.05));
+    border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    text-align: left;
+}
+
+.site-item:hover {
+    background: var(--bg-hover, rgba(255,255,255,0.05));
+    border-color: var(--icon-selected, #06B6D4);
+}
+
+.site-item:active {
+    transform: scale(0.98);
+}
+
+/* Refresh Button */
+.btn-refresh {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    background: var(--bg-hover, rgba(255,255,255,0.05));
+    border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+    border-radius: 8px;
+    color: var(--text-secondary, #9CA3AF);
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-refresh:hover {
+    background: var(--bg-selected, rgba(6, 182, 212, 0.1));
+    color: var(--icon-selected, #06B6D4);
+}
+
+/* =============================================
    모달 푸터 - 연한 회색 배경
    ============================================= */
 .modal-footer {
@@ -180,6 +308,12 @@
     border-top: 1px solid var(--theme-border-default, #dee2e6);
     background: var(--theme-bg-secondary, #f8f9fa);
     gap: var(--spacing-sm, 8px);
+}
+
+/* 🆕 v1.1.0: Sidebar Theme용 모달 푸터 */
+[data-theme="dark"] .modal-footer {
+    background: var(--bg-panel-header, rgba(0,0,0,0.2));
+    border-top-color: var(--border-color, rgba(255,255,255,0.1));
 }
 
 .modal-footer-left {
@@ -271,6 +405,12 @@
     border-bottom: 2px solid var(--theme-border-light, #e9ecef);
 }
 
+/* 🆕 v1.1.0: Sidebar Theme용 섹션 타이틀 */
+[data-theme="dark"] .modal-section-title {
+    color: var(--text-primary, #E2E8F0);
+    border-bottom-color: var(--border-color, rgba(255,255,255,0.1));
+}
+
 /* =============================================
    모달 내부 Info Box - 라이트 테마
    ============================================= */
@@ -279,6 +419,12 @@
     border: 1px solid var(--theme-border-default, #dee2e6);
     border-radius: var(--radius-md, 8px);
     padding: var(--spacing-md, 16px);
+}
+
+/* 🆕 v1.1.0: Sidebar Theme용 Info Box */
+[data-theme="dark"] .modal-info-box {
+    background: var(--bg-input, rgba(255,255,255,0.05));
+    border-color: var(--border-color, rgba(255,255,255,0.1));
 }
 
 .modal-info-row {
@@ -294,16 +440,28 @@
     padding-bottom: var(--spacing-sm, 8px);
 }
 
+[data-theme="dark"] .modal-info-row:not(:last-child) {
+    border-bottom-color: var(--border-color, rgba(255,255,255,0.1));
+}
+
 .modal-info-label {
     font-size: var(--font-size-sm, 12px);
     color: var(--theme-text-muted, #6c757d);
     font-weight: 500;
 }
 
+[data-theme="dark"] .modal-info-label {
+    color: var(--text-secondary, #9CA3AF);
+}
+
 .modal-info-value {
     font-size: var(--font-size-base, 14px);
     color: var(--theme-text-primary, #212529);
     font-weight: 500;
+}
+
+[data-theme="dark"] .modal-info-value {
+    color: var(--text-primary, #E2E8F0);
 }
 
 /* =============================================
