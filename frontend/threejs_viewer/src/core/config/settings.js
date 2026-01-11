@@ -31,7 +31,7 @@ export const createExcludedRange = (col, startRow, endRow) => {
 
 export const SETTINGS = {
     // 디버그 모드
-    DEBUG_MODE: false,
+    DEBUG_MODE: true,
     
     // 렌더링 설정
     RENDERER: {

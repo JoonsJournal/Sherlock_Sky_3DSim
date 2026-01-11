@@ -41,6 +41,7 @@
 /* Phase 3: Modal 시스템 */
 @import './components/_equipment-edit-modal.css';
 @import './components/_recovery-dialog.css';
+@import './components/_connection-modal.css';  /* 🆕 추가: Light Mode 버그 수정 */
 
 /* Phase 4: Indicator 시스템 */
 @import './components/_connection-indicator.css'; 

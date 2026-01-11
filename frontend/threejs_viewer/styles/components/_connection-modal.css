@@ -1,0 +1,675 @@
+/**
+ * _connection-modal.css
+ * =====================
+ * ConnectionModalManager.js 전용 스타일
+ * 
+ * @version 1.0.0
+ * @created 2026-01-11
+ * @source ConnectionModalManager.js v1.0.0
+ * 
+ * @description
+ * Sidebar.js 리팩토링 Phase 3에서 분리된 ConnectionModalManager.js의
+ * 전용 CSS 스타일. Light/Dark 모드 모두 지원.
+ * 
+ * @bug-fix
+ * - Light 모드에서 Modal이 안 열리는 버그 수정
+ * - 원인: #connection-modal에 display: none/flex 없음
+ * - 원인: .modal-container CSS 없음 (.modal-content와 불일치)
+ * 
+ * @usage
+ * @import './components/_connection-modal.css';
+ * 
+ * 위치: frontend/threejs_viewer/styles/components/_connection-modal.css
+ */
+
+/* =============================================
+   🔑 핵심 수정: Modal 표시/숨김 제어
+   이 부분이 없어서 Light Mode에서 Modal이 안 열렸음!
+   ============================================= */
+
+#connection-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+#connection-modal.active {
+    display: flex;
+}
+
+/* =============================================
+   Modal Container
+   ConnectionModalManager.js는 .modal-container 사용
+   (기존 _modals.css는 .modal-content 사용)
+   ============================================= */
+
+#connection-modal .modal-container {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 85vh;
+    overflow: hidden;
+    box-shadow: 0 25px 50px var(--shadow-color);
+    animation: connectionModalSlideIn 0.3s ease;
+}
+
+@keyframes connectionModalSlideIn {
+    from {
+        transform: translateY(-30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* =============================================
+   Modal Header
+   ============================================= */
+
+#connection-modal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-panel-header);
+}
+
+#connection-modal .modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+#connection-modal .modal-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--bg-input);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s ease;
+}
+
+#connection-modal .modal-close:hover {
+    background: rgba(248, 113, 113, 0.2);
+    color: var(--text-alarm);
+}
+
+/* =============================================
+   Modal Body
+   ============================================= */
+
+#connection-modal .modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    max-height: calc(85vh - 140px);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Custom Scrollbar */
+#connection-modal .modal-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+#connection-modal .modal-body::-webkit-scrollbar-track {
+    background: var(--bg-input);
+    border-radius: 3px;
+}
+
+#connection-modal .modal-body::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+#connection-modal .modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+/* =============================================
+   Modal Footer
+   ============================================= */
+
+#connection-modal .modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-panel-header);
+}
+
+#connection-modal .footer-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* =============================================
+   Internet Status
+   ============================================= */
+
+#connection-modal .internet-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+
+#connection-modal .internet-status-text {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+#connection-modal .internet-status-detail {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+/* =============================================
+   Connection Panel (공통)
+   ============================================= */
+
+#connection-modal .connection-panel {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+#connection-modal .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--bg-panel-header);
+    border-bottom: 1px solid var(--border-color);
+}
+
+#connection-modal .panel-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+#connection-modal .panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#connection-modal .panel-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg-panel-header);
+    border-top: 1px solid var(--border-color);
+}
+
+/* =============================================
+   API Status Content
+   ============================================= */
+
+#connection-modal .api-status-content {
+    padding: 16px;
+}
+
+#connection-modal .status-indicator-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+#connection-modal .status-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+#connection-modal .status-text.run {
+    color: var(--text-success);
+}
+
+#connection-modal .status-text.stop {
+    color: var(--text-alarm);
+}
+
+#connection-modal .status-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#connection-modal .status-detail {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--bg-hover);
+    border-radius: 6px;
+}
+
+#connection-modal .detail-label {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+#connection-modal .detail-value {
+    font-size: 12px;
+    color: var(--text-primary);
+    font-family: 'Consolas', monospace;
+}
+
+/* =============================================
+   Status Dot Variants
+   ============================================= */
+
+#connection-modal .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+#connection-modal .status-dot.connected,
+#connection-modal .status-dot--connected {
+    background: var(--text-success);
+    box-shadow: 0 0 8px var(--text-success);
+    animation: pulse 2s infinite;
+}
+
+#connection-modal .status-dot.disconnected,
+#connection-modal .status-dot--disconnected {
+    background: var(--text-alarm);
+}
+
+#connection-modal .status-dot--checking {
+    background: var(--text-warning, #FBBF24);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* =============================================
+   Auto Connect Label
+   ============================================= */
+
+#connection-modal .auto-connect-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+#connection-modal .auto-connect-label input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--icon-selected);
+}
+
+#connection-modal .selection-info {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* =============================================
+   Site List
+   ============================================= */
+
+#connection-modal .site-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* =============================================
+   Site Item
+   ============================================= */
+
+#connection-modal .site-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg-hover);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#connection-modal .site-item:hover {
+    background: var(--bg-selected);
+    border-color: var(--icon-selected);
+}
+
+#connection-modal .site-item--selected {
+    background: var(--bg-selected);
+    border-color: var(--icon-selected);
+}
+
+#connection-modal .site-item--connected {
+    border-color: var(--text-success);
+}
+
+#connection-modal .site-item--connected:hover {
+    border-color: var(--text-success);
+}
+
+/* Site Checkbox */
+#connection-modal .site-checkbox {
+    display: flex;
+    align-items: center;
+}
+
+#connection-modal .site-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--icon-selected);
+    cursor: pointer;
+}
+
+/* Site Info */
+#connection-modal .site-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#connection-modal .site-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#connection-modal .site-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+#connection-modal .site-region {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 2px 6px;
+    background: var(--bg-input);
+    border-radius: 4px;
+}
+
+#connection-modal .site-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* Site Status */
+#connection-modal .site-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* =============================================
+   Database Section
+   ============================================= */
+
+#connection-modal .no-connection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    text-align: center;
+}
+
+#connection-modal .no-connection-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+#connection-modal .no-connection p {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+#connection-modal .database-item {
+    padding: 16px;
+}
+
+#connection-modal .database-header {
+    margin-bottom: 12px;
+}
+
+#connection-modal .database-header h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+#connection-modal .database-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+#connection-modal .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px;
+    background: var(--bg-hover);
+    border-radius: 6px;
+    text-align: center;
+}
+
+#connection-modal .stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+#connection-modal .stat-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--icon-selected);
+}
+
+/* =============================================
+   Buttons
+   ============================================= */
+
+#connection-modal .btn-connect {
+    padding: 8px 16px;
+    background: var(--icon-selected);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#connection-modal .btn-connect:hover:not(:disabled) {
+    filter: brightness(1.1);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3);
+}
+
+#connection-modal .btn-connect:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#connection-modal .btn-check,
+#connection-modal .btn-refresh-db {
+    padding: 6px 12px;
+    font-size: 12px;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+#connection-modal .btn-check:hover,
+#connection-modal .btn-refresh-db:hover {
+    background: var(--bg-selected);
+    color: var(--icon-selected);
+    border-color: var(--icon-selected);
+}
+
+#connection-modal .btn-icon {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+#connection-modal .btn-icon:hover {
+    background: var(--bg-selected);
+    border-color: var(--icon-selected);
+}
+
+#connection-modal .btn-disconnect {
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid var(--text-alarm);
+    border-radius: 4px;
+    color: var(--text-alarm);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#connection-modal .btn-disconnect:hover {
+    background: rgba(248, 113, 113, 0.1);
+}
+
+#connection-modal .btn-secondary {
+    padding: 8px 16px;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#connection-modal .btn-secondary:hover {
+    background: var(--bg-input);
+    color: var(--text-primary);
+}
+
+/* btn-close-modal은 btn-secondary 스타일 상속 */
+
+/* =============================================
+   Responsive
+   ============================================= */
+
+@media (max-width: 768px) {
+    #connection-modal .modal-container {
+        width: 95%;
+        max-height: 90vh;
+        margin: 10px;
+    }
+    
+    #connection-modal .modal-header,
+    #connection-modal .modal-body,
+    #connection-modal .modal-footer {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+    
+    #connection-modal .database-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    #connection-modal .modal-container {
+        width: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+    
+    #connection-modal .panel-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    
+    #connection-modal .panel-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    #connection-modal .database-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    #connection-modal .modal-footer {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+/* =============================================
+   Animation Reduce (접근성)
+   ============================================= */
+
+@media (prefers-reduced-motion: reduce) {
+    #connection-modal .modal-container {
+        animation: none;
+    }
+    
+    #connection-modal .status-dot.connected,
+    #connection-modal .status-dot--connected,
+    #connection-modal .status-dot--checking {
+        animation: none;
+    }
+}
