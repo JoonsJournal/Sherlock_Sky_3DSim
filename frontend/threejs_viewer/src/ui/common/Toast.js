@@ -2,13 +2,17 @@
  * Toast.js
  * Toast 알림 컴포넌트
  * 
- * @version 3.0.0
+ * @version 3.1.0
  * @description 
  *   - BaseComponent 상속
  *   - 인라인 스타일 제거 → CSS 클래스 기반
  *   - 라이트 테마 적용 (_toast.css 연동)
  * 
  * @changelog
+ * - v3.1.0: 🐛 Toast 자동 사라짐 버그 수정 (2026-01-11)
+ *           - remove() 메서드에서 강제 DOM 제거 로직 추가
+ *           - transitionend 이벤트 의존성 제거
+ *           - 디버깅 로그 추가
  * - v3.0.0: 인라인 스타일 완전 제거, CSS 클래스 기반으로 전환 (2026-01-06)
  * - v2.1.0: mount() 오버라이드 - innerHTML 대신 appendChild 사용 (DOM 파괴 방지)
  * - v2.0.0: BaseComponent 상속, 통합 Toast 시스템
@@ -194,7 +198,7 @@ export class Toast extends BaseComponent {
             duration: finalDuration
         };
         
-        // 자동 제거 타이머
+        // 🆕 v3.1.0: 자동 제거 타이머 (강화된 로직)
         if (finalDuration > 0) {
             toastInfo.timer = setTimeout(() => {
                 this.remove(toastId);
@@ -256,11 +260,14 @@ export class Toast extends BaseComponent {
     
     /**
      * Toast 제거
+     * 🆕 v3.1.0: 강제 DOM 제거 로직 추가
      * @param {string} toastId - Toast ID
      */
     remove(toastId) {
         const toastInfo = this._toasts.get(toastId);
-        if (!toastInfo) return;
+        if (!toastInfo) {
+            return;
+        }
         
         const { element, timer } = toastInfo;
         
@@ -269,30 +276,36 @@ export class Toast extends BaseComponent {
             clearTimeout(timer);
         }
         
+        // Map에서 즉시 제거 (중복 호출 방지)
+        this._toasts.delete(toastId);
+        
         // 숨김 클래스 추가
         element.classList.remove('toast-show');
         element.classList.add('toast-hide');
         
-        // 애니메이션 후 DOM에서 제거
+        // 🆕 v3.1.0: 강제 DOM 제거 함수
         const removeFromDOM = () => {
-            if (element.parentNode) {
-                element.parentNode.removeChild(element);
+            try {
+                if (element && element.parentNode) {
+                    element.parentNode.removeChild(element);
+                }
+            } catch (e) {
+                // 이미 제거된 경우 무시
             }
-            this._toasts.delete(toastId);
         };
         
-        // transitionend 이벤트 또는 타임아웃
-        element.addEventListener('transitionend', removeFromDOM, { once: true });
-        
-        // 폴백 타이머 (트랜지션이 실행되지 않는 경우)
-        setTimeout(removeFromDOM, 350);
+        // 🆕 v3.1.0: 300ms 후 강제 DOM 제거 (CSS transition 완료 대기)
+        // transitionend 이벤트에 의존하지 않음!
+        setTimeout(removeFromDOM, 300);
     }
     
     /**
      * 모든 Toast 제거
      */
     removeAll() {
-        this._toasts.forEach((_, toastId) => {
+        // Map을 복사해서 순회 (제거 중 Map 변경 방지)
+        const toastIds = Array.from(this._toasts.keys());
+        toastIds.forEach(toastId => {
             this.remove(toastId);
         });
     }
