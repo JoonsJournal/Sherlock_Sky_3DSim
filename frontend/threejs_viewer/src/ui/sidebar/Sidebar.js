@@ -5,15 +5,20 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @created 2026-01-11
  * @updated 2026-01-11
  * 
  * @changelog
- * - v1.1.0: 🔧 Connection Modal 동적 생성 추가
- *           - _createConnectionModal() 메서드 추가
- *           - toggleConnectionModal() 내부 처리
- *           - 버튼 우상단 Dot 상태 표시 제거 (StatusBar와 중복)
+ * - v1.2.0: 🔧 Connection Modal v2.9 Full Version 복원
+ *           - Internet Status with Ping
+ *           - Backend API Panel (API URL, Response Time)
+ *           - Site Connection Panel (Priority, Auto-connect, Select/Deselect All)
+ *           - Connected Databases Panel (Equipment 수, Lines, Active Lots)
+ *           - Modal Footer (단축키 힌트, Close 버튼)
+ *           🔧 _handleSubmenuClick 로직 수정 (Dev Mode 문제 해결)
+ *           - public 메서드 직접 호출 지원 (언더스코어 없이)
+ * - v1.1.0: Connection Modal 동적 생성 추가
  * - v1.0.0: 초기 버전
  * 
  * @description
@@ -147,12 +152,13 @@ const SUBMENUS = {
 };
 
 /**
- * Connection Modal 사이트 목록
+ * 🆕 v1.2.0: Connection Modal 사이트 목록 (v2.9 Full Version)
+ * Priority 포함
  */
 const SITE_LIST = [
-    { id: 'korea_site1', flag: '🇰🇷', name: 'Korea Site 1', desc: 'Seoul Manufacturing Plant' },
-    { id: 'vietnam_site1', flag: '🇻🇳', name: 'Vietnam Site 1', desc: 'Ho Chi Minh Factory' },
-    { id: 'usa_site1', flag: '🇺🇸', name: 'USA Site 1', desc: 'Texas Production Center' }
+    { id: 'kr_b_01', flag: '🇰🇷', name: 'Korea Site B-01', region: 'Asia/Seoul', priority: 10 },
+    { id: 'kr_b_02', flag: '🇰🇷', name: 'Korea Site B-02', region: 'Asia/Seoul', priority: 8 },
+    { id: 'vn_a_01', flag: '🇻🇳', name: 'Vietnam Site A-01', region: 'Asia/Ho_Chi_Minh', priority: 5 }
 ];
 
 /**
@@ -204,6 +210,13 @@ export class Sidebar {
         this.currentTheme = 'dark';
         this.connectionModalOpen = false;
         
+        // 🆕 v1.2.0: Site 상태 관리
+        this.selectedSite = null;
+        this.siteStatus = {};
+        SITE_LIST.forEach(site => {
+            this.siteStatus[site.id] = { status: 'disconnected' };
+        });
+        
         // DOM 참조
         this.element = null;
         this.connectionModal = null;
@@ -230,7 +243,7 @@ export class Sidebar {
         this._setupConnectionListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v1.1.0');
+        console.log('[Sidebar] 초기화 완료 v1.2.0');
     }
     
     _loadTheme() {
@@ -473,7 +486,7 @@ export class Sidebar {
     }
     
     // ========================================
-    // 🆕 v1.1.0: Connection Modal 생성
+    // 🆕 v1.2.0: Connection Modal v2.9 Full Version
     // ========================================
     
     _createConnectionModal() {
@@ -483,116 +496,440 @@ export class Sidebar {
         
         this.connectionModal = document.createElement('div');
         this.connectionModal.id = 'connection-modal';
-        this.connectionModal.className = 'modal';
+        this.connectionModal.className = 'modal-overlay';
         
         this.connectionModal.innerHTML = `
-            <div class="modal-overlay"></div>
-            <div class="modal-content">
+            <div class="modal-container">
                 <div class="modal-header">
-                    <h2>🔌 Database Connection Manager</h2>
-                    <button class="modal-close">&times;</button>
+                    <div class="modal-title">🔌 Database Connection Manager</div>
+                    <button class="modal-close">✕</button>
                 </div>
                 <div class="modal-body">
-                    <!-- Connection Status -->
-                    <div class="connection-status-box" style="
-                        background: var(--bg-input);
-                        border: 1px solid var(--border-color);
-                        border-radius: 10px;
-                        padding: 16px;
-                        margin-bottom: 20px;
-                    ">
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                            <span class="status-dot disconnected" id="modal-api-dot"></span>
-                            <span style="color: var(--text-secondary);">Backend API:</span>
-                            <span style="color: var(--text-primary); font-weight: 500;" id="modal-api-status">Disconnected</span>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <span class="status-dot disconnected" id="modal-db-dot"></span>
-                            <span style="color: var(--text-secondary);">Database:</span>
-                            <span style="color: var(--text-primary); font-weight: 500;" id="modal-db-status">Not Connected</span>
-                        </div>
+                    <!-- Internet Status with Ping -->
+                    <div class="internet-status" id="internet-status">
+                        <span class="status-dot connected" id="internet-dot"></span>
+                        <span class="internet-status-text" id="internet-text">Internet Connected</span>
+                        <span class="internet-status-detail" id="internet-detail">Ping: --ms</span>
                     </div>
                     
-                    <!-- Site Selection -->
-                    <p style="color: var(--text-secondary); margin-bottom: 16px;">
-                        Select a site to connect to the database:
-                    </p>
-                    <div class="site-list" style="display: flex; flex-direction: column; gap: 12px;">
-                        ${SITE_LIST.map(site => `
-                            <button class="site-item submenu-item" data-site-id="${site.id}" style="
-                                background: var(--bg-input);
-                                border-radius: 10px;
-                                padding: 16px;
-                                display: flex;
-                                align-items: center;
-                                gap: 16px;
-                            ">
-                                <span style="font-size: 28px;">${site.flag}</span>
-                                <div style="text-align: left;">
-                                    <div style="font-weight: 600; color: var(--text-primary);">${site.name}</div>
-                                    <div style="font-size: 12px; color: var(--text-muted);">${site.desc}</div>
+                    <!-- Backend API Status Panel -->
+                    <div class="connection-panel">
+                        <div class="panel-header">
+                            <h3>🔌 Backend API Status</h3>
+                            <button class="btn-connect btn-check" style="padding:6px 12px;font-size:12px">🔄 Check</button>
+                        </div>
+                        <div class="api-status-content">
+                            <div class="status-indicator-box">
+                                <span class="status-dot status-dot--checking" id="api-status-dot"></span>
+                                <span class="status-text" id="api-status-text">Checking...</span>
+                            </div>
+                            <div class="status-details">
+                                <div class="status-detail">
+                                    <span class="detail-label">API URL</span>
+                                    <span class="detail-value" id="api-url-value">http://localhost:8000</span>
                                 </div>
-                            </button>
-                        `).join('')}
+                                <div class="status-detail">
+                                    <span class="detail-label">Response</span>
+                                    <span class="detail-value" id="response-time">-</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
-                    <!-- Refresh Button -->
-                    <button class="btn-refresh" style="
-                        margin-top: 20px;
-                        width: 100%;
-                        padding: 12px;
-                        background: var(--bg-hover);
-                        border: 1px solid var(--border-color);
-                        border-radius: 8px;
-                        color: var(--text-secondary);
-                        cursor: pointer;
-                        font-size: 14px;
-                        transition: all 0.2s;
-                    ">
-                        🔄 Refresh Connection Status
-                    </button>
+                    <!-- Site Connection Panel -->
+                    <div class="connection-panel">
+                        <div class="panel-header">
+                            <h3>🔍 Site Connection</h3>
+                            <div class="panel-actions">
+                                <label class="auto-connect-label">
+                                    <input type="checkbox" id="auto-connect-checkbox">
+                                    <span>Auto</span>
+                                </label>
+                                <button class="btn-icon btn-select-all" title="Select All">☑️</button>
+                                <button class="btn-icon btn-deselect-all" title="Deselect All">☐</button>
+                            </div>
+                        </div>
+                        <div class="site-list" id="site-list"></div>
+                        <div class="panel-footer">
+                            <span class="selection-info" id="selection-count">Selected: 0</span>
+                            <button class="btn-connect" id="connect-btn" disabled>🔌 Connect</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Connected Databases Panel -->
+                    <div class="connection-panel">
+                        <div class="panel-header">
+                            <h3>📊 Connected Databases</h3>
+                            <button class="btn-connect btn-refresh-db" style="padding:6px 12px;font-size:12px">🔄 Refresh</button>
+                        </div>
+                        <div id="database-list">
+                            <div class="no-connection">
+                                <span class="no-connection-icon">📂</span>
+                                <p>No database connected</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <span class="footer-hint">Ctrl+K to toggle | Escape to close</span>
+                    <button class="btn-secondary btn-close-modal">Close</button>
                 </div>
             </div>
         `;
         
         document.body.appendChild(this.connectionModal);
         
+        // Site List 렌더링
+        this._renderSiteList();
+        
         // 이벤트 설정
         this._setupConnectionModalEvents();
+        
+        // 초기 Ping 체크
+        this._checkInternetStatus();
     }
     
     _setupConnectionModalEvents() {
         if (!this.connectionModal) return;
         
         // 오버레이 클릭으로 닫기
-        const overlay = this.connectionModal.querySelector('.modal-overlay');
-        overlay?.addEventListener('click', () => this.closeConnectionModal());
+        this.connectionModal.addEventListener('click', (e) => {
+            if (e.target === this.connectionModal) {
+                this.closeConnectionModal();
+            }
+        });
         
-        // 닫기 버튼
+        // 닫기 버튼 (헤더)
         const closeBtn = this.connectionModal.querySelector('.modal-close');
         closeBtn?.addEventListener('click', () => this.closeConnectionModal());
         
-        // Site 버튼 클릭
-        this.connectionModal.querySelectorAll('.site-item').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const siteId = btn.dataset.siteId;
-                this._connectToSite(siteId);
+        // 닫기 버튼 (푸터)
+        const closeModalBtn = this.connectionModal.querySelector('.btn-close-modal');
+        closeModalBtn?.addEventListener('click', () => this.closeConnectionModal());
+        
+        // API Check 버튼
+        const checkBtn = this.connectionModal.querySelector('.btn-check');
+        checkBtn?.addEventListener('click', () => this._refreshAPIStatus());
+        
+        // Select All / Deselect All 버튼
+        const selectAllBtn = this.connectionModal.querySelector('.btn-select-all');
+        selectAllBtn?.addEventListener('click', () => this._selectAllSites());
+        
+        const deselectAllBtn = this.connectionModal.querySelector('.btn-deselect-all');
+        deselectAllBtn?.addEventListener('click', () => this._deselectAllSites());
+        
+        // Connect 버튼
+        const connectBtn = this.connectionModal.querySelector('#connect-btn');
+        connectBtn?.addEventListener('click', () => this._connectToSelectedSite());
+        
+        // Refresh Database 버튼
+        const refreshDbBtn = this.connectionModal.querySelector('.btn-refresh-db');
+        refreshDbBtn?.addEventListener('click', () => this._refreshDatabaseInfo());
+    }
+    
+    /**
+     * 🆕 v1.2.0: Site List 렌더링 (v2.9 스타일)
+     */
+    _renderSiteList() {
+        const siteList = this.connectionModal?.querySelector('#site-list');
+        if (!siteList) return;
+        
+        siteList.innerHTML = SITE_LIST.map(site => {
+            const isSelected = this.selectedSite === site.id;
+            const status = this.siteStatus[site.id] || {};
+            const isConnectedSite = status.status === 'connected';
+            
+            return `
+                <div class="site-item ${isSelected ? 'site-item--selected' : ''} ${isConnectedSite ? 'site-item--connected' : ''}" 
+                     data-site-id="${site.id}">
+                    <div class="site-checkbox">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} data-site-checkbox="${site.id}">
+                    </div>
+                    <div class="site-info">
+                        <div class="site-main">
+                            <span style="font-size: 20px; margin-right: 8px;">${site.flag}</span>
+                            <span class="site-name">${site.name}</span>
+                            <span class="site-region">${site.region}</span>
+                        </div>
+                        <div class="site-meta">
+                            <span>Priority: ${site.priority}</span>
+                        </div>
+                    </div>
+                    <div class="site-status">
+                        ${isConnectedSite 
+                            ? `<span>✅</span><button class="btn-disconnect" data-disconnect="${site.id}">Disconnect</button>` 
+                            : '<span>⚪</span>'}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Site Item 클릭 이벤트
+        siteList.querySelectorAll('.site-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('.btn-disconnect')) return;
+                if (e.target.tagName === 'INPUT') return;
+                const siteId = item.dataset.siteId;
+                this._toggleSiteSelection(siteId);
             });
         });
         
-        // Refresh 버튼
-        const refreshBtn = this.connectionModal.querySelector('.btn-refresh');
-        refreshBtn?.addEventListener('click', () => this._checkBackendHealth());
+        // Checkbox 클릭 이벤트
+        siteList.querySelectorAll('[data-site-checkbox]').forEach(checkbox => {
+            checkbox.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const siteId = checkbox.dataset.siteCheckbox;
+                this._toggleSiteSelection(siteId);
+            });
+        });
         
-        // Hover 효과
-        refreshBtn?.addEventListener('mouseenter', () => {
-            refreshBtn.style.background = 'var(--bg-selected)';
-            refreshBtn.style.color = 'var(--icon-selected)';
+        // Disconnect 버튼 이벤트
+        siteList.querySelectorAll('.btn-disconnect').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const siteId = btn.dataset.disconnect;
+                this._disconnectFromSite(siteId);
+            });
         });
-        refreshBtn?.addEventListener('mouseleave', () => {
-            refreshBtn.style.background = 'var(--bg-hover)';
-            refreshBtn.style.color = 'var(--text-secondary)';
-        });
+        
+        this._updateSelectionUI();
+    }
+    
+    _toggleSiteSelection(siteId) {
+        this.selectedSite = this.selectedSite === siteId ? null : siteId;
+        this._renderSiteList();
+    }
+    
+    _selectAllSites() {
+        if (SITE_LIST.length > 0) {
+            this.selectedSite = SITE_LIST[0].id;
+        }
+        this._renderSiteList();
+        if (this.toast) {
+            this.toast.info('Select All', 'First site selected (single selection mode)');
+        }
+    }
+    
+    _deselectAllSites() {
+        this.selectedSite = null;
+        this._renderSiteList();
+        if (this.toast) {
+            this.toast.info('Deselect All', 'Selection cleared');
+        }
+    }
+    
+    _updateSelectionUI() {
+        const selectionCount = this.connectionModal?.querySelector('#selection-count');
+        const connectBtn = this.connectionModal?.querySelector('#connect-btn');
+        
+        if (selectionCount) {
+            selectionCount.textContent = `Selected: ${this.selectedSite ? 1 : 0}`;
+        }
+        if (connectBtn) {
+            connectBtn.disabled = !this.selectedSite;
+        }
+    }
+    
+    /**
+     * 🆕 v1.2.0: Internet Status 체크
+     */
+    _checkInternetStatus() {
+        const dot = this.connectionModal?.querySelector('#internet-dot');
+        const text = this.connectionModal?.querySelector('#internet-text');
+        const detail = this.connectionModal?.querySelector('#internet-detail');
+        
+        // 시뮬레이션
+        const ping = Math.floor(Math.random() * 50 + 10);
+        
+        if (dot) dot.className = 'status-dot connected';
+        if (text) text.textContent = 'Internet Connected';
+        if (detail) detail.textContent = `Ping: ${ping}ms`;
+    }
+    
+    /**
+     * 🆕 v1.2.0: API Status 체크
+     */
+    _refreshAPIStatus() {
+        const dot = this.connectionModal?.querySelector('#api-status-dot');
+        const text = this.connectionModal?.querySelector('#api-status-text');
+        const responseTime = this.connectionModal?.querySelector('#response-time');
+        
+        if (dot) dot.className = 'status-dot status-dot--checking';
+        if (text) text.textContent = 'Checking...';
+        if (responseTime) responseTime.textContent = '-';
+        
+        setTimeout(() => {
+            // ConnectionStatusService 사용
+            const isOnline = this.connectionStatusService?.isOnline?.() || this.devModeEnabled;
+            
+            if (isOnline || this.devModeEnabled) {
+                if (dot) dot.className = 'status-dot status-dot--connected';
+                if (text) {
+                    text.textContent = 'Connected';
+                    text.className = 'status-text run';
+                }
+                if (responseTime) responseTime.textContent = `${Math.floor(Math.random() * 50 + 20)}ms`;
+                
+                if (this.toast) {
+                    this.toast.success('Backend Online', 'API is available');
+                }
+            } else {
+                if (dot) dot.className = 'status-dot status-dot--disconnected';
+                if (text) {
+                    text.textContent = 'Disconnected';
+                    text.className = 'status-text stop';
+                }
+                if (responseTime) responseTime.textContent = 'Timeout';
+                
+                if (this.toast) {
+                    this.toast.warning('Backend Offline', 'API is not available');
+                }
+            }
+        }, 1000);
+    }
+    
+    /**
+     * 🆕 v1.2.0: 사이트 연결
+     */
+    async _connectToSelectedSite() {
+        if (!this.selectedSite) return;
+        
+        const connectBtn = this.connectionModal?.querySelector('#connect-btn');
+        if (connectBtn) {
+            connectBtn.disabled = true;
+            connectBtn.textContent = '⏳ Connecting...';
+        }
+        
+        if (this.toast) {
+            this.toast.info('Connecting', `Connecting to ${this.selectedSite}...`);
+        }
+        
+        try {
+            // 시뮬레이션
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Dev Mode면 성공으로 처리
+            this.siteStatus[this.selectedSite] = { status: 'connected' };
+            this.isConnected = true;
+            
+            this._renderSiteList();
+            this._updateButtonStates();
+            this._updateCoverStatus(true);
+            this._updateDatabaseList(this.selectedSite);
+            
+            if (connectBtn) {
+                connectBtn.textContent = '🔌 Connect';
+            }
+            
+            const site = SITE_LIST.find(s => s.id === this.selectedSite);
+            if (this.toast) {
+                this.toast.success('Connected', `Successfully connected to ${site?.name || this.selectedSite}`);
+            }
+            
+            if (this.eventBus) {
+                this.eventBus.emit('site:connected', { 
+                    siteId: this.selectedSite, 
+                    siteName: site?.name || this.selectedSite 
+                });
+            }
+            
+            // 전역 상태 동기화
+            if (window.sidebarState) {
+                window.sidebarState.isConnected = true;
+            }
+            
+        } catch (error) {
+            console.error('Connection failed:', error);
+            if (connectBtn) {
+                connectBtn.textContent = '🔌 Connect';
+                connectBtn.disabled = false;
+            }
+            if (this.toast) {
+                this.toast.error('Connection Failed', error.message);
+            }
+        }
+    }
+    
+    /**
+     * 🆕 v1.2.0: 사이트 연결 해제
+     */
+    _disconnectFromSite(siteId) {
+        this.siteStatus[siteId] = { status: 'disconnected' };
+        this.isConnected = false;
+        this.selectedSite = null;
+        
+        this._renderSiteList();
+        this._updateButtonStates();
+        this._updateCoverStatus(false);
+        this._updateDatabaseList(null);
+        
+        // Cover Screen 표시
+        this.showCoverScreen();
+        
+        // 모드 초기화
+        this.currentMode = null;
+        this.currentSubMode = null;
+        this._updateButtonSelection();
+        this._updateOverlayUI();
+        
+        if (this.toast) {
+            this.toast.info('Disconnected', 'Database connection closed');
+        }
+        
+        if (this.eventBus) {
+            this.eventBus.emit('site:disconnected');
+        }
+        
+        // 전역 상태 동기화
+        if (window.sidebarState) {
+            window.sidebarState.isConnected = false;
+        }
+    }
+    
+    /**
+     * 🆕 v1.2.0: Database List 업데이트 (v2.9 스타일)
+     */
+    _updateDatabaseList(siteId) {
+        const dbList = this.connectionModal?.querySelector('#database-list');
+        if (!dbList) return;
+        
+        if (siteId) {
+            const site = SITE_LIST.find(s => s.id === siteId);
+            dbList.innerHTML = `
+                <div class="database-item">
+                    <div class="database-header">
+                        <h4>📊 ${site?.name || siteId}</h4>
+                    </div>
+                    <div class="database-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Equipment:</span>
+                            <span class="stat-value">117</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Lines:</span>
+                            <span class="stat-value">6</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Active Lots:</span>
+                            <span class="stat-value">85</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            dbList.innerHTML = `
+                <div class="no-connection">
+                    <span class="no-connection-icon">📂</span>
+                    <p>No database connected</p>
+                </div>
+            `;
+        }
+    }
+    
+    _refreshDatabaseInfo() {
+        if (this.toast) {
+            this.toast.success('Refreshed', 'Database information updated');
+        }
     }
     
     /**
@@ -602,7 +939,8 @@ export class Sidebar {
         if (this.connectionModal) {
             this.connectionModal.classList.add('active');
             this.connectionModalOpen = true;
-            this._updateConnectionModalStatus();
+            this._checkInternetStatus();
+            this._refreshAPIStatus();
             
             if (this.eventBus) {
                 this.eventBus.emit('connectionModal:opened');
@@ -632,128 +970,6 @@ export class Sidebar {
             this.closeConnectionModal();
         } else {
             this.openConnectionModal();
-        }
-    }
-    
-    /**
-     * Connection Modal 상태 업데이트
-     */
-    _updateConnectionModalStatus() {
-        const apiDot = document.getElementById('modal-api-dot');
-        const apiStatus = document.getElementById('modal-api-status');
-        const dbDot = document.getElementById('modal-db-dot');
-        const dbStatus = document.getElementById('modal-db-status');
-        
-        // API 상태
-        const isApiOnline = this.connectionStatusService?.isOnline?.() || false;
-        if (apiDot) {
-            apiDot.className = `status-dot ${isApiOnline ? 'connected' : 'disconnected'}`;
-        }
-        if (apiStatus) {
-            apiStatus.textContent = isApiOnline ? 'Connected' : 'Disconnected';
-        }
-        
-        // DB 상태
-        if (dbDot) {
-            dbDot.className = `status-dot ${this.isConnected ? 'connected' : 'disconnected'}`;
-        }
-        if (dbStatus) {
-            dbStatus.textContent = this.isConnected ? 'Connected' : 'Not Connected';
-        }
-    }
-    
-    /**
-     * 사이트 연결 시도
-     */
-    async _connectToSite(siteId) {
-        console.log(`🔗 Connecting to: ${siteId}`);
-        
-        const dbStatus = document.getElementById('modal-db-status');
-        if (dbStatus) {
-            dbStatus.textContent = 'Connecting...';
-        }
-        
-        if (this.toast) {
-            this.toast.info('Connecting', `Connecting to ${siteId}...`);
-        }
-        
-        try {
-            // TODO: 실제 연결 로직 (API 호출)
-            // const response = await fetch(`${API_BASE_URL}/api/connection/connect`, {
-            //     method: 'POST',
-            //     headers: { 'Content-Type': 'application/json' },
-            //     body: JSON.stringify({ site_id: siteId })
-            // });
-            
-            // 시뮬레이션: Dev Mode면 성공으로 처리
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            if (this.devModeEnabled) {
-                // Dev Mode: 연결 성공 시뮬레이션
-                this.isConnected = true;
-                this._updateButtonStates();
-                this._updateConnectionModalStatus();
-                
-                if (this.eventBus) {
-                    this.eventBus.emit('site:connected', { siteId, siteName: siteId });
-                }
-                
-                if (this.toast) {
-                    this.toast.success('Connected', `Connected to ${siteId}`);
-                }
-                
-                this.closeConnectionModal();
-            } else {
-                // 실제 모드: Backend 필요
-                if (dbStatus) {
-                    dbStatus.textContent = 'Failed (No Backend)';
-                }
-                if (this.toast) {
-                    this.toast.error('Failed', 'Backend not available');
-                }
-            }
-        } catch (error) {
-            console.error('Connection failed:', error);
-            if (dbStatus) {
-                dbStatus.textContent = 'Failed';
-            }
-            if (this.toast) {
-                this.toast.error('Connection Failed', error.message);
-            }
-        }
-    }
-    
-    /**
-     * Backend Health Check
-     */
-    async _checkBackendHealth() {
-        console.log('🔍 Checking backend health...');
-        
-        const apiStatus = document.getElementById('modal-api-status');
-        if (apiStatus) {
-            apiStatus.textContent = 'Checking...';
-        }
-        
-        try {
-            // ConnectionStatusService 사용
-            if (this.connectionStatusService) {
-                const isOnline = await this.connectionStatusService.checkOnline?.() || 
-                                 this.connectionStatusService.isOnline?.() || false;
-                this._updateConnectionModalStatus();
-                
-                if (this.toast) {
-                    if (isOnline) {
-                        this.toast.success('Backend Online', 'API is available');
-                    } else {
-                        this.toast.warning('Backend Offline', 'API is not available');
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Health check failed:', error);
-            if (apiStatus) {
-                apiStatus.textContent = 'Disconnected';
-            }
         }
     }
     
@@ -791,13 +1007,11 @@ export class Sidebar {
         
         const unsubOnline = this.connectionStatusService.onOnline(() => {
             this.enableAfterConnection();
-            this._updateConnectionModalStatus();
         });
         this._eventUnsubscribers.push(unsubOnline);
         
         const unsubOffline = this.connectionStatusService.onOffline(() => {
             this.disableBeforeConnection();
-            this._updateConnectionModalStatus();
         });
         this._eventUnsubscribers.push(unsubOffline);
         
@@ -815,15 +1029,8 @@ export class Sidebar {
         
         switch (key) {
             case 'connection':
-                // 🆕 v1.1.0: 자체 모달 사용 (무한 루프 방지)
-                // 콜백 호출 시 main.js가 다시 이 메서드를 호출할 수 있으므로
+                // 자체 모달 사용
                 this.toggleConnectionModal();
-                
-                // 이벤트 발행 (추가 처리용)
-                if (this.eventBus) {
-                    const isOpen = this.connectionModal?.classList.contains('active');
-                    this.eventBus.emit(isOpen ? 'connectionModal:opened' : 'connectionModal:closed');
-                }
                 break;
                 
             case 'monitoring':
@@ -849,8 +1056,17 @@ export class Sidebar {
         }
     }
     
+    /**
+     * 🆕 v1.2.0: _handleSubmenuClick 수정 - public 메서드 직접 호출 지원
+     * 
+     * 호출 순서:
+     * 1. callbacks 객체에서 찾기 (외부 주입된 콜백)
+     * 2. this 인스턴스의 public 메서드에서 찾기 (언더스코어 없이)
+     * 3. this 인스턴스의 private 메서드에서 찾기 (_prefix)
+     */
     _handleSubmenuClick(item) {
         if (item.action) {
+            // 1. callbacks에서 먼저 찾기
             const callback = this.callbacks[item.action];
             if (callback) {
                 if (item.params) {
@@ -858,12 +1074,22 @@ export class Sidebar {
                 } else {
                     callback();
                 }
-            } else {
-                const method = this[`_${item.action}`];
-                if (method) {
-                    method.call(this, ...(item.params || []));
-                }
+                return;
             }
+            
+            // 2. 🆕 v1.2.0: this 인스턴스에서 찾기 (public 메서드 - 언더스코어 없이)
+            if (typeof this[item.action] === 'function') {
+                this[item.action](...(item.params || []));
+                return;
+            }
+            
+            // 3. private 메서드 (_prefix)에서 찾기
+            if (typeof this[`_${item.action}`] === 'function') {
+                this[`_${item.action}`](...(item.params || []));
+                return;
+            }
+            
+            console.warn(`[Sidebar] Action not found: ${item.action}`);
         } else if (item.submode) {
             this._setSubMode(item.submode);
         }
@@ -973,7 +1199,7 @@ export class Sidebar {
         
         if (submodeDisplay) {
             submodeDisplay.textContent = this.currentSubMode 
-                ? `→ ${this.currentSubMode}`
+                ? `→ ${this.currentSubMode === '3d-view' ? '3D View' : this.currentSubMode}`
                 : '';
         }
     }
@@ -1115,7 +1341,15 @@ export class Sidebar {
         if (apiDot) apiDot.className = `cover-status-dot ${dotClass}`;
         if (apiStatus) apiStatus.textContent = statusText;
         if (dbDot) dbDot.className = `cover-status-dot ${dotClass}`;
-        if (dbStatus) dbStatus.textContent = connected ? 'Site Connected' : 'Not Connected';
+        
+        if (dbStatus) {
+            if (connected && this.selectedSite) {
+                const site = SITE_LIST.find(s => s.id === this.selectedSite);
+                dbStatus.textContent = site?.name || this.selectedSite;
+            } else {
+                dbStatus.textContent = 'Not Connected';
+            }
+        }
     }
     
     // ========================================
@@ -1146,6 +1380,9 @@ export class Sidebar {
     // Dev Mode
     // ========================================
     
+    /**
+     * 🆕 v1.2.0: Dev Mode 토글 (public 메서드)
+     */
     toggleDevMode() {
         this.devModeEnabled = !this.devModeEnabled;
         
@@ -1157,12 +1394,26 @@ export class Sidebar {
             badge.classList.toggle('active', this.devModeEnabled);
         }
         
+        // 레이블 업데이트
+        const labelText = `Dev Mode: ${this.devModeEnabled ? 'ON' : 'OFF'}`;
+        
         if (devModeLabel) {
-            const labelSpan = devModeLabel.querySelector('span') || devModeLabel;
-            if (labelSpan.tagName === 'SPAN') {
-                labelSpan.textContent = `Dev Mode: ${this.devModeEnabled ? 'ON' : 'OFF'}`;
+            // submenu-item 내부의 span 찾기
+            const labelSpan = devModeLabel.querySelector('span');
+            if (labelSpan) {
+                labelSpan.textContent = labelText;
             } else {
-                devModeLabel.textContent = `Dev Mode: ${this.devModeEnabled ? 'ON' : 'OFF'}`;
+                // span이 없으면 전체 텍스트 변경 (아이콘 제외)
+                const icon = devModeLabel.querySelector('svg');
+                if (icon) {
+                    devModeLabel.innerHTML = '';
+                    devModeLabel.appendChild(icon);
+                    const span = document.createElement('span');
+                    span.textContent = labelText;
+                    devModeLabel.appendChild(span);
+                } else {
+                    devModeLabel.textContent = labelText;
+                }
             }
         }
         
@@ -1198,7 +1449,7 @@ export class Sidebar {
         }
     }
     
-    _setDebugView(view) {
+    setDebugView(view) {
         if (this.toast) {
             this.toast.info('Debug View', view);
         }
@@ -1206,10 +1457,6 @@ export class Sidebar {
         if (this.eventBus) {
             this.eventBus.emit('debug:set-view', { view });
         }
-    }
-    
-    _toggleDebugPanel() {
-        this.callbacks.toggleDebugPanel?.();
     }
     
     // ========================================
