@@ -1,299 +1,862 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-theme="dark">
+<!--
+ * index.html
+ * ==========
+ * SHERLOCK SKY 3DSim - Cleanroom Sidebar Theme
+ * 
+ * @version 5.0.0
+ * @created 2026-01-11
+ * 
+ * [MIGRATION FROM]
+ * - 기존 index.html (Floating Buttons)
+ * - test_sidebar_standalone.html v2.10 (Cleanroom Theme)
+ * 
+ * [FEATURES]
+ * - Sidebar-based navigation (Sidebar.js 동적 생성)
+ * - Cover Screen with connection status (CoverScreen.js)
+ * - Status Bar with NET/API/DB/FPS/MEM (StatusBar.js)
+ * - 기존 기능 100% 보존 (Connection Modal, Edit Mode, etc.)
+ * 
+ * [PRESERVED FUNCTIONS - from main.js]
+ * - toggleEditMode() - Equipment Edit (E key)
+ * - toggleMonitoringMode() - Monitoring (M key)
+ * - toggleConnectionModal() - Connection (Ctrl+K)
+ * - toggleDebugPanel() - Debug (D key)
+ * - appModeManager - 중앙 모드 관리
+ * 
+ * 위치: frontend/threejs_viewer/index.html
+-->
 
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Sherlock Sky 3DSim - 설비 3D 시뮬레이션</title>
-
-	<!-- ============================================
-		⭐ CSS Import (통합된 스타일시트)
-		============================================ -->
-	<link rel="stylesheet" href="styles/main.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏭 Sherlock Sky 3DSim v5.0</title>
+    
+    <!-- ============================================
+         통합 스타일시트 (CSS 변수 + 컴포넌트)
+         styles/main.css에서 모든 CSS를 import
+         ============================================ -->
+    <link rel="stylesheet" href="styles/main.css">
 </head>
 
 <body>
-	<!-- ============================================
-		⭐ 마우스 사용법 정보 패널 - 오른쪽 상단
-	   ============================================ -->
-	<div id="info">
-		<h3>🏭 Sherlock Sky 3DSim</h3>
-		<p>🖱️ <strong>좌클릭 + 드래그:</strong> 회전</p>
-		<p>🖱️ <strong>휠:</strong> 줌 인/아웃</p>
-		<p>🖱️ <strong>우클릭 + 드래그:</strong> 이동</p>
-		<p>👆 <strong>설비 클릭:</strong> 정보 보기</p>
-
-		<div class="multi-select-tip">
-			<strong>✨ 다중 선택:</strong><br>
-			Ctrl+클릭으로 여러 설비 선택<br>
-			선택 시 평균값 자동 계산
-		</div>
-
-		<div class="keyboard-hint">
-			💡 <strong>F12</strong>로 콘솔 열기<br>
-			💡 <strong>debugHelp()</strong> 입력으로 명령어 보기
-		</div>
-	</div>
-
-	<!-- 로딩 상태 -->
-	<div id="loadingStatus">
-		🔄 초기화 중...
-	</div>
-
-	<!-- 설비 정보 패널 -->
-	<div id="equipmentInfo">
-		<button class="close-btn" onclick="closeEquipmentInfo()">×</button>
-		<h2 id="equipName">설비 정보</h2>
-		<div id="equipDetails"></div>
-	</div>
-
-	<!-- ============================================
-		⭐ Connection Button - 왼쪽 상단 최상위
-		============================================ -->
-	<button id="connectionBtn" class="floating-btn" title="Database Connection (Ctrl+K)">
-		🔌
-	</button>
-
-	<!-- ============================================
-		⭐ Equipment Edit Button - Connection 버튼 아래
-		============================================ -->
-	<button id="editBtn" class="floating-btn" title="Equipment Edit Mode (E)">
-		✏️
-	</button>
-
-	<!-- ============================================
-		⭐ Phase 2: Monitoring Button
-		============================================ -->
-	<button id="monitoringBtn" class="floating-btn" title="Monitoring Mode (M)">
-		🚨
-	</button>
-
-	<!-- ============================================
-		✨ Phase 4.5: Preview Button (NEW - Editor 모드에서만 표시)
-		============================================ -->
-	<button id="previewBtn" class="floating-btn" title="3D Preview (P)">
-		🔍
-	</button>
-
-	<!-- ============================================
-		✨ Phase 2.6: Component Palette
-		============================================ -->
-	<div id="component-palette" class="hidden">
-		<!-- ComponentPalette.js가 동적으로 채움 -->
-	</div>
-
-	<!-- ============================================
-		✨ Phase 4.5: 3D Preview Modal (NEW)
-		============================================ -->
-	<div id="preview-modal" class="modal">
-		<div class="modal-overlay"></div>
-		<div class="modal-content preview-modal-content">
-			<div class="modal-header preview-header">
-				<h2>🔍 3D Preview - 저장 전 미리보기</h2>
-				<button class="modal-close" id="preview-close">&times;</button>
-			</div>
-			<div class="modal-body preview-body">
-				<div class="preview-controls">
-					<button class="preview-view-btn" data-view="perspective" title="원근 뷰">↻ 원근</button>
-					<button class="preview-view-btn" data-view="top" title="위에서 보기">⬆️ Top</button>
-					<button class="preview-view-btn" data-view="front" title="앞에서 보기">➡️ Front</button>
-					<button class="preview-view-btn" data-view="side" title="옆에서 보기">⬇️ Side</button>
-				</div>
-				<div class="preview-canvas-container">
-					<canvas id="preview-canvas"></canvas>
-				</div>
-				<div class="preview-info-panel">
-					<div class="preview-info-title">📋 변경사항 요약</div>
-					<div id="preview-summary">
-						<!-- 동적으로 채워짐 -->
-					</div>
-					<div class="preview-notice">
-						<span class="notice-icon">ℹ️</span>
-						<span>미리보기입니다. 저장 후 실제 3D Viewer에 적용됩니다.</span>
-					</div>
-				</div>
-			</div>
-			<div class="modal-footer preview-footer">
-				<button class="btn btn-secondary" id="preview-back-edit">
-					✏️ Back to Edit
-				</button>
-				<button class="btn btn-primary" id="preview-save-apply">
-					💾 Save & Apply
-				</button>
-			</div>
-		</div>
-	</div>
-
-	<!-- ============================================
-		⭐ 디버그 토글 버튼 - 왼쪽 아래
-		============================================ -->
-	<button id="debugToggle" class="floating-btn" onclick="toggleDebugPanel()" title="디버그 패널">
-		🔧
-	</button>
-
-	<!-- ============================================
-		⭐ 디버그 컨트롤 패널 - 디버그 버튼 오른쪽
-		============================================ -->
-	<div id="debugControls">
-		<h4>🔧 디버그 컨트롤</h4>
-		<button onclick="window.debugScene()">📦 씬 정보</button>
-		<button onclick="window.debugRenderer()">🎨 렌더러 정보</button>
-		<button onclick="window.getPerformanceStats()">⚡ 성능 측정</button>
-		<button onclick="window.getMemoryInfo()">💾 메모리 정보</button>
-		<button onclick="window.debugHelp()">❓ 도움말</button>
-		<button onclick="window.getSelectedEquipments()">📊 선택된 설비</button>
-		<button onclick="window.clearSelections()">❌ 선택 해제</button>
-	</div>
-
-	<!-- ============================================
-		Connection Modal HTML
-		============================================ -->
-	<div id="connection-modal" class="modal">
-		<div class="modal-overlay"></div>
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2>🔌 Database Connection Manager</h2>
-				<button class="modal-close" aria-label="Close">&times;</button>
-			</div>
-			<div class="modal-body">
-				<!-- Connection Status Panel -->
-				<div id="connection-status-panel"></div>
-				
-				<!-- Site Selection Panel -->
-				<div id="site-selection-panel"></div>
-				
-				<!-- Database List Panel -->
-				<div id="database-list-panel"></div>
-			</div>
-		</div>
-	</div>
-
-	<!-- ============================================
-		Toast Container
-		============================================ -->
-	<div id="toast-container" class="toast-container"></div>
-
-
-	<!-- Three.js Import Map -->
-	<script type="importmap">
-		{
+    <!-- ============================================
+         LAYER 1: Global Notifications (최상위)
+         ============================================ -->
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+    
+    <!-- Dev Mode Badge -->
+    <div class="dev-mode-badge" id="dev-mode-badge">⚡ DEV MODE</div>
+    
+    <!-- ============================================
+         LAYER 2: Main Layout (Flex: Sidebar + Content)
+         ============================================ -->
+    
+    <!-- SIDEBAR: Sidebar.js가 동적 생성 -->
+    <aside class="sidebar" id="sidebar">
+        <!-- 
+            Sidebar.js에서 innerHTML로 생성됨
+            또는 main.js 초기화 전까지 빈 상태 유지
+            
+            구조 예시:
+            - btn-connection (Database 연결)
+            - btn-monitoring (Monitoring + submenu)
+            - btn-analysis (분석 - disabled)
+            - btn-simulation (시뮬레이션 - disabled)
+            - btn-layout (Layout Editor - Dev Mode)
+            - btn-debug (Debug + submenu)
+            - btn-settings (Settings + Theme toggle)
+        -->
+    </aside>
+    
+    <!-- MAIN CONTENT -->
+    <main class="main-content" id="main-content">
+        <!-- ==========================================
+             Cover Screen: CoverScreen.js가 동적 생성
+             - 연결 전 기본 화면
+             - API/DB 상태 표시
+             - Ctrl+K 힌트
+             ========================================== -->
+        <div id="cover-screen">
+            <!-- CoverScreen.js에서 innerHTML로 생성 또는 아래 정적 내용 사용 -->
+            <div class="cover-logo">🏭</div>
+            <div class="cover-title">SHERLOCK SKY 3D SIM</div>
+            <div class="cover-subtitle">Industrial Equipment Monitoring & Simulation Platform</div>
+            
+            <div class="cover-status">
+                <div class="cover-status-item">
+                    <span class="cover-status-dot disconnected" id="cover-api-dot"></span>
+                    <span class="cover-status-text">Backend API</span>
+                    <span class="cover-status-value" id="cover-api-status">Checking...</span>
+                </div>
+                <div class="cover-status-item">
+                    <span class="cover-status-dot disconnected" id="cover-db-dot"></span>
+                    <span class="cover-status-text">Database</span>
+                    <span class="cover-status-value" id="cover-db-status">Not Connected</span>
+                </div>
+            </div>
+            
+            <div class="cover-hint">
+                Press <kbd>Ctrl+K</kbd> to connect database, or select <kbd>Monitoring → 3D View</kbd> after connection
+            </div>
+        </div>
+        
+        <!-- ==========================================
+             Three.js Container
+             - Monitoring → 3D View 선택 시 표시
+             - 기존 main.js에서 초기화
+             ========================================== -->
+        <div id="threejs-container"></div>
+        
+        <!-- ==========================================
+             Overlay UI (3D View 위에 표시)
+             - Mode Indicator
+             - Test Controls (Dev Mode)
+             ========================================== -->
+        <div class="overlay-ui" id="overlay-ui">
+            <div class="mode-indicator">
+                <div class="mode-label">Current Mode</div>
+                <div class="mode-value" id="current-mode">—</div>
+                <div class="submode-value" id="current-submode"></div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- ============================================
+         LAYER 3: Modals & Panels (기존 구조 유지)
+         ============================================ -->
+    
+    <!-- ==========================================
+         CONNECTION MODAL (기존 main.js 로직 사용)
+         - Ctrl+K로 열기/닫기
+         - ConnectionModal.js에서 동적 채움
+         ========================================== -->
+    <div id="connection-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔌 Database Connection Manager</h2>
+                <button class="modal-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Connection Status Panel -->
+                <div id="connection-status-panel"></div>
+                
+                <!-- Site Selection Panel -->
+                <div id="site-selection-panel"></div>
+                
+                <!-- Database List Panel -->
+                <div id="database-list-panel"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ==========================================
+         EQUIPMENT INFO PANEL (기존 구조 유지)
+         - 설비 클릭 시 표시
+         - EquipmentInfoPanel.js에서 동적 채움
+         ========================================== -->
+    <div id="equipmentInfo">
+        <button class="close-btn" onclick="closeEquipmentInfo()">×</button>
+        <h2 id="equipName">설비 정보</h2>
+        <div id="equipDetails"></div>
+    </div>
+    
+    <!-- ==========================================
+         DEBUG PANEL
+         - D 키로 토글
+         - DebugPanel.js 또는 기존 debugControls
+         ========================================== -->
+    <div id="debug-panel">
+        <div class="debug-panel-header">
+            <span class="debug-panel-title">🐛 Debug Panel</span>
+            <button class="close-btn" onclick="toggleDebugPanel()">×</button>
+        </div>
+        <div class="debug-panel-content">
+            <div class="debug-section">
+                <div class="debug-section-title">📊 Application State</div>
+                <div class="debug-state-item">
+                    <span class="debug-state-label">Mode:</span>
+                    <span class="debug-state-value" id="debug-mode">N/A</span>
+                </div>
+                <div class="debug-state-item">
+                    <span class="debug-state-label">SubMode:</span>
+                    <span class="debug-state-value" id="debug-submode">N/A</span>
+                </div>
+                <div class="debug-state-item">
+                    <span class="debug-state-label">Connected:</span>
+                    <span class="debug-state-value off" id="debug-connected">NO</span>
+                </div>
+                <div class="debug-state-item">
+                    <span class="debug-state-label">Dev Mode:</span>
+                    <span class="debug-state-value off" id="debug-devmode">OFF</span>
+                </div>
+                <div class="debug-state-item">
+                    <span class="debug-state-label">3D Active:</span>
+                    <span class="debug-state-value off" id="debug-3d">NO</span>
+                </div>
+            </div>
+            <div class="debug-section">
+                <div class="debug-section-title">⚡ Performance</div>
+                <div class="debug-state-item">
+                    <span class="debug-state-label">Time:</span>
+                    <span class="debug-state-value" id="debug-time">-</span>
+                </div>
+                <div class="debug-state-item">
+                    <span class="debug-state-label">Memory:</span>
+                    <span class="debug-state-value" id="debug-memory">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ==========================================
+         기존 DEBUG CONTROLS (레거시 호환)
+         - 기존 코드에서 참조할 수 있으므로 유지
+         - hidden 상태로 시작
+         ========================================== -->
+    <div id="debugControls" style="display: none;">
+        <h4>🔧 디버그 컨트롤</h4>
+        <button onclick="window.debugScene?.()">📦 씬 정보</button>
+        <button onclick="window.debugRenderer?.()">🎨 렌더러 정보</button>
+        <button onclick="window.getPerformanceStats?.()">⚡ 성능 측정</button>
+        <button onclick="window.getMemoryInfo?.()">💾 메모리 정보</button>
+        <button onclick="window.debugHelp?.()">❓ 도움말</button>
+        <button onclick="window.getSelectedEquipments?.()">📊 선택된 설비</button>
+        <button onclick="window.clearSelections?.()">❌ 선택 해제</button>
+    </div>
+    
+    <!-- ==========================================
+         PREVIEW MODAL (Editor 모드용)
+         - P 키로 열기
+         - Layout Editor에서 3D 미리보기
+         ========================================== -->
+    <div id="preview-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content preview-modal-content">
+            <div class="modal-header preview-header">
+                <h2>🔍 3D Preview - 저장 전 미리보기</h2>
+                <button class="modal-close" id="preview-close">&times;</button>
+            </div>
+            <div class="modal-body preview-body">
+                <div class="preview-controls">
+                    <button class="preview-view-btn" data-view="perspective" title="원근 뷰">↻ 원근</button>
+                    <button class="preview-view-btn" data-view="top" title="위에서 보기">⬆️ Top</button>
+                    <button class="preview-view-btn" data-view="front" title="앞에서 보기">➡️ Front</button>
+                    <button class="preview-view-btn" data-view="side" title="옆에서 보기">⬇️ Side</button>
+                </div>
+                <div class="preview-canvas-container">
+                    <canvas id="preview-canvas"></canvas>
+                </div>
+                <div class="preview-info-panel">
+                    <div class="preview-info-title">📋 변경사항 요약</div>
+                    <div id="preview-summary">
+                        <!-- 동적으로 채워짐 -->
+                    </div>
+                    <div class="preview-notice">
+                        <span class="notice-icon">ℹ️</span>
+                        <span>미리보기입니다. 저장 후 실제 3D Viewer에 적용됩니다.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer preview-footer">
+                <button class="btn btn-secondary" id="preview-back-edit">
+                    ✏️ Back to Edit
+                </button>
+                <button class="btn btn-primary" id="preview-save-apply">
+                    💾 Save & Apply
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ==========================================
+         COMPONENT PALETTE (Editor 모드용)
+         - Layout Editor에서 컴포넌트 선택
+         ========================================== -->
+    <div id="component-palette" class="hidden">
+        <!-- ComponentPalette.js가 동적으로 채움 -->
+    </div>
+    
+    <!-- ==========================================
+         로딩 상태 (기존 호환)
+         - 초기화 중 표시, 3초 후 자동 숨김
+         ========================================== -->
+    <div id="loadingStatus" style="display: none;">
+        🔄 초기화 중...
+    </div>
+    
+    <!-- ============================================
+         LAYER 4: Status Bar
+         StatusBar.js가 동적 생성
+         ============================================ -->
+    <footer class="status-bar" id="status-bar">
+        <!-- StatusBar.js에서 innerHTML로 생성 또는 아래 정적 내용 사용 -->
+        <div class="status-group">
+            <div class="status-item">
+                <span class="country-code" id="status-country">KR</span>
+            </div>
+            <div class="status-item">
+                <span class="status-dot connected" id="net-dot"></span>
+                <span class="status-label">NET</span>
+                <span class="status-value" id="net-value">Online</span>
+            </div>
+            <div class="status-item">
+                <span class="status-dot disconnected" id="api-dot"></span>
+                <span class="status-label">API</span>
+                <span class="status-value" id="api-value">Disconnected</span>
+            </div>
+            <div class="status-item">
+                <span class="status-dot disconnected" id="db-dot"></span>
+                <span class="status-label">DB</span>
+                <span class="status-value" id="db-value">None</span>
+            </div>
+        </div>
+        <div class="status-group">
+            <div class="status-item">
+                <span class="status-label">FPS</span>
+                <span class="status-value" id="fps-value">60</span>
+                <div class="perf-bar">
+                    <div class="perf-bar-fill good" id="fps-bar" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div class="status-item">
+                <span class="status-label">MEM</span>
+                <span class="status-value"><span id="memory-value">128</span>MB</span>
+                <div class="perf-bar">
+                    <div class="perf-bar-fill good" id="memory-bar" style="width: 30%;"></div>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- ============================================
+         기존 FLOATING BUTTONS (레거시 호환)
+         점진적 마이그레이션을 위해 hidden 상태로 유지
+         Sidebar 완전 적용 후 제거 예정
+         ============================================ -->
+    <div id="legacy-floating-buttons" style="display: none;">
+        <!-- Connection Button -->
+        <button id="connectionBtn" class="floating-btn" title="Database Connection (Ctrl+K)">
+            🔌
+        </button>
+        
+        <!-- Equipment Edit Button -->
+        <button id="editBtn" class="floating-btn" title="Equipment Edit Mode (E)">
+            ✏️
+        </button>
+        
+        <!-- Monitoring Button -->
+        <button id="monitoringBtn" class="floating-btn" title="Monitoring Mode (M)">
+            🚨
+        </button>
+        
+        <!-- Preview Button (Editor 모드) -->
+        <button id="previewBtn" class="floating-btn" title="3D Preview (P)">
+            🔍
+        </button>
+        
+        <!-- Debug Toggle Button -->
+        <button id="debugToggle" class="floating-btn" title="디버그 패널 (D)">
+            🔧
+        </button>
+    </div>
+    
+    <!-- ============================================
+         기존 INFO PANEL (레거시 호환)
+         Sidebar 완전 적용 후 제거 예정
+         ============================================ -->
+    <div id="info" style="display: none;">
+        <h3>🏭 Sherlock Sky 3DSim</h3>
+        <p>🖱️ <strong>좌클릭 + 드래그:</strong> 회전</p>
+        <p>🖱️ <strong>휠:</strong> 줌 인/아웃</p>
+        <p>🖱️ <strong>우클릭 + 드래그:</strong> 이동</p>
+        <p>👆 <strong>설비 클릭:</strong> 정보 보기</p>
+    </div>
+    
+    <!-- ============================================
+         SCRIPTS
+         ============================================ -->
+    
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+    {
         "imports": {
             "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
             "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
         }
     }
     </script>
-
-	<!-- 메인 스크립트 로드 -->
-	<script type="module" src="./src/main.js"></script>
-
-	<script>
-		// 디버그 패널 토글
-		function toggleDebugPanel() {
-			const panel = document.getElementById('debugControls');
-			const button = document.getElementById('debugToggle');
-			if (panel && button) {
-				panel.classList.toggle('active');
-				button.classList.toggle('active');
-			} 
-		}
-
-		// 설비 정보 패널 닫기
-		function closeEquipmentInfo() {
-			const panel = document.getElementById('equipmentInfo');
-			if (panel) {
-				panel.classList.remove('active');
-			}
-
-			// 선택 해제
-			if (window.clearSelections) {
-				window.clearSelections();
-			}
-		}
-
-		// 로딩 상태 3초 후 자동 숨김
-		setTimeout(() => {
-			const loadingStatus = document.getElementById('loadingStatus');
-			if (loadingStatus) {
-				loadingStatus.style.transition = 'opacity 0.5s';
-				loadingStatus.style.opacity = '0';
-				setTimeout(() => {
-					loadingStatus.style.display = 'none';
-				}, 500);
-			}
-		}, 3000);
-
-		// // 키보드 단축키
-		// document.addEventListener('keydown', (event) => {
-		// 	// 'D' 키: 디버그 패널 토글
-		// 	if (event.key === 'd' || event.key === 'D') {
-		// 		toggleDebugPanel();
-		// 	}
-		// 	// ESC 키: 정보 패널 닫기 및 Preview Modal 닫기
-		// 	if (event.key === 'Escape') {
-		// 		closeEquipmentInfo();
-		// 		// ✨ Phase 4.5: Preview Modal 닫기 추가
-		// 		if (window.closePreviewModal) {
-		// 			window.closePreviewModal();
-		// 		}
-		// 	}
-		// 	// 'C' 키: 선택 해제
-		// 	if (event.key === 'c' || event.key === 'C') {
-		// 		if (window.clearSelections) {
-		// 			window.clearSelections();
-		// 		}
-		// 	}
-		// 	// ⭐ 새로 추가: 'E' 키: Equipment Edit 모드 토글
-		// 	if (event.key === 'e' || event.key === 'E') {
-		// 		if (window.toggleEditMode) {
-		// 			window.toggleEditMode();
-		// 		}
-		// 	}
-		// 	// ⭐ Phase 2: 'M' 키: Monitoring 모드 토글
-		// 	if (event.key === 'm' || event.key === 'M') {
-		// 		if (window.toggleMonitoringMode) {
-		// 			window.toggleMonitoringMode();
-		// 		}
-		// 	}
-		// 	// ✨ Phase 4.5: 'P' 키: Preview 모드 토글 (NEW)
-		// 	if (event.key === 'p' || event.key === 'P') {
-		// 		if (window.showPreview3D) {
-		// 			window.showPreview3D();
-		// 		}
-		// 	}
-		// });
-
-		// 페이지 로드 완료 시
-		window.addEventListener('load', () => {
-			console.log('🚀 페이지 로드 완료');
-			console.log('💡 키보드 단축키:');
-			console.log('   D - 디버그 패널 토글');
-			console.log('   P - 성능 모니터 토글');
-			console.log('   H - 헬퍼 토글');
-			console.log('   G - 그리드 토글');
-			console.log('   E - Equipment Edit 모드 토글');
-			console.log('   M - Monitoring 모드 토글');
-			console.log('   Ctrl+K - Connection Modal');
-			console.log('   ESC - 모달 닫기');
-			console.log('');
-			console.log('🔧 디버그 명령어:');
-			console.log('   debugHelp() - 사용 가능한 명령어 확인');
-		});
-
-		// 에러 핸들링
-		window.addEventListener('error', (event) => {
-			console.error('전역 에러 발생:', event.error);
-
-			// 스크립트 로드 실패 시 경로 힌트
-			if (event.message && event.message.includes('Failed to load module')) {
-				console.error('❌ 모듈 로드 실패!');
-				console.error('💡 해결 방법:');
-				console.error('   1. index.html의 script src 경로 확인');
-				console.error('   2. 프로젝트 폴더 구조 확인');
-				console.error('   3. http-server로 실행 중인지 확인 (file:// 프로토콜 사용 불가)');
-			}
-		});
-	</script>
+    
+    <!-- ==========================================
+         호환성 유지를 위한 인라인 스크립트
+         - 기존 index.html의 전역 함수
+         - main.js 초기화 전 임시 stub
+         ========================================== -->
+    <script>
+        // =============================================
+        // 전역 상태 (Sidebar와 연동)
+        // =============================================
+        window.sidebarState = {
+            currentMode: null,
+            currentSubMode: null,
+            isConnected: false,
+            devModeEnabled: false,
+            debugPanelVisible: false
+        };
+        
+        // =============================================
+        // 기존 전역 함수 - main.js에서 오버라이드됨
+        // =============================================
+        
+        /**
+         * 디버그 패널 토글 (레거시 호환 + Sidebar 연동)
+         */
+        function toggleDebugPanel() {
+            // main.js의 debugManager로 위임 (있으면)
+            if (window.debugManager?.toggle) {
+                window.debugManager.toggle();
+                return;
+            }
+            
+            // Sidebar용 Debug Panel 토글
+            const panel = document.getElementById('debug-panel');
+            if (panel) {
+                window.sidebarState.debugPanelVisible = !window.sidebarState.debugPanelVisible;
+                panel.classList.toggle('active', window.sidebarState.debugPanelVisible);
+            }
+            
+            // 레거시 debugControls (있으면)
+            const legacyPanel = document.getElementById('debugControls');
+            const legacyBtn = document.getElementById('debugToggle');
+            if (legacyPanel) {
+                legacyPanel.classList.toggle('active');
+            }
+            if (legacyBtn) {
+                legacyBtn.classList.toggle('active');
+            }
+        }
+        
+        /**
+         * 설비 정보 패널 닫기 (레거시 호환)
+         */
+        function closeEquipmentInfo() {
+            const panel = document.getElementById('equipmentInfo');
+            if (panel) {
+                panel.classList.remove('active');
+            }
+            
+            // main.js의 equipmentInfoPanel로 위임 (있으면)
+            if (window.equipmentInfoPanel?.hide) {
+                window.equipmentInfoPanel.hide();
+            }
+            
+            // 선택 해제
+            if (window.clearSelections) {
+                window.clearSelections();
+            }
+        }
+        
+        /**
+         * Preview Modal 닫기 (레거시 호환)
+         */
+        function closePreviewModal() {
+            const modal = document.getElementById('preview-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+            
+            // main.js의 previewGenerator로 위임 (있으면)
+            if (window.previewGenerator?.close) {
+                window.previewGenerator.close();
+            }
+        }
+        
+        // =============================================
+        // 테마 관리 (Sidebar Settings와 연동)
+        // =============================================
+        
+        /**
+         * 테마 토글
+         */
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            // 테마 스위치 UI 업데이트 (Sidebar에 있으면)
+            const themeSwitch = document.getElementById('theme-switch');
+            if (themeSwitch) {
+                themeSwitch.classList.toggle('active', newTheme === 'light');
+            }
+            
+            // Three.js 씬 배경색 업데이트 (있으면)
+            if (window.sceneManager?.scene) {
+                const bgColor = newTheme === 'dark' ? 0x1e293b : 0xf1f5f9;
+                window.sceneManager.scene.background = new THREE.Color(bgColor);
+            }
+            
+            console.log(`🎨 Theme changed to: ${newTheme}`);
+        }
+        
+        /**
+         * 저장된 테마 로드
+         */
+        function loadSavedTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            
+            const themeSwitch = document.getElementById('theme-switch');
+            if (themeSwitch) {
+                themeSwitch.classList.toggle('active', savedTheme === 'light');
+            }
+        }
+        
+        // =============================================
+        // Cover Screen 상태 관리
+        // =============================================
+        
+        /**
+         * Cover Screen 표시
+         */
+        function showCoverScreen() {
+            const coverScreen = document.getElementById('cover-screen');
+            const threejsContainer = document.getElementById('threejs-container');
+            const overlayUI = document.getElementById('overlay-ui');
+            
+            if (coverScreen) coverScreen.classList.remove('hidden');
+            if (threejsContainer) threejsContainer.classList.remove('active');
+            if (overlayUI) overlayUI.style.display = 'none';
+        }
+        
+        /**
+         * 3D View 표시
+         */
+        function show3DView() {
+            const coverScreen = document.getElementById('cover-screen');
+            const threejsContainer = document.getElementById('threejs-container');
+            const overlayUI = document.getElementById('overlay-ui');
+            
+            if (coverScreen) coverScreen.classList.add('hidden');
+            if (threejsContainer) threejsContainer.classList.add('active');
+            if (overlayUI) overlayUI.style.display = 'flex';
+        }
+        
+        /**
+         * Cover Screen API 상태 업데이트
+         */
+        function updateCoverStatus(apiConnected, dbConnected, dbName) {
+            const apiDot = document.getElementById('cover-api-dot');
+            const apiStatus = document.getElementById('cover-api-status');
+            const dbDot = document.getElementById('cover-db-dot');
+            const dbStatus = document.getElementById('cover-db-status');
+            
+            if (apiDot) {
+                apiDot.classList.toggle('connected', apiConnected);
+                apiDot.classList.toggle('disconnected', !apiConnected);
+            }
+            if (apiStatus) {
+                apiStatus.textContent = apiConnected ? 'Connected' : 'Disconnected';
+            }
+            
+            if (dbDot) {
+                dbDot.classList.toggle('connected', dbConnected);
+                dbDot.classList.toggle('disconnected', !dbConnected);
+            }
+            if (dbStatus) {
+                dbStatus.textContent = dbConnected ? (dbName || 'Connected') : 'Not Connected';
+            }
+        }
+        
+        // =============================================
+        // Status Bar 업데이트
+        // =============================================
+        
+        /**
+         * Status Bar API/DB 상태 업데이트
+         */
+        function updateStatusBar(apiConnected, dbConnected, siteId) {
+            const apiDot = document.getElementById('api-dot');
+            const apiValue = document.getElementById('api-value');
+            const dbDot = document.getElementById('db-dot');
+            const dbValue = document.getElementById('db-value');
+            
+            if (apiDot) {
+                apiDot.classList.toggle('connected', apiConnected);
+                apiDot.classList.toggle('disconnected', !apiConnected);
+            }
+            if (apiValue) {
+                apiValue.textContent = apiConnected ? 'Connected' : 'Disconnected';
+            }
+            
+            if (dbDot) {
+                dbDot.classList.toggle('connected', dbConnected);
+                dbDot.classList.toggle('disconnected', !dbConnected);
+            }
+            if (dbValue) {
+                dbValue.textContent = siteId ? siteId.replace(/_/g, '-').toUpperCase() : 'None';
+            }
+        }
+        
+        // =============================================
+        // Mode Indicator 업데이트
+        // =============================================
+        
+        /**
+         * 현재 모드 표시 업데이트
+         */
+        function updateModeIndicator(mode, submode) {
+            const modeValue = document.getElementById('current-mode');
+            const submodeValue = document.getElementById('current-submode');
+            
+            if (modeValue) {
+                modeValue.textContent = mode ? (mode.charAt(0).toUpperCase() + mode.slice(1)) : '—';
+            }
+            if (submodeValue) {
+                submodeValue.textContent = submode ? `→ ${submode}` : '';
+            }
+            
+            window.sidebarState.currentMode = mode;
+            window.sidebarState.currentSubMode = submode;
+        }
+        
+        // =============================================
+        // Dev Mode 토글
+        // =============================================
+        
+        /**
+         * Dev Mode 토글
+         */
+        function toggleDevMode() {
+            window.sidebarState.devModeEnabled = !window.sidebarState.devModeEnabled;
+            
+            const badge = document.getElementById('dev-mode-badge');
+            const layoutWrapper = document.getElementById('btn-layout-wrapper');
+            const devModeLabel = document.getElementById('dev-mode-label');
+            const mockTestSection = document.getElementById('mock-test-section');
+            
+            if (badge) {
+                badge.classList.toggle('active', window.sidebarState.devModeEnabled);
+            }
+            
+            if (layoutWrapper) {
+                layoutWrapper.classList.toggle('hidden', !window.sidebarState.devModeEnabled);
+                if (window.sidebarState.isConnected && window.sidebarState.devModeEnabled) {
+                    layoutWrapper.classList.remove('disabled');
+                }
+            }
+            
+            if (devModeLabel) {
+                devModeLabel.textContent = `Dev Mode: ${window.sidebarState.devModeEnabled ? 'ON' : 'OFF'}`;
+            }
+            
+            if (mockTestSection) {
+                mockTestSection.style.display = window.sidebarState.devModeEnabled ? 'block' : 'none';
+            }
+            
+            // Toast 알림 (있으면)
+            if (window.toast) {
+                if (window.sidebarState.devModeEnabled) {
+                    window.toast.show('Dev Mode ON', 'warning');
+                } else {
+                    window.toast.show('Dev Mode OFF', 'info');
+                }
+            }
+            
+            console.log(`⚡ Dev Mode: ${window.sidebarState.devModeEnabled ? 'ON' : 'OFF'}`);
+        }
+        
+        // =============================================
+        // 키보드 단축키 (기본 - main.js에서 확장됨)
+        // =============================================
+        
+        document.addEventListener('keydown', (event) => {
+            // 입력 필드에서는 무시
+            if (event.target.matches('input, textarea, select')) return;
+            
+            const key = event.key.toLowerCase();
+            
+            // Ctrl+K: Connection Modal
+            if ((event.ctrlKey || event.metaKey) && key === 'k') {
+                event.preventDefault();
+                
+                // main.js의 toggleConnectionModal로 위임 (있으면)
+                if (window.toggleConnectionModal) {
+                    window.toggleConnectionModal();
+                } else {
+                    // Sidebar에서 Connection Modal 열기
+                    const modal = document.getElementById('connection-modal');
+                    if (modal) {
+                        modal.classList.toggle('active');
+                    }
+                }
+                return;
+            }
+            
+            // ESC: 모달/패널 닫기
+            if (key === 'escape') {
+                // Connection Modal 닫기
+                const connModal = document.getElementById('connection-modal');
+                if (connModal?.classList.contains('active')) {
+                    connModal.classList.remove('active');
+                    return;
+                }
+                
+                // Preview Modal 닫기
+                const previewModal = document.getElementById('preview-modal');
+                if (previewModal && !previewModal.classList.contains('hidden')) {
+                    closePreviewModal();
+                    return;
+                }
+                
+                // Equipment Info 닫기
+                const equipInfo = document.getElementById('equipmentInfo');
+                if (equipInfo?.classList.contains('active')) {
+                    closeEquipmentInfo();
+                    return;
+                }
+                
+                // Debug Panel 닫기
+                if (window.sidebarState.debugPanelVisible) {
+                    toggleDebugPanel();
+                    return;
+                }
+            }
+            
+            // 연결 상태 또는 Dev Mode에서만 작동하는 단축키
+            if (!window.sidebarState.isConnected && !window.sidebarState.devModeEnabled) {
+                return;
+            }
+            
+            // D: Debug Panel 토글
+            if (key === 'd') {
+                toggleDebugPanel();
+                return;
+            }
+            
+            // E: Equipment Edit Mode 토글
+            if (key === 'e') {
+                if (window.toggleEditMode) {
+                    window.toggleEditMode();
+                }
+                return;
+            }
+            
+            // M: Monitoring Mode 토글
+            if (key === 'm') {
+                if (window.toggleMonitoringMode) {
+                    window.toggleMonitoringMode();
+                }
+                return;
+            }
+            
+            // P: Preview 표시 (Editor 모드에서)
+            if (key === 'p') {
+                if (window.showPreview3D) {
+                    window.showPreview3D();
+                }
+                return;
+            }
+        });
+        
+        // =============================================
+        // 초기화
+        // =============================================
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🏭 Sherlock Sky 3DSim v5.0 - Cleanroom Sidebar Theme');
+            
+            // 저장된 테마 로드
+            loadSavedTheme();
+            
+            // 네트워크 상태 초기화
+            const netDot = document.getElementById('net-dot');
+            const netValue = document.getElementById('net-value');
+            if (netDot) {
+                netDot.classList.toggle('connected', navigator.onLine);
+                netDot.classList.toggle('disconnected', !navigator.onLine);
+            }
+            if (netValue) {
+                netValue.textContent = navigator.onLine ? 'Online' : 'Offline';
+            }
+            
+            // 네트워크 상태 변경 감지
+            window.addEventListener('online', () => {
+                if (netDot) {
+                    netDot.classList.add('connected');
+                    netDot.classList.remove('disconnected');
+                }
+                if (netValue) netValue.textContent = 'Online';
+            });
+            
+            window.addEventListener('offline', () => {
+                if (netDot) {
+                    netDot.classList.remove('connected');
+                    netDot.classList.add('disconnected');
+                }
+                if (netValue) netValue.textContent = 'Offline';
+            });
+            
+            // 성능 지표 시뮬레이션 (StatusBar.js가 초기화되기 전)
+            setInterval(() => {
+                const fpsValue = document.getElementById('fps-value');
+                const memValue = document.getElementById('memory-value');
+                
+                if (fpsValue) {
+                    fpsValue.textContent = 58 + Math.floor(Math.random() * 5);
+                }
+                if (memValue) {
+                    memValue.textContent = 128 + Math.floor((Math.random() - 0.5) * 20);
+                }
+            }, 2000);
+            
+            console.log('💡 키보드 단축키:');
+            console.log('   Ctrl+K - Connection Modal');
+            console.log('   D - Debug Panel');
+            console.log('   E - Equipment Edit Mode');
+            console.log('   M - Monitoring Mode');
+            console.log('   P - Preview (Editor Mode)');
+            console.log('   ESC - 모달/패널 닫기');
+        });
+        
+        // =============================================
+        // 페이지 로드 완료
+        // =============================================
+        
+        window.addEventListener('load', () => {
+            console.log('✅ 페이지 로드 완료');
+            console.log('📦 main.js 모듈 로딩 시작...');
+        });
+        
+        // =============================================
+        // 에러 핸들링
+        // =============================================
+        
+        window.addEventListener('error', (event) => {
+            console.error('❌ 전역 에러 발생:', event.error);
+            
+            if (event.message && event.message.includes('Failed to load module')) {
+                console.error('❌ 모듈 로드 실패!');
+                console.error('💡 해결 방법:');
+                console.error('   1. http-server로 실행 중인지 확인');
+                console.error('   2. 파일 경로 확인');
+                console.error('   3. 브라우저 캐시 삭제 (Ctrl+Shift+R)');
+            }
+        });
+    </script>
+    
+    <!-- ==========================================
+         메인 스크립트 (ES Module)
+         - 기존 main.js 그대로 사용
+         - 위 전역 함수들을 오버라이드
+         ========================================== -->
+    <script type="module" src="./src/main.js"></script>
 </body>
 
 </html>
