@@ -3,9 +3,14 @@
  * =======================
  * Sidebar 버튼 생성 유틸리티 함수 모듈
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @created 2026-01-11
+ * @updated 2026-01-11
  * @source Sidebar.js v1.4.0 (버튼 생성 메서드)
+ * 
+ * @changelog
+ * - v1.1.0: 🔧 createDevModeBadge() deprecated (ModeIndicatorPanel로 대체)
+ * - v1.0.0: 초기 버전
  * 
  * @description
  * Sidebar.js 리팩토링 Phase 4
@@ -19,7 +24,7 @@
  *     createButtonWithSubmenu,
  *     createDivider,
  *     createSpacer,
- *     createDevModeBadge
+ *     // createDevModeBadge  // 🔧 v1.1.0: deprecated - ModeIndicatorPanel 사용
  * } from './SidebarButtonFactory.js';
  * 
  * const btn = createButton(config, getIcon, onClick);
@@ -151,20 +156,33 @@ export function createSpacer() {
 }
 
 /**
+ * @deprecated v1.1.0: ModeIndicatorPanel 사용을 권장합니다.
+ * 
  * Dev Mode 뱃지 생성
+ * 
+ * 🔧 v1.1.0 변경사항:
+ * - ModeIndicatorPanel.js가 Dev Mode Badge를 통합 관리합니다.
+ * - 이 함수는 하위 호환성을 위해 유지되지만, 새 코드에서는 사용하지 마세요.
+ * - Sidebar.js v1.7.0+에서는 이 함수를 호출하지 않습니다.
  * 
  * @returns {HTMLDivElement} Dev Mode 뱃지 요소
  */
 export function createDevModeBadge() {
+    console.warn('[SidebarButtonFactory] createDevModeBadge() is deprecated. Use ModeIndicatorPanel instead.');
+    
     let badge = document.getElementById('dev-mode-badge');
     
-    if (!badge) {
-        badge = document.createElement('div');
-        badge.className = 'dev-mode-badge';
-        badge.id = 'dev-mode-badge';
-        badge.textContent = '⚡ DEV MODE';
-        document.body.appendChild(badge);
+    // ModeIndicatorPanel이 이미 생성한 경우 재사용
+    if (badge) {
+        return badge;
     }
+    
+    // 레거시 호환: ModeIndicatorPanel이 없을 때만 생성
+    badge = document.createElement('div');
+    badge.className = 'dev-mode-badge';
+    badge.id = 'dev-mode-badge';
+    badge.textContent = '⚡ DEV MODE';
+    document.body.appendChild(badge);
     
     return badge;
 }
@@ -307,7 +325,7 @@ export default {
     createButtonWithSubmenu,
     createDivider,
     createSpacer,
-    createDevModeBadge,
+    createDevModeBadge,  // 🔧 v1.1.0: deprecated but exported for compatibility
     createBottomPadding,
     
     // State Management

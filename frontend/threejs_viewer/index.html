@@ -1,21 +1,19 @@
 <!DOCTYPE html>
 <html lang="ko" data-theme="dark">
 <!--
- * index.html v5.1.1
+ * index.html v5.2.0
  * SHERLOCK SKY 3DSim - Cleanroom Sidebar Theme
  * 
- * @version 5.1.1
+ * @version 5.2.0
  * @created 2026-01-11
  * 
  * @changelog
+ * - v5.2.0: 🆕 ModeIndicatorPanel 적용 (2026-01-11)
+ *           - #overlay-ui 내 .mode-indicator 제거 (동적 생성으로 대체)
+ *           - .dev-mode-badge 인라인 스타일 제거 (_mode-indicator.css로 이관)
+ *           - .overlay-ui 스타일 간소화
  * - v5.1.1: 🔧 Toast 인라인 CSS 제거 (_toast.css와 충돌 해결)
- *           Toast 자동 사라짐 버그 수정
  * - v5.1.0: 🔧 정적 HTML 제거, 동적 렌더링으로 전환
- *           - Sidebar.js가 #sidebar 내용 렌더링
- *           - StatusBar.js가 status-bar 렌더링
- *           - CoverScreen.js가 cover-screen 렌더링
- *           - 인라인 스크립트에서 이벤트 리스너 제거 (충돌 해결)
- *           - CSS 변수 및 기본 스타일만 유지
  * - v5.0.3: Dev Mode 전체 시나리오 동작
  * - v5.0.2: 서브메뉴 hover gap 문제 해결
  * 
@@ -25,7 +23,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏭 Sherlock Sky 3DSim v5.1</title>
+    <title>🏭 Sherlock Sky 3DSim v5.2</title>
     
     <link rel="stylesheet" href="styles/main.css">
     
@@ -535,18 +533,20 @@
         #threejs-container.active { display: block; }
         
         /* =============================================
-           Overlay UI
+           🔧 v5.2.0: Overlay UI (레거시 - ModeIndicatorPanel로 대체)
+           하위 호환을 위해 스타일 유지, 내용은 동적 생성
            ============================================= */
         .overlay-ui { 
             position: absolute; 
             top: 20px; 
             left: 20px; 
             z-index: 10; 
-            display: none; 
+            display: none;  /* 🔧 v5.2.0: ModeIndicatorPanel 사용으로 기본 숨김 */
             flex-direction: column; 
             gap: 10px; 
         }
         
+        /* 🔧 v5.2.0: 기존 mode-indicator 스타일 (레거시 호환) */
         .mode-indicator { 
             padding: 12px 20px; 
             background: rgba(0,0,0,0.7); 
@@ -620,24 +620,13 @@
         .country-code { font-weight: 700; font-size: 12px; color: var(--icon-selected); letter-spacing: 1px; }
 
         /* =============================================
-           Dev Mode Badge
+           🔧 v5.2.0: Dev Mode Badge 스타일 제거
+           → _mode-indicator.css로 이관
+           
+           기존 스타일 (레거시 호환을 위해 주석 처리):
+           .dev-mode-badge { ... }
+           .dev-mode-badge.active { ... }
            ============================================= */
-        .dev-mode-badge { 
-            position: fixed; 
-            top: 10px; 
-            left: 90px; 
-            padding: 4px 12px; 
-            background: rgba(251, 191, 36, 0.2); 
-            border: 1px solid var(--text-warning); 
-            border-radius: 20px; 
-            font-size: 11px; 
-            color: var(--text-warning); 
-            font-weight: 600; 
-            z-index: 1000; 
-            display: none; 
-        }
-        
-        .dev-mode-badge.active { display: block; }
 
         /* =============================================
            Debug Panel
@@ -847,13 +836,10 @@
         <!-- Three.js Container -->
         <div id="threejs-container"></div>
 
-        <!-- Overlay UI (3D View 활성화 시 표시) -->
+        <!-- 🔧 v5.2.0: Overlay UI (레거시 - ModeIndicatorPanel로 대체) -->
+        <!-- ModeIndicatorPanel.js가 동적으로 생성하므로 내용 제거 -->
         <div class="overlay-ui" id="overlay-ui">
-            <div class="mode-indicator">
-                <div class="mode-label">Current Mode</div>
-                <div class="mode-value" id="current-mode">—</div>
-                <div class="submode-value" id="current-submode"></div>
-            </div>
+            <!-- 기존 mode-indicator 제거 - ModeIndicatorPanel.js가 관리 -->
         </div>
     </main>
 
@@ -993,14 +979,15 @@
         };
         
         /**
-         * Dev Mode 토글 (폴백)
-         * main.js의 toggleDevMode()가 로드되면 대체됨
+         * 🔧 v5.2.0: Dev Mode 토글 (폴백)
+         * ModeIndicatorPanel 지원 추가
          */
         window.toggleDevMode = window.toggleDevMode || function() {
             window.sidebarState.devModeEnabled = !window.sidebarState.devModeEnabled;
             const devMode = window.sidebarState.devModeEnabled;
             
-            // Badge
+            // 🔧 v5.2.0: dev-mode-badge는 ModeIndicatorPanel이 관리
+            // 폴백으로 기존 방식도 지원
             const badge = document.getElementById('dev-mode-badge');
             if (badge) badge.classList.toggle('active', devMode);
             
@@ -1038,8 +1025,8 @@
             document.documentElement.setAttribute('data-theme', saved);
         })();
         
-        console.log('🏭 Sherlock Sky 3DSim v5.1.0');
-        console.log('📦 Sidebar UI 컴포넌트 동적 로딩 대기 중...');
+        console.log('🏭 Sherlock Sky 3DSim v5.2.0');
+        console.log('📦 ModeIndicatorPanel 적용 - 동적 UI 로딩 대기 중...');
     </script>
     
     <!-- Main Application (ES Module) -->
