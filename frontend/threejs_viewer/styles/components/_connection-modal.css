@@ -3,18 +3,21 @@
  * =====================
  * ConnectionModalManager.js 전용 스타일
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @created 2026-01-11
+ * @updated 2026-01-11
  * @source ConnectionModalManager.js v1.0.0
  * 
  * @description
  * Sidebar.js 리팩토링 Phase 3에서 분리된 ConnectionModalManager.js의
  * 전용 CSS 스타일. Light/Dark 모드 모두 지원.
  * 
- * @bug-fix
- * - Light 모드에서 Modal이 안 열리는 버그 수정
- * - 원인: #connection-modal에 display: none/flex 없음
- * - 원인: .modal-container CSS 없음 (.modal-content와 불일치)
+ * @changelog
+ * - v1.1.0: 🐛 panel-footer 표시 안 되는 버그 수정 (2026-01-11)
+ *           - .connection-panel: overflow: hidden → visible, flex 레이아웃 추가
+ *           - .site-list: flex: 1, min-height: 0 추가
+ *           - .panel-footer: flex-shrink: 0 추가
+ * - v1.0.0: Light 모드에서 Modal이 안 열리는 버그 수정
  * 
  * @usage
  * @import './components/_connection-modal.css';
@@ -192,13 +195,18 @@
 
 /* =============================================
    Connection Panel (공통)
+   🐛 v1.1.0: overflow: hidden → visible, flex 레이아웃 추가
    ============================================= */
 
 #connection-modal .connection-panel {
     background: var(--bg-input);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    overflow: hidden;
+    /* 🐛 v1.1.0: flex 레이아웃으로 변경 */
+    display: flex;
+    flex-direction: column;
+    /* 🐛 v1.1.0: overflow: hidden 제거 → panel-footer 잘림 방지 */
+    overflow: visible;
 }
 
 #connection-modal .panel-header {
@@ -208,6 +216,8 @@
     padding: 14px 16px;
     background: var(--bg-panel-header);
     border-bottom: 1px solid var(--border-color);
+    /* 🐛 v1.1.0: flex-shrink 추가 */
+    flex-shrink: 0;
 }
 
 #connection-modal .panel-header h3 {
@@ -223,6 +233,7 @@
     gap: 8px;
 }
 
+/* 🐛 v1.1.0: panel-footer가 항상 표시되도록 수정 */
 #connection-modal .panel-footer {
     display: flex;
     justify-content: space-between;
@@ -230,6 +241,10 @@
     padding: 12px 16px;
     background: var(--bg-panel-header);
     border-top: 1px solid var(--border-color);
+    /* 🐛 v1.1.0: 항상 표시되도록 flex-shrink: 0 */
+    flex-shrink: 0;
+    /* 🐛 v1.1.0: border-radius 추가 (하단 모서리) */
+    border-radius: 0 0 12px 12px;
 }
 
 /* =============================================
@@ -346,6 +361,7 @@
 
 /* =============================================
    Site List
+   🐛 v1.1.0: flex: 1, min-height: 0 추가
    ============================================= */
 
 #connection-modal .site-list {
@@ -353,8 +369,11 @@
     flex-direction: column;
     gap: 8px;
     padding: 12px;
-    max-height: 200px;
+    max-height: 180px;  /* 🐛 v1.1.0: 200px → 180px (footer 공간 확보) */
     overflow-y: auto;
+    /* 🐛 v1.1.0: flex child 스크롤 허용 */
+    flex: 1;
+    min-height: 0;
 }
 
 /* =============================================

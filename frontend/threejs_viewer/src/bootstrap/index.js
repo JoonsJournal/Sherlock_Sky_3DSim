@@ -4,10 +4,11 @@
  * 
  * Bootstrap 모듈 통합 export
  * 
- * @version 2.0.0
+ * @version 2.1.0
  * @module bootstrap
  * 
  * @changelog
+ * - v2.1.0: 🔧 ConnectionIndicator export 제거 (UIBootstrap v1.3.0 연동)
  * - v2.0.0: ModeHandlers export 추가, connectServicesToModeHandlers 추가
  * 
  * 위치: frontend/threejs_viewer/src/bootstrap/index.js
@@ -40,6 +41,7 @@ export {
 } from './SceneBootstrap.js';
 
 // UI Bootstrap
+// 🔧 v2.1.0: ConnectionIndicator 제거
 export {
     initUIComponents,
     initMonitoringServices,
@@ -51,7 +53,7 @@ export {
     toggleConnectionIndicator,
     toast,
     ConnectionStatusService,
-    ConnectionIndicator,
+    // ConnectionIndicator,  // 🔧 v2.1.0: 제거됨
     ConnectionEvents,
     EquipmentEditButton
 } from './UIBootstrap.js';
