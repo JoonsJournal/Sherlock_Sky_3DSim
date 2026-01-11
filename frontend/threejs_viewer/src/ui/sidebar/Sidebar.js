@@ -5,11 +5,17 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 1.2.0
+ * @version 1.3.0
  * @created 2026-01-11
  * @updated 2026-01-11
  * 
  * @changelog
+ * - v1.3.0: 🔧 상수/설정 분리 (Phase 2 리팩토링)
+ *           - SIDEBAR_BUTTONS → SidebarConfig.js
+ *           - SUBMENUS → SidebarConfig.js
+ *           - SITE_LIST → SidebarConfig.js
+ *           - MODE_MAP → SidebarConfig.js
+ *           - 약 130줄 감소
  * - v1.2.0: 🔧 Connection Modal v2.9 Full Version 복원
  *           - Internet Status with Ping
  *           - Backend API Panel (API URL, Response Time)
@@ -32,145 +38,21 @@
  * - EventBus (core/managers)
  * - ConnectionStatusService (services)
  * - IconRegistry (ui/sidebar)
+ * - SidebarConfig (ui/sidebar) 🆕 v1.3.0
  * 
  * 위치: frontend/threejs_viewer/src/ui/sidebar/Sidebar.js
  */
 
 import { ICONS, getIcon } from './IconRegistry.js';
 
-// ============================================
-// Constants
-// ============================================
-
-/**
- * 사이드바 버튼 설정
- */
-const SIDEBAR_BUTTONS = {
-    connection: {
-        id: 'btn-connection',
-        icon: 'connection',
-        tooltip: 'Database Connection (Ctrl+K)',
-        mode: 'connection',
-        alwaysEnabled: true,
-        selectable: false
-    },
-    monitoring: {
-        id: 'btn-monitoring',
-        icon: 'monitoring',
-        tooltip: 'Monitoring Mode (M)',
-        mode: 'monitoring',
-        requiresConnection: true,
-        hasSubmenu: true,
-        submenuId: 'monitoring-submenu'
-    },
-    analysis: {
-        id: 'btn-analysis',
-        icon: 'analysis',
-        tooltip: 'Analysis (Coming Soon)',
-        mode: 'analysis',
-        requiresConnection: true,
-        disabled: true
-    },
-    simulation: {
-        id: 'btn-simulation',
-        icon: 'simulation',
-        tooltip: 'Simulation (Coming Soon)',
-        mode: 'simulation',
-        requiresConnection: true,
-        disabled: true
-    },
-    layout: {
-        id: 'btn-layout',
-        icon: 'layout',
-        tooltip: 'Layout Tools',
-        mode: 'layout',
-        requiresConnection: true,
-        requiresDevMode: true,
-        hasSubmenu: true,
-        submenuId: 'layout-submenu',
-        hidden: true
-    },
-    debug: {
-        id: 'btn-debug',
-        icon: 'debug',
-        tooltip: 'Debug Tools (D)',
-        mode: 'debug',
-        hasSubmenu: true,
-        submenuId: 'debug-submenu',
-        requiresDevModeOrConnection: true
-    },
-    settings: {
-        id: 'btn-settings',
-        icon: 'settings',
-        tooltip: 'Settings',
-        mode: 'settings',
-        alwaysEnabled: true,
-        selectable: false,
-        hasSubmenu: true,
-        submenuId: 'settings-submenu'
-    }
-};
-
-/**
- * 서브메뉴 설정
- */
-const SUBMENUS = {
-    'monitoring-submenu': {
-        header: 'Monitoring Views',
-        items: [
-            { id: 'sub-3d-view', label: '3D View', icon: '3d-view', submode: '3d-view' },
-            { id: 'sub-ranking-view', label: 'Ranking View (Coming Soon)', icon: 'ranking-view', submode: 'ranking-view', disabled: true }
-        ]
-    },
-    'layout-submenu': {
-        header: 'Layout Tools',
-        items: [
-            { id: 'sub-layout-editor', label: 'Layout Editor', icon: 'layout-editor', submode: 'layout-editor' },
-            { id: 'sub-mapping', label: 'Equipment Mapping', icon: 'mapping', submode: 'mapping', action: 'openEquipmentEditModal' }
-        ]
-    },
-    'debug-submenu': {
-        header: 'Debug Tools',
-        items: [
-            { id: 'sub-app-state', label: '📊 Application State', action: 'setDebugView', params: ['app-state'] },
-            { id: 'sub-performance', label: '⚡ Performance', action: 'setDebugView', params: ['performance'] },
-            { id: 'sub-event-log', label: '📝 Event Log', action: 'setDebugView', params: ['event-log'] },
-            { id: 'sub-console', label: '💻 Command Console', action: 'setDebugView', params: ['console'] },
-            { type: 'divider' },
-            { id: 'sub-full-debug', label: '📋 Full Debug Panel', action: 'toggleDebugPanel' }
-        ]
-    },
-    'settings-submenu': {
-        header: 'Settings',
-        items: [
-            { id: 'theme-toggle', type: 'theme-toggle' },
-            { type: 'divider' },
-            { id: 'dev-mode-toggle', label: 'Dev Mode: OFF', icon: 'code', action: 'toggleDevMode' },
-            { id: 'mock-test-section', type: 'mock-tests', requiresDevMode: true }
-        ]
-    }
-};
-
-/**
- * 🆕 v1.2.0: Connection Modal 사이트 목록 (v2.9 Full Version)
- * Priority 포함
- */
-const SITE_LIST = [
-    { id: 'kr_b_01', flag: '🇰🇷', name: 'Korea Site B-01', region: 'Asia/Seoul', priority: 10 },
-    { id: 'kr_b_02', flag: '🇰🇷', name: 'Korea Site B-02', region: 'Asia/Seoul', priority: 8 },
-    { id: 'vn_a_01', flag: '🇻🇳', name: 'Vietnam Site A-01', region: 'Asia/Ho_Chi_Minh', priority: 5 }
-];
-
-/**
- * APP_MODE 매핑
- */
-const MODE_MAP = {
-    'monitoring': 'MONITORING',
-    'analysis': 'ANALYTICS',
-    'simulation': 'SIMULATION',
-    'layout': 'LAYOUT_EDITOR',
-    'equipment_edit': 'EQUIPMENT_EDIT'
-};
+// 🆕 v1.3.0: 상수/설정 import
+import { 
+    SIDEBAR_BUTTONS, 
+    SUBMENUS, 
+    SITE_LIST, 
+    MODE_MAP,
+    getSiteById 
+} from './SidebarConfig.js';
 
 // ============================================
 // Sidebar Class
@@ -243,7 +125,7 @@ export class Sidebar {
         this._setupConnectionListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v1.2.0');
+        console.log('[Sidebar] 초기화 완료 v1.3.0');
     }
     
     _loadTheme() {
@@ -629,6 +511,7 @@ export class Sidebar {
     
     /**
      * 🆕 v1.2.0: Site List 렌더링 (v2.9 스타일)
+     * 🆕 v1.3.0: SITE_LIST를 SidebarConfig.js에서 import
      */
     _renderSiteList() {
         const siteList = this.connectionModal?.querySelector('#site-list');
@@ -790,6 +673,7 @@ export class Sidebar {
     
     /**
      * 🆕 v1.2.0: 사이트 연결
+     * 🆕 v1.3.0: getSiteById 헬퍼 함수 사용
      */
     async _connectToSelectedSite() {
         if (!this.selectedSite) return;
@@ -821,7 +705,8 @@ export class Sidebar {
                 connectBtn.textContent = '🔌 Connect';
             }
             
-            const site = SITE_LIST.find(s => s.id === this.selectedSite);
+            // 🆕 v1.3.0: getSiteById 헬퍼 함수 사용
+            const site = getSiteById(this.selectedSite);
             if (this.toast) {
                 this.toast.success('Connected', `Successfully connected to ${site?.name || this.selectedSite}`);
             }
@@ -888,13 +773,15 @@ export class Sidebar {
     
     /**
      * 🆕 v1.2.0: Database List 업데이트 (v2.9 스타일)
+     * 🆕 v1.3.0: getSiteById 헬퍼 함수 사용
      */
     _updateDatabaseList(siteId) {
         const dbList = this.connectionModal?.querySelector('#database-list');
         if (!dbList) return;
         
         if (siteId) {
-            const site = SITE_LIST.find(s => s.id === siteId);
+            // 🆕 v1.3.0: getSiteById 헬퍼 함수 사용
+            const site = getSiteById(siteId);
             dbList.innerHTML = `
                 <div class="database-item">
                     <div class="database-header">
@@ -1329,6 +1216,9 @@ export class Sidebar {
         console.log('[Sidebar] Backend 연결 해제 - UI 비활성화');
     }
     
+    /**
+     * 🆕 v1.3.0: getSiteById 헬퍼 함수 사용
+     */
     _updateCoverStatus(connected) {
         const apiDot = document.getElementById('cover-api-dot');
         const apiStatus = document.getElementById('cover-api-status');
@@ -1344,7 +1234,8 @@ export class Sidebar {
         
         if (dbStatus) {
             if (connected && this.selectedSite) {
-                const site = SITE_LIST.find(s => s.id === this.selectedSite);
+                // 🆕 v1.3.0: getSiteById 헬퍼 함수 사용
+                const site = getSiteById(this.selectedSite);
                 dbStatus.textContent = site?.name || this.selectedSite;
             } else {
                 dbStatus.textContent = 'Not Connected';
