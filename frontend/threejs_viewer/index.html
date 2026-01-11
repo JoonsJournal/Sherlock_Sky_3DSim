@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="ko" data-theme="dark">
 <!--
- * index.html v5.0.3
+ * index.html v5.1.0
  * SHERLOCK SKY 3DSim - Cleanroom Sidebar Theme
  * 
- * @version 5.0.3
+ * @version 5.1.0
  * @created 2026-01-11
  * 
  * @changelog
- * - v5.0.3: 🔧 Dev Mode 전체 시나리오 동작
- *           - CSS Tooltip 추가 (모든 버튼)
- *           - Dev Mode시 모든 UI 활성화
- *           - Connection Modal 정상 동작
+ * - v5.1.0: 🔧 정적 HTML 제거, 동적 렌더링으로 전환
+ *           - Sidebar.js가 #sidebar 내용 렌더링
+ *           - StatusBar.js가 status-bar 렌더링
+ *           - CoverScreen.js가 cover-screen 렌더링
+ *           - 인라인 스크립트에서 이벤트 리스너 제거 (충돌 해결)
+ *           - CSS 변수 및 기본 스타일만 유지
+ * - v5.0.3: Dev Mode 전체 시나리오 동작
  * - v5.0.2: 서브메뉴 hover gap 문제 해결
- * - v5.0.1: 하이브리드 방식, Settings 항상 활성화
  * 
  * 위치: frontend/threejs_viewer/index.html
 -->
@@ -21,13 +23,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏭 Sherlock Sky 3DSim v5.0</title>
+    <title>🏭 Sherlock Sky 3DSim v5.1</title>
     
     <link rel="stylesheet" href="styles/main.css">
     
     <style>
         /* =============================================
-           CSS Variables
+           CSS Variables (전역)
+           Sidebar.js, StatusBar.js, CoverScreen.js에서 참조
            ============================================= */
         :root, [data-theme="dark"] {
             --bg-sidebar: #0F172A;
@@ -79,11 +82,21 @@
             --shadow-color: rgba(0,0,0,0.15);
         }
 
+        /* =============================================
+           기본 레이아웃
+           ============================================= */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { display: flex; height: 100vh; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: var(--bg-main); }
+        
+        body { 
+            display: flex; 
+            height: 100vh; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', sans-serif; 
+            background: var(--bg-main); 
+        }
         
         /* =============================================
-           Sidebar
+           Sidebar (Sidebar.js가 내용 렌더링)
            ============================================= */
         .sidebar { 
             width: 80px; 
@@ -96,14 +109,9 @@
             box-shadow: 4px 0 15px var(--shadow-color); 
         }
         
-        /* =============================================
-           🆕 CSS Tooltip (모든 버튼에 적용)
-           ============================================= */
-        .icon-btn, .has-submenu { 
-            position: relative; 
-        }
+        /* 🆕 v5.1.0: CSS Tooltip */
+        .icon-btn, .has-submenu { position: relative; }
         
-        /* Tooltip 기본 스타일 */
         .icon-btn[data-tooltip]::after,
         .has-submenu[data-tooltip]::after {
             content: attr(data-tooltip);
@@ -127,34 +135,13 @@
             pointer-events: none;
         }
         
-        /* Tooltip 화살표 */
-        .icon-btn[data-tooltip]::before,
-        .has-submenu[data-tooltip]::before {
-            content: '';
-            position: absolute;
-            left: 60px;
-            top: 50%;
-            transform: translateY(-50%);
-            border: 6px solid transparent;
-            border-right-color: var(--border-color);
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.2s ease;
-            z-index: 1001;
-        }
-        
-        /* Hover 시 Tooltip 표시 - 🆕 disabled 상태에서도 표시! */
         .icon-btn[data-tooltip]:hover::after,
-        .icon-btn[data-tooltip]:hover::before,
-        .has-submenu[data-tooltip]:hover::after,
-        .has-submenu[data-tooltip]:hover::before {
+        .has-submenu[data-tooltip]:hover::after {
             opacity: 1;
             visibility: visible;
         }
         
-        /* 서브메뉴 있는 버튼은 서브메뉴가 tooltip 역할 */
-        .has-submenu:not(.disabled)[data-tooltip]:hover::after,
-        .has-submenu:not(.disabled)[data-tooltip]:hover::before {
+        .has-submenu:not(.disabled)[data-tooltip]:hover::after {
             opacity: 0;
             visibility: hidden;
         }
@@ -214,29 +201,22 @@
             box-shadow: 0 0 6px var(--icon-selected); 
         }
         
-        /* 🔧 disabled 스타일 - pointer-events 유지 (tooltip 위해) */
         .icon-btn.disabled { 
             cursor: not-allowed; 
             opacity: 0.4; 
-            /* pointer-events: none; 제거! */
         }
         
         .icon-btn.disabled svg { 
             stroke: var(--icon-disabled); 
         }
         
-        /* disabled 버튼 클릭 방지는 JS에서 처리 */
         .has-submenu.disabled {
             cursor: not-allowed;
             opacity: 0.4;
         }
-        
-        .has-submenu.disabled .icon-btn {
-            pointer-events: none;
-        }
 
         /* =============================================
-           Submenu - Gap 문제 해결
+           Submenu
            ============================================= */
         .has-submenu::before {
             content: '';
@@ -346,7 +326,6 @@
             letter-spacing: 0.5px; 
         }
         
-        /* Submenu 화살표 */
         .has-submenu > .icon-btn::after { 
             content: ''; 
             position: absolute; 
@@ -361,17 +340,6 @@
         .has-submenu:not(.disabled):hover > .icon-btn::after { 
             border-left-color: var(--icon-selected); 
             opacity: 1; 
-        }
-        
-        /* Always Normal State */
-        #btn-connection svg { 
-            stroke: var(--icon-normal) !important; 
-            filter: none !important; 
-        }
-        
-        #btn-connection:hover svg { 
-            stroke: var(--icon-hover) !important; 
-            filter: drop-shadow(0 0 3px var(--glow-color)) !important; 
         }
 
         /* =============================================
@@ -448,7 +416,7 @@
         }
         
         /* =============================================
-           Cover Screen
+           Cover Screen (CoverScreen.js가 렌더링)
            ============================================= */
         #cover-screen { 
             position: absolute; 
@@ -604,7 +572,7 @@
         }
 
         /* =============================================
-           Status Bar
+           Status Bar (StatusBar.js가 렌더링)
            ============================================= */
         .status-bar { 
             position: fixed; 
@@ -644,6 +612,8 @@
         .perf-bar { width: 35px; height: 4px; background: var(--bg-input); border-radius: 2px; overflow: hidden; }
         .perf-bar-fill { height: 100%; border-radius: 2px; }
         .perf-bar-fill.good { background: var(--text-success); }
+        .perf-bar-fill.warning { background: var(--text-warning); }
+        .perf-bar-fill.critical { background: var(--text-alarm); }
         
         .country-code { font-weight: 700; font-size: 12px; color: var(--icon-selected); letter-spacing: 1px; }
 
@@ -849,10 +819,12 @@
         
         #equipmentInfo.active { opacity: 1; visibility: visible; transform: translateX(0); }
 
+        /* =============================================
+           Misc
+           ============================================= */
         .sidebar-divider { width: 40px; height: 1px; background: var(--border-color); margin: 8px 0; }
         .sidebar-spacer { flex-grow: 1; }
 
-        /* Mock Test */
         .mock-test-list { padding: 8px 16px; }
         .mock-test-item { 
             display: flex; 
@@ -893,135 +865,23 @@
 </head>
 
 <body>
-    <!-- Toast & Dev Badge -->
+    <!-- Toast Container -->
     <div class="toast-container" id="toast-container"></div>
-    <div class="dev-mode-badge" id="dev-mode-badge">⚡ DEV MODE</div>
 
     <!-- ============================================
-         SIDEBAR - 🆕 data-tooltip 추가
+         SIDEBAR - 🆕 v5.1.0: 빈 컨테이너
+         Sidebar.js가 동적으로 내용 렌더링
          ============================================ -->
-    <aside class="sidebar" id="sidebar">
-        <!-- Connection Button -->
-        <button class="icon-btn" id="btn-connection" data-mode="connection" data-tooltip="Database Connection (Ctrl+K)">
-            <svg viewBox="0 0 24 24"><ellipse cx="7" cy="5" rx="5" ry="2"/><path d="M2 5v4c0 1.1 2.24 2 5 2s5-.9 5-2V5"/><path d="M2 9v4c0 1.1 2.24 2 5 2s5-.9 5-2V9"/><ellipse cx="17" cy="11" rx="5" ry="2"/><path d="M12 11v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/><path d="M12 15v4c0 1.1 2.24 2 5 2s5-.9 5-2v-4"/></svg>
-        </button>
-
-        <!-- Monitoring -->
-        <div class="has-submenu disabled" id="btn-monitoring-wrapper" data-tooltip="Monitoring (Disabled)">
-            <button class="icon-btn disabled" id="btn-monitoring" data-mode="monitoring">
-                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><polyline points="6 10 9 10 11 7 13 13 15 10 18 10"/><path d="M12 16v4"/><path d="M8 20h8"/></svg>
-            </button>
-            <div class="submenu" id="monitoring-submenu">
-                <div class="submenu-header">Monitoring Views</div>
-                <button class="submenu-item" data-submode="3d-view">
-                    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                    3D View
-                </button>
-                <button class="submenu-item disabled" data-submode="ranking-view">
-                    <svg viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
-                    Ranking View (Coming Soon)
-                </button>
-            </div>
-        </div>
-
-        <!-- Analysis -->
-        <button class="icon-btn disabled" id="btn-analysis" data-mode="analysis" data-tooltip="Analysis (Disabled)">
-            <svg viewBox="0 0 24 24"><path d="M21 21H4.6c-.6 0-1.1-.5-1.1-1.1V3"/><path d="M7 14l4-4 4 4 6-6"/><circle cx="21" cy="8" r="2"/></svg>
-        </button>
-
-        <!-- Simulation -->
-        <button class="icon-btn disabled" id="btn-simulation" data-mode="simulation" data-tooltip="Simulation (Disabled)">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/></svg>
-        </button>
-
-        <div class="sidebar-divider"></div>
-
-        <!-- Layout (Dev Mode only) -->
-        <div class="has-submenu disabled hidden" id="btn-layout-wrapper" data-tooltip="Layout Editor">
-            <button class="icon-btn disabled" id="btn-layout" data-mode="layout">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-            </button>
-            <div class="submenu" id="layout-submenu">
-                <div class="submenu-header">Layout Tools</div>
-                <button class="submenu-item" data-submode="layout-editor">Layout Editor</button>
-                <button class="submenu-item" data-submode="mapping">Equipment Mapping</button>
-            </div>
-        </div>
-
-        <div class="sidebar-spacer"></div>
-        
-        <!-- Debug -->
-        <div class="has-submenu disabled" id="btn-debug-wrapper" data-tooltip="Debug Tools (Disabled)">
-            <button class="icon-btn disabled" id="btn-debug" data-mode="debug">
-                <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            </button>
-            <div class="submenu" id="debug-submenu">
-                <div class="submenu-header">Debug Tools</div>
-                <button class="submenu-item" onclick="setDebugView('app-state')">📊 Application State</button>
-                <button class="submenu-item" onclick="setDebugView('performance')">⚡ Performance</button>
-                <button class="submenu-item" onclick="toggleDebugPanel()">📋 Full Debug Panel</button>
-            </div>
-        </div>
-        
-        <!-- Settings (항상 활성화) -->
-        <div class="has-submenu" id="btn-settings-wrapper" data-tooltip="Settings">
-            <button class="icon-btn" id="btn-settings" data-mode="settings">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            </button>
-            <div class="submenu" id="settings-submenu">
-                <div class="submenu-header">Settings</div>
-                <div class="theme-toggle-item">
-                    <div class="theme-toggle-label">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                        <span>Theme</span>
-                    </div>
-                    <div class="theme-switch" id="theme-switch" onclick="toggleTheme()"></div>
-                </div>
-                <div class="submenu-divider"></div>
-                <button class="submenu-item" id="dev-mode-toggle" onclick="toggleDevMode()">
-                    <svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                    <span id="dev-mode-label">Dev Mode: OFF</span>
-                </button>
-                <div id="mock-test-section" style="display: none;">
-                    <div class="submenu-divider"></div>
-                    <div class="submenu-header">Mock Test</div>
-                    <div class="mock-test-list">
-                        <div class="mock-test-item" onclick="loadMockTest('equipment-status')">📦 Equipment Status</div>
-                        <div class="mock-test-item" onclick="loadMockTest('realtime-update')">🔄 Realtime Update</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div style="height: 50px;"></div>
-    </aside>
+    <!-- Sidebar.js가 생성하므로 제거 -->
 
     <!-- MAIN CONTENT -->
     <main class="main-content" id="main-content">
-        <div id="cover-screen">
-            <div class="cover-logo">🏭</div>
-            <div class="cover-title">SHERLOCK SKY 3D SIM</div>
-            <div class="cover-subtitle">Industrial Equipment Monitoring & Simulation Platform</div>
-            
-            <div class="cover-status">
-                <div class="cover-status-item">
-                    <span class="cover-status-dot disconnected" id="cover-api-dot"></span>
-                    <span class="cover-status-text">Backend API</span>
-                    <span class="cover-status-value" id="cover-api-status">Checking...</span>
-                </div>
-                <div class="cover-status-item">
-                    <span class="cover-status-dot disconnected" id="cover-db-dot"></span>
-                    <span class="cover-status-text">Database</span>
-                    <span class="cover-status-value" id="cover-db-status">Not Connected</span>
-                </div>
-            </div>
-            
-            <div class="cover-hint">
-                Press <kbd>Ctrl+K</kbd> to connect database, or enable <kbd>Dev Mode</kbd> in Settings
-            </div>
-        </div>
-
+        <!-- CoverScreen.js가 동적으로 생성 -->
+        
+        <!-- Three.js Container -->
         <div id="threejs-container"></div>
 
+        <!-- Overlay UI (3D View 활성화 시 표시) -->
         <div class="overlay-ui" id="overlay-ui">
             <div class="mode-indicator">
                 <div class="mode-label">Current Mode</div>
@@ -1031,37 +891,9 @@
         </div>
     </main>
 
-    <!-- Connection Modal -->
-    <div id="connection-modal" class="modal">
-        <div class="modal-overlay" onclick="closeConnectionModal()"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>🔌 Database Connection Manager</h2>
-                <button class="modal-close" onclick="closeConnectionModal()">&times;</button>
-            </div>
-            <div class="modal-body" id="connection-modal-body">
-                <p style="color: var(--text-secondary); margin-bottom: 16px;">
-                    Select a site to connect to the database.
-                </p>
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <button class="submenu-item" onclick="connectToSite('korea_site1')" style="background: var(--bg-input); border-radius: 8px;">
-                        🇰🇷 Korea Site 1
-                    </button>
-                    <button class="submenu-item" onclick="connectToSite('vietnam_site1')" style="background: var(--bg-input); border-radius: 8px;">
-                        🇻🇳 Vietnam Site 1
-                    </button>
-                    <button class="submenu-item" onclick="connectToSite('usa_site1')" style="background: var(--bg-input); border-radius: 8px;">
-                        🇺🇸 USA Site 1
-                    </button>
-                </div>
-                <div id="connection-status-panel" style="margin-top: 20px;"></div>
-            </div>
-        </div>
-    </div>
-
     <!-- Equipment Info Panel -->
     <div id="equipmentInfo">
-        <button class="close-btn" onclick="closeEquipmentInfo()">×</button>
+        <button class="close-btn" onclick="document.getElementById('equipmentInfo').classList.remove('active')">×</button>
         <h2 id="equipName" style="font-size: 16px; margin-bottom: 12px;">설비 정보</h2>
         <div id="equipDetails"></div>
     </div>
@@ -1070,7 +902,7 @@
     <div id="debug-panel">
         <div class="debug-panel-header">
             <span class="debug-panel-title">🐛 Debug Panel</span>
-            <button class="close-btn" onclick="toggleDebugPanel()">×</button>
+            <button class="close-btn" onclick="document.getElementById('debug-panel').classList.remove('active')">×</button>
         </div>
         <div class="debug-panel-content">
             <div class="debug-section">
@@ -1095,64 +927,42 @@
         </div>
     </div>
 
-    <!-- Status Bar -->
-    <footer class="status-bar" id="status-bar">
-        <div class="status-group">
-            <div class="status-item"><span class="country-code" id="status-country">KR</span></div>
-            <div class="status-item">
-                <span class="status-dot connected" id="net-dot"></span>
-                <span class="status-label">NET</span>
-                <span class="status-value" id="net-value">Online</span>
-            </div>
-            <div class="status-item">
-                <span class="status-dot disconnected" id="api-dot"></span>
-                <span class="status-label">API</span>
-                <span class="status-value" id="api-value">Disconnected</span>
-            </div>
-            <div class="status-item">
-                <span class="status-dot disconnected" id="db-dot"></span>
-                <span class="status-label">DB</span>
-                <span class="status-value" id="db-value">None</span>
-            </div>
-        </div>
-        <div class="status-group">
-            <div class="status-item">
-                <span class="status-label">FPS</span>
-                <span class="status-value" id="fps-value">0</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">MEM</span>
-                <span class="status-value"><span id="memory-value">0</span>MB</span>
-            </div>
-        </div>
-    </footer>
+    <!-- StatusBar.js가 동적으로 생성 -->
 
-    <!-- Three.js -->
+    <!-- Three.js Import Map -->
     <script type="importmap">
     { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
     </script>
     
+    <!-- 🆕 v5.1.0: 인라인 스크립트 최소화 -->
     <script>
         // =============================================
-        // 전역 상태
+        // 🆕 v5.1.0: 전역 상태 초기화 (하위 호환)
+        // main.js 로드 전 초기화 필요
         // =============================================
-        window.sidebarState = {
+        window.sidebarState = window.sidebarState || {
             currentMode: null,
             currentSubMode: null,
             isConnected: false,
             devModeEnabled: false,
             debugPanelVisible: false
         };
-
-        function canAccessFeatures() {
+        
+        /**
+         * 기능 접근 가능 여부 (하위 호환)
+         */
+        window.canAccessFeatures = function() {
             return window.sidebarState.isConnected || window.sidebarState.devModeEnabled;
-        }
-
-        // =============================================
-        // Toast
-        // =============================================
-        function showToast(message, type = 'info') {
+        };
+        
+        /**
+         * Toast 표시 유틸 (폴백용)
+         * main.js의 toast 서비스 로드 전 사용
+         */
+        window.showToast = function(message, type = 'info') {
             const container = document.getElementById('toast-container');
+            if (!container) return;
+            
             const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -1162,337 +972,103 @@
                 <button class="toast-close" onclick="this.parentElement.remove()">×</button>
             `;
             container.appendChild(toast);
-            setTimeout(() => { toast.classList.add('hiding'); setTimeout(() => toast.remove(), 300); }, 3000);
-        }
-
+            setTimeout(() => { 
+                toast.classList.add('hiding'); 
+                setTimeout(() => toast.remove(), 300); 
+            }, 3000);
+        };
+        
         // =============================================
-        // Connection Modal - 🆕 항상 동작!
+        // 전역 함수 폴백 (main.js 로드 전 호출 대비)
+        // main.js가 로드되면 실제 함수로 대체됨
         // =============================================
-        function toggleConnectionModal() {
+        
+        /**
+         * Connection Modal 토글 (폴백)
+         */
+        window.toggleConnectionModal = window.toggleConnectionModal || function() {
             const modal = document.getElementById('connection-modal');
-            modal.classList.toggle('active');
-            console.log('🔌 Connection Modal toggled');
-        }
+            if (modal) {
+                modal.classList.toggle('active');
+            } else {
+                console.warn('[Fallback] Connection Modal not found - waiting for Sidebar.js');
+            }
+        };
         
-        function closeConnectionModal() {
-            document.getElementById('connection-modal').classList.remove('active');
-        }
+        /**
+         * Connection Modal 닫기 (폴백)
+         */
+        window.closeConnectionModal = window.closeConnectionModal || function() {
+            const modal = document.getElementById('connection-modal');
+            if (modal) modal.classList.remove('active');
+        };
         
-        function connectToSite(siteId) {
-            console.log(`🔗 Connecting to: ${siteId}`);
-            showToast(`Connecting to ${siteId}...`, 'info');
-            
-            // 실제 연결 시도 (Backend 없으면 실패)
-            const statusPanel = document.getElementById('connection-status-panel');
-            statusPanel.innerHTML = `<div style="color: var(--text-warning);">⏳ Connecting to ${siteId}...</div>`;
-            
-            // 시뮬레이션: 2초 후 결과
-            setTimeout(() => {
-                if (window.sidebarState.devModeEnabled) {
-                    // Dev Mode: 연결 시도했지만 Backend 없음
-                    statusPanel.innerHTML = `<div style="color: var(--text-alarm);">❌ Backend not available (Dev Mode)</div>`;
-                    showToast('Backend not available', 'error');
-                } else {
-                    statusPanel.innerHTML = `<div style="color: var(--text-alarm);">❌ Connection failed - Backend offline</div>`;
-                    showToast('Connection failed', 'error');
-                }
-            }, 1500);
-        }
-
-        // =============================================
-        // Debug Panel
-        // =============================================
-        function toggleDebugPanel() {
-            if (!canAccessFeatures()) {
-                showToast('Enable Dev Mode first', 'warning');
+        /**
+         * Debug Panel 토글 (폴백)
+         */
+        window.toggleDebugPanel = window.toggleDebugPanel || function() {
+            if (!window.canAccessFeatures()) {
+                window.showToast('Enable Dev Mode first', 'warning');
                 return;
             }
             const panel = document.getElementById('debug-panel');
-            window.sidebarState.debugPanelVisible = !window.sidebarState.debugPanelVisible;
-            panel.classList.toggle('active', window.sidebarState.debugPanelVisible);
-            updateDebugPanel();
-        }
+            if (panel) {
+                panel.classList.toggle('active');
+                window.sidebarState.debugPanelVisible = panel.classList.contains('active');
+            }
+        };
         
-        function setDebugView(view) {
-            toggleDebugPanel();
-        }
-        
-        function updateDebugPanel() {
-            document.getElementById('debug-mode').textContent = window.sidebarState.currentMode || 'N/A';
-            document.getElementById('debug-submode').textContent = window.sidebarState.currentSubMode || 'N/A';
-            
-            const connEl = document.getElementById('debug-connected');
-            connEl.textContent = window.sidebarState.isConnected ? 'YES' : 'NO';
-            connEl.className = `debug-state-value ${window.sidebarState.isConnected ? 'on' : 'off'}`;
-            
-            const devEl = document.getElementById('debug-devmode');
-            devEl.textContent = window.sidebarState.devModeEnabled ? 'ON' : 'OFF';
-            devEl.className = `debug-state-value ${window.sidebarState.devModeEnabled ? 'on' : 'off'}`;
-        }
-
-        function closeEquipmentInfo() {
-            document.getElementById('equipmentInfo').classList.remove('active');
-        }
-
-        // =============================================
-        // Theme
-        // =============================================
-        function toggleTheme() {
-            const html = document.documentElement;
-            const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            document.getElementById('theme-switch').classList.toggle('active', newTheme === 'light');
-            console.log(`🎨 Theme: ${newTheme}`);
-        }
-        
-        function loadSavedTheme() {
-            const saved = localStorage.getItem('theme') || 'dark';
-            document.documentElement.setAttribute('data-theme', saved);
-            document.getElementById('theme-switch')?.classList.toggle('active', saved === 'light');
-        }
-
-        // =============================================
-        // 🆕 Dev Mode - 전체 UI 시나리오 활성화
-        // =============================================
-        function toggleDevMode() {
+        /**
+         * Dev Mode 토글 (폴백)
+         * main.js의 toggleDevMode()가 로드되면 대체됨
+         */
+        window.toggleDevMode = window.toggleDevMode || function() {
             window.sidebarState.devModeEnabled = !window.sidebarState.devModeEnabled;
             const devMode = window.sidebarState.devModeEnabled;
             
             // Badge
-            document.getElementById('dev-mode-badge').classList.toggle('active', devMode);
+            const badge = document.getElementById('dev-mode-badge');
+            if (badge) badge.classList.toggle('active', devMode);
             
             // Label
-            document.getElementById('dev-mode-label').textContent = `Dev Mode: ${devMode ? 'ON' : 'OFF'}`;
-            
-            // Mock Test Section
-            document.getElementById('mock-test-section').style.display = devMode ? 'block' : 'none';
-            
-            if (devMode) {
-                enableAllFeatures();
-                showToast('⚡ Dev Mode ON - All UI enabled', 'warning');
-            } else {
-                if (!window.sidebarState.isConnected) {
-                    disableFeatures();
+            const label = document.getElementById('dev-mode-toggle');
+            if (label) {
+                const span = label.querySelector('span') || label;
+                if (span.tagName === 'SPAN') {
+                    span.textContent = `Dev Mode: ${devMode ? 'ON' : 'OFF'}`;
                 }
-                showToast('Dev Mode OFF', 'info');
             }
             
-            updateDebugPanel();
-            updateTooltips();
+            window.showToast(devMode ? '⚡ Dev Mode ON' : 'Dev Mode OFF', devMode ? 'warning' : 'info');
             console.log(`⚡ Dev Mode: ${devMode ? 'ON' : 'OFF'}`);
-        }
+        };
         
-        // 🆕 모든 기능 활성화
-        function enableAllFeatures() {
-            // Monitoring
-            const monitoringWrapper = document.getElementById('btn-monitoring-wrapper');
-            const monitoringBtn = document.getElementById('btn-monitoring');
-            monitoringWrapper.classList.remove('disabled');
-            monitoringWrapper.setAttribute('data-tooltip', 'Monitoring');
-            monitoringBtn.classList.remove('disabled');
+        /**
+         * Theme 토글 (폴백)
+         */
+        window.toggleTheme = window.toggleTheme || function() {
+            const html = document.documentElement;
+            const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
             
-            // Analysis
-            const analysisBtn = document.getElementById('btn-analysis');
-            analysisBtn.classList.remove('disabled');
-            analysisBtn.setAttribute('data-tooltip', 'Analysis');
-            
-            // Simulation
-            const simBtn = document.getElementById('btn-simulation');
-            simBtn.classList.remove('disabled');
-            simBtn.setAttribute('data-tooltip', 'Simulation');
-            
-            // Debug
-            const debugWrapper = document.getElementById('btn-debug-wrapper');
-            const debugBtn = document.getElementById('btn-debug');
-            debugWrapper.classList.remove('disabled');
-            debugWrapper.setAttribute('data-tooltip', 'Debug Tools');
-            debugBtn.classList.remove('disabled');
-            
-            // Layout
-            const layoutWrapper = document.getElementById('btn-layout-wrapper');
-            const layoutBtn = document.getElementById('btn-layout');
-            layoutWrapper.classList.remove('hidden', 'disabled');
-            layoutBtn.classList.remove('disabled');
-        }
+            const themeSwitch = document.getElementById('theme-switch');
+            if (themeSwitch) themeSwitch.classList.toggle('active', newTheme === 'light');
+        };
         
-        function disableFeatures() {
-            const ids = ['btn-monitoring-wrapper', 'btn-debug-wrapper'];
-            const btnIds = ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-debug'];
-            
-            ids.forEach(id => document.getElementById(id)?.classList.add('disabled'));
-            btnIds.forEach(id => document.getElementById(id)?.classList.add('disabled'));
-            
-            document.getElementById('btn-layout-wrapper')?.classList.add('hidden', 'disabled');
-            document.getElementById('btn-layout')?.classList.add('disabled');
-            
-            updateTooltips();
-        }
+        /**
+         * 테마 로드 (localStorage)
+         */
+        (function loadTheme() {
+            const saved = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
         
-        // 🆕 Tooltip 업데이트
-        function updateTooltips() {
-            const devMode = window.sidebarState.devModeEnabled;
-            const connected = window.sidebarState.isConnected;
-            const enabled = devMode || connected;
-            
-            document.getElementById('btn-monitoring-wrapper').setAttribute('data-tooltip', 
-                enabled ? 'Monitoring' : 'Monitoring (Enable Dev Mode)');
-            document.getElementById('btn-analysis').setAttribute('data-tooltip', 
-                enabled ? 'Analysis' : 'Analysis (Enable Dev Mode)');
-            document.getElementById('btn-simulation').setAttribute('data-tooltip', 
-                enabled ? 'Simulation' : 'Simulation (Enable Dev Mode)');
-            document.getElementById('btn-debug-wrapper').setAttribute('data-tooltip', 
-                enabled ? 'Debug Tools' : 'Debug Tools (Enable Dev Mode)');
-        }
-
-        // =============================================
-        // View Management
-        // =============================================
-        function showCoverScreen() {
-            document.getElementById('cover-screen').classList.remove('hidden');
-            document.getElementById('threejs-container').classList.remove('active');
-            document.getElementById('overlay-ui').style.display = 'none';
-        }
-        
-        function show3DView() {
-            document.getElementById('cover-screen').classList.add('hidden');
-            document.getElementById('threejs-container').classList.add('active');
-            document.getElementById('overlay-ui').style.display = 'flex';
-        }
-        
-        function updateModeIndicator(mode, submode) {
-            document.getElementById('current-mode').textContent = mode || '—';
-            document.getElementById('current-submode').textContent = submode ? `→ ${submode}` : '';
-            window.sidebarState.currentMode = mode;
-            window.sidebarState.currentSubMode = submode;
-        }
-        
-        function updateSidebarSelection(mode) {
-            document.querySelectorAll('#sidebar .icon-btn').forEach(btn => btn.classList.remove('selected'));
-            if (mode) document.getElementById(`btn-${mode}`)?.classList.add('selected');
-        }
-
-        function loadMockTest(testName) {
-            showToast(`Loading: ${testName}`, 'info');
-        }
-
-        // =============================================
-        // Event Handlers
-        // =============================================
-        document.addEventListener('click', (e) => {
-            // Connection 버튼
-            if (e.target.closest('#btn-connection')) {
-                toggleConnectionModal();
-                return;
-            }
-            
-            // disabled 버튼 클릭 차단 + 안내
-            const disabledBtn = e.target.closest('.icon-btn.disabled');
-            if (disabledBtn) {
-                showToast('Enable Dev Mode in Settings first', 'warning');
-                return;
-            }
-            
-            const disabledWrapper = e.target.closest('.has-submenu.disabled');
-            if (disabledWrapper && !e.target.closest('.submenu')) {
-                showToast('Enable Dev Mode in Settings first', 'warning');
-                return;
-            }
-            
-            // Submenu Item
-            const submenuItem = e.target.closest('.submenu-item');
-            if (submenuItem && !submenuItem.classList.contains('disabled')) {
-                const submode = submenuItem.dataset.submode;
-                const wrapper = submenuItem.closest('.has-submenu');
-                const btn = wrapper?.querySelector('.icon-btn');
-                const mode = btn?.dataset.mode;
-                
-                if (mode && submode) {
-                    handleModeChange(mode, submode);
-                }
-            }
-        });
-        
-        function handleModeChange(mode, submode) {
-            if (!canAccessFeatures()) {
-                showToast('Enable Dev Mode first', 'warning');
-                return;
-            }
-            
-            console.log(`🔄 Mode: ${mode} → ${submode}`);
-            
-            if (mode === 'monitoring' && submode === '3d-view') {
-                show3DView();
-                updateModeIndicator('Monitoring', '3D View');
-                updateSidebarSelection('monitoring');
-                showToast('3D View activated', 'success');
-                
-                // main.js의 viewManager가 있으면 호출
-                if (window.viewManager?.show3DView) {
-                    window.viewManager.show3DView();
-                }
-            }
-        }
-
-        // =============================================
-        // Keyboard Shortcuts
-        // =============================================
-        document.addEventListener('keydown', (e) => {
-            if (e.target.matches('input, textarea')) return;
-            
-            const key = e.key.toLowerCase();
-            
-            // Ctrl+K: Connection Modal (항상 동작)
-            if ((e.ctrlKey || e.metaKey) && key === 'k') {
-                e.preventDefault();
-                toggleConnectionModal();
-                return;
-            }
-            
-            // ESC
-            if (key === 'escape') {
-                if (document.getElementById('connection-modal').classList.contains('active')) {
-                    closeConnectionModal();
-                    return;
-                }
-                if (window.sidebarState.debugPanelVisible) {
-                    toggleDebugPanel();
-                    return;
-                }
-            }
-            
-            if (!canAccessFeatures()) return;
-            
-            if (key === 'd') toggleDebugPanel();
-            if (key === 'm') handleModeChange('monitoring', '3d-view');
-        });
-
-        // =============================================
-        // Init
-        // =============================================
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🏭 Sherlock Sky 3DSim v5.0.3');
-            loadSavedTheme();
-            updateTooltips();
-            
-            // Network status
-            const updateNet = () => {
-                const dot = document.getElementById('net-dot');
-                const val = document.getElementById('net-value');
-                dot.classList.toggle('connected', navigator.onLine);
-                dot.classList.toggle('disconnected', !navigator.onLine);
-                val.textContent = navigator.onLine ? 'Online' : 'Offline';
-            };
-            updateNet();
-            window.addEventListener('online', updateNet);
-            window.addEventListener('offline', updateNet);
-            
-            console.log('');
-            console.log('💡 Ctrl+K: Connection Modal');
-            console.log('💡 Settings → Dev Mode: Enable all UI');
-        });
+        console.log('🏭 Sherlock Sky 3DSim v5.1.0');
+        console.log('📦 Sidebar UI 컴포넌트 동적 로딩 대기 중...');
     </script>
     
+    <!-- Main Application (ES Module) -->
     <script type="module" src="./src/main.js"></script>
 </body>
 </html>

@@ -5,8 +5,16 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @created 2026-01-11
+ * @updated 2026-01-11
+ * 
+ * @changelog
+ * - v1.1.0: 🔧 Connection Modal 동적 생성 추가
+ *           - _createConnectionModal() 메서드 추가
+ *           - toggleConnectionModal() 내부 처리
+ *           - 버튼 우상단 Dot 상태 표시 제거 (StatusBar와 중복)
+ * - v1.0.0: 초기 버전
  * 
  * @description
  * - 기존 floating-btn 시스템 대체
@@ -20,10 +28,7 @@
  * - ConnectionStatusService (services)
  * - IconRegistry (ui/sidebar)
  * 
- * [MIGRATION NOTE]
- * - 기존 #connectionBtn, #editBtn, #monitoringBtn 대체
- * - 기존 keyboard shortcuts 유지 (Ctrl+K, E, M 등)
- * - appModeManager.toggleMode() 호출로 모드 전환
+ * 위치: frontend/threejs_viewer/src/ui/sidebar/Sidebar.js
  */
 
 import { ICONS, getIcon } from './IconRegistry.js';
@@ -34,7 +39,6 @@ import { ICONS, getIcon } from './IconRegistry.js';
 
 /**
  * 사이드바 버튼 설정
- * test_sidebar_standalone.html 기준
  */
 const SIDEBAR_BUTTONS = {
     connection: {
@@ -43,7 +47,7 @@ const SIDEBAR_BUTTONS = {
         tooltip: 'Database Connection (Ctrl+K)',
         mode: 'connection',
         alwaysEnabled: true,
-        selectable: false  // 선택 상태 없음 (항상 normal)
+        selectable: false
     },
     monitoring: {
         id: 'btn-monitoring',
@@ -60,7 +64,7 @@ const SIDEBAR_BUTTONS = {
         tooltip: 'Analysis (Coming Soon)',
         mode: 'analysis',
         requiresConnection: true,
-        disabled: true  // 미구현
+        disabled: true
     },
     simulation: {
         id: 'btn-simulation',
@@ -68,7 +72,7 @@ const SIDEBAR_BUTTONS = {
         tooltip: 'Simulation (Coming Soon)',
         mode: 'simulation',
         requiresConnection: true,
-        disabled: true  // 미구현
+        disabled: true
     },
     layout: {
         id: 'btn-layout',
@@ -79,7 +83,7 @@ const SIDEBAR_BUTTONS = {
         requiresDevMode: true,
         hasSubmenu: true,
         submenuId: 'layout-submenu',
-        hidden: true  // Dev Mode에서만 표시
+        hidden: true
     },
     debug: {
         id: 'btn-debug',
@@ -143,7 +147,16 @@ const SUBMENUS = {
 };
 
 /**
- * APP_MODE 매핑 (기존 시스템과 연동)
+ * Connection Modal 사이트 목록
+ */
+const SITE_LIST = [
+    { id: 'korea_site1', flag: '🇰🇷', name: 'Korea Site 1', desc: 'Seoul Manufacturing Plant' },
+    { id: 'vietnam_site1', flag: '🇻🇳', name: 'Vietnam Site 1', desc: 'Ho Chi Minh Factory' },
+    { id: 'usa_site1', flag: '🇺🇸', name: 'USA Site 1', desc: 'Texas Production Center' }
+];
+
+/**
+ * APP_MODE 매핑
  */
 const MODE_MAP = {
     'monitoring': 'MONITORING',
@@ -175,9 +188,9 @@ export class Sidebar {
         this.toast = options.toast || null;
         this.APP_MODE = options.APP_MODE || {};
         
-        // 콜백 함수들 (main.js에서 주입)
+        // 콜백 함수들
         this.callbacks = {
-            toggleConnectionModal: options.callbacks?.toggleConnectionModal || (() => {}),
+            toggleConnectionModal: options.callbacks?.toggleConnectionModal || null,
             toggleDebugPanel: options.callbacks?.toggleDebugPanel || (() => {}),
             openEquipmentEditModal: options.callbacks?.openEquipmentEditModal || (() => {}),
             ...options.callbacks
@@ -189,9 +202,11 @@ export class Sidebar {
         this.currentMode = null;
         this.currentSubMode = null;
         this.currentTheme = 'dark';
+        this.connectionModalOpen = false;
         
         // DOM 참조
         this.element = null;
+        this.connectionModal = null;
         this.buttons = new Map();
         this.submenus = new Map();
         
@@ -209,12 +224,13 @@ export class Sidebar {
     _init() {
         this._loadTheme();
         this._createDOM();
+        this._createConnectionModal();
         this._setupEventListeners();
         this._setupAppModeListeners();
         this._setupConnectionListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v1.0.0');
+        console.log('[Sidebar] 초기화 완료 v1.1.0');
     }
     
     _loadTheme() {
@@ -302,6 +318,7 @@ export class Sidebar {
         const wrapper = document.createElement('div');
         wrapper.className = 'has-submenu';
         wrapper.id = `${config.id}-wrapper`;
+        if (config.tooltip) wrapper.dataset.tooltip = config.tooltip;
         if (config.hidden) wrapper.classList.add('hidden');
         if (config.disabled || config.requiresConnection) wrapper.classList.add('disabled');
         
@@ -320,7 +337,7 @@ export class Sidebar {
         wrapper.appendChild(btn);
         wrapper.appendChild(submenu);
         
-        // 클릭 이벤트 (버튼 직접 클릭)
+        // 클릭 이벤트
         btn.addEventListener('click', (e) => {
             if (!btn.classList.contains('disabled')) {
                 this._handleButtonClick(key, e);
@@ -366,6 +383,7 @@ export class Sidebar {
                 menuItem.id = item.id;
                 if (item.disabled) menuItem.classList.add('disabled');
                 if (item.requiresDevMode) menuItem.dataset.requiresDevMode = 'true';
+                if (item.submode) menuItem.dataset.submode = item.submode;
                 
                 if (item.icon) {
                     menuItem.innerHTML = `${getIcon(item.icon)}<span>${item.label}</span>`;
@@ -421,7 +439,6 @@ export class Sidebar {
             </div>
         `;
         
-        // 클릭 이벤트
         section.querySelectorAll('.mock-test-item').forEach(item => {
             item.addEventListener('click', () => {
                 const testName = item.dataset.test;
@@ -456,24 +473,311 @@ export class Sidebar {
     }
     
     // ========================================
+    // 🆕 v1.1.0: Connection Modal 생성
+    // ========================================
+    
+    _createConnectionModal() {
+        // 기존 모달이 있으면 제거
+        const existing = document.getElementById('connection-modal');
+        if (existing) existing.remove();
+        
+        this.connectionModal = document.createElement('div');
+        this.connectionModal.id = 'connection-modal';
+        this.connectionModal.className = 'modal';
+        
+        this.connectionModal.innerHTML = `
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>🔌 Database Connection Manager</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Connection Status -->
+                    <div class="connection-status-box" style="
+                        background: var(--bg-input);
+                        border: 1px solid var(--border-color);
+                        border-radius: 10px;
+                        padding: 16px;
+                        margin-bottom: 20px;
+                    ">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                            <span class="status-dot disconnected" id="modal-api-dot"></span>
+                            <span style="color: var(--text-secondary);">Backend API:</span>
+                            <span style="color: var(--text-primary); font-weight: 500;" id="modal-api-status">Disconnected</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span class="status-dot disconnected" id="modal-db-dot"></span>
+                            <span style="color: var(--text-secondary);">Database:</span>
+                            <span style="color: var(--text-primary); font-weight: 500;" id="modal-db-status">Not Connected</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Site Selection -->
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                        Select a site to connect to the database:
+                    </p>
+                    <div class="site-list" style="display: flex; flex-direction: column; gap: 12px;">
+                        ${SITE_LIST.map(site => `
+                            <button class="site-item submenu-item" data-site-id="${site.id}" style="
+                                background: var(--bg-input);
+                                border-radius: 10px;
+                                padding: 16px;
+                                display: flex;
+                                align-items: center;
+                                gap: 16px;
+                            ">
+                                <span style="font-size: 28px;">${site.flag}</span>
+                                <div style="text-align: left;">
+                                    <div style="font-weight: 600; color: var(--text-primary);">${site.name}</div>
+                                    <div style="font-size: 12px; color: var(--text-muted);">${site.desc}</div>
+                                </div>
+                            </button>
+                        `).join('')}
+                    </div>
+                    
+                    <!-- Refresh Button -->
+                    <button class="btn-refresh" style="
+                        margin-top: 20px;
+                        width: 100%;
+                        padding: 12px;
+                        background: var(--bg-hover);
+                        border: 1px solid var(--border-color);
+                        border-radius: 8px;
+                        color: var(--text-secondary);
+                        cursor: pointer;
+                        font-size: 14px;
+                        transition: all 0.2s;
+                    ">
+                        🔄 Refresh Connection Status
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(this.connectionModal);
+        
+        // 이벤트 설정
+        this._setupConnectionModalEvents();
+    }
+    
+    _setupConnectionModalEvents() {
+        if (!this.connectionModal) return;
+        
+        // 오버레이 클릭으로 닫기
+        const overlay = this.connectionModal.querySelector('.modal-overlay');
+        overlay?.addEventListener('click', () => this.closeConnectionModal());
+        
+        // 닫기 버튼
+        const closeBtn = this.connectionModal.querySelector('.modal-close');
+        closeBtn?.addEventListener('click', () => this.closeConnectionModal());
+        
+        // Site 버튼 클릭
+        this.connectionModal.querySelectorAll('.site-item').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const siteId = btn.dataset.siteId;
+                this._connectToSite(siteId);
+            });
+        });
+        
+        // Refresh 버튼
+        const refreshBtn = this.connectionModal.querySelector('.btn-refresh');
+        refreshBtn?.addEventListener('click', () => this._checkBackendHealth());
+        
+        // Hover 효과
+        refreshBtn?.addEventListener('mouseenter', () => {
+            refreshBtn.style.background = 'var(--bg-selected)';
+            refreshBtn.style.color = 'var(--icon-selected)';
+        });
+        refreshBtn?.addEventListener('mouseleave', () => {
+            refreshBtn.style.background = 'var(--bg-hover)';
+            refreshBtn.style.color = 'var(--text-secondary)';
+        });
+    }
+    
+    /**
+     * Connection Modal 열기
+     */
+    openConnectionModal() {
+        if (this.connectionModal) {
+            this.connectionModal.classList.add('active');
+            this.connectionModalOpen = true;
+            this._updateConnectionModalStatus();
+            
+            if (this.eventBus) {
+                this.eventBus.emit('connectionModal:opened');
+            }
+        }
+    }
+    
+    /**
+     * Connection Modal 닫기
+     */
+    closeConnectionModal() {
+        if (this.connectionModal) {
+            this.connectionModal.classList.remove('active');
+            this.connectionModalOpen = false;
+            
+            if (this.eventBus) {
+                this.eventBus.emit('connectionModal:closed');
+            }
+        }
+    }
+    
+    /**
+     * Connection Modal 토글
+     */
+    toggleConnectionModal() {
+        if (this.connectionModalOpen) {
+            this.closeConnectionModal();
+        } else {
+            this.openConnectionModal();
+        }
+    }
+    
+    /**
+     * Connection Modal 상태 업데이트
+     */
+    _updateConnectionModalStatus() {
+        const apiDot = document.getElementById('modal-api-dot');
+        const apiStatus = document.getElementById('modal-api-status');
+        const dbDot = document.getElementById('modal-db-dot');
+        const dbStatus = document.getElementById('modal-db-status');
+        
+        // API 상태
+        const isApiOnline = this.connectionStatusService?.isOnline?.() || false;
+        if (apiDot) {
+            apiDot.className = `status-dot ${isApiOnline ? 'connected' : 'disconnected'}`;
+        }
+        if (apiStatus) {
+            apiStatus.textContent = isApiOnline ? 'Connected' : 'Disconnected';
+        }
+        
+        // DB 상태
+        if (dbDot) {
+            dbDot.className = `status-dot ${this.isConnected ? 'connected' : 'disconnected'}`;
+        }
+        if (dbStatus) {
+            dbStatus.textContent = this.isConnected ? 'Connected' : 'Not Connected';
+        }
+    }
+    
+    /**
+     * 사이트 연결 시도
+     */
+    async _connectToSite(siteId) {
+        console.log(`🔗 Connecting to: ${siteId}`);
+        
+        const dbStatus = document.getElementById('modal-db-status');
+        if (dbStatus) {
+            dbStatus.textContent = 'Connecting...';
+        }
+        
+        if (this.toast) {
+            this.toast.info('Connecting', `Connecting to ${siteId}...`);
+        }
+        
+        try {
+            // TODO: 실제 연결 로직 (API 호출)
+            // const response = await fetch(`${API_BASE_URL}/api/connection/connect`, {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({ site_id: siteId })
+            // });
+            
+            // 시뮬레이션: Dev Mode면 성공으로 처리
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (this.devModeEnabled) {
+                // Dev Mode: 연결 성공 시뮬레이션
+                this.isConnected = true;
+                this._updateButtonStates();
+                this._updateConnectionModalStatus();
+                
+                if (this.eventBus) {
+                    this.eventBus.emit('site:connected', { siteId, siteName: siteId });
+                }
+                
+                if (this.toast) {
+                    this.toast.success('Connected', `Connected to ${siteId}`);
+                }
+                
+                this.closeConnectionModal();
+            } else {
+                // 실제 모드: Backend 필요
+                if (dbStatus) {
+                    dbStatus.textContent = 'Failed (No Backend)';
+                }
+                if (this.toast) {
+                    this.toast.error('Failed', 'Backend not available');
+                }
+            }
+        } catch (error) {
+            console.error('Connection failed:', error);
+            if (dbStatus) {
+                dbStatus.textContent = 'Failed';
+            }
+            if (this.toast) {
+                this.toast.error('Connection Failed', error.message);
+            }
+        }
+    }
+    
+    /**
+     * Backend Health Check
+     */
+    async _checkBackendHealth() {
+        console.log('🔍 Checking backend health...');
+        
+        const apiStatus = document.getElementById('modal-api-status');
+        if (apiStatus) {
+            apiStatus.textContent = 'Checking...';
+        }
+        
+        try {
+            // ConnectionStatusService 사용
+            if (this.connectionStatusService) {
+                const isOnline = await this.connectionStatusService.checkOnline?.() || 
+                                 this.connectionStatusService.isOnline?.() || false;
+                this._updateConnectionModalStatus();
+                
+                if (this.toast) {
+                    if (isOnline) {
+                        this.toast.success('Backend Online', 'API is available');
+                    } else {
+                        this.toast.warning('Backend Offline', 'API is not available');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Health check failed:', error);
+            if (apiStatus) {
+                apiStatus.textContent = 'Disconnected';
+            }
+        }
+    }
+    
+    // ========================================
     // Event Handlers
     // ========================================
     
     _setupEventListeners() {
-        // 키보드 단축키는 기존 KeyboardManager 사용
-        // 여기서는 Sidebar 내부 이벤트만 처리
+        // ESC 키로 모달 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.connectionModalOpen) {
+                this.closeConnectionModal();
+            }
+        });
     }
     
     _setupAppModeListeners() {
         if (!this.eventBus) return;
         
-        // 모드 변경 이벤트 수신
         const unsubMode = this.eventBus.on('mode:change', (data) => {
             this._onModeChange(data.to, data.from);
         });
         this._eventUnsubscribers.push(unsubMode);
         
-        // 모드 진입 차단 이벤트
         const unsubBlocked = this.eventBus.on('mode:enter-blocked', (data) => {
             if (this.toast) {
                 this.toast.warning('Mode Blocked', `${data.mode} requires backend connection`);
@@ -485,18 +789,18 @@ export class Sidebar {
     _setupConnectionListeners() {
         if (!this.connectionStatusService) return;
         
-        // 연결 상태 변경 감지
         const unsubOnline = this.connectionStatusService.onOnline(() => {
             this.enableAfterConnection();
+            this._updateConnectionModalStatus();
         });
         this._eventUnsubscribers.push(unsubOnline);
         
         const unsubOffline = this.connectionStatusService.onOffline(() => {
             this.disableBeforeConnection();
+            this._updateConnectionModalStatus();
         });
         this._eventUnsubscribers.push(unsubOffline);
         
-        // 초기 상태 확인
         if (this.connectionStatusService.isOnline()) {
             this.enableAfterConnection();
         }
@@ -511,11 +815,18 @@ export class Sidebar {
         
         switch (key) {
             case 'connection':
-                this.callbacks.toggleConnectionModal?.();
+                // 🆕 v1.1.0: 자체 모달 사용 (무한 루프 방지)
+                // 콜백 호출 시 main.js가 다시 이 메서드를 호출할 수 있으므로
+                this.toggleConnectionModal();
+                
+                // 이벤트 발행 (추가 처리용)
+                if (this.eventBus) {
+                    const isOpen = this.connectionModal?.classList.contains('active');
+                    this.eventBus.emit(isOpen ? 'connectionModal:opened' : 'connectionModal:closed');
+                }
                 break;
                 
             case 'monitoring':
-                // 서브메뉴가 있는 버튼은 직접 클릭 시 모드 설정만
                 this._selectButton(key);
                 this._setMode('monitoring');
                 break;
@@ -534,14 +845,12 @@ export class Sidebar {
                 
             case 'debug':
             case 'settings':
-                // 이 버튼들은 서브메뉴만 열림 (선택 상태 없음)
                 break;
         }
     }
     
     _handleSubmenuClick(item) {
         if (item.action) {
-            // 콜백 함수 호출
             const callback = this.callbacks[item.action];
             if (callback) {
                 if (item.params) {
@@ -550,20 +859,18 @@ export class Sidebar {
                     callback();
                 }
             } else {
-                // 내부 메서드 호출
                 const method = this[`_${item.action}`];
                 if (method) {
                     method.call(this, ...(item.params || []));
                 }
             }
         } else if (item.submode) {
-            // SubMode 설정
             this._setSubMode(item.submode);
         }
     }
     
     // ========================================
-    // Mode Management (AppModeManager 연동)
+    // Mode Management
     // ========================================
     
     _setMode(mode) {
@@ -574,25 +881,19 @@ export class Sidebar {
             return;
         }
         
-        // APP_MODE 매핑
         const appMode = this.APP_MODE[MODE_MAP[mode]] || this.APP_MODE.MAIN_VIEWER;
-        
-        // 토글 방식: 현재 모드면 main_viewer로, 아니면 해당 모드로
         this.appModeManager.toggleMode(appMode);
     }
     
     _setSubMode(submode) {
         this.currentSubMode = submode;
         
-        // AppModeManager의 subMode 설정
         if (this.appModeManager) {
             this.appModeManager.setSubMode(submode);
         }
         
-        // 서브메뉴 아이템 active 상태 업데이트
         this._updateSubmenuActiveState();
         
-        // 특정 submode 처리
         if (this.currentMode === 'monitoring' && submode === '3d-view') {
             this._show3DView();
         } else {
@@ -607,7 +908,6 @@ export class Sidebar {
     }
     
     _onModeChange(newMode, oldMode) {
-        // APP_MODE enum을 sidebar mode로 변환
         const modeKey = Object.entries(MODE_MAP).find(
             ([k, v]) => this.APP_MODE[v] === newMode
         )?.[0];
@@ -615,7 +915,6 @@ export class Sidebar {
         this.currentMode = modeKey || null;
         this.currentSubMode = null;
         
-        // 버튼 상태 업데이트
         this._updateButtonSelection();
         this._updateOverlayUI();
     }
@@ -628,14 +927,11 @@ export class Sidebar {
         const coverScreen = document.getElementById('cover-screen');
         const threejsContainer = document.getElementById('threejs-container');
         const overlayUI = document.getElementById('overlay-ui');
-        const testControls = document.getElementById('test-controls');
         
         if (coverScreen) coverScreen.classList.add('hidden');
         if (threejsContainer) threejsContainer.classList.add('active');
         if (overlayUI) overlayUI.style.display = 'flex';
-        if (testControls) testControls.style.display = 'block';
         
-        // Three.js 초기화 이벤트 발행
         if (this.eventBus) {
             this.eventBus.emit('threejs:show-requested');
         }
@@ -645,12 +941,10 @@ export class Sidebar {
         const coverScreen = document.getElementById('cover-screen');
         const threejsContainer = document.getElementById('threejs-container');
         const overlayUI = document.getElementById('overlay-ui');
-        const testControls = document.getElementById('test-controls');
         
         if (coverScreen) coverScreen.classList.add('hidden');
         if (threejsContainer) threejsContainer.classList.remove('active');
         if (overlayUI) overlayUI.style.display = 'flex';
-        if (testControls) testControls.style.display = 'none';
     }
     
     showCoverScreen() {
@@ -662,7 +956,6 @@ export class Sidebar {
         if (threejsContainer) threejsContainer.classList.remove('active');
         if (overlayUI) overlayUI.style.display = 'none';
         
-        // Three.js 정지 이벤트
         if (this.eventBus) {
             this.eventBus.emit('threejs:stop-requested');
         }
@@ -690,7 +983,6 @@ export class Sidebar {
     // ========================================
     
     _selectButton(key) {
-        // 모든 버튼 선택 해제
         this.buttons.forEach((btn, k) => {
             const config = SIDEBAR_BUTTONS[k];
             if (config?.selectable !== false) {
@@ -698,7 +990,6 @@ export class Sidebar {
             }
         });
         
-        // 선택한 버튼 활성화
         const btn = this.buttons.get(key);
         const config = SIDEBAR_BUTTONS[key];
         if (btn && config?.selectable !== false) {
@@ -726,52 +1017,52 @@ export class Sidebar {
             let shouldDisable = false;
             let shouldHide = false;
             
-            // 연결 필요 여부
-            if (config.requiresConnection && !this.isConnected) {
+            // 연결 또는 Dev Mode 체크
+            if (config.requiresConnection && !this.isConnected && !this.devModeEnabled) {
                 shouldDisable = true;
             }
             
-            // Dev Mode 필요 여부
             if (config.requiresDevMode && !this.devModeEnabled) {
                 shouldHide = true;
             }
             
-            // DevMode 또는 Connection 필요
             if (config.requiresDevModeOrConnection) {
                 if (!this.devModeEnabled && !this.isConnected) {
                     shouldDisable = true;
                 }
             }
             
-            // 항상 활성화
             if (config.alwaysEnabled) {
                 shouldDisable = false;
             }
             
-            // 기본 비활성화 (미구현)
             if (config.disabled) {
                 shouldDisable = true;
             }
             
-            // 상태 적용
             btn.classList.toggle('disabled', shouldDisable);
+            
+            // Tooltip 업데이트
+            const tooltip = shouldDisable && !config.alwaysEnabled
+                ? `${config.tooltip} (Enable Dev Mode)`
+                : config.tooltip;
             
             if (wrapper) {
                 wrapper.classList.toggle('disabled', shouldDisable);
                 wrapper.classList.toggle('hidden', shouldHide);
+                wrapper.dataset.tooltip = tooltip;
             } else {
                 btn.classList.toggle('hidden', shouldHide);
+                btn.dataset.tooltip = tooltip;
             }
         });
     }
     
     _updateSubmenuActiveState() {
-        // 모든 서브메뉴 아이템 비활성화
         document.querySelectorAll('.submenu-item').forEach(item => {
             item.classList.remove('active');
         });
         
-        // 현재 submode에 해당하는 아이템 활성화
         if (this.currentSubMode) {
             const activeItem = document.querySelector(
                 `.submenu-item[data-submode="${this.currentSubMode}"]`
@@ -786,9 +1077,6 @@ export class Sidebar {
     // Connection State
     // ========================================
     
-    /**
-     * Backend 연결 후 UI 활성화
-     */
     enableAfterConnection() {
         this.isConnected = true;
         this._updateButtonStates();
@@ -797,22 +1085,20 @@ export class Sidebar {
         console.log('[Sidebar] Backend 연결됨 - UI 활성화');
     }
     
-    /**
-     * Backend 연결 전/해제 시 UI 비활성화
-     */
     disableBeforeConnection() {
         this.isConnected = false;
         this._updateButtonStates();
         this._updateCoverStatus(false);
         
-        // 모드 초기화
         this.currentMode = null;
         this.currentSubMode = null;
         this._updateButtonSelection();
         this._updateOverlayUI();
         
-        // Cover Screen 표시
-        this.showCoverScreen();
+        // Dev Mode가 아니면 Cover Screen 표시
+        if (!this.devModeEnabled) {
+            this.showCoverScreen();
+        }
         
         console.log('[Sidebar] Backend 연결 해제 - UI 비활성화');
     }
@@ -847,7 +1133,6 @@ export class Sidebar {
         
         localStorage.setItem('theme', this.currentTheme);
         
-        // Three.js 씬 배경색 변경 이벤트
         if (this.eventBus) {
             this.eventBus.emit('theme:change', { theme: this.currentTheme });
         }
@@ -864,7 +1149,6 @@ export class Sidebar {
     toggleDevMode() {
         this.devModeEnabled = !this.devModeEnabled;
         
-        // UI 업데이트
         const badge = document.getElementById('dev-mode-badge');
         const devModeLabel = document.getElementById('dev-mode-toggle');
         const mockTestSection = document.getElementById('mock-test-section');
@@ -886,16 +1170,22 @@ export class Sidebar {
             mockTestSection.style.display = this.devModeEnabled ? 'block' : 'none';
         }
         
-        // 버튼 상태 업데이트
         this._updateButtonStates();
+        
+        // 전역 상태 동기화
+        if (window.sidebarState) {
+            window.sidebarState.devModeEnabled = this.devModeEnabled;
+        }
         
         if (this.toast) {
             if (this.devModeEnabled) {
-                this.toast.warning('Dev Mode ON', 'Mock testing enabled');
+                this.toast.warning('Dev Mode ON', 'All features enabled without backend');
             } else {
                 this.toast.info('Dev Mode OFF', '');
             }
         }
+        
+        console.log(`⚡ Dev Mode: ${this.devModeEnabled ? 'ON' : 'OFF'}`);
     }
     
     _loadMockTest(testName) {
@@ -903,7 +1193,6 @@ export class Sidebar {
             this.toast.info('Mock Test', `Loading: ${testName}`);
         }
         
-        // Mock 테스트 이벤트 발행
         if (this.eventBus) {
             this.eventBus.emit('mock:load-test', { testName });
         }
@@ -927,43 +1216,22 @@ export class Sidebar {
     // Public API
     // ========================================
     
-    /**
-     * 현재 모드 가져오기
-     * @returns {string|null}
-     */
     getCurrentMode() {
         return this.currentMode;
     }
     
-    /**
-     * 현재 서브모드 가져오기
-     * @returns {string|null}
-     */
     getCurrentSubMode() {
         return this.currentSubMode;
     }
     
-    /**
-     * 연결 상태 확인
-     * @returns {boolean}
-     */
     getIsConnected() {
         return this.isConnected;
     }
     
-    /**
-     * Dev Mode 상태 확인
-     * @returns {boolean}
-     */
     getDevModeEnabled() {
         return this.devModeEnabled;
     }
     
-    /**
-     * 특정 버튼 활성화/비활성화
-     * @param {string} key - 버튼 키
-     * @param {boolean} enabled - 활성화 여부
-     */
     setButtonEnabled(key, enabled) {
         const btn = this.buttons.get(key);
         const wrapper = document.getElementById(`${SIDEBAR_BUTTONS[key]?.id}-wrapper`);
@@ -976,11 +1244,6 @@ export class Sidebar {
         }
     }
     
-    /**
-     * 특정 버튼 표시/숨김
-     * @param {string} key - 버튼 키
-     * @param {boolean} visible - 표시 여부
-     */
     setButtonVisible(key, visible) {
         const btn = this.buttons.get(key);
         const wrapper = document.getElementById(`${SIDEBAR_BUTTONS[key]?.id}-wrapper`);
@@ -996,11 +1259,7 @@ export class Sidebar {
     // Cleanup
     // ========================================
     
-    /**
-     * 정리 (destroy)
-     */
     destroy() {
-        // 이벤트 리스너 정리
         this._eventUnsubscribers.forEach(unsub => {
             if (typeof unsub === 'function') {
                 unsub();
@@ -1008,16 +1267,19 @@ export class Sidebar {
         });
         this._eventUnsubscribers = [];
         
-        // DOM 제거
         if (this.element) {
             this.element.remove();
             this.element = null;
         }
         
+        if (this.connectionModal) {
+            this.connectionModal.remove();
+            this.connectionModal = null;
+        }
+        
         const badge = document.getElementById('dev-mode-badge');
         if (badge) badge.remove();
         
-        // 참조 정리
         this.buttons.clear();
         this.submenus.clear();
         
@@ -1025,5 +1287,4 @@ export class Sidebar {
     }
 }
 
-// 기본 내보내기
 export default Sidebar;

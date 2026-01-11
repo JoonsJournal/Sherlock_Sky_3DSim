@@ -4,20 +4,16 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 5.0.1
- * @description Cover Screen 기반 UI, Three.js 지연 초기화, Sidebar 통합
+ * @version 5.1.0
+ * @description createSidebarUI() 활성화, 중복 코드 제거
  * 
  * @changelog
- * - v5.0.1: 🔧 Settings 항상 활성화, Dev Mode 시 Connect 없이 사용 가능
- * - v5.0.0: 🆕 Cleanroom Sidebar Theme 통합
- *           - Cover Screen 기본 표시 (연결 전)
- *           - Three.js 지연 초기화 (show3DView() 시점)
- *           - Sidebar 컴포넌트 연동 (동적 또는 정적)
- *           - StatusBar 실시간 FPS/MEM 업데이트
- *           - 기존 기능 100% 보존
- * - v4.2.0: MonitoringService ↔ EquipmentInfoPanel 연결 추가
- * - v4.1.0: EquipmentInfoPanel ↔ DataOverlay 연결 추가
- * - v4.0.0: 중앙 집중식 모드 관리, AppModeManager.toggleMode() 사용
+ * - v5.1.0: 🔧 createSidebarUI() 활성화
+ *           - Sidebar.js, StatusBar.js, CoverScreen.js 동적 렌더링
+ *           - 기존 setupSidebarEvents() 제거 (중복 이벤트 해결)
+ *           - index.html 인라인 스크립트와 충돌 해결
+ * - v5.0.1: Settings 항상 활성화, Dev Mode 시 Connect 없이 사용 가능
+ * - v5.0.0: Cleanroom Sidebar Theme 통합
  * 
  * 위치: frontend/threejs_viewer/src/main.js
  */
@@ -73,12 +69,18 @@ import { roomParamsAdapter } from './services/converter/RoomParamsAdapter.js';
 // Storage Service import
 import { storageService } from './core/storage/index.js';
 
+// 🆕 v5.1.0: Sidebar UI 컴포넌트 import
+import { createSidebarUI } from './ui/sidebar/index.js';
+
 // ============================================
 // 전역 상태
 // ============================================
 let animationFrameId;
 let performanceMonitorUI;
 let previewGenerator;
+
+// 🆕 v5.1.0: Sidebar UI 인스턴스
+let sidebarUI = null;
 
 // 서비스 객체 저장소
 const services = {
@@ -92,9 +94,8 @@ const urlParams = new URLSearchParams(window.location.search);
 const SITE_ID = urlParams.get('siteId') || 'default_site';
 
 // ============================================
-// 🆕 v5.0.0: 전역 상태 (Sidebar용)
+// 전역 상태 (Sidebar용) - 하위 호환
 // ============================================
-// index.html의 sidebarState와 동기화
 window.sidebarState = window.sidebarState || {
     currentMode: null,
     currentSubMode: null,
@@ -104,7 +105,7 @@ window.sidebarState = window.sidebarState || {
 };
 
 // ============================================
-// 🆕 v5.0.0: View Manager (Cover/3D 전환)
+// View Manager (Cover/3D 전환)
 // ============================================
 const viewManager = {
     threejsInitialized: false,
@@ -114,17 +115,21 @@ const viewManager = {
      * Cover Screen 표시 (기본 상태)
      */
     showCoverScreen() {
-        const coverScreen = document.getElementById('cover-screen');
-        const threejsContainer = document.getElementById('threejs-container');
-        const overlayUI = document.getElementById('overlay-ui');
-        
-        if (coverScreen) coverScreen.classList.remove('hidden');
-        if (threejsContainer) threejsContainer.classList.remove('active');
-        if (overlayUI) overlayUI.style.display = 'none';
+        // 🆕 v5.1.0: CoverScreen.js 사용
+        if (sidebarUI?.coverScreen) {
+            sidebarUI.coverScreen.show();
+        } else {
+            // 폴백: 기존 방식
+            const coverScreen = document.getElementById('cover-screen');
+            const threejsContainer = document.getElementById('threejs-container');
+            const overlayUI = document.getElementById('overlay-ui');
+            
+            if (coverScreen) coverScreen.classList.remove('hidden');
+            if (threejsContainer) threejsContainer.classList.remove('active');
+            if (overlayUI) overlayUI.style.display = 'none';
+        }
         
         this.stopAnimation();
-        
-        // 모드 인디케이터 초기화
         updateModeIndicator(null, null);
         
         console.log('📺 Cover Screen 표시');
@@ -134,11 +139,17 @@ const viewManager = {
      * 3D View 표시 + Three.js 초기화
      */
     show3DView() {
-        const coverScreen = document.getElementById('cover-screen');
+        // 🆕 v5.1.0: CoverScreen.js 사용
+        if (sidebarUI?.coverScreen) {
+            sidebarUI.coverScreen.hide();
+        } else {
+            const coverScreen = document.getElementById('cover-screen');
+            if (coverScreen) coverScreen.classList.add('hidden');
+        }
+        
         const threejsContainer = document.getElementById('threejs-container');
         const overlayUI = document.getElementById('overlay-ui');
         
-        if (coverScreen) coverScreen.classList.add('hidden');
         if (threejsContainer) threejsContainer.classList.add('active');
         if (overlayUI) overlayUI.style.display = 'flex';
         
@@ -156,11 +167,10 @@ const viewManager = {
     
     /**
      * Three.js 씬 초기화 (내부 함수)
-     * 기존 initScene() 재사용
      */
     _initThreeJS() {
         try {
-            // 1. 3D 씬 초기화 (기존 함수 사용)
+            // 1. 3D 씬 초기화
             services.scene = initScene();
             console.log('  ✅ 3D Scene 초기화 완료');
             
@@ -198,10 +208,7 @@ const viewManager = {
             const { interactionHandler, sceneManager, equipmentLoader } = services.scene;
             const { equipmentEditState, equipmentEditModal } = services.ui || {};
             
-            // AppModeManager 연결
             interactionHandler.setAppModeManager(appModeManager);
-            
-            // 레거시 호환용 연결
             interactionHandler.setEditMode(equipmentEditState);
             interactionHandler.setEditModal(equipmentEditModal);
             interactionHandler.setMonitoringService(services.monitoring?.monitoringService);
@@ -245,6 +252,11 @@ const viewManager = {
             // 12. 전역 객체 노출 (Scene 초기화 후)
             _exposeGlobalObjectsAfterSceneInit();
             
+            // 🆕 v5.1.0: StatusBar에 PerformanceMonitor 연결
+            if (sidebarUI?.statusBar && services.scene?.performanceMonitor) {
+                sidebarUI.statusBar.setPerformanceMonitor(services.scene.performanceMonitor);
+            }
+            
             // 13. 로딩 상태 숨김
             hideLoadingStatus(1000);
             
@@ -256,9 +268,6 @@ const viewManager = {
         }
     },
     
-    /**
-     * 애니메이션 시작
-     */
     startAnimation() {
         if (!this.animationRunning && services.scene) {
             this.animationRunning = true;
@@ -267,9 +276,6 @@ const viewManager = {
         }
     },
     
-    /**
-     * 애니메이션 중지
-     */
     stopAnimation() {
         if (animationFrameId) {
             cancelAnimationFrame(animationFrameId);
@@ -284,14 +290,9 @@ const viewManager = {
 window.viewManager = viewManager;
 
 // ============================================
-// 🆕 v5.0.0: Mode Indicator 업데이트
+// Mode Indicator 업데이트
 // ============================================
 
-/**
- * 모드 인디케이터 UI 업데이트
- * @param {string|null} mode - 현재 모드
- * @param {string|null} submode - 현재 서브모드
- */
 function updateModeIndicator(mode, submode) {
     const modeValue = document.getElementById('current-mode');
     const submodeValue = document.getElementById('current-submode');
@@ -308,33 +309,30 @@ function updateModeIndicator(mode, submode) {
             : '';
     }
     
-    // 전역 상태 업데이트
     window.sidebarState.currentMode = mode;
     window.sidebarState.currentSubMode = submode;
 }
 
 // ============================================
-// 🆕 v5.0.1: 접근 권한 체크 헬퍼
+// 접근 권한 체크 헬퍼
 // ============================================
 
-/**
- * 기능 사용 가능 여부 체크
- * @returns {boolean} isConnected 또는 devModeEnabled
- */
 function canAccessFeatures() {
+    // 🆕 v5.1.0: Sidebar 인스턴스에서 상태 가져오기
+    if (sidebarUI?.sidebar) {
+        return sidebarUI.sidebar.getIsConnected() || sidebarUI.sidebar.getDevModeEnabled();
+    }
     return window.sidebarState.isConnected || window.sidebarState.devModeEnabled;
 }
 
 // ============================================
-// 모드 토글 함수 (기존 유지 + 확장)
+// 모드 토글 함수
 // ============================================
 
 /**
  * Equipment Edit 모드 토글
- * AppModeManager.toggleMode() 사용 - 핸들러가 자동 처리
  */
 function toggleEditMode() {
-    // 🆕 v5.0.1: Dev Mode 시 연결 없이도 사용 가능
     if (!canAccessFeatures()) {
         toast?.show('Connect DB or enable Dev Mode first', 'warning');
         return;
@@ -344,24 +342,19 @@ function toggleEditMode() {
     
     const currentMode = appModeManager.getCurrentMode();
     if (currentMode === APP_MODE.EQUIPMENT_EDIT) {
-        // Edit 모드 진입 시 3D View 표시 필요
         if (!viewManager.threejsInitialized) {
             viewManager.show3DView();
         }
         updateModeIndicator('Edit', 'Equipment');
-        _updateSidebarButtonState('edit');
     } else {
         updateModeIndicator(null, null);
-        _updateSidebarButtonState(null);
     }
 }
 
 /**
- * 🆕 v5.0.0: Monitoring 모드 토글 (확장)
- * @param {string} submode - 서브모드 ('3d-view', 'ranking-view' 등)
+ * Monitoring 모드 토글
  */
 function toggleMonitoringMode(submode = '3d-view') {
-    // 🆕 v5.0.1: Dev Mode 시 연결 없이도 사용 가능
     if (!canAccessFeatures()) {
         toast?.show('Connect DB or enable Dev Mode first', 'warning');
         return;
@@ -369,42 +362,36 @@ function toggleMonitoringMode(submode = '3d-view') {
     
     const prevMode = appModeManager.getCurrentMode();
     
-    // 이미 Monitoring 모드이고 같은 서브모드면 토글 OFF
     if (prevMode === APP_MODE.MONITORING && window.sidebarState?.currentSubMode === submode) {
         appModeManager.setMode(APP_MODE.VIEWER);
         viewManager.showCoverScreen();
         updateModeIndicator(null, null);
-        _updateSidebarButtonState(null);
         return;
     }
     
-    // Monitoring 모드 진입
     appModeManager.setMode(APP_MODE.MONITORING);
     
     if (submode === '3d-view') {
         viewManager.show3DView();
     } else {
-        // 다른 서브모드는 Cover Screen 유지 또는 별도 View
         viewManager.showCoverScreen();
     }
     
     updateModeIndicator('Monitoring', submode);
-    _updateSidebarButtonState('monitoring');
-    _updateSubmenuActiveState('monitoring', submode);
-    
     toast?.show(`Monitoring: ${submode}`, 'info');
 }
 
 /**
- * Connection Modal 토글 (기존 유지)
+ * Connection Modal 토글
+ * 🆕 v5.1.0: Sidebar.js의 콜백으로 전달됨
  */
 function toggleConnectionModal() {
+    // 기존 ConnectionModal 사용 (services.ui)
     if (services.ui?.connectionModal) {
         services.ui.connectionModal.toggle();
-        updateButtonState('connectionBtn', services.ui.connectionModal.isOpen);
     }
     
-    // 새 Connection Modal도 토글 (index.html v5.0.0)
+    // 🆕 새 Connection Modal (Sidebar.js가 생성)
     const modal = document.getElementById('connection-modal');
     if (modal) {
         modal.classList.toggle('active');
@@ -412,88 +399,93 @@ function toggleConnectionModal() {
 }
 
 /**
- * 🆕 v5.0.0: Debug Panel 토글 (확장)
+ * Debug Panel 토글
  */
 function toggleDebugPanel() {
-    // 🆕 v5.0.1: Dev Mode 시 연결 없이도 사용 가능
     if (!canAccessFeatures()) {
         toast?.show('Connect DB or enable Dev Mode first', 'warning');
         return;
     }
     
-    // 기존 bootstrap의 toggleDebugPanel 호출
     bootstrapToggleDebugPanel();
     
-    // 새 Debug Panel도 토글
-    const newDebugPanel = document.getElementById('debug-panel');
-    if (newDebugPanel) {
-        newDebugPanel.classList.toggle('active');
-        window.sidebarState.debugPanelVisible = newDebugPanel.classList.contains('active');
-        
-        // Debug Panel 내용 업데이트
-        if (window.sidebarState.debugPanelVisible) {
-            _updateDebugPanelContent();
-        }
+    const debugPanel = document.getElementById('debug-panel');
+    if (debugPanel) {
+        debugPanel.classList.toggle('active');
+        window.sidebarState.debugPanelVisible = debugPanel.classList.contains('active');
     }
 }
 
 /**
- * 🆕 v5.0.1: Dev Mode 토글
+ * Equipment Edit Modal 열기
  */
-function toggleDevMode() {
-    window.sidebarState.devModeEnabled = !window.sidebarState.devModeEnabled;
-    const devModeEnabled = window.sidebarState.devModeEnabled;
-    
-    // Dev Mode Badge 업데이트
-    const devModeBadge = document.getElementById('dev-mode-badge');
-    if (devModeBadge) {
-        devModeBadge.classList.toggle('active', devModeEnabled);
+function openEquipmentEditModal() {
+    if (services.ui?.equipmentEditModal) {
+        services.ui.equipmentEditModal.open();
     }
-    
-    // Dev Mode Label 업데이트
-    const devModeLabel = document.getElementById('dev-mode-label');
-    if (devModeLabel) {
-        devModeLabel.textContent = `Dev Mode: ${devModeEnabled ? 'ON' : 'OFF'}`;
-    }
-    
-    // Mock Test Section 표시/숨김
-    const mockTestSection = document.getElementById('mock-test-section');
-    if (mockTestSection) {
-        mockTestSection.style.display = devModeEnabled ? 'block' : 'none';
-    }
-    
-    // Layout 버튼 표시/숨김
-    const layoutWrapper = document.getElementById('btn-layout-wrapper');
-    if (layoutWrapper) {
-        if (devModeEnabled) {
-            layoutWrapper.classList.remove('hidden');
-            layoutWrapper.classList.remove('disabled');
-            const layoutBtn = document.getElementById('btn-layout');
-            if (layoutBtn) layoutBtn.classList.remove('disabled');
-        } else {
-            layoutWrapper.classList.add('hidden');
-        }
-    }
-    
-    // 🆕 v5.0.1: Dev Mode 시 Sidebar 아이콘 활성화
-    if (devModeEnabled) {
-        _enableSidebarIcons();
-        toast?.show('⚡ Dev Mode ON', 'warning');
-        console.log('⚡ Dev Mode ON - Connect 없이 기능 사용 가능');
-    } else {
-        // Dev Mode OFF 시, 연결 상태 확인 후 비활성화
-        if (!window.sidebarState.isConnected) {
-            _disableSidebarIcons();
-        }
-        toast?.show('Dev Mode OFF', 'info');
-        console.log('Dev Mode OFF');
-    }
-    
-    // Debug Panel 업데이트
-    _updateDebugPanelContent();
 }
 
-// 전역 노출
+/**
+ * 🆕 v5.1.0: Dev Mode 토글 (하위 호환용)
+ * Sidebar.js가 실제 처리하지만, 기존 코드 호환을 위해 유지
+ */
+function toggleDevMode() {
+    // Sidebar.js 인스턴스가 있으면 위임
+    if (sidebarUI?.sidebar) {
+        sidebarUI.sidebar.toggleDevMode();
+        // 전역 상태 동기화
+        window.sidebarState.devModeEnabled = sidebarUI.sidebar.getDevModeEnabled();
+    } else {
+        // 폴백: 직접 처리
+        window.sidebarState.devModeEnabled = !window.sidebarState.devModeEnabled;
+        const devModeEnabled = window.sidebarState.devModeEnabled;
+        
+        const devModeBadge = document.getElementById('dev-mode-badge');
+        if (devModeBadge) {
+            devModeBadge.classList.toggle('active', devModeEnabled);
+        }
+        
+        const devModeLabel = document.getElementById('dev-mode-label') || document.getElementById('dev-mode-toggle');
+        if (devModeLabel) {
+            const labelSpan = devModeLabel.querySelector('span') || devModeLabel;
+            if (labelSpan.tagName === 'SPAN') {
+                labelSpan.textContent = `Dev Mode: ${devModeEnabled ? 'ON' : 'OFF'}`;
+            } else {
+                devModeLabel.textContent = `Dev Mode: ${devModeEnabled ? 'ON' : 'OFF'}`;
+            }
+        }
+        
+        const mockTestSection = document.getElementById('mock-test-section');
+        if (mockTestSection) {
+            mockTestSection.style.display = devModeEnabled ? 'block' : 'none';
+        }
+        
+        const layoutWrapper = document.getElementById('btn-layout-wrapper');
+        if (layoutWrapper) {
+            if (devModeEnabled) {
+                layoutWrapper.classList.remove('hidden');
+                layoutWrapper.classList.remove('disabled');
+            } else {
+                layoutWrapper.classList.add('hidden');
+            }
+        }
+        
+        if (devModeEnabled) {
+            _enableSidebarIcons();
+            toast?.show('⚡ Dev Mode ON', 'warning');
+        } else {
+            if (!window.sidebarState.isConnected) {
+                _disableSidebarIcons();
+            }
+            toast?.show('Dev Mode OFF', 'info');
+        }
+    }
+    
+    _updateDebugPanelContent();
+    console.log(`⚡ Dev Mode: ${window.sidebarState.devModeEnabled ? 'ON' : 'OFF'}`);
+}
+
+// 전역 노출 (하위 호환)
 window.toggleDevMode = toggleDevMode;
 
 /**
@@ -542,234 +534,88 @@ function toggleAdaptivePerformance() {
     
     if (newState) {
         toast?.show('✅ AdaptivePerformance ON', 'success');
-        console.log('✅ AdaptivePerformance ON - 자동 품질 조정 활성화');
     } else {
         toast?.show('🛑 AdaptivePerformance OFF', 'info');
-        console.log('🛑 AdaptivePerformance OFF - 자동 품질 조정 비활성화');
     }
     
     return newState;
 }
 
 // ============================================
-// 🆕 v5.0.0: Sidebar UI 헬퍼 함수
+// 🆕 v5.1.0: Sidebar UI 초기화
 // ============================================
 
 /**
- * Sidebar 버튼 선택 상태 업데이트
+ * Sidebar UI 컴포넌트 초기화
+ * Sidebar.js, StatusBar.js, CoverScreen.js 동적 렌더링
  */
-function _updateSidebarButtonState(mode) {
-    document.querySelectorAll('#sidebar .icon-btn').forEach(btn => {
-        btn.classList.remove('selected');
+function initSidebarUI() {
+    console.log('🎨 Sidebar UI 초기화 시작...');
+    
+    sidebarUI = createSidebarUI({
+        // 의존성 주입
+        appModeManager,
+        eventBus,
+        connectionStatusService: services.ui?.connectionStatusService,
+        performanceMonitor: null, // 나중에 설정
+        toast,
+        APP_MODE,
+        
+        // 콜백 함수들
+        callbacks: {
+            toggleConnectionModal,
+            toggleDebugPanel,
+            openEquipmentEditModal,
+            toggleEditMode,
+            toggleMonitoringMode
+        },
+        
+        // 설정
+        siteId: SITE_ID,
+        countryCode: 'KR',
+        createStatusBar: true,
+        createCoverScreen: true
     });
     
-    if (mode) {
-        const btn = document.getElementById(`btn-${mode}`);
-        if (btn) btn.classList.add('selected');
+    // 🆕 Sidebar 이벤트 연결
+    if (sidebarUI?.sidebar) {
+        // Three.js 표시 요청 이벤트
+        eventBus.on('threejs:show-requested', () => {
+            if (!viewManager.threejsInitialized) {
+                viewManager.show3DView();
+            }
+        });
+        
+        // Three.js 정지 요청 이벤트
+        eventBus.on('threejs:stop-requested', () => {
+            viewManager.stopAnimation();
+        });
     }
-}
-
-/**
- * Submenu 활성 상태 업데이트
- */
-function _updateSubmenuActiveState(mode, submode) {
-    const submenu = document.getElementById(`${mode}-submenu`);
-    if (!submenu) return;
     
-    submenu.querySelectorAll('.submenu-item').forEach(item => {
-        item.classList.toggle('active', item.dataset.submode === submode);
-    });
-}
-
-/**
- * Sidebar 아이콘 활성화
- */
-function _enableSidebarIcons() {
-    const icons = ['btn-monitoring', 'btn-analysis', 'btn-simulation'];
-    const wrappers = ['btn-monitoring-wrapper', 'btn-debug-wrapper'];
-    
-    icons.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.remove('disabled');
+    console.log('✅ Sidebar UI 초기화 완료:', {
+        sidebar: !!sidebarUI?.sidebar,
+        statusBar: !!sidebarUI?.statusBar,
+        coverScreen: !!sidebarUI?.coverScreen
     });
     
-    wrappers.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.remove('disabled');
-    });
-    
-    // Debug 버튼 활성화
-    const debugBtn = document.getElementById('btn-debug');
-    if (debugBtn) debugBtn.classList.remove('disabled');
-    
-    // 🆕 v5.0.1: Dev Mode인 경우 Layout 버튼도 활성화
-    if (window.sidebarState?.devModeEnabled) {
-        const layoutWrapper = document.getElementById('btn-layout-wrapper');
-        const layoutBtn = document.getElementById('btn-layout');
-        if (layoutWrapper) {
-            layoutWrapper.classList.remove('hidden');
-            layoutWrapper.classList.remove('disabled');
-        }
-        if (layoutBtn) layoutBtn.classList.remove('disabled');
-    }
-}
-
-/**
- * Sidebar 아이콘 비활성화
- */
-function _disableSidebarIcons() {
-    const icons = ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-layout'];
-    const wrappers = ['btn-monitoring-wrapper', 'btn-layout-wrapper'];
-    
-    icons.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('disabled');
-    });
-    
-    wrappers.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('disabled');
-    });
-    
-    // 🆕 v5.0.1: Dev Mode가 아니면 Debug도 비활성화
-    if (!window.sidebarState?.devModeEnabled) {
-        const debugWrapper = document.getElementById('btn-debug-wrapper');
-        const debugBtn = document.getElementById('btn-debug');
-        if (debugWrapper) debugWrapper.classList.add('disabled');
-        if (debugBtn) debugBtn.classList.add('disabled');
-    }
-    
-    // 선택 상태 초기화
-    document.querySelectorAll('#sidebar .icon-btn').forEach(btn => {
-        btn.classList.remove('selected');
-    });
-}
-
-/**
- * Cover Screen 상태 업데이트
- */
-function _updateCoverStatus(apiConnected, dbConnected, dbName) {
-    const apiDot = document.getElementById('cover-api-dot');
-    const apiStatus = document.getElementById('cover-api-status');
-    const dbDot = document.getElementById('cover-db-dot');
-    const dbStatus = document.getElementById('cover-db-status');
-    
-    if (apiDot) {
-        apiDot.classList.toggle('connected', apiConnected);
-        apiDot.classList.toggle('disconnected', !apiConnected);
-    }
-    if (apiStatus) {
-        apiStatus.textContent = apiConnected ? 'Connected' : 'Disconnected';
-    }
-    
-    if (dbDot) {
-        dbDot.classList.toggle('connected', dbConnected);
-        dbDot.classList.toggle('disconnected', !dbConnected);
-    }
-    if (dbStatus) {
-        dbStatus.textContent = dbConnected ? (dbName || 'Connected') : 'Not Connected';
-    }
-    
-    // index.html의 updateCoverStatus 함수도 호출 (있으면)
-    if (typeof window.updateCoverStatus === 'function') {
-        window.updateCoverStatus(apiConnected, dbConnected, dbName);
-    }
-}
-
-/**
- * Status Bar 연결 상태 업데이트
- */
-function _updateStatusBarConnection(apiConnected, dbConnected, siteId) {
-    const apiDot = document.getElementById('api-dot') || document.getElementById('backend-dot');
-    const apiValue = document.getElementById('api-value') || document.getElementById('backend-value');
-    const dbDot = document.getElementById('db-dot');
-    const dbValue = document.getElementById('db-value');
-    
-    if (apiDot) {
-        apiDot.classList.toggle('connected', apiConnected);
-        apiDot.classList.toggle('disconnected', !apiConnected);
-    }
-    if (apiValue) {
-        apiValue.textContent = apiConnected ? 'Connected' : 'Disconnected';
-    }
-    
-    if (dbDot) {
-        dbDot.classList.toggle('connected', dbConnected);
-        dbDot.classList.toggle('disconnected', !dbConnected);
-    }
-    if (dbValue) {
-        dbValue.textContent = siteId 
-            ? siteId.replace(/_/g, '-').toUpperCase() 
-            : 'None';
-    }
-    
-    // index.html의 updateStatusBar 함수도 호출 (있으면)
-    if (typeof window.updateStatusBar === 'function') {
-        window.updateStatusBar(apiConnected, dbConnected, siteId);
-    }
-}
-
-/**
- * Debug Panel 내용 업데이트
- */
-function _updateDebugPanelContent() {
-    const currentMode = appModeManager?.getCurrentMode();
-    
-    const debugMode = document.getElementById('debug-mode');
-    const debugSubmode = document.getElementById('debug-submode');
-    const debugConnected = document.getElementById('debug-connected');
-    const debugDevmode = document.getElementById('debug-devmode');
-    const debug3d = document.getElementById('debug-3d');
-    const debugTime = document.getElementById('debug-time');
-    const debugMemory = document.getElementById('debug-memory');
-    
-    if (debugMode) debugMode.textContent = currentMode || 'N/A';
-    if (debugSubmode) debugSubmode.textContent = window.sidebarState?.currentSubMode || 'N/A';
-    
-    if (debugConnected) {
-        const isConnected = window.sidebarState?.isConnected || false;
-        debugConnected.textContent = isConnected ? 'YES' : 'NO';
-        debugConnected.className = `debug-state-value ${isConnected ? 'on' : 'off'}`;
-    }
-    
-    if (debugDevmode) {
-        const devMode = window.sidebarState?.devModeEnabled || false;
-        debugDevmode.textContent = devMode ? 'ON' : 'OFF';
-        debugDevmode.className = `debug-state-value ${devMode ? 'on' : 'off'}`;
-    }
-    
-    if (debug3d) {
-        const is3dActive = viewManager.threejsInitialized && viewManager.animationRunning;
-        debug3d.textContent = is3dActive ? 'YES' : 'NO';
-        debug3d.className = `debug-state-value ${is3dActive ? 'on' : 'off'}`;
-    }
-    
-    if (debugTime) debugTime.textContent = new Date().toLocaleTimeString();
-    
-    if (debugMemory && performance.memory) {
-        debugMemory.textContent = `${(performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1)} MB`;
-    }
+    return sidebarUI;
 }
 
 // ============================================
-// 🆕 v5.0.0: Connection 이벤트 설정
+// Connection 이벤트 설정
 // ============================================
 
-/**
- * Connection 관련 이벤트 설정
- */
 function setupConnectionEvents() {
     console.log('🔌 Connection 이벤트 설정 시작...');
     
     const connectionStatusService = services.ui?.connectionStatusService;
     
-    // API 연결 상태 변경
     if (connectionStatusService) {
         connectionStatusService.onOnline((data) => {
             console.log('[Connection] API Online:', data);
             
-            _updateCoverStatus(true, false, null);
-            _updateStatusBarConnection(true, false, null);
+            // 🆕 v5.1.0: Sidebar.js가 자동으로 처리
+            // sidebarUI?.sidebar?.enableAfterConnection() 호출 불필요
             
             if (data.recoveredAfter > 0) {
                 toast?.show('Backend 연결 복구', 'success');
@@ -779,126 +625,25 @@ function setupConnectionEvents() {
         connectionStatusService.onOffline(() => {
             console.log('[Connection] API Offline');
             
-            // 🆕 v5.0.1: Dev Mode가 아니면 Cover Screen으로
-            if (!window.sidebarState.devModeEnabled) {
-                viewManager.showCoverScreen();
-                _disableSidebarIcons();
-            }
-            
-            _updateCoverStatus(false, false, null);
-            _updateStatusBarConnection(false, false, null);
+            // 🆕 v5.1.0: Sidebar.js가 자동으로 처리
             
             window.sidebarState.isConnected = false;
-            
             toast?.show('Backend 연결 끊김', 'warning');
         });
     }
     
-    // Site 연결 이벤트 (eventBus)
+    // Site 연결 이벤트
     eventBus.on('site:connected', ({ siteId, siteName }) => {
         console.log(`[Connection] Site Connected: ${siteId}`);
-        
-        _enableSidebarIcons();
-        _updateCoverStatus(true, true, siteName || siteId);
-        _updateStatusBarConnection(true, true, siteId);
-        
         window.sidebarState.isConnected = true;
     });
     
     eventBus.on('site:disconnected', () => {
         console.log('[Connection] Site Disconnected');
-        
-        // 🆕 v5.0.1: Dev Mode가 아니면 Cover Screen으로
-        if (!window.sidebarState.devModeEnabled) {
-            viewManager.showCoverScreen();
-            _disableSidebarIcons();
-        }
-        
-        _updateCoverStatus(true, false, null);
-        _updateStatusBarConnection(true, false, null);
-        
         window.sidebarState.isConnected = false;
     });
     
-    // Connection Modal 이벤트
-    eventBus.on('connectionModal:opened', () => {
-        const modal = document.getElementById('connection-modal');
-        if (modal) modal.classList.add('active');
-    });
-    
-    eventBus.on('connectionModal:closed', () => {
-        const modal = document.getElementById('connection-modal');
-        if (modal) modal.classList.remove('active');
-    });
-    
     console.log('✅ Connection 이벤트 설정 완료');
-}
-
-// ============================================
-// 🆕 v5.0.0: Sidebar 이벤트 설정
-// ============================================
-
-/**
- * Sidebar 클릭 이벤트 설정
- */
-function setupSidebarEvents() {
-    const sidebar = document.getElementById('sidebar');
-    if (!sidebar) return;
-    
-    // Monitoring 버튼 클릭 (submenu-item)
-    sidebar.addEventListener('click', (e) => {
-        const submenuItem = e.target.closest('.submenu-item');
-        if (submenuItem && !submenuItem.classList.contains('disabled')) {
-            const submode = submenuItem.dataset.submode;
-            const wrapper = submenuItem.closest('.has-submenu');
-            const mode = wrapper?.querySelector('.icon-btn')?.dataset?.mode;
-            
-            if (mode && submode) {
-                handleSidebarModeChange(mode, submode);
-            }
-            return;
-        }
-        
-        // Connection 버튼 클릭
-        if (e.target.closest('#btn-connection')) {
-            toggleConnectionModal();
-            return;
-        }
-        
-        // 🆕 v5.0.1: Dev Mode 토글 버튼
-        if (e.target.closest('#dev-mode-toggle')) {
-            toggleDevMode();
-            return;
-        }
-    });
-    
-    console.log('✅ Sidebar 이벤트 설정 완료');
-}
-
-/**
- * Sidebar 모드 변경 핸들러
- */
-function handleSidebarModeChange(mode, submode) {
-    console.log(`🔄 Sidebar 모드 변경: ${mode} → ${submode}`);
-    
-    switch (mode) {
-        case 'monitoring':
-            toggleMonitoringMode(submode);
-            break;
-        case 'layout':
-            if (submode === 'layout-editor') {
-                toast?.show('Layout Editor 열기', 'info');
-            } else if (submode === 'mapping') {
-                if (services.ui?.equipmentEditModal) {
-                    services.ui.equipmentEditModal.open();
-                }
-            }
-            updateModeIndicator('Layout', submode);
-            _updateSidebarButtonState('layout');
-            break;
-        default:
-            updateModeIndicator(mode, submode);
-    }
 }
 
 // ============================================
@@ -910,7 +655,6 @@ function showEquipmentRecoveryDialog(recoveryData) {
     const savedAt = autoSaveMeta?.savedAt ? new Date(autoSaveMeta.savedAt) : new Date();
     const mappingCount = recoveryData.mappingCount || Object.keys(recoveryData.mappings || {}).length;
     
-    // 시간 경과 계산
     const diffMs = Date.now() - savedAt.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
@@ -921,7 +665,6 @@ function showEquipmentRecoveryDialog(recoveryData) {
         timeAgo = `${diffMins}분 전`;
     }
     
-    // 다이얼로그 생성
     const dialog = document.createElement('div');
     dialog.id = 'equipment-recovery-dialog';
     dialog.style.cssText = `
@@ -1002,7 +745,6 @@ function showEquipmentRecoveryDialog(recoveryData) {
     
     document.body.appendChild(dialog);
     
-    // 이벤트 핸들러
     document.getElementById('recovery-apply-btn').onclick = () => {
         if (services.ui?.equipmentEditState) {
             services.ui.equipmentEditState.applyAutoSaveRecovery(recoveryData);
@@ -1027,17 +769,14 @@ function initEquipmentAutoSave(equipmentEditState) {
         return;
     }
     
-    // 1. 복구 데이터 확인
     const recoveryData = equipmentEditState.checkAutoSaveRecovery(storageService);
     
     if (recoveryData) {
         showEquipmentRecoveryDialog(recoveryData);
     }
     
-    // 2. AutoSave 초기화
     equipmentEditState.initAutoSave(storageService, SITE_ID);
     
-    // 3. AutoSave 이벤트 구독
     eventBus.on('autosave:complete', (data) => {
         if (data.namespace === 'equipment') {
             console.log('[Equipment AutoSave] 저장 완료:', data.timestamp);
@@ -1052,6 +791,181 @@ function initEquipmentAutoSave(equipmentEditState) {
     });
     
     console.log(`✅ Equipment AutoSave 초기화 완료 - siteId: ${SITE_ID}`);
+}
+
+// ============================================
+// 🆕 v5.1.0: 하위 호환 함수들 (Sidebar.js 위임)
+// ============================================
+
+/**
+ * Sidebar 버튼 선택 상태 업데이트 (하위 호환)
+ */
+function _updateSidebarButtonState(mode) {
+    // Sidebar.js가 자동 처리하지만, 직접 호출 시 DOM 조작
+    document.querySelectorAll('#sidebar .icon-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+    
+    if (mode) {
+        const btn = document.getElementById(`btn-${mode}`);
+        if (btn) btn.classList.add('selected');
+    }
+}
+
+/**
+ * Submenu 활성 상태 업데이트 (하위 호환)
+ */
+function _updateSubmenuActiveState(mode, submode) {
+    const submenu = document.getElementById(`${mode}-submenu`);
+    if (!submenu) return;
+    
+    submenu.querySelectorAll('.submenu-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.submode === submode);
+    });
+}
+
+/**
+ * Sidebar 아이콘 활성화 (하위 호환)
+ */
+function _enableSidebarIcons() {
+    // Sidebar.js가 있으면 위임
+    if (sidebarUI?.sidebar) {
+        sidebarUI.sidebar._updateButtonStates?.();
+        return;
+    }
+    
+    // 폴백
+    const icons = ['btn-monitoring', 'btn-analysis', 'btn-simulation'];
+    const wrappers = ['btn-monitoring-wrapper', 'btn-debug-wrapper'];
+    
+    icons.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('disabled');
+    });
+    
+    wrappers.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('disabled');
+    });
+    
+    const debugBtn = document.getElementById('btn-debug');
+    if (debugBtn) debugBtn.classList.remove('disabled');
+    
+    if (window.sidebarState?.devModeEnabled) {
+        const layoutWrapper = document.getElementById('btn-layout-wrapper');
+        const layoutBtn = document.getElementById('btn-layout');
+        if (layoutWrapper) {
+            layoutWrapper.classList.remove('hidden');
+            layoutWrapper.classList.remove('disabled');
+        }
+        if (layoutBtn) layoutBtn.classList.remove('disabled');
+    }
+}
+
+/**
+ * Sidebar 아이콘 비활성화 (하위 호환)
+ */
+function _disableSidebarIcons() {
+    // Sidebar.js가 있으면 위임
+    if (sidebarUI?.sidebar) {
+        sidebarUI.sidebar._updateButtonStates?.();
+        return;
+    }
+    
+    // 폴백
+    const icons = ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-layout'];
+    const wrappers = ['btn-monitoring-wrapper', 'btn-layout-wrapper'];
+    
+    icons.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('disabled');
+    });
+    
+    wrappers.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('disabled');
+    });
+    
+    if (!window.sidebarState?.devModeEnabled) {
+        const debugWrapper = document.getElementById('btn-debug-wrapper');
+        const debugBtn = document.getElementById('btn-debug');
+        if (debugWrapper) debugWrapper.classList.add('disabled');
+        if (debugBtn) debugBtn.classList.add('disabled');
+    }
+    
+    document.querySelectorAll('#sidebar .icon-btn').forEach(btn => {
+        btn.classList.remove('selected');
+    });
+}
+
+/**
+ * Cover Screen 상태 업데이트 (하위 호환)
+ */
+function _updateCoverStatus(apiConnected, dbConnected, dbName) {
+    // CoverScreen.js가 있으면 위임
+    if (sidebarUI?.coverScreen) {
+        sidebarUI.coverScreen.setApiConnected(apiConnected);
+        sidebarUI.coverScreen.setDbConnected(dbConnected, dbName);
+        return;
+    }
+    
+    // 폴백
+    const apiDot = document.getElementById('cover-api-dot');
+    const apiStatus = document.getElementById('cover-api-status');
+    const dbDot = document.getElementById('cover-db-dot');
+    const dbStatus = document.getElementById('cover-db-status');
+    
+    if (apiDot) {
+        apiDot.classList.toggle('connected', apiConnected);
+        apiDot.classList.toggle('disconnected', !apiConnected);
+    }
+    if (apiStatus) {
+        apiStatus.textContent = apiConnected ? 'Connected' : 'Disconnected';
+    }
+    
+    if (dbDot) {
+        dbDot.classList.toggle('connected', dbConnected);
+        dbDot.classList.toggle('disconnected', !dbConnected);
+    }
+    if (dbStatus) {
+        dbStatus.textContent = dbConnected ? (dbName || 'Connected') : 'Not Connected';
+    }
+}
+
+/**
+ * Status Bar 연결 상태 업데이트 (하위 호환)
+ */
+function _updateStatusBarConnection(apiConnected, dbConnected, siteId) {
+    // StatusBar.js가 있으면 위임
+    if (sidebarUI?.statusBar) {
+        sidebarUI.statusBar.setApiConnected(apiConnected);
+        sidebarUI.statusBar.setDbConnected(dbConnected, siteId);
+        return;
+    }
+    
+    // 폴백
+    const apiDot = document.getElementById('api-dot') || document.getElementById('backend-dot');
+    const apiValue = document.getElementById('api-value') || document.getElementById('backend-value');
+    const dbDot = document.getElementById('db-dot');
+    const dbValue = document.getElementById('db-value');
+    
+    if (apiDot) {
+        apiDot.classList.toggle('connected', apiConnected);
+        apiDot.classList.toggle('disconnected', !apiConnected);
+    }
+    if (apiValue) {
+        apiValue.textContent = apiConnected ? 'Connected' : 'Disconnected';
+    }
+    
+    if (dbDot) {
+        dbDot.classList.toggle('connected', dbConnected);
+        dbDot.classList.toggle('disconnected', !dbConnected);
+    }
+    if (dbValue) {
+        dbValue.textContent = siteId 
+            ? siteId.replace(/_/g, '-').toUpperCase() 
+            : 'None';
+    }
 }
 
 // ============================================
@@ -1107,8 +1021,11 @@ function _exposeGlobalObjectsAfterSceneInit() {
         // Storage
         storageService,
         
-        // 🆕 v5.0.0: View Manager
+        // View Manager
         viewManager,
+        
+        // 🆕 v5.1.0: Sidebar UI
+        sidebarUI,
         
         // 함수 노출
         toggleAdaptivePerformance,
@@ -1116,7 +1033,7 @@ function _exposeGlobalObjectsAfterSceneInit() {
         toggleMonitoringMode,
         toggleConnectionModal,
         toggleDebugPanel,
-        toggleDevMode  // 🆕 v5.0.1
+        toggleDevMode  // 🆕 v5.1.0: 하위 호환
     });
 }
 
@@ -1125,32 +1042,35 @@ function _exposeGlobalObjectsAfterSceneInit() {
 // ============================================
 
 function init() {
-    console.log('🚀 Sherlock Sky 3DSim 초기화 (v5.0.1 - Cleanroom Sidebar Theme)...');
+    console.log('🚀 Sherlock Sky 3DSim 초기화 (v5.1.0 - Sidebar UI 컴포넌트 활성화)...');
     console.log(`📍 Site ID: ${SITE_ID}`);
     
     try {
-        // 1. Core 매니저 초기화 (모드 핸들러 등록)
+        // 1. Core 매니저 초기화
         initCoreManagers({ registerHandlers: true });
         console.log('  ✅ Core Managers 초기화 완료');
         
-        // 2. UI 컴포넌트 초기화 (Scene 전에 먼저!)
+        // 2. UI 컴포넌트 초기화 (기존)
         services.ui = initUIComponents();
         console.log('  ✅ UI Components 초기화 완료');
         
-        // 3. EquipmentEditButton 연동
+        // 3. 🆕 v5.1.0: Sidebar UI 초기화 (동적 렌더링)
+        initSidebarUI();
+        
+        // 4. EquipmentEditButton 연동
         if (services.ui?.equipmentEditButton) {
             connectEquipmentEditButton(services.ui.equipmentEditButton, toggleEditMode);
             console.log('  ✅ EquipmentEditButton 연동 완료');
         }
         
-        // 4. Equipment AutoSave 초기화
+        // 5. Equipment AutoSave 초기화
         initEquipmentAutoSave(services.ui?.equipmentEditState);
         
-        // 5. 🆕 Connection 이벤트 설정
+        // 6. Connection 이벤트 설정
         setupConnectionEvents();
         
-        // 6. 🆕 Sidebar 이벤트 설정
-        setupSidebarEvents();
+        // ❌ v5.1.0: 제거됨 - Sidebar.js가 처리
+        // setupSidebarEvents();
         
         // 7. 이벤트 리스너 설정
         const eventHandlers = {
@@ -1162,7 +1082,7 @@ function init() {
             togglePerformanceMonitor: () => {
                 performanceMonitorUI = togglePerformanceMonitorUI(performanceMonitorUI);
             },
-            sceneManager: null, // Scene 초기화 전
+            sceneManager: null,
             connectionModal: services.ui?.connectionModal,
             updateConnectionButtonState: () => updateButtonState('connectionBtn', services.ui?.connectionModal?.isOpen)
         };
@@ -1170,39 +1090,28 @@ function init() {
         setupUIEventListeners(eventHandlers);
         setupKeyboardShortcuts(eventHandlers);
         
-        // 8. 🆕 Cover Screen 표시 (기본 상태)
-        viewManager.showCoverScreen();
+        // 8. Cover Screen 표시 (기본 상태) - Sidebar.js가 처리
+        // viewManager.showCoverScreen() 불필요 - CoverScreen.js가 자동 표시
         
-        // ❌ initScene() 제거 - show3DView()에서 지연 호출
-        // ❌ animate() 제거 - show3DView()에서 시작
-        
-        // 9. 초기 전역 객체 노출 (Scene 없이)
+        // 9. 초기 전역 객체 노출
         exposeGlobalObjects({
-            // Core
             appModeManager,
             keyboardManager,
             debugManager,
             eventBus,
             logger,
-            
-            // UI
             connectionModal: services.ui?.connectionModal,
             toast,
             equipmentInfoPanel: services.ui?.equipmentInfoPanel,
             connectionStatusService: services.ui?.connectionStatusService,
-            
-            // Storage
             storageService,
-            
-            // 🆕 v5.0.0
             viewManager,
-            
-            // 함수 노출
+            sidebarUI,
             toggleEditMode,
             toggleMonitoringMode,
             toggleConnectionModal,
             toggleDebugPanel,
-            toggleDevMode  // 🆕 v5.0.1
+            toggleDevMode  // 🆕 v5.1.0: 하위 호환
         });
         
         // 10. 초기화 완료 이벤트
@@ -1210,50 +1119,62 @@ function init() {
             timestamp: Date.now(),
             mode: appModeManager.getCurrentMode(),
             siteId: SITE_ID,
-            version: '5.0.1'
+            version: '5.1.0'
         });
         
-        // 11. FPS/Memory 업데이트 인터벌 (StatusBar용)
+        // 11. 성능 업데이트 인터벌 (StatusBar.js가 자체 처리하므로 간소화)
         setInterval(() => {
-            const fpsValue = document.getElementById('fps-value');
-            const memValue = document.getElementById('memory-value');
-            
-            if (fpsValue) {
-                // 실제 FPS는 PerformanceMonitor에서 가져옴 (3D View 활성화 시)
-                const fps = services.scene?.performanceMonitor?.getFPS?.() || (viewManager.animationRunning ? 60 : 0);
-                fpsValue.textContent = Math.round(fps);
-            }
-            
-            if (memValue && performance.memory) {
-                memValue.textContent = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
-            }
-            
-            // Debug Panel 업데이트
             if (window.sidebarState?.debugPanelVisible) {
                 _updateDebugPanelContent();
             }
         }, 2000);
         
         console.log('');
-        console.log('✅ 모든 초기화 완료! (v5.0.1 - Cleanroom Sidebar Theme)');
+        console.log('✅ 모든 초기화 완료! (v5.1.0 - Sidebar UI 컴포넌트 활성화)');
         console.log('');
-        console.log('📺 Cover Screen 표시 중');
-        console.log('   - Database 연결 후 Monitoring → 3D View 선택');
-        console.log('   - 또는 Settings → Dev Mode ON 후 사용');
+        console.log('📺 Cover Screen 표시 중 (CoverScreen.js)');
+        console.log('🎨 Sidebar 렌더링 완료 (Sidebar.js)');
+        console.log('📊 StatusBar 렌더링 완료 (StatusBar.js)');
         console.log('');
         console.log('💡 키보드 단축키:');
         console.log('   Ctrl+K - Connection Modal');
         console.log('   D - Debug Panel');
         console.log('   E - Equipment Edit Mode');
         console.log('   M - Monitoring Mode (3D View)');
-        console.log('   ESC - 모달/패널 닫기');
         console.log('');
-        console.log('💡 콘솔에서 debugHelp() 입력으로 사용 가능한 명령어 확인');
         
     } catch (error) {
         console.error('❌ 초기화 중 오류 발생:', error);
         console.error('스택:', error.stack);
         showInitError(error);
+    }
+}
+
+// ============================================
+// Debug Panel 내용 업데이트
+// ============================================
+
+function _updateDebugPanelContent() {
+    const currentMode = appModeManager?.getCurrentMode();
+    
+    const debugMode = document.getElementById('debug-mode');
+    const debugSubmode = document.getElementById('debug-submode');
+    const debugConnected = document.getElementById('debug-connected');
+    const debugDevmode = document.getElementById('debug-devmode');
+    
+    if (debugMode) debugMode.textContent = currentMode || 'N/A';
+    if (debugSubmode) debugSubmode.textContent = window.sidebarState?.currentSubMode || 'N/A';
+    
+    if (debugConnected) {
+        const isConnected = sidebarUI?.sidebar?.getIsConnected?.() || window.sidebarState?.isConnected || false;
+        debugConnected.textContent = isConnected ? 'YES' : 'NO';
+        debugConnected.className = `debug-state-value ${isConnected ? 'on' : 'off'}`;
+    }
+    
+    if (debugDevmode) {
+        const devMode = sidebarUI?.sidebar?.getDevModeEnabled?.() || window.sidebarState?.devModeEnabled || false;
+        debugDevmode.textContent = devMode ? 'ON' : 'OFF';
+        debugDevmode.className = `debug-state-value ${devMode ? 'on' : 'off'}`;
     }
 }
 
@@ -1356,6 +1277,12 @@ function handleCleanup() {
     
     // 애니메이션 중지
     viewManager.stopAnimation();
+    
+    // 🆕 v5.1.0: Sidebar UI 정리
+    if (sidebarUI) {
+        sidebarUI.destroy();
+        sidebarUI = null;
+    }
     
     cleanup({
         animationFrameId,
