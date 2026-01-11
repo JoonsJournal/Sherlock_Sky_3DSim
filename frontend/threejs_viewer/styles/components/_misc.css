@@ -1,0 +1,222 @@
+/**
+ * _misc.css
+ * =========
+ * 기타 유틸리티 및 레거시 호환 스타일
+ * 
+ * @version 1.0.0
+ * @created 2026-01-11
+ * 
+ * 구조:
+ * - Close Button (공통)
+ * - Hidden 유틸리티
+ * - 레거시 Mode Indicator (박스 스타일)
+ * - Keyframe Animations
+ * 
+ * 의존성:
+ * - _variables.css (CSS 변수)
+ * 
+ * [MIGRATION NOTE]
+ * - index.html 인라인 스타일에서 마이그레이션
+ * - 레거시 호환성 100% 유지
+ */
+
+/* =============================================
+   Close Button (공통 컴포넌트)
+   ============================================= */
+.close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 24px;
+    height: 24px;
+    background: var(--bg-input);
+    border: none;
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast, 150ms);
+    padding: 0;
+    line-height: 1;
+}
+
+.close-btn:hover {
+    background: rgba(248, 113, 113, 0.2);
+    color: var(--text-alarm);
+}
+
+.close-btn:active {
+    transform: scale(0.95);
+}
+
+.close-btn:focus {
+    outline: 2px solid var(--icon-selected);
+    outline-offset: 2px;
+}
+
+.close-btn:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* 큰 Close Button 변형 */
+.close-btn-lg {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+    border-radius: 8px;
+}
+
+/* =============================================
+   Hidden 유틸리티 클래스
+   ============================================= */
+.hidden {
+    display: none !important;
+}
+
+/* 접근성 유지하며 숨기기 (스크린 리더용) */
+.visually-hidden {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* =============================================
+   🔧 레거시: 박스형 Mode Indicator (호환성 유지)
+   - ModeIndicatorPanel 이전 버전과의 호환
+   - 새 프로젝트에서는 .mode-indicator-pill 사용 권장
+   ============================================= */
+.mode-indicator {
+    padding: 12px 20px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+
+.mode-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.mode-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--icon-selected);
+}
+
+.submode-value {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* Light Theme - 레거시 Mode Indicator */
+[data-theme="light"] .mode-indicator {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .mode-value {
+    color: var(--icon-selected);
+}
+
+/* =============================================
+   Keyframe Animations (공통)
+   ============================================= */
+
+/* Pulse 애니메이션 */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Float 애니메이션 (Cover Screen용) */
+@keyframes float-logo {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
+/* Fade In */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Slide In from Right */
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Slide In from Bottom */
+@keyframes slideInBottom {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Scale In */
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* =============================================
+   애니메이션 감소 선호 시
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+    .mode-indicator,
+    .close-btn {
+        transition: none !important;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+    }
+    
+    @keyframes float-logo {
+        0%, 100% { transform: none; }
+    }
+}

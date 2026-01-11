@@ -1,0 +1,117 @@
+/**
+ * _overlay-ui.css
+ * ===============
+ * 3D 씬 위 오버레이 UI 스타일
+ * 
+ * @version 1.0.0
+ * @created 2026-01-11
+ * 
+ * 구조:
+ * - Main Content (3D 뷰어 래퍼)
+ * - Three.js Container
+ * - Overlay UI (레거시 호환)
+ * 
+ * 의존성:
+ * - _variables.css (CSS 변수)
+ * 
+ * [MIGRATION NOTE]
+ * - index.html 인라인 스타일에서 마이그레이션
+ * - 기존 기능 100% 유지
+ */
+
+/* =============================================
+   Main Content Container
+   ============================================= */
+.main-content {
+    flex-grow: 1;
+    background: var(--bg-main-gradient);
+    display: flex;
+    flex-direction: column;
+    color: var(--text-primary);
+    margin-bottom: var(--status-bar-height, 36px);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Status Bar가 없을 때 */
+.main-content:not(:has(~ .status-bar)) {
+    margin-bottom: 0;
+}
+
+/* =============================================
+   Three.js Container
+   ============================================= */
+#threejs-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    display: none;
+}
+
+#threejs-container.active {
+    display: block;
+}
+
+/* Canvas 스타일 */
+#threejs-container canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* =============================================
+   Overlay UI Container (레거시 호환)
+   ============================================= */
+.overlay-ui {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Sidebar 존재 시 위치 조정 */
+body:has(.sidebar) .overlay-ui {
+    left: calc(80px + 20px);
+}
+
+/* 활성화 시 */
+.overlay-ui.active {
+    display: flex;
+}
+
+/* =============================================
+   Light Theme Adjustments
+   ============================================= */
+[data-theme="light"] .main-content {
+    background: var(--bg-main-gradient);
+}
+
+/* =============================================
+   Responsive - 태블릿
+   ============================================= */
+@media (max-width: 1024px) {
+    body:has(.sidebar) .overlay-ui {
+        left: calc(60px + 16px);
+    }
+}
+
+/* =============================================
+   Responsive - 모바일
+   ============================================= */
+@media (max-width: 768px) {
+    .overlay-ui {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+    }
+    
+    body:has(.sidebar) .overlay-ui {
+        left: 10px;
+    }
+}

@@ -3,9 +3,13 @@
  * ========
  * SHERLOCK SKY 3DSim - CSS 진입점
  * 
- * @version 2.4.0
+ * @version 2.5.0
  * @changelog
- * - v2.4.0: 🎨 ModeIndicatorPanel pill 스타일 지원
+ * - v2.5.0: 🔧 리팩토링 (2026-01-11)
+ *           - _overlay-ui.css import 추가 (main-content, threejs-container)
+ *           - _misc.css import 추가 (close-btn, 레거시 스타일)
+ *           - import 순서 정리
+ * - v2.4.0: ModeIndicatorPanel pill 스타일 지원
  * - v2.3.0: _mode-indicator.css import 추가
  * - v2.1.0: Toast 전역 transition 제외
  * 
@@ -20,7 +24,7 @@
 @import './base/_typography.css';
 
 /* =============================================
-   Component Styles
+   Component Styles - Core
    ============================================= */
 @import './components/_buttons.css';
 @import './components/_modals.css';
@@ -28,24 +32,34 @@
 @import './components/_forms.css';
 @import './components/_toast.css';
 
-/* Modal 시스템 */
+/* =============================================
+   Component Styles - Modal 시스템
+   ============================================= */
 @import './components/_equipment-edit-modal.css';
 @import './components/_recovery-dialog.css';
 @import './components/_connection-modal.css';
 
-/* Indicator 시스템 */
+/* =============================================
+   Component Styles - Indicator 시스템
+   ============================================= */
 @import './components/_connection-indicator.css'; 
 @import './components/_autosave-indicator.css'; 
 
-/* Panel 시스템 */
+/* =============================================
+   Component Styles - Panel 시스템
+   ============================================= */
 @import './components/_connection-panels.css';
 
-/* 공통 UI 컴포넌트 */
+/* =============================================
+   Component Styles - 공통 UI
+   ============================================= */
 @import './components/_common-ui.css';
 @import './components/_file-controls.css';
 @import './components/_equipment-edit-button.css';
 
-/* Equipment Info Panel */
+/* =============================================
+   Component Styles - Equipment Info Panel
+   ============================================= */
 @import './components/_equipment-info-panel.css';
 
 /* =============================================
@@ -60,6 +74,18 @@
    CURRENT MODE (cyan) + DEV MODE (amber)
    ============================================= */
 @import './components/_mode-indicator.css';
+
+/* =============================================
+   🆕 Overlay UI (Main Content, Three.js Container)
+   v2.5.0에서 추가 - index.html에서 마이그레이션
+   ============================================= */
+@import './components/_overlay-ui.css';
+
+/* =============================================
+   🆕 Miscellaneous (Close Button, Legacy Styles)
+   v2.5.0에서 추가 - index.html에서 마이그레이션
+   ============================================= */
+@import './components/_misc.css';
 
 /* =============================================
    Page Styles
@@ -261,6 +287,7 @@ html[data-theme] * {
     transition-timing-function: ease;
 }
 
+/* 트랜지션 제외 요소 */
 html[data-theme] canvas,
 html[data-theme] video,
 html[data-theme] iframe {
@@ -270,5 +297,11 @@ html[data-theme] iframe {
 html[data-theme] .toast,
 html[data-theme] .toast *,
 html[data-theme] .toast-container {
+    transition: none;
+}
+
+/* Three.js 컨테이너 트랜지션 제외 */
+html[data-theme] #threejs-container,
+html[data-theme] #threejs-container * {
     transition: none;
 }

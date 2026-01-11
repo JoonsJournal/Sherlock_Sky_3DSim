@@ -3,10 +3,20 @@
  * ============
  * Cleanroom Sidebar Theme - 사이드바 및 서브메뉴 스타일
  * 
- * Source: test_sidebar_standalone.html v2.10
+ * Source: test_sidebar_standalone.html v2.10 + index.html v5.3.0
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @created 2026-01-11
+ * @updated 2026-01-11
+ * 
+ * @changelog
+ * - v1.1.0: 🔧 리팩토링 (2026-01-11)
+ *           - index.html 스타일 완전 통합
+ *           - dev-mode-badge 패딩 6px 14px로 통일
+ *           - Light 테마 dev-mode-badge 추가
+ *           - has-submenu 브릿지 영역 개선
+ *           - tooltip 스타일 보강
+ * - v1.0.0: 초기 버전
  * 
  * 구조:
  * - Sidebar (80px 너비)
@@ -19,9 +29,7 @@
  * 의존성:
  * - _variables.css (CSS 변수)
  * 
- * [MIGRATION NOTE]
- * - 기존 .floating-btn 시스템과 공존 가능
- * - data-theme 속성으로 테마 전환
+ * 위치: frontend/threejs_viewer/styles/components/_sidebar.css
  */
 
 /* =============================================
@@ -70,20 +78,58 @@
     justify-content: center;
     align-items: center;
     position: relative;
-    transition: transform var(--transition-speed) cubic-bezier(0.34, 1.56, 0.64, 1);
-    border-radius: var(--radius-md);
+    transition: transform var(--transition-speed, 0.25s) cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: var(--radius-md, 8px);
 }
 
 /* Icon Button - SVG Icons */
 .icon-btn svg {
-    width: var(--icon-size);
-    height: var(--icon-size);
+    width: var(--icon-size, 36px);
+    height: var(--icon-size, 36px);
     fill: none;
     stroke: var(--icon-normal);
     stroke-width: 1px;
     stroke-linecap: round;
     stroke-linejoin: round;
-    transition: all var(--transition-speed);
+    transition: all var(--transition-speed, 0.25s);
+}
+
+/* =============================================
+   Icon Button - Tooltip (data-tooltip 속성)
+   ============================================= */
+.icon-btn[data-tooltip]::after,
+.has-submenu[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 70px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 8px 12px;
+    background: var(--bg-panel);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.icon-btn[data-tooltip]:hover::after,
+.has-submenu[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Submenu가 있는 버튼은 hover 시 tooltip 숨김 (submenu 표시) */
+.has-submenu:not(.disabled)[data-tooltip]:hover::after {
+    opacity: 0;
+    visibility: hidden;
 }
 
 /* =============================================
@@ -110,11 +156,13 @@
     filter: drop-shadow(0 0 6px var(--icon-selected));
 }
 
-/* Selected Indicator Bar */
-.icon-btn.selected::before {
+/* Selected Indicator Bar (left side) */
+.icon-btn.selected::after {
     content: '';
     position: absolute;
     left: -13px;
+    top: 50%;
+    transform: translateY(-50%);
     width: 3px;
     height: 28px;
     background-color: var(--icon-selected);
@@ -149,11 +197,23 @@
     position: relative;
 }
 
-/* Submenu Arrow Indicator */
-.has-submenu::after {
+/* Submenu 브릿지 영역 (마우스 이탈 방지) */
+.has-submenu::before {
     content: '';
     position: absolute;
-    right: 8px;
+    right: -16px;
+    top: 0;
+    width: 20px;
+    height: 100%;
+    background: transparent;
+    z-index: 99;
+}
+
+/* Submenu Arrow Indicator */
+.has-submenu > .icon-btn::after {
+    content: '';
+    position: absolute;
+    right: 2px;
     top: 50%;
     transform: translateY(-50%);
     border: 4px solid transparent;
@@ -161,7 +221,7 @@
     opacity: 0.5;
 }
 
-.has-submenu:not(.disabled):hover::after {
+.has-submenu:not(.disabled):hover > .icon-btn::after {
     border-left-color: var(--icon-selected);
     opacity: 1;
 }
@@ -169,7 +229,7 @@
 /* Submenu Container */
 .submenu {
     position: absolute;
-    left: 70px;
+    left: 64px;
     top: 0;
     background: var(--bg-sidebar);
     border: 1px solid var(--border-color);
@@ -182,6 +242,17 @@
     transition: all 0.2s ease;
     box-shadow: 4px 4px 20px var(--shadow-color);
     z-index: 100;
+}
+
+/* Submenu 브릿지 영역 (좌측) */
+.submenu::before {
+    content: '';
+    position: absolute;
+    left: -16px;
+    top: 0;
+    width: 20px;
+    height: 100%;
+    background: transparent;
 }
 
 /* Submenu - Bottom positioned (Settings, Debug) */
@@ -203,6 +274,12 @@
     opacity: 0 !important;
     visibility: hidden !important;
     pointer-events: none !important;
+}
+
+/* Submenu - Disabled Wrapper */
+.has-submenu.disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
 }
 
 /* Hidden wrapper state */
@@ -280,9 +357,9 @@
     transform: none !important;
 }
 
-#btn-connection::before,
-#btn-settings-wrapper .icon-btn::before,
-#btn-debug-wrapper .icon-btn::before {
+#btn-connection::after,
+#btn-settings-wrapper .icon-btn::after,
+#btn-debug-wrapper .icon-btn::after {
     display: none !important;
 }
 
@@ -392,26 +469,44 @@
 }
 
 /* =============================================
-   Dev Mode Badge
+   Dev Mode Badge (Standalone - body 직접 배치)
    ============================================= */
 .dev-mode-badge {
     position: fixed;
     top: 10px;
     left: 90px;
-    padding: 4px 12px;
+    padding: 6px 14px;
     background: rgba(251, 191, 36, 0.2);
     border: 1px solid var(--text-warning);
     border-radius: 20px;
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-warning);
     font-weight: 600;
     z-index: 1000;
     display: none;
-    font-family: var(--font-family);
+    white-space: nowrap;
+    font-family: var(--font-family, 'Segoe UI', sans-serif);
+    transition: all var(--transition-fast, 150ms);
 }
 
 .dev-mode-badge.active {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+}
+
+.dev-mode-badge:hover {
+    background: rgba(251, 191, 36, 0.3);
+}
+
+/* Light Theme - Dev Mode Badge */
+[data-theme="light"] .dev-mode-badge {
+    background: rgba(217, 119, 6, 0.15);
+    border-color: #D97706;
+    color: #D97706;
+}
+
+[data-theme="light"] .dev-mode-badge:hover {
+    background: rgba(217, 119, 6, 0.25);
 }
 
 /* =============================================
@@ -431,7 +526,7 @@
     visibility: hidden;
     transform: translateY(20px);
     transition: all 0.3s ease;
-    font-family: var(--font-family);
+    font-family: var(--font-family, 'Segoe UI', sans-serif);
 }
 
 #debug-panel.active {
@@ -457,10 +552,10 @@
 }
 
 .debug-panel-content {
-    font-family: var(--font-mono);
+    font-family: var(--font-mono, 'Consolas', monospace);
     font-size: 12px;
-    color: var(--debug-text);
-    background: var(--debug-bg);
+    color: var(--debug-text, #0f0);
+    background: var(--debug-bg, #1a1a1a);
     padding: 12px;
     max-height: 300px;
     overflow-y: auto;
@@ -472,7 +567,7 @@
 }
 
 .debug-section-title {
-    color: var(--debug-section-title);
+    color: var(--debug-section-title, #0ff);
     margin-bottom: 8px;
     font-size: 11px;
     text-transform: uppercase;
@@ -485,48 +580,19 @@
 }
 
 .debug-state-label {
-    color: var(--debug-label);
+    color: var(--debug-label, #888);
 }
 
 .debug-state-value {
-    color: var(--debug-value);
+    color: var(--debug-value, #ff0);
 }
 
 .debug-state-value.on {
-    color: var(--debug-on);
+    color: var(--debug-on, #0f0);
 }
 
 .debug-state-value.off {
-    color: var(--debug-off);
-}
-
-/* =============================================
-   Tooltip Support for Icon Buttons
-   ============================================= */
-.icon-btn[data-tooltip]::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    left: calc(100% + 10px);
-    top: 50%;
-    transform: translateY(-50%);
-    background: var(--bg-panel);
-    color: var(--text-primary);
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    white-space: nowrap;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.2s ease;
-    pointer-events: none;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 4px 12px var(--shadow-color);
-    z-index: 1000;
-}
-
-.icon-btn[data-tooltip]:hover::after {
-    opacity: 1;
-    visibility: visible;
+    color: var(--debug-off, #f00);
 }
 
 /* =============================================
@@ -569,6 +635,11 @@
     .dev-mode-badge {
         left: 70px;
     }
+    
+    .icon-btn[data-tooltip]::after,
+    .has-submenu[data-tooltip]::after {
+        left: 55px;
+    }
 }
 
 /* =============================================
@@ -589,5 +660,24 @@
         left: 10px;
         top: auto;
         bottom: 50px;
+    }
+    
+    #debug-panel {
+        width: calc(100% - 20px);
+        left: 10px;
+        right: 10px;
+    }
+}
+
+/* =============================================
+   애니메이션 감소 선호 시
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+    .icon-btn,
+    .submenu,
+    .theme-switch,
+    .dev-mode-badge,
+    #debug-panel {
+        transition: none !important;
     }
 }
