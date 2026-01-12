@@ -1,5 +1,6 @@
 """
-FastAPI 메인 애플리케이션 (Connection Test 전용)
+FastAPI 메인 애플리케이션
+Multi-Site Equipment Mapping V2 API 추가
 """
 
 from fastapi import FastAPI
@@ -9,10 +10,8 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 
-# 환경 변수 로드
 load_dotenv()
 
-# 로깅 설정
 from .utils.logging_config import setup_logging
 import logging
 
@@ -24,12 +23,21 @@ setup_logging(
 logger = logging.getLogger(__name__)
 
 # ============================================
-# ⭐ Router Import
+# Router Import
 # ============================================
 from .routers.connection_manager import router as connection_router
 from .routers import equipment_mapping
 
-# ⭐ Phase 1: Monitoring Router 추가
+# ⭐ NEW: Multi-Site Equipment Mapping V2
+try:
+    from .routers import equipment_mapping_v2
+    MAPPING_V2_ENABLED = True
+    logger.info("✅ Equipment Mapping V2 (Multi-Site) 로드 성공")
+except ImportError as e:
+    MAPPING_V2_ENABLED = False
+    logger.warning(f"⚠️ Equipment Mapping V2 로드 실패: {e}")
+
+# Monitoring Router
 try:
     from .monitoring import status_router, stream_router
     MONITORING_ENABLED = True
@@ -37,9 +45,8 @@ try:
 except ImportError as e:
     MONITORING_ENABLED = False
     logger.warning(f"⚠️ Monitoring 모듈 로드 실패: {e}")
-    logger.info("   → Monitoring 기능 없이 실행됩니다")
 
-# ⭐ NEW: Equipment Detail Router 추가
+# Equipment Detail Router
 try:
     from .routers.equipment_detail import router as equipment_detail_router
     EQUIPMENT_DETAIL_ENABLED = True
@@ -49,30 +56,24 @@ except ImportError as e:
     logger.warning(f"⚠️ Equipment Detail 모듈 로드 실패: {e}")
 
 
-# 라이프사이클 관리
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 시작 시
     logger.info("🚀 애플리케이션 시작")
     print("="*60)
     print("🚀 SHERLOCK_SKY_3DSIM API 시작")
     print("="*60)
-    
     yield
-    
-    # 종료 시
     logger.info("🛑 애플리케이션 종료")
-    print("🛑 애플리케이션 종료")
 
-# FastAPI 앱 생성
+
 app = FastAPI(
-    title="SHERLOCK_SKY_3DSIM Connection Test API",
-    description="데이터베이스 연결 테스트 전용 API",
-    version="1.1.0",  # 버전 업데이트
+    title="SHERLOCK_SKY_3DSIM API",
+    description="Multi-Site Equipment Monitoring & Mapping API",
+    version="1.2.0",
     lifespan=lifespan
 )
 
-# CORS 설정 - 모든 origin 허용 (외부 IP 접속 지원)
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -82,91 +83,90 @@ app.add_middleware(
 )
 
 # ============================================
-# ⭐ Router 등록
+# Router 등록
 # ============================================
 
-# Connection Manager Router (기존)
+# Connection Manager
 app.include_router(
     connection_router,
     prefix="/api/connections",
     tags=["Database Connections"]
 )
-logger.info("✓ Connection Manager Router 등록 완료")
+logger.info("✓ Connection Manager Router 등록")
 
-# Equipment Mapping Router (기존)
+# Equipment Mapping (기존)
 app.include_router(
     equipment_mapping.router,
     prefix="/api",
     tags=["Equipment Mapping"]
 )
-logger.info("✓ Equipment Mapping Router 등록 완료")
+logger.info("✓ Equipment Mapping Router 등록")
 
-# ⭐ Phase 1: Monitoring Router 등록 (신규)
+# ⭐ Equipment Mapping V2 (Multi-Site)
+if MAPPING_V2_ENABLED:
+    app.include_router(
+        equipment_mapping_v2.router,
+        prefix="/api",
+        tags=["Equipment Mapping V2 (Multi-Site)"]
+    )
+    logger.info("✅ Equipment Mapping V2 Router 등록")
+
+# Monitoring
 if MONITORING_ENABLED:
-    app.include_router(
-        status_router,
-        tags=["Monitoring"]
-    )
-    app.include_router(
-        stream_router,
-        tags=["Monitoring WebSocket"]
-    )
-    logger.info("✅ Monitoring Router 등록 완료")
-else:
-    logger.warning("⚠️ Monitoring Router 미등록 (모듈 로드 실패)")
+    app.include_router(status_router, tags=["Monitoring"])
+    app.include_router(stream_router, tags=["Monitoring WebSocket"])
+    logger.info("✅ Monitoring Router 등록")
 
-# ⭐ NEW: Equipment Detail Router 등록
+# Equipment Detail
 if EQUIPMENT_DETAIL_ENABLED:
-    app.include_router(
-        equipment_detail_router,
-        tags=["Equipment Detail"]
-    )
-    logger.info("✅ Equipment Detail Router 등록 완료")
-else:
-    logger.warning("⚠️ Equipment Detail Router 미등록 (모듈 로드 실패)")
+    app.include_router(equipment_detail_router, tags=["Equipment Detail"])
+    logger.info("✅ Equipment Detail Router 등록")
 
 
 @app.get("/")
 async def root():
     """API 루트"""
     endpoints = {
-        # Connection endpoints (기존)
+        # Connection
         "sites": "/api/connections/sites",
-        "profiles": "/api/connections/profiles",
-        "test_connection": "/api/connections/test-connection",
-        "test_profile": "/api/connections/test-profile",
-        "test_all": "/api/connections/test-all",
-        "status": "/api/connections/status",
-        # Equipment Mapping endpoints (기존)
+        "connect": "/api/connections/connect",
+        "disconnect": "/api/connections/disconnect/{site_id}",
+        "connection_status": "/api/connections/connection-status",
+        # Equipment Mapping (기존)
         "equipment_names": "/api/equipment/names",
         "equipment_mapping": "/api/equipment/mapping",
-        "equipment_mapping_validate": "/api/equipment/mapping/validate"
     }
     
-    # ⭐ Phase 1: Monitoring endpoints 추가 (조건부)
+    # ⭐ Mapping V2 endpoints
+    if MAPPING_V2_ENABLED:
+        endpoints.update({
+            "mapping_sites": "/api/mapping/sites",
+            "mapping_config": "/api/mapping/config/{site_id}",
+            "mapping_current": "/api/mapping/current",
+            "mapping_on_connect": "/api/mapping/on-connect/{site_id}"
+        })
+    
     if MONITORING_ENABLED:
         endpoints.update({
             "monitoring_health": "/api/monitoring/health",
             "monitoring_status": "/api/monitoring/status",
-            "monitoring_status_by_id": "/api/monitoring/status/{equipment_id}",
             "monitoring_stream": "ws://localhost:8000/api/monitoring/stream"
         })
     
-    # ⭐ NEW: Equipment Detail endpoints 추가 (조건부)
     if EQUIPMENT_DETAIL_ENABLED:
         endpoints.update({
-            "equipment_detail": "/api/equipment/detail/{frontend_id}",
-            "equipment_detail_multi": "/api/equipment/detail/multi",
-            "equipment_detail_health": "/api/equipment/detail/health"
+            "equipment_detail": "/api/equipment/detail/{frontend_id}"
         })
     
     return {
-        "name": "SHERLOCK_SKY_3DSIM Connection Test API",
-        "version": "1.1.0",
-        "description": "데이터베이스 연결 테스트 전용",
+        "name": "SHERLOCK_SKY_3DSIM API",
+        "version": "1.2.0",
         "docs": "/docs",
-        "monitoring_enabled": MONITORING_ENABLED,
-        "equipment_detail_enabled": EQUIPMENT_DETAIL_ENABLED,
+        "features": {
+            "mapping_v2": MAPPING_V2_ENABLED,
+            "monitoring": MONITORING_ENABLED,
+            "equipment_detail": EQUIPMENT_DETAIL_ENABLED
+        },
         "endpoints": endpoints
     }
 
@@ -176,8 +176,8 @@ async def health():
     """헬스 체크"""
     return {
         "status": "ok",
-        "message": "healthy",
         "timestamp": datetime.now().isoformat(),
+        "mapping_v2_enabled": MAPPING_V2_ENABLED,
         "monitoring_enabled": MONITORING_ENABLED,
         "equipment_detail_enabled": EQUIPMENT_DETAIL_ENABLED
     }

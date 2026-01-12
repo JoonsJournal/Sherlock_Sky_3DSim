@@ -1,16 +1,10 @@
 /**
- * services/mapping/index.js
- * 매핑 서비스 모듈 통합 export
- * 
- * @version 1.1.0
- * @changelog
- * - v1.1.0: MappingFileManager export 추가
+ * Mapping Services Index
+ * 설비 매핑 관련 서비스 모음
  */
 
 export { EquipmentMappingService } from './EquipmentMappingService.js';
-export { 
-    MappingFileManager, 
-    mappingFileManager, 
-    FILE_FORMAT_VERSION, 
-    SUPPORTED_VERSIONS 
-} from './MappingFileManager.js';
+export { MappingFileManager } from './MappingFileManager.js';
+
+// NEW: 서버 중앙화 매핑 Config 서비스
+export { MappingConfigService } from './MappingConfigService.js';
