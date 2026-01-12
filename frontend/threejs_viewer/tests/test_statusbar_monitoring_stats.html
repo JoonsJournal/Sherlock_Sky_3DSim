@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StatusBar Monitoring Stats 연동 테스트 v2.2.0</title>
+    <style>
+        /* =============================================
+           CSS Variables (Dark/Light Theme)
+           ============================================= */
+        :root {
+            --bg-main: #0F172A;
+            --bg-sidebar: #1E293B;
+            --bg-input: rgba(255,255,255,0.05);
+            --text-normal: #CBD5E1;
+            --text-muted: #6B7280;
+            --text-success: #4ADE80;
+            --text-warning: #FBBF24;
+            --text-alarm: #F87171;
+            --icon-selected: #06B6D4;
+            --border-color: rgba(255,255,255,0.1);
+            --status-bar-height: 40px;
+            
+            /* StatusBar Font Variables */
+            --statusbar-font: 'Consolas', 'Monaco', 'Menlo', monospace;
+            --statusbar-font-size: 11px;
+            --statusbar-font-size-sm: 9px;
+            --statusbar-font-size-value: 12px;
+        }
+        
+        [data-theme="light"] {
+            --bg-main: #F1F5F9;
+            --bg-sidebar: #F8FAFC;
+            --bg-input: rgba(0,0,0,0.05);
+            --text-normal: #374151;
+            --text-muted: #9CA3AF;
+            --border-color: rgba(0,0,0,0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-normal);
+            min-height: 100vh;
+            padding-bottom: 60px;
+        }
+        
+        /* =============================================
+           Header & Layout
+           ============================================= */
+        .header {
+            background: var(--bg-sidebar);
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .header .version {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .theme-toggle {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-normal);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* =============================================
+           Control Panel (Left)
+           ============================================= */
+        .control-panel {
+            background: var(--bg-sidebar);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .control-section {
+            margin-bottom: 24px;
+        }
+        
+        .control-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .control-section h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .control-section h3::before {
+            content: '';
+            width: 3px;
+            height: 14px;
+            background: var(--icon-selected);
+            border-radius: 2px;
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .btn {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-normal);
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            text-align: left;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--icon-selected);
+        }
+        
+        .btn.active {
+            background: rgba(6, 182, 212, 0.15);
+            border-color: var(--icon-selected);
+            color: var(--icon-selected);
+        }
+        
+        .btn .icon {
+            font-size: 16px;
+        }
+        
+        .btn-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        
+        .btn-small {
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+        
+        .btn-success {
+            background: rgba(74, 222, 128, 0.15);
+            border-color: var(--text-success);
+            color: var(--text-success);
+        }
+        
+        .btn-warning {
+            background: rgba(251, 191, 36, 0.15);
+            border-color: var(--text-warning);
+            color: var(--text-warning);
+        }
+        
+        .btn-danger {
+            background: rgba(248, 113, 113, 0.15);
+            border-color: var(--text-alarm);
+            color: var(--text-alarm);
+        }
+        
+        /* =============================================
+           Event Log (Right)
+           ============================================= */
+        .event-log-container {
+            background: var(--bg-sidebar);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 200px);
+        }
+        
+        .event-log-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .event-log-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .clear-log {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .clear-log:hover {
+            color: var(--text-alarm);
+        }
+        
+        .event-log {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        .log-entry {
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            border-radius: 6px;
+            background: var(--bg-input);
+            border-left: 3px solid var(--border-color);
+        }
+        
+        .log-entry.event-submode {
+            border-left-color: var(--icon-selected);
+        }
+        
+        .log-entry.event-monitoring {
+            border-left-color: var(--text-success);
+        }
+        
+        .log-entry.event-mapping {
+            border-left-color: var(--text-warning);
+        }
+        
+        .log-entry.event-mode {
+            border-left-color: #A855F7;
+        }
+        
+        .log-entry .timestamp {
+            color: var(--text-muted);
+            font-size: 10px;
+        }
+        
+        .log-entry .event-name {
+            color: var(--icon-selected);
+            font-weight: 600;
+        }
+        
+        .log-entry .event-data {
+            color: var(--text-normal);
+            margin-top: 4px;
+            word-break: break-all;
+        }
+        
+        /* =============================================
+           StatusBar (Bottom) - v2.2.0 Style
+           ============================================= */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: var(--status-bar-height);
+            background-color: var(--bg-sidebar);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            font-family: var(--statusbar-font);
+            font-size: var(--statusbar-font-size);
+            z-index: 100;
+        }
+        
+        .status-group {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: var(--bg-input);
+            border-radius: 4px;
+            font-family: var(--statusbar-font);
+        }
+        
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+        
+        .status-dot.connected {
+            background-color: var(--text-success);
+            box-shadow: 0 0 4px var(--text-success);
+        }
+        
+        .status-dot.disconnected {
+            background-color: var(--text-alarm);
+            box-shadow: 0 0 4px var(--text-alarm);
+        }
+        
+        .status-label {
+            color: var(--text-muted);
+            font-family: var(--statusbar-font);
+            font-size: var(--statusbar-font-size-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+        
+        .country-code {
+            font-family: var(--statusbar-font);
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--icon-selected);
+            letter-spacing: 1px;
+        }
+        
+        /* Monitoring Stats Group */
+        .monitoring-stats-group {
+            gap: 8px;
+            padding: 0 16px;
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            margin: 0 8px;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        
+        .monitoring-stats-group.hidden {
+            display: none !important;
+        }
+        
+        .monitoring-stat-item {
+            padding: 4px 8px;
+            gap: 4px;
+            min-width: 44px;
+            justify-content: center;
+        }
+        
+        .monitoring-stat-icon {
+            font-size: 12px;
+            line-height: 1;
+        }
+        
+        /* 🔧 v2.2.0: "개" 없이 숫자만 */
+        .monitoring-stat-value {
+            color: var(--text-normal);
+            font-family: var(--statusbar-font);
+            font-size: var(--statusbar-font-size-value);
+            font-weight: 600;
+            min-width: 20px;
+            text-align: right;
+        }
+        
+        .monitoring-stat-item.mapped .monitoring-stat-value {
+            color: var(--text-success);
+        }
+        
+        .monitoring-stat-item.unmapped .monitoring-stat-value {
+            color: var(--text-warning);
+        }
+        
+        .monitoring-stat-item.rate .monitoring-stat-value {
+            color: var(--icon-selected);
+        }
+        
+        .monitoring-stats-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border-color);
+            margin: 0 4px;
+        }
+        
+        .status-indicator-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .status-indicator-dot.run {
+            background-color: var(--text-success);
+            box-shadow: 0 0 6px var(--text-success);
+        }
+        
+        .status-indicator-dot.idle {
+            background-color: var(--text-warning);
+            box-shadow: 0 0 6px var(--text-warning);
+        }
+        
+        .status-indicator-dot.stop {
+            background-color: var(--text-alarm);
+            box-shadow: 0 0 6px var(--text-alarm);
+        }
+        
+        .status-indicator-dot.unknown {
+            background-color: var(--text-muted);
+            box-shadow: 0 0 4px var(--text-muted);
+        }
+        
+        .monitoring-stat-item.status-run .monitoring-stat-value {
+            color: var(--text-success);
+        }
+        
+        .monitoring-stat-item.status-idle .monitoring-stat-value {
+            color: var(--text-warning);
+        }
+        
+        .monitoring-stat-item.status-stop .monitoring-stat-value {
+            color: var(--text-alarm);
+        }
+        
+        .monitoring-stat-item.status-unknown .monitoring-stat-value {
+            color: var(--text-muted);
+        }
+        
+        .perf-bar {
+            width: 35px;
+            height: 4px;
+            background: var(--bg-input);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .perf-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        
+        .perf-bar-fill.good {
+            background: var(--text-success);
+        }
+        
+        /* =============================================
+           Current State Display
+           ============================================= */
+        .state-display {
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid var(--icon-selected);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+        
+        .state-display h4 {
+            font-size: 11px;
+            color: var(--icon-selected);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .state-display .state-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            padding: 4px 0;
+        }
+        
+        .state-display .state-label {
+            color: var(--text-muted);
+        }
+        
+        .state-display .state-value {
+            color: var(--text-normal);
+            font-weight: 600;
+            font-family: 'Consolas', monospace;
+        }
+        
+        .state-display .state-value.active {
+            color: var(--text-success);
+        }
+        
+        .state-display .state-value.inactive {
+            color: var(--text-muted);
+        }
+        
+        /* =============================================
+           Test Scenarios Section
+           ============================================= */
+        .scenarios-section {
+            background: var(--bg-sidebar);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            margin-top: 20px;
+        }
+        
+        .scenario-item {
+            background: var(--bg-input);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .scenario-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .scenario-number {
+            width: 24px;
+            height: 24px;
+            background: var(--icon-selected);
+            color: #000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        
+        .scenario-content {
+            flex: 1;
+        }
+        
+        .scenario-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .scenario-desc {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .scenario-status {
+            font-size: 18px;
+        }
+        
+        /* =============================================
+           Responsive
+           ============================================= */
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .event-log-container {
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div>
+            <h1>🧪 StatusBar Monitoring Stats 연동 테스트</h1>
+            <span class="version">v2.2.0 - EventBus 이벤트 흐름 검증</span>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">🌙 테마 전환</button>
+    </header>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Control Panel (Left) -->
+        <div class="control-panel">
+            <!-- Current State -->
+            <div class="state-display">
+                <h4>📊 현재 상태</h4>
+                <div class="state-row">
+                    <span class="state-label">Mode:</span>
+                    <span class="state-value" id="current-mode">-</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label">SubMode:</span>
+                    <span class="state-value" id="current-submode">-</span>
+                </div>
+                <div class="state-row">
+                    <span class="state-label">Stats Panel:</span>
+                    <span class="state-value" id="stats-panel-visible">Hidden</span>
+                </div>
+            </div>
+            
+            <!-- Mode Selection -->
+            <div class="control-section">
+                <h3>모드 선택 (Main Button)</h3>
+                <div class="btn-group">
+                    <button class="btn" onclick="selectMode('monitoring')">
+                        <span class="icon">📡</span>
+                        <span>Monitoring</span>
+                    </button>
+                    <button class="btn" onclick="selectMode('layout')">
+                        <span class="icon">📐</span>
+                        <span>Layout</span>
+                    </button>
+                    <button class="btn" onclick="selectMode('analysis')">
+                        <span class="icon">📊</span>
+                        <span>Analysis</span>
+                    </button>
+                    <button class="btn" onclick="selectMode(null)">
+                        <span class="icon">🏠</span>
+                        <span>Home (모드 해제)</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- SubMode Selection -->
+            <div class="control-section">
+                <h3>서브모드 선택 (Submenu)</h3>
+                <div class="btn-group">
+                    <button class="btn" onclick="selectSubMode('3d-view')">
+                        <span class="icon">🎮</span>
+                        <span>3D View (Monitoring)</span>
+                    </button>
+                    <button class="btn" onclick="selectSubMode('ranking-view')">
+                        <span class="icon">📊</span>
+                        <span>Ranking View (Monitoring)</span>
+                    </button>
+                    <button class="btn" onclick="selectSubMode('layout-editor')">
+                        <span class="icon">✏️</span>
+                        <span>Layout Editor (Layout)</span>
+                    </button>
+                    <button class="btn" onclick="selectSubMode('mapping')">
+                        <span class="icon">🔗</span>
+                        <span>Mapping (Layout)</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Stats Update Simulation -->
+            <div class="control-section">
+                <h3>Stats 업데이트 시뮬레이션</h3>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="simulateStatsUpdate()">
+                        <span class="icon">📈</span>
+                        <span>랜덤 Stats 업데이트</span>
+                    </button>
+                    <button class="btn btn-warning" onclick="simulateMappingChange()">
+                        <span class="icon">🔗</span>
+                        <span>매핑 변경 이벤트</span>
+                    </button>
+                </div>
+                <div class="btn-row" style="margin-top: 8px;">
+                    <button class="btn btn-small" onclick="setEquipmentStatus('run')">🟢 RUN +5</button>
+                    <button class="btn btn-small" onclick="setEquipmentStatus('idle')">🟡 IDLE +5</button>
+                    <button class="btn btn-small" onclick="setEquipmentStatus('stop')">🔴 STOP +5</button>
+                    <button class="btn btn-small" onclick="setEquipmentStatus('unknown')">⚫ UNKNOWN +5</button>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="control-section">
+                <h3>빠른 테스트</h3>
+                <div class="btn-group">
+                    <button class="btn" onclick="runScenario1()">
+                        <span class="icon">1️⃣</span>
+                        <span>시나리오 1: Monitoring → 3D View</span>
+                    </button>
+                    <button class="btn" onclick="runScenario2()">
+                        <span class="icon">2️⃣</span>
+                        <span>시나리오 2: 직접 3D View 클릭</span>
+                    </button>
+                    <button class="btn" onclick="runScenario3()">
+                        <span class="icon">3️⃣</span>
+                        <span>시나리오 3: Layout → Mapping</span>
+                    </button>
+                    <button class="btn btn-danger" onclick="resetAll()">
+                        <span class="icon">🔄</span>
+                        <span>전체 초기화</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Event Log (Right) -->
+        <div class="event-log-container">
+            <div class="event-log-header">
+                <h3>📋 EventBus 이벤트 로그</h3>
+                <button class="clear-log" onclick="clearLog()">🗑️ 로그 지우기</button>
+            </div>
+            <div class="event-log" id="event-log">
+                <div class="log-entry">
+                    <div class="timestamp">시작 대기중...</div>
+                    <div class="event-data">모드를 선택하여 이벤트 흐름을 확인하세요</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Test Scenarios -->
+    <div class="main-content" style="padding-top: 0;">
+        <div class="scenarios-section" style="grid-column: 1 / -1;">
+            <h3 style="margin-bottom: 16px; font-size: 14px;">🧪 테스트 시나리오 체크리스트</h3>
+            
+            <div class="scenario-item" id="scenario-check-1">
+                <span class="scenario-number">1</span>
+                <div class="scenario-content">
+                    <div class="scenario-title">Monitoring 버튼 → 3D View 서브메뉴</div>
+                    <div class="scenario-desc">mode:change → submode:change → monitoring:stats-update 순서로 이벤트 발생</div>
+                </div>
+                <span class="scenario-status" id="scenario-status-1">⬜</span>
+            </div>
+            
+            <div class="scenario-item" id="scenario-check-2">
+                <span class="scenario-number">2</span>
+                <div class="scenario-content">
+                    <div class="scenario-title">직접 3D View 서브메뉴 클릭 (Hover)</div>
+                    <div class="scenario-desc">submode:change 발생 시 parentMode='monitoring' 포함, Stats Panel 표시</div>
+                </div>
+                <span class="scenario-status" id="scenario-status-2">⬜</span>
+            </div>
+            
+            <div class="scenario-item" id="scenario-check-3">
+                <span class="scenario-number">3</span>
+                <div class="scenario-content">
+                    <div class="scenario-title">Monitoring Stats Panel 표시 조건</div>
+                    <div class="scenario-desc">mode=monitoring + submode=3d-view/ranking-view 일 때만 표시</div>
+                </div>
+                <span class="scenario-status" id="scenario-status-3">⬜</span>
+            </div>
+            
+            <div class="scenario-item" id="scenario-check-4">
+                <span class="scenario-number">4</span>
+                <div class="scenario-content">
+                    <div class="scenario-title">Layout 모드에서 Stats Panel 숨김</div>
+                    <div class="scenario-desc">Layout 모드로 전환 시 Monitoring Stats Panel 숨김</div>
+                </div>
+                <span class="scenario-status" id="scenario-status-4">⬜</span>
+            </div>
+            
+            <div class="scenario-item" id="scenario-check-5">
+                <span class="scenario-number">5</span>
+                <div class="scenario-content">
+                    <div class="scenario-title">실시간 Stats 업데이트</div>
+                    <div class="scenario-desc">monitoring:stats-update 이벤트로 StatusBar 값 실시간 변경</div>
+                </div>
+                <span class="scenario-status" id="scenario-status-5">⬜</span>
+            </div>
+            
+            <div class="scenario-item" id="scenario-check-6">
+                <span class="scenario-number">6</span>
+                <div class="scenario-content">
+                    <div class="scenario-title">매핑 변경 이벤트 연동</div>
+                    <div class="scenario-desc">equipment:mapping-changed 이벤트로 매핑 통계 업데이트</div>
+                </div>
+                <span class="scenario-status" id="scenario-status-6">⬜</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- StatusBar (Fixed Bottom) -->
+    <footer class="status-bar">
+        <!-- 왼쪽 그룹: 연결 상태 -->
+        <div class="status-group status-group-left">
+            <div class="status-item">
+                <span class="country-code">KR</span>
+            </div>
+            <div class="status-item">
+                <span class="status-dot connected"></span>
+                <span class="status-label">NET</span>
+            </div>
+            <div class="status-item">
+                <span class="status-dot connected"></span>
+                <span class="status-label">API</span>
+            </div>
+            <div class="status-item">
+                <span class="status-dot connected"></span>
+                <span class="status-label">DB</span>
+                <span class="status-label" style="color: var(--text-normal);">KR-PROD</span>
+            </div>
+        </div>
+        
+        <!-- 가운데 그룹: Monitoring Stats (조건부 표시) -->
+        <div class="status-group monitoring-stats-group hidden" id="monitoring-stats-group">
+            <!-- 총 장비 수 -->
+            <div class="status-item monitoring-stat-item">
+                <span class="monitoring-stat-icon">📊</span>
+                <span class="monitoring-stat-value" id="stats-total">117</span>
+            </div>
+            
+            <!-- 매핑 완료 -->
+            <div class="status-item monitoring-stat-item mapped">
+                <span class="monitoring-stat-icon">✅</span>
+                <span class="monitoring-stat-value" id="stats-mapped">0</span>
+            </div>
+            
+            <!-- 미매핑 -->
+            <div class="status-item monitoring-stat-item unmapped">
+                <span class="monitoring-stat-icon">⚠️</span>
+                <span class="monitoring-stat-value" id="stats-unmapped">117</span>
+            </div>
+            
+            <!-- 매핑률 -->
+            <div class="status-item monitoring-stat-item rate">
+                <span class="monitoring-stat-icon">📈</span>
+                <span class="monitoring-stat-value" id="stats-rate">0%</span>
+            </div>
+            
+            <!-- 구분선 -->
+            <div class="monitoring-stats-divider"></div>
+            
+            <!-- RUN -->
+            <div class="status-item monitoring-stat-item status-run">
+                <span class="status-indicator-dot run"></span>
+                <span class="monitoring-stat-value" id="stats-run">0</span>
+            </div>
+            
+            <!-- IDLE -->
+            <div class="status-item monitoring-stat-item status-idle">
+                <span class="status-indicator-dot idle"></span>
+                <span class="monitoring-stat-value" id="stats-idle">0</span>
+            </div>
+            
+            <!-- STOP -->
+            <div class="status-item monitoring-stat-item status-stop">
+                <span class="status-indicator-dot stop"></span>
+                <span class="monitoring-stat-value" id="stats-stop">0</span>
+            </div>
+            
+            <!-- UNKNOWN -->
+            <div class="status-item monitoring-stat-item status-unknown">
+                <span class="status-indicator-dot unknown"></span>
+                <span class="monitoring-stat-value" id="stats-unknown">0</span>
+            </div>
+        </div>
+        
+        <!-- 오른쪽 그룹: 성능 지표 -->
+        <div class="status-group status-group-right">
+            <div class="status-item">
+                <span class="status-label">FPS</span>
+                <span class="status-label" style="color: var(--text-normal);">60</span>
+                <div class="perf-bar">
+                    <div class="perf-bar-fill good" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div class="status-item">
+                <span class="status-label">MEM</span>
+                <span class="status-label" style="color: var(--text-normal);">128MB</span>
+                <div class="perf-bar">
+                    <div class="perf-bar-fill good" style="width: 25%;"></div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // ============================================
+        // Mock EventBus Implementation
+        // ============================================
+        class MockEventBus {
+            constructor() {
+                this.listeners = new Map();
+            }
+            
+            on(event, callback) {
+                if (!this.listeners.has(event)) {
+                    this.listeners.set(event, []);
+                }
+                this.listeners.get(event).push(callback);
+                
+                // Return unsubscribe function
+                return () => {
+                    const callbacks = this.listeners.get(event);
+                    const index = callbacks.indexOf(callback);
+                    if (index > -1) callbacks.splice(index, 1);
+                };
+            }
+            
+            emit(event, data) {
+                logEvent(event, data);
+                
+                const callbacks = this.listeners.get(event) || [];
+                callbacks.forEach(cb => cb(data));
+            }
+        }
+        
+        // ============================================
+        // State Management
+        // ============================================
+        const eventBus = new MockEventBus();
+        
+        let state = {
+            currentMode: null,
+            currentSubMode: null,
+            monitoringStats: {
+                total: 117,
+                mapped: 0,
+                unmapped: 117,
+                rate: 0,
+                statusCounts: {
+                    run: 0,
+                    idle: 0,
+                    stop: 0,
+                    unknown: 0
+                }
+            }
+        };
+        
+        // ============================================
+        // Mode Selection Functions
+        // ============================================
+        function selectMode(mode) {
+            const previousMode = state.currentMode;
+            state.currentMode = mode;
+            state.currentSubMode = null;
+            
+            // Emit mode:change event
+            eventBus.emit('mode:change', {
+                from: previousMode,
+                to: mode
+            });
+            
+            updateUI();
+            updateButtonStates();
+            updateStatsVisibility();
+            checkScenarios();
+        }
+        
+        function selectSubMode(submode) {
+            const previousSubMode = state.currentSubMode;
+            
+            // Determine parent mode
+            const parentModeMap = {
+                '3d-view': 'monitoring',
+                'ranking-view': 'monitoring',
+                'layout-editor': 'layout',
+                'mapping': 'layout'
+            };
+            
+            const parentMode = parentModeMap[submode] || null;
+            
+            // If parent mode differs, switch mode first
+            if (parentMode && state.currentMode !== parentMode) {
+                const previousMode = state.currentMode;
+                state.currentMode = parentMode;
+                
+                eventBus.emit('mode:change', {
+                    from: previousMode,
+                    to: parentMode
+                });
+            }
+            
+            state.currentSubMode = submode;
+            
+            // Emit submode:change event (v1.9.1)
+            eventBus.emit('submode:change', {
+                submode: submode,
+                mode: state.currentMode,
+                parentMode: parentMode
+            });
+            
+            // If entering monitoring 3d-view or ranking-view, emit stats update
+            if (state.currentMode === 'monitoring' && 
+                (submode === '3d-view' || submode === 'ranking-view')) {
+                setTimeout(() => {
+                    emitMonitoringStatsUpdate();
+                }, 100);
+            }
+            
+            updateUI();
+            updateButtonStates();
+            updateStatsVisibility();
+            checkScenarios();
+        }
+        
+        // ============================================
+        // Stats Update Functions
+        // ============================================
+        function emitMonitoringStatsUpdate() {
+            eventBus.emit('monitoring:stats-update', {
+                statusCounts: state.monitoringStats.statusCounts,
+                total: state.monitoringStats.total,
+                mapped: state.monitoringStats.mapped,
+                unmapped: state.monitoringStats.unmapped,
+                mappingRate: state.monitoringStats.rate,
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        function simulateStatsUpdate() {
+            // Random values
+            const run = Math.floor(Math.random() * 50) + 20;
+            const idle = Math.floor(Math.random() * 30) + 10;
+            const stop = Math.floor(Math.random() * 15) + 5;
+            const mapped = run + idle + stop;
+            const unknown = 117 - mapped;
+            
+            state.monitoringStats = {
+                total: 117,
+                mapped: mapped,
+                unmapped: unknown,
+                rate: Math.round((mapped / 117) * 100),
+                statusCounts: { run, idle, stop, unknown }
+            };
+            
+            emitMonitoringStatsUpdate();
+            updateStatsDisplay();
+            checkScenarios();
+        }
+        
+        function simulateMappingChange() {
+            const newMapped = state.monitoringStats.mapped + Math.floor(Math.random() * 5) + 1;
+            const capped = Math.min(newMapped, 117);
+            
+            state.monitoringStats.mapped = capped;
+            state.monitoringStats.unmapped = 117 - capped;
+            state.monitoringStats.rate = Math.round((capped / 117) * 100);
+            
+            // Emit equipment:mapping-changed (v1.4.1)
+            eventBus.emit('equipment:mapping-changed', {
+                mapped: capped,
+                total: 117,
+                unmapped: 117 - capped,
+                rate: state.monitoringStats.rate,
+                timestamp: new Date().toISOString()
+            });
+            
+            updateStatsDisplay();
+            checkScenarios();
+        }
+        
+        function setEquipmentStatus(status) {
+            state.monitoringStats.statusCounts[status] += 5;
+            
+            // Recalculate mapped
+            const { run, idle, stop } = state.monitoringStats.statusCounts;
+            const mapped = run + idle + stop;
+            state.monitoringStats.mapped = Math.min(mapped, 117);
+            state.monitoringStats.unmapped = 117 - state.monitoringStats.mapped;
+            state.monitoringStats.rate = Math.round((state.monitoringStats.mapped / 117) * 100);
+            state.monitoringStats.statusCounts.unknown = state.monitoringStats.unmapped;
+            
+            emitMonitoringStatsUpdate();
+            updateStatsDisplay();
+            checkScenarios();
+        }
+        
+        // ============================================
+        // Scenario Functions
+        // ============================================
+        function runScenario1() {
+            logEvent('scenario', { name: '시나리오 1 시작: Monitoring → 3D View' });
+            
+            // Step 1: Select Monitoring
+            setTimeout(() => {
+                selectMode('monitoring');
+            }, 500);
+            
+            // Step 2: Select 3D View
+            setTimeout(() => {
+                selectSubMode('3d-view');
+            }, 1500);
+            
+            // Step 3: Simulate stats update
+            setTimeout(() => {
+                simulateStatsUpdate();
+            }, 2500);
+        }
+        
+        function runScenario2() {
+            logEvent('scenario', { name: '시나리오 2 시작: 직접 3D View 클릭' });
+            
+            // Reset first
+            state.currentMode = null;
+            state.currentSubMode = null;
+            updateUI();
+            
+            // Directly click 3D View (simulating hover menu click)
+            setTimeout(() => {
+                selectSubMode('3d-view');
+            }, 500);
+            
+            // Stats update
+            setTimeout(() => {
+                simulateStatsUpdate();
+            }, 1500);
+        }
+        
+        function runScenario3() {
+            logEvent('scenario', { name: '시나리오 3 시작: Layout → Mapping' });
+            
+            // Step 1: Select Layout
+            setTimeout(() => {
+                selectMode('layout');
+            }, 500);
+            
+            // Step 2: Select Mapping
+            setTimeout(() => {
+                selectSubMode('mapping');
+            }, 1500);
+        }
+        
+        function resetAll() {
+            state = {
+                currentMode: null,
+                currentSubMode: null,
+                monitoringStats: {
+                    total: 117,
+                    mapped: 0,
+                    unmapped: 117,
+                    rate: 0,
+                    statusCounts: { run: 0, idle: 0, stop: 0, unknown: 0 }
+                }
+            };
+            
+            updateUI();
+            updateButtonStates();
+            updateStatsVisibility();
+            updateStatsDisplay();
+            clearLog();
+            resetScenarioChecks();
+            
+            logEvent('system', { message: '전체 초기화 완료' });
+        }
+        
+        // ============================================
+        // UI Update Functions
+        // ============================================
+        function updateUI() {
+            document.getElementById('current-mode').textContent = state.currentMode || '-';
+            document.getElementById('current-mode').className = 
+                'state-value ' + (state.currentMode ? 'active' : 'inactive');
+            
+            document.getElementById('current-submode').textContent = state.currentSubMode || '-';
+            document.getElementById('current-submode').className = 
+                'state-value ' + (state.currentSubMode ? 'active' : 'inactive');
+        }
+        
+        function updateButtonStates() {
+            document.querySelectorAll('.btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // This is a simplified version - in real app, match by mode/submode
+        }
+        
+        function updateStatsVisibility() {
+            const statsGroup = document.getElementById('monitoring-stats-group');
+            const visibleIndicator = document.getElementById('stats-panel-visible');
+            
+            const shouldShow = state.currentMode === 'monitoring' && 
+                (state.currentSubMode === '3d-view' || state.currentSubMode === 'ranking-view');
+            
+            if (shouldShow) {
+                statsGroup.classList.remove('hidden');
+                visibleIndicator.textContent = 'Visible ✅';
+                visibleIndicator.className = 'state-value active';
+            } else {
+                statsGroup.classList.add('hidden');
+                visibleIndicator.textContent = 'Hidden';
+                visibleIndicator.className = 'state-value inactive';
+            }
+        }
+        
+        function updateStatsDisplay() {
+            const stats = state.monitoringStats;
+            
+            document.getElementById('stats-total').textContent = stats.total;
+            document.getElementById('stats-mapped').textContent = stats.mapped;
+            document.getElementById('stats-unmapped').textContent = stats.unmapped;
+            document.getElementById('stats-rate').textContent = stats.rate + '%';
+            document.getElementById('stats-run').textContent = stats.statusCounts.run;
+            document.getElementById('stats-idle').textContent = stats.statusCounts.idle;
+            document.getElementById('stats-stop').textContent = stats.statusCounts.stop;
+            document.getElementById('stats-unknown').textContent = stats.statusCounts.unknown;
+        }
+        
+        // ============================================
+        // Scenario Check Functions
+        // ============================================
+        let scenarioFlags = {
+            1: false, 2: false, 3: false, 4: false, 5: false, 6: false
+        };
+        
+        function checkScenarios() {
+            // Scenario 1: Monitoring → 3D View flow
+            if (state.currentMode === 'monitoring' && state.currentSubMode === '3d-view') {
+                scenarioFlags[1] = true;
+                document.getElementById('scenario-status-1').textContent = '✅';
+            }
+            
+            // Scenario 2: Direct 3D View click with parentMode
+            if (state.currentSubMode === '3d-view' && state.currentMode === 'monitoring') {
+                scenarioFlags[2] = true;
+                document.getElementById('scenario-status-2').textContent = '✅';
+            }
+            
+            // Scenario 3: Stats Panel visibility
+            const statsVisible = !document.getElementById('monitoring-stats-group').classList.contains('hidden');
+            if (statsVisible && state.currentMode === 'monitoring') {
+                scenarioFlags[3] = true;
+                document.getElementById('scenario-status-3').textContent = '✅';
+            }
+            
+            // Scenario 4: Layout mode hides stats
+            if (state.currentMode === 'layout') {
+                const statsHidden = document.getElementById('monitoring-stats-group').classList.contains('hidden');
+                if (statsHidden) {
+                    scenarioFlags[4] = true;
+                    document.getElementById('scenario-status-4').textContent = '✅';
+                }
+            }
+            
+            // Scenario 5: Stats update
+            if (state.monitoringStats.mapped > 0 || state.monitoringStats.statusCounts.run > 0) {
+                scenarioFlags[5] = true;
+                document.getElementById('scenario-status-5').textContent = '✅';
+            }
+            
+            // Scenario 6: Mapping change (checked when mapping event fires)
+        }
+        
+        function resetScenarioChecks() {
+            scenarioFlags = { 1: false, 2: false, 3: false, 4: false, 5: false, 6: false };
+            for (let i = 1; i <= 6; i++) {
+                document.getElementById(`scenario-status-${i}`).textContent = '⬜';
+            }
+        }
+        
+        // ============================================
+        // Event Logging
+        // ============================================
+        function logEvent(eventName, data) {
+            const log = document.getElementById('event-log');
+            const timestamp = new Date().toLocaleTimeString('ko-KR', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit',
+                fractionalSecondDigits: 3
+            });
+            
+            let eventClass = '';
+            if (eventName.includes('submode')) eventClass = 'event-submode';
+            else if (eventName.includes('monitoring')) eventClass = 'event-monitoring';
+            else if (eventName.includes('mapping')) eventClass = 'event-mapping';
+            else if (eventName.includes('mode')) eventClass = 'event-mode';
+            
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${eventClass}`;
+            entry.innerHTML = `
+                <div class="timestamp">${timestamp}</div>
+                <div class="event-name">${eventName}</div>
+                <div class="event-data">${JSON.stringify(data, null, 2)}</div>
+            `;
+            
+            log.insertBefore(entry, log.firstChild);
+            
+            // Check for mapping event
+            if (eventName === 'equipment:mapping-changed') {
+                scenarioFlags[6] = true;
+                document.getElementById('scenario-status-6').textContent = '✅';
+            }
+        }
+        
+        function clearLog() {
+            const log = document.getElementById('event-log');
+            log.innerHTML = '<div class="log-entry"><div class="timestamp">로그 초기화됨</div></div>';
+        }
+        
+        // ============================================
+        // Theme Toggle
+        // ============================================
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            
+            const btn = document.querySelector('.theme-toggle');
+            btn.textContent = next === 'dark' ? '🌙 테마 전환' : '☀️ 테마 전환';
+        }
+        
+        // ============================================
+        // EventBus Listeners (StatusBar simulation)
+        // ============================================
+        eventBus.on('mode:change', (data) => {
+            // StatusBar would update visibility here
+            updateStatsVisibility();
+        });
+        
+        eventBus.on('submode:change', (data) => {
+            // StatusBar would update visibility here
+            updateStatsVisibility();
+        });
+        
+        eventBus.on('monitoring:stats-update', (data) => {
+            // StatusBar would update stats display
+            updateStatsDisplay();
+        });
+        
+        eventBus.on('equipment:mapping-changed', (data) => {
+            // StatusBar would update mapping stats
+            state.monitoringStats.mapped = data.mapped;
+            state.monitoringStats.unmapped = data.unmapped;
+            state.monitoringStats.rate = data.rate;
+            updateStatsDisplay();
+        });
+        
+        // ============================================
+        // Initialize
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            logEvent('system', { message: '테스트 페이지 초기화 완료', version: 'v2.2.0' });
+            updateUI();
+            updateStatsDisplay();
+        });
+    </script>
+</body>
+</html>
