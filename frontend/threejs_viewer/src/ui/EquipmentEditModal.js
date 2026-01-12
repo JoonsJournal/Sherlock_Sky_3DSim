@@ -2,7 +2,7 @@
  * EquipmentEditModal.js
  * 설비 편집 모달
  * 
- * @version 3.1.0
+ * @version 3.2.0
  * @description 
  *   - BaseModal 상속 적용
  *   - EquipmentMappingService 연동
@@ -10,8 +10,10 @@
  *   - v2.2.0: line_name 저장 추가
  *   - v3.0.0: 인라인 스타일 완전 제거, CSS 클래스 기반 (2026-01-06)
  *   - v3.1.0: V2 API 서버 저장 기능 추가 (2026-01-13)
- *             - Save All → localStorage + V2 API 서버 저장
- *             - 연결된 site_id 기반 파일 생성
+ *   - v3.2.0: V2 API 전용으로 통합 (2026-01-13)
+ *             - Validate → V2 API (editState.validateOnServer)
+ *             - Sync → V2 API only (V1 fallback 제거)
+ *             - Save All → V2 API (editState.saveToServer)
  */
 
 import { BaseModal } from '../core/base/BaseModal.js';
@@ -49,7 +51,7 @@ export class EquipmentEditModal extends BaseModal {
             debugLog('🔧 EditState extended with V2 server save capability');
         }
         
-        // MappingService 초기화
+        // MappingService 초기화 (DB 설비 목록 로드용)
         this.mappingService = new EquipmentMappingService({
             apiClient: this.apiClient,
             editState: this.editState
@@ -135,16 +137,15 @@ export class EquipmentEditModal extends BaseModal {
     
     /**
      * Modal Footer 렌더링 - CSS 클래스 기반
-     * 🆕 v3.1.0: 서버 저장 버튼 추가
      */
     renderFooter() {
         return `
             <div class="equip-edit__footer">
                 <div class="equip-edit__footer-left">
-                    <button id="btn-validate" class="btn-outline" title="Validate all mappings">
+                    <button id="btn-validate" class="btn-outline" title="Validate all mappings (V2 API)">
                         🔍 Validate
                     </button>
-                    <button id="btn-sync-server" class="btn-outline" title="Load from server">
+                    <button id="btn-sync-server" class="btn-outline" title="Load from server (V2 API)">
                         🔄 Sync
                     </button>
                 </div>
@@ -182,23 +183,23 @@ export class EquipmentEditModal extends BaseModal {
             });
         }
         
-        // 검증 버튼
+        // 🆕 v3.2.0: 검증 버튼 - V2 API 사용
         const validateBtn = this.$('#btn-validate');
         if (validateBtn) {
             this.addDomListener(validateBtn, 'click', () => {
-                this._handleValidate();
+                this._handleValidateV2();
             });
         }
         
-        // 서버 동기화 버튼
+        // 🆕 v3.2.0: 서버 동기화 버튼 - V2 API only
         const syncBtn = this.$('#btn-sync-server');
         if (syncBtn) {
             this.addDomListener(syncBtn, 'click', () => {
-                this._handleSyncFromServer();
+                this._handleSyncFromServerV2();
             });
         }
         
-        // 🆕 v3.1.0: 서버 저장 버튼 - V2 API 사용
+        // 서버 저장 버튼 - V2 API
         const saveBtn = this.$('#btn-save-server');
         if (saveBtn) {
             this.addDomListener(saveBtn, 'click', () => {
@@ -284,17 +285,18 @@ export class EquipmentEditModal extends BaseModal {
     }
     
     // ==========================================
-    // 서버 연동 메서드
+    // 🆕 v3.2.0: V2 API 전용 메서드
     // ==========================================
     
     /**
-     * 검증 실행
+     * 🆕 v3.2.0: 검증 실행 (V2 API 전용)
+     * 1. 로컬 검증 (editState.validateLocal)
+     * 2. 서버 검증 (editState.validateOnServer)
      */
-    async _handleValidate() {
+    async _handleValidateV2() {
         if (this.isValidating) return;
         
         const validateBtn = this.$('#btn-validate');
-        const validationStatus = this.$('#validation-status');
         
         try {
             this.isValidating = true;
@@ -303,25 +305,33 @@ export class EquipmentEditModal extends BaseModal {
                 validateBtn.innerHTML = '🔄 Validating...';
             }
             
-            // 먼저 로컬 검증
-            const localResult = this.mappingService.validateLocal();
-            
-            if (!localResult.valid) {
-                this._displayValidationResult(localResult, 'local');
-                toast.warning('Local validation found issues');
-                return;
+            // 1. 로컬 검증 (빠른 검증)
+            if (this.editState && this.editState.validateLocal) {
+                const localResult = this.editState.validateLocal();
+                
+                if (!localResult.valid) {
+                    this._displayValidationResult(localResult, 'local');
+                    toast.warning('Local validation found issues');
+                    return;
+                }
+                
+                debugLog('✅ Local validation passed');
             }
             
-            // 서버 검증
-            const serverResult = await this.mappingService.validateMapping();
-            this.validationResult = serverResult;
-            
-            this._displayValidationResult(serverResult, 'server');
-            
-            if (serverResult.valid) {
-                toast.success('✅ All mappings are valid!');
+            // 2. 서버 검증 (V2 API)
+            if (this.editState && this.editState.validateOnServer) {
+                const serverResult = await this.editState.validateOnServer();
+                this.validationResult = serverResult;
+                
+                this._displayValidationResult(serverResult, 'server (V2)');
+                
+                if (serverResult.valid) {
+                    toast.success('✅ All mappings are valid!');
+                } else {
+                    toast.warning(`⚠️ Found ${serverResult.errors?.length || 0} errors`);
+                }
             } else {
-                toast.warning(`⚠️ Found ${serverResult.errors?.length || 0} errors`);
+                toast.error('❌ Validation not available (Extension not loaded)');
             }
             
         } catch (error) {
@@ -337,10 +347,10 @@ export class EquipmentEditModal extends BaseModal {
     }
     
     /**
-     * 서버에서 매핑 로드 (V2 API 사용)
-     * 🆕 v3.1.0: V2 API 우선, 실패시 기존 API fallback
+     * 🆕 v3.2.0: 서버에서 매핑 로드 (V2 API 전용)
+     * V1 fallback 제거
      */
-    async _handleSyncFromServer() {
+    async _handleSyncFromServerV2() {
         const syncBtn = this.$('#btn-sync-server');
         
         try {
@@ -349,46 +359,28 @@ export class EquipmentEditModal extends BaseModal {
                 syncBtn.innerHTML = '🔄 Loading...';
             }
             
-            // 🆕 v3.1.0: V2 API로 먼저 시도
+            // V2 API 사용
             if (this.editState && this.editState.loadFromServerV2) {
-                try {
-                    const result = await this.editState.loadFromServerV2();
-                    
-                    if (result.success) {
-                        toast.success(`✅ Synced from server: ${result.count} mappings`);
-                        this._updateProgress();
-                        this._updateSyncStatus();
-                        this._renderEquipmentList();
-                        return;
-                    }
-                } catch (v2Error) {
-                    debugLog('V2 API sync failed, falling back to legacy API:', v2Error);
-                }
-            }
-            
-            // Fallback: 기존 API
-            const conflicts = await this.mappingService.detectConflicts();
-            
-            if (conflicts.needsSync && conflicts.conflicts.length > 0) {
-                const choice = confirm(
-                    `⚠️ ${conflicts.conflicts.length} conflicts detected.\n\n` +
-                    `Local only: ${conflicts.localOnly.length}\n` +
-                    `Server only: ${conflicts.serverOnly.length}\n\n` +
-                    `Click OK to use server data, Cancel to keep local data.`
-                );
+                const result = await this.editState.loadFromServerV2();
                 
-                const strategy = choice ? 'replace' : 'keep-local';
-                await this.mappingService.loadMappings(strategy);
-                toast.success(`Synced with server (${strategy})`);
+                if (result.success) {
+                    toast.success(`✅ Synced from server: ${result.count} mappings`);
+                    this._updateProgress();
+                    this._updateSyncStatus();
+                    this._renderEquipmentList();
+                    
+                    // 동기화 상태 업데이트
+                    const syncStatus = this.$('#sync-status');
+                    if (syncStatus) {
+                        syncStatus.className = 'equip-edit__sync-status equip-edit__sync-status--synced';
+                        syncStatus.textContent = `✅ Synced • ${new Date().toLocaleTimeString()}`;
+                    }
+                } else {
+                    toast.error(`❌ Sync failed: ${result.error}`);
+                }
             } else {
-                await this.mappingService.loadMappings('merge');
-                toast.success('Synced with server');
+                toast.error('❌ Sync not available (Extension not loaded)');
             }
-            
-            // UI 업데이트
-            this._updateProgress();
-            this._updateSyncStatus();
-            this._renderEquipmentList();
             
         } catch (error) {
             console.error('Sync error:', error);
@@ -402,7 +394,7 @@ export class EquipmentEditModal extends BaseModal {
     }
     
     /**
-     * 🆕 v3.1.0: 서버에 매핑 저장 (V2 API 사용)
+     * 🆕 v3.2.0: 서버에 매핑 저장 (V2 API 전용)
      * equipment_mapping_{site_id}.json 형식으로 저장
      */
     async _handleSaveToServerV2() {
@@ -426,7 +418,7 @@ export class EquipmentEditModal extends BaseModal {
             debugLog('Failed to get current site ID:', e);
         }
         
-        const siteInfo = siteId ? `\nSite: ${siteId}` : '\n⚠️ No site connected (will try to detect)';
+        const siteInfo = siteId ? `\nSite: ${siteId}` : '\n⚠️ No site connected';
         
         const confirmed = confirm(
             `☁️ Save ${mappingCount} mappings to server?\n` +
@@ -444,7 +436,7 @@ export class EquipmentEditModal extends BaseModal {
                 saveBtn.innerHTML = '☁️ Saving...';
             }
             
-            // 🆕 V2 API로 저장
+            // V2 API로 저장
             if (this.editState && this.editState.saveToServer) {
                 const result = await this.editState.saveToServer({
                     createdBy: 'Equipment Mapping Editor',
@@ -465,18 +457,7 @@ export class EquipmentEditModal extends BaseModal {
                     toast.error(`❌ Save failed: ${result.error}`);
                 }
             } else {
-                // Fallback: 기존 API
-                const result = await this.mappingService.saveMappings(true);
-                
-                if (result.success) {
-                    toast.success(`✅ Saved ${result.total || mappingCount} mappings to server`);
-                    this._updateSyncStatus();
-                } else {
-                    if (result.validation) {
-                        this._displayValidationResult(result.validation, 'server');
-                    }
-                    toast.error('Save failed: Validation errors');
-                }
+                toast.error('❌ Save not available (Extension not loaded)');
             }
             
         } catch (error) {
@@ -491,18 +472,39 @@ export class EquipmentEditModal extends BaseModal {
         }
     }
     
+    // ==========================================
+    // @deprecated Legacy methods (V1 API)
+    // ==========================================
+    
     /**
-     * 🆕 기존 _handleSaveToServer는 _handleSaveToServerV2로 대체
+     * @deprecated Use _handleValidateV2 instead
+     */
+    async _handleValidate() {
+        return this._handleValidateV2();
+    }
+    
+    /**
+     * @deprecated Use _handleSyncFromServerV2 instead
+     */
+    async _handleSyncFromServer() {
+        return this._handleSyncFromServerV2();
+    }
+    
+    /**
      * @deprecated Use _handleSaveToServerV2 instead
      */
     async _handleSaveToServer() {
         return this._handleSaveToServerV2();
     }
     
+    // ==========================================
+    // UI Helper Methods
+    // ==========================================
+    
     /**
      * 검증 결과 표시 - CSS 클래스 기반
      * @param {Object} result - 검증 결과
-     * @param {string} source - 'local' | 'server'
+     * @param {string} source - 'local' | 'server (V2)'
      */
     _displayValidationResult(result, source) {
         const validationStatus = this.$('#validation-status');
@@ -522,6 +524,11 @@ export class EquipmentEditModal extends BaseModal {
                     <span class="equip-edit__validation-source">(${source})</span>
                 </div>
         `;
+        
+        // 매핑 수 표시
+        if (result.mappingCount !== undefined) {
+            html += `<div class="equip-edit__validation-count">Mappings: ${result.mappingCount}</div>`;
+        }
         
         // 에러 표시
         if (result.errors && result.errors.length > 0) {
