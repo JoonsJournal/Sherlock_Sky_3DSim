@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipment Mapping Mockup Test</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        
+        h1 {
+            color: #4ecdc4;
+            border-bottom: 2px solid #4ecdc4;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #ff6b6b;
+            margin-top: 30px;
+        }
+        
+        h3 {
+            color: #ffd93d;
+            margin-top: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .test-section {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #0f3460;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+        }
+        
+        .btn-info {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: #1a1a2e;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349, #f45c43);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #606c88, #3f4c6b);
+            color: white;
+        }
+        
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            padding: 15px;
+            background: #0f3460;
+            border-radius: 8px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-label {
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .status-value {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .status-value.connected {
+            color: #38ef7d;
+        }
+        
+        .status-value.disconnected {
+            color: #f45c43;
+        }
+        
+        .log-container {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            border: 1px solid #30363d;
+        }
+        
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid #21262d;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-time {
+            color: #666;
+            margin-right: 10px;
+        }
+        
+        .log-success {
+            color: #38ef7d;
+        }
+        
+        .log-error {
+            color: #f45c43;
+        }
+        
+        .log-info {
+            color: #4facfe;
+        }
+        
+        .log-warn {
+            color: #ffd93d;
+        }
+        
+        .json-preview {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 400px;
+            overflow: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            border: 1px solid #30363d;
+        }
+        
+        .equipment-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 8px;
+            margin: 15px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #0f3460;
+            border-radius: 8px;
+        }
+        
+        .equipment-item {
+            padding: 8px;
+            background: #16213e;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        
+        .equipment-item:hover {
+            background: #1a2744;
+        }
+        
+        .equipment-item.mapped {
+            border-color: #38ef7d;
+            background: rgba(56, 239, 125, 0.1);
+        }
+        
+        .equipment-item.selected {
+            border-color: #4facfe;
+            background: rgba(79, 172, 254, 0.2);
+        }
+        
+        .equipment-item .eq-id {
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+        
+        .equipment-item .eq-name {
+            font-size: 10px;
+            color: #888;
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .db-equipment-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #0f3460;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .db-equipment-item {
+            padding: 8px 12px;
+            margin: 4px 0;
+            background: #16213e;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        
+        .db-equipment-item:hover {
+            background: #1a2744;
+        }
+        
+        .db-equipment-item.used {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .mode-indicator {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .mode-view {
+            background: #3f4c6b;
+        }
+        
+        .mode-dev {
+            background: #f5576c;
+        }
+        
+        .mode-mapping {
+            background: #38ef7d;
+            color: #1a1a2e;
+        }
+        
+        .mode-monitoring {
+            background: #4facfe;
+            color: #1a1a2e;
+        }
+        
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 900px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .file-info {
+            background: #0f3460;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        
+        .file-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #16213e;
+        }
+        
+        .file-info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .badge-success {
+            background: #38ef7d;
+            color: #1a1a2e;
+        }
+        
+        .badge-warning {
+            background: #ffd93d;
+            color: #1a1a2e;
+        }
+        
+        .badge-error {
+            background: #f45c43;
+            color: white;
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background: #0f3460;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #38ef7d, #11998e);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #1a1a2e;
+        }
+        
+        .tab-container {
+            margin: 20px 0;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .tab-btn {
+            padding: 10px 20px;
+            background: #0f3460;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .tab-btn.active {
+            background: #16213e;
+            color: #4ecdc4;
+        }
+        
+        .tab-content {
+            display: none;
+            background: #16213e;
+            padding: 20px;
+            border-radius: 0 8px 8px 8px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Equipment Mapping Mockup Test</h1>
+        <p>Backend 서버 없이 Equipment Mapping 전체 흐름을 테스트합니다.</p>
+        
+        <!-- 현재 상태 표시 -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">현재 모드:</span>
+                <span id="current-mode" class="mode-indicator mode-view">View Mode</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">DB 연결:</span>
+                <span id="db-status" class="status-value disconnected">미연결</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Site ID:</span>
+                <span id="site-id" class="status-value">-</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">매핑 진행률:</span>
+                <span id="mapping-progress" class="status-value">0/117 (0%)</span>
+            </div>
+        </div>
+        
+        <!-- 탭 컨테이너 -->
+        <div class="tab-container">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showTab('connection')">1️⃣ DB 연결</button>
+                <button class="tab-btn" onclick="showTab('mode')">2️⃣ 모드 전환</button>
+                <button class="tab-btn" onclick="showTab('mapping')">3️⃣ 매핑 작업</button>
+                <button class="tab-btn" onclick="showTab('save')">4️⃣ 저장/로드</button>
+                <button class="tab-btn" onclick="showTab('validation')">5️⃣ 검증</button>
+            </div>
+            
+            <!-- Tab 1: DB 연결 -->
+            <div id="tab-connection" class="tab-content active">
+                <h3>📡 Database 연결 시뮬레이션</h3>
+                <p>Connection Manager를 통한 DB 연결을 시뮬레이션합니다.</p>
+                
+                <div class="button-group">
+                    <button class="btn-primary" onclick="connectDatabase('korea_site1', 'line1')">
+                        🇰🇷 Korea Site1 - Line1 연결
+                    </button>
+                    <button class="btn-primary" onclick="connectDatabase('korea_site1', 'line2')">
+                        🇰🇷 Korea Site1 - Line2 연결
+                    </button>
+                    <button class="btn-primary" onclick="connectDatabase('vietnam_site', 'production')">
+                        🇻🇳 Vietnam - Production 연결
+                    </button>
+                    <button class="btn-danger" onclick="disconnectDatabase()">
+                        ⚡ 연결 해제
+                    </button>
+                </div>
+                
+                <div class="file-info">
+                    <h4>연결된 사이트 정보</h4>
+                    <div id="connection-info">연결된 사이트가 없습니다.</div>
+                </div>
+            </div>
+            
+            <!-- Tab 2: 모드 전환 -->
+            <div id="tab-mode" class="tab-content">
+                <h3>🔄 모드 전환 테스트</h3>
+                <p>다양한 경로로 Equipment Mapping 모드에 진입합니다.</p>
+                
+                <h4>Case 1: 메인 메뉴 → Dev Mode → Layout Tools → Equipment Mapping</h4>
+                <div class="button-group">
+                    <button class="btn-secondary" onclick="enterDevMode()">
+                        1. Dev Mode 진입
+                    </button>
+                    <button class="btn-secondary" onclick="openLayoutTools()" id="btn-layout-tools" disabled>
+                        2. Layout Tools 열기
+                    </button>
+                    <button class="btn-success" onclick="enterMappingMode()" id="btn-mapping-mode" disabled>
+                        3. Equipment Mapping 모드
+                    </button>
+                </div>
+                
+                <h4>Case 2: 직접 Equipment Mapping 모드 진입</h4>
+                <div class="button-group">
+                    <button class="btn-warning" onclick="directEnterMappingMode()">
+                        ⚡ 직접 Mapping 모드 진입
+                    </button>
+                </div>
+                
+                <h4>Case 3: Monitoring Mode → Mapping Mode 전환</h4>
+                <div class="button-group">
+                    <button class="btn-info" onclick="enterMonitoringMode()">
+                        📊 Monitoring Mode 진입
+                    </button>
+                    <button class="btn-warning" onclick="switchToMappingFromMonitoring()" id="btn-switch-mapping" disabled>
+                        🔄 Mapping Mode로 전환
+                    </button>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn-secondary" onclick="exitToViewMode()">
+                        🏠 View Mode로 복귀
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Tab 3: 매핑 작업 -->
+            <div id="tab-mapping" class="tab-content">
+                <h3>🔗 Equipment 매핑 작업</h3>
+                
+                <div class="two-column">
+                    <div>
+                        <h4>3D 설비 목록 (Frontend ID)</h4>
+                        <p style="font-size:12px; color:#888;">설비를 클릭하여 선택하세요</p>
+                        <div class="equipment-grid" id="equipment-grid">
+                            <!-- 동적 생성 -->
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4>DB 설비 목록 (Equipment ID)</h4>
+                        <p style="font-size:12px; color:#888;">선택한 3D 설비에 매핑할 DB 설비를 선택하세요</p>
+                        <div id="selected-equipment" class="file-info" style="margin-bottom:10px;">
+                            선택된 설비: <strong>없음</strong>
+                        </div>
+                        <div class="db-equipment-list" id="db-equipment-list">
+                            <!-- 동적 생성 -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="mapping-progress-bar" style="width: 0%;">0%</div>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn-info" onclick="autoMapSequential()">
+                        🤖 순차 자동 매핑 (10개)
+                    </button>
+                    <button class="btn-info" onclick="autoMapAll()">
+                        🚀 전체 자동 매핑
+                    </button>
+                    <button class="btn-danger" onclick="clearAllMappings()">
+                        🗑️ 전체 매핑 초기화
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Tab 4: 저장/로드 -->
+            <div id="tab-save" class="tab-content">
+                <h3>💾 서버 저장/로드 시뮬레이션</h3>
+                
+                <div class="two-column">
+                    <div>
+                        <h4>☁️ 서버에 저장</h4>
+                        <p style="font-size:12px; color:#888;">현재 매핑을 서버에 저장합니다. (Mock)</p>
+                        <div class="button-group">
+                            <button class="btn-success" onclick="saveToServer()">
+                                ☁️ 서버에 저장
+                            </button>
+                            <button class="btn-secondary" onclick="exportToFile()">
+                                📁 파일로 내보내기
+                            </button>
+                        </div>
+                        
+                        <div class="file-info" id="save-result" style="display:none;">
+                            <h4>저장 결과</h4>
+                            <div id="save-result-content"></div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4>📥 서버에서 로드</h4>
+                        <p style="font-size:12px; color:#888;">서버에서 매핑을 불러옵니다. (Mock)</p>
+                        <div class="button-group">
+                            <button class="btn-info" onclick="loadFromServer()">
+                                📥 서버에서 로드
+                            </button>
+                            <button class="btn-secondary" onclick="importFromFile()">
+                                📂 파일에서 가져오기
+                            </button>
+                        </div>
+                        
+                        <h4 style="margin-top:20px;">저장된 파일 목록 (Mock)</h4>
+                        <div id="saved-files-list" class="db-equipment-list">
+                            <div style="color:#888; padding:20px; text-align:center;">
+                                저장된 파일이 없습니다.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tab 5: 검증 -->
+            <div id="tab-validation" class="tab-content">
+                <h3>✅ 데이터 검증</h3>
+                
+                <div class="button-group">
+                    <button class="btn-primary" onclick="validateMappingFormat()">
+                        📋 매핑 형식 검증
+                    </button>
+                    <button class="btn-primary" onclick="validateDuplicates()">
+                        🔍 중복 검사
+                    </button>
+                    <button class="btn-primary" onclick="checkCompleteness()">
+                        📊 완료도 검사
+                    </button>
+                    <button class="btn-info" onclick="showCurrentState()">
+                        🔧 현재 상태 출력
+                    </button>
+                </div>
+                
+                <h4>생성될 JSON 파일 미리보기</h4>
+                <div class="json-preview" id="json-preview">
+                    // 매핑 데이터가 없습니다.
+                </div>
+                
+                <h4>검증 결과</h4>
+                <div id="validation-result" class="file-info">
+                    검증을 실행해주세요.
+                </div>
+            </div>
+        </div>
+        
+        <!-- 로그 섹션 -->
+        <div class="test-section">
+            <h3>📜 실행 로그</h3>
+            <div class="button-group">
+                <button class="btn-secondary" onclick="clearLogs()">로그 지우기</button>
+            </div>
+            <div class="log-container" id="log-container">
+                <div class="log-entry log-info">
+                    <span class="log-time">[시작]</span>
+                    Equipment Mapping Mockup Test가 시작되었습니다.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Hidden file input -->
+    <input type="file" id="file-input" accept=".json" style="display:none" onchange="handleFileImport(event)">
+    
+    <script>
+        // ============================================
+        // Mock Data & State
+        // ============================================
+        
+        const state = {
+            currentMode: 'view',  // view, dev, mapping, monitoring
+            isConnected: false,
+            connectedSite: null,
+            siteId: null,
+            selectedEquipment: null,
+            devModeEnabled: false,
+            layoutToolsOpen: false
+        };
+        
+        // Mock EquipmentEditState
+        const editState = {
+            mappings: {},
+            equipmentIdIndex: {},
+            
+            setMapping(frontendId, dbEquipment) {
+                // 중복 검사
+                const existing = this.findDuplicate(dbEquipment.equipment_id);
+                if (existing && existing !== frontendId) {
+                    log(`⚠️ Equipment ID ${dbEquipment.equipment_id}는 이미 ${existing}에 매핑됨`, 'warn');
+                    return false;
+                }
+                
+                // 기존 매핑 제거
+                if (this.mappings[frontendId]) {
+                    delete this.equipmentIdIndex[this.mappings[frontendId].equipment_id];
+                }
+                
+                this.mappings[frontendId] = {
+                    frontend_id: frontendId,
+                    equipment_id: dbEquipment.equipment_id,
+                    equipment_name: dbEquipment.equipment_name,
+                    equipment_code: dbEquipment.equipment_code || null,
+                    line_name: dbEquipment.line_name || null,
+                    mapped_at: new Date().toISOString()
+                };
+                
+                this.equipmentIdIndex[dbEquipment.equipment_id] = frontendId;
+                return true;
+            },
+            
+            removeMapping(frontendId) {
+                if (this.mappings[frontendId]) {
+                    delete this.equipmentIdIndex[this.mappings[frontendId].equipment_id];
+                    delete this.mappings[frontendId];
+                    return true;
+                }
+                return false;
+            },
+            
+            getMapping(frontendId) {
+                return this.mappings[frontendId] || null;
+            },
+            
+            getMappingCount() {
+                return Object.keys(this.mappings).length;
+            },
+            
+            findDuplicate(equipmentId) {
+                return this.equipmentIdIndex[equipmentId] || null;
+            },
+            
+            toServerFormat() {
+                return Object.values(this.mappings);
+            },
+            
+            reset() {
+                this.mappings = {};
+                this.equipmentIdIndex = {};
+            },
+            
+            loadFromServer(serverMappings) {
+                this.mappings = {};
+                this.equipmentIdIndex = {};
+                
+                for (const [frontendId, item] of Object.entries(serverMappings)) {
+                    this.mappings[frontendId] = {
+                        frontend_id: frontendId,
+                        equipment_id: item.equipment_id,
+                        equipment_name: item.equipment_name,
+                        equipment_code: item.equipment_code || null,
+                        line_name: item.line_name || null,
+                        mapped_at: item.mapped_at || new Date().toISOString()
+                    };
+                    this.equipmentIdIndex[item.equipment_id] = frontendId;
+                }
+            }
+        };
+        
+        // Mock saved files (localStorage simulation)
+        const mockServerStorage = {};
+        
+        // Generate mock equipment data
+        function generateFrontendEquipment() {
+            const equipment = [];
+            for (let row = 1; row <= 26; row++) {
+                for (let col = 1; col <= 6; col++) {
+                    // 일부는 복도로 비움
+                    if (col === 3 && row % 2 === 0) continue;
+                    equipment.push({
+                        id: `EQ-${String(row).padStart(2, '0')}-${String(col).padStart(2, '0')}`,
+                        row,
+                        col
+                    });
+                }
+            }
+            return equipment.slice(0, 117); // 117개로 제한
+        }
+        
+        function generateDbEquipment(siteName, lineName) {
+            const equipment = [];
+            const prefix = siteName === 'korea_site1' ? 'SMD' : (siteName === 'vietnam_site' ? 'VN' : 'US');
+            
+            for (let i = 1; i <= 120; i++) {
+                equipment.push({
+                    equipment_id: 100 + i,
+                    equipment_name: `${prefix}-MOUNTER-${String(i).padStart(3, '0')}`,
+                    equipment_code: `${prefix}${String(i).padStart(4, '0')}`,
+                    line_name: lineName.toUpperCase()
+                });
+            }
+            return equipment;
+        }
+        
+        const frontendEquipment = generateFrontendEquipment();
+        let dbEquipment = [];
+        
+        // ============================================
+        // UI Functions
+        // ============================================
+        
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        function updateStatusBar() {
+            // 모드 표시
+            const modeEl = document.getElementById('current-mode');
+            modeEl.className = `mode-indicator mode-${state.currentMode}`;
+            const modeNames = {
+                'view': 'View Mode',
+                'dev': 'Dev Mode',
+                'mapping': 'Equipment Mapping',
+                'monitoring': 'Monitoring Mode'
+            };
+            modeEl.textContent = modeNames[state.currentMode];
+            
+            // DB 연결 상태
+            const dbStatusEl = document.getElementById('db-status');
+            dbStatusEl.textContent = state.isConnected ? '연결됨' : '미연결';
+            dbStatusEl.className = `status-value ${state.isConnected ? 'connected' : 'disconnected'}`;
+            
+            // Site ID
+            document.getElementById('site-id').textContent = state.siteId || '-';
+            
+            // 매핑 진행률
+            const count = editState.getMappingCount();
+            const total = 117;
+            const percent = Math.round((count / total) * 100);
+            document.getElementById('mapping-progress').textContent = `${count}/${total} (${percent}%)`;
+        }
+        
+        function updateProgressBar() {
+            const count = editState.getMappingCount();
+            const total = 117;
+            const percent = Math.round((count / total) * 100);
+            
+            const bar = document.getElementById('mapping-progress-bar');
+            bar.style.width = `${percent}%`;
+            bar.textContent = `${percent}%`;
+        }
+        
+        function renderEquipmentGrid() {
+            const grid = document.getElementById('equipment-grid');
+            grid.innerHTML = '';
+            
+            frontendEquipment.forEach(eq => {
+                const div = document.createElement('div');
+                div.className = 'equipment-item';
+                div.dataset.id = eq.id;
+                
+                const mapping = editState.getMapping(eq.id);
+                if (mapping) {
+                    div.classList.add('mapped');
+                }
+                
+                if (state.selectedEquipment === eq.id) {
+                    div.classList.add('selected');
+                }
+                
+                div.innerHTML = `
+                    <div class="eq-id">${eq.id}</div>
+                    <div class="eq-name">${mapping ? mapping.equipment_name : '-'}</div>
+                `;
+                
+                div.onclick = () => selectEquipment(eq.id);
+                grid.appendChild(div);
+            });
+        }
+        
+        function renderDbEquipmentList() {
+            const list = document.getElementById('db-equipment-list');
+            
+            if (!state.isConnected) {
+                list.innerHTML = '<div style="color:#888; padding:20px; text-align:center;">먼저 DB에 연결해주세요.</div>';
+                return;
+            }
+            
+            list.innerHTML = '';
+            
+            dbEquipment.forEach(eq => {
+                const div = document.createElement('div');
+                div.className = 'db-equipment-item';
+                
+                const usedBy = editState.findDuplicate(eq.equipment_id);
+                if (usedBy) {
+                    div.classList.add('used');
+                }
+                
+                div.innerHTML = `
+                    <div>
+                        <strong>${eq.equipment_name}</strong>
+                        <div style="font-size:11px; color:#888;">ID: ${eq.equipment_id} | ${eq.line_name}</div>
+                    </div>
+                    <div>
+                        ${usedBy ? `<span class="badge badge-warning">→ ${usedBy}</span>` : ''}
+                    </div>
+                `;
+                
+                if (!usedBy) {
+                    div.onclick = () => mapEquipment(eq);
+                }
+                
+                list.appendChild(div);
+            });
+        }
+        
+        function selectEquipment(frontendId) {
+            state.selectedEquipment = frontendId;
+            
+            const mapping = editState.getMapping(frontendId);
+            const selectedEl = document.getElementById('selected-equipment');
+            
+            if (mapping) {
+                selectedEl.innerHTML = `
+                    선택된 설비: <strong>${frontendId}</strong>
+                    <br>현재 매핑: ${mapping.equipment_name} (ID: ${mapping.equipment_id})
+                    <br><button class="btn-danger" style="margin-top:8px; padding:4px 8px; font-size:11px;" 
+                        onclick="unmapEquipment('${frontendId}')">매핑 해제</button>
+                `;
+            } else {
+                selectedEl.innerHTML = `선택된 설비: <strong>${frontendId}</strong> (미매핑)`;
+            }
+            
+            renderEquipmentGrid();
+            log(`🎯 설비 선택: ${frontendId}`, 'info');
+        }
+        
+        function mapEquipment(dbEq) {
+            if (!state.selectedEquipment) {
+                log('❌ 먼저 3D 설비를 선택해주세요.', 'error');
+                alert('먼저 3D 설비를 선택해주세요.');
+                return;
+            }
+            
+            const success = editState.setMapping(state.selectedEquipment, dbEq);
+            
+            if (success) {
+                log(`✅ 매핑 완료: ${state.selectedEquipment} → ${dbEq.equipment_name} (ID: ${dbEq.equipment_id})`, 'success');
+                
+                // 다음 미매핑 설비로 자동 선택
+                const nextUnmapped = frontendEquipment.find(eq => !editState.getMapping(eq.id));
+                if (nextUnmapped) {
+                    selectEquipment(nextUnmapped.id);
+                } else {
+                    state.selectedEquipment = null;
+                }
+                
+                renderEquipmentGrid();
+                renderDbEquipmentList();
+                updateStatusBar();
+                updateProgressBar();
+                updateJsonPreview();
+            }
+        }
+        
+        function unmapEquipment(frontendId) {
+            const mapping = editState.getMapping(frontendId);
+            if (mapping) {
+                editState.removeMapping(frontendId);
+                log(`🗑️ 매핑 해제: ${frontendId}`, 'warn');
+                
+                selectEquipment(frontendId);
+                renderEquipmentGrid();
+                renderDbEquipmentList();
+                updateStatusBar();
+                updateProgressBar();
+                updateJsonPreview();
+            }
+        }
+        
+        // ============================================
+        // Connection Functions
+        // ============================================
+        
+        function connectDatabase(siteName, dbName) {
+            state.isConnected = true;
+            state.connectedSite = { siteName, dbName };
+            state.siteId = `${siteName}_${dbName}`;
+            
+            // DB 설비 목록 생성
+            dbEquipment = generateDbEquipment(siteName, dbName);
+            
+            log(`📡 Database 연결: ${state.siteId}`, 'success');
+            
+            document.getElementById('connection-info').innerHTML = `
+                <div class="file-info-row">
+                    <span>Site Name:</span>
+                    <strong>${siteName}</strong>
+                </div>
+                <div class="file-info-row">
+                    <span>DB Name:</span>
+                    <strong>${dbName}</strong>
+                </div>
+                <div class="file-info-row">
+                    <span>Site ID:</span>
+                    <strong>${state.siteId}</strong>
+                </div>
+                <div class="file-info-row">
+                    <span>설비 수:</span>
+                    <strong>${dbEquipment.length}개</strong>
+                </div>
+            `;
+            
+            updateStatusBar();
+            renderDbEquipmentList();
+        }
+        
+        function disconnectDatabase() {
+            state.isConnected = false;
+            state.connectedSite = null;
+            state.siteId = null;
+            dbEquipment = [];
+            
+            log('⚡ Database 연결 해제', 'warn');
+            
+            document.getElementById('connection-info').textContent = '연결된 사이트가 없습니다.';
+            
+            updateStatusBar();
+            renderDbEquipmentList();
+        }
+        
+        // ============================================
+        // Mode Transition Functions
+        // ============================================
+        
+        function enterDevMode() {
+            state.currentMode = 'dev';
+            state.devModeEnabled = true;
+            
+            document.getElementById('btn-layout-tools').disabled = false;
+            
+            log('🔧 Dev Mode 진입', 'info');
+            updateStatusBar();
+        }
+        
+        function openLayoutTools() {
+            if (!state.devModeEnabled) {
+                log('❌ Dev Mode가 아닙니다.', 'error');
+                return;
+            }
+            
+            state.layoutToolsOpen = true;
+            document.getElementById('btn-mapping-mode').disabled = false;
+            
+            log('🛠️ Layout Tools 열림', 'info');
+        }
+        
+        function enterMappingMode() {
+            if (!state.devModeEnabled) {
+                log('❌ Dev Mode에서만 진입 가능합니다.', 'error');
+                return;
+            }
+            
+            state.currentMode = 'mapping';
+            log('✅ Equipment Mapping Mode 진입 (메뉴 경로)', 'success');
+            
+            updateStatusBar();
+            renderEquipmentGrid();
+        }
+        
+        function directEnterMappingMode() {
+            // 직접 진입 - Dev Mode 자동 활성화
+            state.devModeEnabled = true;
+            state.currentMode = 'mapping';
+            
+            log('⚡ Equipment Mapping Mode 직접 진입', 'success');
+            log('  → Dev Mode 자동 활성화됨', 'info');
+            
+            updateStatusBar();
+            renderEquipmentGrid();
+        }
+        
+        function enterMonitoringMode() {
+            if (!state.isConnected) {
+                log('❌ DB 연결이 필요합니다.', 'error');
+                alert('먼저 DB에 연결해주세요.');
+                return;
+            }
+            
+            state.currentMode = 'monitoring';
+            document.getElementById('btn-switch-mapping').disabled = false;
+            
+            log('📊 Monitoring Mode 진입', 'info');
+            log(`  → Site: ${state.siteId}`, 'info');
+            
+            updateStatusBar();
+        }
+        
+        function switchToMappingFromMonitoring() {
+            if (state.currentMode !== 'monitoring') {
+                log('❌ Monitoring Mode에서만 가능합니다.', 'error');
+                return;
+            }
+            
+            state.devModeEnabled = true;
+            state.currentMode = 'mapping';
+            
+            log('🔄 Monitoring → Mapping Mode 전환', 'success');
+            
+            updateStatusBar();
+            renderEquipmentGrid();
+        }
+        
+        function exitToViewMode() {
+            state.currentMode = 'view';
+            state.devModeEnabled = false;
+            state.layoutToolsOpen = false;
+            
+            document.getElementById('btn-layout-tools').disabled = true;
+            document.getElementById('btn-mapping-mode').disabled = true;
+            document.getElementById('btn-switch-mapping').disabled = true;
+            
+            log('🏠 View Mode로 복귀', 'info');
+            updateStatusBar();
+        }
+        
+        // ============================================
+        // Auto Mapping Functions
+        // ============================================
+        
+        function autoMapSequential() {
+            if (!state.isConnected) {
+                log('❌ DB 연결이 필요합니다.', 'error');
+                return;
+            }
+            
+            let count = 0;
+            for (const feq of frontendEquipment) {
+                if (count >= 10) break;
+                if (editState.getMapping(feq.id)) continue;
+                
+                const availableDb = dbEquipment.find(db => !editState.findDuplicate(db.equipment_id));
+                if (availableDb) {
+                    editState.setMapping(feq.id, availableDb);
+                    count++;
+                }
+            }
+            
+            log(`🤖 순차 자동 매핑: ${count}개 완료`, 'success');
+            
+            renderEquipmentGrid();
+            renderDbEquipmentList();
+            updateStatusBar();
+            updateProgressBar();
+            updateJsonPreview();
+        }
+        
+        function autoMapAll() {
+            if (!state.isConnected) {
+                log('❌ DB 연결이 필요합니다.', 'error');
+                return;
+            }
+            
+            let count = 0;
+            let dbIndex = 0;
+            
+            for (const feq of frontendEquipment) {
+                if (editState.getMapping(feq.id)) continue;
+                
+                while (dbIndex < dbEquipment.length && editState.findDuplicate(dbEquipment[dbIndex].equipment_id)) {
+                    dbIndex++;
+                }
+                
+                if (dbIndex < dbEquipment.length) {
+                    editState.setMapping(feq.id, dbEquipment[dbIndex]);
+                    count++;
+                    dbIndex++;
+                }
+            }
+            
+            log(`🚀 전체 자동 매핑: ${count}개 완료`, 'success');
+            
+            renderEquipmentGrid();
+            renderDbEquipmentList();
+            updateStatusBar();
+            updateProgressBar();
+            updateJsonPreview();
+        }
+        
+        function clearAllMappings() {
+            if (!confirm('모든 매핑을 초기화하시겠습니까?')) return;
+            
+            editState.reset();
+            state.selectedEquipment = null;
+            
+            log('🗑️ 전체 매핑 초기화', 'warn');
+            
+            renderEquipmentGrid();
+            renderDbEquipmentList();
+            updateStatusBar();
+            updateProgressBar();
+            updateJsonPreview();
+            
+            document.getElementById('selected-equipment').innerHTML = '선택된 설비: <strong>없음</strong>';
+        }
+        
+        // ============================================
+        // Save/Load Functions
+        // ============================================
+        
+        function saveToServer() {
+            if (!state.siteId) {
+                log('❌ 연결된 Site가 없습니다.', 'error');
+                alert('먼저 DB에 연결해주세요.');
+                return;
+            }
+            
+            const count = editState.getMappingCount();
+            if (count === 0) {
+                log('❌ 저장할 매핑이 없습니다.', 'error');
+                alert('저장할 매핑이 없습니다.');
+                return;
+            }
+            
+            // 파일 형식 생성
+            const config = generateMappingConfig();
+            
+            // Mock 저장
+            const filename = `equipment_mapping_${state.siteId}.json`;
+            mockServerStorage[filename] = {
+                config,
+                savedAt: new Date().toISOString()
+            };
+            
+            log(`☁️ 서버 저장 완료: ${filename}`, 'success');
+            log(`  → 매핑 수: ${count}개`, 'info');
+            
+            // 결과 표시
+            const resultEl = document.getElementById('save-result');
+            resultEl.style.display = 'block';
+            document.getElementById('save-result-content').innerHTML = `
+                <div class="file-info-row">
+                    <span>파일명:</span>
+                    <strong>${filename}</strong>
+                </div>
+                <div class="file-info-row">
+                    <span>Site ID:</span>
+                    <strong>${config.site_id}</strong>
+                </div>
+                <div class="file-info-row">
+                    <span>매핑 수:</span>
+                    <strong>${count}개</strong>
+                </div>
+                <div class="file-info-row">
+                    <span>저장 시간:</span>
+                    <strong>${new Date().toLocaleString()}</strong>
+                </div>
+            `;
+            
+            updateSavedFilesList();
+        }
+        
+        function loadFromServer() {
+            if (!state.siteId) {
+                log('❌ 연결된 Site가 없습니다.', 'error');
+                alert('먼저 DB에 연결해주세요.');
+                return;
+            }
+            
+            const filename = `equipment_mapping_${state.siteId}.json`;
+            const saved = mockServerStorage[filename];
+            
+            if (!saved) {
+                log(`❌ 저장된 파일이 없습니다: ${filename}`, 'error');
+                alert(`저장된 매핑 파일이 없습니다.\n파일명: ${filename}`);
+                return;
+            }
+            
+            // 매핑 로드
+            const serverMappings = saved.config.mappings;
+            editState.loadFromServer(serverMappings);
+            
+            log(`📥 서버 로드 완료: ${filename}`, 'success');
+            log(`  → 매핑 수: ${Object.keys(serverMappings).length}개`, 'info');
+            
+            renderEquipmentGrid();
+            renderDbEquipmentList();
+            updateStatusBar();
+            updateProgressBar();
+            updateJsonPreview();
+        }
+        
+        function exportToFile() {
+            const config = generateMappingConfig();
+            const json = JSON.stringify(config, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `equipment_mapping_${state.siteId || 'default'}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            log(`📁 파일 내보내기: ${a.download}`, 'success');
+        }
+        
+        function importFromFile() {
+            document.getElementById('file-input').click();
+        }
+        
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const config = JSON.parse(e.target.result);
+                    
+                    if (config.mappings) {
+                        editState.loadFromServer(config.mappings);
+                        
+                        log(`📂 파일 가져오기 완료: ${file.name}`, 'success');
+                        log(`  → Site: ${config.site_id || 'Unknown'}`, 'info');
+                        log(`  → 매핑 수: ${Object.keys(config.mappings).length}개`, 'info');
+                        
+                        renderEquipmentGrid();
+                        renderDbEquipmentList();
+                        updateStatusBar();
+                        updateProgressBar();
+                        updateJsonPreview();
+                    } else {
+                        throw new Error('Invalid mapping file format');
+                    }
+                } catch (error) {
+                    log(`❌ 파일 가져오기 실패: ${error.message}`, 'error');
+                    alert(`파일 형식이 올바르지 않습니다.\n${error.message}`);
+                }
+            };
+            reader.readAsText(file);
+            
+            event.target.value = '';
+        }
+        
+        function updateSavedFilesList() {
+            const list = document.getElementById('saved-files-list');
+            const files = Object.keys(mockServerStorage);
+            
+            if (files.length === 0) {
+                list.innerHTML = '<div style="color:#888; padding:20px; text-align:center;">저장된 파일이 없습니다.</div>';
+                return;
+            }
+            
+            list.innerHTML = '';
+            files.forEach(filename => {
+                const saved = mockServerStorage[filename];
+                const div = document.createElement('div');
+                div.className = 'db-equipment-item';
+                div.innerHTML = `
+                    <div>
+                        <strong>${filename}</strong>
+                        <div style="font-size:11px; color:#888;">
+                            ${Object.keys(saved.config.mappings).length}개 매핑 | 
+                            ${new Date(saved.savedAt).toLocaleString()}
+                        </div>
+                    </div>
+                    <button class="btn-info" style="padding:4px 8px; font-size:11px;" 
+                        onclick="previewSavedFile('${filename}')">미리보기</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+        
+        function previewSavedFile(filename) {
+            const saved = mockServerStorage[filename];
+            if (saved) {
+                document.getElementById('json-preview').textContent = JSON.stringify(saved.config, null, 2);
+                showTab('validation');
+            }
+        }
+        
+        // ============================================
+        // Validation Functions
+        // ============================================
+        
+        function generateMappingConfig() {
+            const mappingsObj = {};
+            
+            for (const [frontendId, mapping] of Object.entries(editState.mappings)) {
+                mappingsObj[frontendId] = {
+                    frontend_id: mapping.frontend_id,
+                    equipment_id: mapping.equipment_id,
+                    equipment_name: mapping.equipment_name,
+                    equipment_code: mapping.equipment_code,
+                    line_name: mapping.line_name,
+                    mapped_at: mapping.mapped_at
+                };
+            }
+            
+            // Parse site_id
+            let siteName = 'unknown';
+            let dbName = 'unknown';
+            if (state.siteId) {
+                const parts = state.siteId.split('_');
+                if (parts.length >= 2) {
+                    siteName = parts.slice(0, -1).join('_');
+                    dbName = parts[parts.length - 1];
+                }
+            }
+            
+            return {
+                site_id: state.siteId || 'default_site',
+                site_name: siteName,
+                db_name: dbName,
+                display_name: state.connectedSite ? 
+                    `${state.connectedSite.siteName} - ${state.connectedSite.dbName}` : 
+                    'Default Site',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                created_by: 'admin',
+                version: '1.0.0',
+                total_mappings: editState.getMappingCount(),
+                mappings: mappingsObj
+            };
+        }
+        
+        function updateJsonPreview() {
+            const config = generateMappingConfig();
+            document.getElementById('json-preview').textContent = JSON.stringify(config, null, 2);
+        }
+        
+        function validateMappingFormat() {
+            const config = generateMappingConfig();
+            const errors = [];
+            const warnings = [];
+            
+            // Required fields check
+            if (!config.site_id) errors.push('site_id 필드가 없습니다.');
+            if (!config.mappings) errors.push('mappings 필드가 없습니다.');
+            
+            // Mapping format check
+            for (const [frontendId, mapping] of Object.entries(config.mappings)) {
+                if (!mapping.frontend_id) errors.push(`${frontendId}: frontend_id 누락`);
+                if (!mapping.equipment_id) errors.push(`${frontendId}: equipment_id 누락`);
+                if (!mapping.equipment_name) warnings.push(`${frontendId}: equipment_name 누락`);
+            }
+            
+            const resultEl = document.getElementById('validation-result');
+            
+            if (errors.length === 0) {
+                resultEl.innerHTML = `
+                    <span class="badge badge-success">✅ 형식 검증 통과</span>
+                    <p style="margin-top:10px; color:#888;">모든 필수 필드가 올바르게 설정되어 있습니다.</p>
+                    ${warnings.length > 0 ? `<p style="color:#ffd93d;">⚠️ 경고: ${warnings.join(', ')}</p>` : ''}
+                `;
+                log('✅ 매핑 형식 검증 통과', 'success');
+            } else {
+                resultEl.innerHTML = `
+                    <span class="badge badge-error">❌ 형식 오류 발견</span>
+                    <ul style="margin-top:10px; color:#f45c43;">
+                        ${errors.map(e => `<li>${e}</li>`).join('')}
+                    </ul>
+                `;
+                log(`❌ 매핑 형식 오류: ${errors.length}개`, 'error');
+            }
+        }
+        
+        function validateDuplicates() {
+            const mappings = editState.toServerFormat();
+            const equipmentIds = mappings.map(m => m.equipment_id);
+            const duplicates = equipmentIds.filter((id, i) => equipmentIds.indexOf(id) !== i);
+            
+            const resultEl = document.getElementById('validation-result');
+            
+            if (duplicates.length === 0) {
+                resultEl.innerHTML = `
+                    <span class="badge badge-success">✅ 중복 없음</span>
+                    <p style="margin-top:10px; color:#888;">모든 equipment_id가 고유합니다.</p>
+                `;
+                log('✅ 중복 검사 통과', 'success');
+            } else {
+                resultEl.innerHTML = `
+                    <span class="badge badge-error">❌ 중복 발견</span>
+                    <p style="margin-top:10px; color:#f45c43;">
+                        중복된 Equipment ID: ${[...new Set(duplicates)].join(', ')}
+                    </p>
+                `;
+                log(`❌ 중복 발견: ${duplicates.length}개`, 'error');
+            }
+        }
+        
+        function checkCompleteness() {
+            const total = 117;
+            const mapped = editState.getMappingCount();
+            const percent = Math.round((mapped / total) * 100);
+            
+            const unmapped = frontendEquipment.filter(eq => !editState.getMapping(eq.id)).slice(0, 10);
+            
+            const resultEl = document.getElementById('validation-result');
+            resultEl.innerHTML = `
+                <span class="badge ${percent === 100 ? 'badge-success' : 'badge-warning'}">
+                    ${percent === 100 ? '✅ 완료' : `⚠️ ${percent}%`}
+                </span>
+                <p style="margin-top:10px;">
+                    매핑됨: <strong>${mapped}</strong> / ${total}
+                </p>
+                ${unmapped.length > 0 ? `
+                    <p style="color:#888; font-size:12px;">
+                        미매핑 설비 (일부): ${unmapped.map(e => e.id).join(', ')}
+                        ${mapped + unmapped.length < total ? '...' : ''}
+                    </p>
+                ` : ''}
+            `;
+            
+            log(`📊 완료도: ${mapped}/${total} (${percent}%)`, percent === 100 ? 'success' : 'warn');
+        }
+        
+        function showCurrentState() {
+            console.group('🔧 EquipmentEditState Debug Info');
+            console.log('Mapping Count:', editState.getMappingCount());
+            console.log('Mappings:', editState.mappings);
+            console.log('Equipment ID Index:', editState.equipmentIdIndex);
+            console.log('State:', state);
+            console.table(editState.toServerFormat().slice(0, 20));
+            console.groupEnd();
+            
+            log('🔧 현재 상태가 콘솔에 출력되었습니다. (F12)', 'info');
+            
+            updateJsonPreview();
+        }
+        
+        // ============================================
+        // Logging
+        // ============================================
+        
+        function log(message, type = 'info') {
+            const container = document.getElementById('log-container');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${time}]</span>${message}`;
+            
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function clearLogs() {
+            const container = document.getElementById('log-container');
+            container.innerHTML = `
+                <div class="log-entry log-info">
+                    <span class="log-time">[초기화]</span>
+                    로그가 초기화되었습니다.
+                </div>
+            `;
+        }
+        
+        // ============================================
+        // Initialize
+        // ============================================
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStatusBar();
+            renderEquipmentGrid();
+            renderDbEquipmentList();
+            updateJsonPreview();
+            
+            log('🚀 Mockup Test 환경이 준비되었습니다.', 'success');
+            log('📌 Step 1: "DB 연결" 탭에서 사이트를 연결하세요.', 'info');
+        });
+    </script>
+</body>
+</html>
