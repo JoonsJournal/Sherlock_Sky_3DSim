@@ -81,8 +81,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logger.info(f"✓ CORS 설정: {origins_list}")
-
 # ============================================
 # ⭐ Router 등록
 # ============================================
