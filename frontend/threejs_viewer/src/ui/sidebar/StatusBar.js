@@ -13,8 +13,9 @@
  * - v2.2.0: 🆕 Monitoring Stats Panel 추가 (2026-01-12)
  *           - 장비 총계, 매핑 상태, 상태별 카운트 표시
  *           - Monitoring 모드 + 3d-view/ranking-view에서만 표시
- *           - EventBus 연동 (mode:change, submode:change)
- *           - MonitoringService, EquipmentEditState 연동 지원
+ *           - EventBus 연동 (mode:change, submode:change, monitoring:stats-update)
+ *           - 🔧 "개" 제거 - 숫자만 표시
+ *           - 🔧 CSS 정리 - Font 통일성, Dark/Light mode 지원
  * - v2.1.0: 🔧 UI 간소화 (2026-01-11)
  *           - NET, API에서 "Online", "Disconnected" 텍스트 제거
  *           - DB는 연결 시 DB Name만 표시
@@ -158,6 +159,7 @@ export class StatusBar {
     
     /**
      * 🔧 v2.2.0: Monitoring Stats 섹션 추가
+     * 🔧 "개" 제거 - 숫자만 표시
      */
     _createDOM() {
         // 기존 상태바가 있으면 제거
@@ -168,7 +170,7 @@ export class StatusBar {
         this.element.className = 'status-bar';
         this.element.innerHTML = `
             <!-- 왼쪽 그룹: 연결 상태 -->
-            <div class="status-group">
+            <div class="status-group status-group-left">
                 <!-- Country Code -->
                 <div class="status-item">
                     <span class="country-code" id="status-country">${this.countryCode}</span>
@@ -200,21 +202,18 @@ export class StatusBar {
                 <div class="status-item monitoring-stat-item">
                     <span class="monitoring-stat-icon">📊</span>
                     <span class="monitoring-stat-value" id="stats-total">${this.monitoringStats.totalEquipment}</span>
-                    <span class="monitoring-stat-label">개</span>
                 </div>
                 
                 <!-- 매핑 완료 -->
                 <div class="status-item monitoring-stat-item mapped">
                     <span class="monitoring-stat-icon">✅</span>
                     <span class="monitoring-stat-value" id="stats-mapped">${this.monitoringStats.mapped}</span>
-                    <span class="monitoring-stat-label">개</span>
                 </div>
                 
                 <!-- 미매핑 (경고) -->
                 <div class="status-item monitoring-stat-item unmapped">
                     <span class="monitoring-stat-icon">⚠️</span>
                     <span class="monitoring-stat-value" id="stats-unmapped">${this.monitoringStats.unmapped}</span>
-                    <span class="monitoring-stat-label">개</span>
                 </div>
                 
                 <!-- 매핑률 -->
@@ -252,7 +251,7 @@ export class StatusBar {
             </div>
             
             <!-- 오른쪽 그룹: 성능 지표 -->
-            <div class="status-group">
+            <div class="status-group status-group-right">
                 <!-- FPS -->
                 <div class="status-item" id="status-fps-item">
                     <span class="status-label">FPS</span>
@@ -945,7 +944,10 @@ export class StatusBar {
 
 /**
  * StatusBar에 필요한 CSS를 동적으로 주입
- * 🔧 v2.2.0: Monitoring Stats 스타일 추가
+ * 🔧 v2.2.0: 
+ * - Monitoring Stats 스타일 추가
+ * - Font 통일 (Consolas/Monaco)
+ * - Dark/Light mode 지원 강화
  */
 export function injectStatusBarStyles() {
     if (document.getElementById('statusbar-styles')) return;
@@ -955,7 +957,18 @@ export function injectStatusBarStyles() {
     style.textContent = `
         /* =============================================
            StatusBar Styles (v2.2.0)
+           - Font 통일: Consolas, Monaco, monospace
+           - Dark/Light mode 지원
+           - "개" 제거 - 숫자만 표시
            ============================================= */
+        
+        /* 기본 폰트 변수 */
+        :root {
+            --statusbar-font: 'Consolas', 'Monaco', 'Menlo', monospace;
+            --statusbar-font-size: 11px;
+            --statusbar-font-size-sm: 9px;
+            --statusbar-font-size-value: 12px;
+        }
         
         .status-bar {
             position: fixed;
@@ -969,15 +982,30 @@ export function injectStatusBarStyles() {
             align-items: center;
             justify-content: space-between;
             padding: 0 16px;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 11px;
+            font-family: var(--statusbar-font);
+            font-size: var(--statusbar-font-size);
             z-index: 20;
+            box-sizing: border-box;
+        }
+        
+        /* Light mode */
+        [data-theme="light"] .status-bar {
+            background-color: var(--bg-sidebar, #F8FAFC);
+            border-top-color: var(--border-color, rgba(0,0,0,0.1));
         }
         
         .status-group {
             display: flex;
-            gap: 16px;
+            gap: 12px;
             align-items: center;
+        }
+        
+        .status-group-left {
+            flex-shrink: 0;
+        }
+        
+        .status-group-right {
+            flex-shrink: 0;
         }
         
         .status-item {
@@ -987,6 +1015,11 @@ export function injectStatusBarStyles() {
             padding: 4px 10px;
             background: var(--bg-input, rgba(255,255,255,0.05));
             border-radius: 4px;
+            font-family: var(--statusbar-font);
+        }
+        
+        [data-theme="light"] .status-item {
+            background: var(--bg-input, rgba(0,0,0,0.05));
         }
         
         .status-dot {
@@ -1006,28 +1039,47 @@ export function injectStatusBarStyles() {
             box-shadow: 0 0 4px var(--text-alarm, #F87171);
         }
         
+        /* 라벨 스타일 - 폰트 통일 */
         .status-label {
             color: var(--text-muted, #6B7280);
-            font-size: 9px;
+            font-family: var(--statusbar-font);
+            font-size: var(--statusbar-font-size-sm);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             font-weight: 500;
         }
         
+        [data-theme="light"] .status-label {
+            color: var(--text-muted, #9CA3AF);
+        }
+        
+        /* 성능 값 스타일 - 폰트 통일 */
         .status-perf-value {
             color: var(--text-normal, #CBD5E1);
+            font-family: var(--statusbar-font);
         }
         
+        [data-theme="light"] .status-perf-value {
+            color: var(--text-normal, #374151);
+        }
+        
+        /* DB Name 스타일 */
         .status-db-name {
             color: var(--text-normal, #CBD5E1);
-            font-size: 9px;
+            font-family: var(--statusbar-font);
+            font-size: var(--statusbar-font-size-sm);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             font-weight: 500;
+        }
+        
+        [data-theme="light"] .status-db-name {
+            color: var(--text-normal, #374151);
         }
         
         .status-value {
             color: var(--text-normal, #CBD5E1);
+            font-family: var(--statusbar-font);
             font-weight: 500;
         }
         
@@ -1037,6 +1089,10 @@ export function injectStatusBarStyles() {
             background: var(--bg-input, rgba(255,255,255,0.05));
             border-radius: 2px;
             overflow: hidden;
+        }
+        
+        [data-theme="light"] .perf-bar {
+            background: var(--bg-input, rgba(0,0,0,0.1));
         }
         
         .perf-bar-fill {
@@ -1058,6 +1114,7 @@ export function injectStatusBarStyles() {
         }
         
         .country-code {
+            font-family: var(--statusbar-font);
             font-weight: 700;
             font-size: 12px;
             color: var(--icon-selected, #06B6D4);
@@ -1066,20 +1123,27 @@ export function injectStatusBarStyles() {
         
         /* =============================================
            🆕 v2.2.0: Monitoring Stats Panel Styles
+           - "개" 제거 - 숫자만 표시
+           - 폰트 통일
            ============================================= */
         
         .monitoring-stats-group {
             gap: 8px;
-            padding: 0 12px;
+            padding: 0 16px;
             border-left: 1px solid var(--border-color, rgba(255,255,255,0.1));
             border-right: 1px solid var(--border-color, rgba(255,255,255,0.1));
             margin: 0 8px;
         }
         
+        [data-theme="light"] .monitoring-stats-group {
+            border-left-color: var(--border-color, rgba(0,0,0,0.1));
+            border-right-color: var(--border-color, rgba(0,0,0,0.1));
+        }
+        
         .monitoring-stat-item {
             padding: 4px 8px;
             gap: 4px;
-            min-width: 50px;
+            min-width: 44px;
             justify-content: center;
         }
         
@@ -1088,17 +1152,18 @@ export function injectStatusBarStyles() {
             line-height: 1;
         }
         
+        /* 값 스타일 - 폰트 통일, "개" 없이 숫자만 */
         .monitoring-stat-value {
             color: var(--text-normal, #CBD5E1);
-            font-size: 12px;
+            font-family: var(--statusbar-font);
+            font-size: var(--statusbar-font-size-value);
             font-weight: 600;
             min-width: 20px;
             text-align: right;
         }
         
-        .monitoring-stat-label {
-            color: var(--text-muted, #6B7280);
-            font-size: 9px;
+        [data-theme="light"] .monitoring-stat-value {
+            color: var(--text-normal, #374151);
         }
         
         /* 매핑 상태 색상 */
@@ -1118,8 +1183,12 @@ export function injectStatusBarStyles() {
         .monitoring-stats-divider {
             width: 1px;
             height: 20px;
-            background: var(--border-color, rgba(255,255,255,0.1));
+            background: var(--border-color, rgba(255,255,255,0.15));
             margin: 0 4px;
+        }
+        
+        [data-theme="light"] .monitoring-stats-divider {
+            background: var(--border-color, rgba(0,0,0,0.15));
         }
         
         /* 상태 인디케이터 dot */
@@ -1167,7 +1236,10 @@ export function injectStatusBarStyles() {
             color: var(--text-muted, #6B7280);
         }
         
-        /* Compact Mode */
+        /* =============================================
+           Compact Mode (좁은 화면용)
+           ============================================= */
+        
         .status-bar.compact {
             height: 28px;
             padding: 0 8px;
@@ -1202,16 +1274,42 @@ export function injectStatusBarStyles() {
         
         .status-bar.compact .monitoring-stat-item {
             padding: 2px 4px;
-            min-width: 40px;
+            min-width: 36px;
         }
         
-        .status-bar.compact .monitoring-stat-label {
-            display: none;
+        .status-bar.compact .monitoring-stat-icon {
+            font-size: 10px;
+        }
+        
+        .status-bar.compact .monitoring-stat-value {
+            font-size: 10px;
         }
         
         /* Hidden Mode */
         .status-bar.hidden {
             display: none !important;
+        }
+        
+        /* =============================================
+           Responsive (작은 화면)
+           ============================================= */
+        
+        @media (max-width: 1200px) {
+            .monitoring-stats-group {
+                gap: 6px;
+                padding: 0 10px;
+            }
+            
+            .monitoring-stat-item {
+                min-width: 40px;
+                padding: 4px 6px;
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .monitoring-stat-item.rate {
+                display: none;
+            }
         }
     `;
     

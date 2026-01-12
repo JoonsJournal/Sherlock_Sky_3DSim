@@ -3,11 +3,14 @@
  * ==========
  * Cleanroom Sidebar UI 컴포넌트
  * 
- * @version 1.9.0
+ * @version 1.9.1
  * @created 2026-01-11
  * @updated 2026-01-12
  * 
  * @changelog
+ * - v1.9.1: 🆕 submode:change 이벤트 발행 추가 (2026-01-12)
+ *           - StatusBar Monitoring Stats Panel 연동을 위한 이벤트
+ *           - _setSubMode()에서 EventBus로 서브모드 변경 알림
  * - v1.9.0: 🔧 서브메뉴 직접 클릭 시 AppModeManager 모드 전환 추가 (2026-01-12)
  *           - _setSubMode()에서 부모 모드로 AppModeManager.switchMode() 호출
  *           - Hover → 서브메뉴 직접 클릭 경로에서도 MonitoringService 정상 시작
@@ -108,7 +111,7 @@ export class Sidebar {
         this._setupConnectionListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v1.9.0');
+        console.log('[Sidebar] 초기화 완료 v1.9.1');
     }
     
     _loadTheme() {
@@ -428,6 +431,7 @@ export class Sidebar {
     
     /**
      * 🔧 v1.9.0: 서브모드 설정 - AppModeManager 모드 전환 추가
+     * 🆕 v1.9.1: submode:change 이벤트 발행 추가
      * 
      * 문제: Hover → 서브메뉴 직접 클릭 시 AppModeManager 모드가 변경되지 않아
      *       MonitoringService가 시작되지 않는 버그
@@ -465,6 +469,16 @@ export class Sidebar {
         }
         
         this._updateModeIndicator();
+        
+        // 🆕 v1.9.1: submode:change 이벤트 발행 (StatusBar 연동)
+        if (this.eventBus) {
+            this.eventBus.emit('submode:change', {
+                submode: submode,
+                mode: this.currentMode,
+                parentMode: parentMode
+            });
+            console.log(`[Sidebar] 📡 submode:change 이벤트 발행: ${submode}`);
+        }
         
         if (this.toast) {
             this.toast.info('Mode Changed', `${this.currentMode} → ${submode}`);

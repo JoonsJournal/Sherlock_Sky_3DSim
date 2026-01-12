@@ -12,7 +12,13 @@
  * - 서버 동기화 및 충돌 해결
  * - 강화된 에러 처리
  * - 디버깅 유틸리티
- * @version 1.4.0
+ * @version 1.4.1
+ * 
+ * 🆕 v1.4.1: StatusBar 연동을 위한 EventBus 이벤트 발행 (2026-01-12)
+ * - setEventBus() 메서드 추가
+ * - 매핑 변경 시 equipment:mapping-changed 이벤트 발행
+ * - StatusBar Monitoring Stats Panel 실시간 업데이트 지원
+ * 
  * 🆕 v1.4.0: API에서 매핑 데이터 로드
  * Site 연결 후 서버에서 매핑 데이터를 가져와 상태에 적용
  * @param {Object} apiClient - ApiClient 인스턴스
@@ -53,7 +59,13 @@ export class EquipmentEditState {
         this.storageKey = 'sherlock_equipment_mappings';
         
         // 버전 정보
-        this.version = '1.3.0';
+        this.version = '1.4.1';
+        
+        // 🆕 v1.4.1: EventBus 참조
+        this.eventBus = options.eventBus || null;
+        
+        // 🆕 v1.4.1: 총 장비 수 (StatusBar 연동용)
+        this.totalEquipment = options.totalEquipment || 117;
         
         // 🆕 AutoSave 관련
         this._autoSaveInstance = null;
@@ -73,6 +85,51 @@ export class EquipmentEditState {
         window.addEventListener('storage', this.handleStorageChange);
         
         debugLog(`✨ EquipmentEditState initialized (v${this.version}) - AutoSave: ${this._autoSaveEnabled ? 'ON' : 'OFF'}`);
+    }
+    
+    // ==========================================
+    // 🆕 v1.4.1: EventBus 설정
+    // ==========================================
+    
+    /**
+     * 🆕 v1.4.1: EventBus 설정
+     * @param {Object} eventBus - EventBus 인스턴스
+     */
+    setEventBus(eventBus) {
+        this.eventBus = eventBus;
+        debugLog('[EquipmentEditState] EventBus 연결됨');
+    }
+    
+    /**
+     * 🆕 v1.4.1: 총 장비 수 설정
+     * @param {number} total - 총 장비 수
+     */
+    setTotalEquipment(total) {
+        this.totalEquipment = total;
+    }
+    
+    /**
+     * 🆕 v1.4.1: 매핑 변경 이벤트 발행 (StatusBar 연동)
+     * @private
+     */
+    _emitMappingChanged() {
+        // CustomEvent 발행 (기존 호환성)
+        this.dispatchEvent('mapping-stats-changed', {
+            mapped: this.getMappingCount(),
+            total: this.totalEquipment
+        });
+        
+        // EventBus 이벤트 발행 (StatusBar 연동)
+        if (this.eventBus) {
+            this.eventBus.emit('equipment:mapping-changed', {
+                mapped: this.getMappingCount(),
+                total: this.totalEquipment,
+                unmapped: this.totalEquipment - this.getMappingCount(),
+                rate: this.getCompletionRate(this.totalEquipment),
+                timestamp: new Date().toISOString()
+            });
+            debugLog(`[EquipmentEditState] 📡 equipment:mapping-changed 발행 - mapped: ${this.getMappingCount()}/${this.totalEquipment}`);
+        }
     }
     
     // ==========================================
@@ -237,6 +294,9 @@ export class EquipmentEditState {
                 source: 'autosave'
             });
             
+            // 🆕 v1.4.1: 매핑 변경 이벤트 발행
+            this._emitMappingChanged();
+            
             return true;
         } catch (error) {
             console.error('[EquipmentEditState] AutoSave 복구 실패:', error);
@@ -335,6 +395,7 @@ export class EquipmentEditState {
     /**
      * 매핑 설정 (검증 강화)
      * 🆕 v1.3.0: line_name 필드 추가
+     * 🆕 v1.4.1: EventBus 이벤트 발행 추가
      * 
      * @param {string} frontendId - Frontend 설비 ID ('EQ-01-01')
      * @param {Object} dbEquipment - DB 설비 정보 { equipment_id, equipment_name, line_name }
@@ -395,11 +456,15 @@ export class EquipmentEditState {
             lineName: dbEquipment.line_name
         });
         
+        // 🆕 v1.4.1: StatusBar 연동 이벤트 발행
+        this._emitMappingChanged();
+        
         return true;
     }
     
     /**
      * 매핑 삭제
+     * 🆕 v1.4.1: EventBus 이벤트 발행 추가
      * @param {string} frontendId - Frontend 설비 ID
      * @returns {boolean} 성공 여부
      */
@@ -424,6 +489,10 @@ export class EquipmentEditState {
                 equipmentId: removed.equipment_id,
                 equipmentName: removed.equipment_name
             });
+            
+            // 🆕 v1.4.1: StatusBar 연동 이벤트 발행
+            this._emitMappingChanged();
+            
             return true;
         }
         return false;
@@ -490,6 +559,7 @@ export class EquipmentEditState {
     
     /**
      * 여러 매핑 한번에 설정
+     * 🆕 v1.4.1: 배치 완료 후 이벤트 발행
      * @param {Array} mappingArray - [{frontendId, dbEquipment}, ...]
      * @returns {Object} {success: number, failed: number, errors: []}
      */
@@ -516,6 +586,9 @@ export class EquipmentEditState {
         
         debugLog(`📦 Batch mapping: ${results.success} success, ${results.failed} failed`);
         this.dispatchEvent('batch-mapping-complete', results);
+        
+        // 🆕 v1.4.1: 배치 완료 후 한 번만 이벤트 발행 (setMapping에서 발행하므로 중복 방지)
+        // 이미 setMapping에서 개별 발행되므로 여기서는 생략
         
         return results;
     }
@@ -643,6 +716,7 @@ export class EquipmentEditState {
     
     /**
      * localStorage에서 로드 (에러 핸들링 강화)
+     * 🆕 v1.4.1: 로드 후 이벤트 발행
      * @returns {boolean} 성공 여부
      */
     load() {
@@ -659,6 +733,10 @@ export class EquipmentEditState {
                     this.rebuildEquipmentIdIndex();
                     
                     debugLog(`📂 Mappings loaded: ${Object.keys(this.mappings).length}개`);
+                    
+                    // 🆕 v1.4.1: 로드 후 이벤트 발행 (초기화 시)
+                    setTimeout(() => this._emitMappingChanged(), 100);
+                    
                     return true;
                 } else {
                     console.warn('Invalid mapping data format, resetting');
@@ -701,6 +779,7 @@ export class EquipmentEditState {
     
     /**
      * 초기화 (모든 매핑 삭제)
+     * 🆕 v1.4.1: 초기화 후 이벤트 발행
      * @param {boolean} skipConfirm - 확인 대화상자 건너뛰기
      * @returns {boolean} 성공 여부
      */
@@ -717,6 +796,9 @@ export class EquipmentEditState {
         debugLog('🗑️ All mappings cleared');
         this.dispatchEvent('mappings-reset');
         
+        // 🆕 v1.4.1: 초기화 후 이벤트 발행
+        this._emitMappingChanged();
+        
         return true;
     }
     
@@ -726,6 +808,7 @@ export class EquipmentEditState {
     
     /**
      * 다른 탭에서 localStorage 변경 시 동기화
+     * 🆕 v1.4.1: 동기화 후 이벤트 발행
      * @param {StorageEvent} event - Storage 이벤트
      */
     handleStorageChange(event) {
@@ -742,6 +825,10 @@ export class EquipmentEditState {
                     source: 'storage-event',
                     count: Object.keys(newMappings).length
                 });
+                
+                // 🆕 v1.4.1: 동기화 후 이벤트 발행
+                this._emitMappingChanged();
+                
             } catch (error) {
                 console.error('Failed to sync mappings:', error);
             }
@@ -754,6 +841,7 @@ export class EquipmentEditState {
     
     /**
      * 서버에서 매핑 데이터 로드 (병합 옵션)
+     * 🆕 v1.4.1: 로드 후 이벤트 발행
      * @param {Object} serverMappings - 서버에서 받은 매핑 데이터
      * @param {string} mergeStrategy - 'replace' | 'merge' | 'keep-local'
      */
@@ -791,106 +879,109 @@ export class EquipmentEditState {
             strategy: mergeStrategy,
             count: Object.keys(this.mappings).length 
         });
+        
+        // 🆕 v1.4.1: 서버 로드 후 이벤트 발행
+        this._emitMappingChanged();
     }
     
-	async loadMappingsFromApi(apiClient, options = {}) {
-	    const { mergeStrategy = 'replace', silent = false } = options;
-	    
-	    if (!apiClient) {
-	        const error = 'ApiClient not provided';
-	        if (!silent) console.error(`❌ [EquipmentEditState] ${error}`);
-	        return { success: false, count: 0, error };
-	    }
-	    
-	    try {
-	        if (!silent) debugLog('📡 Loading mappings from API...');
-	        
-	        // API 호출: GET /equipment/mapping
-	        const serverMappings = await apiClient.getEquipmentMappings();
-	        
-	        // 응답 검증
-	        if (!serverMappings || typeof serverMappings !== 'object') {
-	            if (!silent) debugLog('⚠️ Empty or invalid mappings response from server');
-	            return { success: true, count: 0 };
-	        }
-	        
-	        const count = Object.keys(serverMappings).length;
-	        
-	        if (count === 0) {
-	            if (!silent) debugLog('ℹ️ No mappings found on server');
-	            return { success: true, count: 0 };
-	        }
-	        
-	        // 기존 loadFromServer 메서드 활용
-	        this.loadFromServer(serverMappings, mergeStrategy);
-	        
-	        if (!silent) {
-	            debugLog(`✅ Mappings loaded from API: ${count}개 (${mergeStrategy})`);
-	        }
-	        
-	        // 이벤트 발생
-	        this.dispatchEvent('mappings-loaded-from-api', {
-	            count,
-	            mergeStrategy,
-	            source: 'api'
-	        });
-	        
-	        return { success: true, count };
-	        
-	    } catch (error) {
-	        const errorMsg = error.message || 'Unknown error';
-	        if (!silent) {
-	            console.error(`❌ [EquipmentEditState] Failed to load mappings from API:`, error);
-	        }
-	        
-	        // 에러 이벤트 발생
-	        this.dispatchEvent('mappings-load-error', {
-	            error: errorMsg,
-	            source: 'api'
-	        });
-	        
-	        return { success: false, count: 0, error: errorMsg };
-	    }
-	}
-	
-	/**
-	 * 🆕 v1.4.0: 매핑 데이터가 비어있는지 확인
-	 * @returns {boolean} 매핑이 없으면 true
-	 */
-	isMappingsEmpty() {
-	    return Object.keys(this.mappings).length === 0;
-	}
-	
-	/**
-	 * 🆕 v1.4.0: 매핑 로드 상태 확인
-	 * @returns {{ isEmpty: boolean, count: number, hasLocalData: boolean }}
-	 */
-	getMappingsStatus() {
-	    const count = Object.keys(this.mappings).length;
-	    return {
-	        isEmpty: count === 0,
-	        count,
-	        hasLocalData: this._hasLocalStorageData()
-	    };
-	}
-	
-	/**
-	 * @private
-	 * localStorage에 데이터가 있는지 확인
-	 */
-	_hasLocalStorageData() {
-	    try {
-	        const stored = localStorage.getItem(this.storageKey);
-	        if (!stored) return false;
-	        const data = JSON.parse(stored);
-	        return data && data.mappings && Object.keys(data.mappings).length > 0;
-	    } catch {
-	        return false;
-	    }
-	}
-	
-	
-	
+    async loadMappingsFromApi(apiClient, options = {}) {
+        const { mergeStrategy = 'replace', silent = false } = options;
+        
+        if (!apiClient) {
+            const error = 'ApiClient not provided';
+            if (!silent) console.error(`❌ [EquipmentEditState] ${error}`);
+            return { success: false, count: 0, error };
+        }
+        
+        try {
+            if (!silent) debugLog('📡 Loading mappings from API...');
+            
+            // API 호출: GET /equipment/mapping
+            const serverMappings = await apiClient.getEquipmentMappings();
+            
+            // 응답 검증
+            if (!serverMappings || typeof serverMappings !== 'object') {
+                if (!silent) debugLog('⚠️ Empty or invalid mappings response from server');
+                return { success: true, count: 0 };
+            }
+            
+            const count = Object.keys(serverMappings).length;
+            
+            if (count === 0) {
+                if (!silent) debugLog('ℹ️ No mappings found on server');
+                return { success: true, count: 0 };
+            }
+            
+            // 기존 loadFromServer 메서드 활용
+            this.loadFromServer(serverMappings, mergeStrategy);
+            
+            if (!silent) {
+                debugLog(`✅ Mappings loaded from API: ${count}개 (${mergeStrategy})`);
+            }
+            
+            // 이벤트 발생
+            this.dispatchEvent('mappings-loaded-from-api', {
+                count,
+                mergeStrategy,
+                source: 'api'
+            });
+            
+            return { success: true, count };
+            
+        } catch (error) {
+            const errorMsg = error.message || 'Unknown error';
+            if (!silent) {
+                console.error(`❌ [EquipmentEditState] Failed to load mappings from API:`, error);
+            }
+            
+            // 에러 이벤트 발생
+            this.dispatchEvent('mappings-load-error', {
+                error: errorMsg,
+                source: 'api'
+            });
+            
+            return { success: false, count: 0, error: errorMsg };
+        }
+    }
+    
+    /**
+     * 🆕 v1.4.0: 매핑 데이터가 비어있는지 확인
+     * @returns {boolean} 매핑이 없으면 true
+     */
+    isMappingsEmpty() {
+        return Object.keys(this.mappings).length === 0;
+    }
+    
+    /**
+     * 🆕 v1.4.0: 매핑 로드 상태 확인
+     * @returns {{ isEmpty: boolean, count: number, hasLocalData: boolean }}
+     */
+    getMappingsStatus() {
+        const count = Object.keys(this.mappings).length;
+        return {
+            isEmpty: count === 0,
+            count,
+            hasLocalData: this._hasLocalStorageData()
+        };
+    }
+    
+    /**
+     * @private
+     * localStorage에 데이터가 있는지 확인
+     */
+    _hasLocalStorageData() {
+        try {
+            const stored = localStorage.getItem(this.storageKey);
+            if (!stored) return false;
+            const data = JSON.parse(stored);
+            return data && data.mappings && Object.keys(data.mappings).length > 0;
+        } catch {
+            return false;
+        }
+    }
+    
+    
+    
     /**
      * 서버와 동기화 필요 여부 확인
      * @param {Object} serverMappings - 서버 매핑 데이터
@@ -957,6 +1048,7 @@ export class EquipmentEditState {
         console.log('Change Count:', this._changeCount);
         console.log('Completion Rate:', this.getCompletionRate() + '%');
         console.log('AutoSave Status:', this.getAutoSaveStatus());
+        console.log('EventBus Connected:', !!this.eventBus);
         console.log('Statistics:', this.getStatistics());
         console.log('Equipment ID Index (first 10):', 
             Object.fromEntries(Object.entries(this.equipmentIdIndex).slice(0, 10))
@@ -981,6 +1073,7 @@ export class EquipmentEditState {
     
     /**
      * JSON 가져오기
+     * 🆕 v1.4.1: 가져오기 후 이벤트 발행
      * @param {string} jsonStr - JSON 문자열
      * @returns {boolean} 성공 여부
      */
@@ -1002,6 +1095,10 @@ export class EquipmentEditState {
                     count: Object.keys(this.mappings).length,
                     sourceVersion: data.version
                 });
+                
+                // 🆕 v1.4.1: 가져오기 후 이벤트 발행
+                this._emitMappingChanged();
+                
                 return true;
             } else {
                 console.error('Invalid JSON data format');
@@ -1072,6 +1169,10 @@ export class EquipmentEditState {
         this.stopAutoSave();
         
         window.removeEventListener('storage', this.handleStorageChange);
+        
+        // EventBus 참조 해제
+        this.eventBus = null;
+        
         debugLog('🧹 EquipmentEditState destroyed');
     }
 }

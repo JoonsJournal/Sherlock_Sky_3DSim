@@ -1,6 +1,11 @@
 /**
- * MonitoringService.js - v4.5.0
+ * MonitoringService.js - v4.5.1
  * 실시간 설비 모니터링 서비스
+ * 
+ * ⭐ v4.5.1: StatusBar 연동을 위한 monitoring:stats-update 이벤트 발행 (2026-01-12)
+ * - _emitStatsUpdate() 메서드 추가
+ * - 상태 변경 시 EventBus로 상태별 카운트 발행
+ * - StatusBar Monitoring Stats Panel 실시간 업데이트 지원
  * 
  * ⭐ v4.5.0: MappingEventHandler 모듈 분리 (Phase 7 리팩토링)
  * - 이벤트 리스너 관련 로직을 MappingEventHandler로 위임
@@ -144,7 +149,7 @@ export class MonitoringService {
         // ⭐ v4.5.0: 레거시 호환성 - 이벤트 핸들러 바인딩 (deprecated)
         this._boundHandleMappingChanged = (e) => this.eventHandler._handleMappingEvent(e);
         
-        debugLog('📡 MonitoringService v4.5.0 initialized (with MappingEventHandler)');
+        debugLog('📡 MonitoringService v4.5.1 initialized (with StatusBar events)');
     }
     
     // ===============================================
@@ -269,7 +274,7 @@ export class MonitoringService {
             return;
         }
         
-        debugLog('🟢 Starting monitoring mode (v4.5.0)...');
+        debugLog('🟢 Starting monitoring mode (v4.5.1)...');
         this.isActive = true;
         
         try {
@@ -308,7 +313,10 @@ export class MonitoringService {
             this.registerEventListeners();
             debugLog('📡 Step 7: Event listeners registered');
             
-            debugLog('✅ Monitoring mode started successfully (v4.5.0)');
+            // 🆕 v4.5.1: 초기 상태 발행
+            this._emitStatsUpdate();
+            
+            debugLog('✅ Monitoring mode started successfully (v4.5.1)');
             
         } catch (error) {
             console.error('❌ Failed to start monitoring:', error);
@@ -389,6 +397,9 @@ export class MonitoringService {
     updateStatusPanel() {
         this.statsPanel.refresh(this.equipmentLoader, this.equipmentEditState);
         this.currentStats = this.statsPanel.getStats();
+        
+        // 🆕 v4.5.1: StatusBar로 이벤트 발행
+        this._emitStatsUpdate();
     }
     
     removeStatusPanel() {
@@ -409,6 +420,94 @@ export class MonitoringService {
             this.equipmentLoader,
             this.equipmentEditState
         );
+    }
+    
+    // ===============================================
+    // 🆕 v4.5.1: StatusBar 이벤트 발행
+    // ===============================================
+    
+    /**
+     * 🆕 v4.5.1: monitoring:stats-update 이벤트 발행
+     * StatusBar Monitoring Stats Panel 실시간 업데이트용
+     */
+    _emitStatsUpdate() {
+        if (!this.eventBus) return;
+        
+        // 상태별 카운트 계산
+        const statusCounts = this._calculateStatusCounts();
+        
+        // 이벤트 발행
+        this.eventBus.emit('monitoring:stats-update', {
+            statusCounts: statusCounts,
+            total: this.currentStats.total,
+            mapped: this.currentStats.mapped,
+            unmapped: this.currentStats.unmapped,
+            mappingRate: this.currentStats.rate,
+            timestamp: new Date().toISOString()
+        });
+        
+        debugLog(`📡 monitoring:stats-update 발행 - RUN:${statusCounts.run}, IDLE:${statusCounts.idle}, STOP:${statusCounts.stop}, UNKNOWN:${statusCounts.unknown}`);
+    }
+    
+    /**
+     * 🆕 v4.5.1: 상태별 카운트 계산
+     * @returns {{run: number, idle: number, stop: number, unknown: number}}
+     */
+    _calculateStatusCounts() {
+        const counts = {
+            run: 0,
+            idle: 0,
+            stop: 0,
+            unknown: 0
+        };
+        
+        // SignalTowerManager에서 상태 카운트
+        if (this.signalTowerManager?.signalTowers) {
+            this.signalTowerManager.signalTowers.forEach((tower, frontendId) => {
+                const status = tower.currentStatus || 'UNKNOWN';
+                const normalizedStatus = this.normalizeStatus(status);
+                
+                switch (normalizedStatus) {
+                    case 'RUN':
+                        counts.run++;
+                        break;
+                    case 'IDLE':
+                        counts.idle++;
+                        break;
+                    case 'STOP':
+                        counts.stop++;
+                        break;
+                    default:
+                        counts.unknown++;
+                        break;
+                }
+            });
+        }
+        
+        // statusCache에서도 확인 (SignalTower가 없는 경우)
+        if (counts.run + counts.idle + counts.stop + counts.unknown === 0) {
+            this.statusCache.forEach((cachedData, frontendId) => {
+                const status = typeof cachedData === 'string' ? cachedData : cachedData?.status;
+                const normalizedStatus = this.normalizeStatus(status);
+                
+                switch (normalizedStatus) {
+                    case 'RUN':
+                        counts.run++;
+                        break;
+                    case 'IDLE':
+                        counts.idle++;
+                        break;
+                    case 'STOP':
+                        counts.stop++;
+                        break;
+                    default:
+                        counts.unknown++;
+                        break;
+                }
+            });
+        }
+        
+        return counts;
     }
     
     // ===============================================
@@ -460,7 +559,7 @@ export class MonitoringService {
         // EquipmentInfoPanel 알림
         this.notifyEquipmentInfoPanel(frontendId, data);
         
-        // 통계 패널 업데이트
+        // 통계 패널 업데이트 (🆕 v4.5.1: 이벤트 발행 포함)
         this.updateStatusPanel();
     }
     
@@ -508,7 +607,7 @@ export class MonitoringService {
         
         debugLog(`✅ Initial status applied: ${connectedCount} connected, ${disconnectedCount} disconnected, ${skippedCount} skipped`);
         
-        // 패널 업데이트
+        // 패널 업데이트 (🆕 v4.5.1: 이벤트 발행 포함)
         this.updateStatusPanel();
     }
     
@@ -618,6 +717,11 @@ export class MonitoringService {
         }
         
         debugLog(`📡 Batch processed: ${updates.length} updates`);
+        
+        // 🆕 v4.5.1: 배치 처리 후 이벤트 발행
+        if (updates.length > 0) {
+            this._emitStatsUpdate();
+        }
     }
     
     queueUpdate(frontendId, status) {
