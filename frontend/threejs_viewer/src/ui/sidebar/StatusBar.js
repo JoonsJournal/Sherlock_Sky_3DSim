@@ -5,11 +5,16 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 2.1.0
+ * @version 2.2.0
  * @created 2026-01-11
- * @updated 2026-01-11
+ * @updated 2026-01-12
  * 
  * @changelog
+ * - v2.2.0: 🆕 Monitoring Stats Panel 추가 (2026-01-12)
+ *           - 장비 총계, 매핑 상태, 상태별 카운트 표시
+ *           - Monitoring 모드 + 3d-view/ranking-view에서만 표시
+ *           - EventBus 연동 (mode:change, submode:change)
+ *           - MonitoringService, EquipmentEditState 연동 지원
  * - v2.1.0: 🔧 UI 간소화 (2026-01-11)
  *           - NET, API에서 "Online", "Disconnected" 텍스트 제거
  *           - DB는 연결 시 DB Name만 표시
@@ -18,6 +23,7 @@
  * 
  * @description
  * - NET, API, DB 연결 상태 표시 (dot + label만)
+ * - 🆕 Monitoring Stats 패널 (조건부 표시)
  * - FPS, Memory 성능 표시 (perf-bar 게이지)
  * - Site/Country 정보 표시
  * - ConnectionStatusService, PerformanceMonitor 연동
@@ -26,6 +32,8 @@
  * - ConnectionStatusService (services)
  * - PerformanceMonitor (core/utils)
  * - EventBus (core/managers)
+ * - MonitoringService (선택, stats 연동용)
+ * - EquipmentEditState (선택, 매핑 상태용)
  * 
  * 사용법:
  *   import { StatusBar } from './StatusBar.js';
@@ -59,6 +67,9 @@ const PERFORMANCE_THRESHOLDS = {
     }
 };
 
+/** 🆕 v2.2.0: Monitoring Stats 표시 조건 */
+const MONITORING_STATS_VISIBLE_SUBMODES = ['3d-view', 'ranking-view'];
+
 // ============================================
 // StatusBar Class
 // ============================================
@@ -72,6 +83,7 @@ export class StatusBar {
      * @param {string} options.siteId - 현재 사이트 ID
      * @param {string} options.countryCode - 국가 코드 (기본: KR)
      * @param {HTMLElement} options.container - 상태바를 추가할 컨테이너 (기본: document.body)
+     * @param {number} options.totalEquipment - 🆕 총 장비 수 (기본: 117)
      */
     constructor(options = {}) {
         this.connectionStatusService = options.connectionStatusService || null;
@@ -82,6 +94,10 @@ export class StatusBar {
         this.countryCode = options.countryCode || 'KR';
         this.container = options.container || document.body;
         
+        // 🆕 v2.2.0: 외부 서비스 참조 (나중에 설정 가능)
+        this.monitoringService = options.monitoringService || null;
+        this.equipmentEditState = options.equipmentEditState || null;
+        
         // 상태
         this.state = {
             isNetOnline: navigator.onLine,
@@ -91,6 +107,24 @@ export class StatusBar {
             memoryUsage: 128, // MB
             maxMemory: 512    // 가정: 최대 512MB
         };
+        
+        // 🆕 v2.2.0: Monitoring Stats 상태
+        this.monitoringStats = {
+            totalEquipment: options.totalEquipment || 117,
+            mapped: 0,
+            unmapped: options.totalEquipment || 117,
+            mappingRate: 0,
+            statusCounts: {
+                run: 0,      // 녹색 (RUN)
+                idle: 0,     // 노란색 (IDLE)
+                stop: 0,     // 빨간색 (STOP)
+                unknown: 0   // 회색 (UNKNOWN/OFF)
+            }
+        };
+        
+        // 🆕 v2.2.0: 현재 모드 추적
+        this.currentMode = null;
+        this.currentSubMode = null;
         
         // DOM 참조
         this.element = null;
@@ -115,7 +149,7 @@ export class StatusBar {
         this._startUpdateLoop();
         this._updateInitialState();
         
-        console.log('[StatusBar] 초기화 완료 (v2.1.0)');
+        console.log('[StatusBar] 초기화 완료 (v2.2.0 - Monitoring Stats Panel)');
     }
     
     // ========================================
@@ -123,10 +157,7 @@ export class StatusBar {
     // ========================================
     
     /**
-     * 🔧 v2.1.0: DOM 구조 간소화
-     * - NET, API: status-value 제거 (dot + label만)
-     * - DB: 연결 시 DB Name 표시
-     * - FPS, MEM: 폰트 통일
+     * 🔧 v2.2.0: Monitoring Stats 섹션 추가
      */
     _createDOM() {
         // 기존 상태바가 있으면 제거
@@ -143,19 +174,19 @@ export class StatusBar {
                     <span class="country-code" id="status-country">${this.countryCode}</span>
                 </div>
                 
-                <!-- Network Status (v2.1.0: 텍스트 제거) -->
+                <!-- Network Status -->
                 <div class="status-item" id="status-net-item">
                     <span class="status-dot connected" id="net-dot"></span>
                     <span class="status-label">NET</span>
                 </div>
                 
-                <!-- API Status (v2.1.0: 텍스트 제거) -->
+                <!-- API Status -->
                 <div class="status-item" id="status-api-item">
                     <span class="status-dot disconnected" id="api-dot"></span>
                     <span class="status-label">API</span>
                 </div>
                 
-                <!-- Database Status (v2.1.0: DB Name만 표시) -->
+                <!-- Database Status -->
                 <div class="status-item" id="status-db-item">
                     <span class="status-dot disconnected" id="db-dot"></span>
                     <span class="status-label">DB</span>
@@ -163,9 +194,66 @@ export class StatusBar {
                 </div>
             </div>
             
+            <!-- 🆕 v2.2.0: 가운데 그룹 - Monitoring Stats (조건부 표시) -->
+            <div class="status-group monitoring-stats-group" id="monitoring-stats-group" style="display: none;">
+                <!-- 총 장비 수 -->
+                <div class="status-item monitoring-stat-item">
+                    <span class="monitoring-stat-icon">📊</span>
+                    <span class="monitoring-stat-value" id="stats-total">${this.monitoringStats.totalEquipment}</span>
+                    <span class="monitoring-stat-label">개</span>
+                </div>
+                
+                <!-- 매핑 완료 -->
+                <div class="status-item monitoring-stat-item mapped">
+                    <span class="monitoring-stat-icon">✅</span>
+                    <span class="monitoring-stat-value" id="stats-mapped">${this.monitoringStats.mapped}</span>
+                    <span class="monitoring-stat-label">개</span>
+                </div>
+                
+                <!-- 미매핑 (경고) -->
+                <div class="status-item monitoring-stat-item unmapped">
+                    <span class="monitoring-stat-icon">⚠️</span>
+                    <span class="monitoring-stat-value" id="stats-unmapped">${this.monitoringStats.unmapped}</span>
+                    <span class="monitoring-stat-label">개</span>
+                </div>
+                
+                <!-- 매핑률 -->
+                <div class="status-item monitoring-stat-item rate">
+                    <span class="monitoring-stat-icon">📈</span>
+                    <span class="monitoring-stat-value" id="stats-rate">${this.monitoringStats.mappingRate}%</span>
+                </div>
+                
+                <!-- 구분선 -->
+                <div class="monitoring-stats-divider"></div>
+                
+                <!-- RUN 상태 (녹색) -->
+                <div class="status-item monitoring-stat-item status-run">
+                    <span class="status-indicator-dot run"></span>
+                    <span class="monitoring-stat-value" id="stats-run">${this.monitoringStats.statusCounts.run}</span>
+                </div>
+                
+                <!-- IDLE 상태 (노란색) -->
+                <div class="status-item monitoring-stat-item status-idle">
+                    <span class="status-indicator-dot idle"></span>
+                    <span class="monitoring-stat-value" id="stats-idle">${this.monitoringStats.statusCounts.idle}</span>
+                </div>
+                
+                <!-- STOP 상태 (빨간색) -->
+                <div class="status-item monitoring-stat-item status-stop">
+                    <span class="status-indicator-dot stop"></span>
+                    <span class="monitoring-stat-value" id="stats-stop">${this.monitoringStats.statusCounts.stop}</span>
+                </div>
+                
+                <!-- UNKNOWN 상태 (회색) -->
+                <div class="status-item monitoring-stat-item status-unknown">
+                    <span class="status-indicator-dot unknown"></span>
+                    <span class="monitoring-stat-value" id="stats-unknown">${this.monitoringStats.statusCounts.unknown}</span>
+                </div>
+            </div>
+            
             <!-- 오른쪽 그룹: 성능 지표 -->
             <div class="status-group">
-                <!-- FPS (v2.1.0: 폰트 통일) -->
+                <!-- FPS -->
                 <div class="status-item" id="status-fps-item">
                     <span class="status-label">FPS</span>
                     <span class="status-label status-perf-value" id="fps-value">60</span>
@@ -174,7 +262,7 @@ export class StatusBar {
                     </div>
                 </div>
                 
-                <!-- Memory (v2.1.0: 폰트 통일) -->
+                <!-- Memory -->
                 <div class="status-item" id="status-mem-item">
                     <span class="status-label">MEM</span>
                     <span class="status-label status-perf-value"><span id="memory-value">128</span>MB</span>
@@ -190,6 +278,7 @@ export class StatusBar {
     
     /**
      * DOM 요소 캐싱 (성능 최적화)
+     * 🔧 v2.2.0: Monitoring Stats 요소 추가
      * @private
      */
     _cacheElements() {
@@ -207,7 +296,18 @@ export class StatusBar {
             fpsValue: document.getElementById('fps-value'),
             fpsBar: document.getElementById('fps-bar'),
             memValue: document.getElementById('memory-value'),
-            memBar: document.getElementById('memory-bar')
+            memBar: document.getElementById('memory-bar'),
+            
+            // 🆕 v2.2.0: Monitoring Stats
+            monitoringStatsGroup: document.getElementById('monitoring-stats-group'),
+            statsTotal: document.getElementById('stats-total'),
+            statsMapped: document.getElementById('stats-mapped'),
+            statsUnmapped: document.getElementById('stats-unmapped'),
+            statsRate: document.getElementById('stats-rate'),
+            statsRun: document.getElementById('stats-run'),
+            statsIdle: document.getElementById('stats-idle'),
+            statsStop: document.getElementById('stats-stop'),
+            statsUnknown: document.getElementById('stats-unknown')
         };
     }
     
@@ -246,36 +346,90 @@ export class StatusBar {
             }
         }
         
-        // EventBus 연동 (사이트 연결 이벤트)
+        // EventBus 연동
         if (this.eventBus) {
-            try {
-                // 사이트 연결됨
-                const unsubSiteConnected = this.eventBus.on('site:connected', (data) => {
-                    this._updateDbStatus(true, data?.siteId, data?.siteName);
-                });
-                if (unsubSiteConnected) this._eventUnsubscribers.push(unsubSiteConnected);
-                
-                // 사이트 연결 해제됨
-                const unsubSiteDisconnected = this.eventBus.on('site:disconnected', () => {
-                    this._updateDbStatus(false, null, null);
-                });
-                if (unsubSiteDisconnected) this._eventUnsubscribers.push(unsubSiteDisconnected);
-                
-                // API 상태 변경 (ConnectionModal에서 발생)
-                const unsubApiConnected = this.eventBus.on('api:connected', () => {
-                    this._updateApiStatus(true);
-                });
-                if (unsubApiConnected) this._eventUnsubscribers.push(unsubApiConnected);
-                
-                const unsubApiDisconnected = this.eventBus.on('api:disconnected', () => {
-                    this._updateApiStatus(false);
-                });
-                if (unsubApiDisconnected) this._eventUnsubscribers.push(unsubApiDisconnected);
-                
-            } catch (e) {
-                console.warn('[StatusBar] EventBus 연동 실패:', e.message);
-            }
+            this._setupEventBusListeners();
         }
+    }
+    
+    /**
+     * 🆕 v2.2.0: EventBus 리스너 설정 (모드 변경 감지 포함)
+     * @private
+     */
+    _setupEventBusListeners() {
+        if (!this.eventBus) return;
+        
+        try {
+            // 사이트 연결됨
+            const unsubSiteConnected = this.eventBus.on('site:connected', (data) => {
+                this._updateDbStatus(true, data?.siteId, data?.siteName);
+            });
+            if (unsubSiteConnected) this._eventUnsubscribers.push(unsubSiteConnected);
+            
+            // 사이트 연결 해제됨
+            const unsubSiteDisconnected = this.eventBus.on('site:disconnected', () => {
+                this._updateDbStatus(false, null, null);
+            });
+            if (unsubSiteDisconnected) this._eventUnsubscribers.push(unsubSiteDisconnected);
+            
+            // API 상태 변경
+            const unsubApiConnected = this.eventBus.on('api:connected', () => {
+                this._updateApiStatus(true);
+            });
+            if (unsubApiConnected) this._eventUnsubscribers.push(unsubApiConnected);
+            
+            const unsubApiDisconnected = this.eventBus.on('api:disconnected', () => {
+                this._updateApiStatus(false);
+            });
+            if (unsubApiDisconnected) this._eventUnsubscribers.push(unsubApiDisconnected);
+            
+            // 🆕 v2.2.0: 모드 변경 감지
+            const unsubModeChange = this.eventBus.on('mode:change', (data) => {
+                this.currentMode = this._extractModeKey(data?.to);
+                this._updateMonitoringStatsVisibility();
+            });
+            if (unsubModeChange) this._eventUnsubscribers.push(unsubModeChange);
+            
+            // 🆕 v2.2.0: 서브모드 변경 감지
+            const unsubSubModeChange = this.eventBus.on('submode:change', (data) => {
+                this.currentSubMode = data?.submode || data?.to;
+                this._updateMonitoringStatsVisibility();
+            });
+            if (unsubSubModeChange) this._eventUnsubscribers.push(unsubSubModeChange);
+            
+            // 🆕 v2.2.0: Monitoring Stats 업데이트 이벤트
+            const unsubStatsUpdate = this.eventBus.on('monitoring:stats-update', (data) => {
+                this.updateMonitoringStats(data);
+            });
+            if (unsubStatsUpdate) this._eventUnsubscribers.push(unsubStatsUpdate);
+            
+            // 🆕 v2.2.0: Equipment 매핑 상태 변경
+            const unsubMappingUpdate = this.eventBus.on('equipment:mapping-changed', (data) => {
+                if (data?.mapped !== undefined) {
+                    this.updateMappingStats(data.mapped, data.total);
+                }
+            });
+            if (unsubMappingUpdate) this._eventUnsubscribers.push(unsubMappingUpdate);
+            
+        } catch (e) {
+            console.warn('[StatusBar] EventBus 연동 실패:', e.message);
+        }
+    }
+    
+    /**
+     * 🆕 v2.2.0: 모드 키 추출 (APP_MODE 값에서 키로 변환)
+     * @private
+     */
+    _extractModeKey(modeValue) {
+        // 'monitoring' 또는 APP_MODE.MONITORING 값 처리
+        if (!modeValue) return null;
+        
+        // 이미 키 형태면 그대로 반환
+        if (typeof modeValue === 'string') {
+            return modeValue.toLowerCase();
+        }
+        
+        return null;
     }
     
     /**
@@ -295,6 +449,9 @@ export class StatusBar {
                 // 서비스가 준비되지 않았을 수 있음
             }
         }
+        
+        // 🆕 v2.2.0: 초기 Monitoring Stats 숨김
+        this._updateMonitoringStatsVisibility();
     }
     
     // ========================================
@@ -313,7 +470,6 @@ export class StatusBar {
     _updatePerformanceStats() {
         // FPS 업데이트
         if (this.performanceMonitor) {
-            // PerformanceMonitor.metrics.fps 또는 getFPS() 메서드 사용
             if (typeof this.performanceMonitor.getFPS === 'function') {
                 this.state.fps = this.performanceMonitor.getFPS();
             } else if (this.performanceMonitor.metrics?.fps !== undefined) {
@@ -343,7 +499,6 @@ export class StatusBar {
     
     /**
      * 네트워크 상태 업데이트
-     * 🔧 v2.1.0: 텍스트 업데이트 제거 (dot만 변경)
      * @private
      */
     _updateNetStatus(isOnline) {
@@ -354,12 +509,10 @@ export class StatusBar {
         if (netDot) {
             netDot.className = `status-dot ${isOnline ? 'connected' : 'disconnected'}`;
         }
-        // v2.1.0: 텍스트 업데이트 제거
     }
     
     /**
      * API 연결 상태 업데이트
-     * 🔧 v2.1.0: 텍스트 업데이트 제거 (dot만 변경)
      * @private
      */
     _updateApiStatus(isConnected) {
@@ -370,12 +523,10 @@ export class StatusBar {
         if (apiDot) {
             apiDot.className = `status-dot ${isConnected ? 'connected' : 'disconnected'}`;
         }
-        // v2.1.0: 텍스트 업데이트 제거
     }
     
     /**
      * DB 연결 상태 업데이트
-     * 🔧 v2.1.0: 연결 시 DB Name만 표시, 미연결 시 빈 값
      * @private
      */
     _updateDbStatus(isConnected, siteId = null, siteName = null) {
@@ -390,12 +541,10 @@ export class StatusBar {
         }
         if (dbValue) {
             if (isConnected && siteId) {
-                // v2.1.0: siteId를 표시용으로 변환 (kr_b_01 → KR-B-01)
                 const displayId = siteId.replace(/_/g, '-').toUpperCase();
                 dbValue.textContent = displayId;
-                dbValue.title = siteName || siteId; // 툴팁으로 전체 이름
+                dbValue.title = siteName || siteId;
             } else {
-                // v2.1.0: 미연결 시 빈 값 (None 제거)
                 dbValue.textContent = '';
                 dbValue.title = '';
             }
@@ -415,11 +564,9 @@ export class StatusBar {
         }
         
         if (fpsBar) {
-            // 60fps 기준으로 퍼센트 계산
             const percent = Math.min((fps / 60) * 100, 100);
             fpsBar.style.width = `${percent}%`;
             
-            // 색상 클래스 결정
             fpsBar.className = 'perf-bar-fill';
             if (fps >= PERFORMANCE_THRESHOLDS.fps.good) {
                 fpsBar.classList.add('good');
@@ -448,7 +595,6 @@ export class StatusBar {
             const percent = Math.min((memory / maxMemory) * 100, 100);
             memBar.style.width = `${percent}%`;
             
-            // 색상 클래스 결정
             memBar.className = 'perf-bar-fill';
             if (memory < PERFORMANCE_THRESHOLDS.memory.good) {
                 memBar.classList.add('good');
@@ -458,6 +604,60 @@ export class StatusBar {
                 memBar.classList.add('critical');
             }
         }
+    }
+    
+    // ========================================
+    // 🆕 v2.2.0: Monitoring Stats Updates
+    // ========================================
+    
+    /**
+     * 🆕 v2.2.0: Monitoring Stats 표시/숨김 업데이트
+     * Monitoring 모드 + 3d-view/ranking-view에서만 표시
+     * @private
+     */
+    _updateMonitoringStatsVisibility() {
+        const { monitoringStatsGroup } = this.elements;
+        if (!monitoringStatsGroup) return;
+        
+        const shouldShow = (
+            this.currentMode === 'monitoring' &&
+            MONITORING_STATS_VISIBLE_SUBMODES.includes(this.currentSubMode)
+        );
+        
+        monitoringStatsGroup.style.display = shouldShow ? 'flex' : 'none';
+        
+        // 디버그 로그
+        if (shouldShow) {
+            console.log(`[StatusBar] Monitoring Stats 표시 (mode: ${this.currentMode}, submode: ${this.currentSubMode})`);
+        }
+    }
+    
+    /**
+     * 🆕 v2.2.0: Monitoring Stats DOM 업데이트
+     * @private
+     */
+    _updateMonitoringStatsDisplay() {
+        const {
+            statsTotal,
+            statsMapped,
+            statsUnmapped,
+            statsRate,
+            statsRun,
+            statsIdle,
+            statsStop,
+            statsUnknown
+        } = this.elements;
+        
+        const stats = this.monitoringStats;
+        
+        if (statsTotal) statsTotal.textContent = stats.totalEquipment;
+        if (statsMapped) statsMapped.textContent = stats.mapped;
+        if (statsUnmapped) statsUnmapped.textContent = stats.unmapped;
+        if (statsRate) statsRate.textContent = `${stats.mappingRate}%`;
+        if (statsRun) statsRun.textContent = stats.statusCounts.run;
+        if (statsIdle) statsIdle.textContent = stats.statusCounts.idle;
+        if (statsStop) statsStop.textContent = stats.statusCounts.stop;
+        if (statsUnknown) statsUnknown.textContent = stats.statusCounts.unknown;
     }
     
     // ========================================
@@ -507,7 +707,127 @@ export class StatusBar {
      */
     setConnectionStatusService(service) {
         this.connectionStatusService = service;
-        // 이벤트 재연결이 필요하면 여기서 처리
+    }
+    
+    /**
+     * 🆕 v2.2.0: MonitoringService 설정
+     * @param {Object} service - MonitoringService 인스턴스
+     */
+    setMonitoringService(service) {
+        this.monitoringService = service;
+    }
+    
+    /**
+     * 🆕 v2.2.0: EquipmentEditState 설정
+     * @param {Object} state - EquipmentEditState 인스턴스
+     */
+    setEquipmentEditState(state) {
+        this.equipmentEditState = state;
+    }
+    
+    /**
+     * 🆕 v2.2.0: 현재 모드 설정 (외부에서 직접 호출 가능)
+     * @param {string} mode - 모드 키 (예: 'monitoring', 'layout')
+     * @param {string} submode - 서브모드 (예: '3d-view', 'ranking-view')
+     */
+    setCurrentMode(mode, submode = null) {
+        this.currentMode = mode;
+        if (submode !== null) {
+            this.currentSubMode = submode;
+        }
+        this._updateMonitoringStatsVisibility();
+    }
+    
+    /**
+     * 🆕 v2.2.0: 서브모드만 설정
+     * @param {string} submode - 서브모드
+     */
+    setCurrentSubMode(submode) {
+        this.currentSubMode = submode;
+        this._updateMonitoringStatsVisibility();
+    }
+    
+    /**
+     * 🆕 v2.2.0: Monitoring Stats 전체 업데이트
+     * @param {Object} stats - 통계 객체
+     * @param {number} stats.total - 총 장비 수
+     * @param {number} stats.mapped - 매핑된 장비 수
+     * @param {Object} stats.statusCounts - 상태별 카운트 {run, idle, stop, unknown}
+     */
+    updateMonitoringStats(stats = {}) {
+        if (stats.total !== undefined) {
+            this.monitoringStats.totalEquipment = stats.total;
+        }
+        
+        if (stats.mapped !== undefined) {
+            this.monitoringStats.mapped = stats.mapped;
+            this.monitoringStats.unmapped = this.monitoringStats.totalEquipment - stats.mapped;
+            this.monitoringStats.mappingRate = this.monitoringStats.totalEquipment > 0
+                ? Math.round((stats.mapped / this.monitoringStats.totalEquipment) * 100)
+                : 0;
+        }
+        
+        if (stats.statusCounts) {
+            Object.assign(this.monitoringStats.statusCounts, stats.statusCounts);
+        }
+        
+        this._updateMonitoringStatsDisplay();
+    }
+    
+    /**
+     * 🆕 v2.2.0: 매핑 통계만 업데이트
+     * @param {number} mapped - 매핑된 장비 수
+     * @param {number} total - 총 장비 수 (선택, 기본값 유지)
+     */
+    updateMappingStats(mapped, total = null) {
+        if (total !== null) {
+            this.monitoringStats.totalEquipment = total;
+        }
+        
+        this.monitoringStats.mapped = mapped;
+        this.monitoringStats.unmapped = this.monitoringStats.totalEquipment - mapped;
+        this.monitoringStats.mappingRate = this.monitoringStats.totalEquipment > 0
+            ? Math.round((mapped / this.monitoringStats.totalEquipment) * 100)
+            : 0;
+        
+        this._updateMonitoringStatsDisplay();
+    }
+    
+    /**
+     * 🆕 v2.2.0: 상태별 카운트 업데이트
+     * @param {Object} counts - {run, idle, stop, unknown}
+     */
+    updateStatusCounts(counts) {
+        Object.assign(this.monitoringStats.statusCounts, counts);
+        this._updateMonitoringStatsDisplay();
+    }
+    
+    /**
+     * 🆕 v2.2.0: Monitoring Stats 강제 표시
+     */
+    showMonitoringStats() {
+        const { monitoringStatsGroup } = this.elements;
+        if (monitoringStatsGroup) {
+            monitoringStatsGroup.style.display = 'flex';
+        }
+    }
+    
+    /**
+     * 🆕 v2.2.0: Monitoring Stats 강제 숨김
+     */
+    hideMonitoringStats() {
+        const { monitoringStatsGroup } = this.elements;
+        if (monitoringStatsGroup) {
+            monitoringStatsGroup.style.display = 'none';
+        }
+    }
+    
+    /**
+     * 🆕 v2.2.0: Monitoring Stats 현재 값 가져오기
+     * @returns {Object}
+     */
+    getMonitoringStats() {
+        return { ...this.monitoringStats };
     }
     
     /**
@@ -515,7 +835,12 @@ export class StatusBar {
      * @returns {Object} 현재 상태 객체
      */
     getState() {
-        return { ...this.state };
+        return { 
+            ...this.state,
+            monitoringStats: { ...this.monitoringStats },
+            currentMode: this.currentMode,
+            currentSubMode: this.currentSubMode
+        };
     }
     
     /**
@@ -572,6 +897,7 @@ export class StatusBar {
      */
     refresh() {
         this._updatePerformanceStats();
+        this._updateMonitoringStatsDisplay();
     }
     
     // ========================================
@@ -619,8 +945,7 @@ export class StatusBar {
 
 /**
  * StatusBar에 필요한 CSS를 동적으로 주입
- * 🔧 v2.1.0: 폰트 통일 스타일 추가
- * 이미 variables.css에 포함되어 있다면 호출하지 않아도 됨
+ * 🔧 v2.2.0: Monitoring Stats 스타일 추가
  */
 export function injectStatusBarStyles() {
     if (document.getElementById('statusbar-styles')) return;
@@ -629,7 +954,7 @@ export function injectStatusBarStyles() {
     style.id = 'statusbar-styles';
     style.textContent = `
         /* =============================================
-           StatusBar Styles (v2.1.0)
+           StatusBar Styles (v2.2.0)
            ============================================= */
         
         .status-bar {
@@ -681,7 +1006,6 @@ export function injectStatusBarStyles() {
             box-shadow: 0 0 4px var(--text-alarm, #F87171);
         }
         
-        /* 🔧 v2.1.0: 라벨 스타일 (통일된 폰트) */
         .status-label {
             color: var(--text-muted, #6B7280);
             font-size: 9px;
@@ -690,12 +1014,10 @@ export function injectStatusBarStyles() {
             font-weight: 500;
         }
         
-        /* 🔧 v2.1.0: 성능 값 스타일 (라벨과 동일하게 통일) */
         .status-perf-value {
             color: var(--text-normal, #CBD5E1);
         }
         
-        /* 🔧 v2.1.0: DB Name 스타일 */
         .status-db-name {
             color: var(--text-normal, #CBD5E1);
             font-size: 9px;
@@ -742,7 +1064,110 @@ export function injectStatusBarStyles() {
             letter-spacing: 1px;
         }
         
-        /* Compact Mode (좁은 화면용) */
+        /* =============================================
+           🆕 v2.2.0: Monitoring Stats Panel Styles
+           ============================================= */
+        
+        .monitoring-stats-group {
+            gap: 8px;
+            padding: 0 12px;
+            border-left: 1px solid var(--border-color, rgba(255,255,255,0.1));
+            border-right: 1px solid var(--border-color, rgba(255,255,255,0.1));
+            margin: 0 8px;
+        }
+        
+        .monitoring-stat-item {
+            padding: 4px 8px;
+            gap: 4px;
+            min-width: 50px;
+            justify-content: center;
+        }
+        
+        .monitoring-stat-icon {
+            font-size: 12px;
+            line-height: 1;
+        }
+        
+        .monitoring-stat-value {
+            color: var(--text-normal, #CBD5E1);
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 20px;
+            text-align: right;
+        }
+        
+        .monitoring-stat-label {
+            color: var(--text-muted, #6B7280);
+            font-size: 9px;
+        }
+        
+        /* 매핑 상태 색상 */
+        .monitoring-stat-item.mapped .monitoring-stat-value {
+            color: var(--text-success, #4ADE80);
+        }
+        
+        .monitoring-stat-item.unmapped .monitoring-stat-value {
+            color: var(--text-warning, #FBBF24);
+        }
+        
+        .monitoring-stat-item.rate .monitoring-stat-value {
+            color: var(--icon-selected, #06B6D4);
+        }
+        
+        /* 구분선 */
+        .monitoring-stats-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border-color, rgba(255,255,255,0.1));
+            margin: 0 4px;
+        }
+        
+        /* 상태 인디케이터 dot */
+        .status-indicator-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .status-indicator-dot.run {
+            background-color: var(--text-success, #4ADE80);
+            box-shadow: 0 0 6px var(--text-success, #4ADE80);
+        }
+        
+        .status-indicator-dot.idle {
+            background-color: var(--text-warning, #FBBF24);
+            box-shadow: 0 0 6px var(--text-warning, #FBBF24);
+        }
+        
+        .status-indicator-dot.stop {
+            background-color: var(--text-alarm, #F87171);
+            box-shadow: 0 0 6px var(--text-alarm, #F87171);
+        }
+        
+        .status-indicator-dot.unknown {
+            background-color: var(--text-muted, #6B7280);
+            box-shadow: 0 0 4px var(--text-muted, #6B7280);
+        }
+        
+        /* 상태별 카운트 아이템 */
+        .monitoring-stat-item.status-run .monitoring-stat-value {
+            color: var(--text-success, #4ADE80);
+        }
+        
+        .monitoring-stat-item.status-idle .monitoring-stat-value {
+            color: var(--text-warning, #FBBF24);
+        }
+        
+        .monitoring-stat-item.status-stop .monitoring-stat-value {
+            color: var(--text-alarm, #F87171);
+        }
+        
+        .monitoring-stat-item.status-unknown .monitoring-stat-value {
+            color: var(--text-muted, #6B7280);
+        }
+        
+        /* Compact Mode */
         .status-bar.compact {
             height: 28px;
             padding: 0 8px;
@@ -768,6 +1193,20 @@ export function injectStatusBarStyles() {
         
         .status-bar.compact .country-code {
             font-size: 10px;
+        }
+        
+        .status-bar.compact .monitoring-stats-group {
+            gap: 4px;
+            padding: 0 8px;
+        }
+        
+        .status-bar.compact .monitoring-stat-item {
+            padding: 2px 4px;
+            min-width: 40px;
+        }
+        
+        .status-bar.compact .monitoring-stat-label {
+            display: none;
         }
         
         /* Hidden Mode */
