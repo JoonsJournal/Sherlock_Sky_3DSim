@@ -5,7 +5,10 @@
  * 기존 EquipmentEditState.js의 toServerFormat()을 활용하여
  * 새로운 Mapping V2 API로 저장하는 기능
  * 
- * @version 1.0.0
+ * @version 1.1.0
+ * @changelog
+ *   - v1.0.0: 초기 구현 (saveToServer, loadFromServerV2)
+ *   - v1.1.0: validateOnServer 메서드 추가 (2026-01-13)
  */
 
 import { debugLog } from '../core/utils/Config.js';
@@ -96,11 +99,13 @@ export function extendWithServerSave(editState, options = {}) {
             debugLog(`✅ Saved ${result.total} mappings to ${siteId}`);
             
             // 4. 이벤트 발행
-            this.dispatchEvent('mappings-saved-to-server', {
-                siteId,
-                count: result.total,
-                updatedAt: result.updated_at
-            });
+            if (this.dispatchEvent) {
+                this.dispatchEvent('mappings-saved-to-server', {
+                    siteId,
+                    count: result.total,
+                    updatedAt: result.updated_at
+                });
+            }
             
             return {
                 success: true,
@@ -113,9 +118,11 @@ export function extendWithServerSave(editState, options = {}) {
         } catch (error) {
             console.error('❌ Failed to save to server:', error);
             
-            this.dispatchEvent('save-to-server-error', {
-                error: error.message
-            });
+            if (this.dispatchEvent) {
+                this.dispatchEvent('save-to-server-error', {
+                    error: error.message
+                });
+            }
             
             return {
                 success: false,
@@ -173,7 +180,9 @@ export function extendWithServerSave(editState, options = {}) {
             }
             
             // 기존 loadFromServer 메서드 활용
-            this.loadFromServer(serverMappings, 'replace');
+            if (this.loadFromServer) {
+                this.loadFromServer(serverMappings, 'replace');
+            }
             
             debugLog(`✅ Loaded ${Object.keys(serverMappings).length} mappings from ${siteId}`);
             
@@ -193,7 +202,124 @@ export function extendWithServerSave(editState, options = {}) {
         }
     };
     
-    debugLog('🔧 EquipmentEditState extended with server save capability');
+    /**
+     * 🆕 v1.1.0: 서버에서 매핑 유효성 검증 (V2 API 사용)
+     * POST /api/mapping/config/{site_id}/validate
+     * 
+     * @param {string} siteId - Site ID (없으면 현재 연결된 사이트)
+     * @returns {Promise<Object>} ValidationResult
+     */
+    editState.validateOnServer = async function(siteId = null) {
+        try {
+            // Site ID 결정
+            if (!siteId) {
+                siteId = await this.getCurrentSiteId();
+            }
+            
+            if (!siteId) {
+                throw new Error('No site connected. Please connect to a database first.');
+            }
+            
+            debugLog(`🔍 Validating mappings on server: ${siteId}`);
+            
+            // 현재 매핑 데이터 가져오기
+            const mappingsArray = this.toServerFormat();
+            
+            if (mappingsArray.length === 0) {
+                return {
+                    valid: true,
+                    errors: [],
+                    warnings: ['No mappings to validate'],
+                    duplicates: {},
+                    missing: [],
+                    mappingCount: 0
+                };
+            }
+            
+            // V2 API 호출
+            const response = await fetch(`${apiBaseUrl}/api/mapping/config/${siteId}/validate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mappings: mappingsArray
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || `HTTP ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            debugLog(`✅ Validation complete: valid=${result.valid}, errors=${result.errors?.length || 0}`);
+            
+            return {
+                valid: result.valid,
+                errors: result.errors || [],
+                warnings: result.warnings || [],
+                duplicates: result.duplicates || {},
+                missing: result.missing || [],
+                mappingCount: mappingsArray.length,
+                siteId
+            };
+            
+        } catch (error) {
+            console.error('❌ Validation failed:', error);
+            return {
+                valid: false,
+                errors: [error.message],
+                warnings: [],
+                duplicates: {},
+                missing: []
+            };
+        }
+    };
+    
+    /**
+     * 🆕 v1.1.0: 로컬 유효성 검증 (빠른 검증)
+     * 서버 호출 없이 클라이언트에서 검증
+     * 
+     * @returns {Object} 검증 결과
+     */
+    editState.validateLocal = function() {
+        const errors = [];
+        const warnings = [];
+        const mappings = this.getAllMappings ? this.getAllMappings() : this.mappings || {};
+        
+        // 중복 검사
+        const equipmentIdMap = new Map();
+        
+        for (const [frontendId, mapping] of Object.entries(mappings)) {
+            const eqId = mapping.equipment_id;
+            
+            if (equipmentIdMap.has(eqId)) {
+                errors.push(`Equipment ID ${eqId} is mapped to both ${equipmentIdMap.get(eqId)} and ${frontendId}`);
+            } else {
+                equipmentIdMap.set(eqId, frontendId);
+            }
+            
+            // 필수 필드 검사
+            if (!mapping.equipment_name) {
+                warnings.push(`${frontendId}: Missing equipment_name`);
+            }
+        }
+        
+        // 완료도 검사
+        const mappingCount = Object.keys(mappings).length;
+        if (mappingCount < 117) {
+            warnings.push(`${117 - mappingCount} equipment(s) not mapped yet`);
+        }
+        
+        return {
+            valid: errors.length === 0,
+            errors,
+            warnings,
+            mappingCount
+        };
+    };
+    
+    debugLog('🔧 EquipmentEditState extended with V2 API capability (save, load, validate)');
 }
 
 
