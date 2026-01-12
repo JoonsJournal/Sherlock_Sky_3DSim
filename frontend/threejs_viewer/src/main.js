@@ -4,8 +4,11 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 5.3.0
+ * @version 5.3.1
  * @changelog
+ * - v5.3.1: 🔧 Monitoring 모드 서비스 타이밍 보정 (2026-01-12)
+ *           - _initThreeJS() 후 Monitoring 모드면 MonitoringService 수동 시작
+ *           - SignalTower Lamp 안 켜지는 버그 수정
  * - v5.3.0: 🆕 Site 연결 후 매핑 데이터 자동 로드 추가
  * - v5.2.1: 🔧 window.services 전역 노출 (H/G 키 동적 SceneManager 조회 지원)
  * - v5.2.0: 🔧 전역 유틸리티 함수 추가 (2026-01-11)
@@ -361,6 +364,9 @@ const viewManager = {
             
             // 13. 로딩 상태 숨김
             hideLoadingStatus(1000);
+
+            // 🆕 v5.3.1: 타이밍 보정 - Monitoring 모드면 서비스 수동 시작
+            this._ensureMonitoringServiceStarted();
             
             console.log('✅ Three.js 지연 초기화 완료');
             
@@ -368,6 +374,27 @@ const viewManager = {
             console.error('❌ Three.js 초기화 실패:', error);
             window.showToast?.('3D View 초기화 실패', 'error');
         }
+    },
+    
+    /**
+     * 🆕 v5.3.1: Monitoring 모드 서비스 시작 보정
+     * Three.js 초기화 후 호출하여 타이밍 문제 해결
+     */
+    _ensureMonitoringServiceStarted() {
+        const currentMode = appModeManager.getCurrentMode();
+        
+        if (currentMode !== APP_MODE.MONITORING) {
+            return;
+        }
+        
+        const monitoringService = services.monitoring?.monitoringService;
+        
+        if (monitoringService && !monitoringService.isActive) {
+            console.log('  🔧 [타이밍 보정] MonitoringService 수동 시작');
+            monitoringService.start();
+        }
+        
+        console.log('  ✅ Monitoring 모드 서비스 타이밍 보정 완료');
     },
     
     startAnimation() {

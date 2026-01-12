@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Sidebar Mode Diagnosis Test</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        h1 {
+            color: #00d4ff;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        h2 {
+            color: #ffd700;
+            margin: 20px 0 10px;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .section {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 800px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .result-box {
+            background: #0f0f23;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        
+        .success { color: #00ff88; }
+        .error { color: #ff4757; }
+        .warning { color: #ffa502; }
+        .info { color: #70a1ff; }
+        
+        button {
+            background: #4a69bd;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            background: #6a89cc;
+            transform: translateY(-1px);
+        }
+        
+        button.primary {
+            background: #00d4ff;
+            color: #000;
+        }
+        
+        button.danger {
+            background: #ff4757;
+        }
+        
+        button.success {
+            background: #2ed573;
+            color: #000;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online { background: #2ed573; }
+        .status-offline { background: #ff4757; }
+        .status-unknown { background: #ffa502; }
+        
+        .mode-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 2px;
+        }
+        
+        .mode-main_viewer { background: #636e72; }
+        .mode-monitoring { background: #00b894; }
+        .mode-equipment_edit { background: #fdcb6e; color: #000; }
+        
+        #log-output {
+            height: 400px;
+        }
+        
+        .step {
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-left: 3px solid #4a69bd;
+            background: rgba(74, 105, 189, 0.1);
+        }
+        
+        .step-number {
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        
+        th {
+            background: #0f0f23;
+            color: #00d4ff;
+        }
+        
+        .check-mark::before { content: "✅ "; }
+        .cross-mark::before { content: "❌ "; }
+        .warning-mark::before { content: "⚠️ "; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Sidebar Mode 전환 문제 진단 테스트</h1>
+        
+        <div class="section">
+            <h2>📊 현재 상태</h2>
+            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                <div>
+                    <span class="status-indicator status-unknown" id="connection-dot"></span>
+                    <span id="connection-status">Unknown</span>
+                </div>
+                <div>
+                    현재 모드: <span id="current-mode" class="mode-badge mode-main_viewer">main_viewer</span>
+                </div>
+                <div>
+                    Sub Mode: <span id="current-submode">없음</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <div class="section">
+                <h2>🧪 Step 1: APP_MODE 전달 테스트</h2>
+                <p style="color: #888; margin-bottom: 10px;">Sidebar가 APP_MODE 상수를 올바르게 받았는지 확인</p>
+                <button onclick="testAppModeDelivery()" class="primary">APP_MODE 전달 테스트</button>
+                <div id="step1-result" class="result-box" style="margin-top: 10px; min-height: 100px;"></div>
+            </div>
+            
+            <div class="section">
+                <h2>🧪 Step 2: MODE_MAP 매핑 테스트</h2>
+                <p style="color: #888; margin-bottom: 10px;">MODE_MAP이 올바르게 APP_MODE로 변환하는지 확인</p>
+                <button onclick="testModeMapping()" class="primary">MODE_MAP 테스트</button>
+                <div id="step2-result" class="result-box" style="margin-top: 10px; min-height: 100px;"></div>
+            </div>
+            
+            <div class="section">
+                <h2>🧪 Step 3: _setMode() 흐름 테스트</h2>
+                <p style="color: #888; margin-bottom: 10px;">Sidebar._setMode('monitoring') 호출 시 전체 흐름 추적</p>
+                <button onclick="testSetModeFlow()" class="primary">_setMode 흐름 테스트</button>
+                <div id="step3-result" class="result-box" style="margin-top: 10px; min-height: 150px;"></div>
+            </div>
+            
+            <div class="section">
+                <h2>🧪 Step 4: AppModeManager 핸들러 테스트</h2>
+                <p style="color: #888; margin-bottom: 10px;">모드 핸들러가 등록되어 있고 서비스가 연결되어 있는지 확인</p>
+                <button onclick="testModeHandlers()" class="primary">핸들러 테스트</button>
+                <div id="step4-result" class="result-box" style="margin-top: 10px; min-height: 150px;"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🎮 수동 모드 전환 테스트</h2>
+            <p style="color: #888; margin-bottom: 10px;">버튼을 클릭하여 모드 전환 테스트 (Mock 환경)</p>
+            <div style="margin: 10px 0;">
+                <button onclick="simulateMonitoringClick()">📡 Monitoring 버튼 클릭 시뮬레이션</button>
+                <button onclick="directModeSwitch('monitoring')">🔀 직접 switchMode('monitoring')</button>
+                <button onclick="directModeSwitch('main_viewer')">🏠 Main Viewer로 복귀</button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📝 실시간 로그</h2>
+            <button onclick="clearLog()">로그 지우기</button>
+            <button onclick="runAllTests()" class="success">🚀 전체 테스트 실행</button>
+            <div id="log-output" class="result-box" style="margin-top: 10px;"></div>
+        </div>
+        
+        <div class="section">
+            <h2>📋 문제 진단 결과</h2>
+            <div id="diagnosis-result"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // ============================================
+        // Mock APP_MODE 상수
+        // ============================================
+        const APP_MODE = {
+            MAIN_VIEWER: 'main_viewer',
+            MONITORING: 'monitoring',
+            EQUIPMENT_EDIT: 'equipment_edit',
+            LAYOUT_EDITOR: 'layout_editor',
+            PLAYBACK: 'playback',
+            ANALYTICS: 'analytics',
+            SETTINGS: 'settings'
+        };
+        
+        // ============================================
+        // Mock MODE_MAP (SidebarConfig.js에서 가져온 것)
+        // ============================================
+        const MODE_MAP = {
+            'monitoring': 'MONITORING',
+            'analysis': 'ANALYTICS',
+            'simulation': 'SIMULATION',
+            'layout': 'LAYOUT_EDITOR',
+            'equipment_edit': 'EQUIPMENT_EDIT'
+        };
+        
+        // ============================================
+        // Mock EventBus
+        // ============================================
+        class MockEventBus {
+            constructor() {
+                this._listeners = new Map();
+            }
+            
+            on(event, callback) {
+                if (!this._listeners.has(event)) {
+                    this._listeners.set(event, new Set());
+                }
+                this._listeners.get(event).add(callback);
+                return () => this._listeners.get(event)?.delete(callback);
+            }
+            
+            emit(event, data) {
+                log(`📢 Event: ${event}`, 'info');
+                this._listeners.get(event)?.forEach(cb => cb(data));
+            }
+        }
+        
+        const eventBus = new MockEventBus();
+        
+        // ============================================
+        // Mock AppModeManager
+        // ============================================
+        class MockAppModeManager {
+            constructor() {
+                this._currentMode = APP_MODE.MAIN_VIEWER;
+                this._previousMode = null;
+                this._subMode = null;
+                this._modeHandlers = new Map();
+                this._connectionStatusService = null;
+            }
+            
+            getCurrentMode() {
+                return this._currentMode;
+            }
+            
+            getSubMode() {
+                return this._subMode;
+            }
+            
+            setSubMode(subMode) {
+                this._subMode = subMode;
+                eventBus.emit('submode:change', { to: subMode });
+            }
+            
+            registerMode(mode, handler) {
+                this._modeHandlers.set(mode, handler);
+                log(`📝 Mode registered: ${mode}`, 'info');
+            }
+            
+            getModeHandler(mode) {
+                return this._modeHandlers.get(mode);
+            }
+            
+            setConnectionStatusService(service) {
+                this._connectionStatusService = service;
+            }
+            
+            isBackendOnline() {
+                return this._connectionStatusService?.isOnline() ?? true;
+            }
+            
+            async toggleMode(targetMode) {
+                log(`🔄 toggleMode called with: ${targetMode}`, 'info');
+                
+                if (targetMode === undefined) {
+                    log(`❌ ERROR: targetMode is undefined!`, 'error');
+                    return false;
+                }
+                
+                const newMode = (this._currentMode === targetMode) 
+                    ? APP_MODE.MAIN_VIEWER 
+                    : targetMode;
+                
+                return this.switchMode(newMode);
+            }
+            
+            async switchMode(newMode, options = {}) {
+                log(`🔀 switchMode: ${this._currentMode} → ${newMode}`, 'info');
+                
+                if (!Object.values(APP_MODE).includes(newMode)) {
+                    log(`❌ Invalid mode: ${newMode}`, 'error');
+                    return false;
+                }
+                
+                // 연결 체크 (skipConnectionCheck가 아닌 경우)
+                if (!options.skipConnectionCheck && newMode === APP_MODE.MONITORING) {
+                    if (!this.isBackendOnline()) {
+                        log(`⚠️ Monitoring requires backend connection!`, 'warning');
+                        eventBus.emit('mode:enter-blocked', { mode: newMode, reason: 'offline' });
+                        return false;
+                    }
+                }
+                
+                // 이전 모드 종료
+                const oldHandler = this._modeHandlers.get(this._currentMode);
+                if (oldHandler?.onExit) {
+                    await oldHandler.onExit({ nextMode: newMode });
+                }
+                
+                this._previousMode = this._currentMode;
+                this._currentMode = newMode;
+                this._subMode = null;
+                
+                // 새 모드 진입
+                const newHandler = this._modeHandlers.get(newMode);
+                if (newHandler?.onEnter) {
+                    await newHandler.onEnter({ prevMode: this._previousMode });
+                }
+                
+                eventBus.emit('mode:change', { from: this._previousMode, to: newMode });
+                
+                updateModeDisplay();
+                return true;
+            }
+        }
+        
+        const appModeManager = new MockAppModeManager();
+        
+        // ============================================
+        // Mock ConnectionStatusService
+        // ============================================
+        class MockConnectionStatusService {
+            constructor() {
+                this._isOnline = true;  // Mock에서는 기본 online
+            }
+            
+            isOnline() {
+                return this._isOnline;
+            }
+            
+            setOnline(value) {
+                this._isOnline = value;
+                updateConnectionDisplay();
+            }
+            
+            onOnline(callback) {
+                return eventBus.on('connection:online', callback);
+            }
+            
+            onOffline(callback) {
+                return eventBus.on('connection:offline', callback);
+            }
+        }
+        
+        const connectionStatusService = new MockConnectionStatusService();
+        appModeManager.setConnectionStatusService(connectionStatusService);
+        
+        // ============================================
+        // Mock MonitoringService
+        // ============================================
+        class MockMonitoringService {
+            constructor() {
+                this.isActive = false;
+            }
+            
+            start() {
+                log(`🟢 MonitoringService.start() called!`, 'success');
+                this.isActive = true;
+            }
+            
+            stop() {
+                log(`🔴 MonitoringService.stop() called!`, 'warning');
+                this.isActive = false;
+            }
+        }
+        
+        const monitoringService = new MockMonitoringService();
+        
+        // ============================================
+        // Mock SignalTowerManager
+        // ============================================
+        class MockSignalTowerManager {
+            initializeAllLights() {
+                log(`💡 SignalTowerManager.initializeAllLights() called`, 'info');
+            }
+            
+            turnOffAllLights() {
+                log(`💡 SignalTowerManager.turnOffAllLights() called`, 'info');
+            }
+        }
+        
+        const signalTowerManager = new MockSignalTowerManager();
+        
+        // ============================================
+        // Mock ModeHandlers 등록
+        // ============================================
+        function registerModeHandlers() {
+            // Main Viewer Handler
+            appModeManager.registerMode(APP_MODE.MAIN_VIEWER, {
+                name: 'Main Viewer',
+                onEnter: () => log(`✅ Main Viewer 모드 진입`, 'success'),
+                onExit: () => log(`📤 Main Viewer 모드 종료`, 'info')
+            });
+            
+            // Monitoring Handler
+            appModeManager.registerMode(APP_MODE.MONITORING, {
+                name: 'Monitoring',
+                _monitoringService: monitoringService,
+                _signalTowerManager: signalTowerManager,
+                onEnter: function() {
+                    log(`✅ Monitoring 모드 진입`, 'success');
+                    if (this._monitoringService && !this._monitoringService.isActive) {
+                        this._monitoringService.start();
+                    }
+                },
+                onExit: function() {
+                    log(`📤 Monitoring 모드 종료`, 'info');
+                    if (this._monitoringService?.isActive) {
+                        this._monitoringService.stop();
+                    }
+                }
+            });
+            
+            // Equipment Edit Handler
+            appModeManager.registerMode(APP_MODE.EQUIPMENT_EDIT, {
+                name: 'Equipment Edit',
+                onEnter: () => log(`✅ Equipment Edit 모드 진입`, 'success'),
+                onExit: () => log(`📤 Equipment Edit 모드 종료`, 'info')
+            });
+        }
+        
+        // ============================================
+        // Mock Sidebar (핵심 로직만)
+        // ============================================
+        class MockSidebar {
+            constructor(options = {}) {
+                this.appModeManager = options.appModeManager || null;
+                this.APP_MODE = options.APP_MODE || {};
+                this.currentMode = null;
+                this.currentSubMode = null;
+                
+                log(`🔧 Sidebar 생성됨`, 'info');
+                log(`   - appModeManager: ${this.appModeManager ? 'SET' : 'NULL'}`, 
+                    this.appModeManager ? 'success' : 'error');
+                log(`   - APP_MODE keys: ${Object.keys(this.APP_MODE).length}개`, 
+                    Object.keys(this.APP_MODE).length > 0 ? 'success' : 'error');
+            }
+            
+            // 실제 Sidebar.js의 _setMode 메서드와 동일
+            _setMode(mode) {
+                log(`\n📍 _setMode('${mode}') 호출됨`, 'info');
+                
+                if (!this.appModeManager) {
+                    log(`   ❌ AppModeManager not connected!`, 'error');
+                    this.currentMode = mode;
+                    return;
+                }
+                
+                log(`   1. MODE_MAP['${mode}'] = '${MODE_MAP[mode]}'`, 'info');
+                
+                const mappedKey = MODE_MAP[mode];
+                log(`   2. this.APP_MODE['${mappedKey}'] = '${this.APP_MODE[mappedKey]}'`, 
+                    this.APP_MODE[mappedKey] ? 'success' : 'error');
+                
+                const appMode = this.APP_MODE[MODE_MAP[mode]] || this.APP_MODE.MAIN_VIEWER;
+                log(`   3. appMode 최종값 = '${appMode}'`, appMode ? 'success' : 'error');
+                
+                if (!appMode || appMode === this.APP_MODE.MAIN_VIEWER && mode !== 'main_viewer') {
+                    log(`   ⚠️ WARNING: appMode가 예상과 다릅니다!`, 'warning');
+                    log(`      - 예상: '${mode === 'monitoring' ? 'monitoring' : mode}'`, 'warning');
+                    log(`      - 실제: '${appMode}'`, 'warning');
+                }
+                
+                this.appModeManager.toggleMode(appMode);
+            }
+            
+            _setSubMode(submode) {
+                this.currentSubMode = submode;
+                if (this.appModeManager) {
+                    this.appModeManager.setSubMode(submode);
+                }
+                log(`📍 _setSubMode('${submode}') 호출됨`, 'info');
+            }
+        }
+        
+        // ============================================
+        // 글로벌 변수
+        // ============================================
+        let sidebar = null;
+        
+        // ============================================
+        // 로그 유틸리티
+        // ============================================
+        function log(message, type = 'info') {
+            const output = document.getElementById('log-output');
+            const time = new Date().toLocaleTimeString();
+            const colorClass = type;
+            output.innerHTML += `<span class="${colorClass}">[${time}] ${message}</span>\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        window.clearLog = function() {
+            document.getElementById('log-output').innerHTML = '';
+        };
+        
+        // ============================================
+        // 상태 표시 업데이트
+        // ============================================
+        function updateModeDisplay() {
+            const modeEl = document.getElementById('current-mode');
+            const submodeEl = document.getElementById('current-submode');
+            const mode = appModeManager.getCurrentMode();
+            const submode = appModeManager.getSubMode();
+            
+            modeEl.textContent = mode;
+            modeEl.className = `mode-badge mode-${mode}`;
+            submodeEl.textContent = submode || '없음';
+        }
+        
+        function updateConnectionDisplay() {
+            const dot = document.getElementById('connection-dot');
+            const status = document.getElementById('connection-status');
+            const isOnline = connectionStatusService.isOnline();
+            
+            dot.className = `status-indicator ${isOnline ? 'status-online' : 'status-offline'}`;
+            status.textContent = isOnline ? 'Online (Mock)' : 'Offline (Mock)';
+        }
+        
+        // ============================================
+        // 테스트 함수들
+        // ============================================
+        window.testAppModeDelivery = function() {
+            const resultEl = document.getElementById('step1-result');
+            let html = '';
+            
+            // 시나리오 1: APP_MODE가 빈 객체인 경우
+            const sidebar1 = new MockSidebar({
+                appModeManager: appModeManager,
+                APP_MODE: {}  // 빈 객체
+            });
+            
+            html += `<div class="step">`;
+            html += `<span class="step-number">테스트 1:</span> APP_MODE = {} (빈 객체)\n`;
+            html += `결과: ${Object.keys(sidebar1.APP_MODE).length === 0 ? 
+                '<span class="error">❌ APP_MODE가 비어있음!</span>' : 
+                '<span class="success">✅ OK</span>'}\n`;
+            html += `</div>`;
+            
+            // 시나리오 2: APP_MODE가 정상 전달된 경우
+            const sidebar2 = new MockSidebar({
+                appModeManager: appModeManager,
+                APP_MODE: APP_MODE
+            });
+            
+            html += `<div class="step">`;
+            html += `<span class="step-number">테스트 2:</span> APP_MODE = 정상 객체\n`;
+            html += `전달된 키: ${Object.keys(sidebar2.APP_MODE).join(', ')}\n`;
+            html += `MONITORING 값: ${sidebar2.APP_MODE.MONITORING}\n`;
+            html += `결과: ${sidebar2.APP_MODE.MONITORING === 'monitoring' ? 
+                '<span class="success">✅ 정상</span>' : 
+                '<span class="error">❌ 비정상</span>'}\n`;
+            html += `</div>`;
+            
+            resultEl.innerHTML = html;
+        };
+        
+        window.testModeMapping = function() {
+            const resultEl = document.getElementById('step2-result');
+            let html = '<table><tr><th>Sidebar 모드</th><th>MODE_MAP 키</th><th>APP_MODE 값</th><th>결과</th></tr>';
+            
+            const testCases = ['monitoring', 'analysis', 'layout', 'equipment_edit'];
+            
+            testCases.forEach(mode => {
+                const mapKey = MODE_MAP[mode];
+                const appModeValue = APP_MODE[mapKey];
+                const isOk = appModeValue !== undefined;
+                
+                html += `<tr>
+                    <td>${mode}</td>
+                    <td>${mapKey || 'undefined'}</td>
+                    <td>${appModeValue || 'undefined'}</td>
+                    <td>${isOk ? '<span class="success">✅</span>' : '<span class="error">❌</span>'}</td>
+                </tr>`;
+            });
+            
+            html += '</table>';
+            resultEl.innerHTML = html;
+        };
+        
+        window.testSetModeFlow = function() {
+            const resultEl = document.getElementById('step3-result');
+            log(`\n${'='.repeat(50)}`, 'info');
+            log(`🧪 _setMode('monitoring') 흐름 테스트 시작`, 'info');
+            log(`${'='.repeat(50)}`, 'info');
+            
+            // 정상 케이스 테스트
+            sidebar = new MockSidebar({
+                appModeManager: appModeManager,
+                APP_MODE: APP_MODE
+            });
+            
+            sidebar._setMode('monitoring');
+            
+            const result = appModeManager.getCurrentMode();
+            let html = `<div class="step">`;
+            html += `<span class="step-number">결과:</span>\n`;
+            html += `현재 모드: ${result}\n`;
+            html += `기대값: monitoring\n`;
+            html += `${result === 'monitoring' ? 
+                '<span class="success check-mark">테스트 통과!</span>' : 
+                '<span class="error cross-mark">테스트 실패!</span>'}\n`;
+            html += `</div>`;
+            
+            resultEl.innerHTML = html;
+        };
+        
+        window.testModeHandlers = function() {
+            const resultEl = document.getElementById('step4-result');
+            let html = '<table><tr><th>모드</th><th>핸들러 등록</th><th>서비스 연결</th></tr>';
+            
+            const modes = [APP_MODE.MAIN_VIEWER, APP_MODE.MONITORING, APP_MODE.EQUIPMENT_EDIT];
+            
+            modes.forEach(mode => {
+                const handler = appModeManager.getModeHandler(mode);
+                const hasHandler = handler !== undefined;
+                const hasService = mode === APP_MODE.MONITORING ? 
+                    handler?._monitoringService !== undefined : true;
+                
+                html += `<tr>
+                    <td>${mode}</td>
+                    <td>${hasHandler ? '<span class="success">✅</span>' : '<span class="error">❌</span>'}</td>
+                    <td>${hasService ? '<span class="success">✅</span>' : '<span class="error">❌</span>'}</td>
+                </tr>`;
+            });
+            
+            html += '</table>';
+            resultEl.innerHTML = html;
+        };
+        
+        window.simulateMonitoringClick = function() {
+            log(`\n${'='.repeat(50)}`, 'info');
+            log(`🖱️ Monitoring 버튼 클릭 시뮬레이션`, 'info');
+            log(`${'='.repeat(50)}`, 'info');
+            
+            if (!sidebar) {
+                sidebar = new MockSidebar({
+                    appModeManager: appModeManager,
+                    APP_MODE: APP_MODE
+                });
+            }
+            
+            sidebar._setMode('monitoring');
+            sidebar._setSubMode('3d-view');
+        };
+        
+        window.directModeSwitch = function(mode) {
+            log(`\n🔀 직접 switchMode('${mode}') 호출`, 'info');
+            appModeManager.switchMode(mode, { skipConnectionCheck: true });
+        };
+        
+        window.runAllTests = function() {
+            clearLog();
+            log(`🚀 전체 테스트 시작`, 'info');
+            log(`${'='.repeat(50)}`, 'info');
+            
+            testAppModeDelivery();
+            testModeMapping();
+            testSetModeFlow();
+            testModeHandlers();
+            
+            generateDiagnosis();
+        };
+        
+        function generateDiagnosis() {
+            const diagnosisEl = document.getElementById('diagnosis-result');
+            let issues = [];
+            
+            // 체크 1: APP_MODE 전달
+            if (sidebar && Object.keys(sidebar.APP_MODE).length === 0) {
+                issues.push({
+                    severity: 'error',
+                    title: 'APP_MODE가 Sidebar에 전달되지 않음',
+                    description: 'createSidebarUI() 호출 시 APP_MODE가 빈 객체로 전달됨',
+                    solution: 'main.js에서 createSidebarUI({ APP_MODE, ... }) 확인 필요'
+                });
+            }
+            
+            // 체크 2: 모드 핸들러 등록
+            const monitoringHandler = appModeManager.getModeHandler(APP_MODE.MONITORING);
+            if (!monitoringHandler) {
+                issues.push({
+                    severity: 'error',
+                    title: 'Monitoring 모드 핸들러 미등록',
+                    description: 'AppModeManager에 Monitoring 핸들러가 등록되지 않음',
+                    solution: 'registerAllModeHandlers()가 호출되었는지 확인'
+                });
+            }
+            
+            // 체크 3: MonitoringService 연결
+            if (monitoringHandler && !monitoringHandler._monitoringService) {
+                issues.push({
+                    severity: 'error',
+                    title: 'MonitoringService 미연결',
+                    description: 'Monitoring 핸들러에 MonitoringService가 연결되지 않음',
+                    solution: 'connectServicesToModeHandlers()가 호출되었는지 확인'
+                });
+            }
+            
+            // 결과 표시
+            let html = '';
+            if (issues.length === 0) {
+                html = '<div class="step" style="border-color: #2ed573;"><span class="success check-mark">모든 테스트 통과! Mock 환경에서는 정상 동작합니다.</span></div>';
+            } else {
+                html = '<h3 style="color: #ff4757;">발견된 문제:</h3>';
+                issues.forEach((issue, i) => {
+                    html += `
+                        <div class="step" style="border-color: ${issue.severity === 'error' ? '#ff4757' : '#ffa502'};">
+                            <strong>${issue.severity === 'error' ? '❌' : '⚠️'} ${issue.title}</strong><br>
+                            <span style="color: #888;">${issue.description}</span><br>
+                            <span style="color: #00d4ff;">💡 해결: ${issue.solution}</span>
+                        </div>
+                    `;
+                });
+            }
+            
+            diagnosisEl.innerHTML = html;
+        }
+        
+        // ============================================
+        // 초기화
+        // ============================================
+        document.addEventListener('DOMContentLoaded', () => {
+            log(`🔧 테스트 환경 초기화 시작`, 'info');
+            
+            // 모드 핸들러 등록
+            registerModeHandlers();
+            
+            // 기본 Sidebar 생성
+            sidebar = new MockSidebar({
+                appModeManager: appModeManager,
+                APP_MODE: APP_MODE
+            });
+            
+            updateModeDisplay();
+            updateConnectionDisplay();
+            
+            log(`✅ 테스트 환경 준비 완료`, 'success');
+            log(`\n💡 위의 테스트 버튼들을 클릭하여 문제를 진단하세요.`, 'info');
+        });
+        
+        // 전역 노출
+        window.APP_MODE = APP_MODE;
+        window.MODE_MAP = MODE_MAP;
+        window.appModeManager = appModeManager;
+        window.sidebar = () => sidebar;
+        window.connectionStatusService = connectionStatusService;
+    </script>
+</body>
+</html>
