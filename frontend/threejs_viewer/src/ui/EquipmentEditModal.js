@@ -2,19 +2,23 @@
  * EquipmentEditModal.js
  * 설비 편집 모달
  * 
- * @version 3.0.0
+ * @version 3.1.0
  * @description 
  *   - BaseModal 상속 적용
  *   - EquipmentMappingService 연동
  *   - 서버 저장/검증 기능 추가
  *   - v2.2.0: line_name 저장 추가
  *   - v3.0.0: 인라인 스타일 완전 제거, CSS 클래스 기반 (2026-01-06)
+ *   - v3.1.0: V2 API 서버 저장 기능 추가 (2026-01-13)
+ *             - Save All → localStorage + V2 API 서버 저장
+ *             - 연결된 site_id 기반 파일 생성
  */
 
 import { BaseModal } from '../core/base/BaseModal.js';
 import { toast } from './common/Toast.js';
 import { debugLog } from '../core/utils/Config.js';
 import { EquipmentMappingService } from '../services/mapping/EquipmentMappingService.js';
+import { extendWithServerSave } from '../services/EquipmentEditStateExtension.js';
 
 /**
  * EquipmentEditModal
@@ -38,6 +42,12 @@ export class EquipmentEditModal extends BaseModal {
         
         this.editState = options.editState;
         this.apiClient = options.apiClient;
+        
+        // 🆕 v3.1.0: EditState에 서버 저장 기능 확장
+        if (this.editState && !this.editState.saveToServer) {
+            extendWithServerSave(this.editState);
+            debugLog('🔧 EditState extended with V2 server save capability');
+        }
         
         // MappingService 초기화
         this.mappingService = new EquipmentMappingService({
@@ -125,6 +135,7 @@ export class EquipmentEditModal extends BaseModal {
     
     /**
      * Modal Footer 렌더링 - CSS 클래스 기반
+     * 🆕 v3.1.0: 서버 저장 버튼 추가
      */
     renderFooter() {
         return `
@@ -139,8 +150,8 @@ export class EquipmentEditModal extends BaseModal {
                 </div>
                 <div class="equip-edit__footer-right">
                     <button class="btn-secondary modal-cancel-btn">Cancel</button>
-                    <button id="btn-save-server" class="btn-success" title="Save to server">
-                        💾 Save All
+                    <button id="btn-save-server" class="btn-success" title="Save to server (V2 API)">
+                        ☁️ Save All
                     </button>
                     <button class="btn-primary modal-confirm-btn" disabled>Confirm</button>
                 </div>
@@ -187,11 +198,11 @@ export class EquipmentEditModal extends BaseModal {
             });
         }
         
-        // 서버 저장 버튼
+        // 🆕 v3.1.0: 서버 저장 버튼 - V2 API 사용
         const saveBtn = this.$('#btn-save-server');
         if (saveBtn) {
             this.addDomListener(saveBtn, 'click', () => {
-                this._handleSaveToServer();
+                this._handleSaveToServerV2();
             });
         }
     }
@@ -326,7 +337,8 @@ export class EquipmentEditModal extends BaseModal {
     }
     
     /**
-     * 서버에서 매핑 로드
+     * 서버에서 매핑 로드 (V2 API 사용)
+     * 🆕 v3.1.0: V2 API 우선, 실패시 기존 API fallback
      */
     async _handleSyncFromServer() {
         const syncBtn = this.$('#btn-sync-server');
@@ -337,7 +349,24 @@ export class EquipmentEditModal extends BaseModal {
                 syncBtn.innerHTML = '🔄 Loading...';
             }
             
-            // 충돌 감지
+            // 🆕 v3.1.0: V2 API로 먼저 시도
+            if (this.editState && this.editState.loadFromServerV2) {
+                try {
+                    const result = await this.editState.loadFromServerV2();
+                    
+                    if (result.success) {
+                        toast.success(`✅ Synced from server: ${result.count} mappings`);
+                        this._updateProgress();
+                        this._updateSyncStatus();
+                        this._renderEquipmentList();
+                        return;
+                    }
+                } catch (v2Error) {
+                    debugLog('V2 API sync failed, falling back to legacy API:', v2Error);
+                }
+            }
+            
+            // Fallback: 기존 API
             const conflicts = await this.mappingService.detectConflicts();
             
             if (conflicts.needsSync && conflicts.conflicts.length > 0) {
@@ -373,9 +402,10 @@ export class EquipmentEditModal extends BaseModal {
     }
     
     /**
-     * 서버에 매핑 저장
+     * 🆕 v3.1.0: 서버에 매핑 저장 (V2 API 사용)
+     * equipment_mapping_{site_id}.json 형식으로 저장
      */
-    async _handleSaveToServer() {
+    async _handleSaveToServerV2() {
         if (this.isSaving) return;
         
         const saveBtn = this.$('#btn-save-server');
@@ -386,9 +416,23 @@ export class EquipmentEditModal extends BaseModal {
             return;
         }
         
+        // 연결된 Site 확인
+        let siteId = null;
+        try {
+            if (this.editState && this.editState.getCurrentSiteId) {
+                siteId = await this.editState.getCurrentSiteId();
+            }
+        } catch (e) {
+            debugLog('Failed to get current site ID:', e);
+        }
+        
+        const siteInfo = siteId ? `\nSite: ${siteId}` : '\n⚠️ No site connected (will try to detect)';
+        
         const confirmed = confirm(
-            `💾 Save ${mappingCount} mappings to server?\n\n` +
-            `This will overwrite existing server data.`
+            `☁️ Save ${mappingCount} mappings to server?\n` +
+            `${siteInfo}\n\n` +
+            `This will create/update:\n` +
+            `config/site_mappings/equipment_mapping_${siteId || '{site_id}'}.json`
         );
         
         if (!confirmed) return;
@@ -397,19 +441,42 @@ export class EquipmentEditModal extends BaseModal {
             this.isSaving = true;
             if (saveBtn) {
                 saveBtn.disabled = true;
-                saveBtn.innerHTML = '💾 Saving...';
+                saveBtn.innerHTML = '☁️ Saving...';
             }
             
-            const result = await this.mappingService.saveMappings(true);
-            
-            if (result.success) {
-                toast.success(`✅ Saved ${result.total || mappingCount} mappings to server`);
-                this._updateSyncStatus();
-            } else {
-                if (result.validation) {
-                    this._displayValidationResult(result.validation, 'server');
+            // 🆕 V2 API로 저장
+            if (this.editState && this.editState.saveToServer) {
+                const result = await this.editState.saveToServer({
+                    createdBy: 'Equipment Mapping Editor',
+                    description: `Mapping saved from Equipment Mapping Editor at ${new Date().toISOString()}`
+                });
+                
+                if (result.success) {
+                    toast.success(`✅ Saved ${result.count} mappings to ${result.siteId}`);
+                    this._updateSyncStatus();
+                    
+                    // 동기화 상태 업데이트
+                    const syncStatus = this.$('#sync-status');
+                    if (syncStatus) {
+                        syncStatus.className = 'equip-edit__sync-status equip-edit__sync-status--synced';
+                        syncStatus.textContent = `✅ Saved to server • ${new Date().toLocaleTimeString()}`;
+                    }
+                } else {
+                    toast.error(`❌ Save failed: ${result.error}`);
                 }
-                toast.error('Save failed: Validation errors');
+            } else {
+                // Fallback: 기존 API
+                const result = await this.mappingService.saveMappings(true);
+                
+                if (result.success) {
+                    toast.success(`✅ Saved ${result.total || mappingCount} mappings to server`);
+                    this._updateSyncStatus();
+                } else {
+                    if (result.validation) {
+                        this._displayValidationResult(result.validation, 'server');
+                    }
+                    toast.error('Save failed: Validation errors');
+                }
             }
             
         } catch (error) {
@@ -419,9 +486,17 @@ export class EquipmentEditModal extends BaseModal {
             this.isSaving = false;
             if (saveBtn) {
                 saveBtn.disabled = false;
-                saveBtn.innerHTML = '💾 Save All';
+                saveBtn.innerHTML = '☁️ Save All';
             }
         }
+    }
+    
+    /**
+     * 🆕 기존 _handleSaveToServer는 _handleSaveToServerV2로 대체
+     * @deprecated Use _handleSaveToServerV2 instead
+     */
+    async _handleSaveToServer() {
+        return this._handleSaveToServerV2();
     }
     
     /**
