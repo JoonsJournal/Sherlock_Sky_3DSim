@@ -72,13 +72,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS 설정
-ALLOWED_ORIGINS = os.getenv('ALLOWED_ORIGINS', 'http://localhost:8080,http://127.0.0.1:8080')
-origins_list = [origin.strip() for origin in ALLOWED_ORIGINS.split(',')]
-
+# CORS 설정 - 모든 origin 허용 (외부 IP 접속 지원)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins_list,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
