@@ -3,15 +3,12 @@
  * ========
  * SHERLOCK SKY 3DSim - CSS 진입점
  * 
- * @version 2.5.0
+ * @version 2.6.0
  * @changelog
- * - v2.5.0: 🔧 리팩토링 (2026-01-11)
- *           - _overlay-ui.css import 추가 (main-content, threejs-container)
- *           - _misc.css import 추가 (close-btn, 레거시 스타일)
- *           - import 순서 정리
+ * - v2.6.0: 🆕 _analysis-mode.css import 추가 (2026-01-13)
+ *           - Analysis 모드 컨테이너 스타일
+ * - v2.5.0: _overlay-ui.css, _misc.css import 추가 (2026-01-11)
  * - v2.4.0: ModeIndicatorPanel pill 스타일 지원
- * - v2.3.0: _mode-indicator.css import 추가
- * - v2.1.0: Toast 전역 transition 제외
  * 
  * 위치: frontend/threejs_viewer/styles/main.css
  */
@@ -76,14 +73,18 @@
 @import './components/_mode-indicator.css';
 
 /* =============================================
-   🆕 Overlay UI (Main Content, Three.js Container)
-   v2.5.0에서 추가 - index.html에서 마이그레이션
+   🆕 v2.6.0: Analysis Mode
+   Analysis 모드 컨테이너 및 Placeholder 스타일
+   ============================================= */
+@import './components/_analysis-mode.css';
+
+/* =============================================
+   Overlay UI (Main Content, Three.js Container)
    ============================================= */
 @import './components/_overlay-ui.css';
 
 /* =============================================
-   🆕 Miscellaneous (Close Button, Legacy Styles)
-   v2.5.0에서 추가 - index.html에서 마이그레이션
+   Miscellaneous (Close Button, Legacy Styles)
    ============================================= */
 @import './components/_misc.css';
 

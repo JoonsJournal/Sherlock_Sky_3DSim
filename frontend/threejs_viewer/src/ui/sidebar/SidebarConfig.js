@@ -3,9 +3,16 @@
  * =================
  * Sidebar UI 컴포넌트의 설정 및 상수 정의
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @created 2026-01-11
- * @source Sidebar.js v1.2.0 (라인 44-176)
+ * @updated 2026-01-13
+ * 
+ * @changelog
+ * - v1.1.0: 🆕 Analysis 버튼 활성화 (2026-01-13)
+ *           - disabled: true 제거
+ *           - selectable: true 추가
+ *           - hasSubmenu: true 추가 (향후 서브메뉴 지원)
+ * - v1.0.0: 초기 버전
  * 
  * @description
  * Sidebar.js에서 분리된 설정 파일
@@ -61,16 +68,21 @@ export const SIDEBAR_BUTTONS = {
         tooltip: 'Monitoring Mode (M)',
         mode: 'monitoring',
         requiresConnection: true,
+        selectable: true,
         hasSubmenu: true,
         submenuId: 'monitoring-submenu'
     },
+    // 🆕 v1.1.0: Analysis 버튼 활성화
     analysis: {
         id: 'btn-analysis',
         icon: 'analysis',
-        tooltip: 'Analysis (Coming Soon)',
+        tooltip: 'Analysis Mode (A)',
         mode: 'analysis',
         requiresConnection: true,
-        disabled: true
+        selectable: true,
+        hasSubmenu: true,
+        submenuId: 'analysis-submenu'
+        // disabled: true 제거!
     },
     simulation: {
         id: 'btn-simulation',
@@ -149,6 +161,32 @@ export const SUBMENUS = {
                 icon: 'ranking-view', 
                 submode: 'ranking-view', 
                 disabled: true 
+            }
+        ]
+    },
+    // 🆕 v1.1.0: Analysis 서브메뉴 추가
+    'analysis-submenu': {
+        header: 'Analysis Tools',
+        items: [
+            { 
+                id: 'sub-analysis-dashboard', 
+                label: 'Dashboard', 
+                icon: 'analysis', 
+                submode: 'dashboard' 
+            },
+            { 
+                id: 'sub-analysis-heatmap', 
+                label: 'Calendar Heatmap (Coming Soon)', 
+                icon: 'layout', 
+                submode: 'heatmap',
+                disabled: true
+            },
+            { 
+                id: 'sub-analysis-trend', 
+                label: 'Trend Analysis (Coming Soon)', 
+                icon: 'ranking-view', 
+                submode: 'trend',
+                disabled: true
             }
         ]
     },
@@ -274,7 +312,7 @@ export const SITE_LIST = [
  */
 export const MODE_MAP = {
     'monitoring': 'MONITORING',
-    'analysis': 'ANALYTICS',
+    'analysis': 'ANALYTICS',       // 🔧 v1.1.0: 확인
     'simulation': 'SIMULATION',
     'layout': 'LAYOUT_EDITOR',
     'equipment_edit': 'EQUIPMENT_EDIT'

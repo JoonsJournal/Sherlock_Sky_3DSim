@@ -1,0 +1,348 @@
+/**
+ * _analysis-mode.css
+ * ==================
+ * Analysis 모드 전용 스타일
+ * 
+ * @version 1.0.0
+ * @created 2026-01-13
+ * 
+ * @description
+ * Analysis 모드의 컨테이너 및 Placeholder 스타일
+ * - Dark/Light 테마 지원
+ * - Cover Screen 스타일과 일관성 유지
+ * - CSS 변수 사용 (_variables.css)
+ * 
+ * 의존성:
+ * - _variables.css (CSS 변수)
+ * - _cover-screen.css (스타일 참조)
+ * 
+ * 위치: frontend/threejs_viewer/styles/components/_analysis-mode.css
+ */
+
+/* =============================================
+   Analysis Container - Base
+   ============================================= */
+
+#analysis-container,
+.analysis-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    background: var(--bg-main-gradient);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+#analysis-container.hidden,
+.analysis-container.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* =============================================
+   Analysis Content Wrapper
+   ============================================= */
+
+.analysis-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 600px;
+    padding: 40px;
+}
+
+/* =============================================
+   Analysis Placeholder - Empty State
+   ============================================= */
+
+.analysis-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+/* Placeholder Icon */
+.analysis-placeholder-icon {
+    font-size: 72px;
+    margin-bottom: 24px;
+    animation: float-analysis 3s ease-in-out infinite;
+}
+
+@keyframes float-analysis {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
+/* Placeholder Title */
+.analysis-placeholder-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--icon-selected);
+    margin-bottom: 12px;
+    letter-spacing: 1px;
+}
+
+/* Placeholder Subtitle */
+.analysis-placeholder-subtitle {
+    font-size: 16px;
+    color: var(--text-muted);
+    margin-bottom: 40px;
+}
+
+/* =============================================
+   Analysis Features List
+   ============================================= */
+
+.analysis-placeholder-features {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.analysis-feature-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.analysis-feature-item:hover {
+    background: var(--bg-hover);
+    border-color: var(--icon-selected);
+    transform: translateX(4px);
+}
+
+.analysis-feature-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.analysis-feature-text {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: left;
+}
+
+.analysis-feature-badge {
+    font-size: 10px;
+    padding: 4px 10px;
+    background: var(--bg-selected);
+    color: var(--icon-selected);
+    border-radius: 20px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* =============================================
+   Analysis Mode Active State (Body Class)
+   ============================================= */
+
+body.analysis-mode-active #analysis-container {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+body.analysis-mode-active #threejs-container {
+    display: none;
+}
+
+body.analysis-mode-active #cover-screen {
+    display: none;
+}
+
+/* =============================================
+   Sidebar Button Active State for Analysis
+   ============================================= */
+
+#btn-analysis.selected,
+#btn-analysis.active {
+    background: var(--bg-selected);
+    color: var(--icon-selected);
+}
+
+#btn-analysis.selected .icon-btn-svg,
+#btn-analysis.active .icon-btn-svg {
+    stroke: var(--icon-selected);
+}
+
+#btn-analysis.selected::before,
+#btn-analysis.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 70%;
+    background: var(--icon-selected);
+    border-radius: 0 2px 2px 0;
+}
+
+/* =============================================
+   Responsive Design
+   ============================================= */
+
+@media (max-width: 768px) {
+    .analysis-placeholder-icon {
+        font-size: 56px;
+    }
+    
+    .analysis-placeholder-title {
+        font-size: 24px;
+    }
+    
+    .analysis-placeholder-subtitle {
+        font-size: 14px;
+        margin-bottom: 24px;
+    }
+    
+    .analysis-content {
+        padding: 20px;
+    }
+    
+    .analysis-placeholder-features {
+        gap: 12px;
+    }
+    
+    .analysis-feature-item {
+        padding: 12px 16px;
+    }
+    
+    .analysis-feature-text {
+        font-size: 13px;
+    }
+}
+
+/* =============================================
+   Theme Overrides - Dark Theme
+   ============================================= */
+
+[data-theme="dark"] .analysis-placeholder-title {
+    color: var(--icon-selected);
+    text-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+}
+
+[data-theme="dark"] .analysis-feature-item {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .analysis-feature-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--icon-selected);
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);
+}
+
+[data-theme="dark"] .analysis-feature-badge {
+    background: rgba(6, 182, 212, 0.15);
+}
+
+/* =============================================
+   Theme Overrides - Light Theme
+   ============================================= */
+
+[data-theme="light"] .analysis-placeholder-title {
+    color: var(--icon-selected);
+}
+
+[data-theme="light"] .analysis-placeholder-subtitle {
+    color: var(--text-secondary);
+}
+
+[data-theme="light"] .analysis-feature-item {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .analysis-feature-item:hover {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: var(--icon-selected);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .analysis-feature-badge {
+    background: rgba(8, 145, 178, 0.12);
+    color: var(--icon-selected);
+}
+
+/* =============================================
+   Animation for Features (Staggered)
+   ============================================= */
+
+.analysis-feature-item {
+    opacity: 0;
+    animation: fadeInUp 0.5s ease forwards;
+}
+
+.analysis-feature-item:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.analysis-feature-item:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.analysis-feature-item:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =============================================
+   Transition for Mode Switch
+   ============================================= */
+
+#analysis-container {
+    transition: 
+        opacity 0.3s ease,
+        visibility 0.3s ease,
+        transform 0.3s ease;
+}
+
+#analysis-container:not(.hidden) {
+    animation: analysisEnter 0.4s ease;
+}
+
+@keyframes analysisEnter {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}

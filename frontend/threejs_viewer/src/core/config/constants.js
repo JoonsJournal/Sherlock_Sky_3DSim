@@ -2,8 +2,12 @@
  * constants.js
  * 애플리케이션 전역 상수 정의
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description 모든 상수는 이 파일에서 중앙 관리
+ * 
+ * @changelog
+ * - v1.1.0: 🆕 APP_MODE에 ANALYTICS, PLAYBACK, SIMULATION, SETTINGS 추가 (2026-01-13)
+ *           - Analysis 모드 활성화 지원
  */
 
 // =====================================================
@@ -16,7 +20,12 @@ export const APP_MODE = Object.freeze({
     LAYOUT_EDIT_3D: 'layout_edit_3d', // 3D 레이아웃 편집 모드
     EQUIPMENT_EDIT: 'equipment_edit', // 장비 편집 모드
     MONITORING: 'monitoring',         // 실시간 모니터링 모드
-    CONNECTION: 'connection'          // 연결 설정 (오버레이)
+    CONNECTION: 'connection',         // 연결 설정 (오버레이)
+    // 🆕 v1.1.0: 추가된 모드
+    ANALYTICS: 'analytics',           // 분석 모드
+    PLAYBACK: 'playback',             // 재생 모드
+    SIMULATION: 'simulation',         // 시뮬레이션 모드
+    SETTINGS: 'settings'              // 설정 모드
 });
 
 // =====================================================

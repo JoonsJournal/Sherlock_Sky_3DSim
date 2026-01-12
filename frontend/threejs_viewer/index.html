@@ -1,70 +1,36 @@
 <!DOCTYPE html>
 <html lang="ko" data-theme="dark">
 <!--
- * index.html v7.0.0
+ * index.html v7.1.0
  * SHERLOCK SKY 3DSim - Cleanroom Sidebar Theme
  * 
- * @version 7.0.0
+ * @version 7.1.0
  * @created 2026-01-11
+ * @updated 2026-01-13
  * 
  * @changelog
- * - v7.0.0: 🔧 JS 리팩토링 완료 (2026-01-11)
- *           - 인라인 JS 79% 삭제 (~70줄 → ~15줄)
- *           - 7개 함수 main.js로 이전
- *           - FOUC 방지용 최소 코드만 유지
- *           - 전역 상태 초기화 + 테마 로드만 유지
- * - v6.0.0: CSS 리팩토링 완료
- * - v5.3.0: ModeIndicatorPanel pill 스타일 통일
- * - v5.2.2: 기존 스타일 완전 유지
+ * - v7.1.0: 🆕 Analysis 모드 컨테이너 추가 (2026-01-13)
+ *           - #analysis-container 추가
+ *           - Dark/Light 테마 지원
+ * - v7.0.0: JS 리팩토링 완료 (2026-01-11)
  * 
  * 위치: frontend/threejs_viewer/index.html
  * 
  * CSS 의존성:
  * - styles/main.css (진입점)
  *   ├── base/_variables.css (CSS 변수 SSOT)
- *   ├── base/_reset.css
- *   ├── base/_typography.css
- *   ├── components/_sidebar.css
- *   ├── components/_status-bar.css
- *   ├── components/_cover-screen.css
- *   ├── components/_mode-indicator.css
- *   ├── components/_overlay-ui.css
- *   ├── components/_misc.css
- *   ├── components/_modals.css
- *   ├── components/_toast.css
- *   ├── components/_equipment-info-panel.css
- *   └── pages/_viewer-3d.css
- * 
- * JS 의존성:
- * - src/main.js (ES Module 진입점)
- *   - 모든 전역 함수가 main.js에서 window 객체에 노출됨
- *   - window.showToast, window.toggleTheme, window.toggleDevMode 등
+ *   ├── components/_analysis-mode.css (🆕 추가)
+ *   └── ... 기타 컴포넌트
 -->
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏭 Sherlock Sky 3DSim v7.0</title>
+    <title>🏭 Sherlock Sky 3DSim v7.1</title>
     
-    <!-- 
-        =============================================
-        CSS 로드 순서 (중요!)
-        =============================================
-        main.css가 모든 CSS를 @import로 로드
-        _variables.css가 가장 먼저 로드되어 CSS 변수 정의
-    -->
     <link rel="stylesheet" href="styles/main.css">
     
     <style>
-        /* =============================================
-           ⚠️ 최소 인라인 스타일 (FOUC 방지용만 유지)
-           =============================================
-           모든 컴포넌트 스타일은 외부 CSS로 이전됨
-           여기에는 FOUC(Flash of Unstyled Content) 방지를 위한
-           최소한의 critical CSS만 유지
-           ============================================= */
-        
-        /* Body 기본 레이아웃 (FOUC 방지) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body { 
@@ -74,21 +40,6 @@
             font-family: 'Segoe UI', sans-serif; 
             background: var(--bg-main); 
         }
-        
-        /* 
-         * 나머지 모든 스타일은 외부 CSS 파일에서 관리:
-         * 
-         * - Sidebar → _sidebar.css
-         * - Status Bar → _status-bar.css
-         * - Cover Screen → _cover-screen.css
-         * - Mode Indicator → _mode-indicator.css
-         * - Main Content, Three.js Container → _overlay-ui.css
-         * - Close Button, Hidden 유틸리티 → _misc.css
-         * - Modals → _modals.css
-         * - Toast → _toast.css
-         * - Equipment Info Panel → _equipment-info-panel.css
-         * - Debug Panel → _sidebar.css
-         */
     </style>
 </head>
 
@@ -100,6 +51,34 @@
     <main class="main-content" id="main-content">
         <!-- Three.js Container -->
         <div id="threejs-container"></div>
+
+        <!-- 🆕 v7.1.0: Analysis Container -->
+        <div id="analysis-container" class="analysis-container hidden">
+            <div class="analysis-content">
+                <div class="analysis-placeholder">
+                    <div class="analysis-placeholder-icon">📊</div>
+                    <h2 class="analysis-placeholder-title">Analysis Mode</h2>
+                    <p class="analysis-placeholder-subtitle">분석 기능이 준비 중입니다</p>
+                    <div class="analysis-placeholder-features">
+                        <div class="analysis-feature-item">
+                            <span class="analysis-feature-icon">📈</span>
+                            <span class="analysis-feature-text">Calendar Heatmap</span>
+                            <span class="analysis-feature-badge">Coming Soon</span>
+                        </div>
+                        <div class="analysis-feature-item">
+                            <span class="analysis-feature-icon">🔍</span>
+                            <span class="analysis-feature-text">SUDDENSTOP Analysis</span>
+                            <span class="analysis-feature-badge">Coming Soon</span>
+                        </div>
+                        <div class="analysis-feature-item">
+                            <span class="analysis-feature-icon">⏱️</span>
+                            <span class="analysis-feature-text">Shift Change Impact</span>
+                            <span class="analysis-feature-badge">Coming Soon</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Overlay UI (레거시) -->
         <div class="overlay-ui" id="overlay-ui"></div>
@@ -147,22 +126,7 @@
     </script>
     
     <script>
-        // =============================================
-        // ⚠️ 최소 인라인 JS (FOUC 방지용만 유지)
-        // =============================================
-        // 모든 함수는 main.js로 이전됨
-        // 여기에는 main.js 로드 전 필요한 최소 코드만 유지
-        // 
-        // 🔧 v7.0.0 변경사항:
-        // - canAccessFeatures() → main.js
-        // - showToast() → main.js  
-        // - toggleConnectionModal() → main.js
-        // - closeConnectionModal() → main.js
-        // - toggleDebugPanel() → main.js
-        // - toggleDevMode() → main.js
-        // - toggleTheme() → main.js
-        
-        // 1. 전역 상태 초기화 (main.js 로드 전 보장)
+        // 전역 상태 초기화
         window.sidebarState = window.sidebarState || {
             currentMode: null,
             currentSubMode: null,
@@ -171,13 +135,13 @@
             debugPanelVisible: false
         };
         
-        // 2. FOUC 방지: 저장된 테마 즉시 적용
+        // FOUC 방지: 저장된 테마 즉시 적용
         (function loadTheme() {
             const saved = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', saved);
         })();
         
-        console.log('🏭 Sherlock Sky 3DSim v7.0.0 (JS Refactored)');
+        console.log('🏭 Sherlock Sky 3DSim v7.1.0 (Analysis Mode Added)');
     </script>
     
     <!-- Main Application (ES Module) -->

@@ -3,24 +3,18 @@
  * ==========
  * Cleanroom Sidebar UI 컴포넌트
  * 
- * @version 1.9.1
+ * @version 1.10.0
  * @created 2026-01-11
- * @updated 2026-01-12
+ * @updated 2026-01-13
  * 
  * @changelog
- * - v1.9.1: 🆕 submode:change 이벤트 발행 추가 (2026-01-12)
- *           - StatusBar Monitoring Stats Panel 연동을 위한 이벤트
- *           - _setSubMode()에서 EventBus로 서브모드 변경 알림
- * - v1.9.0: 🔧 서브메뉴 직접 클릭 시 AppModeManager 모드 전환 추가 (2026-01-12)
- *           - _setSubMode()에서 부모 모드로 AppModeManager.switchMode() 호출
- *           - Hover → 서브메뉴 직접 클릭 경로에서도 MonitoringService 정상 시작
- *           - 두 가지 UX 경로 모두 동일하게 작동하도록 수정
- * - v1.8.0: 🎨 ModeIndicatorPanel pill 스타일 + 위치 조정 (2026-01-11)
- *           - offsetX: 100 → 130 (오른쪽으로 이동)
- * - v1.7.2: ModeIndicatorPanel 연동 + 기존 스타일 유지
- * - v1.7.1: ModeIndicatorPanel 표시 버그 수정
- * - v1.7.0: ModeIndicatorPanel 연동
- * - v1.6.0: Dev Mode ↔ ConnectionModalManager Mock 모드 연동
+ * - v1.10.0: 🆕 Analysis 모드 활성화 (2026-01-13)
+ *           - _handleButtonClick()에 analysis 케이스 추가
+ *           - _getParentModeForSubmode()에 analysis 서브모드 매핑 추가
+ *           - _showAnalysisView(), _hideAnalysisView() 메서드 추가
+ * - v1.9.1: submode:change 이벤트 발행 추가
+ * - v1.9.0: 서브메뉴 직접 클릭 시 AppModeManager 모드 전환 추가
+ * - v1.8.0: ModeIndicatorPanel pill 스타일 + 위치 조정
  * 
  * 위치: frontend/threejs_viewer/src/ui/sidebar/Sidebar.js
  */
@@ -111,7 +105,7 @@ export class Sidebar {
         this._setupConnectionListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v1.9.1');
+        console.log('[Sidebar] 초기화 완료 v1.10.0 (Analysis 모드 활성화)');
     }
     
     _loadTheme() {
@@ -133,7 +127,8 @@ export class Sidebar {
         
         this._addButton('connection');
         this._addButtonWithSubmenu('monitoring');
-        this._addButton('analysis');
+        // 🆕 v1.10.0: Analysis 버튼 (서브메뉴 있음)
+        this._addButtonWithSubmenu('analysis');
         this._addButton('simulation');
         
         this.element.appendChild(createDivider());
@@ -203,21 +198,19 @@ export class Sidebar {
     
     // ========================================
     // ModeIndicatorPanel
-    // 🔧 v1.8.0: offsetX 130으로 변경
     // ========================================
     
     _createModeIndicatorPanel() {
         this.modeIndicatorPanel = new ModeIndicatorPanel({
             position: 'top-left',
-            offsetX: 130,   // 🔧 v1.8.0: 100 → 130 (오른쪽으로 이동)
+            offsetX: 130,
             offsetY: 12,
             eventBus: this.eventBus
         });
         
-        // 항상 표시 (Cover Screen에서만 숨김)
         this.modeIndicatorPanel.show();
         
-        console.log('[Sidebar] ModeIndicatorPanel 생성 완료 (offsetX: 130)');
+        console.log('[Sidebar] ModeIndicatorPanel 생성 완료');
     }
     
     // ========================================
@@ -333,6 +326,9 @@ export class Sidebar {
         }
     }
     
+    /**
+     * 🔧 v1.10.0: Analysis 케이스 추가
+     */
     _handleButtonClick(key, event) {
         const config = SIDEBAR_BUTTONS[key];
         if (!config) return;
@@ -349,13 +345,18 @@ export class Sidebar {
                 this._selectButton(key);
                 this._setMode('monitoring');
                 break;
+            
+            // 🆕 v1.10.0: Analysis 모드 추가
+            case 'analysis':
+                this._selectButton(key);
+                this._setMode('analysis');
+                break;
                 
             case 'layout':
                 this._selectButton(key);
                 this._setMode('layout');
                 break;
                 
-            case 'analysis':
             case 'simulation':
                 if (this.toast) {
                     this.toast.info('Coming Soon', `${config.mode} mode is under development`);
@@ -392,7 +393,6 @@ export class Sidebar {
             
             console.warn(`[Sidebar] Action not found: ${item.action}`);
         } else if (item.submode) {
-            // 🔧 v1.9.0: 서브메뉴 클릭 시 부모 모드도 설정
             const parentMode = this._getParentModeForSubmode(item.submode);
             if (parentMode) {
                 this.currentMode = parentMode;
@@ -402,13 +402,19 @@ export class Sidebar {
         }
     }
     
-    // 🆕 추가: 서브모드 → 부모 모드 매핑
+    /**
+     * 🔧 v1.10.0: Analysis 서브모드 매핑 추가
+     */
     _getParentModeForSubmode(submode) {
         const submodeToParent = {
             '3d-view': 'monitoring',
             'ranking-view': 'monitoring',
             'layout-editor': 'layout',
-            'mapping': 'layout'
+            'mapping': 'layout',
+            // 🆕 v1.10.0: Analysis 서브모드
+            'dashboard': 'analysis',
+            'heatmap': 'analysis',
+            'trend': 'analysis'
         };
         return submodeToParent[submode] || null;
     }
@@ -430,26 +436,16 @@ export class Sidebar {
     }
     
     /**
-     * 🔧 v1.9.0: 서브모드 설정 - AppModeManager 모드 전환 추가
-     * 🆕 v1.9.1: submode:change 이벤트 발행 추가
-     * 
-     * 문제: Hover → 서브메뉴 직접 클릭 시 AppModeManager 모드가 변경되지 않아
-     *       MonitoringService가 시작되지 않는 버그
-     * 
-     * 해결: _setSubMode()에서 부모 모드로 AppModeManager.switchMode() 호출
-     * 
-     * @param {string} submode - 서브모드 이름 ('3d-view', 'ranking-view', etc.)
+     * 서브모드 설정
      */
     _setSubMode(submode) {
         this.currentSubMode = submode;
         
-        // 🆕 v1.9.0: 부모 모드로 AppModeManager 전환 (핵심 수정!)
         const parentMode = this._getParentModeForSubmode(submode);
         if (parentMode && this.appModeManager) {
             const appMode = this.APP_MODE[MODE_MAP[parentMode]];
             const currentAppMode = this.appModeManager.getCurrentMode();
             
-            // 현재 모드가 다르면 전환
             if (appMode && currentAppMode !== appMode) {
                 console.log(`[Sidebar] 🔄 서브메뉴 직접 클릭 감지 - AppModeManager 모드 전환: ${currentAppMode} → ${appMode}`);
                 this.appModeManager.switchMode(appMode);
@@ -462,15 +458,17 @@ export class Sidebar {
         
         updateSubmenuActiveState(this.currentSubMode);
         
+        // 🔧 v1.10.0: 모드별 View 관리
         if (this.currentMode === 'monitoring' && submode === '3d-view') {
             this._show3DView();
+        } else if (this.currentMode === 'analysis') {
+            this._showAnalysisView();
         } else {
             this._hideAllViews();
         }
         
         this._updateModeIndicator();
         
-        // 🆕 v1.9.1: submode:change 이벤트 발행 (StatusBar 연동)
         if (this.eventBus) {
             this.eventBus.emit('submode:change', {
                 submode: submode,
@@ -505,10 +503,12 @@ export class Sidebar {
         const coverScreen = document.getElementById('cover-screen');
         const threejsContainer = document.getElementById('threejs-container');
         const overlayUI = document.getElementById('overlay-ui');
+        const analysisContainer = document.getElementById('analysis-container');
         
         if (coverScreen) coverScreen.classList.add('hidden');
         if (threejsContainer) threejsContainer.classList.add('active');
         if (overlayUI) overlayUI.style.display = 'none';
+        if (analysisContainer) analysisContainer.classList.add('hidden');
         
         if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.show();
@@ -519,14 +519,47 @@ export class Sidebar {
         }
     }
     
-    _hideAllViews() {
+    /**
+     * 🆕 v1.10.0: Analysis View 표시
+     */
+    _showAnalysisView() {
         const coverScreen = document.getElementById('cover-screen');
         const threejsContainer = document.getElementById('threejs-container');
         const overlayUI = document.getElementById('overlay-ui');
+        const analysisContainer = document.getElementById('analysis-container');
         
         if (coverScreen) coverScreen.classList.add('hidden');
         if (threejsContainer) threejsContainer.classList.remove('active');
         if (overlayUI) overlayUI.style.display = 'none';
+        if (analysisContainer) analysisContainer.classList.remove('hidden');
+        
+        if (this.modeIndicatorPanel) {
+            this.modeIndicatorPanel.show();
+        }
+        
+        console.log('[Sidebar] Analysis View 표시');
+    }
+    
+    /**
+     * 🆕 v1.10.0: Analysis View 숨김
+     */
+    _hideAnalysisView() {
+        const analysisContainer = document.getElementById('analysis-container');
+        if (analysisContainer) {
+            analysisContainer.classList.add('hidden');
+        }
+    }
+    
+    _hideAllViews() {
+        const coverScreen = document.getElementById('cover-screen');
+        const threejsContainer = document.getElementById('threejs-container');
+        const overlayUI = document.getElementById('overlay-ui');
+        const analysisContainer = document.getElementById('analysis-container');
+        
+        if (coverScreen) coverScreen.classList.add('hidden');
+        if (threejsContainer) threejsContainer.classList.remove('active');
+        if (overlayUI) overlayUI.style.display = 'none';
+        if (analysisContainer) analysisContainer.classList.add('hidden');
         
         if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.show();
@@ -537,12 +570,13 @@ export class Sidebar {
         const coverScreen = document.getElementById('cover-screen');
         const threejsContainer = document.getElementById('threejs-container');
         const overlayUI = document.getElementById('overlay-ui');
+        const analysisContainer = document.getElementById('analysis-container');
         
         if (coverScreen) coverScreen.classList.remove('hidden');
         if (threejsContainer) threejsContainer.classList.remove('active');
         if (overlayUI) overlayUI.style.display = 'none';
+        if (analysisContainer) analysisContainer.classList.add('hidden');
         
-        // Cover Screen에서만 숨김
         if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.hide();
         }
@@ -693,17 +727,14 @@ export class Sidebar {
     toggleDevMode() {
         this.devModeEnabled = !this.devModeEnabled;
         
-        // 기존 함수들 호출 (호환성)
         updateDevModeBadge(this.devModeEnabled);
         updateDevModeLabel(this.devModeEnabled);
         setMockTestSectionVisible(this.devModeEnabled);
         
-        // ModeIndicatorPanel Dev Mode 연동
         if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.setDevMode(this.devModeEnabled);
         }
         
-        // Mock 모드 연동
         if (this.connectionModalManager) {
             if (this.devModeEnabled) {
                 this.connectionModalManager.enableMockMode({
