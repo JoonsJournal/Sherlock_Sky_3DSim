@@ -3,11 +3,15 @@
  * ==========
  * Cleanroom Sidebar UI 컴포넌트
  * 
- * @version 1.8.0
+ * @version 1.9.0
  * @created 2026-01-11
- * @updated 2026-01-11
+ * @updated 2026-01-12
  * 
  * @changelog
+ * - v1.9.0: 🔧 서브메뉴 직접 클릭 시 AppModeManager 모드 전환 추가 (2026-01-12)
+ *           - _setSubMode()에서 부모 모드로 AppModeManager.switchMode() 호출
+ *           - Hover → 서브메뉴 직접 클릭 경로에서도 MonitoringService 정상 시작
+ *           - 두 가지 UX 경로 모두 동일하게 작동하도록 수정
  * - v1.8.0: 🎨 ModeIndicatorPanel pill 스타일 + 위치 조정 (2026-01-11)
  *           - offsetX: 100 → 130 (오른쪽으로 이동)
  * - v1.7.2: ModeIndicatorPanel 연동 + 기존 스타일 유지
@@ -104,7 +108,7 @@ export class Sidebar {
         this._setupConnectionListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v1.8.0');
+        console.log('[Sidebar] 초기화 완료 v1.9.0');
     }
     
     _loadTheme() {
@@ -385,27 +389,27 @@ export class Sidebar {
             
             console.warn(`[Sidebar] Action not found: ${item.action}`);
         } else if (item.submode) {
-			// 🔧 수정: 서브메뉴 클릭 시 부모 모드도 설정
-        const parentMode = this._getParentModeForSubmode(item.submode);
-	        if (parentMode) {
-	            this.currentMode = parentMode;
-	            this._selectButton(parentMode);
-	        }
+            // 🔧 v1.9.0: 서브메뉴 클릭 시 부모 모드도 설정
+            const parentMode = this._getParentModeForSubmode(item.submode);
+            if (parentMode) {
+                this.currentMode = parentMode;
+                this._selectButton(parentMode);
+            }
             this._setSubMode(item.submode);
         }
     }
     
-	// 🆕 추가: 서브모드 → 부모 모드 매핑
-	_getParentModeForSubmode(submode) {
-	    const submodeToParent = {
-	        '3d-view': 'monitoring',
-	        'ranking-view': 'monitoring',
-	        'layout-editor': 'layout',
-	        'mapping': 'layout'
-	    };
-	    return submodeToParent[submode] || null;
-	}
-	
+    // 🆕 추가: 서브모드 → 부모 모드 매핑
+    _getParentModeForSubmode(submode) {
+        const submodeToParent = {
+            '3d-view': 'monitoring',
+            'ranking-view': 'monitoring',
+            'layout-editor': 'layout',
+            'mapping': 'layout'
+        };
+        return submodeToParent[submode] || null;
+    }
+    
     // ========================================
     // Mode Management
     // ========================================
@@ -422,8 +426,31 @@ export class Sidebar {
         this.appModeManager.toggleMode(appMode);
     }
     
+    /**
+     * 🔧 v1.9.0: 서브모드 설정 - AppModeManager 모드 전환 추가
+     * 
+     * 문제: Hover → 서브메뉴 직접 클릭 시 AppModeManager 모드가 변경되지 않아
+     *       MonitoringService가 시작되지 않는 버그
+     * 
+     * 해결: _setSubMode()에서 부모 모드로 AppModeManager.switchMode() 호출
+     * 
+     * @param {string} submode - 서브모드 이름 ('3d-view', 'ranking-view', etc.)
+     */
     _setSubMode(submode) {
         this.currentSubMode = submode;
+        
+        // 🆕 v1.9.0: 부모 모드로 AppModeManager 전환 (핵심 수정!)
+        const parentMode = this._getParentModeForSubmode(submode);
+        if (parentMode && this.appModeManager) {
+            const appMode = this.APP_MODE[MODE_MAP[parentMode]];
+            const currentAppMode = this.appModeManager.getCurrentMode();
+            
+            // 현재 모드가 다르면 전환
+            if (appMode && currentAppMode !== appMode) {
+                console.log(`[Sidebar] 🔄 서브메뉴 직접 클릭 감지 - AppModeManager 모드 전환: ${currentAppMode} → ${appMode}`);
+                this.appModeManager.switchMode(appMode);
+            }
+        }
         
         if (this.appModeManager) {
             this.appModeManager.setSubMode(submode);
