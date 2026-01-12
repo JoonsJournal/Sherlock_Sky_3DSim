@@ -2,8 +2,18 @@
  * InteractionHandler.js
  * 마우스 및 키보드 상호작용 처리
  * 
- * @version 3.0.0
+ * @version 3.2.0
  * @description 호버/선택 기능, AppModeManager 기반 모드별 동작 분기
+ * 
+ * 🆕 v3.2.0:
+ * - 🔧 _handleMonitoringClick() 수정: 미매핑 설비도 패널 표시
+ * - early return 제거 → 알림 표시 후 선택 + 패널 표시 계속 진행
+ * - 미매핑 설비 클릭 시에도 기본 정보 패널 표시 (UX 개선)
+ * 
+ * 🆕 v3.1.0:
+ * - 🔧 마우스 좌표 계산 수정 (Sidebar offset 고려)
+ * - _getMousePosition() 헬퍼 메서드 추가
+ * - getBoundingClientRect() 사용으로 정확한 캔버스 기준 좌표 계산
  * 
  * 🆕 v3.0.0: 
  * - AppModeManager 참조로 모드 판단 (중앙 집중식)
@@ -65,7 +75,26 @@ export class InteractionHandler {
         this.domElement.addEventListener('mousemove', this._boundOnMouseMove, false);
         this.domElement.addEventListener('mouseleave', this._boundOnMouseLeave, false);
         
-        debugLog('🖱️ InteractionHandler 초기화 완료 (v3.0.0)');
+        debugLog('🖱️ InteractionHandler 초기화 완료 (v3.2.0)');
+    }
+    
+    // =========================================================================
+    // 🆕 v3.1.0: 마우스 좌표 계산 (캔버스 기준)
+    // =========================================================================
+    
+    /**
+     * 🔧 v3.1.0: 캔버스 기준 정규화된 마우스 좌표 계산
+     * Sidebar offset을 고려하여 정확한 좌표 반환
+     * 
+     * @param {MouseEvent} event - 마우스 이벤트
+     * @private
+     */
+    _getMousePosition(event) {
+        const rect = this.domElement.getBoundingClientRect();
+        
+        // 캔버스 기준 상대 좌표 계산 (-1 ~ 1 정규화)
+        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     }
     
     // =========================================================================
@@ -182,10 +211,11 @@ export class InteractionHandler {
     
     /**
      * 마우스 이동 핸들러
+     * 🔧 v3.1.0: _getMousePosition() 사용
      */
     onMouseMove(event) {
-        this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        // 🔧 v3.1.0: 캔버스 기준 좌표 계산
+        this._getMousePosition(event);
         
         this.raycaster.setFromCamera(this.mouse, this.camera);
         
@@ -212,10 +242,11 @@ export class InteractionHandler {
     
     /**
      * 🆕 v3.0.0: 마우스 클릭 핸들러 (모드별 동작 분기)
+     * 🔧 v3.1.0: _getMousePosition() 사용
      */
     onMouseClick(event) {
-        this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        // 🔧 v3.1.0: 캔버스 기준 좌표 계산
+        this._getMousePosition(event);
         
         this.raycaster.setFromCamera(this.mouse, this.camera);
         
@@ -287,19 +318,24 @@ export class InteractionHandler {
     
     /**
      * 🆕 v3.0.0: Monitoring 모드 클릭 처리
+     * 🔧 v3.2.0: 미매핑 설비도 패널 표시하도록 수정
+     * 
      * @private
      */
     _handleMonitoringClick(targetEquipment, frontendId, event) {
         debugLog(`📊 Monitoring Mode Click: ${frontendId}`);
         
-        // 미연결 설비 확인 및 안내
+        // 🔧 v3.2.0: 미매핑 여부 확인 (알림 표시용)
+        let isMapped = true;
+        
         if (this.monitoringService?.isActive) {
-            const isMapped = this.monitoringService.checkAndNotifyUnmapped(frontendId);
+            // 미연결 설비 확인 및 안내 (알림만 표시, early return 제거!)
+            isMapped = this.monitoringService.checkAndNotifyUnmapped(frontendId);
             
             if (!isMapped) {
-                // 미연결 설비는 선택하지 않고 안내만 표시
-                debugLog(`⚠️ Unmapped equipment clicked: ${frontendId}`);
-                return;
+                // 🔧 v3.2.0: 미연결 설비도 선택 및 패널 표시 (early return 제거!)
+                debugLog(`⚠️ Unmapped equipment clicked: ${frontendId} - showing basic info`);
+                // return; ← 🔴 기존 코드: 여기서 return 하면 패널이 안 열림!
             }
         }
         
@@ -308,7 +344,7 @@ export class InteractionHandler {
             this.currentHoveredEquipment = null;
         }
         
-        // 선택 처리
+        // 선택 처리 (매핑 여부와 관계없이 항상 실행)
         const isMultiSelectMode = event.ctrlKey || event.metaKey;
         
         if (isMultiSelectMode) {
@@ -317,11 +353,18 @@ export class InteractionHandler {
             this.selectionManager.select(targetEquipment, false);
         }
         
-        // DataOverlay에 설비 정보 표시
+        // 🔧 v3.2.0: DataOverlay에 설비 정보 표시 (매핑 여부와 관계없이 항상 실행)
         const selectedData = this.selectionManager.getSelectedData();
         
         if (this.dataOverlay && selectedData.length > 0) {
-            this.dataOverlay.showEquipmentInfo(selectedData);
+            // 🆕 v3.2.0: 미매핑 정보 추가 (패널에서 표시용)
+            const enrichedData = selectedData.map(data => ({
+                ...data,
+                _isMapped: isMapped,  // 매핑 여부 플래그 추가
+                _frontendId: frontendId
+            }));
+            
+            this.dataOverlay.showEquipmentInfo(enrichedData);
         }
         
         // 콜백 호출

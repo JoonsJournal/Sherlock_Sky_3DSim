@@ -8,10 +8,11 @@
  * - Edit 모드 이벤트
  * - Layout 이벤트
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @module EventBootstrap
  * 
  * @changelog
+ * - v1.2.0: 🔧 H/G 키 동적 SceneManager 조회 (클로저 캡처 문제 해결)
  * - v1.1.0: 'E' 키 처리를 EquipmentEditButton으로 이관 (EventBus 통해)
  * 
  * 위치: frontend/threejs_viewer/src/bootstrap/EventBootstrap.js
@@ -23,7 +24,7 @@ import { debugLog } from '../core/utils/Config.js';
 import { toast } from '../ui/common/Toast.js';
 import { layout2DTo3DConverter } from '../services/converter/Layout2DTo3DConverter.js';
 import { roomParamsAdapter } from '../services/converter/RoomParamsAdapter.js';
-import { eventBus } from '../core/managers/EventBus.js';  // 🆕 추가
+import { eventBus } from '../core/managers/EventBus.js';
 
 /**
  * UI 버튼 이벤트 리스너 설정
@@ -76,6 +77,32 @@ export function setupUIEventListeners(handlers) {
 }
 
 /**
+ * 🆕 v1.2.0: 동적으로 SceneManager 조회
+ * 클로저 캡처 문제를 우회하여 실행 시점에 SceneManager를 찾음
+ * 
+ * @param {Object|null} handlerSceneManager - handlers에서 전달된 sceneManager
+ * @returns {Object|null} SceneManager 인스턴스 또는 null
+ */
+function _getSceneManager(handlerSceneManager) {
+    // 1. handlers에서 전달된 경우
+    if (handlerSceneManager?.toggleHelpers) {
+        return handlerSceneManager;
+    }
+    
+    // 2. window.sceneManager (exposeGlobalObjects에서 설정)
+    if (window.sceneManager?.toggleHelpers) {
+        return window.sceneManager;
+    }
+    
+    // 3. window.services.scene.sceneManager
+    if (window.services?.scene?.sceneManager?.toggleHelpers) {
+        return window.services.scene.sceneManager;
+    }
+    
+    return null;
+}
+
+/**
  * 키보드 단축키 설정
  * @param {Object} handlers - 이벤트 핸들러 객체
  */
@@ -86,8 +113,8 @@ export function setupKeyboardShortcuts(handlers) {
         toggleConnectionModal,
         toggleDebugPanel,
         togglePerformanceMonitor,
-        toggleAdaptivePerformance,  // 🆕 추가
-        sceneManager,
+        toggleAdaptivePerformance,
+        sceneManager,  // 🔴 주의: 초기화 시점에 null일 수 있음
         connectionModal,
         updateConnectionButtonState
     } = handlers;
@@ -123,17 +150,25 @@ export function setupKeyboardShortcuts(handlers) {
             case 'h':
                 e.stopPropagation();
                 e.preventDefault();
-                if (sceneManager && sceneManager.toggleHelpers) {
-                    sceneManager.toggleHelpers();
+                // 🔧 v1.2.0: 동적으로 SceneManager 조회
+                const smH = _getSceneManager(sceneManager);
+                if (smH) {
+                    smH.toggleHelpers();
                     console.log('🔧 헬퍼 토글됨');
+                } else {
+                    console.warn('⚠️ SceneManager를 찾을 수 없습니다 (3D View 진입 필요)');
                 }
                 break;
             case 'g':
                 e.stopPropagation();
                 e.preventDefault();
-                if (sceneManager && sceneManager.toggleGrid) {
-                    sceneManager.toggleGrid();
+                // 🔧 v1.2.0: 동적으로 SceneManager 조회
+                const smG = _getSceneManager(sceneManager);
+                if (smG) {
+                    smG.toggleGrid();
                     console.log('🔧 그리드 토글됨');
+                } else {
+                    console.warn('⚠️ SceneManager를 찾을 수 없습니다 (3D View 진입 필요)');
                 }
                 break;
             case 'm':
@@ -166,7 +201,7 @@ export function setupKeyboardShortcuts(handlers) {
         }
     }, true);  // capture: true
     
-    console.log('  ✅ 키보드 단축키 등록 완료 (capture mode)');
+    console.log('  ✅ 키보드 단축키 등록 완료 (capture mode, v1.2.0)');
 }
 
 /**

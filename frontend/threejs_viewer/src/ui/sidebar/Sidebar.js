@@ -385,10 +385,27 @@ export class Sidebar {
             
             console.warn(`[Sidebar] Action not found: ${item.action}`);
         } else if (item.submode) {
+			// 🔧 수정: 서브메뉴 클릭 시 부모 모드도 설정
+        const parentMode = this._getParentModeForSubmode(item.submode);
+	        if (parentMode) {
+	            this.currentMode = parentMode;
+	            this._selectButton(parentMode);
+	        }
             this._setSubMode(item.submode);
         }
     }
     
+	// 🆕 추가: 서브모드 → 부모 모드 매핑
+	_getParentModeForSubmode(submode) {
+	    const submodeToParent = {
+	        '3d-view': 'monitoring',
+	        'ranking-view': 'monitoring',
+	        'layout-editor': 'layout',
+	        'mapping': 'layout'
+	    };
+	    return submodeToParent[submode] || null;
+	}
+	
     // ========================================
     // Mode Management
     // ========================================

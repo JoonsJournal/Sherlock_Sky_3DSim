@@ -1,5 +1,5 @@
 /**
- * SignalTowerIntegration.js - v1.0.0
+ * SignalTowerIntegration.js - v1.1.0
  * SignalTower 및 설비 스타일 관리 모듈
  * 
  * Phase 6: MonitoringService에서 추출
@@ -9,8 +9,14 @@
  * - 설비 상태 업데이트 (램프 제어)
  * - 상태 정규화 유틸리티
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @since 2026-01-10
+ * 
+ * @changelog
+ * - v1.1.0: 🔧 isEquipmentMapped() 방어적 코딩 추가
+ *           - mappings가 비어있으면 true 반환 (모든 설비를 매핑된 것으로 간주)
+ *           - 매핑 데이터 로드 전에도 SignalTower가 정상 동작
+ * - v1.0.0: 초기 버전
  * 
  * 외부 의존성 (외부에서 주입):
  * - SignalTowerManager: updateStatus(), initializeAllLights(), disableUnmappedEquipment(), clearDisabledState(), getStatusStatistics()
@@ -72,7 +78,7 @@ export class SignalTowerIntegration {
             rate: 0
         };
         
-        this._log('🚨 SignalTowerIntegration 초기화');
+        this._log('🚨 SignalTowerIntegration 초기화 (v1.1.0)');
     }
     
     /**
@@ -403,11 +409,23 @@ export class SignalTowerIntegration {
     
     /**
      * 설비 매핑 여부 확인
+     * 🔧 v1.1.0: mappings가 비어있으면 true 반환 (방어적 코딩)
+     * 
      * @param {string} frontendId - Frontend ID
      * @returns {boolean} 매핑 여부
      */
     isEquipmentMapped(frontendId) {
-        if (!this.equipmentEditState) return true;  // 없으면 기본 true
+        // EquipmentEditState가 없으면 기본 true
+        if (!this.equipmentEditState) return true;
+        
+        // 🔧 v1.1.0: mappings가 비어있으면 true 반환 (방어적 코딩)
+        // 매핑 데이터가 아직 로드되지 않은 경우에도 SignalTower가 정상 동작하도록 함
+        const mappings = this.equipmentEditState.getAllMappings?.() || {};
+        if (Object.keys(mappings).length === 0) {
+            this._log(`⚠️ Mappings empty - treating ${frontendId} as mapped (defensive)`);
+            return true;  // 매핑 데이터가 없으면 모든 설비를 매핑된 것으로 간주
+        }
+        
         return this.equipmentEditState.isComplete?.(frontendId) || false;
     }
     

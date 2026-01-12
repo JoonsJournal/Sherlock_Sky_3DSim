@@ -12,10 +12,24 @@
  * - 서버 동기화 및 충돌 해결
  * - 강화된 에러 처리
  * - 디버깅 유틸리티
+ * @version 1.4.0
+ * 🆕 v1.4.0: API에서 매핑 데이터 로드
+ * Site 연결 후 서버에서 매핑 데이터를 가져와 상태에 적용
+ * @param {Object} apiClient - ApiClient 인스턴스
+ * @param {Object} options - 옵션
+ * @param {string} options.mergeStrategy - 'replace' | 'merge' | 'keep-local' (기본: 'replace')
+ * @param {boolean} options.silent - 로그 출력 여부 (기본: false)
+ * @returns {Promise<{success: boolean, count: number, error?: string}>}
+ * 
+ * @example
+ * // Site 연결 성공 후 호출
+ * const result = await equipmentEditState.loadMappingsFromApi(apiClient);
+ * if (result.success) {
+ *     console.log(`${result.count}개 매핑 로드 완료`); 
+ * } 
  * - 🆕 StorageService AutoSave 연동
  * - 🆕 v1.3.0: equipment_id 역방향 인덱스, line_name 저장
  * 
- * @version 1.3.0
  */
 
 import { debugLog } from '../core/utils/Config.js';
@@ -779,6 +793,104 @@ export class EquipmentEditState {
         });
     }
     
+	async loadMappingsFromApi(apiClient, options = {}) {
+	    const { mergeStrategy = 'replace', silent = false } = options;
+	    
+	    if (!apiClient) {
+	        const error = 'ApiClient not provided';
+	        if (!silent) console.error(`❌ [EquipmentEditState] ${error}`);
+	        return { success: false, count: 0, error };
+	    }
+	    
+	    try {
+	        if (!silent) debugLog('📡 Loading mappings from API...');
+	        
+	        // API 호출: GET /equipment/mapping
+	        const serverMappings = await apiClient.getEquipmentMappings();
+	        
+	        // 응답 검증
+	        if (!serverMappings || typeof serverMappings !== 'object') {
+	            if (!silent) debugLog('⚠️ Empty or invalid mappings response from server');
+	            return { success: true, count: 0 };
+	        }
+	        
+	        const count = Object.keys(serverMappings).length;
+	        
+	        if (count === 0) {
+	            if (!silent) debugLog('ℹ️ No mappings found on server');
+	            return { success: true, count: 0 };
+	        }
+	        
+	        // 기존 loadFromServer 메서드 활용
+	        this.loadFromServer(serverMappings, mergeStrategy);
+	        
+	        if (!silent) {
+	            debugLog(`✅ Mappings loaded from API: ${count}개 (${mergeStrategy})`);
+	        }
+	        
+	        // 이벤트 발생
+	        this.dispatchEvent('mappings-loaded-from-api', {
+	            count,
+	            mergeStrategy,
+	            source: 'api'
+	        });
+	        
+	        return { success: true, count };
+	        
+	    } catch (error) {
+	        const errorMsg = error.message || 'Unknown error';
+	        if (!silent) {
+	            console.error(`❌ [EquipmentEditState] Failed to load mappings from API:`, error);
+	        }
+	        
+	        // 에러 이벤트 발생
+	        this.dispatchEvent('mappings-load-error', {
+	            error: errorMsg,
+	            source: 'api'
+	        });
+	        
+	        return { success: false, count: 0, error: errorMsg };
+	    }
+	}
+	
+	/**
+	 * 🆕 v1.4.0: 매핑 데이터가 비어있는지 확인
+	 * @returns {boolean} 매핑이 없으면 true
+	 */
+	isMappingsEmpty() {
+	    return Object.keys(this.mappings).length === 0;
+	}
+	
+	/**
+	 * 🆕 v1.4.0: 매핑 로드 상태 확인
+	 * @returns {{ isEmpty: boolean, count: number, hasLocalData: boolean }}
+	 */
+	getMappingsStatus() {
+	    const count = Object.keys(this.mappings).length;
+	    return {
+	        isEmpty: count === 0,
+	        count,
+	        hasLocalData: this._hasLocalStorageData()
+	    };
+	}
+	
+	/**
+	 * @private
+	 * localStorage에 데이터가 있는지 확인
+	 */
+	_hasLocalStorageData() {
+	    try {
+	        const stored = localStorage.getItem(this.storageKey);
+	        if (!stored) return false;
+	        const data = JSON.parse(stored);
+	        return data && data.mappings && Object.keys(data.mappings).length > 0;
+	    } catch {
+	        return false;
+	    }
+	}
+	
+	
+	
     /**
      * 서버와 동기화 필요 여부 확인
      * @param {Object} serverMappings - 서버 매핑 데이터

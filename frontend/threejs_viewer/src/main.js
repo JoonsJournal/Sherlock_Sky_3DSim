@@ -4,10 +4,10 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 5.2.0
- * @description 전역 유틸리티 함수 추가 (index.html 인라인 JS 이전)
- * 
+ * @version 5.3.0
  * @changelog
+ * - v5.3.0: 🆕 Site 연결 후 매핑 데이터 자동 로드 추가
+ * - v5.2.1: 🔧 window.services 전역 노출 (H/G 키 동적 SceneManager 조회 지원)
  * - v5.2.0: 🔧 전역 유틸리티 함수 추가 (2026-01-11)
  *           - window.showToast() 추가 (HTML onclick 호환)
  *           - window.closeConnectionModal() 추가
@@ -93,6 +93,9 @@ const services = {
     ui: null,
     monitoring: null
 };
+
+// 🆕 v5.2.1: services를 window에 노출 (H/G 키 동적 SceneManager 조회 지원)
+window.services = services;
 
 // Site ID (URL 파라미터 또는 기본값)
 const urlParams = new URLSearchParams(window.location.search);
@@ -462,13 +465,13 @@ function toggleMonitoringMode(submode = '3d-view') {
     const prevMode = appModeManager.getCurrentMode();
     
     if (prevMode === APP_MODE.MONITORING && window.sidebarState?.currentSubMode === submode) {
-        appModeManager.setMode(APP_MODE.VIEWER);
+        appModeManager.switchMode(APP_MODE.MAIN_VIEWER);
         viewManager.showCoverScreen();
         updateModeIndicator(null, null);
         return;
     }
     
-    appModeManager.setMode(APP_MODE.MONITORING);
+    appModeManager.switchMode(APP_MODE.MONITORING);
     
     if (submode === '3d-view') {
         viewManager.show3DView();
@@ -707,7 +710,7 @@ function initSidebarUI() {
 }
 
 // ============================================
-// Connection 이벤트 설정
+// 🔌 Connection 이벤트 설정
 // ============================================
 
 function setupConnectionEvents() {
@@ -738,9 +741,12 @@ function setupConnectionEvents() {
     }
     
     // Site 연결 이벤트
-    eventBus.on('site:connected', ({ siteId, siteName }) => {
+    eventBus.on('site:connected', async ({ siteId, siteName }) => {
         console.log(`[Connection] Site Connected: ${siteId}`);
         window.sidebarState.isConnected = true;
+        
+        // 🆕 v5.3.0: Site 연결 후 매핑 데이터 자동 로드
+        await _loadEquipmentMappingsAfterConnection(siteId);
     });
     
     eventBus.on('site:disconnected', () => {
@@ -749,6 +755,64 @@ function setupConnectionEvents() {
     });
     
     console.log('✅ Connection 이벤트 설정 완료');
+}
+
+/**
+ * 🆕 v5.3.0: Site 연결 후 매핑 데이터 로드
+ * @private
+ * @param {string} siteId - 연결된 Site ID
+ */
+async function _loadEquipmentMappingsAfterConnection(siteId) {
+    const equipmentEditState = services.ui?.equipmentEditState;
+    const apiClient = services.ui?.apiClient;
+    
+    // 의존성 확인
+    if (!equipmentEditState) {
+        console.warn('[Connection] EquipmentEditState not available - skipping mapping load');
+        return;
+    }
+    
+    if (!apiClient) {
+        console.warn('[Connection] ApiClient not available - skipping mapping load');
+        return;
+    }
+    
+    // 이미 매핑이 있으면 스킵 (로컬 데이터 우선)
+    const currentStatus = equipmentEditState.getMappingsStatus?.() || { isEmpty: true };
+    if (!currentStatus.isEmpty) {
+        console.log(`[Connection] Local mappings exist (${currentStatus.count}개) - skipping API load`);
+        return;
+    }
+    
+    try {
+        console.log(`📡 Loading equipment mappings for site: ${siteId}`);
+        
+        // API에서 매핑 로드
+        const result = await equipmentEditState.loadMappingsFromApi(apiClient, {
+            mergeStrategy: 'replace',
+            silent: false
+        });
+        
+        if (result.success && result.count > 0) {
+            console.log(`✅ Equipment mappings loaded: ${result.count}개`);
+            window.showToast?.(`${result.count}개 설비 매핑 로드됨`, 'success');
+            
+            // MonitoringService에 매핑 갱신 알림 (활성 상태인 경우)
+            if (services.monitoring?.monitoringService?.isActive) {
+                console.log('[Connection] Notifying MonitoringService of mapping update');
+                // MonitoringService가 applyUnmappedStyle을 다시 호출하도록 함
+                services.monitoring.monitoringService.refreshMappingState?.();
+            }
+        } else if (result.success && result.count === 0) {
+            console.log('ℹ️ No equipment mappings on server');
+        } else {
+            console.warn(`⚠️ Failed to load mappings: ${result.error}`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading equipment mappings:', error);
+        window.showToast?.('매핑 데이터 로드 실패', 'warning');
+    }
 }
 
 // ============================================
@@ -1147,7 +1211,7 @@ function _exposeGlobalObjectsAfterSceneInit() {
 // ============================================
 
 function init() {
-    console.log('🚀 Sherlock Sky 3DSim 초기화 (v5.2.0 - 전역 유틸리티 함수 추가)...');
+    console.log('🚀 Sherlock Sky 3DSim 초기화 (v5.2.1 - window.services 전역 노출)...');
     console.log(`📍 Site ID: ${SITE_ID}`);
     
     try {
@@ -1224,7 +1288,7 @@ function init() {
             timestamp: Date.now(),
             mode: appModeManager.getCurrentMode(),
             siteId: SITE_ID,
-            version: '5.2.0'
+            version: '5.2.1'
         });
         
         // 11. 성능 업데이트 인터벌 (StatusBar.js가 자체 처리하므로 간소화)
@@ -1235,7 +1299,7 @@ function init() {
         }, 2000);
         
         console.log('');
-        console.log('✅ 모든 초기화 완료! (v5.2.0 - 전역 유틸리티 함수 추가)');
+        console.log('✅ 모든 초기화 완료! (v5.2.1 - window.services 전역 노출)');
         console.log('');
         console.log('📺 Cover Screen 표시 중 (CoverScreen.js)');
         console.log('🎨 Sidebar 렌더링 완료 (Sidebar.js)');
@@ -1250,11 +1314,15 @@ function init() {
         console.log('   window.toggleDebugPanel()');
         console.log('   window.canAccessFeatures()');
         console.log('');
+        console.log('🆕 v5.2.1: window.services 전역 노출 (H/G 키 지원)');
+        console.log('');
         console.log('💡 키보드 단축키:');
         console.log('   Ctrl+K - Connection Modal');
         console.log('   D - Debug Panel');
         console.log('   E - Equipment Edit Mode');
         console.log('   M - Monitoring Mode (3D View)');
+        console.log('   H - Helper 토글 (3D View)');
+        console.log('   G - Grid 토글 (3D View)');
         console.log('');
         
     } catch (error) {
