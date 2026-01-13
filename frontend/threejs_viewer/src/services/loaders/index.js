@@ -35,10 +35,13 @@ export {
 export {
     DataLoaderFactory,
     LoaderMode,
+    FactoryEvents,          // 🆕 v1.4.0: 팩토리 이벤트
     dataLoaderFactory,
     getDataLoader,
     configureDataLoaders,
     disposeAllDataLoaders,
+    registerDataLoader,     // 🆕 v1.4.0: 로더 등록 헬퍼
+    getFactoryStatus,       // 🆕 v1.4.0: 상태 조회 헬퍼
     default as DataLoaderFactoryDefault
 } from './DataLoaderFactory.js';
 
@@ -88,6 +91,8 @@ import { MonitoringDataLoader } from './MonitoringDataLoader.js';
 import { AnalysisDataLoader } from './AnalysisDataLoader.js';
 import { DashboardDataLoader } from './DashboardDataLoader.js';
 import { MappingDataLoader } from './MappingDataLoader.js';
+// 🆕 v1.4.0: LoaderMode import (내부 함수 사용)
+import { LoaderMode } from './DataLoaderFactory.js';
 
 /**
  * 모드에 따른 DataLoader 생성
