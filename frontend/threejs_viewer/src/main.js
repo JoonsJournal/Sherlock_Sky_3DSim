@@ -4,8 +4,14 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 5.4.0
+ * @version 5.5.0
  * @changelog
+ * - v5.5.0: 🆕 EquipmentMappingService 통합 (2026-01-13)
+ *           - services.mapping.equipmentMappingService 추가
+ *           - initMappingServices() 함수 추가
+ *           - _loadEquipmentMappingsAfterConnection() 리팩토링
+ *           - window.equipmentMappingService 전역 노출
+ *           - 재연결 시 매핑 자동 새로고침
  * - v5.4.0: 🆕 재연결 복구 로직 추가 (2026-01-13)
  *           - setupReconnectionHandler() 추가
  *           - connection:reconnected 이벤트 핸들링
@@ -86,6 +92,9 @@ import { roomParamsAdapter } from './services/converter/RoomParamsAdapter.js';
 // Storage Service import
 import { storageService } from './core/storage/index.js';
 
+// 🆕 v5.5.0: EquipmentMappingService import
+import { EquipmentMappingService } from './services/mapping/EquipmentMappingService.js';
+
 // 🆕 v5.1.0: Sidebar UI 컴포넌트 import
 import { createSidebarUI } from './ui/sidebar/index.js';
 
@@ -109,7 +118,11 @@ let reconnectionCleanup = null;
 const services = {
     scene: null,
     ui: null,
-    monitoring: null
+    monitoring: null,
+    // 🆕 v5.5.0: Mapping 서비스 추가
+    mapping: {
+        equipmentMappingService: null
+    }
 };
 
 // 🆕 v5.2.1: services를 window에 노출 (H/G 키 동적 SceneManager 조회 지원)
@@ -1117,13 +1130,34 @@ async function _actionReconnectCache() {
 
 /**
  * Mapping API 재연결
+ * 🆕 v5.5.0: EquipmentMappingService 사용
  * @private
  */
 async function _actionReconnectMappingApi() {
+    // 🆕 v5.5.0: EquipmentMappingService 우선 사용
+    const mappingService = services.mapping?.equipmentMappingService;
+    
+    if (mappingService) {
+        try {
+            // 캐시 정리 후 재로드
+            mappingService.clearMappingCache();
+            
+            const result = await mappingService.loadCurrentMappings({
+                forceRefresh: true,
+                applyToEditState: true
+            });
+            
+            console.log(`      ✅ Mapping API 재연결 완료: ${result.count}개 매핑`);
+            return;
+        } catch (e) {
+            console.warn('      ⚠️ Mapping API 재연결 실패:', e.message);
+        }
+    }
+    
+    // 폴백: 기존 방식
     const apiClient = services.ui?.apiClient;
     
     if (apiClient) {
-        // API 헬스체크
         try {
             const isHealthy = await apiClient.healthCheck?.();
             console.log(`      ℹ️ Mapping API 상태: ${isHealthy ? 'OK' : 'Failed'}`);
@@ -1184,8 +1218,52 @@ function setupConnectionEvents() {
     console.log('✅ Connection 이벤트 설정 완료');
 }
 
+/*
+// ============================================
+// 🆕 v5.5.0: Mapping 서비스 초기화
+// ============================================
+
 /**
- * 🆕 v5.3.0: Site 연결 후 매핑 데이터 로드
+ * 🆕 v5.5.0: Mapping 서비스 초기화
+ * Site 연결 후 또는 Three.js 초기화 시 호출
+ * 
+ * @param {Object} options - 초기화 옵션
+ * @param {Object} options.apiClient - ApiClient 인스턴스
+ * @param {Object} options.equipmentEditState - EquipmentEditState 인스턴스
+ * @param {Object} options.eventBus - EventBus 인스턴스
+ * @param {string} [options.siteId] - 현재 사이트 ID
+ * @returns {Promise<EquipmentMappingService>}
+ */
+async function initMappingServices(options = {}) {
+    const { apiClient, equipmentEditState, eventBus: eb, siteId } = options;
+    
+    console.log('🔧 Mapping 서비스 초기화 시작...');
+    
+    // 동적 import
+    const { EquipmentMappingService } = await import('./services/mapping/EquipmentMappingService.js');
+    
+    // EquipmentMappingService 인스턴스 생성
+    services.mapping.equipmentMappingService = new EquipmentMappingService({
+        apiClient: apiClient || services.ui?.apiClient,
+        editState: equipmentEditState || services.ui?.equipmentEditState,
+        eventBus: eb || eventBus,
+        siteId: siteId || null,
+        apiBaseUrl: null  // 자동 감지
+    });
+    
+    console.log('  ✅ EquipmentMappingService 생성 완료');
+    
+    // 전역 노출
+    window.equipmentMappingService = services.mapping.equipmentMappingService;
+    
+    return services.mapping.equipmentMappingService;
+}
+
+/*
+/**
+ * 🆕 v5.5.0: Site 연결 후 매핑 데이터 로드 (리팩토링)
+ * EquipmentMappingService를 사용하여 매핑 로드
+ * 
  * @private
  * @param {string} siteId - 연결된 Site ID
  */
@@ -1214,31 +1292,58 @@ async function _loadEquipmentMappingsAfterConnection(siteId) {
     try {
         console.log(`📡 Loading equipment mappings for site: ${siteId}`);
         
-        // API에서 매핑 로드
-        const result = await equipmentEditState.loadMappingsFromApi(apiClient, {
-            mergeStrategy: 'replace',
-            silent: false
+        // 🆕 v5.5.0: EquipmentMappingService 사용
+        // 서비스가 없으면 초기화
+        if (!services.mapping.equipmentMappingService) {
+            await initMappingServices({
+                apiClient,
+                equipmentEditState,
+                eventBus,
+                siteId
+            });
+        }
+        
+        const mappingService = services.mapping.equipmentMappingService;
+        
+        // EquipmentMappingService로 매핑 로드
+        const result = await mappingService.loadMappingsForSite(siteId, {
+            forceRefresh: false,
+            applyToEditState: true  // 자동으로 EditState에 적용
         });
         
-        if (result.success && result.count > 0) {
+        if (result.connected && result.count > 0) {
             console.log(`✅ Equipment mappings loaded: ${result.count}개`);
             window.showToast?.(`${result.count}개 설비 매핑 로드됨`, 'success');
             
             // MonitoringService에 매핑 갱신 알림 (활성 상태인 경우)
             if (services.monitoring?.monitoringService?.isActive) {
                 console.log('[Connection] Notifying MonitoringService of mapping update');
-                // MonitoringService가 applyUnmappedStyle을 다시 호출하도록 함
                 services.monitoring.monitoringService.refreshMappingState?.();
             }
-        } else if (result.success && result.count === 0) {
+            
+            // 🆕 이벤트 발행
+            eventBus.emit('mapping:loaded', {
+                siteId,
+                count: result.count,
+                timestamp: new Date().toISOString()
+            });
+            
+        } else if (result.connected && result.count === 0) {
             console.log('ℹ️ No equipment mappings on server');
         } else {
-            console.warn(`⚠️ Failed to load mappings: ${result.error}`);
+            console.warn(`⚠️ Failed to load mappings: ${result.message || 'Unknown error'}`);
         }
         
     } catch (error) {
         console.error('❌ Error loading equipment mappings:', error);
         window.showToast?.('매핑 데이터 로드 실패', 'warning');
+        
+        // 🆕 이벤트 발행
+        eventBus.emit('mapping:load-error', {
+            siteId,
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
     }
 }
 
@@ -1584,6 +1689,8 @@ function _exposeGlobalObjectsAfterSceneInit() {
     const { sceneManager, equipmentLoader, cameraControls, cameraNavigator, interactionHandler, dataOverlay, statusVisualizer, performanceMonitor, adaptivePerformance } = services.scene || {};
     const { connectionModal, equipmentEditState, equipmentEditModal, equipmentEditButton, apiClient, equipmentInfoPanel, connectionStatusService, connectionIndicator } = services.ui || {};
     const { monitoringService, signalTowerManager } = services.monitoring || {};
+    // 🆕 v5.5.0: Mapping 서비스 추가
+    const { equipmentMappingService } = services.mapping || {};
     
     exposeGlobalObjects({
         // Scene
@@ -1614,6 +1721,9 @@ function _exposeGlobalObjectsAfterSceneInit() {
         monitoringService,
         signalTowerManager,
         
+        // 🆕 v5.5.0: Mapping
+        equipmentMappingService,
+
         // Core
         appModeManager,
         keyboardManager,
@@ -1633,7 +1743,7 @@ function _exposeGlobalObjectsAfterSceneInit() {
         viewManager,
         
         // 🆕 v5.1.0: Sidebar UI
-        sidebarUI,
+        sidebarUI,     
         
         // 함수 노출
         toggleAdaptivePerformance,
@@ -1717,6 +1827,8 @@ function init() {
             connectionModal: services.ui?.connectionModal,
             toast,
             equipmentInfoPanel: services.ui?.equipmentInfoPanel,
+            // 🆕 v5.5.0: Mapping 서비스 (아직 null일 수 있음)
+            equipmentMappingService: services.mapping?.equipmentMappingService,
             connectionStatusService: services.ui?.connectionStatusService,
             storageService,
             viewManager,
@@ -1901,6 +2013,12 @@ function handleCleanup() {
         reconnectionCleanup = null;
     }
     
+    // 🆕 v5.5.0: Mapping 서비스 정리
+    if (services.mapping?.equipmentMappingService) {
+        services.mapping.equipmentMappingService.clearCache();
+        services.mapping.equipmentMappingService = null;
+    }
+
     // Equipment AutoSave 중지
     if (services.ui?.equipmentEditState) {
         services.ui.equipmentEditState.stopAutoSave();
