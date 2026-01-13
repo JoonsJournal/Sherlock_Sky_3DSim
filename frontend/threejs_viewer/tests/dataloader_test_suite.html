@@ -1,0 +1,2636 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataLoader Architecture - Comprehensive Test</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --accent-orange: #e94560;
+            --accent-cyan: #00d9ff;
+            --accent-green: #00ff88;
+            --accent-yellow: #ffd700;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --border-color: #2a2a4e;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, var(--bg-secondary), var(--bg-card));
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+        
+        header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        header p {
+            color: var(--text-secondary);
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            padding: 15px 20px;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .card-header h3 {
+            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-header .badge {
+            font-size: 0.7em;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+        
+        .card-header .badge.skeleton {
+            background: var(--accent-yellow);
+        }
+        
+        .card-header .badge.factory {
+            background: var(--accent-orange);
+        }
+        
+        .card-body {
+            padding: 20px;
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .btn-primary {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+        
+        .btn-success {
+            background: var(--accent-green);
+            color: var(--bg-primary);
+        }
+        
+        .btn-warning {
+            background: var(--accent-yellow);
+            color: var(--bg-primary);
+        }
+        
+        .btn-danger {
+            background: var(--accent-orange);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .output {
+            background: #0a0a1a;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85em;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+        }
+        
+        .output::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .output::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+        
+        .output::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .log-entry.info {
+            border-left: 3px solid var(--accent-cyan);
+        }
+        
+        .log-entry.success {
+            border-left: 3px solid var(--accent-green);
+        }
+        
+        .log-entry.warning {
+            border-left: 3px solid var(--accent-yellow);
+        }
+        
+        .log-entry.error {
+            border-left: 3px solid var(--accent-orange);
+        }
+        
+        .log-time {
+            color: var(--text-secondary);
+            font-size: 0.8em;
+            margin-right: 10px;
+        }
+        
+        .status-bar {
+            display: flex;
+            gap: 15px;
+            padding: 10px 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 6px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85em;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+        }
+        
+        .status-dot.active {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+        
+        .status-dot.loading {
+            background: var(--accent-yellow);
+            animation: pulse 1s infinite;
+        }
+        
+        .status-dot.error {
+            background: var(--accent-orange);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .stat-box {
+            background: rgba(0,0,0,0.3);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--accent-cyan);
+        }
+        
+        .stat-label {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        .test-scenario {
+            background: rgba(0,217,255,0.1);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .test-scenario h4 {
+            color: var(--accent-cyan);
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+        
+        .test-scenario p {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+            margin-bottom: 10px;
+        }
+        
+        .divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 15px 0;
+        }
+        
+        .tab-container {
+            margin-bottom: 15px;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .tab-btn {
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px 6px 0 0;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .tab-btn.active {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+            border-color: var(--accent-cyan);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .json-viewer {
+            background: #0a0a1a;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.85em;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .json-key { color: var(--accent-cyan); }
+        .json-string { color: var(--accent-green); }
+        .json-number { color: var(--accent-yellow); }
+        .json-boolean { color: var(--accent-orange); }
+        .json-null { color: var(--text-secondary); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧪 DataLoader Architecture Test Suite</h1>
+            <p>IDataLoader | MonitoringDataLoader | AnalysisDataLoader | DashboardDataLoader | DataLoaderFactory | RecoveryStrategyManager</p>
+        </header>
+        
+        <!-- 전역 상태 -->
+        <div class="card full-width" style="margin-bottom: 20px;">
+            <div class="card-header">
+                <h3>📊 Global Test Status</h3>
+                <span id="globalStatus" class="badge">Ready</span>
+            </div>
+            <div class="card-body">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value" id="totalTests">0</div>
+                        <div class="stat-label">Total Tests</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="passedTests" style="color: var(--accent-green);">0</div>
+                        <div class="stat-label">Passed</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="failedTests" style="color: var(--accent-orange);">0</div>
+                        <div class="stat-label">Failed</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="activeLoaders">0</div>
+                        <div class="stat-label">Active Loaders</div>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="runAllTests()">▶️ Run All Tests</button>
+                    <button class="btn btn-warning" onclick="resetAllTests()">🔄 Reset All</button>
+                    <button class="btn btn-secondary" onclick="clearAllLogs()">🗑️ Clear Logs</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <!-- 1. IDataLoader 인터페이스 테스트 -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📋 IDataLoader Interface</h3>
+                    <span class="badge">Interface</span>
+                </div>
+                <div class="card-body">
+                    <div class="status-bar">
+                        <div class="status-item">
+                            <div class="status-dot" id="idataloader-status"></div>
+                            <span>Interface Check</span>
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="testIDataLoaderInterface()">Test Interface</button>
+                        <button class="btn btn-secondary" onclick="testDataLoaderStates()">Test States</button>
+                        <button class="btn btn-secondary" onclick="testDataLoaderEvents()">Test Events</button>
+                    </div>
+                    <div class="output" id="idataloader-output"></div>
+                </div>
+            </div>
+            
+            <!-- 2. MonitoringDataLoader 테스트 -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📡 MonitoringDataLoader</h3>
+                    <span class="badge">Implemented</span>
+                </div>
+                <div class="card-body">
+                    <div class="status-bar">
+                        <div class="status-item">
+                            <div class="status-dot" id="monitoring-loader-status"></div>
+                            <span id="monitoring-loader-state">IDLE</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-dot" id="monitoring-ws-status"></div>
+                            <span>WebSocket</span>
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="testMonitoringLoaderCreate()">Create</button>
+                        <button class="btn btn-success" onclick="testMonitoringLoaderStart()">Start</button>
+                        <button class="btn btn-warning" onclick="testMonitoringLoaderLoad()">Load</button>
+                        <button class="btn btn-danger" onclick="testMonitoringLoaderStop()">Stop</button>
+                        <button class="btn btn-secondary" onclick="testMonitoringLoaderDispose()">Dispose</button>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="simulateMonitoringWsMessage()">📨 Simulate WS Message</button>
+                        <button class="btn btn-secondary" onclick="simulateMonitoringWsDisconnect()">❌ Simulate Disconnect</button>
+                    </div>
+                    <div class="output" id="monitoring-loader-output"></div>
+                </div>
+            </div>
+            
+            <!-- 3. AnalysisDataLoader 테스트 -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📊 AnalysisDataLoader</h3>
+                    <span class="badge skeleton">Skeleton</span>
+                </div>
+                <div class="card-body">
+                    <div class="status-bar">
+                        <div class="status-item">
+                            <div class="status-dot" id="analysis-loader-status"></div>
+                            <span id="analysis-loader-state">IDLE</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-dot" id="analysis-cache-status"></div>
+                            <span>Cache</span>
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="testAnalysisLoaderCreate()">Create</button>
+                        <button class="btn btn-success" onclick="testAnalysisLoaderStart()">Start</button>
+                        <button class="btn btn-warning" onclick="testAnalysisLoaderLoad()">Load</button>
+                        <button class="btn btn-secondary" onclick="testAnalysisLoaderDispose()">Dispose</button>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="testAnalysisLoaderPagination()">📄 Pagination</button>
+                        <button class="btn btn-secondary" onclick="testAnalysisLoaderStreaming()">📡 Streaming</button>
+                        <button class="btn btn-secondary" onclick="testAnalysisLoaderCache()">💾 Cache</button>
+                    </div>
+                    <div class="output" id="analysis-loader-output"></div>
+                </div>
+            </div>
+            
+            <!-- 4. DashboardDataLoader 테스트 -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📈 DashboardDataLoader</h3>
+                    <span class="badge skeleton">Skeleton</span>
+                </div>
+                <div class="card-body">
+                    <div class="status-bar">
+                        <div class="status-item">
+                            <div class="status-dot" id="dashboard-loader-status"></div>
+                            <span id="dashboard-loader-state">IDLE</span>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-dot" id="dashboard-redis-status"></div>
+                            <span>Redis</span>
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="testDashboardLoaderCreate()">Create</button>
+                        <button class="btn btn-success" onclick="testDashboardLoaderStart()">Start</button>
+                        <button class="btn btn-warning" onclick="testDashboardLoaderLoad()">Load</button>
+                        <button class="btn btn-secondary" onclick="testDashboardLoaderDispose()">Dispose</button>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="testDashboardLoaderWidget()">🧩 Load Widget</button>
+                        <button class="btn btn-secondary" onclick="testDashboardLoaderRedis()">🔴 Redis Test</button>
+                        <button class="btn btn-secondary" onclick="testDashboardLoaderPolling()">⏱️ Polling</button>
+                    </div>
+                    <div class="output" id="dashboard-loader-output"></div>
+                </div>
+            </div>
+            
+            <!-- 5. DataLoaderFactory 테스트 -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🏭 DataLoaderFactory</h3>
+                    <span class="badge factory">Factory</span>
+                </div>
+                <div class="card-body">
+                    <div class="status-bar">
+                        <div class="status-item">
+                            <div class="status-dot" id="factory-status"></div>
+                            <span id="factory-state">Not Configured</span>
+                        </div>
+                        <div class="status-item">
+                            <span id="factory-loader-count">Loaders: 0</span>
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="testFactoryConfigure()">⚙️ Configure</button>
+                        <button class="btn btn-success" onclick="testFactoryGetLoader()">📦 Get Loaders</button>
+                        <button class="btn btn-warning" onclick="testFactorySingleton()">🔒 Singleton Test</button>
+                        <button class="btn btn-danger" onclick="testFactoryDisposeAll()">🗑️ Dispose All</button>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="testFactoryLifecycle()">🔄 Lifecycle</button>
+                        <button class="btn btn-secondary" onclick="testFactoryEvents()">📣 Events</button>
+                        <button class="btn btn-secondary" onclick="testFactoryStatus()">📊 Status</button>
+                    </div>
+                    <div class="output" id="factory-output"></div>
+                </div>
+            </div>
+            
+            <!-- 6. RecoveryStrategyManager 테스트 -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🔧 RecoveryStrategyManager</h3>
+                    <span class="badge">Recovery</span>
+                </div>
+                <div class="card-body">
+                    <div class="status-bar">
+                        <div class="status-item">
+                            <div class="status-dot" id="recovery-status"></div>
+                            <span id="recovery-state">Ready</span>
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="testRecoveryCreate()">Create</button>
+                        <button class="btn btn-success" onclick="testRecoveryMonitoring()">🖥️ Monitoring</button>
+                        <button class="btn btn-warning" onclick="testRecoveryAnalysis()">📊 Analysis</button>
+                        <button class="btn btn-secondary" onclick="testRecoveryEdit()">✏️ Edit</button>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="testRecoveryStrategies()">📋 View Strategies</button>
+                        <button class="btn btn-secondary" onclick="testRecoveryCustomAction()">⚡ Custom Action</button>
+                        <button class="btn btn-secondary" onclick="testRecoveryStats()">📈 Stats</button>
+                    </div>
+                    <div class="output" id="recovery-output"></div>
+                </div>
+            </div>
+            
+            <!-- 7. 통합 시나리오 테스트 -->
+            <div class="card full-width">
+                <div class="card-header">
+                    <h3>🎯 Integration Scenarios</h3>
+                    <span class="badge">E2E</span>
+                </div>
+                <div class="card-body">
+                    <div class="test-scenario">
+                        <h4>Scenario 1: Complete Initialization Flow</h4>
+                        <p>Factory 설정 → 모든 Loader 생성 → 시작 → 데이터 로드 → 정리</p>
+                        <button class="btn btn-primary" onclick="runScenario1()">▶️ Run Scenario 1</button>
+                    </div>
+                    
+                    <div class="test-scenario">
+                        <h4>Scenario 2: Connection Recovery Simulation</h4>
+                        <p>연결 끊김 시뮬레이션 → RecoveryManager 복구 → 상태 확인</p>
+                        <button class="btn btn-primary" onclick="runScenario2()">▶️ Run Scenario 2</button>
+                    </div>
+                    
+                    <div class="test-scenario">
+                        <h4>Scenario 3: Mode Switching</h4>
+                        <p>Monitoring → Analysis → Dashboard 모드 전환 시뮬레이션</p>
+                        <button class="btn btn-primary" onclick="runScenario3()">▶️ Run Scenario 3</button>
+                    </div>
+                    
+                    <div class="divider"></div>
+                    <div class="output" id="scenario-output" style="max-height: 300px;"></div>
+                </div>
+            </div>
+            
+            <!-- 8. Mock 상태 뷰어 -->
+            <div class="card full-width">
+                <div class="card-header">
+                    <h3>🔍 Mock Objects State Viewer</h3>
+                </div>
+                <div class="card-body">
+                    <div class="tab-container">
+                        <div class="tab-buttons">
+                            <button class="tab-btn active" onclick="showMockTab('eventbus')">EventBus</button>
+                            <button class="tab-btn" onclick="showMockTab('apiclient')">ApiClient</button>
+                            <button class="tab-btn" onclick="showMockTab('wsmanager')">WsManager</button>
+                            <button class="tab-btn" onclick="showMockTab('services')">Services</button>
+                        </div>
+                        <div id="mock-eventbus" class="tab-content active">
+                            <div class="json-viewer" id="eventbus-state"></div>
+                        </div>
+                        <div id="mock-apiclient" class="tab-content">
+                            <div class="json-viewer" id="apiclient-state"></div>
+                        </div>
+                        <div id="mock-wsmanager" class="tab-content">
+                            <div class="json-viewer" id="wsmanager-state"></div>
+                        </div>
+                        <div id="mock-services" class="tab-content">
+                            <div class="json-viewer" id="services-state"></div>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" onclick="refreshMockStates()">🔄 Refresh States</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script type="module">
+// ============================================
+// Mock Objects
+// ============================================
+
+/**
+ * Mock EventBus
+ */
+class MockEventBus {
+    constructor() {
+        this._listeners = new Map();
+        this._eventLog = [];
+    }
+    
+    on(event, callback) {
+        if (!this._listeners.has(event)) {
+            this._listeners.set(event, new Set());
+        }
+        this._listeners.get(event).add(callback);
+        return () => this.off(event, callback);
+    }
+    
+    off(event, callback) {
+        const listeners = this._listeners.get(event);
+        if (listeners) listeners.delete(callback);
+    }
+    
+    emit(event, data) {
+        this._eventLog.push({ event, data, timestamp: Date.now() });
+        const listeners = this._listeners.get(event);
+        if (listeners) {
+            listeners.forEach(cb => {
+                try { cb(data); } catch (e) { console.error(e); }
+            });
+        }
+    }
+    
+    getState() {
+        return {
+            listenerCount: this._listeners.size,
+            events: Array.from(this._listeners.keys()),
+            recentEvents: this._eventLog.slice(-10)
+        };
+    }
+}
+
+/**
+ * Mock ApiClient
+ */
+class MockApiClient {
+    constructor() {
+        this._requestLog = [];
+        this._mockResponses = {};
+    }
+    
+    setMockResponse(endpoint, response) {
+        this._mockResponses[endpoint] = response;
+    }
+    
+    async get(url) {
+        this._requestLog.push({ method: 'GET', url, timestamp: Date.now() });
+        await this._delay(100);
+        return this._mockResponses[url] || { success: true, data: [] };
+    }
+    
+    async post(url, data) {
+        this._requestLog.push({ method: 'POST', url, data, timestamp: Date.now() });
+        await this._delay(100);
+        return this._mockResponses[url] || { success: true };
+    }
+    
+    async healthCheck() {
+        this._requestLog.push({ method: 'HEALTH', timestamp: Date.now() });
+        await this._delay(50);
+        return true;
+    }
+    
+    _delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    getState() {
+        return {
+            requestCount: this._requestLog.length,
+            recentRequests: this._requestLog.slice(-10),
+            mockResponseCount: Object.keys(this._mockResponses).length
+        };
+    }
+}
+
+/**
+ * Mock WebSocketManager
+ */
+class MockWebSocketManager {
+    constructor() {
+        this._isConnected = false;
+        this._subscriptions = new Set();
+        this._messageHandlers = new Set();
+        this._connectionLog = [];
+    }
+    
+    async connect() {
+        this._connectionLog.push({ action: 'connect', timestamp: Date.now() });
+        await this._delay(200);
+        this._isConnected = true;
+        return true;
+    }
+    
+    disconnect() {
+        this._connectionLog.push({ action: 'disconnect', timestamp: Date.now() });
+        this._isConnected = false;
+    }
+    
+    isConnected() {
+        return this._isConnected;
+    }
+    
+    subscribe(topics) {
+        const topicList = Array.isArray(topics) ? topics : [topics];
+        topicList.forEach(t => this._subscriptions.add(t));
+    }
+    
+    unsubscribe(topics) {
+        const topicList = Array.isArray(topics) ? topics : [topics];
+        topicList.forEach(t => this._subscriptions.delete(t));
+    }
+    
+    onMessage(handler) {
+        this._messageHandlers.add(handler);
+        return () => this._messageHandlers.delete(handler);
+    }
+    
+    simulateMessage(data) {
+        this._messageHandlers.forEach(handler => {
+            try { handler(data); } catch (e) { console.error(e); }
+        });
+    }
+    
+    simulateDisconnect() {
+        this._isConnected = false;
+        this._connectionLog.push({ action: 'simulated_disconnect', timestamp: Date.now() });
+    }
+    
+    _delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    getState() {
+        return {
+            isConnected: this._isConnected,
+            subscriptions: Array.from(this._subscriptions),
+            handlerCount: this._messageHandlers.size,
+            connectionLog: this._connectionLog.slice(-10)
+        };
+    }
+}
+
+/**
+ * Mock MonitoringService
+ */
+class MockMonitoringService {
+    constructor() {
+        this.isActive = false;
+        this._dataLoader = null;
+    }
+    
+    async start() {
+        this.isActive = true;
+        return true;
+    }
+    
+    async stop() {
+        this.isActive = false;
+    }
+    
+    async restart(options = {}) {
+        await this.stop();
+        await this._delay(100);
+        await this.start();
+    }
+    
+    async loadInitialStatus() {
+        await this._delay(100);
+        return { equipment: [], total: 0 };
+    }
+    
+    updateStatusPanel() {}
+    
+    getDataLoader() {
+        return this._dataLoader;
+    }
+    
+    setDataLoader(loader) {
+        this._dataLoader = loader;
+    }
+    
+    _delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+/**
+ * Mock Toast
+ */
+class MockToast {
+    constructor() {
+        this._messages = [];
+    }
+    
+    show(message, type = 'info') {
+        this._messages.push({ message, type, timestamp: Date.now() });
+        console.log(`[Toast ${type}] ${message}`);
+    }
+    
+    getMessages() {
+        return this._messages;
+    }
+}
+
+// ============================================
+// DataLoader 상수 (인라인)
+// ============================================
+
+const DataLoaderState = Object.freeze({
+    IDLE: 'idle',
+    LOADING: 'loading',
+    READY: 'ready',
+    ERROR: 'error',
+    STOPPED: 'stopped',
+    DISPOSED: 'disposed'
+});
+
+const DataLoaderEvents = Object.freeze({
+    STATE_CHANGED: 'stateChanged',
+    DATA_RECEIVED: 'data',
+    ERROR: 'error',
+    STARTED: 'started',
+    STOPPED: 'stopped'
+});
+
+const LoaderMode = Object.freeze({
+    MONITORING: 'monitoring',
+    ANALYSIS: 'analysis',
+    DASHBOARD: 'dashboard'
+});
+
+const RecoveryMode = Object.freeze({
+    MONITORING: 'monitoring',
+    ANALYSIS: 'analysis',
+    DASHBOARD: 'dashboard',
+    EDIT: 'equipment_edit'
+});
+
+const RecoveryResult = Object.freeze({
+    SUCCESS: 'success',
+    PARTIAL: 'partial',
+    FAILED: 'failed',
+    SKIPPED: 'skipped'
+});
+
+// ============================================
+// IDataLoader (인터페이스 시뮬레이션)
+// ============================================
+
+class IDataLoader {
+    constructor(options = {}) {
+        this.eventBus = options.eventBus || null;
+        this.apiClient = options.apiClient || null;
+    }
+    
+    async load(options) { throw new Error('Not implemented'); }
+    async start() { throw new Error('Not implemented'); }
+    async stop() { throw new Error('Not implemented'); }
+    dispose() { throw new Error('Not implemented'); }
+    getState() { throw new Error('Not implemented'); }
+    isLoading() { throw new Error('Not implemented'); }
+    getLastError() { throw new Error('Not implemented'); }
+    on(event, callback) { throw new Error('Not implemented'); }
+    off(event, callback) { throw new Error('Not implemented'); }
+}
+
+// ============================================
+// MonitoringDataLoader (인라인 구현)
+// ============================================
+
+class MonitoringDataLoader extends IDataLoader {
+    constructor(options = {}) {
+        super(options);
+        this.wsManager = options.wsManager || null;
+        this._state = DataLoaderState.IDLE;
+        this._isLoading = false;
+        this._lastError = null;
+        this._listeners = new Map();
+        this._data = { equipment: [], lastUpdate: null };
+    }
+    
+    async load(options = {}) {
+        this._setState(DataLoaderState.LOADING);
+        this._isLoading = true;
+        
+        try {
+            await this._delay(200);
+            
+            // Mock 데이터 생성
+            this._data = {
+                equipment: [
+                    { id: 'EQ001', name: 'Equipment 1', status: 'RUN' },
+                    { id: 'EQ002', name: 'Equipment 2', status: 'IDLE' },
+                    { id: 'EQ003', name: 'Equipment 3', status: 'STOP' }
+                ],
+                lastUpdate: new Date().toISOString()
+            };
+            
+            this._setState(DataLoaderState.READY);
+            this._emit(DataLoaderEvents.DATA_RECEIVED, this._data);
+            
+            return { success: true, data: this._data };
+        } catch (error) {
+            this._lastError = error;
+            this._setState(DataLoaderState.ERROR);
+            return { success: false, error: error.message };
+        } finally {
+            this._isLoading = false;
+        }
+    }
+    
+    async start() {
+        if (this.wsManager) {
+            await this.wsManager.connect();
+            this.wsManager.subscribe(['equipment_status']);
+        }
+        this._setState(DataLoaderState.READY);
+        this._emit(DataLoaderEvents.STARTED, {});
+    }
+    
+    async stop() {
+        if (this.wsManager) {
+            this.wsManager.disconnect();
+        }
+        this._setState(DataLoaderState.STOPPED);
+        this._emit(DataLoaderEvents.STOPPED, {});
+    }
+    
+    dispose() {
+        this.stop();
+        this._listeners.clear();
+        this._data = null;
+        this._setState(DataLoaderState.DISPOSED);
+    }
+    
+    getState() { return this._state; }
+    isLoading() { return this._isLoading; }
+    getLastError() { return this._lastError; }
+    
+    on(event, callback) {
+        if (!this._listeners.has(event)) {
+            this._listeners.set(event, new Set());
+        }
+        this._listeners.get(event).add(callback);
+        return () => this.off(event, callback);
+    }
+    
+    off(event, callback) {
+        const listeners = this._listeners.get(event);
+        if (listeners) listeners.delete(callback);
+    }
+    
+    _setState(state) {
+        const prev = this._state;
+        this._state = state;
+        this._emit(DataLoaderEvents.STATE_CHANGED, { prevState: prev, newState: state });
+    }
+    
+    _emit(event, data) {
+        const listeners = this._listeners.get(event);
+        if (listeners) {
+            listeners.forEach(cb => { try { cb(data); } catch (e) {} });
+        }
+        if (this.eventBus) {
+            this.eventBus.emit(`monitoring:${event}`, data);
+        }
+    }
+    
+    _delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+}
+
+// ============================================
+// AnalysisDataLoader (인라인 스켈레톤)
+// ============================================
+
+class AnalysisDataLoader extends IDataLoader {
+    constructor(options = {}) {
+        super(options);
+        this._state = DataLoaderState.IDLE;
+        this._isLoading = false;
+        this._lastError = null;
+        this._listeners = new Map();
+        this._cache = new Map();
+        this._paginationState = { currentPage: 0, totalPages: 0, hasMore: false };
+        this._streamingState = { isStreaming: false, progress: 0 };
+    }
+    
+    async load(options = {}) {
+        this._setState(DataLoaderState.LOADING);
+        this._isLoading = true;
+        
+        try {
+            await this._delay(150);
+            this._setState(DataLoaderState.READY);
+            return { success: true, data: [], message: 'Skeleton implementation' };
+        } finally {
+            this._isLoading = false;
+        }
+    }
+    
+    async start() {
+        this._setState(DataLoaderState.READY);
+        this._emit(DataLoaderEvents.STARTED, {});
+    }
+    
+    async stop() {
+        this._setState(DataLoaderState.STOPPED);
+        this._emit(DataLoaderEvents.STOPPED, {});
+    }
+    
+    dispose() {
+        this._cache.clear();
+        this._listeners.clear();
+        this._setState(DataLoaderState.DISPOSED);
+    }
+    
+    // Pagination
+    async loadPage(options, page = 1, pageSize = 1000) {
+        await this._delay(100);
+        this._paginationState = { currentPage: page, totalPages: 10, hasMore: page < 10 };
+        return { success: true, data: [], pagination: this._paginationState };
+    }
+    
+    async loadNextPage() {
+        return this.loadPage({}, this._paginationState.currentPage + 1);
+    }
+    
+    getPaginationState() { return { ...this._paginationState }; }
+    
+    // Streaming
+    async loadStream(options, onChunk) {
+        this._streamingState.isStreaming = true;
+        for (let i = 0; i < 5; i++) {
+            await this._delay(50);
+            this._streamingState.progress = (i + 1) * 20;
+            if (onChunk) onChunk({ chunk: i, progress: this._streamingState.progress });
+        }
+        this._streamingState.isStreaming = false;
+        return { success: true, chunksReceived: 5 };
+    }
+    
+    getStreamingState() { return { ...this._streamingState }; }
+    
+    // Cache
+    getFromCache(key) { return this._cache.get(key) || null; }
+    setToCache(key, data) { this._cache.set(key, data); }
+    clearCache() { this._cache.clear(); }
+    getCacheStats() { return { entryCount: this._cache.size }; }
+    
+    getState() { return this._state; }
+    isLoading() { return this._isLoading; }
+    getLastError() { return this._lastError; }
+    
+    on(event, callback) {
+        if (!this._listeners.has(event)) this._listeners.set(event, new Set());
+        this._listeners.get(event).add(callback);
+        return () => this.off(event, callback);
+    }
+    
+    off(event, callback) {
+        const listeners = this._listeners.get(event);
+        if (listeners) listeners.delete(callback);
+    }
+    
+    _setState(state) {
+        const prev = this._state;
+        this._state = state;
+        this._emit(DataLoaderEvents.STATE_CHANGED, { prevState: prev, newState: state });
+    }
+    
+    _emit(event, data) {
+        const listeners = this._listeners.get(event);
+        if (listeners) listeners.forEach(cb => { try { cb(data); } catch (e) {} });
+    }
+    
+    _delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+}
+
+// ============================================
+// DashboardDataLoader (인라인 스켈레톤)
+// ============================================
+
+class DashboardDataLoader extends IDataLoader {
+    constructor(options = {}) {
+        super(options);
+        this._state = DataLoaderState.IDLE;
+        this._isLoading = false;
+        this._lastError = null;
+        this._listeners = new Map();
+        this._widgetData = new Map();
+        this._cache = new Map();
+        this._pollingTimers = new Map();
+        this._redisState = { isConnected: false };
+    }
+    
+    async load(options = {}) {
+        this._setState(DataLoaderState.LOADING);
+        this._isLoading = true;
+        
+        try {
+            await this._delay(150);
+            this._setState(DataLoaderState.READY);
+            return { success: true, widgets: [], message: 'Skeleton implementation' };
+        } finally {
+            this._isLoading = false;
+        }
+    }
+    
+    async start() {
+        this._setState(DataLoaderState.READY);
+        this._emit(DataLoaderEvents.STARTED, {});
+    }
+    
+    async stop() {
+        this._stopAllPolling();
+        this._setState(DataLoaderState.STOPPED);
+        this._emit(DataLoaderEvents.STOPPED, {});
+    }
+    
+    dispose() {
+        this.stop();
+        this._widgetData.clear();
+        this._cache.clear();
+        this._listeners.clear();
+        this._setState(DataLoaderState.DISPOSED);
+    }
+    
+    // Widget methods
+    async loadWidget(widgetId, options = {}) {
+        await this._delay(100);
+        const data = { id: widgetId, value: Math.random() * 100 };
+        this._widgetData.set(widgetId, data);
+        return { success: true, widgetId, data };
+    }
+    
+    async loadWidgets(widgetIds) {
+        const results = await Promise.all(widgetIds.map(id => this.loadWidget(id)));
+        return { success: true, results };
+    }
+    
+    getWidgetData(widgetId) { return this._widgetData.get(widgetId) || null; }
+    
+    // Redis
+    async connectToRedis() {
+        await this._delay(100);
+        this._redisState.isConnected = true;
+        return true;
+    }
+    
+    async subscribeToChannels(channels) {
+        await this._delay(50);
+        return true;
+    }
+    
+    getRedisState() { return { ...this._redisState }; }
+    
+    // Polling
+    startPolling(widgetId, interval = 5000) {
+        const timer = setInterval(() => {
+            this.loadWidget(widgetId);
+        }, interval);
+        this._pollingTimers.set(widgetId, timer);
+    }
+    
+    stopPolling(widgetId) {
+        const timer = this._pollingTimers.get(widgetId);
+        if (timer) {
+            clearInterval(timer);
+            this._pollingTimers.delete(widgetId);
+        }
+    }
+    
+    _stopAllPolling() {
+        this._pollingTimers.forEach(timer => clearInterval(timer));
+        this._pollingTimers.clear();
+    }
+    
+    getPollingStatus() {
+        const status = {};
+        this._pollingTimers.forEach((_, widgetId) => {
+            status[widgetId] = { active: true };
+        });
+        return status;
+    }
+    
+    // Cache
+    getFromCache(key) { return this._cache.get(key) || null; }
+    setToCache(key, data) { this._cache.set(key, data); }
+    clearCache() { this._cache.clear(); }
+    getCacheStats() { return { totalEntries: this._cache.size }; }
+    
+    getState() { return this._state; }
+    isLoading() { return this._isLoading; }
+    getLastError() { return this._lastError; }
+    
+    on(event, callback) {
+        if (!this._listeners.has(event)) this._listeners.set(event, new Set());
+        this._listeners.get(event).add(callback);
+        return () => this.off(event, callback);
+    }
+    
+    off(event, callback) {
+        const listeners = this._listeners.get(event);
+        if (listeners) listeners.delete(callback);
+    }
+    
+    _setState(state) {
+        const prev = this._state;
+        this._state = state;
+        this._emit(DataLoaderEvents.STATE_CHANGED, { prevState: prev, newState: state });
+    }
+    
+    _emit(event, data) {
+        const listeners = this._listeners.get(event);
+        if (listeners) listeners.forEach(cb => { try { cb(data); } catch (e) {} });
+    }
+    
+    _delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+}
+
+// ============================================
+// DataLoaderFactory (인라인 구현)
+// ============================================
+
+class DataLoaderFactory {
+    static _instance = null;
+    
+    static getInstance() {
+        if (!DataLoaderFactory._instance) {
+            DataLoaderFactory._instance = new DataLoaderFactory();
+        }
+        return DataLoaderFactory._instance;
+    }
+    
+    static resetInstance() {
+        if (DataLoaderFactory._instance) {
+            DataLoaderFactory._instance.disposeAll();
+            DataLoaderFactory._instance = null;
+        }
+    }
+    
+    static configure(deps) { return DataLoaderFactory.getInstance().configure(deps); }
+    static getLoader(mode, opts) { return DataLoaderFactory.getInstance().getLoader(mode, opts); }
+    static disposeAll() { return DataLoaderFactory.getInstance().disposeAll(); }
+    static getStatus() { return DataLoaderFactory.getInstance().getStatus(); }
+    
+    constructor() {
+        this._loaders = new Map();
+        this._dependencies = {};
+        this._isConfigured = false;
+        this._listeners = new Map();
+    }
+    
+    configure(dependencies) {
+        this._dependencies = { ...this._dependencies, ...dependencies };
+        this._isConfigured = true;
+        return this;
+    }
+    
+    getLoader(mode, options = {}) {
+        if (this._loaders.has(mode) && !options.forceNew) {
+            return this._loaders.get(mode);
+        }
+        
+        let loader;
+        switch (mode) {
+            case LoaderMode.MONITORING:
+                loader = new MonitoringDataLoader(this._dependencies);
+                break;
+            case LoaderMode.ANALYSIS:
+                loader = new AnalysisDataLoader(this._dependencies);
+                break;
+            case LoaderMode.DASHBOARD:
+                loader = new DashboardDataLoader(this._dependencies);
+                break;
+            default:
+                throw new Error(`Unknown mode: ${mode}`);
+        }
+        
+        this._loaders.set(mode, loader);
+        this._emit('loader:created', { mode });
+        return loader;
+    }
+    
+    hasLoader(mode) { return this._loaders.has(mode); }
+    
+    async startLoader(mode) {
+        const loader = this._loaders.get(mode);
+        if (loader) await loader.start();
+    }
+    
+    async stopLoader(mode) {
+        const loader = this._loaders.get(mode);
+        if (loader) await loader.stop();
+    }
+    
+    disposeLoader(mode) {
+        const loader = this._loaders.get(mode);
+        if (loader) {
+            loader.dispose();
+            this._loaders.delete(mode);
+        }
+    }
+    
+    async startAll() {
+        for (const [mode, loader] of this._loaders) {
+            await loader.start();
+        }
+    }
+    
+    async stopAll() {
+        for (const loader of this._loaders.values()) {
+            await loader.stop();
+        }
+    }
+    
+    disposeAll() {
+        for (const mode of Array.from(this._loaders.keys())) {
+            this.disposeLoader(mode);
+        }
+    }
+    
+    getStatus() {
+        const loaders = {};
+        for (const [mode, loader] of this._loaders) {
+            loaders[mode] = {
+                state: loader.getState(),
+                isLoading: loader.isLoading()
+            };
+        }
+        
+        return {
+            isConfigured: this._isConfigured,
+            activeLoaders: this._loaders.size,
+            loaders
+        };
+    }
+    
+    on(event, callback) {
+        if (!this._listeners.has(event)) this._listeners.set(event, new Set());
+        this._listeners.get(event).add(callback);
+        return () => this.off(event, callback);
+    }
+    
+    off(event, callback) {
+        const listeners = this._listeners.get(event);
+        if (listeners) listeners.delete(callback);
+    }
+    
+    _emit(event, data) {
+        const listeners = this._listeners.get(event);
+        if (listeners) listeners.forEach(cb => { try { cb(data); } catch (e) {} });
+    }
+}
+
+// ============================================
+// RecoveryStrategyManager (인라인 구현)
+// ============================================
+
+class RecoveryStrategyManager {
+    constructor(options = {}) {
+        this.services = options.services || {};
+        this.eventBus = options.eventBus || null;
+        this.toast = options.toast || null;
+        
+        this._isRecovering = false;
+        this._stats = {
+            totalRecoveries: 0,
+            successfulRecoveries: 0,
+            failedRecoveries: 0
+        };
+        this._recoveryHistory = [];
+        this._actionHandlers = new Map();
+        
+        this._registerDefaultHandlers();
+    }
+    
+    _registerDefaultHandlers() {
+        this._actionHandlers.set('healthCheck', async () => ({ success: true }));
+        this._actionHandlers.set('restartMonitoringService', async (params, services) => {
+            if (services.monitoringService) {
+                await services.monitoringService.restart();
+            }
+            return { success: true };
+        });
+        this._actionHandlers.set('resubscribeWebSocket', async () => ({ success: true }));
+        this._actionHandlers.set('refreshStatus', async () => ({ success: true }));
+        this._actionHandlers.set('preserveLocalChanges', async () => ({ success: true, preserved: true }));
+        this._actionHandlers.set('emitRecoveryEvent', async () => ({ success: true }));
+    }
+    
+    async executeRecovery(mode, context = {}) {
+        if (this._isRecovering) {
+            return { status: RecoveryResult.SKIPPED, reason: 'Already recovering' };
+        }
+        
+        this._isRecovering = true;
+        this._stats.totalRecoveries++;
+        
+        const startTime = Date.now();
+        
+        try {
+            await this._delay(200);
+            
+            const result = {
+                status: RecoveryResult.SUCCESS,
+                mode,
+                elapsed: Date.now() - startTime,
+                actionsExecuted: 3
+            };
+            
+            this._stats.successfulRecoveries++;
+            this._recoveryHistory.push({ ...result, timestamp: new Date().toISOString() });
+            
+            if (this.toast) {
+                this.toast.show(`✅ ${mode} 복구 완료`, 'success');
+            }
+            
+            return result;
+            
+        } catch (error) {
+            this._stats.failedRecoveries++;
+            return { status: RecoveryResult.FAILED, error: error.message };
+        } finally {
+            this._isRecovering = false;
+        }
+    }
+    
+    async executeAction(actionType, params = {}) {
+        const handler = this._actionHandlers.get(actionType);
+        if (!handler) {
+            return { success: false, error: `Unknown action: ${actionType}` };
+        }
+        return handler(params, this.services);
+    }
+    
+    registerActionHandler(actionType, handler) {
+        this._actionHandlers.set(actionType, handler);
+    }
+    
+    getStrategy(mode) {
+        const strategies = {
+            [RecoveryMode.MONITORING]: {
+                name: 'Monitoring Recovery',
+                actions: ['restartMonitoringService', 'resubscribeWebSocket', 'refreshStatus']
+            },
+            [RecoveryMode.ANALYSIS]: {
+                name: 'Analysis Recovery',
+                actions: ['healthCheck', 'reconnectDatabase', 'reloadAnalysisData']
+            },
+            [RecoveryMode.DASHBOARD]: {
+                name: 'Dashboard Recovery',
+                actions: ['healthCheck', 'reconnectRedis', 'refreshDashboard']
+            },
+            [RecoveryMode.EDIT]: {
+                name: 'Edit Mode Recovery',
+                actions: ['preserveLocalChanges', 'reconnectMappingApi']
+            }
+        };
+        return strategies[mode] || null;
+    }
+    
+    getStatus() {
+        return {
+            isRecovering: this._isRecovering,
+            stats: { ...this._stats },
+            recentHistory: this._recoveryHistory.slice(-5)
+        };
+    }
+    
+    setServices(services) {
+        this.services = { ...this.services, ...services };
+    }
+    
+    dispose() {
+        this._actionHandlers.clear();
+        this._recoveryHistory = [];
+    }
+    
+    _delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+}
+
+// ============================================
+// Global Test State
+// ============================================
+
+const testState = {
+    totalTests: 0,
+    passedTests: 0,
+    failedTests: 0,
+    
+    // Mock instances
+    eventBus: new MockEventBus(),
+    apiClient: new MockApiClient(),
+    wsManager: new MockWebSocketManager(),
+    monitoringService: new MockMonitoringService(),
+    toast: new MockToast(),
+    
+    // Loader instances
+    monitoringLoader: null,
+    analysisLoader: null,
+    dashboardLoader: null,
+    recoveryManager: null
+};
+
+// Setup mock responses
+testState.apiClient.setMockResponse('/api/equipment/status', {
+    success: true,
+    data: [
+        { id: 'EQ001', status: 'RUN' },
+        { id: 'EQ002', status: 'IDLE' }
+    ]
+});
+
+// ============================================
+// Utility Functions
+// ============================================
+
+function log(outputId, message, type = 'info') {
+    const output = document.getElementById(outputId);
+    if (!output) return;
+    
+    const time = new Date().toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.innerHTML = `<span class="log-time">${time}</span>${message}`;
+    output.appendChild(entry);
+    output.scrollTop = output.scrollHeight;
+}
+
+function updateStats() {
+    document.getElementById('totalTests').textContent = testState.totalTests;
+    document.getElementById('passedTests').textContent = testState.passedTests;
+    document.getElementById('failedTests').textContent = testState.failedTests;
+    document.getElementById('activeLoaders').textContent = DataLoaderFactory.getStatus().activeLoaders;
+}
+
+function updateStatus(elementId, isActive, isLoading = false, isError = false) {
+    const dot = document.getElementById(elementId);
+    if (!dot) return;
+    
+    dot.classList.remove('active', 'loading', 'error');
+    if (isError) dot.classList.add('error');
+    else if (isLoading) dot.classList.add('loading');
+    else if (isActive) dot.classList.add('active');
+}
+
+function formatJson(obj) {
+    const json = JSON.stringify(obj, null, 2);
+    return json
+        .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+        .replace(/: "([^"]+)"/g, ': <span class="json-string">"$1"</span>')
+        .replace(/: (\d+)/g, ': <span class="json-number">$1</span>')
+        .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
+        .replace(/: null/g, ': <span class="json-null">null</span>');
+}
+
+function assert(condition, message) {
+    testState.totalTests++;
+    if (condition) {
+        testState.passedTests++;
+        return { passed: true, message };
+    } else {
+        testState.failedTests++;
+        return { passed: false, message };
+    }
+}
+
+// ============================================
+// Test Functions - IDataLoader
+// ============================================
+
+window.testIDataLoaderInterface = function() {
+    const outputId = 'idataloader-output';
+    log(outputId, '🧪 Testing IDataLoader Interface...', 'info');
+    
+    // Test that IDataLoader throws on direct use
+    const iLoader = new IDataLoader();
+    
+    try {
+        iLoader.load();
+        log(outputId, '❌ load() should throw', 'error');
+    } catch (e) {
+        const result = assert(e.message === 'Not implemented', 'load() throws correctly');
+        log(outputId, result.passed ? '✅ load() throws Not implemented' : '❌ ' + result.message, result.passed ? 'success' : 'error');
+    }
+    
+    try {
+        iLoader.getState();
+    } catch (e) {
+        const result = assert(e.message === 'Not implemented', 'getState() throws correctly');
+        log(outputId, result.passed ? '✅ getState() throws Not implemented' : '❌ ' + result.message, result.passed ? 'success' : 'error');
+    }
+    
+    updateStatus('idataloader-status', true);
+    updateStats();
+};
+
+window.testDataLoaderStates = function() {
+    const outputId = 'idataloader-output';
+    log(outputId, '🧪 Testing DataLoaderState constants...', 'info');
+    
+    const states = ['IDLE', 'LOADING', 'READY', 'ERROR', 'STOPPED', 'DISPOSED'];
+    states.forEach(state => {
+        const result = assert(DataLoaderState[state] !== undefined, `State ${state} exists`);
+        log(outputId, result.passed ? `✅ ${state}: "${DataLoaderState[state]}"` : `❌ ${state} missing`, result.passed ? 'success' : 'error');
+    });
+    
+    updateStats();
+};
+
+window.testDataLoaderEvents = function() {
+    const outputId = 'idataloader-output';
+    log(outputId, '🧪 Testing DataLoaderEvents constants...', 'info');
+    
+    const events = ['STATE_CHANGED', 'DATA_RECEIVED', 'ERROR', 'STARTED', 'STOPPED'];
+    events.forEach(event => {
+        const result = assert(DataLoaderEvents[event] !== undefined, `Event ${event} exists`);
+        log(outputId, result.passed ? `✅ ${event}: "${DataLoaderEvents[event]}"` : `❌ ${event} missing`, result.passed ? 'success' : 'error');
+    });
+    
+    updateStats();
+};
+
+// ============================================
+// Test Functions - MonitoringDataLoader
+// ============================================
+
+window.testMonitoringLoaderCreate = function() {
+    const outputId = 'monitoring-loader-output';
+    log(outputId, '🧪 Creating MonitoringDataLoader...', 'info');
+    
+    testState.monitoringLoader = new MonitoringDataLoader({
+        apiClient: testState.apiClient,
+        eventBus: testState.eventBus,
+        wsManager: testState.wsManager
+    });
+    
+    const result = assert(testState.monitoringLoader !== null, 'Loader created');
+    log(outputId, result.passed ? '✅ MonitoringDataLoader created successfully' : '❌ Creation failed', result.passed ? 'success' : 'error');
+    
+    const stateResult = assert(testState.monitoringLoader.getState() === DataLoaderState.IDLE, 'Initial state is IDLE');
+    log(outputId, stateResult.passed ? `✅ Initial state: ${testState.monitoringLoader.getState()}` : '❌ Wrong initial state', stateResult.passed ? 'success' : 'error');
+    
+    document.getElementById('monitoring-loader-state').textContent = testState.monitoringLoader.getState().toUpperCase();
+    updateStats();
+};
+
+window.testMonitoringLoaderStart = async function() {
+    const outputId = 'monitoring-loader-output';
+    
+    if (!testState.monitoringLoader) {
+        log(outputId, '⚠️ Create loader first', 'warning');
+        return;
+    }
+    
+    log(outputId, '🧪 Starting MonitoringDataLoader...', 'info');
+    updateStatus('monitoring-loader-status', false, true);
+    
+    await testState.monitoringLoader.start();
+    
+    const result = assert(testState.monitoringLoader.getState() === DataLoaderState.READY, 'State is READY after start');
+    log(outputId, result.passed ? '✅ Loader started, state: READY' : '❌ Start failed', result.passed ? 'success' : 'error');
+    
+    const wsResult = assert(testState.wsManager.isConnected(), 'WebSocket connected');
+    log(outputId, wsResult.passed ? '✅ WebSocket connected' : '❌ WebSocket not connected', wsResult.passed ? 'success' : 'error');
+    
+    document.getElementById('monitoring-loader-state').textContent = testState.monitoringLoader.getState().toUpperCase();
+    updateStatus('monitoring-loader-status', true);
+    updateStatus('monitoring-ws-status', testState.wsManager.isConnected());
+    updateStats();
+};
+
+window.testMonitoringLoaderLoad = async function() {
+    const outputId = 'monitoring-loader-output';
+    
+    if (!testState.monitoringLoader) {
+        log(outputId, '⚠️ Create loader first', 'warning');
+        return;
+    }
+    
+    log(outputId, '🧪 Loading data...', 'info');
+    updateStatus('monitoring-loader-status', false, true);
+    
+    const result = await testState.monitoringLoader.load();
+    
+    const loadResult = assert(result.success, 'Load succeeded');
+    log(outputId, loadResult.passed ? '✅ Data loaded successfully' : '❌ Load failed', loadResult.passed ? 'success' : 'error');
+    
+    if (result.data) {
+        log(outputId, `📦 Equipment count: ${result.data.equipment.length}`, 'info');
+        result.data.equipment.forEach(eq => {
+            log(outputId, `   - ${eq.id}: ${eq.status}`, 'info');
+        });
+    }
+    
+    document.getElementById('monitoring-loader-state').textContent = testState.monitoringLoader.getState().toUpperCase();
+    updateStatus('monitoring-loader-status', true);
+    updateStats();
+};
+
+window.testMonitoringLoaderStop = async function() {
+    const outputId = 'monitoring-loader-output';
+    
+    if (!testState.monitoringLoader) {
+        log(outputId, '⚠️ Create loader first', 'warning');
+        return;
+    }
+    
+    log(outputId, '🧪 Stopping MonitoringDataLoader...', 'info');
+    
+    await testState.monitoringLoader.stop();
+    
+    const result = assert(testState.monitoringLoader.getState() === DataLoaderState.STOPPED, 'State is STOPPED');
+    log(outputId, result.passed ? '✅ Loader stopped' : '❌ Stop failed', result.passed ? 'success' : 'error');
+    
+    document.getElementById('monitoring-loader-state').textContent = testState.monitoringLoader.getState().toUpperCase();
+    updateStatus('monitoring-loader-status', false);
+    updateStatus('monitoring-ws-status', false);
+    updateStats();
+};
+
+window.testMonitoringLoaderDispose = function() {
+    const outputId = 'monitoring-loader-output';
+    
+    if (!testState.monitoringLoader) {
+        log(outputId, '⚠️ Nothing to dispose', 'warning');
+        return;
+    }
+    
+    log(outputId, '🧪 Disposing MonitoringDataLoader...', 'info');
+    
+    testState.monitoringLoader.dispose();
+    
+    const result = assert(testState.monitoringLoader.getState() === DataLoaderState.DISPOSED, 'State is DISPOSED');
+    log(outputId, result.passed ? '✅ Loader disposed' : '❌ Dispose failed', result.passed ? 'success' : 'error');
+    
+    document.getElementById('monitoring-loader-state').textContent = 'DISPOSED';
+    updateStatus('monitoring-loader-status', false);
+    testState.monitoringLoader = null;
+    updateStats();
+};
+
+window.simulateMonitoringWsMessage = function() {
+    const outputId = 'monitoring-loader-output';
+    log(outputId, '📨 Simulating WebSocket message...', 'info');
+    
+    testState.wsManager.simulateMessage({
+        type: 'equipment_status',
+        data: {
+            equipment_id: 'EQ001',
+            status: 'STOP',
+            timestamp: new Date().toISOString()
+        }
+    });
+    
+    log(outputId, '✅ Message simulated: EQ001 → STOP', 'success');
+};
+
+window.simulateMonitoringWsDisconnect = function() {
+    const outputId = 'monitoring-loader-output';
+    log(outputId, '❌ Simulating WebSocket disconnect...', 'warning');
+    
+    testState.wsManager.simulateDisconnect();
+    
+    updateStatus('monitoring-ws-status', false, false, true);
+    log(outputId, '✅ Disconnect simulated', 'success');
+};
+
+// ============================================
+// Test Functions - AnalysisDataLoader
+// ============================================
+
+window.testAnalysisLoaderCreate = function() {
+    const outputId = 'analysis-loader-output';
+    log(outputId, '🧪 Creating AnalysisDataLoader...', 'info');
+    
+    testState.analysisLoader = new AnalysisDataLoader({
+        apiClient: testState.apiClient,
+        eventBus: testState.eventBus
+    });
+    
+    const result = assert(testState.analysisLoader !== null, 'Loader created');
+    log(outputId, result.passed ? '✅ AnalysisDataLoader created (skeleton)' : '❌ Creation failed', result.passed ? 'success' : 'error');
+    
+    document.getElementById('analysis-loader-state').textContent = testState.analysisLoader.getState().toUpperCase();
+    updateStats();
+};
+
+window.testAnalysisLoaderStart = async function() {
+    const outputId = 'analysis-loader-output';
+    
+    if (!testState.analysisLoader) {
+        testAnalysisLoaderCreate();
+    }
+    
+    log(outputId, '🧪 Starting AnalysisDataLoader...', 'info');
+    updateStatus('analysis-loader-status', false, true);
+    
+    await testState.analysisLoader.start();
+    
+    log(outputId, `✅ State: ${testState.analysisLoader.getState()}`, 'success');
+    document.getElementById('analysis-loader-state').textContent = testState.analysisLoader.getState().toUpperCase();
+    updateStatus('analysis-loader-status', true);
+    updateStats();
+};
+
+window.testAnalysisLoaderLoad = async function() {
+    const outputId = 'analysis-loader-output';
+    
+    if (!testState.analysisLoader) {
+        testAnalysisLoaderCreate();
+    }
+    
+    log(outputId, '🧪 Loading analysis data...', 'info');
+    
+    const result = await testState.analysisLoader.load({
+        dateRange: { start: '2025-01-01', end: '2025-01-31' }
+    });
+    
+    log(outputId, `✅ Load result: ${result.message}`, 'success');
+    document.getElementById('analysis-loader-state').textContent = testState.analysisLoader.getState().toUpperCase();
+    updateStats();
+};
+
+window.testAnalysisLoaderDispose = function() {
+    const outputId = 'analysis-loader-output';
+    
+    if (testState.analysisLoader) {
+        testState.analysisLoader.dispose();
+        log(outputId, '✅ AnalysisDataLoader disposed', 'success');
+        document.getElementById('analysis-loader-state').textContent = 'DISPOSED';
+        updateStatus('analysis-loader-status', false);
+        testState.analysisLoader = null;
+    }
+    updateStats();
+};
+
+window.testAnalysisLoaderPagination = async function() {
+    const outputId = 'analysis-loader-output';
+    
+    if (!testState.analysisLoader) {
+        testAnalysisLoaderCreate();
+    }
+    
+    log(outputId, '📄 Testing Pagination...', 'info');
+    
+    const page1 = await testState.analysisLoader.loadPage({}, 1);
+    log(outputId, `   Page 1: currentPage=${page1.pagination.currentPage}, hasMore=${page1.pagination.hasMore}`, 'info');
+    
+    const page2 = await testState.analysisLoader.loadNextPage();
+    log(outputId, `   Page 2: currentPage=${page2.pagination.currentPage}`, 'info');
+    
+    log(outputId, '✅ Pagination test complete', 'success');
+    updateStats();
+};
+
+window.testAnalysisLoaderStreaming = async function() {
+    const outputId = 'analysis-loader-output';
+    
+    if (!testState.analysisLoader) {
+        testAnalysisLoaderCreate();
+    }
+    
+    log(outputId, '📡 Testing Streaming...', 'info');
+    
+    const result = await testState.analysisLoader.loadStream({}, (chunk) => {
+        log(outputId, `   Chunk ${chunk.chunk}: ${chunk.progress}%`, 'info');
+    });
+    
+    log(outputId, `✅ Streaming complete: ${result.chunksReceived} chunks`, 'success');
+    updateStats();
+};
+
+window.testAnalysisLoaderCache = function() {
+    const outputId = 'analysis-loader-output';
+    
+    if (!testState.analysisLoader) {
+        testAnalysisLoaderCreate();
+    }
+    
+    log(outputId, '💾 Testing Cache...', 'info');
+    
+    testState.analysisLoader.setToCache('test-key', { data: 'test-value' });
+    const cached = testState.analysisLoader.getFromCache('test-key');
+    
+    const result = assert(cached !== null && cached.data === 'test-value', 'Cache works');
+    log(outputId, result.passed ? '✅ Cache set/get works' : '❌ Cache failed', result.passed ? 'success' : 'error');
+    
+    const stats = testState.analysisLoader.getCacheStats();
+    log(outputId, `   Cache entries: ${stats.entryCount}`, 'info');
+    
+    updateStatus('analysis-cache-status', true);
+    updateStats();
+};
+
+// ============================================
+// Test Functions - DashboardDataLoader
+// ============================================
+
+window.testDashboardLoaderCreate = function() {
+    const outputId = 'dashboard-loader-output';
+    log(outputId, '🧪 Creating DashboardDataLoader...', 'info');
+    
+    testState.dashboardLoader = new DashboardDataLoader({
+        apiClient: testState.apiClient,
+        eventBus: testState.eventBus
+    });
+    
+    log(outputId, '✅ DashboardDataLoader created (skeleton)', 'success');
+    document.getElementById('dashboard-loader-state').textContent = testState.dashboardLoader.getState().toUpperCase();
+    updateStats();
+};
+
+window.testDashboardLoaderStart = async function() {
+    const outputId = 'dashboard-loader-output';
+    
+    if (!testState.dashboardLoader) {
+        testDashboardLoaderCreate();
+    }
+    
+    log(outputId, '🧪 Starting DashboardDataLoader...', 'info');
+    updateStatus('dashboard-loader-status', false, true);
+    
+    await testState.dashboardLoader.start();
+    
+    log(outputId, `✅ State: ${testState.dashboardLoader.getState()}`, 'success');
+    document.getElementById('dashboard-loader-state').textContent = testState.dashboardLoader.getState().toUpperCase();
+    updateStatus('dashboard-loader-status', true);
+    updateStats();
+};
+
+window.testDashboardLoaderLoad = async function() {
+    const outputId = 'dashboard-loader-output';
+    
+    if (!testState.dashboardLoader) {
+        testDashboardLoaderCreate();
+    }
+    
+    log(outputId, '🧪 Loading dashboard data...', 'info');
+    
+    const result = await testState.dashboardLoader.load({
+        widgets: ['kpi_summary', 'alert_table']
+    });
+    
+    log(outputId, `✅ Load result: ${result.message}`, 'success');
+    updateStats();
+};
+
+window.testDashboardLoaderDispose = function() {
+    const outputId = 'dashboard-loader-output';
+    
+    if (testState.dashboardLoader) {
+        testState.dashboardLoader.dispose();
+        log(outputId, '✅ DashboardDataLoader disposed', 'success');
+        document.getElementById('dashboard-loader-state').textContent = 'DISPOSED';
+        updateStatus('dashboard-loader-status', false);
+        testState.dashboardLoader = null;
+    }
+    updateStats();
+};
+
+window.testDashboardLoaderWidget = async function() {
+    const outputId = 'dashboard-loader-output';
+    
+    if (!testState.dashboardLoader) {
+        testDashboardLoaderCreate();
+    }
+    
+    log(outputId, '🧩 Testing Widget Loading...', 'info');
+    
+    const result = await testState.dashboardLoader.loadWidget('kpi_summary');
+    log(outputId, `   Widget: ${result.widgetId}, value: ${result.data?.value?.toFixed(2)}`, 'info');
+    
+    const multiResult = await testState.dashboardLoader.loadWidgets(['alert_table', 'trend_chart']);
+    log(outputId, `   Loaded ${multiResult.results.length} widgets`, 'info');
+    
+    log(outputId, '✅ Widget loading complete', 'success');
+    updateStats();
+};
+
+window.testDashboardLoaderRedis = async function() {
+    const outputId = 'dashboard-loader-output';
+    
+    if (!testState.dashboardLoader) {
+        testDashboardLoaderCreate();
+    }
+    
+    log(outputId, '🔴 Testing Redis Connection...', 'info');
+    
+    await testState.dashboardLoader.connectToRedis();
+    const state = testState.dashboardLoader.getRedisState();
+    
+    log(outputId, `   Connected: ${state.isConnected}`, state.isConnected ? 'success' : 'warning');
+    
+    await testState.dashboardLoader.subscribeToChannels(['dashboard:update', 'dashboard:alert']);
+    log(outputId, '   Subscribed to channels', 'info');
+    
+    updateStatus('dashboard-redis-status', state.isConnected);
+    updateStats();
+};
+
+window.testDashboardLoaderPolling = function() {
+    const outputId = 'dashboard-loader-output';
+    
+    if (!testState.dashboardLoader) {
+        testDashboardLoaderCreate();
+    }
+    
+    log(outputId, '⏱️ Testing Polling...', 'info');
+    
+    testState.dashboardLoader.startPolling('kpi_summary', 2000);
+    log(outputId, '   Started polling for kpi_summary (2s interval)', 'info');
+    
+    const status = testState.dashboardLoader.getPollingStatus();
+    log(outputId, `   Active polls: ${Object.keys(status).length}`, 'info');
+    
+    setTimeout(() => {
+        testState.dashboardLoader.stopPolling('kpi_summary');
+        log(outputId, '   Polling stopped', 'info');
+    }, 5000);
+    
+    log(outputId, '✅ Polling test started (will stop in 5s)', 'success');
+    updateStats();
+};
+
+// ============================================
+// Test Functions - DataLoaderFactory
+// ============================================
+
+window.testFactoryConfigure = function() {
+    const outputId = 'factory-output';
+    log(outputId, '⚙️ Configuring DataLoaderFactory...', 'info');
+    
+    DataLoaderFactory.resetInstance();
+    
+    DataLoaderFactory.configure({
+        apiClient: testState.apiClient,
+        eventBus: testState.eventBus,
+        wsManager: testState.wsManager
+    });
+    
+    const status = DataLoaderFactory.getStatus();
+    log(outputId, `✅ Factory configured: ${status.isConfigured}`, 'success');
+    
+    document.getElementById('factory-state').textContent = status.isConfigured ? 'Configured' : 'Not Configured';
+    updateStatus('factory-status', status.isConfigured);
+    updateStats();
+};
+
+window.testFactoryGetLoader = function() {
+    const outputId = 'factory-output';
+    log(outputId, '📦 Getting loaders from factory...', 'info');
+    
+    const monitoringLoader = DataLoaderFactory.getLoader('monitoring');
+    log(outputId, `   Monitoring: ${monitoringLoader.getState()}`, 'info');
+    
+    const analysisLoader = DataLoaderFactory.getLoader('analysis');
+    log(outputId, `   Analysis: ${analysisLoader.getState()}`, 'info');
+    
+    const dashboardLoader = DataLoaderFactory.getLoader('dashboard');
+    log(outputId, `   Dashboard: ${dashboardLoader.getState()}`, 'info');
+    
+    const status = DataLoaderFactory.getStatus();
+    document.getElementById('factory-loader-count').textContent = `Loaders: ${status.activeLoaders}`;
+    
+    log(outputId, `✅ ${status.activeLoaders} loaders created`, 'success');
+    updateStats();
+};
+
+window.testFactorySingleton = function() {
+    const outputId = 'factory-output';
+    log(outputId, '🔒 Testing Singleton Pattern...', 'info');
+    
+    const loader1 = DataLoaderFactory.getLoader('monitoring');
+    const loader2 = DataLoaderFactory.getLoader('monitoring');
+    
+    const result = assert(loader1 === loader2, 'Same instance returned');
+    log(outputId, result.passed ? '✅ Singleton: Same instance returned' : '❌ Singleton failed', result.passed ? 'success' : 'error');
+    
+    const loader3 = DataLoaderFactory.getLoader('monitoring', { forceNew: true });
+    const newResult = assert(loader1 !== loader3, 'ForceNew creates new instance');
+    log(outputId, newResult.passed ? '✅ ForceNew: New instance created' : '❌ ForceNew failed', newResult.passed ? 'success' : 'error');
+    
+    updateStats();
+};
+
+window.testFactoryDisposeAll = function() {
+    const outputId = 'factory-output';
+    log(outputId, '🗑️ Disposing all loaders...', 'info');
+    
+    DataLoaderFactory.disposeAll();
+    
+    const status = DataLoaderFactory.getStatus();
+    log(outputId, `✅ All disposed. Active loaders: ${status.activeLoaders}`, 'success');
+    
+    document.getElementById('factory-loader-count').textContent = `Loaders: ${status.activeLoaders}`;
+    updateStats();
+};
+
+window.testFactoryLifecycle = async function() {
+    const outputId = 'factory-output';
+    log(outputId, '🔄 Testing Lifecycle Management...', 'info');
+    
+    const factory = DataLoaderFactory.getInstance();
+    
+    // Create and start
+    factory.getLoader('monitoring');
+    await factory.startLoader('monitoring');
+    log(outputId, '   Started monitoring loader', 'info');
+    
+    // Stop
+    await factory.stopLoader('monitoring');
+    log(outputId, '   Stopped monitoring loader', 'info');
+    
+    // Dispose single
+    factory.disposeLoader('monitoring');
+    log(outputId, '   Disposed monitoring loader', 'info');
+    
+    log(outputId, '✅ Lifecycle test complete', 'success');
+    updateStats();
+};
+
+window.testFactoryEvents = function() {
+    const outputId = 'factory-output';
+    log(outputId, '📣 Testing Factory Events...', 'info');
+    
+    const factory = DataLoaderFactory.getInstance();
+    
+    const unsubscribe = factory.on('loader:created', (data) => {
+        log(outputId, `   Event: loader:created (${data.mode})`, 'info');
+    });
+    
+    factory.getLoader('analysis', { forceNew: true });
+    
+    unsubscribe();
+    log(outputId, '✅ Event test complete', 'success');
+    updateStats();
+};
+
+window.testFactoryStatus = function() {
+    const outputId = 'factory-output';
+    log(outputId, '📊 Factory Status:', 'info');
+    
+    const status = DataLoaderFactory.getStatus();
+    
+    log(outputId, `   Configured: ${status.isConfigured}`, 'info');
+    log(outputId, `   Active Loaders: ${status.activeLoaders}`, 'info');
+    
+    Object.entries(status.loaders).forEach(([mode, info]) => {
+        log(outputId, `   ${mode}: ${info.state}`, 'info');
+    });
+    
+    updateStats();
+};
+
+// ============================================
+// Test Functions - RecoveryStrategyManager
+// ============================================
+
+window.testRecoveryCreate = function() {
+    const outputId = 'recovery-output';
+    log(outputId, '🧪 Creating RecoveryStrategyManager...', 'info');
+    
+    testState.recoveryManager = new RecoveryStrategyManager({
+        services: {
+            monitoringService: testState.monitoringService,
+            apiClient: testState.apiClient
+        },
+        eventBus: testState.eventBus,
+        toast: testState.toast
+    });
+    
+    log(outputId, '✅ RecoveryStrategyManager created', 'success');
+    updateStatus('recovery-status', true);
+    updateStats();
+};
+
+window.testRecoveryMonitoring = async function() {
+    const outputId = 'recovery-output';
+    
+    if (!testState.recoveryManager) {
+        testRecoveryCreate();
+    }
+    
+    log(outputId, '🖥️ Executing Monitoring Recovery...', 'info');
+    document.getElementById('recovery-state').textContent = 'Recovering...';
+    updateStatus('recovery-status', false, true);
+    
+    const result = await testState.recoveryManager.executeRecovery('monitoring', {
+        recoveredAfter: 3
+    });
+    
+    log(outputId, `   Status: ${result.status}`, result.status === 'success' ? 'success' : 'error');
+    log(outputId, `   Elapsed: ${result.elapsed}ms`, 'info');
+    
+    document.getElementById('recovery-state').textContent = result.status.toUpperCase();
+    updateStatus('recovery-status', result.status === 'success');
+    updateStats();
+};
+
+window.testRecoveryAnalysis = async function() {
+    const outputId = 'recovery-output';
+    
+    if (!testState.recoveryManager) {
+        testRecoveryCreate();
+    }
+    
+    log(outputId, '📊 Executing Analysis Recovery...', 'info');
+    
+    const result = await testState.recoveryManager.executeRecovery('analysis');
+    log(outputId, `   Status: ${result.status}`, result.status === 'success' ? 'success' : 'error');
+    
+    updateStats();
+};
+
+window.testRecoveryEdit = async function() {
+    const outputId = 'recovery-output';
+    
+    if (!testState.recoveryManager) {
+        testRecoveryCreate();
+    }
+    
+    log(outputId, '✏️ Executing Edit Mode Recovery...', 'info');
+    
+    const result = await testState.recoveryManager.executeRecovery('equipment_edit');
+    log(outputId, `   Status: ${result.status}`, result.status === 'success' ? 'success' : 'error');
+    
+    updateStats();
+};
+
+window.testRecoveryStrategies = function() {
+    const outputId = 'recovery-output';
+    
+    if (!testState.recoveryManager) {
+        testRecoveryCreate();
+    }
+    
+    log(outputId, '📋 Recovery Strategies:', 'info');
+    
+    ['monitoring', 'analysis', 'dashboard', 'equipment_edit'].forEach(mode => {
+        const strategy = testState.recoveryManager.getStrategy(mode);
+        if (strategy) {
+            log(outputId, `   ${mode}: ${strategy.name}`, 'info');
+            log(outputId, `      Actions: ${strategy.actions.join(', ')}`, 'info');
+        }
+    });
+    
+    updateStats();
+};
+
+window.testRecoveryCustomAction = async function() {
+    const outputId = 'recovery-output';
+    
+    if (!testState.recoveryManager) {
+        testRecoveryCreate();
+    }
+    
+    log(outputId, '⚡ Registering Custom Action...', 'info');
+    
+    testState.recoveryManager.registerActionHandler('customTest', async (params) => {
+        await new Promise(r => setTimeout(r, 100));
+        return { success: true, custom: true, message: 'Custom action executed!' };
+    });
+    
+    const result = await testState.recoveryManager.executeAction('customTest', { test: true });
+    log(outputId, `   Result: ${JSON.stringify(result)}`, result.success ? 'success' : 'error');
+    
+    updateStats();
+};
+
+window.testRecoveryStats = function() {
+    const outputId = 'recovery-output';
+    
+    if (!testState.recoveryManager) {
+        testRecoveryCreate();
+    }
+    
+    const status = testState.recoveryManager.getStatus();
+    
+    log(outputId, '📈 Recovery Stats:', 'info');
+    log(outputId, `   Total: ${status.stats.totalRecoveries}`, 'info');
+    log(outputId, `   Successful: ${status.stats.successfulRecoveries}`, 'info');
+    log(outputId, `   Failed: ${status.stats.failedRecoveries}`, 'info');
+    log(outputId, `   Is Recovering: ${status.isRecovering}`, 'info');
+    
+    updateStats();
+};
+
+// ============================================
+// Integration Scenarios
+// ============================================
+
+window.runScenario1 = async function() {
+    const outputId = 'scenario-output';
+    log(outputId, '🎯 === Scenario 1: Complete Initialization Flow ===', 'info');
+    
+    // Step 1: Configure Factory
+    log(outputId, '1️⃣ Configuring DataLoaderFactory...', 'info');
+    DataLoaderFactory.resetInstance();
+    DataLoaderFactory.configure({
+        apiClient: testState.apiClient,
+        eventBus: testState.eventBus,
+        wsManager: testState.wsManager
+    });
+    log(outputId, '   ✅ Factory configured', 'success');
+    
+    // Step 2: Create all loaders
+    log(outputId, '2️⃣ Creating all loaders...', 'info');
+    const monitoring = DataLoaderFactory.getLoader('monitoring');
+    const analysis = DataLoaderFactory.getLoader('analysis');
+    const dashboard = DataLoaderFactory.getLoader('dashboard');
+    log(outputId, '   ✅ 3 loaders created', 'success');
+    
+    // Step 3: Start loaders
+    log(outputId, '3️⃣ Starting loaders...', 'info');
+    await monitoring.start();
+    await analysis.start();
+    await dashboard.start();
+    log(outputId, '   ✅ All loaders started', 'success');
+    
+    // Step 4: Load data
+    log(outputId, '4️⃣ Loading data...', 'info');
+    await monitoring.load();
+    await analysis.load();
+    await dashboard.load();
+    log(outputId, '   ✅ Data loaded', 'success');
+    
+    // Step 5: Check status
+    log(outputId, '5️⃣ Checking status...', 'info');
+    const status = DataLoaderFactory.getStatus();
+    log(outputId, `   Active: ${status.activeLoaders}, All Ready: ${Object.values(status.loaders).every(l => l.state === 'ready')}`, 'info');
+    
+    // Step 6: Dispose
+    log(outputId, '6️⃣ Disposing...', 'info');
+    DataLoaderFactory.disposeAll();
+    log(outputId, '   ✅ All disposed', 'success');
+    
+    log(outputId, '🎉 Scenario 1 Complete!', 'success');
+    updateStats();
+};
+
+window.runScenario2 = async function() {
+    const outputId = 'scenario-output';
+    log(outputId, '🎯 === Scenario 2: Connection Recovery Simulation ===', 'info');
+    
+    // Setup
+    log(outputId, '1️⃣ Setting up...', 'info');
+    
+    if (!testState.recoveryManager) {
+        testState.recoveryManager = new RecoveryStrategyManager({
+            services: { monitoringService: testState.monitoringService },
+            eventBus: testState.eventBus,
+            toast: testState.toast
+        });
+    }
+    
+    DataLoaderFactory.configure({
+        apiClient: testState.apiClient,
+        eventBus: testState.eventBus,
+        wsManager: testState.wsManager
+    });
+    
+    const loader = DataLoaderFactory.getLoader('monitoring');
+    await loader.start();
+    log(outputId, '   ✅ Monitoring started', 'success');
+    
+    // Simulate disconnect
+    log(outputId, '2️⃣ Simulating disconnect...', 'warning');
+    testState.wsManager.simulateDisconnect();
+    log(outputId, '   ⚠️ Connection lost!', 'warning');
+    
+    // Recovery
+    log(outputId, '3️⃣ Executing recovery...', 'info');
+    const result = await testState.recoveryManager.executeRecovery('monitoring', {
+        recoveredAfter: 3
+    });
+    
+    log(outputId, `   Recovery status: ${result.status}`, result.status === 'success' ? 'success' : 'error');
+    
+    // Verify
+    log(outputId, '4️⃣ Verifying state...', 'info');
+    const stats = testState.recoveryManager.getStatus();
+    log(outputId, `   Total recoveries: ${stats.stats.totalRecoveries}`, 'info');
+    
+    log(outputId, '🎉 Scenario 2 Complete!', 'success');
+    updateStats();
+};
+
+window.runScenario3 = async function() {
+    const outputId = 'scenario-output';
+    log(outputId, '🎯 === Scenario 3: Mode Switching ===', 'info');
+    
+    DataLoaderFactory.resetInstance();
+    DataLoaderFactory.configure({
+        apiClient: testState.apiClient,
+        eventBus: testState.eventBus,
+        wsManager: testState.wsManager
+    });
+    
+    // Mode 1: Monitoring
+    log(outputId, '1️⃣ Mode: MONITORING', 'info');
+    const monitoring = DataLoaderFactory.getLoader('monitoring');
+    await monitoring.start();
+    await monitoring.load();
+    log(outputId, `   State: ${monitoring.getState()}`, 'success');
+    await monitoring.stop();
+    
+    // Mode 2: Analysis
+    log(outputId, '2️⃣ Mode: ANALYSIS', 'info');
+    const analysis = DataLoaderFactory.getLoader('analysis');
+    await analysis.start();
+    await analysis.load({ dateRange: { start: '2025-01-01', end: '2025-01-31' } });
+    log(outputId, `   State: ${analysis.getState()}`, 'success');
+    await analysis.stop();
+    
+    // Mode 3: Dashboard
+    log(outputId, '3️⃣ Mode: DASHBOARD', 'info');
+    const dashboard = DataLoaderFactory.getLoader('dashboard');
+    await dashboard.start();
+    await dashboard.loadWidget('kpi_summary');
+    log(outputId, `   State: ${dashboard.getState()}`, 'success');
+    await dashboard.stop();
+    
+    log(outputId, '🎉 Scenario 3 Complete! All modes tested.', 'success');
+    
+    DataLoaderFactory.disposeAll();
+    updateStats();
+};
+
+// ============================================
+// Global Functions
+// ============================================
+
+window.runAllTests = async function() {
+    document.getElementById('globalStatus').textContent = 'Running...';
+    document.getElementById('globalStatus').classList.add('loading');
+    
+    // Reset
+    testState.totalTests = 0;
+    testState.passedTests = 0;
+    testState.failedTests = 0;
+    
+    // IDataLoader tests
+    testIDataLoaderInterface();
+    testDataLoaderStates();
+    testDataLoaderEvents();
+    
+    // MonitoringDataLoader tests
+    testMonitoringLoaderCreate();
+    await testMonitoringLoaderStart();
+    await testMonitoringLoaderLoad();
+    await testMonitoringLoaderStop();
+    testMonitoringLoaderDispose();
+    
+    // AnalysisDataLoader tests
+    testAnalysisLoaderCreate();
+    await testAnalysisLoaderStart();
+    await testAnalysisLoaderLoad();
+    await testAnalysisLoaderPagination();
+    await testAnalysisLoaderStreaming();
+    testAnalysisLoaderCache();
+    testAnalysisLoaderDispose();
+    
+    // DashboardDataLoader tests
+    testDashboardLoaderCreate();
+    await testDashboardLoaderStart();
+    await testDashboardLoaderLoad();
+    await testDashboardLoaderWidget();
+    await testDashboardLoaderRedis();
+    testDashboardLoaderDispose();
+    
+    // DataLoaderFactory tests
+    testFactoryConfigure();
+    testFactoryGetLoader();
+    testFactorySingleton();
+    testFactoryStatus();
+    testFactoryDisposeAll();
+    
+    // RecoveryStrategyManager tests
+    testRecoveryCreate();
+    await testRecoveryMonitoring();
+    testRecoveryStrategies();
+    await testRecoveryCustomAction();
+    testRecoveryStats();
+    
+    document.getElementById('globalStatus').textContent = testState.failedTests === 0 ? 'All Passed!' : 'Some Failed';
+    document.getElementById('globalStatus').classList.remove('loading');
+    
+    updateStats();
+};
+
+window.resetAllTests = function() {
+    testState.totalTests = 0;
+    testState.passedTests = 0;
+    testState.failedTests = 0;
+    
+    // Dispose all loaders
+    if (testState.monitoringLoader) {
+        testState.monitoringLoader.dispose();
+        testState.monitoringLoader = null;
+    }
+    if (testState.analysisLoader) {
+        testState.analysisLoader.dispose();
+        testState.analysisLoader = null;
+    }
+    if (testState.dashboardLoader) {
+        testState.dashboardLoader.dispose();
+        testState.dashboardLoader = null;
+    }
+    if (testState.recoveryManager) {
+        testState.recoveryManager.dispose();
+        testState.recoveryManager = null;
+    }
+    
+    DataLoaderFactory.resetInstance();
+    
+    // Reset UI
+    document.querySelectorAll('.status-dot').forEach(dot => {
+        dot.classList.remove('active', 'loading', 'error');
+    });
+    
+    document.getElementById('globalStatus').textContent = 'Ready';
+    updateStats();
+    
+    console.log('All tests reset');
+};
+
+window.clearAllLogs = function() {
+    document.querySelectorAll('.output').forEach(output => {
+        output.innerHTML = '';
+    });
+};
+
+window.showMockTab = function(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    event.target.classList.add('active');
+    document.getElementById(`mock-${tabName}`).classList.add('active');
+    
+    refreshMockStates();
+};
+
+window.refreshMockStates = function() {
+    document.getElementById('eventbus-state').innerHTML = formatJson(testState.eventBus.getState());
+    document.getElementById('apiclient-state').innerHTML = formatJson(testState.apiClient.getState());
+    document.getElementById('wsmanager-state').innerHTML = formatJson(testState.wsManager.getState());
+    
+    const servicesState = {
+        monitoringService: {
+            isActive: testState.monitoringService.isActive
+        },
+        toast: {
+            messageCount: testState.toast.getMessages().length
+        },
+        factoryStatus: DataLoaderFactory.getStatus()
+    };
+    document.getElementById('services-state').innerHTML = formatJson(servicesState);
+};
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    refreshMockStates();
+    updateStats();
+    console.log('🧪 Test Suite Ready');
+});
+</script>
+</body>
+</html>

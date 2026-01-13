@@ -1,12 +1,31 @@
 /**
  * EquipmentMappingService.js
- * 설비 매핑 서비스 - API와 State 사이의 중재자
+ * ==========================
+ * 설비 매핑 통합 서비스 - API와 State 사이의 중재자
  * 
- * @version 1.0.0
+ * @version 2.0.0
+ * @since 2026-01-13
+ * 
  * @description 
  *   - 서버 ↔ 로컬 매핑 데이터 동기화
  *   - 유효성 검증 관리
  *   - 매핑 테스트 기능
+ *   - 🆕 v2.0.0: MappingConfigService 기능 통합
+ *     - Site 기반 매핑 로드 (loadMappingsForSite)
+ *     - 현재 연결 매핑 로드 (loadCurrentMappings)
+ *     - 내부 상태 관리 (Map 기반)
+ *     - EventBus 이벤트 발행
+ *     - Site 정보 관리
+ * 
+ * @changelog
+ * - v2.0.0 (2026-01-13): MappingConfigService 기능 통합
+ *   - loadCurrentMappings() 추가 → /api/mapping/current
+ *   - loadMappingsForSite(siteId) 추가 → /api/mapping/config/{siteId}
+ *   - 내부 mappings Map 관리 추가
+ *   - EventBus 연동 추가
+ *   - Site 정보 관리 추가
+ *   - 기존 loadMappings() API 변경 (getMappingConfig 사용)
+ * - v1.0.0: 초기 버전
  */
 
 import { debugLog } from '../../core/utils/Config.js';
@@ -15,27 +34,112 @@ export class EquipmentMappingService {
     /**
      * @param {Object} options
      * @param {Object} options.apiClient - ApiClient 인스턴스
-     * @param {Object} options.editState - EquipmentEditState 인스턴스
+     * @param {Object} [options.editState] - EquipmentEditState 인스턴스
+     * @param {Object} [options.eventBus] - EventBus 인스턴스
+     * @param {string} [options.apiBaseUrl] - API 기본 URL (폴백용)
+     * @param {string} [options.siteId] - 초기 사이트 ID
      */
     constructor(options = {}) {
+        // ===== 의존성 =====
         this.apiClient = options.apiClient;
         this.editState = options.editState;
+        this.eventBus = options.eventBus || null;
+        this.apiBaseUrl = options.apiBaseUrl || this._detectApiBaseUrl();
         
-        // 캐시된 설비 목록
+        // ===== 🆕 v2.0.0: 내부 매핑 상태 관리 =====
+        /** @type {Map<string, Object>} frontend_id → 상세 정보 */
+        this.mappings = new Map();
+        
+        /** @type {Map<number, string>} equipment_id → frontend_id */
+        this.reverseMap = new Map();
+        
+        // ===== 🆕 v2.0.0: Site 정보 =====
+        this.siteId = options.siteId || null;
+        this.siteInfo = null;
+        this.cachedConfig = null;
+        
+        // ===== 캐시 관련 =====
         this.equipmentNamesCache = null;
         this.cacheTimestamp = null;
         this.cacheDuration = 5 * 60 * 1000; // 5분
         
-        // 상태
+        // ===== 🆕 v2.0.0: 매핑 캐시 =====
+        this.mappingCacheTimestamp = null;
+        this.mappingCacheDuration = 10 * 60 * 1000; // 10분
+        
+        // ===== 상태 =====
         this.isLoading = false;
+        this.isInitialized = false;
         this.lastSyncTime = null;
         this.lastError = null;
         
-        debugLog('🔧 EquipmentMappingService initialized');
+        // ===== 버전 =====
+        this.version = '2.0.0';
+        
+        debugLog(`🔧 EquipmentMappingService initialized (v${this.version})`);
     }
     
     // ==========================================
-    // 설비 목록 관리
+    // 🆕 v2.0.0: EventBus 설정
+    // ==========================================
+    
+    /**
+     * EventBus 설정
+     * @param {Object} eventBus - EventBus 인스턴스
+     */
+    setEventBus(eventBus) {
+        this.eventBus = eventBus;
+        debugLog('[EquipmentMappingService] EventBus 연결됨');
+    }
+    
+    /**
+     * EditState 설정
+     * @param {Object} editState - EquipmentEditState 인스턴스
+     */
+    setEditState(editState) {
+        this.editState = editState;
+        debugLog('[EquipmentMappingService] EditState 연결됨');
+    }
+    
+    /**
+     * 이벤트 발행 (EventBus가 있을 때만)
+     * @private
+     * @param {string} eventName - 이벤트 이름
+     * @param {Object} data - 이벤트 데이터
+     */
+    _emit(eventName, data = {}) {
+        if (this.eventBus) {
+            this.eventBus.emit(eventName, {
+                ...data,
+                timestamp: new Date().toISOString(),
+                source: 'EquipmentMappingService'
+            });
+            debugLog(`📡 [EquipmentMappingService] Event emitted: ${eventName}`);
+        }
+    }
+    
+    // ==========================================
+    // 🆕 v2.0.0: API Base URL 감지
+    // ==========================================
+    
+    /**
+     * API Base URL 자동 감지 (폴백용)
+     * @private
+     * @returns {string}
+     */
+    _detectApiBaseUrl() {
+        const hostname = window.location.hostname;
+        const port = 8000;
+        
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return `http://localhost:${port}`;
+        }
+        
+        return `http://${hostname}:${port}`;
+    }
+    
+    // ==========================================
+    // 설비 목록 관리 (기존 유지)
     // ==========================================
     
     /**
@@ -45,7 +149,7 @@ export class EquipmentMappingService {
      */
     async loadEquipmentNames(forceRefresh = false) {
         // 캐시 유효성 확인
-        if (!forceRefresh && this._isCacheValid()) {
+        if (!forceRefresh && this._isEquipmentNamesCacheValid()) {
             debugLog('📋 Using cached equipment names');
             return this.equipmentNamesCache;
         }
@@ -73,48 +177,271 @@ export class EquipmentMappingService {
     }
     
     /**
-     * 캐시 유효성 확인
+     * 설비 이름 캐시 유효성 확인
+     * @private
      * @returns {boolean}
      */
-    _isCacheValid() {
+    _isEquipmentNamesCacheValid() {
         if (!this.equipmentNamesCache || !this.cacheTimestamp) {
             return false;
         }
         return (Date.now() - this.cacheTimestamp) < this.cacheDuration;
     }
     
+    // ==========================================
+    // 🆕 v2.0.0: 매핑 로드 (신규 API 사용)
+    // ==========================================
+    
     /**
-     * 캐시 초기화
+     * 🆕 v2.0.0: 현재 연결된 사이트의 매핑 로드
+     * GET /api/mapping/current
+     * 
+     * @param {Object} [options] - 옵션
+     * @param {boolean} [options.forceRefresh=false] - 강제 새로고침
+     * @param {boolean} [options.applyToEditState=true] - EditState에 자동 적용
+     * @returns {Promise<Object>} { connected, siteId, mappings, count }
+     * 
+     * @example
+     * const result = await mappingService.loadCurrentMappings();
+     * if (result.connected) {
+     *     console.log(`${result.count}개 매핑 로드됨`);
+     * }
      */
-    clearCache() {
-        this.equipmentNamesCache = null;
-        this.cacheTimestamp = null;
-        debugLog('🗑️ Equipment names cache cleared');
+    async loadCurrentMappings(options = {}) {
+        const { forceRefresh = false, applyToEditState = true } = options;
+        
+        // 캐시 확인
+        if (!forceRefresh && this._isMappingCacheValid() && this.isInitialized) {
+            debugLog('📋 Using cached mapping data');
+            return {
+                connected: true,
+                siteId: this.siteId,
+                mappings: this.getAllMappingsAsObject(),
+                count: this.getMappingCount(),
+                fromCache: true
+            };
+        }
+        
+        try {
+            this.isLoading = true;
+            debugLog('📡 Loading current mappings from server...');
+            
+            // 🆕 v2.0.0: 신규 API 사용
+            const config = await this.apiClient.getMappingConfig();
+            
+            if (!config.connected) {
+                debugLog('⚠️ No active connection');
+                return {
+                    connected: false,
+                    siteId: null,
+                    mappings: {},
+                    count: 0,
+                    message: config.message || 'No active connection'
+                };
+            }
+            
+            // 사이트 정보 저장
+            this.siteId = config.site_id;
+            this.cachedConfig = config;
+            this.mappingCacheTimestamp = Date.now();
+            
+            // 매핑 적용
+            this._applyMappings(config.mappings || {});
+            
+            this.isInitialized = true;
+            this.lastSyncTime = new Date();
+            
+            // EditState에 적용
+            if (applyToEditState && this.editState) {
+                this.applyToEditState(this.editState);
+            }
+            
+            // 🆕 이벤트 발행
+            this._emit('equipment:mapping-loaded', {
+                siteId: this.siteId,
+                count: this.getMappingCount(),
+                source: 'current'
+            });
+            
+            debugLog(`✅ Loaded ${this.getMappingCount()} mappings from current connection (${this.siteId})`);
+            
+            return {
+                connected: true,
+                siteId: this.siteId,
+                mappings: this.getAllMappingsAsObject(),
+                count: this.getMappingCount(),
+                siteInfo: this.getSiteInfo()
+            };
+            
+        } catch (error) {
+            this.lastError = error;
+            console.error('❌ Failed to load current mappings:', error);
+            
+            this._emit('equipment:mapping-error', {
+                error: error.message,
+                action: 'loadCurrentMappings'
+            });
+            
+            throw error;
+        } finally {
+            this.isLoading = false;
+        }
     }
     
-    // ==========================================
-    // 매핑 로드/저장
-    // ==========================================
+    /**
+     * 🆕 v2.0.0: 특정 사이트의 매핑 로드
+     * GET /api/mapping/config/{siteId}
+     * 
+     * @param {string} siteId - 사이트 ID (예: 'korea_site1_line1')
+     * @param {Object} [options] - 옵션
+     * @param {boolean} [options.forceRefresh=false] - 강제 새로고침
+     * @param {boolean} [options.applyToEditState=true] - EditState에 자동 적용
+     * @returns {Promise<Object>} { connected, siteId, mappings, count }
+     * 
+     * @example
+     * const result = await mappingService.loadMappingsForSite('korea_site1_line1');
+     */
+    async loadMappingsForSite(siteId, options = {}) {
+        const { forceRefresh = false, applyToEditState = true } = options;
+        
+        if (!siteId || typeof siteId !== 'string') {
+            throw new Error('Invalid siteId');
+        }
+        
+        // 같은 사이트이고 캐시가 유효하면 반환
+        if (!forceRefresh && this.siteId === siteId && this._isMappingCacheValid()) {
+            debugLog(`📋 Using cached mapping for ${siteId}`);
+            return {
+                connected: true,
+                siteId: this.siteId,
+                mappings: this.getAllMappingsAsObject(),
+                count: this.getMappingCount(),
+                fromCache: true
+            };
+        }
+        
+        try {
+            this.isLoading = true;
+            debugLog(`📡 Loading mappings for site: ${siteId}...`);
+            
+            // 🆕 v2.0.0: 신규 API 사용
+            const config = await this.apiClient.getMappingConfigBySite(siteId);
+            
+            if (!config || config.message) {
+                debugLog(`⚠️ Failed to load mapping for ${siteId}: ${config?.message}`);
+                return {
+                    connected: false,
+                    siteId: siteId,
+                    mappings: {},
+                    count: 0,
+                    message: config?.message || 'Load failed'
+                };
+            }
+            
+            // 사이트 정보 저장
+            this.siteId = siteId;
+            this.cachedConfig = config;
+            this.mappingCacheTimestamp = Date.now();
+            
+            // 매핑 적용
+            this._applyMappings(config.mappings || {});
+            
+            this.isInitialized = true;
+            this.lastSyncTime = new Date();
+            
+            // EditState에 적용
+            if (applyToEditState && this.editState) {
+                this.applyToEditState(this.editState);
+            }
+            
+            // 🆕 이벤트 발행
+            this._emit('equipment:mapping-loaded', {
+                siteId: this.siteId,
+                count: this.getMappingCount(),
+                source: 'site'
+            });
+            
+            debugLog(`✅ Loaded ${this.getMappingCount()} mappings for site: ${siteId}`);
+            
+            return {
+                connected: true,
+                siteId: this.siteId,
+                mappings: this.getAllMappingsAsObject(),
+                count: this.getMappingCount(),
+                siteInfo: this.getSiteInfo()
+            };
+            
+        } catch (error) {
+            this.lastError = error;
+            console.error(`❌ Failed to load mappings for ${siteId}:`, error);
+            
+            this._emit('equipment:mapping-error', {
+                error: error.message,
+                action: 'loadMappingsForSite',
+                siteId
+            });
+            
+            throw error;
+        } finally {
+            this.isLoading = false;
+        }
+    }
     
     /**
-     * 서버에서 매핑 데이터 로드
-     * @param {string} mergeStrategy - 'replace' | 'merge' | 'keep-local'
+     * 서버에서 매핑 데이터 로드 (기존 메서드 - 호환성 유지)
+     * 
+     * @deprecated v2.0.0부터 loadCurrentMappings() 또는 loadMappingsForSite() 사용 권장
+     * @param {string} [mergeStrategy='replace'] - 'replace' | 'merge' | 'keep-local'
      * @returns {Promise<Object>} 로드된 매핑 데이터
      */
     async loadMappings(mergeStrategy = 'replace') {
+        debugLog('⚠️ loadMappings() is deprecated. Use loadCurrentMappings() instead.');
+        
         try {
             this.isLoading = true;
             debugLog('📡 Loading mappings from server...');
             
-            const serverMappings = await this.apiClient.getEquipmentMappings();
+            // 🆕 v2.0.0: 신규 API 사용 (기존 deprecated API 대체)
+            const config = await this.apiClient.getMappingConfig();
             
-            // EditState에 적용
+            if (!config.connected) {
+                debugLog('⚠️ Not connected or no mappings');
+                return {};
+            }
+            
+            // 매핑 데이터 변환 (기존 형식으로)
+            const serverMappings = {};
+            if (config.mappings) {
+                for (const [frontendId, item] of Object.entries(config.mappings)) {
+                    serverMappings[frontendId] = {
+                        frontend_id: frontendId,
+                        equipment_id: item.equipment_id,
+                        equipment_name: item.equipment_name,
+                        equipment_code: item.equipment_code || null,
+                        line_name: item.line_name || null,
+                        mapped_at: item.updated_at || new Date().toISOString()
+                    };
+                }
+            }
+            
+            // 내부 상태 업데이트
+            this._applyMappings(config.mappings || {});
+            this.siteId = config.site_id;
+            
+            // EditState에 적용 (기존 로직 유지)
             if (this.editState) {
                 this.editState.loadFromServer(serverMappings, mergeStrategy);
             }
             
             this.lastSyncTime = new Date();
             debugLog(`✅ Loaded ${Object.keys(serverMappings).length} mappings (strategy: ${mergeStrategy})`);
+            
+            // 🆕 이벤트 발행
+            this._emit('equipment:mapping-loaded', {
+                siteId: this.siteId,
+                count: Object.keys(serverMappings).length,
+                strategy: mergeStrategy
+            });
             
             return serverMappings;
             
@@ -126,6 +453,226 @@ export class EquipmentMappingService {
             this.isLoading = false;
         }
     }
+    
+    // ==========================================
+    // 🆕 v2.0.0: 내부 매핑 상태 관리
+    // ==========================================
+    
+    /**
+     * 매핑 데이터 적용 (내부 상태 업데이트)
+     * @private
+     * @param {Object} mappingsData - { frontendId: { equipment_id, equipment_name, ... }, ... }
+     */
+    _applyMappings(mappingsData) {
+        this.mappings.clear();
+        this.reverseMap.clear();
+        
+        for (const [frontendId, item] of Object.entries(mappingsData)) {
+            const equipmentId = item.equipment_id;
+            
+            this.mappings.set(frontendId, {
+                equipmentId: equipmentId,
+                equipmentName: item.equipment_name,
+                equipmentCode: item.equipment_code || null,
+                lineName: item.line_name || null,
+                updatedAt: item.updated_at || null
+            });
+            
+            this.reverseMap.set(equipmentId, frontendId);
+        }
+        
+        debugLog(`📋 Applied ${this.mappings.size} mappings to internal state`);
+    }
+    
+    /**
+     * 매핑 캐시 유효성 확인
+     * @private
+     * @returns {boolean}
+     */
+    _isMappingCacheValid() {
+        if (!this.mappingCacheTimestamp) {
+            return false;
+        }
+        return (Date.now() - this.mappingCacheTimestamp) < this.mappingCacheDuration;
+    }
+    
+    // ==========================================
+    // 🆕 v2.0.0: 매핑 조회 메서드
+    // ==========================================
+    
+    /**
+     * Frontend ID로 Equipment ID 조회
+     * @param {string} frontendId - 'EQ-01-01'
+     * @returns {number|null}
+     */
+    getEquipmentId(frontendId) {
+        const mapping = this.mappings.get(frontendId);
+        return mapping ? mapping.equipmentId : null;
+    }
+    
+    /**
+     * Equipment ID로 Frontend ID 조회
+     * @param {number} equipmentId
+     * @returns {string|null}
+     */
+    getFrontendId(equipmentId) {
+        return this.reverseMap.get(equipmentId) || null;
+    }
+    
+    /**
+     * Frontend ID로 상세 매핑 정보 조회
+     * @param {string} frontendId
+     * @returns {Object|null}
+     */
+    getMappingDetails(frontendId) {
+        return this.mappings.get(frontendId) || null;
+    }
+    
+    /**
+     * 모든 매핑 반환 (Map)
+     * @returns {Map}
+     */
+    getAllMappings() {
+        return new Map(this.mappings);
+    }
+    
+    /**
+     * 모든 매핑 반환 (Object 형식)
+     * @returns {Object}
+     */
+    getAllMappingsAsObject() {
+        const obj = {};
+        for (const [frontendId, data] of this.mappings) {
+            obj[frontendId] = {
+                frontend_id: frontendId,
+                equipment_id: data.equipmentId,
+                equipment_name: data.equipmentName,
+                equipment_code: data.equipmentCode,
+                line_name: data.lineName
+            };
+        }
+        return obj;
+    }
+    
+    /**
+     * 매핑 개수
+     * @returns {number}
+     */
+    getMappingCount() {
+        return this.mappings.size;
+    }
+    
+    /**
+     * 매핑 여부 확인
+     * @param {string} frontendId
+     * @returns {boolean}
+     */
+    isMapped(frontendId) {
+        return this.mappings.has(frontendId);
+    }
+    
+    // ==========================================
+    // 🆕 v2.0.0: EditState 연동
+    // ==========================================
+    
+    /**
+     * EquipmentEditState에 매핑 적용
+     * 
+     * @param {Object} editState - EquipmentEditState 인스턴스
+     * @returns {boolean}
+     */
+    applyToEditState(editState) {
+        if (!editState) {
+            console.warn('⚠️ EditState not provided');
+            return false;
+        }
+        
+        if (this.mappings.size === 0) {
+            debugLog('⚠️ No mappings to apply');
+            return false;
+        }
+        
+        try {
+            const serverMappings = {};
+            
+            for (const [frontendId, data] of this.mappings) {
+                serverMappings[frontendId] = {
+                    frontend_id: frontendId,
+                    equipment_id: data.equipmentId,
+                    equipment_name: data.equipmentName,
+                    equipment_code: data.equipmentCode,
+                    line_name: data.lineName
+                };
+            }
+            
+            editState.loadFromServer(serverMappings, 'replace');
+            
+            debugLog(`✅ Applied ${this.mappings.size} mappings to EditState`);
+            return true;
+            
+        } catch (error) {
+            console.error('❌ Failed to apply to EditState:', error);
+            return false;
+        }
+    }
+    
+    // ==========================================
+    // 🆕 v2.0.0: 사이트 관리
+    // ==========================================
+    
+    /**
+     * 사이트 변경
+     * @param {string} newSiteId - 예: 'korea_site1_line2'
+     * @returns {Promise<boolean>}
+     */
+    async changeSite(newSiteId) {
+        if (this.siteId === newSiteId && this.isInitialized) {
+            debugLog(`📌 Already on site: ${newSiteId}`);
+            return true;
+        }
+        
+        debugLog(`🔄 Changing site: ${this.siteId} → ${newSiteId}`);
+        
+        // 캐시 정리
+        this.clearMappingCache();
+        
+        try {
+            const result = await this.loadMappingsForSite(newSiteId);
+            
+            // 🆕 이벤트 발행
+            this._emit('equipment:site-changed', {
+                previousSiteId: this.siteId,
+                newSiteId: newSiteId,
+                success: result.connected
+            });
+            
+            return result.connected;
+            
+        } catch (error) {
+            console.error(`❌ Failed to change site to ${newSiteId}:`, error);
+            return false;
+        }
+    }
+    
+    /**
+     * 현재 사이트 정보
+     * @returns {Object}
+     */
+    getSiteInfo() {
+        return {
+            siteId: this.siteId,
+            siteName: this.cachedConfig?.site_name || '',
+            dbName: this.cachedConfig?.db_name || '',
+            displayName: this.cachedConfig?.display_name || this.siteId,
+            mappingCount: this.mappings.size,
+            isInitialized: this.isInitialized,
+            lastUpdated: this.cachedConfig?.updated_at || null
+        };
+    }
+    
+    // ==========================================
+    // 매핑 저장 (기존 유지)
+    // ==========================================
     
     /**
      * 매핑 데이터를 서버에 저장
@@ -175,8 +722,17 @@ export class EquipmentMappingService {
                 this.editState.isDirty = false;
             }
             
+            // 내부 상태 동기화
+            this._syncFromEditState();
+            
             this.lastSyncTime = new Date();
             debugLog(`✅ Saved ${mappingsArray.length} mappings successfully`);
+            
+            // 🆕 이벤트 발행
+            this._emit('equipment:mapping-saved', {
+                siteId: this.siteId,
+                count: mappingsArray.length
+            });
             
             return result;
             
@@ -189,8 +745,35 @@ export class EquipmentMappingService {
         }
     }
     
+    /**
+     * EditState에서 내부 상태 동기화
+     * @private
+     */
+    _syncFromEditState() {
+        if (!this.editState) return;
+        
+        const allMappings = this.editState.getAllMappings();
+        
+        this.mappings.clear();
+        this.reverseMap.clear();
+        
+        for (const [frontendId, mapping] of Object.entries(allMappings)) {
+            this.mappings.set(frontendId, {
+                equipmentId: mapping.equipment_id,
+                equipmentName: mapping.equipment_name,
+                equipmentCode: mapping.equipment_code || null,
+                lineName: mapping.line_name || null,
+                updatedAt: mapping.mapped_at || null
+            });
+            
+            this.reverseMap.set(mapping.equipment_id, frontendId);
+        }
+        
+        debugLog(`📋 Synced ${this.mappings.size} mappings from EditState`);
+    }
+    
     // ==========================================
-    // 유효성 검증
+    // 유효성 검증 (기존 유지)
     // ==========================================
     
     /**
@@ -275,7 +858,7 @@ export class EquipmentMappingService {
     }
     
     // ==========================================
-    // 매핑 테스트
+    // 매핑 테스트 (기존 유지)
     // ==========================================
     
     /**
@@ -386,7 +969,7 @@ export class EquipmentMappingService {
     }
     
     // ==========================================
-    // 동기화
+    // 동기화 (기존 + 수정)
     // ==========================================
     
     /**
@@ -402,8 +985,28 @@ export class EquipmentMappingService {
             this.isLoading = true;
             debugLog('🔄 Starting sync with server...');
             
-            // 서버 데이터 가져오기
-            const serverMappings = await this.apiClient.getEquipmentMappings();
+            // 🆕 v2.0.0: 신규 API 사용
+            const config = await this.apiClient.getMappingConfig();
+            
+            if (!config.connected) {
+                return {
+                    success: false,
+                    action: 'none',
+                    message: 'No active connection'
+                };
+            }
+            
+            // 서버 매핑 변환
+            const serverMappings = {};
+            if (config.mappings) {
+                for (const [frontendId, item] of Object.entries(config.mappings)) {
+                    serverMappings[frontendId] = {
+                        frontend_id: frontendId,
+                        equipment_id: item.equipment_id,
+                        equipment_name: item.equipment_name
+                    };
+                }
+            }
             
             // 충돌 감지
             const comparison = this.editState.compareWithServer(serverMappings);
@@ -439,12 +1042,68 @@ export class EquipmentMappingService {
      * @returns {Promise<Object>} 충돌 정보
      */
     async detectConflicts() {
-        const serverMappings = await this.apiClient.getEquipmentMappings();
+        // 🆕 v2.0.0: 신규 API 사용
+        const config = await this.apiClient.getMappingConfig();
+        
+        if (!config.connected || !config.mappings) {
+            return {
+                needsSync: false,
+                conflicts: [],
+                localOnly: [],
+                serverOnly: []
+            };
+        }
+        
+        // 서버 매핑 변환
+        const serverMappings = {};
+        for (const [frontendId, item] of Object.entries(config.mappings)) {
+            serverMappings[frontendId] = {
+                frontend_id: frontendId,
+                equipment_id: item.equipment_id,
+                equipment_name: item.equipment_name
+            };
+        }
+        
         return this.editState.compareWithServer(serverMappings);
     }
     
     // ==========================================
-    // 상태 조회
+    // 캐시 관리
+    // ==========================================
+    
+    /**
+     * 설비 이름 캐시 초기화
+     */
+    clearEquipmentNamesCache() {
+        this.equipmentNamesCache = null;
+        this.cacheTimestamp = null;
+        debugLog('🗑️ Equipment names cache cleared');
+    }
+    
+    /**
+     * 매핑 캐시 초기화
+     */
+    clearMappingCache() {
+        this.mappings.clear();
+        this.reverseMap.clear();
+        this.cachedConfig = null;
+        this.mappingCacheTimestamp = null;
+        this.siteId = null;
+        this.isInitialized = false;
+        debugLog('🗑️ Mapping cache cleared');
+    }
+    
+    /**
+     * 모든 캐시 초기화
+     */
+    clearCache() {
+        this.clearEquipmentNamesCache();
+        this.clearMappingCache();
+        debugLog('🗑️ All caches cleared');
+    }
+    
+    // ==========================================
+    // 상태 조회 (기존 + 확장)
     // ==========================================
     
     /**
@@ -453,17 +1112,23 @@ export class EquipmentMappingService {
      * @returns {Object} 완료 상태
      */
     getCompletionStatus(totalEquipments = 117) {
-        if (!this.editState) {
+        // EditState가 있으면 EditState 기준
+        if (this.editState) {
+            const mapped = this.editState.getMappingCount();
+            const unmapped = totalEquipments - mapped;
+            const percentage = Math.round((mapped / totalEquipments) * 100);
+            
             return {
                 total: totalEquipments,
-                mapped: 0,
-                unmapped: totalEquipments,
-                percentage: 0,
-                isComplete: false
+                mapped,
+                unmapped,
+                percentage,
+                isComplete: mapped >= totalEquipments
             };
         }
         
-        const mapped = this.editState.getMappingCount();
+        // 내부 상태 기준
+        const mapped = this.mappings.size;
         const unmapped = totalEquipments - mapped;
         const percentage = Math.round((mapped / totalEquipments) * 100);
         
@@ -482,31 +1147,74 @@ export class EquipmentMappingService {
      */
     getStatus() {
         return {
+            // 기본 상태
+            version: this.version,
             isLoading: this.isLoading,
+            isInitialized: this.isInitialized,
             lastSyncTime: this.lastSyncTime,
-            lastError: this.lastError,
-            cacheValid: this._isCacheValid(),
-            mappingCount: this.editState?.getMappingCount() || 0,
-            isDirty: this.editState?.isDirty || false
+            lastError: this.lastError?.message || null,
+            
+            // 🆕 v2.0.0: 매핑 상태
+            siteId: this.siteId,
+            mappingCount: this.mappings.size,
+            mappingCacheValid: this._isMappingCacheValid(),
+            
+            // 설비 이름 캐시 상태
+            equipmentNamesCacheValid: this._isEquipmentNamesCacheValid(),
+            equipmentNamesCount: this.equipmentNamesCache?.length || 0,
+            
+            // EditState 상태
+            hasEditState: !!this.editState,
+            editStateMappingCount: this.editState?.getMappingCount() || 0,
+            isDirty: this.editState?.isDirty || false,
+            
+            // EventBus 상태
+            hasEventBus: !!this.eventBus
         };
     }
     
     // ==========================================
-    // 디버깅
+    // 디버깅 (기존 + 확장)
     // ==========================================
     
     /**
      * 디버그 정보 출력
      */
     debugPrint() {
-        console.group('🔧 EquipmentMappingService Debug');
+        console.group(`🔧 EquipmentMappingService Debug (v${this.version})`);
+        
+        console.log('=== 상태 ===');
         console.log('Status:', this.getStatus());
+        
+        console.log('=== 사이트 정보 ===');
+        console.log('Site Info:', this.getSiteInfo());
+        
+        console.log('=== 완료 상태 ===');
         console.log('Completion:', this.getCompletionStatus());
-        console.log('Cache:', {
-            valid: this._isCacheValid(),
+        
+        console.log('=== 설비 이름 캐시 ===');
+        console.log('Equipment Names Cache:', {
+            valid: this._isEquipmentNamesCacheValid(),
             count: this.equipmentNamesCache?.length || 0,
             age: this.cacheTimestamp ? `${Math.round((Date.now() - this.cacheTimestamp) / 1000)}s` : 'N/A'
         });
+        
+        console.log('=== 매핑 캐시 ===');
+        console.log('Mapping Cache:', {
+            valid: this._isMappingCacheValid(),
+            count: this.mappings.size,
+            age: this.mappingCacheTimestamp ? `${Math.round((Date.now() - this.mappingCacheTimestamp) / 1000)}s` : 'N/A'
+        });
+        
+        console.log('=== 내부 매핑 (처음 10개) ===');
+        const sampleMappings = Array.from(this.mappings.entries()).slice(0, 10);
+        console.table(sampleMappings.map(([frontendId, data]) => ({
+            frontendId,
+            equipmentId: data.equipmentId,
+            equipmentName: data.equipmentName,
+            lineName: data.lineName
+        })));
+        
         console.groupEnd();
     }
 }
