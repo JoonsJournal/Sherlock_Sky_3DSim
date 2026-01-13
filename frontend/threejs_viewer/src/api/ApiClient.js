@@ -1,6 +1,16 @@
 /**
  * ApiClient.js
  * REST API 통신 클라이언트
+ * 
+ * @version 2.0.0
+ * @since 2026-01-13
+ * 
+ * @changelog
+ * - v2.0.0: 매핑 API 일원화 (2026-01-13)
+ *   - getEquipmentMappings() → deprecated, getMappingConfig() 사용 권장
+ *   - getMappingConfig() 신규 추가 → /api/mapping/current 사용
+ *   - getMappingConfigBySite() 신규 추가 → /api/mapping/config/{siteId} 사용
+ *   - MappingConfigService와 일관된 엔드포인트 사용
  */
 
 import { debugLog } from '../core/utils/Config.js';
@@ -179,7 +189,7 @@ export class ApiClient {
     }
     
     // ============================================
-    // ⭐ Equipment Mapping API
+    // ⭐ Equipment Mapping API (v2.0.0 개선)
     // ============================================
     
     /**
@@ -197,6 +207,84 @@ export class ApiClient {
     }
     
     /**
+     * 🆕 v2.0.0: 현재 연결된 사이트의 매핑 설정 조회
+     * MappingConfigService.initializeFromCurrentConnection()과 동일한 엔드포인트
+     * 
+     * @returns {Promise<Object>} { connected, site_id, mappings: {...}, ... }
+     * 
+     * @example
+     * const config = await apiClient.getMappingConfig();
+     * if (config.connected) {
+     *     console.log(`Site: ${config.site_id}, Mappings: ${Object.keys(config.mappings).length}`);
+     * }
+     */
+    async getMappingConfig() {
+        try {
+            const config = await this.get('/mapping/current');
+            
+            // 응답 검증
+            if (!config || typeof config !== 'object') {
+                console.warn('⚠️ Invalid mapping config response');
+                return {
+                    connected: false,
+                    site_id: null,
+                    mappings: {},
+                    message: 'Invalid response format'
+                };
+            }
+            
+            debugLog(`📋 Mapping config loaded: connected=${config.connected}, site=${config.site_id}`);
+            return config;
+            
+        } catch (error) {
+            console.error('❌ Get mapping config error:', error);
+            return {
+                connected: false,
+                site_id: null,
+                mappings: {},
+                message: error.message || 'Failed to get mapping config'
+            };
+        }
+    }
+    
+    /**
+     * 🆕 v2.0.0: 특정 사이트의 매핑 설정 조회
+     * MappingConfigService.loadSiteMapping()과 동일한 엔드포인트
+     * 
+     * @param {string} siteId - 사이트 ID (예: 'korea_site1_line1')
+     * @returns {Promise<Object>} 매핑 설정
+     * 
+     * @example
+     * const config = await apiClient.getMappingConfigBySite('korea_site1_line1');
+     */
+    async getMappingConfigBySite(siteId) {
+        if (!siteId || typeof siteId !== 'string') {
+            console.error('❌ Invalid siteId:', siteId);
+            return {
+                connected: false,
+                site_id: null,
+                mappings: {},
+                message: 'Invalid siteId'
+            };
+        }
+        
+        try {
+            const config = await this.get(`/mapping/config/${siteId}`);
+            debugLog(`📋 Mapping config loaded for site ${siteId}`);
+            return config;
+            
+        } catch (error) {
+            console.error(`❌ Get mapping config for ${siteId} error:`, error);
+            return {
+                connected: false,
+                site_id: siteId,
+                mappings: {},
+                message: error.message || 'Failed to get mapping config'
+            };
+        }
+    }
+    
+    /**
      * 설비 매핑 데이터 저장
      * @param {Object} data - { mappings: [{ frontend_id, equipment_id, equipment_name }, ...] }
      * @returns {Promise<Object>}
@@ -207,12 +295,43 @@ export class ApiClient {
     
     /**
      * 설비 매핑 데이터 조회
+     * 
+     * @deprecated v2.0.0부터 getMappingConfig() 사용 권장
+     * 이 메서드는 잘못된 엔드포인트(/equipment/mapping)를 사용했었습니다.
+     * 하위 호환성을 위해 내부적으로 getMappingConfig()를 호출합니다.
+     * 
      * @returns {Promise<Object>} { 'EQ-01-01': { equipment_id, equipment_name }, ... }
      */
     async getEquipmentMappings() {
+        console.warn('⚠️ [Deprecated] getEquipmentMappings()는 deprecated입니다. getMappingConfig()를 사용하세요.');
+        
         try {
-            const mappings = await this.get('/equipment/mapping');
-            return mappings || {};
+            // 🆕 v2.0.0: 올바른 엔드포인트로 리다이렉트
+            const config = await this.getMappingConfig();
+            
+            if (!config.connected || !config.mappings) {
+                debugLog('⚠️ Not connected or no mappings');
+                return {};
+            }
+            
+            // MappingConfigService 형식 → EquipmentEditState 형식 변환
+            // { frontend_id: { equipment_id, equipment_name, equipment_code, line_name } }
+            const mappings = {};
+            
+            for (const [frontendId, item] of Object.entries(config.mappings)) {
+                mappings[frontendId] = {
+                    frontend_id: frontendId,
+                    equipment_id: item.equipment_id,
+                    equipment_name: item.equipment_name,
+                    equipment_code: item.equipment_code || null,
+                    line_name: item.line_name || null,
+                    mapped_at: item.updated_at || new Date().toISOString()
+                };
+            }
+            
+            debugLog(`📋 Legacy getEquipmentMappings(): ${Object.keys(mappings).length} mappings`);
+            return mappings;
+            
         } catch (error) {
             console.error('Get equipment mappings error:', error);
             return {};
