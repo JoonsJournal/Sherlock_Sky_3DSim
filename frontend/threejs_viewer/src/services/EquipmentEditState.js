@@ -12,7 +12,11 @@
  * - 서버 동기화 및 충돌 해결
  * - 강화된 에러 처리
  * - 디버깅 유틸리티
- * @version 1.4.1
+ * @version 1.4.2
+ * 
+ * 🆕 v1.4.2: loadMappingsFromApi() deprecated 처리 (2026-01-13)
+ * - EquipmentMappingService.loadMappingsForSite() 사용 권장
+ * - 기존 기능은 유지하되 deprecation 경고 추가
  * 
  * 🆕 v1.4.1: StatusBar 연동을 위한 EventBus 이벤트 발행 (2026-01-12)
  * - setEventBus() 메서드 추가
@@ -28,11 +32,14 @@
  * @returns {Promise<{success: boolean, count: number, error?: string}>}
  * 
  * @example
- * // Site 연결 성공 후 호출
- * const result = await equipmentEditState.loadMappingsFromApi(apiClient);
- * if (result.success) {
- *     console.log(`${result.count}개 매핑 로드 완료`); 
- * } 
+ * // ⚠️ DEPRECATED - 아래 방식 대신 EquipmentMappingService 사용 권장
+ * // const result = await equipmentEditState.loadMappingsFromApi(apiClient);
+ * 
+ * // ✅ 권장 방식
+ * import { EquipmentMappingService } from './mapping/EquipmentMappingService.js';
+ * const mappingService = new EquipmentMappingService({ apiClient, editState: equipmentEditState });
+ * const result = await mappingService.loadMappingsForSite(siteId);
+ * 
  * - 🆕 StorageService AutoSave 연동
  * - 🆕 v1.3.0: equipment_id 역방향 인덱스, line_name 저장
  * 
@@ -59,7 +66,7 @@ export class EquipmentEditState {
         this.storageKey = 'sherlock_equipment_mappings';
         
         // 버전 정보
-        this.version = '1.4.1';
+        this.version = '1.4.2';
         
         // 🆕 v1.4.1: EventBus 참조
         this.eventBus = options.eventBus || null;
@@ -76,6 +83,11 @@ export class EquipmentEditState {
         
         // 🆕 변경 카운트 (AutoSave 트리거용)
         this._changeCount = 0;
+        
+        // 🆕 v1.4.2: Deprecation 경고 플래그 (한 번만 표시)
+        this._deprecationWarningShown = {
+            loadMappingsFromApi: false
+        };
         
         // 초기 로드
         this.load();
@@ -884,7 +896,47 @@ export class EquipmentEditState {
         this._emitMappingChanged();
     }
     
+    /**
+     * 🆕 v1.4.0: API에서 매핑 데이터 로드
+     * 
+     * @deprecated v1.4.2부터 deprecated.
+     * EquipmentMappingService.loadMappingsForSite()를 대신 사용하세요.
+     * 
+     * @param {Object} apiClient - ApiClient 인스턴스
+     * @param {Object} options - 옵션
+     * @param {string} options.mergeStrategy - 'replace' | 'merge' | 'keep-local' (기본: 'replace')
+     * @param {boolean} options.silent - 로그 출력 여부 (기본: false)
+     * @returns {Promise<{success: boolean, count: number, error?: string}>}
+     * 
+     * @example
+     * // ⚠️ DEPRECATED - 아래 방식 사용 권장
+     * // const result = await equipmentEditState.loadMappingsFromApi(apiClient);
+     * 
+     * // ✅ 권장 방식
+     * import { EquipmentMappingService } from './mapping/EquipmentMappingService.js';
+     * const mappingService = new EquipmentMappingService({ apiClient, editState });
+     * const result = await mappingService.loadMappingsForSite(siteId);
+     */
     async loadMappingsFromApi(apiClient, options = {}) {
+        // 🆕 v1.4.2: Deprecation 경고 (한 번만 표시)
+        if (!this._deprecationWarningShown.loadMappingsFromApi) {
+            console.warn(
+                '⚠️ [DEPRECATED] EquipmentEditState.loadMappingsFromApi() is deprecated.\n' +
+                '   Use EquipmentMappingService.loadMappingsForSite() instead.\n' +
+                '   This method will be removed in a future version.\n' +
+                '\n' +
+                '   Migration example:\n' +
+                '   // Old way (deprecated):\n' +
+                '   // await equipmentEditState.loadMappingsFromApi(apiClient);\n' +
+                '\n' +
+                '   // New way (recommended):\n' +
+                '   // import { EquipmentMappingService } from \'./mapping/EquipmentMappingService.js\';\n' +
+                '   // const mappingService = new EquipmentMappingService({ apiClient, editState });\n' +
+                '   // await mappingService.loadMappingsForSite(siteId);'
+            );
+            this._deprecationWarningShown.loadMappingsFromApi = true;
+        }
+        
         const { mergeStrategy = 'replace', silent = false } = options;
         
         if (!apiClient) {
