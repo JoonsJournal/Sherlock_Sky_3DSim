@@ -6,6 +6,17 @@
  * - Mock 모드 지원으로 Backend 없이 테스트 가능
  * - EventBus를 통한 상태 변경 이벤트 발행
  * 
+ * @version 2.0.0
+ * @since 2026-01-13
+ * 
+ * @changelog
+ * - v2.0.0: 모드별 Health Check 지원 (2026-01-13)
+ *   - delayedStart(delayMs) 메서드 추가
+ *   - startForMode(modeName) 메서드 추가
+ *   - 모드별 설정 (_modeConfigs) 추가
+ *   - getCurrentMode() 메서드 추가
+ *   - 기존 모든 기능 100% 호환
+ * 
  * @location frontend/threejs_viewer/src/services/ConnectionStatusService.js
  */
 
@@ -33,7 +44,21 @@ export const ConnectionEvents = {
     STATUS_CHANGED: 'connection:status-changed',
     CHECK_STARTED: 'connection:check-started',
     CHECK_COMPLETED: 'connection:check-completed',
-    ERROR: 'connection:error'
+    ERROR: 'connection:error',
+    // 🆕 v2.0.0: 모드 관련 이벤트
+    MODE_CHANGED: 'connection:mode-changed',
+    DELAYED_START: 'connection:delayed-start'
+};
+
+/**
+ * 🆕 v2.0.0: 모드 타입 열거형
+ */
+export const ConnectionMode = {
+    DEFAULT: 'default',
+    MONITORING: 'monitoring',
+    ANALYSIS: 'analysis',
+    DASHBOARD: 'dashboard',
+    EDIT: 'edit'
 };
 
 /**
@@ -59,6 +84,9 @@ class ConnectionStatusService {
         this._totalChecks = 0;
         this._successfulChecks = 0;
 
+        // 🆕 v2.0.0: 현재 모드
+        this._currentMode = ConnectionMode.DEFAULT;
+
         // ===== 설정 =====
         this._config = {
             // Health Check 엔드포인트
@@ -78,6 +106,51 @@ class ConnectionStatusService {
             
             // 디버그 로깅
             debug: false
+        };
+
+        // 🆕 v2.0.0: 모드별 설정
+        this._modeConfigs = {
+            [ConnectionMode.DEFAULT]: {
+                healthEndpoint: '/health',
+                checkInterval: 5000,
+                requestTimeout: 3000,
+                failureThreshold: 2,
+                additionalEndpoints: []
+            },
+            [ConnectionMode.MONITORING]: {
+                healthEndpoint: '/api/monitoring/health',
+                checkInterval: 3000,      // 3초 (더 빠른 체크)
+                requestTimeout: 2000,
+                failureThreshold: 2,
+                additionalEndpoints: [
+                    '/api/monitoring/stream/status'  // WebSocket 상태 확인
+                ]
+            },
+            [ConnectionMode.ANALYSIS]: {
+                healthEndpoint: '/api/analysis/health',
+                checkInterval: 10000,     // 10초 (느린 체크 - 대용량 데이터)
+                requestTimeout: 5000,     // 더 긴 타임아웃
+                failureThreshold: 3,
+                additionalEndpoints: [
+                    '/api/analysis/database/status'
+                ]
+            },
+            [ConnectionMode.DASHBOARD]: {
+                healthEndpoint: '/api/dashboard/health',
+                checkInterval: 5000,
+                requestTimeout: 3000,
+                failureThreshold: 2,
+                additionalEndpoints: [
+                    '/api/dashboard/cache/status'
+                ]
+            },
+            [ConnectionMode.EDIT]: {
+                healthEndpoint: '/api/mapping/health',
+                checkInterval: 10000,     // 10초 (느린 체크)
+                requestTimeout: 3000,
+                failureThreshold: 3,
+                additionalEndpoints: []
+            }
         };
 
         // ===== Mock 모드 설정 =====
@@ -107,12 +180,16 @@ class ConnectionStatusService {
         this._intervalId = null;
         this._isRunning = false;
         this._abortController = null;
+        
+        // 🆕 v2.0.0: 지연 시작 타이머
+        this._delayedStartTimerId = null;
+        this._delayedStartPromise = null;
 
         // ⚠️ 수정: eventBus 인스턴스 직접 사용
         this._eventBus = eventBus;
 
         // ===== 초기화 로그 =====
-        this._log('ConnectionStatusService initialized');
+        this._log('ConnectionStatusService initialized (v2.0.0)');
     }
 
     // =========================================================================
@@ -130,6 +207,9 @@ class ConnectionStatusService {
             return this;
         }
 
+        // 지연 시작 타이머가 있으면 취소
+        this._cancelDelayedStart();
+
         // 옵션 병합
         if (options.config) {
             this.configure(options.config);
@@ -146,7 +226,7 @@ class ConnectionStatusService {
             this.checkHealth();
         }, this._config.checkInterval);
 
-        this._log(`Service started (interval: ${this._config.checkInterval}ms)`);
+        this._log(`Service started (interval: ${this._config.checkInterval}ms, mode: ${this._currentMode})`);
         return this;
     }
 
@@ -155,10 +235,13 @@ class ConnectionStatusService {
      * @returns {ConnectionStatusService} this (체이닝용)
      */
     stop() {
-        if (!this._isRunning) {
+        if (!this._isRunning && !this._delayedStartTimerId) {
             this._log('Service not running');
             return this;
         }
+
+        // 지연 시작 타이머 취소
+        this._cancelDelayedStart();
 
         // 인터벌 정리
         if (this._intervalId) {
@@ -205,6 +288,204 @@ class ConnectionStatusService {
     }
 
     // =========================================================================
+    // 🆕 v2.0.0: Public API - 지연 시작 및 모드별 시작
+    // =========================================================================
+
+    /**
+     * 🆕 v2.0.0: 지연 시작 - 지정된 시간 후 서비스 시작
+     * 
+     * @param {number} delayMs - 지연 시간 (밀리초)
+     * @param {Object} [options] - 시작 옵션
+     * @returns {Promise<ConnectionStatusService>} 시작 완료 후 this 반환
+     * 
+     * @example
+     * // 2초 후 시작
+     * await connectionStatusService.delayedStart(2000);
+     * 
+     * // 3초 후 특정 설정으로 시작
+     * await connectionStatusService.delayedStart(3000, {
+     *     config: { checkInterval: 10000 }
+     * });
+     */
+    delayedStart(delayMs, options = {}) {
+        if (this._isRunning) {
+            this._log('Service already running, ignoring delayedStart');
+            return Promise.resolve(this);
+        }
+
+        // 기존 지연 시작 취소
+        this._cancelDelayedStart();
+
+        this._log(`Delayed start scheduled: ${delayMs}ms`);
+
+        // 이벤트 발행
+        this._emitEvent(ConnectionEvents.DELAYED_START, {
+            delayMs,
+            scheduledAt: new Date(),
+            expectedStartAt: new Date(Date.now() + delayMs)
+        });
+
+        // Promise 생성 및 저장
+        this._delayedStartPromise = new Promise((resolve, reject) => {
+            this._delayedStartTimerId = setTimeout(() => {
+                try {
+                    this._delayedStartTimerId = null;
+                    this._delayedStartPromise = null;
+                    this.start(options);
+                    resolve(this);
+                } catch (error) {
+                    reject(error);
+                }
+            }, delayMs);
+        });
+
+        return this._delayedStartPromise;
+    }
+
+    /**
+     * 🆕 v2.0.0: 모드별 시작 - 지정된 모드의 설정으로 서비스 시작
+     * 
+     * @param {string} modeName - 모드 이름 (ConnectionMode 값)
+     * @param {Object} [options] - 추가 옵션
+     * @param {boolean} [options.immediate=true] - 즉시 시작 여부
+     * @param {number} [options.delayMs] - 지연 시작 시간 (immediate=false일 때)
+     * @param {Object} [options.configOverrides] - 모드 설정 오버라이드
+     * @returns {Promise<ConnectionStatusService>|ConnectionStatusService} 
+     * 
+     * @example
+     * // Monitoring 모드로 즉시 시작
+     * connectionStatusService.startForMode('monitoring');
+     * 
+     * // Analysis 모드로 2초 후 시작
+     * await connectionStatusService.startForMode('analysis', {
+     *     immediate: false,
+     *     delayMs: 2000
+     * });
+     * 
+     * // Dashboard 모드로 커스텀 설정과 함께 시작
+     * connectionStatusService.startForMode('dashboard', {
+     *     configOverrides: { checkInterval: 8000 }
+     * });
+     */
+    startForMode(modeName, options = {}) {
+        const {
+            immediate = true,
+            delayMs = 0,
+            configOverrides = {}
+        } = options;
+
+        // 모드 유효성 검사
+        const normalizedMode = modeName.toLowerCase();
+        if (!this._modeConfigs[normalizedMode]) {
+            console.warn(`⚠️ Unknown mode: ${modeName}, using default`);
+            return this.start();
+        }
+
+        // 이전 모드 저장
+        const previousMode = this._currentMode;
+        
+        // 모드 변경
+        this._currentMode = normalizedMode;
+
+        // 모드별 설정 가져오기
+        const modeConfig = this._modeConfigs[normalizedMode];
+        
+        // 설정 적용 (모드 설정 + 오버라이드)
+        const finalConfig = {
+            ...modeConfig,
+            ...configOverrides
+        };
+
+        // 설정 업데이트 (서비스가 실행 중이 아닐 때만)
+        if (!this._isRunning) {
+            this._config = { ...this._config, ...finalConfig };
+        }
+
+        this._log(`Mode changed: ${previousMode} → ${normalizedMode}`);
+
+        // 모드 변경 이벤트 발행
+        this._emitEvent(ConnectionEvents.MODE_CHANGED, {
+            previousMode,
+            currentMode: normalizedMode,
+            config: finalConfig,
+            timestamp: new Date()
+        });
+
+        // 즉시 시작 또는 지연 시작
+        if (immediate && delayMs <= 0) {
+            // 실행 중이면 재시작
+            if (this._isRunning) {
+                return this.restart();
+            }
+            return this.start({ config: finalConfig });
+        } else {
+            // 지연 시작
+            return this.delayedStart(delayMs > 0 ? delayMs : 0, {
+                config: finalConfig
+            });
+        }
+    }
+
+    /**
+     * 🆕 v2.0.0: 지연 시작 취소
+     * @returns {boolean} 취소 성공 여부
+     */
+    cancelDelayedStart() {
+        return this._cancelDelayedStart();
+    }
+
+    /**
+     * 🆕 v2.0.0: 현재 모드 반환
+     * @returns {string} 현재 모드
+     */
+    getCurrentMode() {
+        return this._currentMode;
+    }
+
+    /**
+     * 🆕 v2.0.0: 모드별 설정 조회
+     * @param {string} [modeName] - 모드 이름 (없으면 현재 모드)
+     * @returns {Object} 모드 설정
+     */
+    getModeConfig(modeName) {
+        const mode = modeName || this._currentMode;
+        return { ...this._modeConfigs[mode] } || { ...this._modeConfigs[ConnectionMode.DEFAULT] };
+    }
+
+    /**
+     * 🆕 v2.0.0: 모드별 설정 업데이트
+     * @param {string} modeName - 모드 이름
+     * @param {Object} config - 업데이트할 설정
+     * @returns {ConnectionStatusService} this (체이닝용)
+     */
+    setModeConfig(modeName, config) {
+        const mode = modeName.toLowerCase();
+        if (this._modeConfigs[mode]) {
+            this._modeConfigs[mode] = { ...this._modeConfigs[mode], ...config };
+            this._log(`Mode config updated: ${mode}`, this._modeConfigs[mode]);
+        } else {
+            console.warn(`⚠️ Unknown mode: ${modeName}`);
+        }
+        return this;
+    }
+
+    /**
+     * 🆕 v2.0.0: 사용 가능한 모든 모드 목록
+     * @returns {string[]}
+     */
+    getAvailableModes() {
+        return Object.keys(this._modeConfigs);
+    }
+
+    /**
+     * 🆕 v2.0.0: 지연 시작 대기 중인지 확인
+     * @returns {boolean}
+     */
+    isDelayedStartPending() {
+        return this._delayedStartTimerId !== null;
+    }
+
+    // =========================================================================
     // Public API - Health Check
     // =========================================================================
 
@@ -220,7 +501,8 @@ class ConnectionStatusService {
         this._setState(ConnectionState.CHECKING);
         this._emitEvent(ConnectionEvents.CHECK_STARTED, {
             timestamp: new Date(),
-            checkNumber: this._totalChecks
+            checkNumber: this._totalChecks,
+            mode: this._currentMode  // 🆕 v2.0.0: 모드 정보 추가
         });
 
         let isOnline = false;
@@ -392,6 +674,9 @@ class ConnectionStatusService {
             isOnline: this._isOnline,
             isRunning: this._isRunning,
             isMockMode: this._mockConfig.enabled,
+            // 🆕 v2.0.0: 모드 정보 추가
+            currentMode: this._currentMode,
+            isDelayedStartPending: this.isDelayedStartPending(),
             lastCheckTime: this._lastCheckTime,
             lastSuccessTime: this._lastSuccessTime,
             consecutiveFailures: this._consecutiveFailures,
@@ -401,7 +686,9 @@ class ConnectionStatusService {
                 ? Math.round((this._successfulChecks / this._totalChecks) * 100) 
                 : 0,
             config: { ...this._config },
-            mockConfig: this._mockConfig.enabled ? { ...this._mockConfig } : null
+            mockConfig: this._mockConfig.enabled ? { ...this._mockConfig } : null,
+            // 🆕 v2.0.0: 현재 모드 설정
+            modeConfig: this.getModeConfig()
         };
     }
 
@@ -462,6 +749,15 @@ class ConnectionStatusService {
      */
     onStatusChanged(callback) {
         return this.on(ConnectionEvents.STATUS_CHANGED, callback);
+    }
+
+    /**
+     * 🆕 v2.0.0: 모드 변경 이벤트 구독 (편의 메서드)
+     * @param {Function} callback - 콜백 함수
+     * @returns {Function} 구독 해제 함수
+     */
+    onModeChanged(callback) {
+        return this.on(ConnectionEvents.MODE_CHANGED, callback);
     }
 
     // =========================================================================
@@ -533,7 +829,8 @@ class ConnectionStatusService {
         // Mock 성공 응답
         const data = {
             ...this._mockConfig.healthResponse,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            mode: this._currentMode  // 🆕 v2.0.0: 모드 정보 추가
         };
 
         return { success: true, data };
@@ -560,7 +857,8 @@ class ConnectionStatusService {
             timestamp: this._lastCheckTime,
             responseData,
             error: error?.message,
-            consecutiveFailures: this._consecutiveFailures
+            consecutiveFailures: this._consecutiveFailures,
+            mode: this._currentMode  // 🆕 v2.0.0: 모드 정보 추가
         });
 
         // 실패 임계치 확인 후 상태 업데이트
@@ -571,7 +869,7 @@ class ConnectionStatusService {
         }
 
         this._log(`Health check result: ${isOnline ? 'SUCCESS' : 'FAILED'} ` +
-            `(failures: ${this._consecutiveFailures})`);
+            `(failures: ${this._consecutiveFailures}, mode: ${this._currentMode})`);
     }
 
     // =========================================================================
@@ -611,19 +909,22 @@ class ConnectionStatusService {
                 wasOnline,
                 timestamp: new Date(),
                 state: newState,
-                previousState: this._previousState
+                previousState: this._previousState,
+                mode: this._currentMode  // 🆕 v2.0.0: 모드 정보 추가
             });
 
             // 특정 상태 이벤트
             if (isOnline) {
                 this._emitEvent(ConnectionEvents.ONLINE, {
                     timestamp: new Date(),
-                    recoveredAfter: this._consecutiveFailures
+                    recoveredAfter: this._consecutiveFailures,
+                    mode: this._currentMode  // 🆕 v2.0.0: 모드 정보 추가
                 });
             } else {
                 this._emitEvent(ConnectionEvents.OFFLINE, {
                     timestamp: new Date(),
-                    consecutiveFailures: this._consecutiveFailures
+                    consecutiveFailures: this._consecutiveFailures,
+                    mode: this._currentMode  // 🆕 v2.0.0: 모드 정보 추가
                 });
             }
         }
@@ -632,6 +933,22 @@ class ConnectionStatusService {
     // =========================================================================
     // Private Methods - 유틸리티
     // =========================================================================
+
+    /**
+     * 🆕 v2.0.0: 지연 시작 취소 (내부)
+     * @private
+     * @returns {boolean}
+     */
+    _cancelDelayedStart() {
+        if (this._delayedStartTimerId) {
+            clearTimeout(this._delayedStartTimerId);
+            this._delayedStartTimerId = null;
+            this._delayedStartPromise = null;
+            this._log('Delayed start cancelled');
+            return true;
+        }
+        return false;
+    }
 
     /**
      * 이벤트 발행
@@ -689,6 +1006,22 @@ class ConnectionStatusService {
             ConnectionStatusService._instance.stop();
             ConnectionStatusService._instance = null;
         }
+    }
+
+    /**
+     * 🆕 v2.0.0: 버전 정보
+     * @returns {string}
+     */
+    static get VERSION() {
+        return '2.0.0';
+    }
+
+    /**
+     * 🆕 v2.0.0: ConnectionMode 상수 반환
+     * @returns {Object}
+     */
+    static get ConnectionMode() {
+        return ConnectionMode;
     }
 }
 
