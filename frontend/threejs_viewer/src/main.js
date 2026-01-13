@@ -4,8 +4,14 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 5.3.1
+ * @version 5.4.0
  * @changelog
+ * - v5.4.0: 🆕 재연결 복구 로직 추가 (2026-01-13)
+ *           - setupReconnectionHandler() 추가
+ *           - connection:reconnected 이벤트 핸들링
+ *           - 모드별 복구 전략 (_executeRecoveryStrategy)
+ *           - MonitoringService.restart() 연동
+ *           - RECOVERY_STRATEGIES 설정 객체
  * - v5.3.1: 🔧 Monitoring 모드 서비스 타이밍 보정 (2026-01-12)
  *           - _initThreeJS() 후 Monitoring 모드면 MonitoringService 수동 시작
  *           - SignalTower Lamp 안 켜지는 버그 수정
@@ -53,6 +59,9 @@ import {
     toast,
     connectEquipmentEditButton,
     
+    // 🆕 v5.4.0: Connection 관련 추가 import
+    startConnectionServiceForMode,
+    
     // Events
     setupUIEventListeners,
     setupKeyboardShortcuts,
@@ -80,6 +89,9 @@ import { storageService } from './core/storage/index.js';
 // 🆕 v5.1.0: Sidebar UI 컴포넌트 import
 import { createSidebarUI } from './ui/sidebar/index.js';
 
+// 🆕 v5.4.0: ConnectionMode import
+import { ConnectionMode, ConnectionEvents } from './services/ConnectionStatusService.js';
+
 // ============================================
 // 전역 상태
 // ============================================
@@ -89,6 +101,9 @@ let previewGenerator;
 
 // 🆕 v5.1.0: Sidebar UI 인스턴스
 let sidebarUI = null;
+
+// 🆕 v5.4.0: 재연결 핸들러 정리 함수
+let reconnectionCleanup = null;
 
 // 서비스 객체 저장소
 const services = {
@@ -103,6 +118,57 @@ window.services = services;
 // Site ID (URL 파라미터 또는 기본값)
 const urlParams = new URLSearchParams(window.location.search);
 const SITE_ID = urlParams.get('siteId') || 'default_site';
+
+// ============================================
+// 🆕 v5.4.0: 모드별 복구 전략 설정
+// ============================================
+
+/**
+ * 모드별 복구 전략 설정
+ * 각 모드에서 재연결 시 어떤 복구 작업을 수행할지 정의
+ */
+const RECOVERY_STRATEGIES = {
+    [APP_MODE.MONITORING]: {
+        name: 'Monitoring',
+        connectionMode: ConnectionMode.MONITORING,
+        restartDelay: 500,
+        actions: ['restartMonitoringService', 'resubscribeWebSocket', 'refreshStatus'],
+        showToast: true,
+        toastMessage: '🔄 Monitoring 모드 복구 중...'
+    },
+    [APP_MODE.ANALYSIS]: {
+        name: 'Analysis',
+        connectionMode: ConnectionMode.ANALYSIS,
+        restartDelay: 1000,
+        actions: ['reloadAnalysisData', 'reconnectDatabase'],
+        showToast: true,
+        toastMessage: '🔄 Analysis 데이터 재로드 중...'
+    },
+    [APP_MODE.DASHBOARD]: {
+        name: 'Dashboard',
+        connectionMode: ConnectionMode.DASHBOARD,
+        restartDelay: 500,
+        actions: ['refreshDashboard', 'reconnectCache'],
+        showToast: true,
+        toastMessage: '🔄 Dashboard 새로고침 중...'
+    },
+    [APP_MODE.EQUIPMENT_EDIT]: {
+        name: 'Edit',
+        connectionMode: ConnectionMode.EDIT,
+        restartDelay: 300,
+        actions: ['reconnectMappingApi'],
+        showToast: false,
+        toastMessage: null
+    },
+    [APP_MODE.MAIN_VIEWER]: {
+        name: 'MainViewer',
+        connectionMode: ConnectionMode.DEFAULT,
+        restartDelay: 0,
+        actions: [],
+        showToast: false,
+        toastMessage: null
+    }
+};
 
 // ============================================
 // 전역 상태 (Sidebar용) - 하위 호환
@@ -280,11 +346,16 @@ const viewManager = {
             console.log('  ✅ 3D Scene 초기화 완료');
             
             // 2. Monitoring 서비스 초기화
+            // 🆕 v5.4.0: connectionStartTiming 옵션 추가
             services.monitoring = initMonitoringServices(
                 services.scene.sceneManager.scene,
                 services.scene.equipmentLoader,
                 services.ui?.equipmentEditState,
-                services.ui?.connectionStatusService
+                services.ui?.connectionStatusService,
+                {
+                    connectionStartTiming: 'after-monitoring',
+                    connectionDelayMs: 500
+                }
             );
             console.log('  ✅ Monitoring Services 초기화 완료');
             
@@ -298,6 +369,11 @@ const viewManager = {
             if (services.monitoring?.monitoringService && services.ui?.equipmentInfoPanel) {
                 services.monitoring.monitoringService.setEquipmentInfoPanel(services.ui.equipmentInfoPanel);
                 console.log('  ✅ MonitoringService ↔ EquipmentInfoPanel 연결 완료');
+            }
+            
+            // 🆕 v5.4.0: MonitoringService에 EventBus 설정 (재연결 이벤트용)
+            if (services.monitoring?.monitoringService) {
+                services.monitoring.monitoringService.eventBus = eventBus;
             }
             
             // 5. 모드 핸들러에 서비스 연결
@@ -737,6 +813,327 @@ function initSidebarUI() {
 }
 
 // ============================================
+// 🆕 v5.4.0: 재연결 복구 핸들러
+// ============================================
+
+/**
+ * 재연결 복구 핸들러 설정
+ * 
+ * connection:reconnected 이벤트를 수신하여
+ * 현재 모드에 맞는 복구 전략을 실행
+ * 
+ * @returns {Function} 정리 함수
+ */
+function setupReconnectionHandler() {
+    console.log('🔄 재연결 복구 핸들러 설정 시작...');
+    
+    const connectionStatusService = services.ui?.connectionStatusService;
+    
+    if (!connectionStatusService) {
+        console.warn('  ⚠️ ConnectionStatusService 없음 - 재연결 핸들러 설정 건너뜀');
+        return () => {};
+    }
+    
+    // 연결 복구 이벤트 핸들러
+    const handleReconnected = async (data) => {
+        const recoveredAfter = data.recoveredAfter || 0;
+        
+        // 첫 연결은 무시 (복구만 처리)
+        if (recoveredAfter === 0) {
+            return;
+        }
+        
+        console.log(`🔄 [Reconnection] 연결 복구 감지 (${recoveredAfter}회 실패 후)`);
+        
+        // 현재 모드 확인
+        const currentMode = appModeManager.getCurrentMode();
+        const strategy = RECOVERY_STRATEGIES[currentMode];
+        
+        if (!strategy) {
+            console.log(`  ℹ️ 모드 ${currentMode}에 대한 복구 전략 없음`);
+            return;
+        }
+        
+        console.log(`  📋 복구 전략: ${strategy.name}`);
+        console.log(`  📋 실행할 액션: ${strategy.actions.join(', ') || '없음'}`);
+        
+        // Toast 표시
+        if (strategy.showToast && strategy.toastMessage) {
+            window.showToast?.(strategy.toastMessage, 'info');
+        }
+        
+        // 복구 전략 실행
+        try {
+            await _executeRecoveryStrategy(currentMode, strategy);
+            
+            console.log(`  ✅ ${strategy.name} 모드 복구 완료`);
+            
+            // 복구 완료 이벤트 발행
+            eventBus.emit('recovery:complete', {
+                mode: currentMode,
+                strategy: strategy.name,
+                recoveredAfter,
+                timestamp: new Date().toISOString()
+            });
+            
+            // 성공 Toast
+            if (strategy.showToast) {
+                window.showToast?.(`✅ ${strategy.name} 모드 복구 완료`, 'success');
+            }
+            
+        } catch (error) {
+            console.error(`  ❌ ${strategy.name} 모드 복구 실패:`, error);
+            
+            // 실패 이벤트 발행
+            eventBus.emit('recovery:failed', {
+                mode: currentMode,
+                strategy: strategy.name,
+                error: error.message,
+                timestamp: new Date().toISOString()
+            });
+            
+            window.showToast?.(`❌ ${strategy.name} 복구 실패`, 'error');
+        }
+    };
+    
+    // 이벤트 구독
+    connectionStatusService.onOnline(handleReconnected);
+    
+    // EventBus를 통한 추가 이벤트 구독 (커스텀 재연결 트리거 지원)
+    eventBus.on('connection:manual-reconnect', handleReconnected);
+    
+    console.log('  ✅ 재연결 복구 핸들러 설정 완료');
+    
+    // 정리 함수 반환
+    return () => {
+        connectionStatusService.off(ConnectionEvents.ONLINE, handleReconnected);
+        eventBus.off('connection:manual-reconnect', handleReconnected);
+        console.log('  🗑️ 재연결 복구 핸들러 정리됨');
+    };
+}
+
+/**
+ * 복구 전략 실행
+ * @private
+ * @param {string} mode - 현재 모드
+ * @param {Object} strategy - 복구 전략 설정
+ */
+async function _executeRecoveryStrategy(mode, strategy) {
+    // 딜레이 적용
+    if (strategy.restartDelay > 0) {
+        await _delay(strategy.restartDelay);
+    }
+    
+    // ConnectionStatusService 모드 변경
+    const connectionStatusService = services.ui?.connectionStatusService;
+    if (connectionStatusService && strategy.connectionMode) {
+        startConnectionServiceForMode(connectionStatusService, strategy.connectionMode);
+    }
+    
+    // 각 액션 실행
+    for (const action of strategy.actions) {
+        await _executeRecoveryAction(action, mode);
+    }
+}
+
+/**
+ * 개별 복구 액션 실행
+ * @private
+ * @param {string} action - 액션 이름
+ * @param {string} mode - 현재 모드
+ */
+async function _executeRecoveryAction(action, mode) {
+    console.log(`    → 액션 실행: ${action}`);
+    
+    switch (action) {
+        case 'restartMonitoringService':
+            await _actionRestartMonitoringService();
+            break;
+            
+        case 'resubscribeWebSocket':
+            await _actionResubscribeWebSocket();
+            break;
+            
+        case 'refreshStatus':
+            await _actionRefreshStatus();
+            break;
+            
+        case 'reloadAnalysisData':
+            await _actionReloadAnalysisData();
+            break;
+            
+        case 'reconnectDatabase':
+            await _actionReconnectDatabase();
+            break;
+            
+        case 'refreshDashboard':
+            await _actionRefreshDashboard();
+            break;
+            
+        case 'reconnectCache':
+            await _actionReconnectCache();
+            break;
+            
+        case 'reconnectMappingApi':
+            await _actionReconnectMappingApi();
+            break;
+            
+        default:
+            console.warn(`    ⚠️ 알 수 없는 액션: ${action}`);
+    }
+}
+
+// ============================================
+// 🆕 v5.4.0: 복구 액션 구현
+// ============================================
+
+/**
+ * MonitoringService 재시작
+ * @private
+ */
+async function _actionRestartMonitoringService() {
+    const monitoringService = services.monitoring?.monitoringService;
+    
+    if (!monitoringService) {
+        console.warn('      ⚠️ MonitoringService 없음');
+        return;
+    }
+    
+    if (monitoringService.isActive) {
+        // 🆕 v5.0.0: restart() 메서드 사용
+        if (typeof monitoringService.restart === 'function') {
+            await monitoringService.restart({ fullRestart: false });
+            console.log('      ✅ MonitoringService 재시작 완료 (restart)');
+        } else {
+            // 폴백: 기존 방식
+            await monitoringService.stop();
+            await _delay(300);
+            await monitoringService.start();
+            console.log('      ✅ MonitoringService 재시작 완료 (stop/start)');
+        }
+    } else {
+        // 비활성 상태면 그냥 시작
+        await monitoringService.start();
+        console.log('      ✅ MonitoringService 시작됨');
+    }
+}
+
+/**
+ * WebSocket 재구독
+ * @private
+ */
+async function _actionResubscribeWebSocket() {
+    const monitoringService = services.monitoring?.monitoringService;
+    
+    // DataLoader 사용 시
+    const dataLoader = monitoringService?.getDataLoader?.();
+    if (dataLoader) {
+        try {
+            await dataLoader.reconnectWebSocket();
+            console.log('      ✅ DataLoader WebSocket 재연결 완료');
+            return;
+        } catch (e) {
+            console.warn('      ⚠️ DataLoader WebSocket 재연결 실패:', e.message);
+        }
+    }
+    
+    // 레거시 방식
+    const wsManager = monitoringService?.wsManager;
+    if (wsManager) {
+        if (!wsManager.isConnected()) {
+            await wsManager.connect();
+        }
+        wsManager.subscribe();
+        console.log('      ✅ WebSocket 재구독 완료');
+    }
+}
+
+/**
+ * 상태 새로고침
+ * @private
+ */
+async function _actionRefreshStatus() {
+    const monitoringService = services.monitoring?.monitoringService;
+    
+    if (monitoringService) {
+        await monitoringService.loadInitialStatus?.();
+        monitoringService.updateStatusPanel?.();
+        console.log('      ✅ 상태 새로고침 완료');
+    }
+}
+
+/**
+ * Analysis 데이터 재로드
+ * @private
+ */
+async function _actionReloadAnalysisData() {
+    // TODO: AnalysisDataLoader 구현 후 연동
+    console.log('      ℹ️ Analysis 데이터 재로드 (미구현)');
+    
+    // eventBus를 통해 Analysis 모듈에 알림
+    eventBus.emit('analysis:reload-requested', {
+        timestamp: new Date().toISOString()
+    });
+}
+
+/**
+ * Database 재연결
+ * @private
+ */
+async function _actionReconnectDatabase() {
+    // Database 연결 확인은 ConnectionStatusService가 처리
+    console.log('      ℹ️ Database 재연결 요청');
+    
+    eventBus.emit('database:reconnect-requested', {
+        timestamp: new Date().toISOString()
+    });
+}
+
+/**
+ * Dashboard 새로고침
+ * @private
+ */
+async function _actionRefreshDashboard() {
+    // TODO: DashboardDataLoader 구현 후 연동
+    console.log('      ℹ️ Dashboard 새로고침 (미구현)');
+    
+    eventBus.emit('dashboard:refresh-requested', {
+        timestamp: new Date().toISOString()
+    });
+}
+
+/**
+ * Cache 재연결
+ * @private
+ */
+async function _actionReconnectCache() {
+    // Redis 캐시 재연결은 Backend가 처리
+    console.log('      ℹ️ Cache 재연결 요청');
+    
+    eventBus.emit('cache:reconnect-requested', {
+        timestamp: new Date().toISOString()
+    });
+}
+
+/**
+ * Mapping API 재연결
+ * @private
+ */
+async function _actionReconnectMappingApi() {
+    const apiClient = services.ui?.apiClient;
+    
+    if (apiClient) {
+        // API 헬스체크
+        try {
+            const isHealthy = await apiClient.healthCheck?.();
+            console.log(`      ℹ️ Mapping API 상태: ${isHealthy ? 'OK' : 'Failed'}`);
+        } catch (e) {
+            console.warn('      ⚠️ Mapping API 헬스체크 실패:', e.message);
+        }
+    }
+}
+
+// ============================================
 // 🔌 Connection 이벤트 설정
 // ============================================
 
@@ -780,6 +1177,9 @@ function setupConnectionEvents() {
         console.log('[Connection] Site Disconnected');
         window.sidebarState.isConnected = false;
     });
+    
+    // 🆕 v5.4.0: 재연결 복구 핸들러 설정
+    reconnectionCleanup = setupReconnectionHandler();
     
     console.log('✅ Connection 이벤트 설정 완료');
 }
@@ -1165,6 +1565,18 @@ function _updateStatusBarConnection(apiConnected, dbConnected, siteId) {
 }
 
 // ============================================
+// 유틸리티
+// ============================================
+
+/**
+ * 딜레이 유틸리티
+ * @private
+ */
+function _delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ============================================
 // 전역 객체 노출 (Scene 초기화 후)
 // ============================================
 
@@ -1238,7 +1650,7 @@ function _exposeGlobalObjectsAfterSceneInit() {
 // ============================================
 
 function init() {
-    console.log('🚀 Sherlock Sky 3DSim 초기화 (v5.2.1 - window.services 전역 노출)...');
+    console.log('🚀 Sherlock Sky 3DSim 초기화 (v5.4.0 - 재연결 복구 로직)...');
     console.log(`📍 Site ID: ${SITE_ID}`);
     
     try {
@@ -1247,7 +1659,13 @@ function init() {
         console.log('  ✅ Core Managers 초기화 완료');
         
         // 2. UI 컴포넌트 초기화 (기존)
-        services.ui = initUIComponents();
+        // 🆕 v5.4.0: autoStart: false 전달 (UIBootstrap v1.4.0)
+        services.ui = initUIComponents({
+            connectionOptions: {
+                autoStart: false,  // Health Check 지연 시작
+                debug: false
+            }
+        });
         console.log('  ✅ UI Components 초기화 완료');
         
         // 3. 🆕 v5.1.0: Sidebar UI 초기화 (동적 렌더링)
@@ -1262,7 +1680,7 @@ function init() {
         // 5. Equipment AutoSave 초기화
         initEquipmentAutoSave(services.ui?.equipmentEditState);
         
-        // 6. Connection 이벤트 설정
+        // 6. Connection 이벤트 설정 (🆕 v5.4.0: 재연결 핸들러 포함)
         setupConnectionEvents();
         
         // ❌ v5.1.0: 제거됨 - Sidebar.js가 처리
@@ -1315,7 +1733,7 @@ function init() {
             timestamp: Date.now(),
             mode: appModeManager.getCurrentMode(),
             siteId: SITE_ID,
-            version: '5.2.1'
+            version: '5.4.0'
         });
         
         // 11. 성능 업데이트 인터벌 (StatusBar.js가 자체 처리하므로 간소화)
@@ -1326,11 +1744,16 @@ function init() {
         }, 2000);
         
         console.log('');
-        console.log('✅ 모든 초기화 완료! (v5.2.1 - window.services 전역 노출)');
+        console.log('✅ 모든 초기화 완료! (v5.4.0 - 재연결 복구 로직)');
         console.log('');
         console.log('📺 Cover Screen 표시 중 (CoverScreen.js)');
         console.log('🎨 Sidebar 렌더링 완료 (Sidebar.js)');
         console.log('📊 StatusBar 렌더링 완료 (StatusBar.js)');
+        console.log('');
+        console.log('🆕 v5.4.0: 재연결 복구 기능');
+        console.log('   - 연결 끊김 후 복구 시 자동 재시작');
+        console.log('   - 모드별 복구 전략 적용');
+        console.log('   - Monitoring: WebSocket 재연결 + 상태 새로고침');
         console.log('');
         console.log('🆕 전역 함수 (HTML onclick 호환):');
         console.log('   window.showToast(message, type)');
@@ -1340,8 +1763,6 @@ function init() {
         console.log('   window.closeConnectionModal()');
         console.log('   window.toggleDebugPanel()');
         console.log('   window.canAccessFeatures()');
-        console.log('');
-        console.log('🆕 v5.2.1: window.services 전역 노출 (H/G 키 지원)');
         console.log('');
         console.log('💡 키보드 단축키:');
         console.log('   Ctrl+K - Connection Modal');
@@ -1474,6 +1895,12 @@ function showInitError(error) {
 // ============================================
 
 function handleCleanup() {
+    // 🆕 v5.4.0: 재연결 핸들러 정리
+    if (reconnectionCleanup) {
+        reconnectionCleanup();
+        reconnectionCleanup = null;
+    }
+    
     // Equipment AutoSave 중지
     if (services.ui?.equipmentEditState) {
         services.ui.equipmentEditState.stopAutoSave();
