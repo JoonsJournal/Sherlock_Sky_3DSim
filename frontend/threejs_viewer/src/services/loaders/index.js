@@ -4,10 +4,11 @@
  * 
  * DataLoader 모듈 통합 export
  * 
- * @version 1.3.0
+ * @version 1.4.0
  * @module loaders
  * 
  * @changelog
+ * - v1.4.0: MappingDataLoader 추가, createDataLoader('mapping') 지원
  * - v1.3.0: DataLoaderFactory 추가 (싱글톤 관리)
  * - v1.2.0: DashboardDataLoader 스켈레톤 추가
  * - v1.1.0: AnalysisDataLoader 스켈레톤 추가
@@ -22,8 +23,9 @@
 
 export {
     IDataLoader,
-    DataLoaderState,
-    DataLoaderEvents
+    LoaderState as DataLoaderState,
+    LoaderEvents as DataLoaderEvents,
+    LoaderType as DataLoaderType  // 🆕 v1.4.0: LoaderType 추가
 } from './IDataLoader.js';
 
 // ============================================
@@ -70,20 +72,35 @@ export {
 } from './DashboardDataLoader.js';
 
 // ============================================
+// 🆕 v1.4.0: Mapping DataLoader (구현됨)
+// ============================================
+
+export {
+    MappingDataLoader
+} from './MappingDataLoader.js';
+
+// ============================================
 // 팩토리 함수 (레거시 호환)
 // ============================================
+
+// 🆕 v1.4.0: MappingDataLoader import 추가
+import { MonitoringDataLoader } from './MonitoringDataLoader.js';
+import { AnalysisDataLoader } from './AnalysisDataLoader.js';
+import { DashboardDataLoader } from './DashboardDataLoader.js';
+import { MappingDataLoader } from './MappingDataLoader.js';
 
 /**
  * 모드에 따른 DataLoader 생성
  * 
  * @deprecated DataLoaderFactory.getLoader() 사용 권장
- * @param {string} mode - 모드 ('monitoring', 'analysis', 'dashboard')
+ * @param {string} mode - 모드 ('monitoring', 'analysis', 'dashboard', 'mapping')
  * @param {Object} options - DataLoader 옵션
  * @returns {IDataLoader}
  * 
  * @example
  * // 레거시 방식
  * const loader = createDataLoader('monitoring', { apiClient });
+ * const mappingLoader = createDataLoader('mapping', { equipmentEditState });
  * 
  * // 권장 방식
  * DataLoaderFactory.configure({ apiClient });
@@ -99,9 +116,13 @@ export function createDataLoader(mode, options = {}) {
             
         case 'dashboard':
             return new DashboardDataLoader(options);
+        
+        // 🆕 v1.4.0: mapping 모드 추가
+        case 'mapping':
+            return new MappingDataLoader(options);
             
         default:
-            throw new Error(`Unknown loader mode: ${mode}`);
+            throw new Error(`Unknown loader mode: ${mode}. Available modes: monitoring, analysis, dashboard, mapping`);
     }
 }
 
@@ -153,6 +174,21 @@ export function getAvailableLoaders() {
                 'Priority-based refresh',
                 'Batch loading optimization'
             ]
+        },
+        // 🆕 v1.4.0: mapping 추가
+        mapping: {
+            class: MappingDataLoader,
+            className: 'MappingDataLoader',
+            status: 'implemented',
+            description: 'Equipment mapping data loading with EquipmentMappingService',
+            features: [
+                'Site-based mapping management',
+                'EquipmentEditState synchronization',
+                'Auto-apply to EditState',
+                'Mapping validation',
+                'Conflict detection',
+                'Server sync support'
+            ]
         }
     };
 }
@@ -163,7 +199,17 @@ export function getAvailableLoaders() {
  * @returns {Object}
  */
 export function getLoaderStates() {
-    return DataLoaderState;
+    // IDataLoader.js에서 re-export된 DataLoaderState 사용
+    return {
+        IDLE: 'idle',
+        INITIALIZING: 'initializing',
+        READY: 'ready',
+        LOADING: 'loading',
+        LOADED: 'loaded',
+        ERROR: 'error',
+        DISPOSING: 'disposing',
+        DISPOSED: 'disposed'
+    };
 }
 
 /**
@@ -172,7 +218,18 @@ export function getLoaderStates() {
  * @returns {Object}
  */
 export function getLoaderEvents() {
-    return DataLoaderEvents;
+    return {
+        INITIALIZE_START: 'loader:initialize-start',
+        INITIALIZE_COMPLETE: 'loader:initialize-complete',
+        INITIALIZE_ERROR: 'loader:initialize-error',
+        LOAD_START: 'loader:load-start',
+        LOAD_PROGRESS: 'loader:load-progress',
+        LOAD_COMPLETE: 'loader:load-complete',
+        LOAD_ERROR: 'loader:load-error',
+        STATE_CHANGED: 'loader:state-changed',
+        DISPOSE_START: 'loader:dispose-start',
+        DISPOSE_COMPLETE: 'loader:dispose-complete'
+    };
 }
 
 /**
@@ -181,7 +238,26 @@ export function getLoaderEvents() {
  * @returns {Object}
  */
 export function getLoaderModes() {
-    return LoaderMode;
+    return {
+        ...LoaderMode,
+        // 🆕 v1.4.0: MAPPING 추가 (LoaderMode에 없을 경우 대비)
+        MAPPING: 'mapping'
+    };
+}
+
+/**
+ * 🆕 v1.4.0: 로더 타입 상수 조회
+ * 
+ * @returns {Object}
+ */
+export function getLoaderTypes() {
+    return {
+        MONITORING: 'monitoring',
+        ANALYSIS: 'analysis',
+        DASHBOARD: 'dashboard',
+        EDIT: 'edit',
+        MAPPING: 'mapping'
+    };
 }
 
 // ============================================
@@ -230,4 +306,25 @@ export function getLoaderModes() {
  * @property {string[]} availableModes - 사용 가능한 모드
  * @property {Object} loaders - 로더별 상태
  * @property {Object} dependencies - 의존성 상태
+ */
+
+/**
+ * 🆕 v1.4.0: MappingLoadResult 타입 정의
+ * @typedef {Object} MappingLoadResult
+ * @property {boolean} connected - 연결 성공 여부
+ * @property {string|null} siteId - 사이트 ID
+ * @property {Object} mappings - 매핑 데이터
+ * @property {number} count - 매핑 개수
+ * @property {Object} [siteInfo] - 사이트 정보
+ * @property {boolean} [fromCache] - 캐시에서 로드 여부
+ */
+
+/**
+ * 🆕 v1.4.0: MappingCompletionStatus 타입 정의
+ * @typedef {Object} MappingCompletionStatus
+ * @property {number} total - 전체 설비 수
+ * @property {number} mapped - 매핑된 설비 수
+ * @property {number} unmapped - 미매핑 설비 수
+ * @property {number} percentage - 완료율 (0-100)
+ * @property {boolean} isComplete - 100% 완료 여부
  */
