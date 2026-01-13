@@ -174,10 +174,12 @@ export function initUIComponents(options = {}) {
     });
     console.log('  ✅ EquipmentEditModal 초기화 완료');
     
-    // 🆕 v1.2.0: EquipmentInfoPanel 초기화 (여기로 이동!)
-    const equipmentInfoPanel = new EquipmentInfoPanel({
-        apiBaseUrl: 'http://localhost:8000/api/equipment/detail'
-    });
+	// 🆕 v1.2.0: EquipmentInfoPanel 초기화 (여기로 이동!)
+	// ⭐ 동적 API URL
+	const equipmentDetailApiUrl = `http://${window.location.hostname}:8000/api/equipment/detail`;
+	const equipmentInfoPanel = new EquipmentInfoPanel({
+	    apiBaseUrl: equipmentDetailApiUrl
+	});
     
     // EquipmentEditState 연결 (매핑 정보 조회용)
     equipmentInfoPanel.setEquipmentEditState(equipmentEditState);

@@ -700,6 +700,13 @@ export class WebSocketManager {
  * 싱글톤 인스턴스 (기본값)
  * MonitoringService에서 직접 생성하므로 이 인스턴스는 테스트용
  */
-export const webSocketManager = new WebSocketManager('ws://localhost:8000/api/monitoring/stream', { debug: true });
+// ⭐ 동적 WebSocket URL 생성
+function getDefaultWsUrl() {
+    const host = window.location.hostname;
+    const port = 8000;
+    return `ws://${host}:${port}/api/monitoring/stream`;
+}
+
+export const webSocketManager = new WebSocketManager(getDefaultWsUrl(), { debug: true });
 
 export default WebSocketManager;

@@ -22,9 +22,16 @@ import { debugLog } from '../core/utils/Config.js';
 /**
  * Equipment Detail API 클라이언트
  */
+// ⭐ 동적 URL 생성 함수
+function getDefaultDetailApiUrl() {
+    const host = window.location.hostname;
+    const port = 8000;
+    return `http://${host}:${port}/api/equipment/detail`;
+}
+
 export class EquipmentDetailApi {
-    constructor(baseUrl = 'http://localhost:8000/api/equipment/detail') {
-        this.baseUrl = baseUrl;
+    constructor(baseUrl = null) {
+        this.baseUrl = baseUrl || getDefaultDetailApiUrl();
         this.timeout = 10000;  // 10초
         
         debugLog('📡 EquipmentDetailApi initialized (v2.0.0)');

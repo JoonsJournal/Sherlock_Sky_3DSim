@@ -56,12 +56,16 @@ import { debugLog } from '../../core/utils/Config.js';
  * const client = new StatusAPIClient('http://localhost:8000/api/monitoring');
  * const status = await client.fetchEquipmentLiveStatus('EQ-01-01');
  */
+// ⭐ 동적 URL 생성 함수
+function getDefaultMonitoringApiUrl() {
+    const host = window.location.hostname;
+    const port = 8000;
+    return `http://${host}:${port}/api/monitoring`;
+}
+
 export class StatusAPIClient {
-    /**
-     * @param {string} baseUrl - API Base URL (기본: 'http://localhost:8000/api/monitoring')
-     */
-    constructor(baseUrl = 'http://localhost:8000/api/monitoring') {
-        this.baseUrl = baseUrl;
+    constructor(baseUrl = null) {
+        this.baseUrl = baseUrl || getDefaultMonitoringApiUrl();
         this.timeout = 10000;  // 10초 타임아웃
         
         debugLog('📡 StatusAPIClient initialized (v1.0.0)');

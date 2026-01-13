@@ -53,11 +53,16 @@ export class MonitoringService {
         this.equipmentEditState = equipmentEditState;
         
         // ⭐ v4.1.0: StatusAPIClient 인스턴스 생성
-        this.apiBaseUrl = 'http://localhost:8000/api/monitoring';
-        this.apiClient = new StatusAPIClient(this.apiBaseUrl);
-        
-        // ⭐ v4.2.0: WebSocket URL (레거시 호환성)
-        this.wsUrl = 'ws://localhost:8000/api/monitoring/stream';
+		// ⭐ 동적 URL 생성
+		const host = window.location.hostname;
+		const port = 8000;
+		
+		// ⭐ v4.1.0: StatusAPIClient 인스턴스 생성
+		this.apiBaseUrl = `http://${host}:${port}/api/monitoring`;
+		this.apiClient = new StatusAPIClient(this.apiBaseUrl);
+		
+		// ⭐ v4.2.0: WebSocket URL (레거시 호환성)
+		this.wsUrl = `ws://${host}:${port}/api/monitoring/stream`;
         
         // ⭐ v4.2.0: WebSocketManager 인스턴스 생성
         this.wsManager = new WebSocketManager(this.wsUrl, {

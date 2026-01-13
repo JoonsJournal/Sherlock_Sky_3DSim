@@ -35,7 +35,9 @@ export class EquipmentInfoPanel {
         this.dom = null;
         
         // API
-        this.apiBaseUrl = options.apiBaseUrl || 'http://localhost:8000/api/equipment/detail';
+        // API - 동적 URL
+		const defaultApiUrl = `http://${window.location.hostname}:8000/api/equipment/detail`;
+		this.apiBaseUrl = options.apiBaseUrl || defaultApiUrl;
         if (options.apiBaseUrl) {
             equipmentDetailApi.setBaseUrl(options.apiBaseUrl);
         }

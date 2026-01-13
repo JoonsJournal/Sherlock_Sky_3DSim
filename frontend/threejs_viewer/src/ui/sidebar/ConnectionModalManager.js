@@ -138,10 +138,12 @@ export class ConnectionModalManager {
         this.toast = options.toast || null;
         this.eventBus = options.eventBus || null;
         this.connectionStatusService = options.connectionStatusService || null;
-        
-        // 🆕 v2.0.0: ConnectionService 생성 (실제 API 호출용)
-        this.apiBaseUrl = options.apiBaseUrl || 'http://localhost:8000';
-        this.connectionService = new ConnectionService(this.apiBaseUrl);
+		        
+		// 🆕 v2.0.0: ConnectionService 생성 (실제 API 호출용)
+		// ⭐ 동적 API URL: 접속한 호스트 기준
+		const defaultApiUrl = `http://${window.location.hostname}:8000`;
+		this.apiBaseUrl = options.apiBaseUrl || defaultApiUrl;
+		this.connectionService = new ConnectionService(this.apiBaseUrl);
         
         // 사이트 목록 (Sidebar에서 전달받거나 기본값 사용)
         this.siteList = options.siteList ? [...options.siteList] : [...SITE_LIST];

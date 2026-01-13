@@ -3,9 +3,16 @@
  * 데이터베이스 연결 관리 서비스
  */
 
+// ⭐ 동적 API URL 생성 함수
+function getDefaultApiBaseUrl() {
+    const host = window.location.hostname;
+    const port = 8000;
+    return `http://${host}:${port}`;
+}
+
 export class ConnectionService {
-    constructor(apiBaseUrl = 'http://localhost:8000') {
-        this.apiBaseUrl = apiBaseUrl;
+    constructor(apiBaseUrl = null) {
+        this.apiBaseUrl = apiBaseUrl || getDefaultApiBaseUrl();
         this.healthCheckInterval = null;
         this.healthCheckCallbacks = [];
     }

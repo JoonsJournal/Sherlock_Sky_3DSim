@@ -150,7 +150,7 @@ async def root():
         endpoints.update({
             "monitoring_health": "/api/monitoring/health",
             "monitoring_status": "/api/monitoring/status",
-            "monitoring_stream": "ws://localhost:8000/api/monitoring/stream"
+            "monitoring_stream": "/api/monitoring/stream"
         })
     
     if EQUIPMENT_DETAIL_ENABLED:
