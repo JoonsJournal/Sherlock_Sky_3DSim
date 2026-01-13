@@ -19,6 +19,7 @@
     "jest-environment-jsdom": "^29.7.0"
   },
   "dependencies": {
-    "konva": "^10.0.12"
+    "konva": "^10.0.12",
+    "three": "^0.160.0"
   }
 }
