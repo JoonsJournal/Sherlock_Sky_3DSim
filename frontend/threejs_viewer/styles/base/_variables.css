@@ -11,11 +11,13 @@
  * 작성일: 2026-01-02
  * 수정일: 2026-01-06 (테마 통일 - 라이트 테마 기준)
  * 수정일: 2026-01-11 (Cleanroom Sidebar Theme 통합 v2.10)
+ * 수정일: 2026-01-14 (StatusBar CSS 변수 통합 v2.1.0) ⭐
  * 
  * [MIGRATION NOTE]
  * - test_sidebar_standalone.html v2.10 CSS 변수 통합
  * - data-theme="dark" / "light" 테마 시스템 추가
  * - 기존 변수와 호환성 유지 (레거시 섹션)
+ * - ⭐ StatusBar 인라인 CSS 제거, 외부 CSS로 통합
  */
 
 :root {
@@ -252,6 +254,13 @@
     --font-size-2xl: 24px;
 
     /* =============================================
+       ⭐ STATUS BAR 전용 폰트 크기 (v2.1.0)
+       StatusBar.js 인라인 CSS 제거 후 통합
+       ============================================= */
+    --statusbar-label-size: 9px;      /* NET, API, DB 라벨용 */
+    --statusbar-value-size: 12px;     /* Monitoring Stats 숫자, Country Code용 */
+
+    /* =============================================
        Z-Index 레이어 (정리됨)
        ============================================= */
     --z-base: 1;
@@ -374,6 +383,21 @@
     --status-bar-height: 36px;
     
     /* -----------------------------------------
+       ⭐ STATUS BAR 색상 (Dark Mode) - v2.1.0
+       Sidebar와 동일한 색상 체계 사용
+       ----------------------------------------- */
+    --statusbar-bg: var(--bg-sidebar);           /* #0F172A */
+    --statusbar-item-bg: var(--bg-input);        /* rgba(255,255,255,0.05) */
+    --statusbar-label: var(--text-muted);        /* #6B7280 */
+    --statusbar-value: var(--text-normal);       /* #CBD5E1 */
+    --statusbar-country: var(--icon-selected);   /* #06B6D4 */
+    --statusbar-connected: var(--text-success);  /* #4ADE80 */
+    --statusbar-disconnected: var(--text-alarm); /* #F87171 */
+    --statusbar-warning: var(--text-warning);    /* #FBBF24 */
+    --statusbar-border: var(--border-color);     /* rgba(255,255,255,0.1) */
+    --statusbar-divider: rgba(255, 255, 255, 0.15);
+    
+    /* -----------------------------------------
        Dark Theme Specific - Additional
        ----------------------------------------- */
     --bg-dark-overlay: rgba(0, 0, 0, 0.7);
@@ -382,6 +406,7 @@
     /* Toast Colors (Dark) */
     --toast-bg: var(--bg-panel);
     --toast-border: var(--border-color);
+    --toast-text: var(--text-primary);
     --toast-shadow: 0 8px 24px var(--shadow-color);
     
     /* Cover Screen */
@@ -465,14 +490,30 @@
     --glow-color: rgba(8, 145, 178, 0.3);
     
     /* -----------------------------------------
+       ⭐ STATUS BAR 색상 (Light Mode) - v2.1.0
+       Sidebar와 동일한 색상 체계 사용
+       ----------------------------------------- */
+    --statusbar-bg: var(--bg-sidebar);           /* #F8FAFC */
+    --statusbar-item-bg: var(--bg-input);        /* rgba(0,0,0,0.03) */
+    --statusbar-label: var(--text-muted);        /* #94A3B8 */
+    --statusbar-value: var(--text-normal);       /* #64748B */
+    --statusbar-country: var(--icon-selected);   /* #0891B2 */
+    --statusbar-connected: var(--text-success);  /* #16A34A */
+    --statusbar-disconnected: var(--text-alarm); /* #DC2626 */
+    --statusbar-warning: var(--text-warning);    /* #D97706 */
+    --statusbar-border: var(--border-color);     /* rgba(0,0,0,0.1) */
+    --statusbar-divider: rgba(0, 0, 0, 0.15);
+    
+    /* -----------------------------------------
        Light Theme Specific - Additional
        ----------------------------------------- */
     --bg-dark-overlay: rgba(0, 0, 0, 0.5);
     --modal-backdrop: rgba(0, 0, 0, 0.5);
     
     /* Toast Colors (Light) */
-    --toast-bg: var(--bg-panel);
-    --toast-border: var(--border-color);
+    --toast-bg: #ffffff;
+    --toast-border: #e9ecef;
+    --toast-text: #212529;
     --toast-shadow: 0 8px 24px var(--shadow-color);
     
     /* Cover Screen */
@@ -613,22 +654,4 @@ body,
     --perf-good: var(--text-success);
     --perf-warning: var(--text-warning);
     --perf-critical: var(--text-alarm);
-}
-
-/* =============================================
-   CSS 변수 추가 (_variables.css에 추가 권장)
-   ============================================= */
-
-:root[data-theme="dark"] {
-    --toast-bg: var(--bg-panel);
-    --toast-border: var(--border-color);
-    --toast-text: var(--text-primary);
-    --toast-shadow: 0 4px 12px var(--shadow-color);
-}
-
-:root[data-theme="light"] {
-    --toast-bg: #ffffff;
-    --toast-border: #e9ecef;
-    --toast-text: #212529;
-    --toast-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }

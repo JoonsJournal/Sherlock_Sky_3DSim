@@ -5,22 +5,33 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 1.0.0
+ * @version 2.0.0
  * @created 2026-01-11
+ * @updated 2026-01-14
+ * 
+ * @changelog
+ * - v2.0.0: 🔧 CSS 변수 통합 (2026-01-14)
+ *           - StatusBar.js 인라인 CSS 제거, 외부 CSS로 통합
+ *           - _variables.css의 통일된 변수 사용
+ *           - Monitoring Stats Panel 스타일 추가
+ *           - Responsive 브레이크포인트 통일 (1200px, 900px, 768px)
+ *           - Font 완전 통일 (var(--font-mono))
+ * - v1.0.0: 초기 버전
  * 
  * 구조:
  * - Status Bar Container (36px 높이)
- * - Status Groups (좌/우 그룹)
+ * - Status Groups (좌/가운데/우)
  * - Status Items (NET, API, DB, FPS, MEM)
+ * - 🆕 Monitoring Stats Panel (총 장비, 매핑 상태, 상태별 카운트)
  * - Status Dots (연결 상태 표시)
  * - Performance Bars (FPS, Memory)
  * 
  * 의존성:
- * - _variables.css (CSS 변수)
+ * - _variables.css (CSS 변수 SSOT)
  * 
  * [MIGRATION NOTE]
  * - 기존 main.css의 .status-panel과 충돌 없음 (다른 클래스명)
- * - 새로운 하단 고정 상태바 UI
+ * - StatusBar.js v2.2.0+와 호환
  */
 
 /* =============================================
@@ -30,26 +41,36 @@
     position: fixed;
     bottom: 0;
     left: 0;
-    width: 100%;
-    height: var(--status-bar-height, 36px);
-    background-color: var(--bg-sidebar);
-    border-top: 1px solid var(--border-color);
+    width: 100%
+;
+    height: var(--status-bar-height);
+    background-color: var(--statusbar-bg);
+    border-top: 1px solid var(--statusbar-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 16px;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: var(--font-size-xs);
     z-index: 20;
+    box-sizing: border-box;
 }
 
 /* =============================================
-   Status Groups
+   Status Groups (좌/가운데/우)
    ============================================= */
 .status-group {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     align-items: center;
+}
+
+.status-group-left {
+    flex-shrink: 0;
+}
+
+.status-group-right {
+    flex-shrink: 0;
 }
 
 /* =============================================
@@ -60,8 +81,9 @@
     align-items: center;
     gap: 6px;
     padding: 4px 10px;
-    background: var(--bg-input);
+    background: var(--statusbar-item-bg);
     border-radius: 4px;
+    font-family: var(--font-mono);
 }
 
 /* =============================================
@@ -75,19 +97,19 @@
 }
 
 .status-dot.connected {
-    background-color: var(--text-success);
-    box-shadow: 0 0 4px var(--text-success);
+    background-color: var(--statusbar-connected);
+    box-shadow: 0 0 4px var(--statusbar-connected);
     animation: pulse 2s infinite;
 }
 
 .status-dot.disconnected {
-    background-color: var(--text-alarm);
-    box-shadow: 0 0 4px var(--text-alarm);
+    background-color: var(--statusbar-disconnected);
+    box-shadow: 0 0 4px var(--statusbar-disconnected);
 }
 
 .status-dot.checking {
-    background-color: var(--text-warning);
-    box-shadow: 0 0 4px var(--text-warning);
+    background-color: var(--statusbar-warning);
+    box-shadow: 0 0 4px var(--statusbar-warning);
     animation: pulse 1s infinite;
 }
 
@@ -96,17 +118,36 @@
 }
 
 /* =============================================
-   Status Label & Value
+   Labels & Values
    ============================================= */
 .status-label {
-    color: var(--text-muted);
-    font-size: 9px;
+    color: var(--statusbar-label);
+    font-family: var(--font-mono);
+    font-size: var(--statusbar-label-size);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    font-weight: 500;
 }
 
 .status-value {
-    color: var(--text-normal);
+    color: var(--statusbar-value);
+    font-family: var(--font-mono);
+    font-weight: 500;
+}
+
+/* 성능 값 스타일 */
+.status-perf-value {
+    color: var(--statusbar-value);
+    font-family: var(--font-mono);
+}
+
+/* DB Name */
+.status-db-name {
+    color: var(--statusbar-value);
+    font-family: var(--font-mono);
+    font-size: var(--statusbar-label-size);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     font-weight: 500;
 }
 
@@ -114,9 +155,10 @@
    Country Code Badge
    ============================================= */
 .country-code {
+    font-family: var(--font-mono);
     font-weight: 700;
-    font-size: 12px;
-    color: var(--icon-selected);
+    font-size: var(--statusbar-value-size);
+    color: var(--statusbar-country);
     letter-spacing: 1px;
 }
 
@@ -126,7 +168,7 @@
 .perf-bar {
     width: 35px;
     height: 4px;
-    background: var(--bg-input);
+    background: var(--statusbar-item-bg);
     border-radius: 2px;
     overflow: hidden;
 }
@@ -139,15 +181,119 @@
 
 /* Performance States */
 .perf-bar-fill.good {
-    background: var(--text-success);
+    background: var(--statusbar-connected);
 }
 
 .perf-bar-fill.warning {
-    background: var(--text-warning);
+    background: var(--statusbar-warning);
 }
 
 .perf-bar-fill.critical {
-    background: var(--text-alarm);
+    background: var(--statusbar-disconnected);
+}
+
+/* =============================================
+   🆕 v2.0.0: Monitoring Stats Panel
+   조건부 표시: Monitoring 모드 + 3d-view/ranking-view
+   ============================================= */
+.monitoring-stats-group {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px;
+    border-left: 1px solid var(--statusbar-border);
+    border-right: 1px solid var(--statusbar-border);
+    margin: 0 8px;
+}
+
+.monitoring-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    min-width: 44px;
+    justify-content: center;
+    background: var(--statusbar-item-bg);
+    border-radius: 4px;
+}
+
+.monitoring-stat-icon {
+    font-size: var(--statusbar-value-size);
+    line-height: 1;
+}
+
+.monitoring-stat-value {
+    color: var(--statusbar-value);
+    font-family: var(--font-mono);
+    font-size: var(--statusbar-value-size);
+    font-weight: 600;
+    min-width: 20px;
+    text-align: right;
+}
+
+/* Monitoring Stats 색상 (Dark/Light 공통) */
+.monitoring-stat-item.mapped .monitoring-stat-value {
+    color: var(--statusbar-connected);
+}
+
+.monitoring-stat-item.unmapped .monitoring-stat-value {
+    color: var(--statusbar-warning);
+}
+
+.monitoring-stat-item.rate .monitoring-stat-value {
+    color: var(--statusbar-country);
+}
+
+/* 구분선 */
+.monitoring-stats-divider {
+    width: 1px;
+    height: 20px;
+    background: var(--statusbar-divider);
+    margin: 0 4px;
+}
+
+/* 상태 인디케이터 dot */
+.status-indicator-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-indicator-dot.run {
+    background-color: var(--statusbar-connected);
+    box-shadow: 0 0 6px var(--statusbar-connected);
+}
+
+.status-indicator-dot.idle {
+    background-color: var(--statusbar-warning);
+    box-shadow: 0 0 6px var(--statusbar-warning);
+}
+
+.status-indicator-dot.stop {
+    background-color: var(--statusbar-disconnected);
+    box-shadow: 0 0 6px var(--statusbar-disconnected);
+}
+
+.status-indicator-dot.unknown {
+    background-color: var(--statusbar-label);
+    box-shadow: 0 0 4px var(--statusbar-label);
+}
+
+/* 상태별 카운트 색상 */
+.monitoring-stat-item.status-run .monitoring-stat-value {
+    color: var(--statusbar-connected);
+}
+
+.monitoring-stat-item.status-idle .monitoring-stat-value {
+    color: var(--statusbar-warning);
+}
+
+.monitoring-stat-item.status-stop .monitoring-stat-value {
+    color: var(--statusbar-disconnected);
+}
+
+.monitoring-stat-item.status-unknown .monitoring-stat-value {
+    color: var(--statusbar-label);
 }
 
 /* =============================================
@@ -190,7 +336,7 @@
 }
 
 /* =============================================
-   Equipment Count Badge
+   Equipment Count Badge (Legacy)
    ============================================= */
 .equipment-count {
     display: flex;
@@ -206,15 +352,15 @@
 }
 
 .equipment-count-item.run {
-    color: var(--text-success);
+    color: var(--statusbar-connected);
 }
 
 .equipment-count-item.idle {
-    color: var(--text-warning);
+    color: var(--statusbar-warning);
 }
 
 .equipment-count-item.stop {
-    color: var(--text-alarm);
+    color: var(--statusbar-disconnected);
 }
 
 /* =============================================
@@ -243,24 +389,58 @@
 }
 
 /* =============================================
-   Status Bar - Compact Mode
+   Compact Mode (좁은 화면용)
    ============================================= */
 .status-bar.compact {
     height: 28px;
-    padding: 0 12px;
+    padding: 0 8px;
+    font-size: 10px;
+}
+
+.status-bar.compact .status-group {
+    gap: 8px;
 }
 
 .status-bar.compact .status-item {
     padding: 2px 6px;
+    gap: 4px;
 }
 
 .status-bar.compact .status-label {
-    font-size: 8px;
+    display: none;
 }
 
 .status-bar.compact .perf-bar {
     width: 25px;
-    height: 3px;
+}
+
+.status-bar.compact .country-code {
+    font-size: 10px;
+}
+
+.status-bar.compact .monitoring-stats-group {
+    gap: 4px;
+    padding: 0 8px;
+}
+
+.status-bar.compact .monitoring-stat-item {
+    padding: 2px 4px;
+    min-width: 36px;
+}
+
+.status-bar.compact .monitoring-stat-icon {
+    font-size: 10px;
+}
+
+.status-bar.compact .monitoring-stat-value {
+    font-size: 10px;
+}
+
+/* =============================================
+   Hidden Mode
+   ============================================= */
+.status-bar.hidden {
+    display: none !important;
 }
 
 /* =============================================
@@ -290,24 +470,10 @@
 }
 
 /* =============================================
-   Light Theme Overrides
+   Responsive - 태블릿 (1200px 이하)
+   v2.0.0: 브레이크포인트 통일
    ============================================= */
-[data-theme="light"] .status-bar {
-    border-top-color: var(--border-color);
-}
-
-[data-theme="light"] .status-dot.connected {
-    box-shadow: 0 0 6px var(--text-success);
-}
-
-[data-theme="light"] .status-dot.disconnected {
-    box-shadow: 0 0 6px var(--text-alarm);
-}
-
-/* =============================================
-   Responsive - 태블릿
-   ============================================= */
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
     .status-bar {
         padding: 0 12px;
     }
@@ -320,6 +486,26 @@
         padding: 3px 8px;
     }
     
+    .monitoring-stats-group {
+        gap: 6px;
+        padding: 0 10px;
+    }
+    
+    .monitoring-stat-item {
+        min-width: 40px;
+        padding: 4px 6px;
+    }
+}
+
+/* =============================================
+   Responsive - 작은 태블릿 (900px 이하)
+   v2.0.0: 매핑률(📈) 숨김
+   ============================================= */
+@media (max-width: 900px) {
+    .monitoring-stat-item.rate {
+        display: none;
+    }
+    
     .status-label {
         display: none;
     }
@@ -330,7 +516,7 @@
 }
 
 /* =============================================
-   Responsive - 모바일
+   Responsive - 모바일 (768px 이하)
    ============================================= */
 @media (max-width: 768px) {
     .status-bar {

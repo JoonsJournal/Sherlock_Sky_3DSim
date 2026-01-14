@@ -5,11 +5,15 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 2.2.0
+ * @version 2.3.0
  * @created 2026-01-11
- * @updated 2026-01-12
+ * @updated 2026-01-14
  * 
  * @changelog
+ * - v2.3.0: 🔧 인라인 CSS 제거, 외부 CSS로 통합 (2026-01-14)
+ *           - injectStatusBarStyles() 함수 삭제
+ *           - _status-bar.css 사용 (v2.0.0)
+ *           - createStatusBar() injectStyles 옵션 제거
  * - v2.2.0: 🆕 Monitoring Stats Panel 추가 (2026-01-12)
  *           - 장비 총계, 매핑 상태, 상태별 카운트 표시
  *           - Monitoring 모드 + 3d-view/ranking-view에서만 표시
@@ -35,6 +39,7 @@
  * - EventBus (core/managers)
  * - MonitoringService (선택, stats 연동용)
  * - EquipmentEditState (선택, 매핑 상태용)
+ * - _status-bar.css (필수, 외부 CSS)
  * 
  * 사용법:
  *   import { StatusBar } from './StatusBar.js';
@@ -150,7 +155,7 @@ export class StatusBar {
         this._startUpdateLoop();
         this._updateInitialState();
         
-        console.log('[StatusBar] 초기화 완료 (v2.2.0 - Monitoring Stats Panel)');
+        console.log('[StatusBar] 초기화 완료 (v2.3.0 - External CSS)');
     }
     
     // ========================================
@@ -939,398 +944,24 @@ export class StatusBar {
 }
 
 // ============================================
-// CSS Styles (Inline for standalone usage)
-// ============================================
-
-/**
- * StatusBar에 필요한 CSS를 동적으로 주입
- * 🔧 v2.2.0: 
- * - Monitoring Stats 스타일 추가
- * - Font 통일 (Consolas/Monaco)
- * - Dark/Light mode 지원 강화
- */
-export function injectStatusBarStyles() {
-    if (document.getElementById('statusbar-styles')) return;
-    
-    const style = document.createElement('style');
-    style.id = 'statusbar-styles';
-    style.textContent = `
-        /* =============================================
-           StatusBar Styles (v2.2.0)
-           - Font 통일: Consolas, Monaco, monospace
-           - Dark/Light mode 지원
-           - "개" 제거 - 숫자만 표시
-           ============================================= */
-        
-        /* 기본 폰트 변수 */
-        :root {
-            --statusbar-font: 'Consolas', 'Monaco', 'Menlo', monospace;
-            --statusbar-font-size: 11px;
-            --statusbar-font-size-sm: 9px;
-            --statusbar-font-size-value: 12px;
-        }
-        
-        .status-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: var(--status-bar-height, 36px);
-            background-color: var(--bg-sidebar, #0F172A);
-            border-top: 1px solid var(--border-color, rgba(255,255,255,0.1));
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 16px;
-            font-family: var(--statusbar-font);
-            font-size: var(--statusbar-font-size);
-            z-index: 20;
-            box-sizing: border-box;
-        }
-        
-        /* Light mode */
-        [data-theme="light"] .status-bar {
-            background-color: var(--bg-sidebar, #F8FAFC);
-            border-top-color: var(--border-color, rgba(0,0,0,0.1));
-        }
-        
-        .status-group {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-        
-        .status-group-left {
-            flex-shrink: 0;
-        }
-        
-        .status-group-right {
-            flex-shrink: 0;
-        }
-        
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            background: var(--bg-input, rgba(255,255,255,0.05));
-            border-radius: 4px;
-            font-family: var(--statusbar-font);
-        }
-        
-        [data-theme="light"] .status-item {
-            background: var(--bg-input, rgba(0,0,0,0.05));
-        }
-        
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-        
-        .status-dot.connected {
-            background-color: var(--text-success, #4ADE80);
-            box-shadow: 0 0 4px var(--text-success, #4ADE80);
-        }
-        
-        .status-dot.disconnected {
-            background-color: var(--text-alarm, #F87171);
-            box-shadow: 0 0 4px var(--text-alarm, #F87171);
-        }
-        
-        /* 라벨 스타일 - 폰트 통일 */
-        .status-label {
-            color: var(--text-muted, #6B7280);
-            font-family: var(--statusbar-font);
-            font-size: var(--statusbar-font-size-sm);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 500;
-        }
-        
-        [data-theme="light"] .status-label {
-            color: var(--text-muted, #9CA3AF);
-        }
-        
-        /* 성능 값 스타일 - 폰트 통일 */
-        .status-perf-value {
-            color: var(--text-normal, #CBD5E1);
-            font-family: var(--statusbar-font);
-        }
-        
-        [data-theme="light"] .status-perf-value {
-            color: var(--text-normal, #374151);
-        }
-        
-        /* DB Name 스타일 */
-        .status-db-name {
-            color: var(--text-normal, #CBD5E1);
-            font-family: var(--statusbar-font);
-            font-size: var(--statusbar-font-size-sm);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 500;
-        }
-        
-        [data-theme="light"] .status-db-name {
-            color: var(--text-normal, #374151);
-        }
-        
-        .status-value {
-            color: var(--text-normal, #CBD5E1);
-            font-family: var(--statusbar-font);
-            font-weight: 500;
-        }
-        
-        .perf-bar {
-            width: 35px;
-            height: 4px;
-            background: var(--bg-input, rgba(255,255,255,0.05));
-            border-radius: 2px;
-            overflow: hidden;
-        }
-        
-        [data-theme="light"] .perf-bar {
-            background: var(--bg-input, rgba(0,0,0,0.1));
-        }
-        
-        .perf-bar-fill {
-            height: 100%;
-            border-radius: 2px;
-            transition: width 0.3s ease, background-color 0.3s ease;
-        }
-        
-        .perf-bar-fill.good {
-            background: var(--text-success, #4ADE80);
-        }
-        
-        .perf-bar-fill.warning {
-            background: var(--text-warning, #FBBF24);
-        }
-        
-        .perf-bar-fill.critical {
-            background: var(--text-alarm, #F87171);
-        }
-        
-        .country-code {
-            font-family: var(--statusbar-font);
-            font-weight: 700;
-            font-size: 12px;
-            color: var(--icon-selected, #06B6D4);
-            letter-spacing: 1px;
-        }
-        
-        /* =============================================
-           🆕 v2.2.0: Monitoring Stats Panel Styles
-           - "개" 제거 - 숫자만 표시
-           - 폰트 통일
-           ============================================= */
-        
-        .monitoring-stats-group {
-            gap: 8px;
-            padding: 0 16px;
-            border-left: 1px solid var(--border-color, rgba(255,255,255,0.1));
-            border-right: 1px solid var(--border-color, rgba(255,255,255,0.1));
-            margin: 0 8px;
-        }
-        
-        [data-theme="light"] .monitoring-stats-group {
-            border-left-color: var(--border-color, rgba(0,0,0,0.1));
-            border-right-color: var(--border-color, rgba(0,0,0,0.1));
-        }
-        
-        .monitoring-stat-item {
-            padding: 4px 8px;
-            gap: 4px;
-            min-width: 44px;
-            justify-content: center;
-        }
-        
-        .monitoring-stat-icon {
-            font-size: 12px;
-            line-height: 1;
-        }
-        
-        /* 값 스타일 - 폰트 통일, "개" 없이 숫자만 */
-        .monitoring-stat-value {
-            color: var(--text-normal, #CBD5E1);
-            font-family: var(--statusbar-font);
-            font-size: var(--statusbar-font-size-value);
-            font-weight: 600;
-            min-width: 20px;
-            text-align: right;
-        }
-        
-        [data-theme="light"] .monitoring-stat-value {
-            color: var(--text-normal, #374151);
-        }
-        
-        /* 매핑 상태 색상 */
-        .monitoring-stat-item.mapped .monitoring-stat-value {
-            color: var(--text-success, #4ADE80);
-        }
-        
-        .monitoring-stat-item.unmapped .monitoring-stat-value {
-            color: var(--text-warning, #FBBF24);
-        }
-        
-        .monitoring-stat-item.rate .monitoring-stat-value {
-            color: var(--icon-selected, #06B6D4);
-        }
-        
-        /* 구분선 */
-        .monitoring-stats-divider {
-            width: 1px;
-            height: 20px;
-            background: var(--border-color, rgba(255,255,255,0.15));
-            margin: 0 4px;
-        }
-        
-        [data-theme="light"] .monitoring-stats-divider {
-            background: var(--border-color, rgba(0,0,0,0.15));
-        }
-        
-        /* 상태 인디케이터 dot */
-        .status-indicator-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-        
-        .status-indicator-dot.run {
-            background-color: var(--text-success, #4ADE80);
-            box-shadow: 0 0 6px var(--text-success, #4ADE80);
-        }
-        
-        .status-indicator-dot.idle {
-            background-color: var(--text-warning, #FBBF24);
-            box-shadow: 0 0 6px var(--text-warning, #FBBF24);
-        }
-        
-        .status-indicator-dot.stop {
-            background-color: var(--text-alarm, #F87171);
-            box-shadow: 0 0 6px var(--text-alarm, #F87171);
-        }
-        
-        .status-indicator-dot.unknown {
-            background-color: var(--text-muted, #6B7280);
-            box-shadow: 0 0 4px var(--text-muted, #6B7280);
-        }
-        
-        /* 상태별 카운트 아이템 */
-        .monitoring-stat-item.status-run .monitoring-stat-value {
-            color: var(--text-success, #4ADE80);
-        }
-        
-        .monitoring-stat-item.status-idle .monitoring-stat-value {
-            color: var(--text-warning, #FBBF24);
-        }
-        
-        .monitoring-stat-item.status-stop .monitoring-stat-value {
-            color: var(--text-alarm, #F87171);
-        }
-        
-        .monitoring-stat-item.status-unknown .monitoring-stat-value {
-            color: var(--text-muted, #6B7280);
-        }
-        
-        /* =============================================
-           Compact Mode (좁은 화면용)
-           ============================================= */
-        
-        .status-bar.compact {
-            height: 28px;
-            padding: 0 8px;
-            font-size: 10px;
-        }
-        
-        .status-bar.compact .status-group {
-            gap: 8px;
-        }
-        
-        .status-bar.compact .status-item {
-            padding: 2px 6px;
-            gap: 4px;
-        }
-        
-        .status-bar.compact .status-label {
-            display: none;
-        }
-        
-        .status-bar.compact .perf-bar {
-            width: 25px;
-        }
-        
-        .status-bar.compact .country-code {
-            font-size: 10px;
-        }
-        
-        .status-bar.compact .monitoring-stats-group {
-            gap: 4px;
-            padding: 0 8px;
-        }
-        
-        .status-bar.compact .monitoring-stat-item {
-            padding: 2px 4px;
-            min-width: 36px;
-        }
-        
-        .status-bar.compact .monitoring-stat-icon {
-            font-size: 10px;
-        }
-        
-        .status-bar.compact .monitoring-stat-value {
-            font-size: 10px;
-        }
-        
-        /* Hidden Mode */
-        .status-bar.hidden {
-            display: none !important;
-        }
-        
-        /* =============================================
-           Responsive (작은 화면)
-           ============================================= */
-        
-        @media (max-width: 1200px) {
-            .monitoring-stats-group {
-                gap: 6px;
-                padding: 0 10px;
-            }
-            
-            .monitoring-stat-item {
-                min-width: 40px;
-                padding: 4px 6px;
-            }
-        }
-        
-        @media (max-width: 900px) {
-            .monitoring-stat-item.rate {
-                display: none;
-            }
-        }
-    `;
-    
-    document.head.appendChild(style);
-}
-
-// ============================================
 // Factory Function
 // ============================================
 
 /**
  * StatusBar 인스턴스 생성 팩토리 함수
+ * 
  * @param {Object} options - StatusBar 옵션
  * @returns {StatusBar}
+ * 
+ * @example
+ * import { createStatusBar } from './StatusBar.js';
+ * const statusBar = createStatusBar({
+ *     connectionStatusService: myService,
+ *     performanceMonitor: myMonitor,
+ *     eventBus: myEventBus
+ * });
  */
 export function createStatusBar(options = {}) {
-    // CSS 자동 주입 (필요 시)
-    if (options.injectStyles !== false) {
-        injectStatusBarStyles();
-    }
-    
     return new StatusBar(options);
 }
 
