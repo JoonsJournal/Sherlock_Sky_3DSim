@@ -6,7 +6,7 @@
  * 모든 모드(Monitoring, Analysis, Dashboard, Edit)가 동일한 방식으로
  * 데이터를 로드할 수 있도록 공통 인터페이스를 정의합니다.
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @since 2026-01-13
  * 
  * @description
@@ -26,7 +26,14 @@
  *     getStatus() { ... }
  * }
  * 
+ * // 🆕 v1.1.0: EventEmitter 패턴 사용
+ * const loader = new MonitoringDataLoader(options);
+ * loader.on('monitoring:status-update', (data) => {
+ *     console.log('Status:', data);
+ * });
+ * 
  * @changelog
+ * - v1.1.0: 🆕 EventEmitter 패턴 추가 (on, off, once, hasListeners, listenerCount, removeAllListeners)
  * - v1.0.0: 초기 버전 - 공통 인터페이스 정의
  */
 
@@ -250,6 +257,13 @@ export class IDataLoader {
         /** @protected @type {AbortController|null} */
         this._abortController = null;
         
+        // ===== 🆕 v1.1.0: 내부 이벤트 리스너 =====
+        /** @protected @type {Map<string, Set<Function>>} */
+        this._listeners = new Map();
+        
+        /** @protected @type {Map<string, Set<Function>>} */
+        this._onceListeners = new Map();
+        
         this._log(`🔧 ${this.constructor.name} 생성됨 (type: ${type})`);
     }
     
@@ -350,12 +364,31 @@ export class IDataLoader {
      *     this.abort();
      *     this._disconnectWebSocket();
      *     this._clearCache();
+     *     this._disposeBase();  // 🆕 v1.1.0: 공통 정리 호출
      *     this._setState(LoaderState.DISPOSED);
      *     this._isDisposed = true;
      * }
      */
     dispose() {
         throw new Error('dispose() 메서드를 구현해야 합니다.');
+    }
+    
+    /**
+     * 🆕 v1.1.0: 공통 리소스 정리 (구현 클래스에서 호출)
+     * 
+     * @protected
+     */
+    _disposeBase() {
+        // 모든 이벤트 리스너 제거
+        this.removeAllListeners();
+        
+        // AbortController 취소
+        if (this._abortController) {
+            this._abortController.abort();
+            this._abortController = null;
+        }
+        
+        this._log('🧹 Base dispose 완료');
     }
     
     /**
@@ -583,23 +616,196 @@ export class IDataLoader {
     }
     
     /**
-     * 이벤트 발행
+     * 이벤트 발행 (내부 리스너 + EventBus)
      * 
      * @protected
      * @param {string} eventName - 이벤트 이름
      * @param {Object} data - 이벤트 데이터
      */
     _emit(eventName, data) {
-        if (!this._eventBus) return;
+        const eventData = {
+            ...data,
+            source: this.constructor.name,
+            loaderType: this._type
+        };
         
-        try {
-            this._eventBus.emit(eventName, {
-                ...data,
-                source: this.constructor.name,
-                loaderType: this._type
+        // 🆕 v1.1.0: 내부 리스너 호출
+        this._notifyListeners(eventName, eventData);
+        
+        // EventBus 이벤트 발행
+        if (this._eventBus) {
+            try {
+                this._eventBus.emit(eventName, eventData);
+            } catch (e) {
+                console.error('EventBus emit 에러:', e);
+            }
+        }
+    }
+    
+    // =========================================================================
+    // 🆕 v1.1.0: EventEmitter 패턴 - Public 메서드
+    // =========================================================================
+    
+    /**
+     * 이벤트 리스너 등록
+     * 
+     * @param {string} event - 이벤트 이름
+     * @param {Function} callback - 콜백 함수
+     * @returns {Function} 구독 해제 함수
+     * 
+     * @example
+     * const unsubscribe = loader.on('monitoring:status-update', (data) => {
+     *     console.log('Status updated:', data);
+     * });
+     * 
+     * // 나중에 구독 해제
+     * unsubscribe();
+     */
+    on(event, callback) {
+        if (typeof callback !== 'function') {
+            console.error('[IDataLoader] on: callback must be a function');
+            return () => {};
+        }
+        
+        if (!this._listeners.has(event)) {
+            this._listeners.set(event, new Set());
+        }
+        
+        this._listeners.get(event).add(callback);
+        
+        // 구독 해제 함수 반환
+        return () => this.off(event, callback);
+    }
+    
+    /**
+     * 한 번만 실행되는 이벤트 리스너 등록
+     * 
+     * @param {string} event - 이벤트 이름
+     * @param {Function} callback - 콜백 함수
+     * @returns {Function} 구독 해제 함수
+     */
+    once(event, callback) {
+        if (typeof callback !== 'function') {
+            console.error('[IDataLoader] once: callback must be a function');
+            return () => {};
+        }
+        
+        if (!this._onceListeners.has(event)) {
+            this._onceListeners.set(event, new Set());
+        }
+        
+        this._onceListeners.get(event).add(callback);
+        
+        return () => this._removeOnceListener(event, callback);
+    }
+    
+    /**
+     * 이벤트 리스너 제거
+     * 
+     * @param {string} event - 이벤트 이름
+     * @param {Function} [callback] - 제거할 콜백 (없으면 해당 이벤트 전체 제거)
+     */
+    off(event, callback = null) {
+        if (callback === null) {
+            // 해당 이벤트의 모든 리스너 제거
+            this._listeners.delete(event);
+            this._onceListeners.delete(event);
+            return;
+        }
+        
+        // 특정 콜백만 제거
+        if (this._listeners.has(event)) {
+            this._listeners.get(event).delete(callback);
+        }
+        
+        this._removeOnceListener(event, callback);
+    }
+    
+    /**
+     * 이벤트 리스너 존재 여부 확인
+     * 
+     * @param {string} event - 이벤트 이름
+     * @returns {boolean}
+     */
+    hasListeners(event) {
+        const hasNormal = this._listeners.has(event) && this._listeners.get(event).size > 0;
+        const hasOnce = this._onceListeners.has(event) && this._onceListeners.get(event).size > 0;
+        return hasNormal || hasOnce;
+    }
+    
+    /**
+     * 특정 이벤트의 리스너 개수
+     * 
+     * @param {string} event - 이벤트 이름
+     * @returns {number}
+     */
+    listenerCount(event) {
+        let count = 0;
+        if (this._listeners.has(event)) {
+            count += this._listeners.get(event).size;
+        }
+        if (this._onceListeners.has(event)) {
+            count += this._onceListeners.get(event).size;
+        }
+        return count;
+    }
+    
+    /**
+     * 모든 리스너 제거
+     */
+    removeAllListeners() {
+        this._listeners.clear();
+        this._onceListeners.clear();
+        this._log('🧹 모든 리스너 제거됨');
+    }
+    
+    // =========================================================================
+    // 🆕 v1.1.0: EventEmitter 패턴 - Private 헬퍼
+    // =========================================================================
+    
+    /**
+     * 내부 리스너들에게 이벤트 알림
+     * 
+     * @private
+     * @param {string} event - 이벤트 이름
+     * @param {Object} data - 이벤트 데이터
+     */
+    _notifyListeners(event, data) {
+        // 일반 리스너 호출
+        if (this._listeners.has(event)) {
+            this._listeners.get(event).forEach(callback => {
+                try {
+                    callback(data);
+                } catch (e) {
+                    console.error(`[IDataLoader] Listener error for "${event}":`, e);
+                }
             });
-        } catch (e) {
-            console.error('EventBus emit 에러:', e);
+        }
+        
+        // once 리스너 호출 후 제거
+        if (this._onceListeners.has(event)) {
+            const callbacks = this._onceListeners.get(event);
+            callbacks.forEach(callback => {
+                try {
+                    callback(data);
+                } catch (e) {
+                    console.error(`[IDataLoader] Once listener error for "${event}":`, e);
+                }
+            });
+            this._onceListeners.delete(event);
+        }
+    }
+    
+    /**
+     * once 리스너 제거 (내부용)
+     * 
+     * @private
+     * @param {string} event - 이벤트 이름
+     * @param {Function} callback - 콜백 함수
+     */
+    _removeOnceListener(event, callback) {
+        if (this._onceListeners.has(event)) {
+            this._onceListeners.get(event).delete(callback);
         }
     }
     
@@ -793,7 +999,7 @@ export class IDataLoader {
      * @returns {string}
      */
     static get VERSION() {
-        return '1.0.0';
+        return '1.1.0';
     }
     
     /**

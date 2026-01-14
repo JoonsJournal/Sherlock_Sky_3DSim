@@ -4,10 +4,15 @@
  * 
  * Bootstrap 모듈 통합 export
  * 
- * @version 2.1.0
+ * @version 2.3.0
  * @module bootstrap
  * 
  * @changelog
+ * - v2.3.0: 🔧 IDataLoader v1.1.0 EventEmitter 패턴 연동 확인
+ *   - MonitoringService._setupDataLoaderEvents()에서 loader.on() 정상 작동
+ * - v2.2.0: 🆕 UIBootstrap v1.4.0 연동 - Connection 관련 함수 추가
+ *   - startConnectionServiceForMode, startConnectionServiceDelayed, setupConnectionServiceAfterMonitoring
+ *   - ConnectionState, ConnectionMode, EquipmentInfoPanel, MonitoringServiceEvents
  * - v2.1.0: 🔧 ConnectionIndicator export 제거 (UIBootstrap v1.3.0 연동)
  * - v2.0.0: ModeHandlers export 추가, connectServicesToModeHandlers 추가
  * 
@@ -41,7 +46,7 @@ export {
 } from './SceneBootstrap.js';
 
 // UI Bootstrap
-// 🔧 v2.1.0: ConnectionIndicator 제거
+// 🔧 v2.2.0: UIBootstrap v1.4.0 연동 - Connection 관련 함수 추가
 export {
     initUIComponents,
     initMonitoringServices,
@@ -55,7 +60,15 @@ export {
     ConnectionStatusService,
     // ConnectionIndicator,  // 🔧 v2.1.0: 제거됨
     ConnectionEvents,
-    EquipmentEditButton
+    EquipmentEditButton,
+    // 🆕 v2.2.0: UIBootstrap v1.4.0 추가 export
+    startConnectionServiceForMode,
+    startConnectionServiceDelayed,
+    setupConnectionServiceAfterMonitoring,
+    ConnectionState,
+    ConnectionMode,
+    EquipmentInfoPanel,
+    MonitoringServiceEvents
 } from './UIBootstrap.js';
 
 // Event Bootstrap

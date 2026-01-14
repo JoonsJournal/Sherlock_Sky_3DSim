@@ -4,8 +4,14 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 5.5.0
+ * @version 5.6.0
  * @changelog
+ * - v5.6.0: 🔧 매핑 로드 "API 우선" 전략 적용 (2026-01-14)
+ *           - _loadEquipmentMappingsAfterConnection() 로직 변경
+ *           - 기존: 로컬 데이터 있으면 API 스킵 (Origin 격리 문제 발생)
+ *           - 변경: 항상 API에서 로드, 실패 시 로컬 폴백
+ *           - _fallbackToLocalMappings() 헬퍼 함수 추가
+ *           - forceRefresh: true로 변경하여 항상 최신 데이터 로드
  * - v5.5.0: 🆕 EquipmentMappingService 통합 (2026-01-13)
  *           - services.mapping.equipmentMappingService 추가
  *           - initMappingServices() 함수 추가
@@ -1261,8 +1267,11 @@ async function initMappingServices(options = {}) {
 
 /*
 /**
- * 🆕 v5.5.0: Site 연결 후 매핑 데이터 로드 (리팩토링)
- * EquipmentMappingService를 사용하여 매핑 로드
+ * 🆕 v5.6.0: Site 연결 후 매핑 데이터 로드 (API 우선 방식)
+ * 
+ * ⭐ v5.6.0 변경: "항상 API 우선" 전략 적용
+ * - 기존: 로컬 데이터 있으면 스킵 → Origin 격리 문제 발생
+ * - 변경: 항상 API에서 로드 시도, 실패 시 로컬 폴백
  * 
  * @private
  * @param {string} siteId - 연결된 Site ID
@@ -1282,18 +1291,14 @@ async function _loadEquipmentMappingsAfterConnection(siteId) {
         return;
     }
     
-    // 이미 매핑이 있으면 스킵 (로컬 데이터 우선)
-    const currentStatus = equipmentEditState.getMappingsStatus?.() || { isEmpty: true };
-    if (!currentStatus.isEmpty) {
-        console.log(`[Connection] Local mappings exist (${currentStatus.count}개) - skipping API load`);
-        return;
-    }
+    // 🆕 v5.6.0: 로컬 상태 백업 (폴백용)
+    const localStatus = equipmentEditState.getMappingsStatus?.() || { isEmpty: true, count: 0 };
+    console.log(`[Connection] Local mappings: ${localStatus.count}개 (폴백용 백업)`);
     
     try {
-        console.log(`📡 Loading equipment mappings for site: ${siteId}`);
+        console.log(`📡 Loading equipment mappings for site: ${siteId} (API 우선)`);
         
-        // 🆕 v5.5.0: EquipmentMappingService 사용
-        // 서비스가 없으면 초기화
+        // EquipmentMappingService 초기화 (없으면)
         if (!services.mapping.equipmentMappingService) {
             await initMappingServices({
                 apiClient,
@@ -1305,15 +1310,15 @@ async function _loadEquipmentMappingsAfterConnection(siteId) {
         
         const mappingService = services.mapping.equipmentMappingService;
         
-        // EquipmentMappingService로 매핑 로드
+        // 🆕 v5.6.0: 항상 API에서 로드 시도 (forceRefresh: true)
         const result = await mappingService.loadMappingsForSite(siteId, {
-            forceRefresh: false,
-            applyToEditState: true  // 자동으로 EditState에 적용
+            forceRefresh: true,       // 🔧 항상 서버에서 최신 데이터 로드
+            applyToEditState: true    // 자동으로 EditState에 적용
         });
         
         if (result.connected && result.count > 0) {
-            console.log(`✅ Equipment mappings loaded: ${result.count}개`);
-            window.showToast?.(`${result.count}개 설비 매핑 로드됨`, 'success');
+            console.log(`✅ Equipment mappings loaded from API: ${result.count}개`);
+            window.showToast?.(`${result.count}개 설비 매핑 로드됨 (서버)`, 'success');
             
             // MonitoringService에 매핑 갱신 알림 (활성 상태인 경우)
             if (services.monitoring?.monitoringService?.isActive) {
@@ -1321,27 +1326,70 @@ async function _loadEquipmentMappingsAfterConnection(siteId) {
                 services.monitoring.monitoringService.refreshMappingState?.();
             }
             
-            // 🆕 이벤트 발행
+            // 이벤트 발행
             eventBus.emit('mapping:loaded', {
                 siteId,
                 count: result.count,
+                source: 'api',
                 timestamp: new Date().toISOString()
             });
             
         } else if (result.connected && result.count === 0) {
             console.log('ℹ️ No equipment mappings on server');
+            
+            // 🆕 v5.6.0: 서버에 데이터 없으면 로컬 데이터 유지
+            if (!localStatus.isEmpty) {
+                console.log(`[Connection] 서버에 매핑 없음 - 로컬 데이터 유지 (${localStatus.count}개)`);
+                window.showToast?.(`로컬 매핑 데이터 사용 (${localStatus.count}개)`, 'info');
+            }
+            
         } else {
-            console.warn(`⚠️ Failed to load mappings: ${result.message || 'Unknown error'}`);
+            // 🆕 v5.6.0: API 연결 실패 시 로컬 폴백
+            console.warn(`⚠️ API load failed: ${result.message || 'Unknown error'}`);
+            _fallbackToLocalMappings(localStatus, siteId);
         }
         
     } catch (error) {
         console.error('❌ Error loading equipment mappings:', error);
-        window.showToast?.('매핑 데이터 로드 실패', 'warning');
         
-        // 🆕 이벤트 발행
+        // 🆕 v5.6.0: 예외 발생 시 로컬 폴백
+        _fallbackToLocalMappings(localStatus, siteId);
+        
+        // 이벤트 발행
         eventBus.emit('mapping:load-error', {
             siteId,
             error: error.message,
+            fallbackUsed: !localStatus.isEmpty,
+            timestamp: new Date().toISOString()
+        });
+    }
+}
+
+/**
+ * 🆕 v5.6.0: 로컬 매핑 데이터로 폴백
+ * @private
+ * @param {Object} localStatus - 로컬 매핑 상태
+ * @param {string} siteId - Site ID
+ */
+function _fallbackToLocalMappings(localStatus, siteId) {
+    if (!localStatus.isEmpty && localStatus.count > 0) {
+        console.log(`[Connection] 📂 로컬 폴백 사용: ${localStatus.count}개 매핑`);
+        window.showToast?.(`로컬 매핑 데이터 사용 (${localStatus.count}개)`, 'warning');
+        
+        // 이벤트 발행
+        eventBus.emit('mapping:loaded', {
+            siteId,
+            count: localStatus.count,
+            source: 'local-fallback',
+            timestamp: new Date().toISOString()
+        });
+    } else {
+        console.warn('[Connection] ⚠️ 로컬 매핑 데이터도 없음 - 매핑 없이 진행');
+        window.showToast?.('매핑 데이터를 찾을 수 없습니다', 'error');
+        
+        // 이벤트 발행
+        eventBus.emit('mapping:not-found', {
+            siteId,
             timestamp: new Date().toISOString()
         });
     }

@@ -582,7 +582,7 @@ async def get_equipment_status_by_id(
             logger.debug("🔒 Cursor closed")
 
 
-@router.get("/health")
+@router.api_route("/health", methods = ["GET", "HEAD"])
 async def monitoring_health_check():
     """
     Monitoring API 헬스체크

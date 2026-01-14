@@ -742,7 +742,7 @@ export class ConnectionModalManager {
         // 실제 ping 측정 (Mock이 아닌 경우)
         if (isOnline && !this._mockConfig.enabled) {
             const startTime = Date.now();
-            fetch(`${this.apiBaseUrl}/api/health`, { method: 'HEAD', mode: 'no-cors' })
+            fetch(`${this.apiBaseUrl}/api/health`, { method: 'GET' })
                 .then(() => {
                     const ping = Date.now() - startTime;
                     if (detail) detail.textContent = `Ping: ${ping}ms`;

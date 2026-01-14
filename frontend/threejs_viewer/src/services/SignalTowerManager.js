@@ -2,6 +2,11 @@
  * SignalTowerManager.js
  * Signal Tower (경광등) 제어 관리자
  * 
+ * ⭐ v2.1.2 - 상태값 대소문자 정규화 (2026-01-14)
+ * - 🔧 updateStatus(): _normalizeStatus() 추가
+ * - SignalTowerIntegration에서 'running' → 'RUN'으로 정규화
+ * - 초기 상태 로드 + WebSocket 업데이트 모두 정상 동작
+ * 
  * ⭐ v2.1.1 - turnOffAllLights 메서드 추가
  * - 🆕 turnOffAllLights(): Monitoring 모드 종료 시 모든 램프 OFF
  * 
@@ -65,7 +70,7 @@ export class SignalTowerManager {
         this.suddenStopBlinkSpeed = 8.0;    // ⭐ v2.1.0: SUDDENSTOP 빠른 점멸 속도
         this.blinkEnabled = true;           // 깜빡임 활성화 여부
         
-        debugLog('SignalTowerManager initialized (v2.1.1)');
+        debugLog('SignalTowerManager initialized (v2.1.2)');
     }
     
     /**
@@ -274,10 +279,12 @@ export class SignalTowerManager {
     
     /**
      * Frontend ID로 상태 업데이트
+     * ⭐ v2.1.2: 상태값 대소문자 정규화 추가
      * ⭐ v2.1.0: SUDDENSTOP, DISCONNECTED 지원 추가
      * 
      * @param {string} frontendId - 설비 Frontend ID (예: 'EQ-01-01')
      * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP', 'SUDDENSTOP', 'DISCONNECTED', 'OFF')
+     *                          소문자도 허용 ('running', 'idle', 'stop' 등)
      */
     updateStatus(frontendId, status) {
         const lights = this.lampMap.get(frontendId);
@@ -294,14 +301,17 @@ export class SignalTowerManager {
             return;
         }
         
+        // ⭐ v2.1.2: 상태값 정규화 (대소문자 통일)
+        const normalizedStatus = this._normalizeStatus(status);
+        
         // ⭐ v2.1.0: DISCONNECTED 상태 처리
-        if (status === 'DISCONNECTED' || status === null) {
+        if (normalizedStatus === 'DISCONNECTED' || normalizedStatus === null) {
             this.setDisconnected(frontendId);
             return;
         }
         
         // 상태에 해당하는 램프 타입 찾기
-        const activeLightType = this.statusToLightType[status];
+        const activeLightType = this.statusToLightType[normalizedStatus];
         
         // ⭐ v2.0.0: 모든 램프 OFF 상태로 (어두운 색상)
         this.setLampOff(lights.green, 'green');
@@ -314,19 +324,54 @@ export class SignalTowerManager {
             this.setLampOn(lights[activeLightType], activeLightType);
             
             // ⭐ v2.1.0: SUDDENSTOP은 특별 마킹
-            if (status === 'SUDDENSTOP') {
+            if (normalizedStatus === 'SUDDENSTOP') {
                 lights[activeLightType].userData.isSuddenStop = true;
                 debugLog(`🚨 ${frontendId} -> SUDDENSTOP (red lamp BLINKING)`);
             } else {
                 lights[activeLightType].userData.isSuddenStop = false;
-                debugLog(`🚨 ${frontendId} -> ${status} (${activeLightType} lamp ON)`);
+                debugLog(`🚨 ${frontendId} -> ${normalizedStatus} (${activeLightType} lamp ON)`);
             }
         } else {
             debugLog(`🚨 ${frontendId} -> OFF (all lamps OFF)`);
         }
         
         // 상태 저장
-        this.statusMap.set(frontendId, status);
+        this.statusMap.set(frontendId, normalizedStatus);
+    }
+    
+    /**
+     * ⭐ v2.1.2: 상태값 정규화 (대소문자 통일)
+     * SignalTowerIntegration에서 'running', 'idle' 등 소문자로 올 수 있음
+     * 
+     * @private
+     * @param {string} status - 원본 상태
+     * @returns {string} 정규화된 상태 (대문자)
+     */
+    _normalizeStatus(status) {
+        if (!status) return 'DISCONNECTED';
+        
+        const upperStatus = status.toString().toUpperCase();
+        
+        // 소문자 → 대문자 매핑
+        const statusMap = {
+            'RUNNING': 'RUN',
+            'RUN': 'RUN',
+            'IDLE': 'IDLE',
+            'WAIT': 'IDLE',
+            'WAITING': 'IDLE',
+            'STOP': 'STOP',
+            'STOPPED': 'STOP',
+            'DOWN': 'STOP',
+            'SUDDENSTOP': 'SUDDENSTOP',
+            'ALARM': 'SUDDENSTOP',
+            'ERROR': 'SUDDENSTOP',
+            'DISCONNECTED': 'DISCONNECTED',
+            'OFFLINE': 'DISCONNECTED',
+            'UNKNOWN': 'DISCONNECTED',
+            'OFF': 'OFF'
+        };
+        
+        return statusMap[upperStatus] || 'DISCONNECTED';
     }
     
     /**
@@ -579,7 +624,7 @@ export class SignalTowerManager {
      */
     debugPrintStatus() {
         console.group('🔧 SignalTowerManager Debug Info');
-        console.log('Version: 2.1.1');
+        console.log('Version: 2.1.2');
         console.log('Total equipment with lamps:', this.lampMap.size);
         console.log('Statistics:', this.getStatusStatistics());
         console.log('Blink enabled:', this.blinkEnabled);
