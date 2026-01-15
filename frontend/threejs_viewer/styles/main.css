@@ -3,10 +3,13 @@
  * ========
  * SHERLOCK SKY 3DSim - CSS 진입점
  * 
- * @version 2.6.0
+ * @version 2.7.0
  * @changelog
+ * - v2.7.0: 🔧 StatusBar CSS 충돌 해결 (2026-01-15)
+ *           - .status-item, .status-label, .status-value를 .status-panel 범위로 한정
+ *           - _overlay-ui.css 중복 제거 (import 제거)
+ *           - StatusBar 레이아웃 정상화
  * - v2.6.0: 🆕 _analysis-mode.css import 추가 (2026-01-13)
- *           - Analysis 모드 컨테이너 스타일
  * - v2.5.0: _overlay-ui.css, _misc.css import 추가 (2026-01-11)
  * - v2.4.0: ModeIndicatorPanel pill 스타일 지원
  * 
@@ -79,9 +82,11 @@
 @import './components/_analysis-mode.css';
 
 /* =============================================
-   Overlay UI (Main Content, Three.js Container)
+   🔧 v2.7.0: Overlay UI 제거
+   _cover-screen.css에 이미 동일한 내용이 정의되어 있음
+   중복 import로 인한 충돌 방지
    ============================================= */
-@import './components/_overlay-ui.css';
+/* @import './components/_overlay-ui.css'; */
 
 /* =============================================
    Miscellaneous (Close Button, Legacy Styles)
@@ -96,6 +101,8 @@
 
 /* ============================================
    Monitoring Mode Status Panel
+   🔧 v2.7.0: 선택자를 .status-panel 범위로 한정
+   StatusBar의 .status-item, .status-label, .status-value와 충돌 방지
    ============================================ */
 
 .status-panel {
@@ -120,49 +127,52 @@ body:has(.status-bar) .status-panel {
     bottom: calc(var(--status-bar-height, 36px) + 20px);
 }
 
-.status-item {
+/* 🔧 v2.7.0: .status-panel 범위로 한정 */
+.status-panel .status-item {
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
-.status-icon {
+.status-panel .status-icon {
     font-size: 16px;
 }
 
-.status-icon.connected {
+.status-panel .status-icon.connected {
     color: var(--status-success);
 }
 
-.status-icon.disconnected {
+.status-panel .status-icon.disconnected {
     color: var(--status-warning);
 }
 
-.status-label {
+/* 🔧 v2.7.0: .status-panel 범위로 한정 */
+.status-panel .status-label {
     color: var(--overlay-text-muted);
     font-size: var(--font-size-sm);
 }
 
-.status-value {
+/* 🔧 v2.7.0: .status-panel 범위로 한정 */
+.status-panel .status-value {
     color: var(--overlay-text-primary);
     font-weight: 600;
     font-size: var(--font-size-base);
 }
 
-.status-divider {
+.status-panel .status-divider {
     color: var(--overlay-border-default);
     font-size: var(--font-size-base);
     margin: 0 4px;
 }
 
-.status-progress-container {
+.status-panel .status-progress-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
 }
 
-.status-progress {
+.status-panel .status-progress {
     position: relative;
     width: 120px;
     height: 6px;
@@ -171,14 +181,14 @@ body:has(.status-bar) .status-panel {
     overflow: hidden;
 }
 
-.progress-bar {
+.status-panel .progress-bar {
     height: 100%;
     background: linear-gradient(90deg, var(--status-success), #8bc34a);
     border-radius: 3px;
     transition: width var(--transition-slow);
 }
 
-.progress-text {
+.status-panel .progress-text {
     font-size: 10px;
     color: var(--overlay-text-muted);
     white-space: nowrap;

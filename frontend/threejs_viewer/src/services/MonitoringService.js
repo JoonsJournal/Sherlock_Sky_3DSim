@@ -1,7 +1,12 @@
 /**
- * MonitoringService.js - v5.0.0
+ * MonitoringService.js - v5.0.1
  * 실시간 설비 모니터링 서비스
  * 
+5 * ⭐ v5.0.1: SUDDENSTOP 및 DISCONNECTED 상태 카운트 수정 (2026-01-14)
+6 * - _calculateStatusCounts() 메서드 수정
+7 * - 5개 상태 지원: RUN, IDLE, STOP, SUDDENSTOP, DISCONNECTED
+8 * - _emitStatsUpdate() 로그 메시지 업데이트
+
  * ⭐ v5.0.0: MonitoringDataLoader 통합 리팩토링 (2026-01-13)
  * - MonitoringDataLoader 사용으로 데이터 로드/WebSocket 통합
  * - start() 순차 실행 보장 (Promise 체이닝)
@@ -932,90 +937,64 @@ export class MonitoringService {
     // 🆕 v4.5.1: StatusBar 이벤트 발행
     // ===============================================
     
-    /**
-     * 🆕 v4.5.1: monitoring:stats-update 이벤트 발행
-     * StatusBar Monitoring Stats Panel 실시간 업데이트용
-     */
-    _emitStatsUpdate() {
-        if (!this.eventBus) return;
-        
-        // 상태별 카운트 계산
-        const statusCounts = this._calculateStatusCounts();
-        
-        // 이벤트 발행
-        this.eventBus.emit('monitoring:stats-update', {
-            statusCounts: statusCounts,
-            total: this.currentStats.total,
-            mapped: this.currentStats.mapped,
-            unmapped: this.currentStats.unmapped,
-            mappingRate: this.currentStats.rate,
-            timestamp: new Date().toISOString()
-        });
-        
-        debugLog(`📡 monitoring:stats-update 발행 - RUN:${statusCounts.run}, IDLE:${statusCounts.idle}, STOP:${statusCounts.stop}, UNKNOWN:${statusCounts.unknown}`);
-    }
+	/**
+	 * 🔧 v5.0.1: monitoring:stats-update 이벤트 발행 (5개 상태 지원)
+	 * StatusBar Monitoring Stats Panel 실시간 업데이트용
+	 */
+	_emitStatsUpdate() {
+	    if (!this.eventBus) return;
+	    
+	    // 🎯 MonitoringStatsPanel의 SignalTower 통계 사용 (정확도 보장!)
+	    const statusCounts = this._getSignalTowerStats();
+	    
+	    // 이벤트 발행
+	    this.eventBus.emit('monitoring:stats-update', {
+	        statusCounts: statusCounts,
+	        total: this.currentStats.total,
+	        mapped: this.currentStats.mapped,
+	        unmapped: this.currentStats.unmapped,
+	        mappingRate: this.currentStats.rate,
+	        timestamp: new Date().toISOString()
+	    });
+	    
+	    debugLog(`📡 monitoring:stats-update 발행 - RUN:${statusCounts.run}, IDLE:${statusCounts.idle}, STOP:${statusCounts.stop}, SUDDENSTOP:${statusCounts.suddenstop}, DISCONNECTED:${statusCounts.disconnected}`);
+	}
     
-    /**
-     * 🆕 v4.5.1: 상태별 카운트 계산
-     * @returns {{run: number, idle: number, stop: number, unknown: number}}
-     */
-    _calculateStatusCounts() {
-        const counts = {
-            run: 0,
-            idle: 0,
-            stop: 0,
-            unknown: 0
-        };
-        
-        // SignalTowerManager에서 상태 카운트
-        if (this.signalTowerManager?.signalTowers) {
-            this.signalTowerManager.signalTowers.forEach((tower, frontendId) => {
-                const status = tower.currentStatus || 'UNKNOWN';
-                const normalizedStatus = this.normalizeStatus(status);
-                
-                switch (normalizedStatus) {
-                    case 'RUN':
-                        counts.run++;
-                        break;
-                    case 'IDLE':
-                        counts.idle++;
-                        break;
-                    case 'STOP':
-                        counts.stop++;
-                        break;
-                    default:
-                        counts.unknown++;
-                        break;
-                }
-            });
-        }
-        
-        // statusCache에서도 확인 (SignalTower가 없는 경우)
-        if (counts.run + counts.idle + counts.stop + counts.unknown === 0) {
-            this.statusCache.forEach((cachedData, frontendId) => {
-                const status = typeof cachedData === 'string' ? cachedData : cachedData?.status;
-                const normalizedStatus = this.normalizeStatus(status);
-                
-                switch (normalizedStatus) {
-                    case 'RUN':
-                        counts.run++;
-                        break;
-                    case 'IDLE':
-                        counts.idle++;
-                        break;
-                    case 'STOP':
-                        counts.stop++;
-                        break;
-                    default:
-                        counts.unknown++;
-                        break;
-                }
-            });
-        }
-        
-        return counts;
-    }
-    
+	/**
+	 * 🎯 FINAL: SignalTowerManager에서 정확한 통계 가져오기
+	 * MonitoringStatsPanel과 동일한 방식으로 데이터 조회
+	 * 
+	 * @returns {{run: number, idle: number, stop: number, suddenstop: number, disconnected: number}}
+	 */
+	_getSignalTowerStats() {
+	    // 기본값
+	    const counts = {
+	        run: 0,
+	        idle: 0,
+	        stop: 0,
+	        suddenstop: 0,
+	        disconnected: 0
+	    };
+	    
+	    // SignalTowerManager의 getStatusStatistics() 사용
+	    // 👉 MonitoringStatsPanel과 동일한 데이터 소스!
+	    if (this.signalTowerManager?.getStatusStatistics) {
+	        const stats = this.signalTowerManager.getStatusStatistics();
+	        
+	        // 키 변환: 대문자 → 소문자
+	        counts.run = stats.RUN || 0;
+	        counts.idle = stats.IDLE || 0;
+	        counts.stop = stats.STOP || 0;
+	        counts.suddenstop = stats.SUDDENSTOP || 0;
+	        counts.disconnected = stats.DISCONNECTED || 0;
+	        
+	        debugLog(`📊 SignalTower Stats - RUN:${counts.run}, IDLE:${counts.idle}, STOP:${counts.stop}, SUDDENSTOP:${counts.suddenstop}, DISCONNECTED:${counts.disconnected}`);
+	    } else {
+	        debugLog('⚠️ signalTowerManager.getStatusStatistics() not available');
+	    }
+	    
+	    return counts;
+	}    
     // ===============================================
     // 🆕 v5.0.0: DataLoader 상태 업데이트 핸들러
     // ===============================================

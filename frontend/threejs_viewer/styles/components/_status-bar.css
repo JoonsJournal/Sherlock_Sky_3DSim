@@ -5,17 +5,20 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 2.0.0
+ * @version 2.0.3
  * @created 2026-01-11
- * @updated 2026-01-14
+ * @updated 2026-01-15
  * 
  * @changelog
- * - v2.0.0: 🔧 CSS 변수 통합 (2026-01-14)
- *           - StatusBar.js 인라인 CSS 제거, 외부 CSS로 통합
- *           - _variables.css의 통일된 변수 사용
- *           - Monitoring Stats Panel 스타일 추가
- *           - Responsive 브레이크포인트 통일 (1200px, 900px, 768px)
- *           - Font 완전 통일 (var(--font-mono))
+ * - v2.0.3: 🔧 완전 복원 + 새 기능 통합 (2026-01-15)
+ *           - 원래 레이아웃 100% 복원 (gap: 16px, 직접 변수)
+ *           - Light Theme Overrides 섹션 복원
+ *           - 중형 태블릿 perf-bar 축소 복원
+ *           - Monitoring Stats, SUDDENSTOP, DISCONNECTED 유지
+ *           - width: 100%; 버그 수정
+ * - v2.0.2: 🔧 레이아웃 복원 시도 (일부 누락)
+ * - v2.0.1: 🔧 장비 상태 5개 지원 (레이아웃 변경됨)
+ * - v2.0.0: 🔧 CSS 변수 통합 시도 (호환성 문제)
  * - v1.0.0: 초기 버전
  * 
  * 구조:
@@ -23,15 +26,16 @@
  * - Status Groups (좌/가운데/우)
  * - Status Items (NET, API, DB, FPS, MEM)
  * - 🆕 Monitoring Stats Panel (총 장비, 매핑 상태, 상태별 카운트)
+ *   - 상태 5개: RUN(녹색), IDLE(노란색), STOP(빨간색), SUDDENSTOP(빨간색 깜빡임), DISCONNECTED(회색)
  * - Status Dots (연결 상태 표시)
  * - Performance Bars (FPS, Memory)
  * 
  * 의존성:
- * - _variables.css (CSS 변수 SSOT)
+ * - _variables.css (기본 CSS 변수 사용 - 호환성 확보)
  * 
- * [MIGRATION NOTE]
- * - 기존 main.css의 .status-panel과 충돌 없음 (다른 클래스명)
- * - StatusBar.js v2.2.0+와 호환
+ * [COMPATIBILITY NOTE]
+ * - 직접 변수 사용 (--bg-sidebar, --text-success 등) - Dark/Light 모두 호환
+ * - StatusBar.js v2.3.1+와 호환
  */
 
 /* =============================================
@@ -41,17 +45,16 @@
     position: fixed;
     bottom: 0;
     left: 0;
-    width: 100%
-;
-    height: var(--status-bar-height);
-    background-color: var(--statusbar-bg);
-    border-top: 1px solid var(--statusbar-border);
+    width: 100%;
+    height: var(--status-bar-height, 36px);
+    background-color: var(--bg-sidebar);
+    border-top: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 16px;
-    font-family: var(--font-mono);
-    font-size: var(--font-size-xs);
+    font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
+    font-size: 11px;
     z-index: 20;
     box-sizing: border-box;
 }
@@ -61,7 +64,7 @@
    ============================================= */
 .status-group {
     display: flex;
-    gap: 12px;
+    gap: 16px;  /* ✅ 원래 값 */
     align-items: center;
 }
 
@@ -81,9 +84,9 @@
     align-items: center;
     gap: 6px;
     padding: 4px 10px;
-    background: var(--statusbar-item-bg);
+    background: var(--bg-input);
     border-radius: 4px;
-    font-family: var(--font-mono);
+    font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
 }
 
 /* =============================================
@@ -97,19 +100,19 @@
 }
 
 .status-dot.connected {
-    background-color: var(--statusbar-connected);
-    box-shadow: 0 0 4px var(--statusbar-connected);
+    background-color: var(--text-success);
+    box-shadow: 0 0 4px var(--text-success);
     animation: pulse 2s infinite;
 }
 
 .status-dot.disconnected {
-    background-color: var(--statusbar-disconnected);
-    box-shadow: 0 0 4px var(--statusbar-disconnected);
+    background-color: var(--text-alarm);
+    box-shadow: 0 0 4px var(--text-alarm);
 }
 
 .status-dot.checking {
-    background-color: var(--statusbar-warning);
-    box-shadow: 0 0 4px var(--statusbar-warning);
+    background-color: var(--text-warning);
+    box-shadow: 0 0 4px var(--text-warning);
     animation: pulse 1s infinite;
 }
 
@@ -121,31 +124,31 @@
    Labels & Values
    ============================================= */
 .status-label {
-    color: var(--statusbar-label);
-    font-family: var(--font-mono);
-    font-size: var(--statusbar-label-size);
+    color: var(--text-muted);
+    font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
+    font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     font-weight: 500;
 }
 
 .status-value {
-    color: var(--statusbar-value);
-    font-family: var(--font-mono);
+    color: var(--text-normal);
+    font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
     font-weight: 500;
 }
 
 /* 성능 값 스타일 */
 .status-perf-value {
-    color: var(--statusbar-value);
-    font-family: var(--font-mono);
+    color: var(--text-normal);
+    font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
 }
 
 /* DB Name */
 .status-db-name {
-    color: var(--statusbar-value);
-    font-family: var(--font-mono);
-    font-size: var(--statusbar-label-size);
+    color: var(--text-normal);
+    font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
+    font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     font-weight: 500;
@@ -155,10 +158,10 @@
    Country Code Badge
    ============================================= */
 .country-code {
-    font-family: var(--font-mono);
+    font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
     font-weight: 700;
-    font-size: var(--statusbar-value-size);
-    color: var(--statusbar-country);
+    font-size: 12px;
+    color: var(--icon-selected);
     letter-spacing: 1px;
 }
 
@@ -168,7 +171,7 @@
 .perf-bar {
     width: 35px;
     height: 4px;
-    background: var(--statusbar-item-bg);
+    background: var(--bg-input);
     border-radius: 2px;
     overflow: hidden;
 }
@@ -181,15 +184,15 @@
 
 /* Performance States */
 .perf-bar-fill.good {
-    background: var(--statusbar-connected);
+    background: var(--text-success);
 }
 
 .perf-bar-fill.warning {
-    background: var(--statusbar-warning);
+    background: var(--text-warning);
 }
 
 .perf-bar-fill.critical {
-    background: var(--statusbar-disconnected);
+    background: var(--text-alarm);
 }
 
 /* =============================================
@@ -200,8 +203,8 @@
     display: flex;
     gap: 8px;
     padding: 0 16px;
-    border-left: 1px solid var(--statusbar-border);
-    border-right: 1px solid var(--statusbar-border);
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
     margin: 0 8px;
 }
 
@@ -212,42 +215,42 @@
     padding: 4px 8px;
     min-width: 44px;
     justify-content: center;
-    background: var(--statusbar-item-bg);
+    background: var(--bg-input);
     border-radius: 4px;
 }
 
 .monitoring-stat-icon {
-    font-size: var(--statusbar-value-size);
+    font-size: 12px;
     line-height: 1;
 }
 
 .monitoring-stat-value {
-    color: var(--statusbar-value);
-    font-family: var(--font-mono);
-    font-size: var(--statusbar-value-size);
+    color: var(--text-normal);
+    font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
+    font-size: 12px;
     font-weight: 600;
     min-width: 20px;
     text-align: right;
 }
 
-/* Monitoring Stats 색상 (Dark/Light 공통) */
+/* Monitoring Stats 색상 */
 .monitoring-stat-item.mapped .monitoring-stat-value {
-    color: var(--statusbar-connected);
+    color: var(--text-success);
 }
 
 .monitoring-stat-item.unmapped .monitoring-stat-value {
-    color: var(--statusbar-warning);
+    color: var(--text-warning);
 }
 
 .monitoring-stat-item.rate .monitoring-stat-value {
-    color: var(--statusbar-country);
+    color: var(--icon-selected);
 }
 
 /* 구분선 */
 .monitoring-stats-divider {
     width: 1px;
     height: 20px;
-    background: var(--statusbar-divider);
+    background: var(--border-color);
     margin: 0 4px;
 }
 
@@ -260,40 +263,55 @@
 }
 
 .status-indicator-dot.run {
-    background-color: var(--statusbar-connected);
-    box-shadow: 0 0 6px var(--statusbar-connected);
+    background-color: var(--text-success);
+    box-shadow: 0 0 6px var(--text-success);
 }
 
 .status-indicator-dot.idle {
-    background-color: var(--statusbar-warning);
-    box-shadow: 0 0 6px var(--statusbar-warning);
+    background-color: var(--text-warning);
+    box-shadow: 0 0 6px var(--text-warning);
 }
 
 .status-indicator-dot.stop {
-    background-color: var(--statusbar-disconnected);
-    box-shadow: 0 0 6px var(--statusbar-disconnected);
+    background-color: var(--text-alarm);
+    box-shadow: 0 0 6px var(--text-alarm);
 }
 
-.status-indicator-dot.unknown {
-    background-color: var(--statusbar-label);
-    box-shadow: 0 0 4px var(--statusbar-label);
+/* 🆕 v2.0.1: SUDDENSTOP - 빨간색 깜빡임 */
+.status-indicator-dot.suddenstop {
+    background-color: var(--text-alarm);
+    box-shadow: 0 0 8px var(--text-alarm);
+    animation: suddenstop-blink 0.5s infinite;
+}
+
+/* 🔧 v2.0.1: DISCONNECTED - 회색 (이전 unknown) */
+.status-indicator-dot.disconnected {
+    background-color: var(--text-muted);
+    box-shadow: 0 0 4px var(--text-muted);
 }
 
 /* 상태별 카운트 색상 */
 .monitoring-stat-item.status-run .monitoring-stat-value {
-    color: var(--statusbar-connected);
+    color: var(--text-success);
 }
 
 .monitoring-stat-item.status-idle .monitoring-stat-value {
-    color: var(--statusbar-warning);
+    color: var(--text-warning);
 }
 
 .monitoring-stat-item.status-stop .monitoring-stat-value {
-    color: var(--statusbar-disconnected);
+    color: var(--text-alarm);
 }
 
-.monitoring-stat-item.status-unknown .monitoring-stat-value {
-    color: var(--statusbar-label);
+/* 🆕 v2.0.1: SUDDENSTOP 값 색상 (빨간색 깜빡임) */
+.monitoring-stat-item.status-suddenstop .monitoring-stat-value {
+    color: var(--text-alarm);
+    animation: text-pulse 0.5s infinite;
+}
+
+/* 🔧 v2.0.1: DISCONNECTED 값 색상 (회색) */
+.monitoring-stat-item.status-disconnected .monitoring-stat-value {
+    color: var(--text-muted);
 }
 
 /* =============================================
@@ -352,15 +370,15 @@
 }
 
 .equipment-count-item.run {
-    color: var(--statusbar-connected);
+    color: var(--text-success);
 }
 
 .equipment-count-item.idle {
-    color: var(--statusbar-warning);
+    color: var(--text-warning);
 }
 
 .equipment-count-item.stop {
-    color: var(--statusbar-disconnected);
+    color: var(--text-alarm);
 }
 
 /* =============================================
@@ -369,7 +387,7 @@
 .status-time {
     color: var(--text-secondary);
     font-size: 10px;
-    font-family: var(--font-mono);
+    font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
 }
 
 /* =============================================
@@ -464,16 +482,69 @@
     }
 }
 
+/* 🆕 v2.0.1: SUDDENSTOP 빠른 깜빡임 애니메이션 (긴급) */
+@keyframes suddenstop-blink {
+    0%, 49% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50%, 100% {
+        opacity: 0.2;
+        transform: scale(0.95);
+    }
+}
+
+/* 🆕 v2.0.1: SUDDENSTOP 텍스트 펄스 효과 */
+@keyframes text-pulse {
+    0%, 49% {
+        opacity: 1;
+    }
+    50%, 100% {
+        opacity: 0.4;
+    }
+}
+
 /* Warning animation for critical states */
 .status-dot.critical {
     animation: blink 0.5s infinite;
 }
 
 /* =============================================
-   Responsive - 태블릿 (1200px 이하)
-   v2.0.0: 브레이크포인트 통일
+   ✅ v2.0.3 복원: Light Theme Overrides
    ============================================= */
-@media (max-width: 1200px) {
+[data-theme="light"] .status-bar {
+    border-top-color: var(--border-color);
+}
+
+[data-theme="light"] .status-dot.connected {
+    box-shadow: 0 0 6px var(--text-success);
+}
+
+[data-theme="light"] .status-dot.disconnected {
+    box-shadow: 0 0 6px var(--text-alarm);
+}
+
+[data-theme="light"] .status-indicator-dot.run {
+    box-shadow: 0 0 8px var(--text-success);
+}
+
+[data-theme="light"] .status-indicator-dot.idle {
+    box-shadow: 0 0 8px var(--text-warning);
+}
+
+[data-theme="light"] .status-indicator-dot.stop {
+    box-shadow: 0 0 8px var(--text-alarm);
+}
+
+[data-theme="light"] .status-indicator-dot.suddenstop {
+    box-shadow: 0 0 10px var(--text-alarm);
+}
+
+/* =============================================
+   Responsive - 태블릿 (1024px 이하)
+   ✅ v2.0.3: 원래 브레이크포인트 복원
+   ============================================= */
+@media (max-width: 1024px) {
     .status-bar {
         padding: 0 12px;
     }
@@ -486,6 +557,15 @@
         padding: 3px 8px;
     }
     
+    .status-label {
+        display: none;
+    }
+    
+    /* ✅ v2.0.3 복원: perf-bar 축소 */
+    .perf-bar {
+        width: 25px;
+    }
+    
     .monitoring-stats-group {
         gap: 6px;
         padding: 0 10px;
@@ -495,23 +575,10 @@
         min-width: 40px;
         padding: 4px 6px;
     }
-}
-
-/* =============================================
-   Responsive - 작은 태블릿 (900px 이하)
-   v2.0.0: 매핑률(📈) 숨김
-   ============================================= */
-@media (max-width: 900px) {
+    
+    /* 매핑률(📈) 숨김 */
     .monitoring-stat-item.rate {
         display: none;
-    }
-    
-    .status-label {
-        display: none;
-    }
-    
-    .perf-bar {
-        width: 25px;
     }
 }
 
@@ -544,6 +611,31 @@
     
     /* Hide less important items on mobile */
     .status-item.hide-mobile {
+        display: none;
+    }
+    
+    /* 모바일에서 Monitoring Stats 간소화 */
+    .monitoring-stats-group {
+        gap: 4px;
+        padding: 0 6px;
+        margin: 0 4px;
+    }
+    
+    .monitoring-stat-item {
+        min-width: 32px;
+        padding: 2px 4px;
+    }
+    
+    .monitoring-stat-icon {
+        font-size: 10px;
+    }
+    
+    .monitoring-stat-value {
+        font-size: 10px;
+    }
+    
+    /* 모바일에서 unmapped 숨김 */
+    .monitoring-stat-item.unmapped {
         display: none;
     }
 }

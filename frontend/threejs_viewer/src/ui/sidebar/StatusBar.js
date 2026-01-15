@@ -5,33 +5,30 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 2.3.0
+ * @version 2.3.1
  * @created 2026-01-11
  * @updated 2026-01-14
  * 
  * @changelog
+ * - v2.3.1: 🔧 장비 상태 수정 (2026-01-14)
+ *           - UNKNOWN → DISCONNECTED로 변경
+ *           - SUDDENSTOP 상태 추가 (깜빡임)
+ *           - 상태 5개: RUN, IDLE, STOP, SUDDENSTOP, DISCONNECTED
  * - v2.3.0: 🔧 인라인 CSS 제거, 외부 CSS로 통합 (2026-01-14)
  *           - injectStatusBarStyles() 함수 삭제
  *           - _status-bar.css 사용 (v2.0.0)
  *           - createStatusBar() injectStyles 옵션 제거
  * - v2.2.0: 🆕 Monitoring Stats Panel 추가 (2026-01-12)
- *           - 장비 총계, 매핑 상태, 상태별 카운트 표시
- *           - Monitoring 모드 + 3d-view/ranking-view에서만 표시
- *           - EventBus 연동 (mode:change, submode:change, monitoring:stats-update)
- *           - 🔧 "개" 제거 - 숫자만 표시
- *           - 🔧 CSS 정리 - Font 통일성, Dark/Light mode 지원
  * - v2.1.0: 🔧 UI 간소화 (2026-01-11)
- *           - NET, API에서 "Online", "Disconnected" 텍스트 제거
- *           - DB는 연결 시 DB Name만 표시
- *           - FPS, MEM 폰트를 라벨과 동일하게 통일
  * - v2.0.0: 호환성 개선, CSS 변수 통일
  * 
  * @description
- * - NET, API, DB 연결 상태 표시 (dot + label만)
+ * - NET, API, DB 연결 상태 표시
  * - 🆕 Monitoring Stats 패널 (조건부 표시)
- * - FPS, Memory 성능 표시 (perf-bar 게이지)
+ *   - 총 장비, 매핑 상태, 매핑률
+ *   - 상태별 카운트: RUN, IDLE, STOP, SUDDENSTOP, DISCONNECTED
+ * - FPS, Memory 성능 표시
  * - Site/Country 정보 표시
- * - ConnectionStatusService, PerformanceMonitor 연동
  * 
  * 의존성:
  * - ConnectionStatusService (services)
@@ -114,17 +111,18 @@ export class StatusBar {
             maxMemory: 512    // 가정: 최대 512MB
         };
         
-        // 🆕 v2.2.0: Monitoring Stats 상태
+        // 🔧 v2.3.1: Monitoring Stats 상태 (5개 상태)
         this.monitoringStats = {
             totalEquipment: options.totalEquipment || 117,
             mapped: 0,
             unmapped: options.totalEquipment || 117,
             mappingRate: 0,
             statusCounts: {
-                run: 0,      // 녹색 (RUN)
-                idle: 0,     // 노란색 (IDLE)
-                stop: 0,     // 빨간색 (STOP)
-                unknown: 0   // 회색 (UNKNOWN/OFF)
+                run: 0,           // 녹색 (RUN)
+                idle: 0,          // 노란색 (IDLE)
+                stop: 0,          // 빨간색 (STOP)
+                suddenstop: 0,    // 🆕 빨간색 깜빡임 (SUDDENSTOP)
+                disconnected: 0   // 🔧 회색 (DISCONNECTED, 이전 unknown)
             }
         };
         
@@ -155,7 +153,7 @@ export class StatusBar {
         this._startUpdateLoop();
         this._updateInitialState();
         
-        console.log('[StatusBar] 초기화 완료 (v2.3.0 - External CSS)');
+        console.log('[StatusBar] 초기화 완료 (v2.3.1 - 5 Equipment States)');
     }
     
     // ========================================
@@ -163,6 +161,7 @@ export class StatusBar {
     // ========================================
     
     /**
+     * 🔧 v2.3.1: SUDDENSTOP, DISCONNECTED 추가
      * 🔧 v2.2.0: Monitoring Stats 섹션 추가
      * 🔧 "개" 제거 - 숫자만 표시
      */
@@ -248,10 +247,16 @@ export class StatusBar {
                     <span class="monitoring-stat-value" id="stats-stop">${this.monitoringStats.statusCounts.stop}</span>
                 </div>
                 
-                <!-- UNKNOWN 상태 (회색) -->
-                <div class="status-item monitoring-stat-item status-unknown">
-                    <span class="status-indicator-dot unknown"></span>
-                    <span class="monitoring-stat-value" id="stats-unknown">${this.monitoringStats.statusCounts.unknown}</span>
+                <!-- 🆕 v2.3.1: SUDDENSTOP 상태 (빨간색 깜빡임) -->
+                <div class="status-item monitoring-stat-item status-suddenstop">
+                    <span class="status-indicator-dot suddenstop"></span>
+                    <span class="monitoring-stat-value" id="stats-suddenstop">${this.monitoringStats.statusCounts.suddenstop}</span>
+                </div>
+                
+                <!-- 🔧 v2.3.1: DISCONNECTED 상태 (회색, 이전 unknown) -->
+                <div class="status-item monitoring-stat-item status-disconnected">
+                    <span class="status-indicator-dot disconnected"></span>
+                    <span class="monitoring-stat-value" id="stats-disconnected">${this.monitoringStats.statusCounts.disconnected}</span>
                 </div>
             </div>
             
@@ -282,7 +287,7 @@ export class StatusBar {
     
     /**
      * DOM 요소 캐싱 (성능 최적화)
-     * 🔧 v2.2.0: Monitoring Stats 요소 추가
+     * 🔧 v2.3.1: SUDDENSTOP, DISCONNECTED 요소 추가
      * @private
      */
     _cacheElements() {
@@ -311,7 +316,8 @@ export class StatusBar {
             statsRun: document.getElementById('stats-run'),
             statsIdle: document.getElementById('stats-idle'),
             statsStop: document.getElementById('stats-stop'),
-            statsUnknown: document.getElementById('stats-unknown')
+            statsSuddenstop: document.getElementById('stats-suddenstop'),        // 🆕 v2.3.1
+            statsDisconnected: document.getElementById('stats-disconnected')    // 🔧 v2.3.1
         };
     }
     
@@ -637,7 +643,7 @@ export class StatusBar {
     }
     
     /**
-     * 🆕 v2.2.0: Monitoring Stats DOM 업데이트
+     * 🔧 v2.3.1: Monitoring Stats DOM 업데이트 (SUDDENSTOP, DISCONNECTED 추가)
      * @private
      */
     _updateMonitoringStatsDisplay() {
@@ -649,7 +655,8 @@ export class StatusBar {
             statsRun,
             statsIdle,
             statsStop,
-            statsUnknown
+            statsSuddenstop,        // 🆕 v2.3.1
+            statsDisconnected       // 🔧 v2.3.1
         } = this.elements;
         
         const stats = this.monitoringStats;
@@ -661,7 +668,8 @@ export class StatusBar {
         if (statsRun) statsRun.textContent = stats.statusCounts.run;
         if (statsIdle) statsIdle.textContent = stats.statusCounts.idle;
         if (statsStop) statsStop.textContent = stats.statusCounts.stop;
-        if (statsUnknown) statsUnknown.textContent = stats.statusCounts.unknown;
+        if (statsSuddenstop) statsSuddenstop.textContent = stats.statusCounts.suddenstop;           // 🆕 v2.3.1
+        if (statsDisconnected) statsDisconnected.textContent = stats.statusCounts.disconnected;     // 🔧 v2.3.1
     }
     
     // ========================================
@@ -756,7 +764,7 @@ export class StatusBar {
      * @param {Object} stats - 통계 객체
      * @param {number} stats.total - 총 장비 수
      * @param {number} stats.mapped - 매핑된 장비 수
-     * @param {Object} stats.statusCounts - 상태별 카운트 {run, idle, stop, unknown}
+     * @param {Object} stats.statusCounts - 상태별 카운트 {run, idle, stop, suddenstop, disconnected}
      */
     updateMonitoringStats(stats = {}) {
         if (stats.total !== undefined) {
@@ -798,8 +806,8 @@ export class StatusBar {
     }
     
     /**
-     * 🆕 v2.2.0: 상태별 카운트 업데이트
-     * @param {Object} counts - {run, idle, stop, unknown}
+     * 🔧 v2.3.1: 상태별 카운트 업데이트 (SUDDENSTOP, DISCONNECTED 포함)
+     * @param {Object} counts - {run, idle, stop, suddenstop, disconnected}
      */
     updateStatusCounts(counts) {
         Object.assign(this.monitoringStats.statusCounts, counts);
