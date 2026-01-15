@@ -1,12 +1,18 @@
 /**
- * MonitoringService.js - v5.0.1
+ * MonitoringService.js - v5.0.2
  * 실시간 설비 모니터링 서비스
  * 
-5 * ⭐ v5.0.1: SUDDENSTOP 및 DISCONNECTED 상태 카운트 수정 (2026-01-14)
-6 * - _calculateStatusCounts() 메서드 수정
-7 * - 5개 상태 지원: RUN, IDLE, STOP, SUDDENSTOP, DISCONNECTED
-8 * - _emitStatsUpdate() 로그 메시지 업데이트
-
+ * ⭐ v5.0.2: MonitoringStatsPanel 제거 (StatusBar로 대체) (2026-01-15)
+ * - MonitoringStatsPanel import 및 인스턴스 생성 제거
+ * - createStatusPanel(), updateStatusPanel(), removeStatusPanel() 비활성화
+ * - updateStats() 간단 버전으로 교체
+ * - StatusBar로 이벤트 발행은 유지 (_emitStatsUpdate)
+ * 
+ * ⭐ v5.0.1: SUDDENSTOP 및 DISCONNECTED 상태 카운트 수정 (2026-01-14)
+ * - _calculateStatusCounts() 메서드 수정
+ * - 5개 상태 지원: RUN, IDLE, STOP, SUDDENSTOP, DISCONNECTED
+ * - _emitStatsUpdate() 로그 메시지 업데이트
+ *
  * ⭐ v5.0.0: MonitoringDataLoader 통합 리팩토링 (2026-01-13)
  * - MonitoringDataLoader 사용으로 데이터 로드/WebSocket 통합
  * - start() 순차 실행 보장 (Promise 체이닝)
@@ -18,7 +24,7 @@
  * ⭐ v4.5.1: StatusBar 연동을 위한 monitoring:stats-update 이벤트 발행 (2026-01-12)
  * ⭐ v4.5.0: MappingEventHandler 모듈 분리 (Phase 7 리팩토링)
  * ⭐ v4.4.0: SignalTowerIntegration 모듈 분리 (Phase 6 리팩토링)
- * ⭐ v4.3.0: MonitoringStatsPanel 모듈 분리 (Phase 5 리팩토링)
+ * ⭐ v4.3.0: MonitoringStatsPanel 모듈 분리 (Phase 5 리팩토링) - ❌ v5.0.2에서 제거됨
  * ⭐ v4.2.0: WebSocketManager 모듈 분리 (Phase 4 리팩토링)
  * ⭐ v4.1.0: StatusAPIClient 모듈 분리 (Phase 3 리팩토링)
  * ⭐ v4.0.1: 선택된 설비만 EquipmentInfoPanel 업데이트 (버그 수정)
@@ -40,8 +46,8 @@ import { StatusAPIClient } from './monitoring/StatusAPIClient.js';
 // ⭐ v4.2.0: WebSocketManager 모듈 import (레거시 호환성)
 import { WebSocketManager, ConnectionState } from './monitoring/WebSocketManager.js';
 
-// ⭐ v4.3.0: MonitoringStatsPanel 모듈 import
-import { MonitoringStatsPanel } from './monitoring/MonitoringStatsPanel.js';
+// ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
+// import { MonitoringStatsPanel } from './monitoring/MonitoringStatsPanel.js';
 
 // ⭐ v4.4.0: SignalTowerIntegration 모듈 import
 import { SignalTowerIntegration } from './monitoring/SignalTowerIntegration.js';
@@ -121,11 +127,12 @@ export class MonitoringService {
             { debug: false }
         );
         
-        // ⭐ v4.3.0: MonitoringStatsPanel 인스턴스 생성
-        this.statsPanel = new MonitoringStatsPanel({
-            signalTowerManager: this.signalTowerManager,
-            debug: false
-        });
+        // ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
+        // this.statsPanel = new MonitoringStatsPanel({
+        //     signalTowerManager: this.signalTowerManager,
+        //     debug: false
+        // });
+        this.statsPanel = null;  // 레거시 호환성을 위해 null 유지
         
         // ⭐ v4.5.0: MappingEventHandler 인스턴스 생성
         this.eventHandler = new MappingEventHandler({
@@ -196,7 +203,7 @@ export class MonitoringService {
         // 🆕 v5.0.0: DataLoader 이벤트 바인딩
         this._setupDataLoaderEvents();
         
-        debugLog('📡 MonitoringService v5.0.0 initialized (with MonitoringDataLoader)');
+        debugLog('📡 MonitoringService v5.0.2 initialized (MonitoringStatsPanel removed)');
     }
     
     // ===============================================
@@ -297,8 +304,8 @@ export class MonitoringService {
         this.signalTowerManager = manager;
         // ⭐ v4.4.0: SignalTowerIntegration에도 전달
         this.signalIntegration.setSignalTowerManager(manager);
-        // ⭐ v4.3.0: StatsPanel에도 전달
-        this.statsPanel.setSignalTowerManager(manager);
+        // ❌ v5.0.2: StatsPanel 제거됨 - 더 이상 설정하지 않음
+        // this.statsPanel.setSignalTowerManager(manager);
         // 🆕 v5.0.0: DataLoader에도 전달
         this._dataLoader?.setSignalTowerManager(manager);
         debugLog('📡 MonitoringService: SignalTowerManager 연결됨');
@@ -363,8 +370,14 @@ export class MonitoringService {
         return this.wsManager;
     }
     
+    /**
+     * ❌ v5.0.2: MonitoringStatsPanel 제거됨
+     * @deprecated 레거시 호환성을 위해 null 반환
+     * @returns {null}
+     */
     getStatsPanel() {
-        return this.statsPanel;
+        // ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
+        return null;
     }
     
     getSignalIntegration() {
@@ -420,7 +433,7 @@ export class MonitoringService {
             timestamp: new Date().toISOString()
         });
         
-        debugLog('🟢 Starting monitoring mode (v5.0.0)...');
+        debugLog('🟢 Starting monitoring mode (v5.0.2)...');
         
         // 시작 시퀀스 Promise 생성
         this._startSequence = this._executeStartSequence();
@@ -452,8 +465,9 @@ export class MonitoringService {
             await this._step2_applyUnmappedStyle();
             
             // ===== Step 3: 통계 패널 생성 =====
-            debugLog('📊 Step 3: Creating status panel...');
-            await this._step3_createStatusPanel();
+            // ❌ v5.0.2: MonitoringStatsPanel 제거됨 - 스킵
+            debugLog('📊 Step 3: Status panel skipped (StatusBar used instead)...');
+            // await this._step3_createStatusPanel();
             
             // ===== Step 4: DataLoader 초기화 =====
             debugLog('📡 Step 4: Initializing DataLoader...');
@@ -529,10 +543,12 @@ export class MonitoringService {
     
     /**
      * Step 3: 통계 패널 생성
+     * ❌ v5.0.2: MonitoringStatsPanel 제거됨 - 이 단계는 스킵됨
      * @private
      */
     async _step3_createStatusPanel() {
-        this.createStatusPanel();
+        // ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
+        // this.createStatusPanel();
     }
     
     /**
@@ -654,12 +670,12 @@ export class MonitoringService {
             // ignore
         }
         
-        // 패널 제거
-        try {
-            this.removeStatusPanel();
-        } catch (e) {
-            // ignore
-        }
+        // ❌ v5.0.2: 패널 제거 스킵 (더 이상 패널 없음)
+        // try {
+        //     this.removeStatusPanel();
+        // } catch (e) {
+        //     // ignore
+        // }
     }
     
     // ===============================================
@@ -813,7 +829,8 @@ export class MonitoringService {
             this.resetEquipmentStyle();
             
             // 3. 통계 패널 제거
-            this.removeStatusPanel();
+            // ❌ v5.0.2: MonitoringStatsPanel 제거됨 - 스킵
+            // this.removeStatusPanel();
             
             // 4. WebSocket 연결 종료
             if (this._dataLoader) {
@@ -880,25 +897,49 @@ export class MonitoringService {
     
     // ===============================================
     // ⭐ v4.3.0: 통계 패널 관리 (위임)
+    // ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
     // ===============================================
     
+    /**
+     * ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
+     * 레거시 호환성을 위해 메서드는 유지하되 내부 동작은 비활성화
+     */
     createStatusPanel() {
+        // ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
+        // this.updateStats();
+        // this.statsPanel.create(this.currentStats);
+        // this.statusPanelElement = this.statsPanel.element;
+        
+        // ✅ v5.0.2: updateStats는 유지하여 currentStats 계산
         this.updateStats();
-        this.statsPanel.create(this.currentStats);
-        this.statusPanelElement = this.statsPanel.element;
+        debugLog('📊 createStatusPanel() skipped - using StatusBar instead');
     }
     
+    /**
+     * ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
+     * 레거시 호환성을 위해 메서드는 유지하되 내부 동작은 비활성화
+     */
     updateStatusPanel() {
-        this.statsPanel.refresh(this.equipmentLoader, this.equipmentEditState);
-        this.currentStats = this.statsPanel.getStats();
+        // ❌ v5.0.2: MonitoringStatsPanel 제거됨
+        // this.statsPanel.refresh(this.equipmentLoader, this.equipmentEditState);
+        // this.currentStats = this.statsPanel.getStats();
         
-        // 🆕 v4.5.1: StatusBar로 이벤트 발행
+        // ✅ v5.0.2: 간단 버전으로 통계 업데이트
+        this.updateStats();
+        
+        // ✅ StatusBar로 이벤트 발행만 유지
         this._emitStatsUpdate();
     }
     
+    /**
+     * ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
+     * 레거시 호환성을 위해 메서드는 유지하되 내부 동작은 비활성화
+     */
     removeStatusPanel() {
-        this.statsPanel.remove();
-        this.statusPanelElement = null;
+        // ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
+        // this.statsPanel.remove();
+        // this.statusPanelElement = null;
+        debugLog('📊 removeStatusPanel() skipped - using StatusBar instead');
     }
     
     getStats() {
@@ -906,14 +947,43 @@ export class MonitoringService {
         return { ...this.currentStats };
     }
     
+    /**
+     * ✅ v5.0.2: 간단 버전으로 교체 - MonitoringStatsPanel 없이 직접 계산
+     */
     updateStats() {
         if (!this.equipmentLoader || !this.equipmentEditState) {
             return;
         }
-        this.currentStats = this.statsPanel.calculateStats(
-            this.equipmentLoader,
-            this.equipmentEditState
-        );
+        
+        // ❌ v5.0.2: MonitoringStatsPanel 제거됨
+        // this.currentStats = this.statsPanel.calculateStats(
+        //     this.equipmentLoader,
+        //     this.equipmentEditState
+        // );
+        
+        // ✅ v5.0.2: currentStats 직접 계산 (간단 버전)
+        const totalEquipment = this.equipmentLoader.equipmentArray?.length || 0;
+        const mappedCount = this.equipmentEditState.getMappingCount?.() || 0;
+        
+        // SignalTower 통계에서 connected/disconnected 계산
+        let connectedCount = 0;
+        let disconnectedCount = 0;
+        
+        if (this.signalTowerManager?.getStatusStatistics) {
+            const stats = this.signalTowerManager.getStatusStatistics();
+            disconnectedCount = stats.DISCONNECTED || 0;
+            // Connected = 매핑됨 - DISCONNECTED
+            connectedCount = Math.max(0, mappedCount - disconnectedCount);
+        }
+        
+        this.currentStats = {
+            total: totalEquipment,
+            mapped: mappedCount,
+            unmapped: totalEquipment - mappedCount,
+            rate: totalEquipment > 0 ? Math.round((mappedCount / totalEquipment) * 100) : 0,
+            connected: connectedCount,
+            disconnected: disconnectedCount
+        };
     }
     
     // ===============================================
@@ -944,7 +1014,7 @@ export class MonitoringService {
 	_emitStatsUpdate() {
 	    if (!this.eventBus) return;
 	    
-	    // 🎯 MonitoringStatsPanel의 SignalTower 통계 사용 (정확도 보장!)
+	    // 🎯 SignalTowerManager의 getStatusStatistics() 사용 (정확도 보장!)
 	    const statusCounts = this._getSignalTowerStats();
 	    
 	    // 이벤트 발행
@@ -962,7 +1032,6 @@ export class MonitoringService {
     
 	/**
 	 * 🎯 FINAL: SignalTowerManager에서 정확한 통계 가져오기
-	 * MonitoringStatsPanel과 동일한 방식으로 데이터 조회
 	 * 
 	 * @returns {{run: number, idle: number, stop: number, suddenstop: number, disconnected: number}}
 	 */
@@ -977,7 +1046,6 @@ export class MonitoringService {
 	    };
 	    
 	    // SignalTowerManager의 getStatusStatistics() 사용
-	    // 👉 MonitoringStatsPanel과 동일한 데이터 소스!
 	    if (this.signalTowerManager?.getStatusStatistics) {
 	        const stats = this.signalTowerManager.getStatusStatistics();
 	        
@@ -994,7 +1062,8 @@ export class MonitoringService {
 	    }
 	    
 	    return counts;
-	}    
+	}
+    
     // ===============================================
     // 🆕 v5.0.0: DataLoader 상태 업데이트 핸들러
     // ===============================================
@@ -1361,8 +1430,8 @@ export class MonitoringService {
         // ⭐ v4.4.0: SignalTowerIntegration 정리
         this.signalIntegration?.dispose();
         
-        // ⭐ v4.3.0: StatsPanel 정리
-        this.statsPanel?.dispose();
+        // ❌ v5.0.2: MonitoringStatsPanel 제거됨 - 정리 스킵
+        // this.statsPanel?.dispose();
         
         this.signalTowerManager = null;
         this.equipmentLoader = null;
@@ -1382,7 +1451,7 @@ export class MonitoringService {
      * 버전 정보
      */
     static get VERSION() {
-        return '5.0.0';
+        return '5.0.2';
     }
     
     /**
