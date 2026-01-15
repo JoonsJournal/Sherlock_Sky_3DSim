@@ -2,8 +2,12 @@
  * settings.js
  * 애플리케이션 설정 (기존 Config.js 마이그레이션)
  * 
- * @version 1.0.0
- * @description 렌더러, 카메라, 장비, 씬 등 설정
+ * @version 1.1.0
+ * @description 렌더러, 카메라, 장비, 씬, 사이트 타임존 등 설정
+ * 
+ * @changelog
+ * - v1.1.0 (2026-01-15): SITE_CONFIG 추가 (타임존 지원)
+ * - v1.0.0: 초기 버전
  */
 
 // =====================================================
@@ -23,6 +27,41 @@ export const createExcludedRange = (col, startRow, endRow) => {
         positions.push({ col, row });
     }
     return positions;
+};
+
+// =====================================================
+// 사이트 설정 (타임존 등)
+// =====================================================
+
+/**
+ * 사이트 설정 객체
+ * - Multi-site 확장 시 동적으로 변경 가능
+ * - 현재는 중국(Shanghai) 사이트 기본값
+ * 
+ * @example
+ * // Multi-site 연결 시 업데이트
+ * updateSiteConfig({
+ *     timezone: 'Asia/Seoul',
+ *     timezoneOffset: 9,
+ *     siteName: 'Korea Factory'
+ * });
+ */
+export const SITE_CONFIG = {
+    // 현재 연결된 사이트의 타임존 (IANA timezone)
+    timezone: 'Asia/Shanghai',
+    
+    // UTC 기준 오프셋 (시간 단위)
+    // 중국: UTC+8, 한국: UTC+9, 미국 동부: UTC-5 등
+    timezoneOffset: 8,
+    
+    // 사이트 이름 (디버깅/표시용)
+    siteName: 'China Factory',
+    
+    // 사이트 코드 (Multi-site 구분용)
+    siteCode: 'CN',
+    
+    // 로케일 설정 (날짜/시간 포맷용)
+    locale: 'zh-CN'
 };
 
 // =====================================================
@@ -237,6 +276,77 @@ export function updateSceneSettings(newConfig) {
 }
 
 /**
+ * Site 설정 동적 업데이트 (Multi-site 지원)
+ * @param {Object} newConfig - 새로운 사이트 설정
+ * @param {string} [newConfig.timezone] - IANA 타임존 (예: 'Asia/Seoul')
+ * @param {number} [newConfig.timezoneOffset] - UTC 오프셋 (예: 9)
+ * @param {string} [newConfig.siteName] - 사이트 이름
+ * @param {string} [newConfig.siteCode] - 사이트 코드
+ * @param {string} [newConfig.locale] - 로케일
+ * @returns {Object} 업데이트된 SITE_CONFIG
+ * 
+ * @example
+ * // 한국 사이트로 전환
+ * updateSiteConfig({
+ *     timezone: 'Asia/Seoul',
+ *     timezoneOffset: 9,
+ *     siteName: 'Korea Factory',
+ *     siteCode: 'KR',
+ *     locale: 'ko-KR'
+ * });
+ * 
+ * // 미국 사이트로 전환
+ * updateSiteConfig({
+ *     timezone: 'America/New_York',
+ *     timezoneOffset: -5,
+ *     siteName: 'US East Factory',
+ *     siteCode: 'US-E',
+ *     locale: 'en-US'
+ * });
+ */
+export function updateSiteConfig(newConfig) {
+    if (!newConfig) {
+        console.warn('[Settings] updateSiteConfig: 새 설정이 없습니다');
+        return SITE_CONFIG;
+    }
+    
+    const previousConfig = { ...SITE_CONFIG };
+    
+    console.log('[Settings] Site 설정 업데이트 시작...');
+    
+    if (newConfig.timezone !== undefined) {
+        SITE_CONFIG.timezone = newConfig.timezone;
+    }
+    if (newConfig.timezoneOffset !== undefined) {
+        SITE_CONFIG.timezoneOffset = newConfig.timezoneOffset;
+    }
+    if (newConfig.siteName !== undefined) {
+        SITE_CONFIG.siteName = newConfig.siteName;
+    }
+    if (newConfig.siteCode !== undefined) {
+        SITE_CONFIG.siteCode = newConfig.siteCode;
+    }
+    if (newConfig.locale !== undefined) {
+        SITE_CONFIG.locale = newConfig.locale;
+    }
+    
+    console.log('[Settings] Site 설정 업데이트 완료:', {
+        before: `${previousConfig.siteName} (UTC${previousConfig.timezoneOffset >= 0 ? '+' : ''}${previousConfig.timezoneOffset})`,
+        after: `${SITE_CONFIG.siteName} (UTC${SITE_CONFIG.timezoneOffset >= 0 ? '+' : ''}${SITE_CONFIG.timezoneOffset})`
+    });
+    
+    return SITE_CONFIG;
+}
+
+/**
+ * 현재 사이트 타임존 오프셋 반환
+ * @returns {number} UTC 오프셋 (시간 단위)
+ */
+export function getSiteTimezoneOffset() {
+    return SITE_CONFIG.timezoneOffset;
+}
+
+/**
  * 설정 초기화 (기본값 복원)
  */
 export function resetSettings() {
@@ -262,6 +372,13 @@ export function resetSettings() {
     
     SETTINGS.SCENE.FLOOR_SIZE = 70;
     
+    // SITE_CONFIG 초기화 (중국 기본값)
+    SITE_CONFIG.timezone = 'Asia/Shanghai';
+    SITE_CONFIG.timezoneOffset = 8;
+    SITE_CONFIG.siteName = 'China Factory';
+    SITE_CONFIG.siteCode = 'CN';
+    SITE_CONFIG.locale = 'zh-CN';
+    
     console.log('[Settings] 설정 초기화 완료');
 }
 
@@ -277,6 +394,15 @@ export function debugSettings() {
     console.log('EQUIPMENT.EXCLUDED_POSITIONS 개수:', SETTINGS.EQUIPMENT.EXCLUDED_POSITIONS.length);
     console.log('SCENE.FLOOR_SIZE:', SETTINGS.SCENE.FLOOR_SIZE);
     console.groupEnd();
+    
+    // SITE_CONFIG 출력 추가
+    console.group('[Settings] 사이트 설정');
+    console.log('SITE_CONFIG.timezone:', SITE_CONFIG.timezone);
+    console.log('SITE_CONFIG.timezoneOffset:', SITE_CONFIG.timezoneOffset);
+    console.log('SITE_CONFIG.siteName:', SITE_CONFIG.siteName);
+    console.log('SITE_CONFIG.siteCode:', SITE_CONFIG.siteCode);
+    console.log('SITE_CONFIG.locale:', SITE_CONFIG.locale);
+    console.groupEnd();
 }
 
 // =====================================================
@@ -286,8 +412,11 @@ export function debugSettings() {
 if (typeof window !== 'undefined') {
     window.SETTINGS = SETTINGS;
     window.CONFIG = SETTINGS;  // ⭐ 하위 호환성
+    window.SITE_CONFIG = SITE_CONFIG;  // ⭐ 사이트 설정 전역 노출
     window.updateEquipmentSettings = updateEquipmentSettings;
     window.updateSceneSettings = updateSceneSettings;
+    window.updateSiteConfig = updateSiteConfig;  // ⭐ 사이트 설정 업데이트 함수
+    window.getSiteTimezoneOffset = getSiteTimezoneOffset;  // ⭐ 타임존 오프셋 조회
     window.resetSettings = resetSettings;
     window.debugSettings = debugSettings;
 }

@@ -6,7 +6,11 @@
  * - 하위 호환성을 위해 기존 export 이름 유지
  * - 실제 구현은 core/config/settings.js에 있음
  * 
- * @version 2.0.0 - Re-export 방식으로 변경
+ * @version 2.1.0 - SITE_CONFIG 추가
+ * @changelog
+ * - v2.1.0 (2026-01-15): SITE_CONFIG, updateSiteConfig, getSiteTimezoneOffset 추가
+ * - v2.0.0: Re-export 방식으로 변경
+ * 
  * @deprecated 향후 직접 core/config/settings.js를 import하세요
  */
 
@@ -20,6 +24,9 @@ export {
     
     // 원본 이름도 export (새 코드용)
     SETTINGS,
+    
+    // ⭐ 사이트 설정 (타임존 등) - 새로 추가
+    SITE_CONFIG,
     
     // 유틸리티 함수들 (동일 이름)
     debugLog,
@@ -37,7 +44,11 @@ export {
     updateEquipmentSettings,
     updateSceneSettings,
     resetSettings,
-    debugSettings
+    debugSettings,
+    
+    // ⭐ 사이트 설정 함수들 - 새로 추가
+    updateSiteConfig,
+    getSiteTimezoneOffset
     
 } from '../config/settings.js';
 
@@ -48,8 +59,11 @@ export {
 
 import {
     SETTINGS,
+    SITE_CONFIG,
     updateEquipmentSettings,
     updateSceneSettings,
+    updateSiteConfig,
+    getSiteTimezoneOffset,
     resetSettings,
     debugSettings
 } from '../config/settings.js';
@@ -70,4 +84,9 @@ if (typeof window !== 'undefined') {
     
     // CONFIG 객체 전역 노출
     window.CONFIG = SETTINGS;
+    
+    // ⭐ 사이트 설정 전역 노출 - 새로 추가
+    window.SITE_CONFIG = SITE_CONFIG;
+    window.updateSiteConfig = updateSiteConfig;
+    window.getSiteTimezoneOffset = getSiteTimezoneOffset;
 }
