@@ -1,0 +1,533 @@
+/**
+ * _legacy-mapping.css
+ * ===================
+ * SHERLOCK SKY 3DSim - Legacy Variable Mapping Layer
+ * 
+ * 기존 _variables.css에서 사용하던 변수명들을
+ * 새로운 Design Token 시스템으로 매핑
+ * 
+ * @version 3.0.0
+ * @created 2026-01-16
+ * @status TEMPORARY (Phase 5에서 제거 예정)
+ * 
+ * [PURPOSE]
+ * - 기존 CSS/JS 코드의 하위 호환성 유지
+ * - 점진적 마이그레이션 지원
+ * - 22개 컴포넌트 CSS가 새 토큰으로 전환될 때까지 유지
+ * 
+ * [MIGRATION NOTE]
+ * Phase 3에서 컴포넌트 CSS가 새 토큰을 직접 사용하도록 수정되면
+ * Phase 5에서 이 파일을 제거합니다.
+ */
+
+:root {
+    /* =============================================
+       🎨 THEME SYSTEM MAPPING (v2.0 → v3.0)
+       =============================================
+       기존 --theme-* 변수들 → 새 토큰 매핑
+       ============================================= */
+    
+    /* ----- 배경 색상 (Light Theme 기본) ----- */
+    --theme-bg-primary: var(--surface-panel);
+    --theme-bg-secondary: var(--surface-secondary);
+    --theme-bg-tertiary: var(--surface-app-bg);
+    --theme-bg-hover: var(--surface-primary-hover);
+    --theme-bg-active: var(--surface-primary-selected);
+    --theme-bg-selected: var(--surface-primary-selected);
+    
+    /* ----- 텍스트 색상 ----- */
+    --theme-text-primary: var(--content-primary);
+    --theme-text-secondary: var(--content-secondary);
+    --theme-text-muted: var(--content-muted);
+    --theme-text-hint: var(--content-muted);
+    
+    /* ----- 테두리 색상 ----- */
+    --theme-border-light: var(--border-subtle);
+    --theme-border-default: var(--border-default);
+    --theme-border-dark: var(--border-strong);
+    --theme-border-focus: var(--border-focus);
+
+    /* =============================================
+       🌑 OVERLAY SYSTEM MAPPING
+       =============================================
+       3D Scene 위 오버레이 컴포넌트용
+       ============================================= */
+    --overlay-bg-primary: var(--glass-bg);
+    --overlay-bg-secondary: var(--glass-bg-strong);
+    --overlay-bg-hover: var(--surface-primary-hover);
+    --overlay-bg-backdrop: var(--overlay-bg);
+    
+    --overlay-text-primary: var(--content-primary);
+    --overlay-text-secondary: var(--content-secondary);
+    --overlay-text-muted: var(--content-muted);
+    
+    --overlay-border-light: var(--glass-border);
+    --overlay-border-default: var(--border-default);
+    --overlay-border-dark: var(--border-strong);
+
+    /* =============================================
+       📊 STATUS COLORS MAPPING
+       =============================================
+       기존 --status-* 변수들
+       ============================================= */
+    --status-success: var(--interactive-success);
+    --status-success-bg: var(--interactive-success-subtle);
+    --status-success-border: var(--border-success);
+    --status-success-text: var(--interactive-success);
+    
+    --status-error: var(--interactive-danger);
+    --status-error-bg: var(--interactive-danger-subtle);
+    --status-error-border: var(--border-error);
+    --status-error-text: var(--interactive-danger);
+    
+    --status-warning: var(--interactive-warning);
+    --status-warning-bg: var(--interactive-warning-subtle);
+    --status-warning-border: var(--interactive-warning);
+    --status-warning-text: var(--interactive-warning);
+    
+    --status-info: var(--interactive-info);
+    --status-info-bg: var(--interactive-info-subtle, rgba(6, 182, 212, 0.1));
+    --status-info-border: var(--interactive-info);
+    --status-info-text: var(--interactive-info);
+
+    /* =============================================
+       🎯 INTERACTIVE COLORS (Legacy Names)
+       ============================================= */
+    --interactive-primary: var(--interactive-primary);
+    --interactive-primary-hover: var(--interactive-primary-hover);
+    --interactive-primary-active: var(--interactive-primary-active);
+    
+    --interactive-secondary: var(--interactive-secondary);
+    --interactive-secondary-hover: var(--interactive-secondary-hover);
+    --interactive-secondary-active: var(--interactive-secondary-active);
+    
+    --interactive-danger: var(--interactive-danger);
+    --interactive-danger-hover: var(--interactive-danger-hover);
+    --interactive-danger-active: var(--interactive-danger-active);
+
+    /* =============================================
+       🎨 BASIC UI COLORS (Legacy)
+       ============================================= */
+    --color-primary: var(--interactive-primary);
+    --color-primary-dark: var(--interactive-primary-active);
+    --color-secondary: var(--interactive-secondary);
+    --color-secondary-dark: var(--interactive-secondary-active);
+    --color-success: var(--interactive-success);
+    --color-danger: var(--interactive-danger);
+    --color-warning: var(--interactive-warning);
+    --color-info: var(--interactive-info);
+
+    /* =============================================
+       📊 GRADIENT MAPPING
+       ============================================= */
+    --gradient-primary: var(--gradient-primary);
+    --gradient-success: var(--gradient-success);
+    --gradient-preview: var(--gradient-purple);
+
+    /* =============================================
+       🏠 BACKGROUND COLORS (Legacy)
+       ============================================= */
+    --bg-primary: var(--surface-app-bg);
+    --bg-secondary: var(--surface-secondary);
+    --bg-dark: var(--overlay-bg);
+    --bg-overlay: var(--modal-backdrop);
+    --bg-panel: var(--surface-panel);
+
+    /* =============================================
+       📝 TEXT COLORS (Legacy)
+       ============================================= */
+    --text-primary: var(--content-primary);
+    --text-secondary: var(--content-secondary);
+    --text-muted: var(--content-muted);
+    --text-light: var(--content-inverse);
+    --text-dark: var(--content-primary);
+
+    /* =============================================
+       🔲 BORDER COLORS (Legacy)
+       ============================================= */
+    --border-color: var(--border-default);
+    --border-light: var(--border-subtle);
+    --border-dark: var(--border-strong);
+
+    /* =============================================
+       🔲 SHADOWS (Legacy)
+       ============================================= */
+    --shadow-sm: var(--shadow-sm-value);
+    --shadow-md: var(--shadow-md-value);
+    --shadow-lg: var(--shadow-lg-value);
+    --shadow-xl: var(--shadow-xl-value);
+    --shadow-primary: 0 4px 12px rgba(59, 130, 246, 0.4);
+    --shadow-overlay: var(--shadow-overlay);
+
+    /* =============================================
+       📦 SPACING (Legacy - 숫자 키 기반)
+       ============================================= */
+    --spacing-xs: var(--spacing-1);
+    --spacing-sm: var(--spacing-2);
+    --spacing-md: var(--spacing-4);
+    --spacing-lg: var(--spacing-6);
+    --spacing-xl: var(--spacing-8);
+
+    /* =============================================
+       🔘 BORDER RADIUS (Legacy)
+       ============================================= */
+    --radius-sm: var(--radius-sm);
+    --radius-md: var(--radius-md);
+    --radius-lg: var(--radius-lg);
+    --radius-xl: var(--radius-xl);
+    --radius-full: var(--radius-full);
+
+    /* =============================================
+       📝 FONT (Legacy)
+       ============================================= */
+    --font-family: var(--font-family-base);
+    --font-mono: var(--font-family-mono);
+    --font-size-xs: var(--font-size-xs);
+    --font-size-sm: var(--font-size-sm);
+    --font-size-base: var(--font-size-base);
+    --font-size-md: var(--font-size-md);
+    --font-size-lg: var(--font-size-lg);
+    --font-size-xl: var(--font-size-xl);
+    --font-size-2xl: var(--font-size-2xl);
+
+    /* =============================================
+       ⏱️ TRANSITIONS (Legacy)
+       ============================================= */
+    --transition-fast: var(--transition-fast) var(--ease-default);
+    --transition-normal: var(--transition-base) var(--ease-default);
+    --transition-slow: var(--transition-slow) var(--ease-in-out);
+    --transition-hover: var(--transition-fast) var(--ease-default);
+    --transition-hover-out: var(--transition-base) var(--ease-default);
+    --transition-select: var(--transition-base) var(--ease-default);
+    --transition-status: var(--transition-slow) var(--ease-in-out);
+    --animation-alarm: 500ms linear infinite;
+    --animation-pulse: 1000ms ease-in-out infinite;
+
+    /* =============================================
+       📚 Z-INDEX (Legacy)
+       ============================================= */
+    --z-base: var(--z-base);
+    --z-dropdown: var(--z-dropdown);
+    --z-sticky: var(--z-sticky);
+    --z-fixed: var(--z-fixed);
+    --z-overlay-indicator: var(--z-overlay-indicator);
+    --z-tooltip: var(--z-tooltip);
+    --z-context-menu: var(--z-context-menu);
+    --z-modal-backdrop: var(--z-modal-backdrop);
+    --z-modal: var(--z-modal);
+    --z-toast: var(--z-toast);
+    --z-recovery-dialog: var(--z-recovery-dialog);
+
+    /* =============================================
+       🏭 EQUIPMENT STATUS (Legacy)
+       ============================================= */
+    --equip-running: var(--status-running);
+    --equip-idle: var(--status-idle);
+    --equip-alarm: var(--status-alarm);
+    --equip-maintenance: var(--status-maintenance);
+    --equip-offline: var(--status-offline);
+
+    /* =============================================
+       🚦 SIGNAL TOWER (Legacy)
+       ============================================= */
+    --tower-red: var(--signal-red);
+    --tower-yellow: var(--signal-yellow);
+    --tower-green: var(--signal-green);
+    --tower-blue: var(--signal-blue);
+    --tower-white: var(--signal-white);
+
+    /* =============================================
+       🎯 MODE COLORS (Legacy)
+       ============================================= */
+    --mode-connection: var(--mode-connection);
+    --mode-edit: var(--mode-edit);
+    --mode-monitoring: var(--mode-monitoring);
+    --mode-layout: var(--mode-layout);
+    --mode-viewer: var(--mode-viewer);
+
+    /* =============================================
+       🔲 FENCE/SELECTION COLORS (Legacy)
+       ============================================= */
+    --fence-window-fill: rgba(0, 102, 255, 0.2);
+    --fence-window-border: #0066FF;
+    --fence-crossing-fill: rgba(0, 255, 102, 0.2);
+    --fence-crossing-border: #00FF66;
+
+    /* =============================================
+       📏 SMART GUIDES (Legacy)
+       ============================================= */
+    --guide-center: #FF00FF;
+    --guide-align: #00BFFF;
+    --guide-distribute: #00FF00;
+
+    /* =============================================
+       🔘 HANDLE STYLES (Legacy)
+       ============================================= */
+    --handle-fill: #FFFFFF;
+    --handle-stroke: var(--se-selected);
+    --handle-rotate-fill: var(--se-active);
+    --handle-size: 8px;
+    --handle-rotate-size: 10px;
+
+    /* =============================================
+       📐 LAYOUT DIMENSIONS (Legacy)
+       ============================================= */
+    --sidebar-width: var(--sidebar-width);
+    --sidebar-width-collapsed: var(--sidebar-width-collapsed);
+    --sidebar-width-expanded: var(--sidebar-width-expanded);
+    --status-bar-height: var(--status-bar-height);
+    --equipment-panel-width: var(--equipment-panel-width);
+    --modal-max-width: var(--modal-max-width);
+    --modal-max-height: var(--modal-max-height);
+
+    /* =============================================
+       ⭐ STATUS BAR FONT SIZE (Legacy v2.1.0)
+       ============================================= */
+    --statusbar-label-size: var(--font-size-xs);
+    --statusbar-value-size: var(--font-size-sm);
+}
+
+/* =============================================
+   🌙 DARK THEME LEGACY MAPPINGS
+   =============================================
+   data-theme="dark" 시 추가 매핑
+   ============================================= */
+:root[data-theme="dark"],
+[data-theme="dark"] {
+    /* Sidebar Core (Legacy) */
+    --bg-sidebar: var(--surface-app-bg);
+    --bg-main: var(--surface-panel);
+    --bg-main-gradient: linear-gradient(135deg, var(--surface-panel) 0%, var(--surface-app-bg) 100%);
+    --bg-panel: var(--surface-panel);
+    --bg-panel-header: var(--surface-panel-header);
+    --bg-input: var(--surface-secondary);
+    --bg-hover: var(--surface-primary-hover);
+    --bg-selected: var(--surface-primary-selected);
+    
+    /* Icon States (Legacy) */
+    --icon-normal: var(--content-secondary);
+    --icon-selected: var(--interactive-primary);
+    --icon-disabled: var(--content-disabled);
+    --icon-hover: var(--content-primary);
+    
+    /* Text Colors Override (Legacy) */
+    --text-normal: var(--content-secondary);
+    --text-warning: var(--interactive-warning);
+    --text-alarm: var(--interactive-danger);
+    --text-success: var(--interactive-success);
+    
+    /* Effects (Legacy) */
+    --shadow-color: var(--shadow-color);
+    --glow-color: var(--glow-primary);
+    
+    /* StatusBar Colors (Legacy v2.1.0) */
+    --statusbar-bg: var(--surface-app-bg);
+    --statusbar-item-bg: var(--surface-secondary);
+    --statusbar-label: var(--content-muted);
+    --statusbar-value: var(--content-secondary);
+    --statusbar-country: var(--interactive-primary);
+    --statusbar-connected: var(--interactive-success);
+    --statusbar-disconnected: var(--interactive-danger);
+    --statusbar-warning: var(--interactive-warning);
+    --statusbar-border: var(--border-default);
+    --statusbar-divider: var(--border-strong);
+    
+    /* Toast Colors (Legacy) */
+    --toast-bg: var(--toast-bg);
+    --toast-border: var(--toast-border);
+    --toast-text: var(--toast-text);
+    --toast-shadow: var(--toast-shadow);
+    
+    /* Site Item Colors (Legacy) */
+    --site-item-bg: var(--surface-secondary);
+    --site-item-selected-bg: var(--surface-primary-selected);
+    --site-item-connected-bg: var(--interactive-success-subtle);
+    --site-item-selected-border: var(--interactive-primary);
+    --site-item-connected-border: var(--interactive-success);
+    
+    /* Debug Panel (Legacy) */
+    --debug-bg: #1a1a1a;
+    --debug-text: #0f0;
+    --debug-label: #888;
+    --debug-value: #ff0;
+    --debug-on: var(--interactive-success);
+    --debug-off: var(--interactive-danger);
+    --debug-section-title: var(--interactive-primary);
+    
+    /* Gauge Colors (Legacy) */
+    --gauge-green: var(--interactive-success);
+    --gauge-yellow: var(--interactive-warning);
+    --gauge-red: var(--interactive-danger);
+    --gauge-gray: var(--content-muted);
+    --gauge-bg: var(--surface-secondary);
+    
+    /* Cover Screen (Legacy) */
+    --cover-logo-size: 72px;
+    --cover-title-color: var(--interactive-primary);
+    
+    /* Signal Tower Glow (Legacy) */
+    --signal-run: var(--status-running);
+    --signal-run-glow: var(--glow-success);
+    --signal-idle: var(--status-idle);
+    --signal-idle-glow: var(--glow-warning);
+    --signal-stop: var(--status-alarm);
+    --signal-stop-glow: var(--glow-error);
+    --signal-disconnected: var(--status-offline);
+    
+    /* Performance Bar (Legacy) */
+    --perf-good: var(--interactive-success);
+    --perf-warning: var(--interactive-warning);
+    --perf-critical: var(--interactive-danger);
+    
+    /* Neon Accent (Legacy) */
+    --neon-cyan: var(--neon-cyan);
+    --neon-cyan-light: var(--neon-cyan-light);
+    --neon-cyan-dark: var(--neon-cyan-dark);
+    --neon-cyan-glow: var(--neon-cyan-glow);
+    --neon-cyan-glow-strong: var(--neon-cyan-glow-strong);
+    --gradient-cyan-button: var(--gradient-cyan);
+}
+
+/* =============================================
+   ☀️ LIGHT THEME LEGACY MAPPINGS
+   =============================================
+   data-theme="light" 시 추가 매핑
+   ============================================= */
+:root[data-theme="light"],
+[data-theme="light"] {
+    /* Sidebar Core (Legacy) */
+    --bg-sidebar: var(--surface-app-bg-subtle);
+    --bg-main: var(--surface-panel);
+    --bg-main-gradient: linear-gradient(135deg, var(--surface-app-bg) 0%, var(--surface-secondary) 100%);
+    --bg-panel: var(--surface-panel);
+    --bg-panel-header: var(--surface-panel-header);
+    --bg-input: var(--surface-secondary);
+    --bg-hover: var(--surface-primary-hover);
+    --bg-selected: var(--surface-primary-selected);
+    
+    /* Icon States (Legacy) */
+    --icon-normal: var(--content-secondary);
+    --icon-selected: var(--interactive-primary);
+    --icon-disabled: var(--content-disabled);
+    --icon-hover: var(--content-primary);
+    
+    /* Text Colors Override (Legacy) */
+    --text-normal: var(--content-secondary);
+    --text-warning: var(--interactive-warning);
+    --text-alarm: var(--interactive-danger);
+    --text-success: var(--interactive-success);
+    
+    /* Effects (Legacy) */
+    --shadow-color: var(--shadow-color);
+    --glow-color: none;
+    
+    /* StatusBar Colors (Legacy v2.1.0) */
+    --statusbar-bg: var(--surface-app-bg-subtle);
+    --statusbar-item-bg: var(--surface-secondary);
+    --statusbar-label: var(--content-muted);
+    --statusbar-value: var(--content-secondary);
+    --statusbar-country: var(--interactive-primary);
+    --statusbar-connected: var(--interactive-success);
+    --statusbar-disconnected: var(--interactive-danger);
+    --statusbar-warning: var(--interactive-warning);
+    --statusbar-border: var(--border-default);
+    --statusbar-divider: var(--border-strong);
+    
+    /* Toast Colors (Legacy) */
+    --toast-bg: var(--toast-bg);
+    --toast-border: var(--toast-border);
+    --toast-text: var(--toast-text);
+    --toast-shadow: var(--toast-shadow);
+    
+    /* Site Item Colors (Legacy) */
+    --site-item-bg: var(--surface-secondary);
+    --site-item-selected-bg: var(--surface-primary-selected);
+    --site-item-connected-bg: var(--interactive-success-subtle);
+    --site-item-selected-border: var(--interactive-primary);
+    --site-item-connected-border: var(--interactive-success);
+    
+    /* Debug Panel (Legacy) */
+    --debug-bg: #f5f5f5;
+    --debug-text: #333;
+    --debug-label: #666;
+    --debug-value: #0066cc;
+    --debug-on: var(--interactive-success);
+    --debug-off: var(--interactive-danger);
+    --debug-section-title: var(--interactive-primary);
+    
+    /* Gauge Colors (Legacy) */
+    --gauge-green: var(--interactive-success);
+    --gauge-yellow: var(--interactive-warning);
+    --gauge-red: var(--interactive-danger);
+    --gauge-gray: var(--content-muted);
+    --gauge-bg: var(--surface-secondary);
+    
+    /* Cover Screen (Legacy) */
+    --cover-logo-size: 72px;
+    --cover-title-color: var(--interactive-primary);
+    
+    /* Performance Bar (Legacy) */
+    --perf-good: var(--interactive-success);
+    --perf-warning: var(--interactive-warning);
+    --perf-critical: var(--interactive-danger);
+}
+
+/* =============================================
+   🎨 CANVAS EDITOR COMPATIBILITY (Legacy)
+   =============================================
+   canvas-editor.css, layout_editor.css 호환용
+   ============================================= */
+:root {
+    /* Canvas Colors */
+    --canvas-primary: var(--interactive-primary);
+    --canvas-primary-start: #667eea;
+    --canvas-primary-end: #764ba2;
+    --canvas-equipment-default: #4a90e2;
+    --canvas-equipment-selected: var(--se-selected);
+    --canvas-equipment-hover: #3498db;
+    --canvas-equipment-stroke: #2c3e50;
+    --canvas-success: var(--interactive-success);
+    --canvas-danger: var(--interactive-danger);
+    --canvas-warning: var(--interactive-warning);
+    --canvas-info: var(--interactive-info);
+    
+    /* Transformer */
+    --canvas-transformer-border: var(--interactive-primary);
+    --canvas-transformer-anchor-stroke: var(--interactive-primary);
+    --canvas-transformer-anchor-fill: var(--handle-fill);
+    
+    /* Grid */
+    --canvas-bg: var(--surface-app-bg);
+    --canvas-grid-minor: #d0d0d0;
+    --canvas-grid-major: #a0a0a0;
+    --canvas-grid-label: #999999;
+    
+    /* Selection */
+    --canvas-selection-stroke: var(--interactive-primary);
+    --canvas-selection-fill: rgba(102, 126, 234, 0.1);
+    
+    /* Coordinate */
+    --canvas-coord-bg: var(--interactive-primary);
+    --canvas-coord-text: var(--content-inverse);
+    
+    /* Room/Office */
+    --canvas-room-stroke: #666666;
+    --canvas-wall-default: #888888;
+    --canvas-office-fill: #d4e6f1;
+    --canvas-office-stroke: #3498db;
+    --canvas-partition: #aaaaaa;
+    
+    /* Text */
+    --canvas-text-primary: var(--content-primary);
+    --canvas-text-secondary: var(--content-secondary);
+    
+    /* Layout Editor Legacy */
+    --primary-color: var(--interactive-primary);
+    --primary-hover: var(--interactive-primary-active);
+    --danger-color: var(--interactive-danger);
+    --danger-hover: #c0392b;
+    --success-color: var(--interactive-success);
+    --success-hover: #229954;
+    --secondary-color: var(--interactive-secondary);
+    --secondary-hover: var(--interactive-secondary-active);
+}

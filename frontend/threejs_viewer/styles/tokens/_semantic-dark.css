@@ -1,0 +1,324 @@
+/**
+ * _semantic-dark.css
+ * ==================
+ * SHERLOCK SKY 3DSim - Dark Theme Semantic Tokens
+ * 
+ * Dark 테마의 의미론적 색상 매핑
+ * - Visual Layers (Deep Space 전략)
+ * - Content Colors (밝은 톤)
+ * - Border Colors (투명도 기반)
+ * - Interactive States (Cyan 강조)
+ * - Surface States
+ * - Smoke Glass 효과
+ * - Glow Effects (핵심 차별점!)
+ * 
+ * @version 3.0.0
+ * @created 2026-01-16
+ * @based-on DesignSystemGuidev2.jsx themes.dark
+ * 
+ * [KEY CONCEPT]
+ * - Primary Color: Blue → Cyan으로 변경
+ * - Glow Effects: Cybernetic 느낌의 발광 효과
+ * - Smoke Glass: 어두운 유리 느낌의 Glassmorphism
+ */
+
+/* =============================================
+   🌙 DARK THEME
+   ============================================= */
+:root[data-theme="dark"],
+[data-theme="dark"] {
+    
+    /* =========================================
+       🏗️ VISUAL LAYERS (깊이감 구조)
+       =========================================
+       Layer 1: App Background (Deep Space)
+       Layer 2: Panel/Card (구분되는 어둠)
+       Layer 3: Glass Overlay (Smoke Glass)
+       ========================================= */
+    
+    /* Layer 1: App Background */
+    --surface-app-bg: var(--primitive-neutral-900);          /* #0f172a */
+    --surface-app-bg-subtle: var(--primitive-neutral-950);   /* #020617 */
+    
+    /* Layer 2: Panel/Card */
+    --surface-panel: var(--primitive-neutral-800);           /* #1e293b */
+    --surface-panel-header: rgba(0, 0, 0, 0.2);
+    --surface-panel-elevated: var(--primitive-neutral-700);  /* #334155 */
+    
+    /* Layer 3: Glass Overlay (3D Scene 위) - Smoke Glass */
+    --surface-glass: rgba(15, 23, 42, 0.75);
+    --surface-glass-strong: rgba(15, 23, 42, 0.85);
+    --surface-glass-subtle: rgba(15, 23, 42, 0.6);
+    
+    /* =========================================
+       📝 CONTENT COLORS (텍스트) - 밝은 톤
+       ========================================= */
+    --content-primary: var(--primitive-neutral-50);          /* #f8fafc */
+    --content-secondary: var(--primitive-neutral-200);       /* #e2e8f0 */
+    --content-tertiary: var(--primitive-neutral-400);        /* #94a3b8 */
+    --content-muted: var(--primitive-neutral-500);           /* #64748b */
+    --content-disabled: var(--primitive-neutral-600);        /* #475569 */
+    --content-inverse: var(--primitive-neutral-900);         /* #0f172a */
+    --content-on-primary: var(--primitive-neutral-900);      /* #0f172a (Cyan 버튼 위 텍스트) */
+    
+    /* =========================================
+       🔲 BORDER COLORS (투명도 기반)
+       ========================================= */
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    --border-default: rgba(255, 255, 255, 0.1);
+    --border-strong: rgba(255, 255, 255, 0.2);
+    --border-focus: var(--primitive-cyan-500);               /* #06b6d4 */
+    --border-error: var(--primitive-red-400);                /* #f87171 */
+    --border-success: var(--primitive-green-400);            /* #4ade80 */
+    
+    /* =========================================
+       🎯 INTERACTIVE COLORS - PRIMARY (Cyan!)
+       =========================================
+       ⭐ Dark Mode 핵심: Blue → Cyan
+       Hover 시 밝아지는 패턴 (Light와 반대)
+       ========================================= */
+    --interactive-primary: var(--primitive-cyan-500);        /* #06b6d4 */
+    --interactive-primary-hover: var(--primitive-cyan-400);  /* #22d3ee (더 밝게) */
+    --interactive-primary-active: var(--primitive-cyan-600); /* #0891b2 */
+    --interactive-primary-disabled: var(--primitive-cyan-900); /* #164e63 */
+    
+    /* Primary Subtle (배경용) */
+    --interactive-primary-subtle: rgba(6, 182, 212, 0.1);
+    --interactive-primary-subtle-hover: rgba(6, 182, 212, 0.15);
+    
+    /* =========================================
+       🎯 INTERACTIVE COLORS - SECONDARY
+       ========================================= */
+    --interactive-secondary: var(--primitive-neutral-400);   /* #94a3b8 */
+    --interactive-secondary-hover: var(--primitive-neutral-300); /* #cbd5e1 (더 밝게) */
+    --interactive-secondary-active: var(--primitive-neutral-500); /* #64748b */
+    --interactive-secondary-disabled: var(--primitive-neutral-600); /* #475569 */
+    
+    /* =========================================
+       🎯 INTERACTIVE COLORS - DANGER (Red)
+       =========================================
+       Dark Mode: 밝은 Red 사용
+       ========================================= */
+    --interactive-danger: var(--primitive-red-400);          /* #f87171 */
+    --interactive-danger-hover: var(--primitive-red-300);    /* #fca5a5 (더 밝게) */
+    --interactive-danger-active: var(--primitive-red-500);   /* #ef4444 */
+    --interactive-danger-disabled: var(--primitive-red-900); /* #7f1d1d */
+    
+    /* Danger Subtle */
+    --interactive-danger-subtle: rgba(248, 113, 113, 0.1);
+    --interactive-danger-subtle-hover: rgba(248, 113, 113, 0.15);
+    
+    /* =========================================
+       🎯 INTERACTIVE COLORS - SUCCESS (Green)
+       ========================================= */
+    --interactive-success: var(--primitive-green-400);       /* #4ade80 */
+    --interactive-success-hover: var(--primitive-green-300); /* #86efac (더 밝게) */
+    --interactive-success-active: var(--primitive-green-500); /* #22c55e */
+    --interactive-success-disabled: var(--primitive-green-900); /* #14532d */
+    
+    /* Success Subtle */
+    --interactive-success-subtle: rgba(74, 222, 128, 0.1);
+    --interactive-success-subtle-hover: rgba(74, 222, 128, 0.15);
+    
+    /* =========================================
+       🎯 INTERACTIVE COLORS - WARNING (Yellow)
+       ========================================= */
+    --interactive-warning: var(--primitive-yellow-400);      /* #facc15 */
+    --interactive-warning-hover: var(--primitive-yellow-300); /* #fde047 */
+    --interactive-warning-active: var(--primitive-yellow-500); /* #eab308 */
+    --interactive-warning-disabled: var(--primitive-yellow-900); /* #713f12 */
+    
+    /* Warning Subtle */
+    --interactive-warning-subtle: rgba(250, 204, 21, 0.1);
+    --interactive-warning-subtle-hover: rgba(250, 204, 21, 0.15);
+    
+    /* =========================================
+       🎯 INTERACTIVE COLORS - INFO (Cyan)
+       ========================================= */
+    --interactive-info: var(--primitive-cyan-400);           /* #22d3ee */
+    --interactive-info-hover: var(--primitive-cyan-300);     /* #67e8f9 */
+    --interactive-info-active: var(--primitive-cyan-500);    /* #06b6d4 */
+    --interactive-info-disabled: var(--primitive-cyan-900);  /* #164e63 */
+    
+    /* =========================================
+       🖼️ SURFACE STATES - PRIMARY
+       =========================================
+       투명도 기반 배경 상태
+       ========================================= */
+    --surface-primary: var(--primitive-neutral-800);         /* #1e293b */
+    --surface-primary-hover: rgba(255, 255, 255, 0.05);
+    --surface-primary-active: rgba(255, 255, 255, 0.1);
+    --surface-primary-disabled: var(--primitive-neutral-900); /* #0f172a */
+    --surface-primary-selected: rgba(6, 182, 212, 0.1);      /* Cyan tint */
+    
+    /* =========================================
+       🖼️ SURFACE STATES - SECONDARY
+       ========================================= */
+    --surface-secondary: rgba(255, 255, 255, 0.05);
+    --surface-secondary-hover: rgba(255, 255, 255, 0.08);
+    --surface-secondary-active: rgba(255, 255, 255, 0.12);
+    --surface-secondary-disabled: rgba(255, 255, 255, 0.02);
+    
+    /* =========================================
+       ✨ GLASSMORPHISM EFFECTS (Smoke Glass)
+       =========================================
+       Dark Mode 전용: 어두운 유리 느낌
+       ========================================= */
+    --glass-bg: rgba(15, 23, 42, 0.75);
+    --glass-bg-strong: rgba(15, 23, 42, 0.85);
+    --glass-blur: 12px;
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-border-strong: rgba(255, 255, 255, 0.2);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --glass-shadow-elevated: 0 12px 40px rgba(0, 0, 0, 0.5);
+    
+    /* =========================================
+       ⚡ GLOW EFFECTS (Dark Mode 핵심!)
+       =========================================
+       Cybernetic 느낌의 발광 효과
+       상태 표시, 호버 시 적용
+       ========================================= */
+    --glow-primary: 0 0 20px rgba(6, 182, 212, 0.4);
+    --glow-primary-strong: 0 0 30px rgba(6, 182, 212, 0.6);
+    --glow-primary-subtle: 0 0 12px rgba(6, 182, 212, 0.3);
+    
+    --glow-success: 0 0 12px rgba(74, 222, 128, 0.5);
+    --glow-success-strong: 0 0 20px rgba(74, 222, 128, 0.7);
+    
+    --glow-error: 0 0 12px rgba(248, 113, 113, 0.5);
+    --glow-error-strong: 0 0 20px rgba(248, 113, 113, 0.7);
+    
+    --glow-warning: 0 0 12px rgba(250, 204, 21, 0.5);
+    --glow-warning-strong: 0 0 20px rgba(250, 204, 21, 0.7);
+    
+    --glow-info: 0 0 12px rgba(34, 211, 238, 0.5);
+    
+    /* =========================================
+       📊 EQUIPMENT STATUS COLORS (Dark)
+       =========================================
+       밝은 색상 + Glow 효과
+       ========================================= */
+    --status-running: var(--primitive-green-400);            /* #4ade80 */
+    --status-running-bg: rgba(74, 222, 128, 0.1);
+    --status-running-border: rgba(74, 222, 128, 0.3);
+    --status-running-glow: var(--glow-success);
+    
+    --status-idle: var(--primitive-yellow-400);              /* #facc15 */
+    --status-idle-bg: rgba(250, 204, 21, 0.1);
+    --status-idle-border: rgba(250, 204, 21, 0.3);
+    --status-idle-glow: var(--glow-warning);
+    
+    --status-stop: var(--primitive-orange-400);              /* #fb923c */
+    --status-stop-bg: rgba(251, 146, 60, 0.1);
+    --status-stop-border: rgba(251, 146, 60, 0.3);
+    
+    --status-alarm: var(--primitive-red-400);                /* #f87171 */
+    --status-alarm-bg: rgba(248, 113, 113, 0.1);
+    --status-alarm-border: rgba(248, 113, 113, 0.3);
+    --status-alarm-glow: var(--glow-error);
+    
+    --status-maintenance: var(--primitive-cyan-400);         /* #22d3ee */
+    --status-maintenance-bg: rgba(34, 211, 238, 0.1);
+    --status-maintenance-border: rgba(34, 211, 238, 0.3);
+    
+    --status-offline: var(--primitive-neutral-500);          /* #64748b */
+    --status-offline-bg: rgba(100, 116, 139, 0.1);
+    --status-offline-border: rgba(100, 116, 139, 0.3);
+    
+    /* =========================================
+       🚦 SIGNAL TOWER COLORS (Dark - Glow 포함)
+       ========================================= */
+    --signal-red: #FF0000;
+    --signal-red-glow: 0 0 15px rgba(255, 0, 0, 0.6);
+    --signal-yellow: #FFFF00;
+    --signal-yellow-glow: 0 0 15px rgba(255, 255, 0, 0.6);
+    --signal-green: #00FF00;
+    --signal-green-glow: 0 0 15px rgba(0, 255, 0, 0.6);
+    --signal-blue: #0000FF;
+    --signal-blue-glow: 0 0 15px rgba(0, 0, 255, 0.6);
+    --signal-white: #FFFFFF;
+    
+    /* =========================================
+       🎨 SOLID EDGE COLORS (CAD 스타일)
+       ========================================= */
+    --se-highlight: #00BFFF;     /* Cyan - 마우스 호버 */
+    --se-selected: #FF6600;      /* Orange - 선택된 객체 */
+    --se-active: #4CAF50;        /* Green - 편집 중 */
+    --se-inactive: #808080;      /* Gray - 비활성 */
+    --se-construction: #FFD700;  /* Gold - 보조선 */
+    --se-error: #FF0000;         /* Red - 오류 */
+    --se-locked: #9C27B0;        /* Purple - 잠김 */
+    
+    /* =========================================
+       🎯 MODE ACCENT COLORS (Dark - Cyan 강조)
+       ========================================= */
+    --mode-connection: var(--primitive-cyan-500);    /* #06b6d4 */
+    --mode-edit: var(--primitive-orange-400);        /* #fb923c */
+    --mode-monitoring: var(--primitive-green-400);   /* #4ade80 */
+    --mode-layout: var(--primitive-purple-400);      /* #c084fc */
+    --mode-viewer: var(--primitive-neutral-400);     /* #94a3b8 */
+    --mode-analysis: var(--primitive-cyan-400);      /* #22d3ee */
+    
+    /* =========================================
+       🔲 SHADOWS (Dark Mode - 더 강한 그림자)
+       ========================================= */
+    --shadow-color: rgba(0, 0, 0, 0.4);
+    --shadow-color-strong: rgba(0, 0, 0, 0.6);
+    
+    --shadow-xs-value: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+    --shadow-sm-value: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
+    --shadow-md-value: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg-value: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+    --shadow-xl-value: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+    --shadow-2xl-value: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    --shadow-overlay: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --shadow-panel: 0 4px 20px rgba(0, 0, 0, 0.3);
+    
+    /* =========================================
+       📐 INPUT STATES (Dark)
+       ========================================= */
+    --input-bg: var(--primitive-neutral-800);
+    --input-bg-disabled: var(--primitive-neutral-900);
+    --input-border: rgba(255, 255, 255, 0.1);
+    --input-border-hover: rgba(255, 255, 255, 0.2);
+    --input-border-focus: var(--primitive-cyan-500);
+    --input-border-error: var(--primitive-red-400);
+    --input-placeholder: var(--primitive-neutral-500);
+    --input-focus-ring: rgba(6, 182, 212, 0.3);
+    
+    /* =========================================
+       🍞 TOAST COLORS (Dark)
+       ========================================= */
+    --toast-bg: var(--primitive-neutral-800);
+    --toast-border: rgba(255, 255, 255, 0.1);
+    --toast-text: var(--primitive-neutral-50);
+    --toast-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    
+    /* =========================================
+       🎭 OVERLAY & BACKDROP (Dark)
+       ========================================= */
+    --overlay-bg: rgba(0, 0, 0, 0.7);
+    --modal-backdrop: rgba(0, 0, 0, 0.7);
+    --backdrop-blur: 8px;
+    
+    /* =========================================
+       📊 GRADIENT DEFINITIONS (Dark - 밝은 색상)
+       ========================================= */
+    --gradient-primary: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    --gradient-success: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+    --gradient-danger: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+    --gradient-warning: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+    --gradient-purple: linear-gradient(135deg, #c084fc 0%, #a855f7 100%);
+    --gradient-cyan: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%);
+    
+    /* =========================================
+       🎨 NEON ACCENT (Dark Mode 전용)
+       =========================================
+       Cleanroom Theme Cyan Accent
+       ========================================= */
+    --neon-cyan: #06B6D4;
+    --neon-cyan-light: #22D3EE;
+    --neon-cyan-dark: #0891B2;
+    --neon-cyan-glow: 0 0 8px rgba(6, 182, 212, 0.6);
+    --neon-cyan-glow-strong: 0 0 20px rgba(6, 182, 212, 0.8);
+}

@@ -1,554 +1,100 @@
 /**
  * _variables.css
  * ==============
- * SHERLOCK SKY 3DSim - CSS 변수 정의
+ * SHERLOCK SKY 3DSim - CSS 변수 진입점
  * 
- * 기준: 리팩토링 프로세스 가이드 v5.0
- * - Solid Edge 색상 시스템
- * - 장비 상태 색상
- * - 모드별 UI 색상
+ * @version 3.0.0 (Design Token 아키텍처)
+ * @created 2026-01-02
+ * @updated 2026-01-16 (Phase 1: Foundation 완료)
  * 
- * 작성일: 2026-01-02
- * 수정일: 2026-01-06 (테마 통일 - 라이트 테마 기준)
- * 수정일: 2026-01-11 (Cleanroom Sidebar Theme 통합 v2.10)
- * 수정일: 2026-01-14 (StatusBar CSS 변수 통합 v2.1.0) ⭐
+ * [ARCHITECTURE]
+ * 이 파일은 더 이상 변수를 직접 정의하지 않습니다.
+ * tokens/ 폴더의 파일들을 import하여 체계적인 토큰 시스템을 구성합니다.
+ * 
+ * [IMPORT ORDER]
+ * 1. _primitives.css    - 테마 독립적 원시 값
+ * 2. _semantic-light.css - Light 테마 매핑
+ * 3. _semantic-dark.css  - Dark 테마 매핑
+ * 4. _legacy-mapping.css - 기존 변수 호환 레이어 (임시)
+ * 
+ * [CHANGELOG]
+ * - v3.0.0: Design Token 아키텍처 전환
+ *   - 700줄+ 코드 → 4개 모듈로 분리
+ *   - Inter + JetBrains Mono 폰트 도입
+ *   - Glassmorphism/Glow 효과 체계화
+ *   - Normal/Hover/Active/Disabled 상태 완전 정의
+ * 
+ * - v2.1.0: StatusBar CSS 변수 통합
+ * - v2.10: Cleanroom Sidebar Theme 통합
+ * - v2.0: 라이트/다크 테마 시스템 추가
+ * - v1.0: 초기 버전
  * 
  * [MIGRATION NOTE]
- * - test_sidebar_standalone.html v2.10 CSS 변수 통합
- * - data-theme="dark" / "light" 테마 시스템 추가
- * - 기존 변수와 호환성 유지 (레거시 섹션)
- * - ⭐ StatusBar 인라인 CSS 제거, 외부 CSS로 통합
+ * 기존 변수명은 _legacy-mapping.css에서 새 토큰으로 포워딩됩니다.
+ * Phase 5 완료 후 _legacy-mapping.css import를 제거합니다.
  */
 
-:root {
-    /* =============================================
-       🎨 통합 테마 시스템 (v2.0)
-       - 기본: 라이트 테마
-       - 오버레이 UI: 다크 반투명
-       ============================================= */
-
-    /* ----- 라이트 테마 (Modal, Panel 내부) ----- */
-    --theme-bg-primary: #ffffff;
-    --theme-bg-secondary: #f8f9fa;
-    --theme-bg-tertiary: #f0f2f5;
-    --theme-bg-hover: #e9ecef;
-    --theme-bg-active: #e3f2fd;
-    --theme-bg-selected: #e8f4fd;
-    
-    --theme-text-primary: #212529;
-    --theme-text-secondary: #495057;
-    --theme-text-muted: #6c757d;
-    --theme-text-hint: #adb5bd;
-    
-    --theme-border-light: #e9ecef;
-    --theme-border-default: #dee2e6;
-    --theme-border-dark: #ced4da;
-    --theme-border-focus: #80bdff;
-    
-    /* ----- 다크 오버레이 (3D 씬 위 Overlay, Indicator) ----- */
-    --overlay-bg-primary: rgba(30, 30, 30, 0.95);
-    --overlay-bg-secondary: rgba(40, 40, 40, 0.95);
-    --overlay-bg-hover: rgba(50, 50, 50, 0.98);
-    --overlay-bg-backdrop: rgba(0, 0, 0, 0.5);
-    
-    --overlay-text-primary: #ffffff;
-    --overlay-text-secondary: #e5e5e5;
-    --overlay-text-muted: #9ca3af;
-    
-    --overlay-border-light: rgba(255, 255, 255, 0.1);
-    --overlay-border-default: rgba(255, 255, 255, 0.15);
-    --overlay-border-dark: rgba(255, 255, 255, 0.2);
-
-    /* ----- 상태 색상 (공통) ----- */
-    --status-success: #28a745;
-    --status-success-bg: #d4edda;
-    --status-success-border: #c3e6cb;
-    --status-success-text: #155724;
-    
-    --status-error: #dc3545;
-    --status-error-bg: #f8d7da;
-    --status-error-border: #f5c6cb;
-    --status-error-text: #721c24;
-    
-    --status-warning: #ffc107;
-    --status-warning-bg: #fff3cd;
-    --status-warning-border: #ffeeba;
-    --status-warning-text: #856404;
-    
-    --status-info: #17a2b8;
-    --status-info-bg: #d1ecf1;
-    --status-info-border: #bee5eb;
-    --status-info-text: #0c5460;
-
-    /* ----- 인터랙티브 색상 ----- */
-    --interactive-primary: #2196F3;
-    --interactive-primary-hover: #1976D2;
-    --interactive-primary-active: #1565C0;
-    
-    --interactive-secondary: #6c757d;
-    --interactive-secondary-hover: #5a6268;
-    --interactive-secondary-active: #4e555b;
-    
-    --interactive-danger: #dc3545;
-    --interactive-danger-hover: #c82333;
-    --interactive-danger-active: #bd2130;
-
-    /* =============================================
-       SOLID EDGE 객체 상태 색상
-       ============================================= */
-    --se-highlight: #00BFFF;      /* Cyan - 마우스 호버 */
-    --se-selected: #FF6600;       /* Orange - 선택된 객체 */
-    --se-active: #4CAF50;         /* Green - 편집 중 */
-    --se-inactive: #808080;       /* Gray - 비활성 (50%) */
-    --se-construction: #FFD700;   /* Gold - 보조선 */
-    --se-error: #FF0000;          /* Red - 오류 */
-    --se-locked: #9C27B0;         /* Purple - 잠김 */
-
-    /* =============================================
-       장비 상태 색상 (MONITORING)
-       ============================================= */
-    --equip-running: #4CAF50;     /* Green - 가동 중 */
-    --equip-idle: #FFC107;        /* Amber - 대기 중 */
-    --equip-alarm: #F44336;       /* Red - 알람 발생 */
-    --equip-maintenance: #2196F3; /* Blue - 유지보수 */
-    --equip-offline: #9E9E9E;     /* Gray - 오프라인 */
-
-    /* =============================================
-       SIGNAL TOWER 색상
-       ============================================= */
-    --tower-red: #FF0000;         /* 비상/정지 */
-    --tower-yellow: #FFFF00;      /* 경고/주의 */
-    --tower-green: #00FF00;       /* 정상/가동 */
-    --tower-blue: #0000FF;        /* 작업자 호출 */
-    --tower-white: #FFFFFF;       /* 전원/기타 */
-
-    /* =============================================
-       모드별 UI 강조 색상
-       ============================================= */
-    --mode-connection: #2196F3;   /* 모달 헤더, 버튼 */
-    --mode-edit: #FF9800;         /* 모달 헤더, 편집 UI */
-    --mode-monitoring: #4CAF50;   /* 탭, 상태 패널 */
-    --mode-layout: #9C27B0;       /* 탭, 에디터 UI */
-    --mode-viewer: #607D8B;       /* 기본 모드 */
-
-    /* =============================================
-       선택 영역 (FENCE) 색상
-       ============================================= */
-    --fence-window-fill: rgba(0, 102, 255, 0.2);
-    --fence-window-border: #0066FF;
-    --fence-crossing-fill: rgba(0, 255, 102, 0.2);
-    --fence-crossing-border: #00FF66;
-
-    /* =============================================
-       SMART GUIDES 색상
-       ============================================= */
-    --guide-center: #FF00FF;      /* Magenta - 수평/수직 중앙 */
-    --guide-align: #00BFFF;       /* Cyan - 상하좌우 정렬 */
-    --guide-distribute: #00FF00;  /* Green - 간격 균등 분배 */
-
-    /* =============================================
-       핸들 스타일 (PowerPoint)
-       ============================================= */
-    --handle-fill: #FFFFFF;
-    --handle-stroke: #FF6600;     /* Orange */
-    --handle-rotate-fill: #4CAF50; /* Green */
-    --handle-size: 8px;
-    --handle-rotate-size: 10px;
-
-    /* =============================================
-       애니메이션 타이밍
-       ============================================= */
-    --transition-fast: 150ms ease-out;
-    --transition-normal: 200ms ease-out;
-    --transition-slow: 300ms ease-in-out;
-    --transition-hover: 150ms ease-out;
-    --transition-hover-out: 200ms ease-out;
-    --transition-select: 200ms ease-out;
-    --transition-status: 300ms ease-in-out;
-    --animation-alarm: 500ms linear infinite;
-    --animation-pulse: 1000ms ease-in-out infinite;
-
-    /* =============================================
-       기본 UI 색상
-       ============================================= */
-    --color-primary: #667eea;
-    --color-primary-dark: #5568d3;
-    --color-secondary: #6c757d;
-    --color-secondary-dark: #5a6268;
-    --color-success: #28a745;
-    --color-danger: #dc3545;
-    --color-warning: #ffc107;
-    --color-info: #17a2b8;
-
-    /* =============================================
-       그라디언트
-       ============================================= */
-    --gradient-primary: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-    --gradient-success: linear-gradient(90deg, #27ae60 0%, #2ecc71 100%);
-    --gradient-preview: linear-gradient(90deg, #9b59b6 0%, #8e44ad 100%);
-
-    /* =============================================
-       배경 색상 (레거시)
-       ============================================= */
-    --bg-primary: #f5f5f5;
-    --bg-secondary: #f8f9fa;
-    --bg-dark: rgba(0, 0, 0, 0.8);
-    --bg-overlay: rgba(0, 0, 0, 0.7);
-    --bg-panel: rgba(255, 255, 255, 0.95);
-
-    /* =============================================
-       텍스트 색상 (레거시)
-       ============================================= */
-    --text-primary: #212529;
-    --text-secondary: #6c757d;
-    --text-muted: #95a5a6;
-    --text-light: #ffffff;
-    --text-dark: #333333;
-
-    /* =============================================
-       테두리 색상 (레거시)
-       ============================================= */
-    --border-color: #dee2e6;
-    --border-light: #e9ecef;
-    --border-dark: #adb5bd;
-
-    /* =============================================
-       그림자
-       ============================================= */
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
-    --shadow-md: 0 4px 15px rgba(0, 0, 0, 0.15);
-    --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.3);
-    --shadow-xl: 0 10px 40px rgba(0, 0, 0, 0.2);
-    --shadow-primary: 0 4px 12px rgba(102, 126, 234, 0.4);
-    --shadow-overlay: 0 8px 32px rgba(0, 0, 0, 0.4);
-
-    /* =============================================
-       간격 (Spacing)
-       ============================================= */
-    --spacing-xs: 4px;
-    --spacing-sm: 8px;
-    --spacing-md: 16px;
-    --spacing-lg: 24px;
-    --spacing-xl: 32px;
-
-    /* =============================================
-       둥근 모서리 (Border Radius)
-       ============================================= */
-    --radius-sm: 4px;
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --radius-xl: 16px;
-    --radius-full: 50%;
-
-    /* =============================================
-       폰트
-       ============================================= */
-    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-mono: 'Consolas', 'Monaco', monospace;
-    --font-size-xs: 11px;
-    --font-size-sm: 12px;
-    --font-size-base: 14px;
-    --font-size-md: 16px;
-    --font-size-lg: 18px;
-    --font-size-xl: 20px;
-    --font-size-2xl: 24px;
-
-    /* =============================================
-       ⭐ STATUS BAR 전용 폰트 크기 (v2.1.0)
-       StatusBar.js 인라인 CSS 제거 후 통합
-       ============================================= */
-    --statusbar-label-size: 9px;      /* NET, API, DB 라벨용 */
-    --statusbar-value-size: 12px;     /* Monitoring Stats 숫자, Country Code용 */
-
-    /* =============================================
-       Z-Index 레이어 (정리됨)
-       ============================================= */
-    --z-base: 1;
-    --z-dropdown: 100;
-    --z-sticky: 200;
-    --z-fixed: 300;
-    --z-overlay-indicator: 1000;   /* ConnectionIndicator, AutoSaveIndicator */
-    --z-tooltip: 1001;
-    --z-context-menu: 1002;
-    --z-modal-backdrop: 9998;
-    --z-modal: 9999;
-    --z-toast: 10000;
-    --z-recovery-dialog: 10001;
-
-    /* =============================================
-       레거시 호환 변수 (기존 코드 지원)
-       ============================================= */
-    /* canvas-editor.css 호환 */
-    --canvas-primary: var(--color-primary);
-    --canvas-primary-start: #667eea;
-    --canvas-primary-end: #764ba2;
-    --canvas-equipment-default: #4a90e2;
-    --canvas-equipment-selected: var(--se-selected);
-    --canvas-equipment-hover: #3498db;
-    --canvas-equipment-stroke: #2c3e50;
-    --canvas-success: var(--equip-running);
-    --canvas-danger: var(--color-danger);
-    --canvas-warning: var(--equip-idle);
-    --canvas-info: var(--mode-connection);
-    --canvas-transformer-border: var(--color-primary);
-    --canvas-transformer-anchor-stroke: var(--color-primary);
-    --canvas-transformer-anchor-fill: var(--handle-fill);
-    --canvas-bg: var(--bg-primary);
-    --canvas-grid-minor: #d0d0d0;
-    --canvas-grid-major: #a0a0a0;
-    --canvas-grid-label: #999999;
-    --canvas-selection-stroke: var(--color-primary);
-    --canvas-selection-fill: rgba(102, 126, 234, 0.1);
-    --canvas-coord-bg: var(--color-primary);
-    --canvas-coord-text: var(--text-light);
-    --canvas-room-stroke: #666666;
-    --canvas-wall-default: #888888;
-    --canvas-office-fill: #d4e6f1;
-    --canvas-office-stroke: #3498db;
-    --canvas-partition: #aaaaaa;
-    --canvas-text-primary: var(--text-primary);
-    --canvas-text-secondary: var(--text-secondary);
-
-    /* layout_editor.css 호환 */
-    --primary-color: var(--color-primary);
-    --primary-hover: var(--color-primary-dark);
-    --danger-color: var(--color-danger);
-    --danger-hover: #c0392b;
-    --success-color: var(--color-success);
-    --success-hover: #229954;
-    --secondary-color: var(--color-secondary);
-    --secondary-hover: var(--color-secondary-dark);
-}
-
+/* =============================================
+   Layer 1: Design Token Primitives
+   =============================================
+   테마와 무관한 원시 값 정의
+   - Neutral Scale (12단계 그레이)
+   - Brand Colors (Blue, Cyan, Green, Yellow, Orange, Red, Purple)
+   - Font Family (Inter, JetBrains Mono)
+   - Font Size (xs ~ 2xl)
+   - Font Weight (normal ~ bold)
+   - Spacing (0 ~ 24)
+   - Border Radius (sm ~ full)
+   - Transitions (fast, base, slow)
+   - Z-Index Layers
+   ============================================= */
+@import '../tokens/_primitives.css';
 
 /* =============================================
-   🌙 CLEANROOM SIDEBAR THEME - DARK MODE
+   Layer 2: Semantic Tokens - Light Theme
    =============================================
-   Source: test_sidebar_standalone.html v2.10
+   Light 테마의 의미론적 색상 매핑
+   - Visual Layers (Off-White 전략)
+   - Content Colors (Dark text on light bg)
+   - Border Colors
+   - Interactive States (Blue primary)
+   - Surface States
+   - Glassmorphism Effects
+   - Equipment Status Colors
+   ============================================= */
+@import '../tokens/_semantic-light.css';
+
+/* =============================================
+   Layer 3: Semantic Tokens - Dark Theme
+   =============================================
+   Dark 테마의 의미론적 색상 매핑
+   - Visual Layers (Deep Space 전략)
+   - Content Colors (Light text on dark bg)
+   - Border Colors (투명도 기반)
+   - Interactive States (Cyan primary!)
+   - Surface States
+   - Smoke Glass Effects
+   - Glow Effects (핵심 차별점!)
+   ============================================= */
+@import '../tokens/_semantic-dark.css';
+
+/* =============================================
+   Layer 4: Legacy Variable Mapping (임시)
+   =============================================
+   기존 변수명 → 새 토큰 매핑
    
-   [NOTE] data-theme="dark"가 기본값으로 적용됨
-   HTML에서 <html data-theme="dark"> 설정 필요
+   ⚠️ TEMPORARY: Phase 5에서 제거 예정
+   
+   22개 컴포넌트 CSS가 새 토큰을 직접 사용하도록
+   마이그레이션되면 이 import를 제거합니다.
    ============================================= */
-
-:root[data-theme="dark"],
-[data-theme="dark"] {
-    /* -----------------------------------------
-       Sidebar Core
-       ----------------------------------------- */
-    --bg-sidebar: #0F172A;
-    --bg-main: #1e293b;
-    --bg-main-gradient: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-    --bg-panel: #1E293B;
-    --bg-panel-header: rgba(0, 0, 0, 0.2);
-    --bg-input: rgba(255, 255, 255, 0.05);
-    --bg-hover: rgba(255, 255, 255, 0.05);
-    --bg-selected: rgba(6, 182, 212, 0.1);
-    
-    /* -----------------------------------------
-       Border Colors (Override)
-       ----------------------------------------- */
-    --border-color: rgba(255, 255, 255, 0.1);
-    --border-subtle: rgba(255, 255, 255, 0.05);
-    
-    /* -----------------------------------------
-       Icon States
-       ----------------------------------------- */
-    --icon-normal: #E2E8F0;
-    --icon-selected: #06B6D4;
-    --icon-disabled: #334155;
-    --icon-hover: #FFFFFF;
-    
-    /* -----------------------------------------
-       Text Colors (Override)
-       ----------------------------------------- */
-    --text-primary: #E2E8F0;
-    --text-secondary: #9CA3AF;
-    --text-muted: #6B7280;
-    --text-normal: #CBD5E1;
-    --text-warning: #FBBF24;
-    --text-alarm: #F87171;
-    --text-success: #4ADE80;
-    
-    /* -----------------------------------------
-       Effects
-       ----------------------------------------- */
-    --shadow-color: rgba(0, 0, 0, 0.5);
-    --glow-color: rgba(6, 182, 212, 0.4);
-    
-    /* -----------------------------------------
-       Dimensions
-       ----------------------------------------- */
-    --icon-size: 36px;
-    --transition-speed: 0.25s;
-    --status-bar-height: 36px;
-    
-    /* -----------------------------------------
-       ⭐ STATUS BAR 색상 (Dark Mode) - v2.1.0
-       Sidebar와 동일한 색상 체계 사용
-       ----------------------------------------- */
-    --statusbar-bg: var(--bg-sidebar);           /* #0F172A */
-    --statusbar-item-bg: var(--bg-input);        /* rgba(255,255,255,0.05) */
-    --statusbar-label: var(--text-muted);        /* #6B7280 */
-    --statusbar-value: var(--text-normal);       /* #CBD5E1 */
-    --statusbar-country: var(--icon-selected);   /* #06B6D4 */
-    --statusbar-connected: var(--text-success);  /* #4ADE80 */
-    --statusbar-disconnected: var(--text-alarm); /* #F87171 */
-    --statusbar-warning: var(--text-warning);    /* #FBBF24 */
-    --statusbar-border: var(--border-color);     /* rgba(255,255,255,0.1) */
-    --statusbar-divider: rgba(255, 255, 255, 0.15);
-    
-    /* -----------------------------------------
-       Dark Theme Specific - Additional
-       ----------------------------------------- */
-    --bg-dark-overlay: rgba(0, 0, 0, 0.7);
-    --modal-backdrop: rgba(0, 0, 0, 0.7);
-    
-    /* Toast Colors (Dark) */
-    --toast-bg: var(--bg-panel);
-    --toast-border: var(--border-color);
-    --toast-text: var(--text-primary);
-    --toast-shadow: 0 8px 24px var(--shadow-color);
-    
-    /* Cover Screen */
-    --cover-logo-size: 72px;
-    --cover-title-color: var(--icon-selected);
-    
-    /* Gauge Colors */
-    --gauge-green: var(--text-success);
-    --gauge-yellow: var(--text-warning);
-    --gauge-red: var(--text-alarm);
-    --gauge-gray: var(--text-muted);
-    --gauge-bg: var(--bg-input);
-    
-    /* Connection Panel */
-    --site-item-bg: var(--bg-input);
-    --site-item-selected-bg: var(--bg-selected);
-    --site-item-connected-bg: rgba(74, 222, 128, 0.1);
-    --site-item-selected-border: var(--icon-selected);
-    --site-item-connected-border: var(--text-success);
-    
-    /* Debug Panel */
-    --debug-bg: #1a1a1a;
-    --debug-text: #0f0;
-    --debug-label: #888;
-    --debug-value: #ff0;
-    --debug-on: #0f0;
-    --debug-off: #f00;
-    --debug-section-title: #0ff;
-}
-
-
-/* =============================================
-   ☀️ CLEANROOM SIDEBAR THEME - LIGHT MODE
-   =============================================
-   Source: test_sidebar_standalone.html v2.10
-   ============================================= */
-
-:root[data-theme="light"],
-[data-theme="light"] {
-    /* -----------------------------------------
-       Sidebar Core
-       ----------------------------------------- */
-    --bg-sidebar: #F8FAFC;
-    --bg-main: #FFFFFF;
-    --bg-main-gradient: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
-    --bg-panel: #FFFFFF;
-    --bg-panel-header: rgba(0, 0, 0, 0.02);
-    --bg-input: rgba(0, 0, 0, 0.03);
-    --bg-hover: rgba(0, 0, 0, 0.05);
-    --bg-selected: rgba(8, 145, 178, 0.1);
-    
-    /* -----------------------------------------
-       Border Colors (Override)
-       ----------------------------------------- */
-    --border-color: rgba(0, 0, 0, 0.1);
-    --border-subtle: rgba(0, 0, 0, 0.05);
-    
-    /* -----------------------------------------
-       Icon States
-       ----------------------------------------- */
-    --icon-normal: #475569;
-    --icon-selected: #0891B2;
-    --icon-disabled: #CBD5E1;
-    --icon-hover: #0F172A;
-    
-    /* -----------------------------------------
-       Text Colors (Override)
-       ----------------------------------------- */
-    --text-primary: #0F172A;
-    --text-secondary: #475569;
-    --text-muted: #94A3B8;
-    --text-normal: #64748B;
-    --text-warning: #D97706;
-    --text-alarm: #DC2626;
-    --text-success: #16A34A;
-    
-    /* -----------------------------------------
-       Effects
-       ----------------------------------------- */
-    --shadow-color: rgba(0, 0, 0, 0.15);
-    --glow-color: rgba(8, 145, 178, 0.3);
-    
-    /* -----------------------------------------
-       ⭐ STATUS BAR 색상 (Light Mode) - v2.1.0
-       Sidebar와 동일한 색상 체계 사용
-       ----------------------------------------- */
-    --statusbar-bg: var(--bg-sidebar);           /* #F8FAFC */
-    --statusbar-item-bg: var(--bg-input);        /* rgba(0,0,0,0.03) */
-    --statusbar-label: var(--text-muted);        /* #94A3B8 */
-    --statusbar-value: var(--text-normal);       /* #64748B */
-    --statusbar-country: var(--icon-selected);   /* #0891B2 */
-    --statusbar-connected: var(--text-success);  /* #16A34A */
-    --statusbar-disconnected: var(--text-alarm); /* #DC2626 */
-    --statusbar-warning: var(--text-warning);    /* #D97706 */
-    --statusbar-border: var(--border-color);     /* rgba(0,0,0,0.1) */
-    --statusbar-divider: rgba(0, 0, 0, 0.15);
-    
-    /* -----------------------------------------
-       Light Theme Specific - Additional
-       ----------------------------------------- */
-    --bg-dark-overlay: rgba(0, 0, 0, 0.5);
-    --modal-backdrop: rgba(0, 0, 0, 0.5);
-    
-    /* Toast Colors (Light) */
-    --toast-bg: #ffffff;
-    --toast-border: #e9ecef;
-    --toast-text: #212529;
-    --toast-shadow: 0 8px 24px var(--shadow-color);
-    
-    /* Cover Screen */
-    --cover-logo-size: 72px;
-    --cover-title-color: var(--icon-selected);
-    
-    /* Gauge Colors */
-    --gauge-green: var(--text-success);
-    --gauge-yellow: var(--text-warning);
-    --gauge-red: var(--text-alarm);
-    --gauge-gray: var(--text-muted);
-    --gauge-bg: var(--bg-input);
-    
-    /* Connection Panel */
-    --site-item-bg: var(--bg-input);
-    --site-item-selected-bg: var(--bg-selected);
-    --site-item-connected-bg: rgba(22, 163, 74, 0.1);
-    --site-item-selected-border: var(--icon-selected);
-    --site-item-connected-border: var(--text-success);
-    
-    /* Debug Panel */
-    --debug-bg: #f5f5f5;
-    --debug-text: #333;
-    --debug-label: #666;
-    --debug-value: #0066cc;
-    --debug-on: #16A34A;
-    --debug-off: #DC2626;
-    --debug-section-title: #0891B2;
-}
-
+@import '../tokens/_legacy-mapping.css';
 
 /* =============================================
    🔄 THEME TRANSITION (Smooth switching)
+   =============================================
+   테마 전환 시 부드러운 애니메이션
    ============================================= */
-
 body,
 .sidebar,
 .main-content,
@@ -559,99 +105,24 @@ body,
 #debug-panel,
 .toast {
     transition: 
-        background-color var(--transition-speed) ease,
-        border-color var(--transition-speed) ease,
-        color var(--transition-speed) ease,
-        box-shadow var(--transition-speed) ease;
+        background-color var(--transition-slow) ease,
+        border-color var(--transition-slow) ease,
+        color var(--transition-slow) ease,
+        box-shadow var(--transition-slow) ease;
 }
 
-
-/* =============================================
-   📐 SIDEBAR LAYOUT VARIABLES
-   =============================================
-   Cleanroom Sidebar specific dimensions
-   ============================================= */
-
-:root {
-    /* Sidebar Dimensions */
-    --sidebar-width: 80px;
-    --sidebar-width-collapsed: 60px;
-    --sidebar-width-expanded: 200px;
-    
-    /* Icon Button */
-    --icon-btn-size: 54px;
-    --icon-btn-margin: 12px;
-    
-    /* Submenu */
-    --submenu-min-width: 200px;
-    --submenu-offset-left: 70px;
-    
-    /* Status Bar */
-    --status-bar-height: 36px;
-    
-    /* Cover Screen */
-    --cover-logo-size: 72px;
-    --cover-title-size: 32px;
-    --cover-subtitle-size: 14px;
-    
-    /* Equipment Info Panel */
-    --equipment-panel-width: 320px;
-    --equipment-panel-top: 80px;
-    --equipment-panel-right: 20px;
-    
-    /* Modal */
-    --modal-max-width: 700px;
-    --modal-max-height: 85vh;
-    
-    /* Animation */
-    --sidebar-hover-scale: 1.1;
-    --sidebar-hover-translate: -3px;
-    --sidebar-selected-scale: 1.08;
-    --sidebar-selected-translate: -2px;
+/* 트랜지션 제외 요소 */
+canvas,
+video,
+iframe,
+#threejs-container,
+#threejs-container * {
+    transition: none !important;
 }
 
-
-/* =============================================
-   🎯 NEON ACCENT COLORS
-   =============================================
-   Cyan accent for Cleanroom theme
-   ============================================= */
-
-:root {
-    /* Primary Accent (Cyan) */
-    --neon-cyan: #06B6D4;
-    --neon-cyan-light: #22D3EE;
-    --neon-cyan-dark: #0891B2;
-    --neon-cyan-glow: 0 0 8px rgba(6, 182, 212, 0.6);
-    --neon-cyan-glow-strong: 0 0 20px rgba(6, 182, 212, 0.8);
-    
-    /* Gradient Accents */
-    --gradient-cyan: linear-gradient(135deg, #06B6D4, #0891B2);
-    --gradient-cyan-button: linear-gradient(135deg, #06B6D4 0%, #0891B2 100%);
-}
-
-
-/* =============================================
-   📊 STATUS INDICATOR VARIABLES
-   =============================================
-   For equipment status visualization
-   ============================================= */
-
-:root {
-    /* Signal Tower Colors (Enhanced) */
-    --signal-run: #4ADE80;
-    --signal-run-glow: 0 0 8px #4ADE80;
-    
-    --signal-idle: #FBBF24;
-    --signal-idle-glow: 0 0 8px #FBBF24;
-    
-    --signal-stop: #F87171;
-    --signal-stop-glow: 0 0 8px #F87171;
-    
-    --signal-disconnected: #6B7280;
-    
-    /* Performance Bar Colors */
-    --perf-good: var(--text-success);
-    --perf-warning: var(--text-warning);
-    --perf-critical: var(--text-alarm);
+/* Toast 애니메이션 별도 처리 */
+.toast,
+.toast *,
+.toast-container {
+    transition: none !important;
 }

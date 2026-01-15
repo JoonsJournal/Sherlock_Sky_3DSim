@@ -3,28 +3,44 @@
  * ========
  * SHERLOCK SKY 3DSim - CSS 진입점
  * 
- * @version 2.7.0
- * @changelog
- * - v2.7.0: 🔧 StatusBar CSS 충돌 해결 (2026-01-15)
- *           - .status-item, .status-label, .status-value를 .status-panel 범위로 한정
- *           - _overlay-ui.css 중복 제거 (import 제거)
- *           - StatusBar 레이아웃 정상화
- * - v2.6.0: 🆕 _analysis-mode.css import 추가 (2026-01-13)
- * - v2.5.0: _overlay-ui.css, _misc.css import 추가 (2026-01-11)
+ * @version 3.0.0 (Design Token 아키텍처)
+ * @updated 2026-01-16 (Phase 1: Foundation 완료)
+ * 
+ * [ARCHITECTURE]
+ * Layer 1: Design Tokens (primitives, semantic-light, semantic-dark, legacy-mapping)
+ * Layer 2: Base Styles (reset, typography)
+ * Layer 3: Components (22개 컴포넌트)
+ * Layer 4: Pages (viewer-3d, layout-editor)
+ * 
+ * [CHANGELOG]
+ * - v3.0.0: Design Token 아키텍처 전환
+ *   - tokens/ 폴더 추가 (4개 파일)
+ *   - Inter + JetBrains Mono 폰트 도입
+ *   - 기존 변수 호환 레이어 유지
+ * 
+ * - v2.7.0: StatusBar CSS 충돌 해결
+ * - v2.6.0: Analysis Mode CSS 추가
+ * - v2.5.0: Overlay UI, Misc CSS 추가
  * - v2.4.0: ModeIndicatorPanel pill 스타일 지원
  * 
  * 위치: frontend/threejs_viewer/styles/main.css
  */
 
 /* =============================================
-   Base Styles
+   Layer 1: Design Tokens
+   =============================================
+   새로운 토큰 시스템 - _variables.css에서 import됨
    ============================================= */
 @import './base/_variables.css';
+
+/* =============================================
+   Layer 2: Base Styles
+   ============================================= */
 @import './base/_reset.css';
 @import './base/_typography.css';
 
 /* =============================================
-   Component Styles - Core
+   Layer 3: Component Styles - Core
    ============================================= */
 @import './components/_buttons.css';
 @import './components/_modals.css';
@@ -70,23 +86,16 @@
 @import './components/_cover-screen.css';
 
 /* =============================================
-   🆕 Mode Indicator Panel (Pill Style)
+   Mode Indicator Panel (Pill Style)
    CURRENT MODE (cyan) + DEV MODE (amber)
    ============================================= */
 @import './components/_mode-indicator.css';
 
 /* =============================================
-   🆕 v2.6.0: Analysis Mode
+   Analysis Mode
    Analysis 모드 컨테이너 및 Placeholder 스타일
    ============================================= */
 @import './components/_analysis-mode.css';
-
-/* =============================================
-   🔧 v2.7.0: Overlay UI 제거
-   _cover-screen.css에 이미 동일한 내용이 정의되어 있음
-   중복 import로 인한 충돌 방지
-   ============================================= */
-/* @import './components/_overlay-ui.css'; */
 
 /* =============================================
    Miscellaneous (Close Button, Legacy Styles)
@@ -94,14 +103,14 @@
 @import './components/_misc.css';
 
 /* =============================================
-   Page Styles
+   Layer 4: Page Styles
    ============================================= */
 @import './pages/_viewer-3d.css';
 @import './pages/_layout-editor.css';
 
 /* ============================================
    Monitoring Mode Status Panel
-   🔧 v2.7.0: 선택자를 .status-panel 범위로 한정
+   선택자를 .status-panel 범위로 한정
    StatusBar의 .status-item, .status-label, .status-value와 충돌 방지
    ============================================ */
 
@@ -110,88 +119,91 @@
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--overlay-bg-primary);
-    border: 1px solid var(--overlay-border-light);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
-    padding: 12px 24px;
+    padding: var(--spacing-3) var(--spacing-6);
     display: flex;
-    gap: 12px;
+    gap: var(--spacing-3);
     align-items: center;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     z-index: var(--z-overlay-indicator);
-    box-shadow: var(--shadow-overlay);
-    font-family: var(--font-family);
+    box-shadow: var(--glass-shadow);
+    font-family: var(--font-family-base);
 }
 
 body:has(.status-bar) .status-panel {
-    bottom: calc(var(--status-bar-height, 36px) + 20px);
+    bottom: calc(var(--status-bar-height) + 20px);
 }
 
-/* 🔧 v2.7.0: .status-panel 범위로 한정 */
+/* .status-panel 범위로 한정 */
 .status-panel .status-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-1-5);
 }
 
 .status-panel .status-icon {
-    font-size: 16px;
+    font-size: var(--font-size-md);
 }
 
 .status-panel .status-icon.connected {
-    color: var(--status-success);
+    color: var(--interactive-success);
 }
 
 .status-panel .status-icon.disconnected {
-    color: var(--status-warning);
+    color: var(--interactive-warning);
 }
 
-/* 🔧 v2.7.0: .status-panel 범위로 한정 */
+/* .status-panel 범위로 한정 */
 .status-panel .status-label {
-    color: var(--overlay-text-muted);
+    color: var(--content-muted);
     font-size: var(--font-size-sm);
 }
 
-/* 🔧 v2.7.0: .status-panel 범위로 한정 */
+/* .status-panel 범위로 한정 */
 .status-panel .status-value {
-    color: var(--overlay-text-primary);
-    font-weight: 600;
+    color: var(--content-primary);
+    font-weight: var(--font-weight-semibold);
     font-size: var(--font-size-base);
+    font-family: var(--font-family-mono);
 }
 
 .status-panel .status-divider {
-    color: var(--overlay-border-default);
+    color: var(--border-default);
     font-size: var(--font-size-base);
-    margin: 0 4px;
+    margin: 0 var(--spacing-1);
 }
 
 .status-panel .status-progress-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: var(--spacing-1);
 }
 
 .status-panel .status-progress {
     position: relative;
     width: 120px;
     height: 6px;
-    background: var(--overlay-border-light);
-    border-radius: 3px;
+    background: var(--surface-secondary);
+    border-radius: var(--radius-sm);
     overflow: hidden;
 }
 
 .status-panel .progress-bar {
     height: 100%;
-    background: linear-gradient(90deg, var(--status-success), #8bc34a);
-    border-radius: 3px;
+    background: linear-gradient(90deg, var(--interactive-success), #8bc34a);
+    border-radius: var(--radius-sm);
     transition: width var(--transition-slow);
 }
 
 .status-panel .progress-text {
-    font-size: 10px;
-    color: var(--overlay-text-muted);
+    font-size: var(--font-size-xs);
+    color: var(--content-muted);
     white-space: nowrap;
+    font-family: var(--font-family-mono);
 }
 
 /* ============================================
@@ -202,16 +214,16 @@ body:has(.status-bar) .status-panel {
     pointer-events: none;
     user-select: none;
     white-space: nowrap;
-    font-family: var(--font-family);
+    font-family: var(--font-family-mono);
 }
 
 .equipment-label.unmapped {
     background: rgba(255, 87, 34, 0.9);
     color: white;
-    padding: 4px 8px;
+    padding: var(--spacing-1) var(--spacing-2);
     border-radius: var(--radius-sm);
     font-size: var(--font-size-xs);
-    font-weight: bold;
+    font-weight: var(--font-weight-bold);
     animation: pulse-warning 2s ease-in-out infinite;
 }
 
@@ -243,48 +255,50 @@ body:has(.status-bar) .status-panel {
     position: fixed;
     top: 100px;
     left: 20px;
-    background: var(--overlay-bg-primary);
-    border: 1px solid var(--overlay-border-light);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
-    padding: 12px;
-    z-index: 100;
+    padding: var(--spacing-3);
+    z-index: var(--z-dropdown);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
 }
 
 body:has(.sidebar) .monitoring-legend {
-    left: calc(80px + 20px);
+    left: calc(var(--sidebar-width) + 20px);
 }
 
 .legend-title {
-    color: var(--overlay-text-primary);
+    color: var(--content-primary);
     font-size: var(--font-size-sm);
-    font-weight: bold;
-    margin-bottom: 8px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--overlay-border-light);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--spacing-2);
+    padding-bottom: var(--spacing-2);
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .legend-item {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin: 6px 0;
+    gap: var(--spacing-2);
+    margin: var(--spacing-1-5) 0;
     font-size: var(--font-size-xs);
-    color: var(--overlay-text-secondary);
+    color: var(--content-secondary);
 }
 
 .legend-color {
     width: 16px;
     height: 16px;
-    border-radius: 3px;
+    border-radius: var(--radius-sm);
 }
 
 .legend-color.connected {
-    background: var(--status-success);
-    box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+    background: var(--interactive-success);
+    box-shadow: var(--glow-success, none);
 }
 
 .legend-color.disconnected {
-    background: #666;
+    background: var(--content-muted);
     opacity: 0.5;
 }
 
@@ -294,7 +308,7 @@ body:has(.sidebar) .monitoring-legend {
 
 html[data-theme] * {
     transition-property: background-color, border-color, color, box-shadow;
-    transition-duration: 0.25s;
+    transition-duration: var(--transition-base);
     transition-timing-function: ease;
 }
 

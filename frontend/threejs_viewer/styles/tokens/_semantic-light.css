@@ -1,0 +1,292 @@
+/**
+ * _semantic-light.css
+ * ===================
+ * SHERLOCK SKY 3DSim - Light Theme Semantic Tokens
+ * 
+ * Light 테마의 의미론적 색상 매핑
+ * - Visual Layers (Off-White 전략)
+ * - Content Colors
+ * - Border Colors
+ * - Interactive States (Normal/Hover/Active/Disabled)
+ * - Surface States
+ * - Glassmorphism 효과
+ * - Equipment Status Colors
+ * 
+ * @version 3.0.0
+ * @created 2026-01-16
+ * @based-on DesignSystemGuidev2.jsx themes.light
+ * 
+ * [KEY CONCEPT]
+ * Off-White 전략: App Background를 #f1f5f9로 설정하여
+ * 순백색 Panel이 "떠있는" 느낌을 연출
+ */
+
+/* =============================================
+   ☀️ LIGHT THEME
+   ============================================= */
+:root,
+:root[data-theme="light"],
+[data-theme="light"] {
+    
+    /* =========================================
+       🏗️ VISUAL LAYERS (깊이감 구조)
+       =========================================
+       Layer 1: App Background (Off-White)
+       Layer 2: Panel/Card (Pure White + Shadow)
+       Layer 3: Glass Overlay (Glassmorphism)
+       ========================================= */
+    
+    /* Layer 1: App Background */
+    --surface-app-bg: var(--primitive-neutral-100);          /* #f1f5f9 */
+    --surface-app-bg-subtle: var(--primitive-neutral-50);    /* #f8fafc */
+    
+    /* Layer 2: Panel/Card */
+    --surface-panel: var(--primitive-neutral-0);             /* #ffffff */
+    --surface-panel-header: var(--primitive-neutral-100);    /* #f1f5f9 */
+    --surface-panel-elevated: var(--primitive-neutral-0);    /* #ffffff + shadow */
+    
+    /* Layer 3: Glass Overlay (3D Scene 위) */
+    --surface-glass: rgba(255, 255, 255, 0.7);
+    --surface-glass-strong: rgba(255, 255, 255, 0.85);
+    --surface-glass-subtle: rgba(255, 255, 255, 0.5);
+    
+    /* =========================================
+       📝 CONTENT COLORS (텍스트)
+       ========================================= */
+    --content-primary: var(--primitive-neutral-900);         /* #0f172a */
+    --content-secondary: var(--primitive-neutral-700);       /* #334155 */
+    --content-tertiary: var(--primitive-neutral-500);        /* #64748b */
+    --content-muted: var(--primitive-neutral-400);           /* #94a3b8 */
+    --content-disabled: var(--primitive-neutral-300);        /* #cbd5e1 */
+    --content-inverse: var(--primitive-neutral-0);           /* #ffffff */
+    --content-on-primary: var(--primitive-neutral-0);        /* #ffffff (버튼 위 텍스트) */
+    
+    /* =========================================
+       🔲 BORDER COLORS
+       ========================================= */
+    --border-subtle: var(--primitive-neutral-100);           /* #f1f5f9 */
+    --border-default: var(--primitive-neutral-200);          /* #e2e8f0 */
+    --border-strong: var(--primitive-neutral-300);           /* #cbd5e1 */
+    --border-focus: var(--primitive-blue-500);               /* #3b82f6 */
+    --border-error: var(--primitive-red-500);                /* #ef4444 */
+    --border-success: var(--primitive-green-500);            /* #22c55e */
+    
+    /* =========================================
+       🎯 INTERACTIVE COLORS - PRIMARY (Blue)
+       =========================================
+       Normal → Hover → Active → Disabled
+       ========================================= */
+    --interactive-primary: var(--primitive-blue-500);        /* #3b82f6 */
+    --interactive-primary-hover: var(--primitive-blue-600);  /* #2563eb */
+    --interactive-primary-active: var(--primitive-blue-700); /* #1d4ed8 */
+    --interactive-primary-disabled: var(--primitive-blue-300); /* #93c5fd */
+    
+    /* Primary Subtle (배경용) */
+    --interactive-primary-subtle: var(--primitive-blue-50);  /* #eff6ff */
+    --interactive-primary-subtle-hover: var(--primitive-blue-100); /* #dbeafe */
+    
+    /* =========================================
+       🎯 INTERACTIVE COLORS - SECONDARY
+       ========================================= */
+    --interactive-secondary: var(--primitive-neutral-500);   /* #64748b */
+    --interactive-secondary-hover: var(--primitive-neutral-600); /* #475569 */
+    --interactive-secondary-active: var(--primitive-neutral-700); /* #334155 */
+    --interactive-secondary-disabled: var(--primitive-neutral-300); /* #cbd5e1 */
+    
+    /* =========================================
+       🎯 INTERACTIVE COLORS - DANGER (Red)
+       ========================================= */
+    --interactive-danger: var(--primitive-red-500);          /* #ef4444 */
+    --interactive-danger-hover: var(--primitive-red-600);    /* #dc2626 */
+    --interactive-danger-active: var(--primitive-red-700);   /* #b91c1c */
+    --interactive-danger-disabled: var(--primitive-red-300); /* #fca5a5 */
+    
+    /* Danger Subtle */
+    --interactive-danger-subtle: var(--primitive-red-50);    /* #fef2f2 */
+    --interactive-danger-subtle-hover: var(--primitive-red-100); /* #fee2e2 */
+    
+    /* =========================================
+       🎯 INTERACTIVE COLORS - SUCCESS (Green)
+       ========================================= */
+    --interactive-success: var(--primitive-green-500);       /* #22c55e */
+    --interactive-success-hover: var(--primitive-green-600); /* #16a34a */
+    --interactive-success-active: var(--primitive-green-700); /* #15803d */
+    --interactive-success-disabled: var(--primitive-green-300); /* #86efac */
+    
+    /* Success Subtle */
+    --interactive-success-subtle: var(--primitive-green-50); /* #f0fdf4 */
+    --interactive-success-subtle-hover: var(--primitive-green-100); /* #dcfce7 */
+    
+    /* =========================================
+       🎯 INTERACTIVE COLORS - WARNING (Yellow)
+       ========================================= */
+    --interactive-warning: var(--primitive-yellow-500);      /* #eab308 */
+    --interactive-warning-hover: var(--primitive-yellow-600); /* #ca8a04 */
+    --interactive-warning-active: var(--primitive-yellow-700); /* #a16207 */
+    --interactive-warning-disabled: var(--primitive-yellow-300); /* #fde047 */
+    
+    /* Warning Subtle */
+    --interactive-warning-subtle: var(--primitive-yellow-50); /* #fefce8 */
+    --interactive-warning-subtle-hover: var(--primitive-yellow-100); /* #fef9c3 */
+    
+    /* =========================================
+       🎯 INTERACTIVE COLORS - INFO (Cyan)
+       ========================================= */
+    --interactive-info: var(--primitive-cyan-500);           /* #06b6d4 */
+    --interactive-info-hover: var(--primitive-cyan-600);     /* #0891b2 */
+    --interactive-info-active: var(--primitive-cyan-700);    /* #0e7490 */
+    --interactive-info-disabled: var(--primitive-cyan-300);  /* #67e8f9 */
+    
+    /* =========================================
+       🖼️ SURFACE STATES - PRIMARY
+       =========================================
+       리스트 아이템, 카드 배경 상태
+       ========================================= */
+    --surface-primary: var(--primitive-neutral-100);         /* #f1f5f9 */
+    --surface-primary-hover: var(--primitive-neutral-200);   /* #e2e8f0 */
+    --surface-primary-active: var(--primitive-neutral-300);  /* #cbd5e1 */
+    --surface-primary-disabled: var(--primitive-neutral-50); /* #f8fafc */
+    --surface-primary-selected: rgba(59, 130, 246, 0.1);     /* Blue tint */
+    
+    /* =========================================
+       🖼️ SURFACE STATES - SECONDARY
+       ========================================= */
+    --surface-secondary: var(--primitive-neutral-50);        /* #f8fafc */
+    --surface-secondary-hover: var(--primitive-neutral-100); /* #f1f5f9 */
+    --surface-secondary-active: var(--primitive-neutral-200); /* #e2e8f0 */
+    --surface-secondary-disabled: var(--primitive-neutral-0); /* #ffffff */
+    
+    /* =========================================
+       ✨ GLASSMORPHISM EFFECTS
+       =========================================
+       3D Scene 위 Overlay Panel에 적용
+       ========================================= */
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-bg-strong: rgba(255, 255, 255, 0.85);
+    --glass-blur: 12px;
+    --glass-border: rgba(255, 255, 255, 0.3);
+    --glass-border-strong: rgba(255, 255, 255, 0.5);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    --glass-shadow-elevated: 0 12px 40px rgba(0, 0, 0, 0.15);
+    
+    /* =========================================
+       🚀 GLOW EFFECTS (Light Mode에서는 비활성)
+       =========================================
+       Dark Mode에서만 실제 Glow 적용
+       ========================================= */
+    --glow-primary: none;
+    --glow-success: none;
+    --glow-error: none;
+    --glow-warning: none;
+    
+    /* =========================================
+       📊 EQUIPMENT STATUS COLORS
+       =========================================
+       장비 모니터링용 상태 색상
+       ========================================= */
+    --status-running: var(--primitive-green-500);            /* #22c55e */
+    --status-running-bg: var(--primitive-green-50);          /* #f0fdf4 */
+    --status-running-border: var(--primitive-green-200);     /* #bbf7d0 */
+    
+    --status-idle: var(--primitive-yellow-500);              /* #eab308 */
+    --status-idle-bg: var(--primitive-yellow-50);            /* #fefce8 */
+    --status-idle-border: var(--primitive-yellow-200);       /* #fef08a */
+    
+    --status-stop: var(--primitive-orange-500);              /* #f97316 */
+    --status-stop-bg: var(--primitive-orange-50);            /* #fff7ed */
+    --status-stop-border: var(--primitive-orange-200);       /* #fed7aa */
+    
+    --status-alarm: var(--primitive-red-500);                /* #ef4444 */
+    --status-alarm-bg: var(--primitive-red-50);              /* #fef2f2 */
+    --status-alarm-border: var(--primitive-red-200);         /* #fecaca */
+    
+    --status-maintenance: var(--primitive-blue-500);         /* #3b82f6 */
+    --status-maintenance-bg: var(--primitive-blue-50);       /* #eff6ff */
+    --status-maintenance-border: var(--primitive-blue-200);  /* #bfdbfe */
+    
+    --status-offline: var(--primitive-neutral-400);          /* #94a3b8 */
+    --status-offline-bg: var(--primitive-neutral-100);       /* #f1f5f9 */
+    --status-offline-border: var(--primitive-neutral-200);   /* #e2e8f0 */
+    
+    /* =========================================
+       🚦 SIGNAL TOWER COLORS
+       ========================================= */
+    --signal-red: #FF0000;
+    --signal-yellow: #FFFF00;
+    --signal-green: #00FF00;
+    --signal-blue: #0000FF;
+    --signal-white: #FFFFFF;
+    
+    /* =========================================
+       🎨 SOLID EDGE COLORS (CAD 스타일)
+       ========================================= */
+    --se-highlight: #00BFFF;     /* Cyan - 마우스 호버 */
+    --se-selected: #FF6600;      /* Orange - 선택된 객체 */
+    --se-active: #4CAF50;        /* Green - 편집 중 */
+    --se-inactive: #808080;      /* Gray - 비활성 */
+    --se-construction: #FFD700;  /* Gold - 보조선 */
+    --se-error: #FF0000;         /* Red - 오류 */
+    --se-locked: #9C27B0;        /* Purple - 잠김 */
+    
+    /* =========================================
+       🎯 MODE ACCENT COLORS
+       ========================================= */
+    --mode-connection: var(--primitive-blue-500);    /* #3b82f6 */
+    --mode-edit: var(--primitive-orange-500);        /* #f97316 */
+    --mode-monitoring: var(--primitive-green-500);   /* #22c55e */
+    --mode-layout: var(--primitive-purple-500);      /* #a855f7 */
+    --mode-viewer: var(--primitive-neutral-500);     /* #64748b */
+    --mode-analysis: var(--primitive-cyan-500);      /* #06b6d4 */
+    
+    /* =========================================
+       🔲 SHADOWS (Light Mode)
+       ========================================= */
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --shadow-color-strong: rgba(0, 0, 0, 0.15);
+    
+    --shadow-xs-value: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-sm-value: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+    --shadow-md-value: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    --shadow-lg-value: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    --shadow-xl-value: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    --shadow-2xl-value: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    --shadow-overlay: 0 8px 32px rgba(0, 0, 0, 0.15);
+    --shadow-panel: 0 4px 20px rgba(0, 0, 0, 0.1);
+    
+    /* =========================================
+       📐 INPUT STATES
+       ========================================= */
+    --input-bg: var(--primitive-neutral-0);
+    --input-bg-disabled: var(--primitive-neutral-100);
+    --input-border: var(--primitive-neutral-300);
+    --input-border-hover: var(--primitive-neutral-400);
+    --input-border-focus: var(--primitive-blue-500);
+    --input-border-error: var(--primitive-red-500);
+    --input-placeholder: var(--primitive-neutral-400);
+    --input-focus-ring: rgba(59, 130, 246, 0.2);
+    
+    /* =========================================
+       🍞 TOAST COLORS
+       ========================================= */
+    --toast-bg: var(--primitive-neutral-0);
+    --toast-border: var(--primitive-neutral-200);
+    --toast-text: var(--primitive-neutral-900);
+    --toast-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    
+    /* =========================================
+       🎭 OVERLAY & BACKDROP
+       ========================================= */
+    --overlay-bg: rgba(0, 0, 0, 0.5);
+    --modal-backdrop: rgba(0, 0, 0, 0.5);
+    --backdrop-blur: 4px;
+    
+    /* =========================================
+       📊 GRADIENT DEFINITIONS
+       ========================================= */
+    --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    --gradient-success: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    --gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    --gradient-warning: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
+    --gradient-purple: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+    --gradient-cyan: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+}
