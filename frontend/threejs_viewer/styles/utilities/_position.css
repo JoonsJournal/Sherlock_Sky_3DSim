@@ -1,0 +1,815 @@
+/**
+ * _position.css
+ * =============
+ * SHERLOCK SKY 3DSim - Position Utility Classes
+ * 
+ * Position, Inset, Z-Index 관련 유틸리티 클래스
+ * Design Token 시스템의 --z-* 변수 기반
+ * 
+ * @version 3.0.0
+ * @created 2026-01-16 (Phase 2: Utilities)
+ * @based-on Design Token System (_primitives.css)
+ * 
+ * [USAGE EXAMPLE]
+ * <div class="equipment-panel u-fixed u-right-0 u-top-0 u-z-overlay-panel">
+ *   Panel content
+ * </div>
+ */
+
+/* =============================================
+   📍 POSITION
+   ============================================= */
+.u-static {
+    position: static;
+}
+
+.u-fixed {
+    position: fixed;
+}
+
+.u-absolute {
+    position: absolute;
+}
+
+.u-relative {
+    position: relative;
+}
+
+.u-sticky {
+    position: sticky;
+}
+
+/* =============================================
+   📐 INSET (ALL SIDES)
+   ============================================= */
+.u-inset-0 {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+
+.u-inset-auto {
+    top: auto;
+    right: auto;
+    bottom: auto;
+    left: auto;
+}
+
+.u-inset-px {
+    top: var(--spacing-px);
+    right: var(--spacing-px);
+    bottom: var(--spacing-px);
+    left: var(--spacing-px);
+}
+
+.u-inset-1 {
+    top: var(--spacing-1);
+    right: var(--spacing-1);
+    bottom: var(--spacing-1);
+    left: var(--spacing-1);
+}
+
+.u-inset-2 {
+    top: var(--spacing-2);
+    right: var(--spacing-2);
+    bottom: var(--spacing-2);
+    left: var(--spacing-2);
+}
+
+.u-inset-3 {
+    top: var(--spacing-3);
+    right: var(--spacing-3);
+    bottom: var(--spacing-3);
+    left: var(--spacing-3);
+}
+
+.u-inset-4 {
+    top: var(--spacing-4);
+    right: var(--spacing-4);
+    bottom: var(--spacing-4);
+    left: var(--spacing-4);
+}
+
+/* =============================================
+   ↔️ INSET X (LEFT + RIGHT)
+   ============================================= */
+.u-inset-x-0 {
+    left: 0;
+    right: 0;
+}
+
+.u-inset-x-auto {
+    left: auto;
+    right: auto;
+}
+
+.u-inset-x-1 {
+    left: var(--spacing-1);
+    right: var(--spacing-1);
+}
+
+.u-inset-x-2 {
+    left: var(--spacing-2);
+    right: var(--spacing-2);
+}
+
+.u-inset-x-3 {
+    left: var(--spacing-3);
+    right: var(--spacing-3);
+}
+
+.u-inset-x-4 {
+    left: var(--spacing-4);
+    right: var(--spacing-4);
+}
+
+/* =============================================
+   ↕️ INSET Y (TOP + BOTTOM)
+   ============================================= */
+.u-inset-y-0 {
+    top: 0;
+    bottom: 0;
+}
+
+.u-inset-y-auto {
+    top: auto;
+    bottom: auto;
+}
+
+.u-inset-y-1 {
+    top: var(--spacing-1);
+    bottom: var(--spacing-1);
+}
+
+.u-inset-y-2 {
+    top: var(--spacing-2);
+    bottom: var(--spacing-2);
+}
+
+.u-inset-y-3 {
+    top: var(--spacing-3);
+    bottom: var(--spacing-3);
+}
+
+.u-inset-y-4 {
+    top: var(--spacing-4);
+    bottom: var(--spacing-4);
+}
+
+/* =============================================
+   ⬆️ TOP
+   ============================================= */
+.u-top-0 {
+    top: 0;
+}
+
+.u-top-auto {
+    top: auto;
+}
+
+.u-top-px {
+    top: var(--spacing-px);
+}
+
+.u-top-0-5 {
+    top: var(--spacing-0-5);
+}
+
+.u-top-1 {
+    top: var(--spacing-1);
+}
+
+.u-top-1-5 {
+    top: var(--spacing-1-5);
+}
+
+.u-top-2 {
+    top: var(--spacing-2);
+}
+
+.u-top-2-5 {
+    top: var(--spacing-2-5);
+}
+
+.u-top-3 {
+    top: var(--spacing-3);
+}
+
+.u-top-4 {
+    top: var(--spacing-4);
+}
+
+.u-top-5 {
+    top: var(--spacing-5);
+}
+
+.u-top-6 {
+    top: var(--spacing-6);
+}
+
+.u-top-8 {
+    top: var(--spacing-8);
+}
+
+.u-top-10 {
+    top: var(--spacing-10);
+}
+
+.u-top-12 {
+    top: var(--spacing-12);
+}
+
+.u-top-16 {
+    top: var(--spacing-16);
+}
+
+.u-top-20 {
+    top: var(--spacing-20);
+}
+
+.u-top-full {
+    top: 100%;
+}
+
+.u-top-1\/2 {
+    top: 50%;
+}
+
+/* Negative values */
+.u--top-1 {
+    top: calc(var(--spacing-1) * -1);
+}
+
+.u--top-2 {
+    top: calc(var(--spacing-2) * -1);
+}
+
+.u--top-4 {
+    top: calc(var(--spacing-4) * -1);
+}
+
+/* =============================================
+   ➡️ RIGHT
+   ============================================= */
+.u-right-0 {
+    right: 0;
+}
+
+.u-right-auto {
+    right: auto;
+}
+
+.u-right-px {
+    right: var(--spacing-px);
+}
+
+.u-right-0-5 {
+    right: var(--spacing-0-5);
+}
+
+.u-right-1 {
+    right: var(--spacing-1);
+}
+
+.u-right-1-5 {
+    right: var(--spacing-1-5);
+}
+
+.u-right-2 {
+    right: var(--spacing-2);
+}
+
+.u-right-2-5 {
+    right: var(--spacing-2-5);
+}
+
+.u-right-3 {
+    right: var(--spacing-3);
+}
+
+.u-right-4 {
+    right: var(--spacing-4);
+}
+
+.u-right-5 {
+    right: var(--spacing-5);
+}
+
+.u-right-6 {
+    right: var(--spacing-6);
+}
+
+.u-right-8 {
+    right: var(--spacing-8);
+}
+
+.u-right-10 {
+    right: var(--spacing-10);
+}
+
+.u-right-12 {
+    right: var(--spacing-12);
+}
+
+.u-right-16 {
+    right: var(--spacing-16);
+}
+
+.u-right-20 {
+    right: var(--spacing-20);
+}
+
+.u-right-full {
+    right: 100%;
+}
+
+/* Negative values */
+.u--right-1 {
+    right: calc(var(--spacing-1) * -1);
+}
+
+.u--right-2 {
+    right: calc(var(--spacing-2) * -1);
+}
+
+.u--right-4 {
+    right: calc(var(--spacing-4) * -1);
+}
+
+/* =============================================
+   ⬇️ BOTTOM
+   ============================================= */
+.u-bottom-0 {
+    bottom: 0;
+}
+
+.u-bottom-auto {
+    bottom: auto;
+}
+
+.u-bottom-px {
+    bottom: var(--spacing-px);
+}
+
+.u-bottom-0-5 {
+    bottom: var(--spacing-0-5);
+}
+
+.u-bottom-1 {
+    bottom: var(--spacing-1);
+}
+
+.u-bottom-1-5 {
+    bottom: var(--spacing-1-5);
+}
+
+.u-bottom-2 {
+    bottom: var(--spacing-2);
+}
+
+.u-bottom-2-5 {
+    bottom: var(--spacing-2-5);
+}
+
+.u-bottom-3 {
+    bottom: var(--spacing-3);
+}
+
+.u-bottom-4 {
+    bottom: var(--spacing-4);
+}
+
+.u-bottom-5 {
+    bottom: var(--spacing-5);
+}
+
+.u-bottom-6 {
+    bottom: var(--spacing-6);
+}
+
+.u-bottom-8 {
+    bottom: var(--spacing-8);
+}
+
+.u-bottom-10 {
+    bottom: var(--spacing-10);
+}
+
+.u-bottom-12 {
+    bottom: var(--spacing-12);
+}
+
+.u-bottom-16 {
+    bottom: var(--spacing-16);
+}
+
+.u-bottom-20 {
+    bottom: var(--spacing-20);
+}
+
+.u-bottom-full {
+    bottom: 100%;
+}
+
+/* Negative values */
+.u--bottom-1 {
+    bottom: calc(var(--spacing-1) * -1);
+}
+
+.u--bottom-2 {
+    bottom: calc(var(--spacing-2) * -1);
+}
+
+.u--bottom-4 {
+    bottom: calc(var(--spacing-4) * -1);
+}
+
+/* =============================================
+   ⬅️ LEFT
+   ============================================= */
+.u-left-0 {
+    left: 0;
+}
+
+.u-left-auto {
+    left: auto;
+}
+
+.u-left-px {
+    left: var(--spacing-px);
+}
+
+.u-left-0-5 {
+    left: var(--spacing-0-5);
+}
+
+.u-left-1 {
+    left: var(--spacing-1);
+}
+
+.u-left-1-5 {
+    left: var(--spacing-1-5);
+}
+
+.u-left-2 {
+    left: var(--spacing-2);
+}
+
+.u-left-2-5 {
+    left: var(--spacing-2-5);
+}
+
+.u-left-3 {
+    left: var(--spacing-3);
+}
+
+.u-left-4 {
+    left: var(--spacing-4);
+}
+
+.u-left-5 {
+    left: var(--spacing-5);
+}
+
+.u-left-6 {
+    left: var(--spacing-6);
+}
+
+.u-left-8 {
+    left: var(--spacing-8);
+}
+
+.u-left-10 {
+    left: var(--spacing-10);
+}
+
+.u-left-12 {
+    left: var(--spacing-12);
+}
+
+.u-left-16 {
+    left: var(--spacing-16);
+}
+
+.u-left-20 {
+    left: var(--spacing-20);
+}
+
+.u-left-full {
+    left: 100%;
+}
+
+.u-left-1\/2 {
+    left: 50%;
+}
+
+/* Negative values */
+.u--left-1 {
+    left: calc(var(--spacing-1) * -1);
+}
+
+.u--left-2 {
+    left: calc(var(--spacing-2) * -1);
+}
+
+.u--left-4 {
+    left: calc(var(--spacing-4) * -1);
+}
+
+/* =============================================
+   📚 Z-INDEX (Design Token 기반)
+   ============================================= */
+.u-z-0 {
+    z-index: 0;
+}
+
+.u-z-auto {
+    z-index: auto;
+}
+
+.u-z-base {
+    z-index: var(--z-base);              /* 1 */
+}
+
+.u-z-10 {
+    z-index: 10;
+}
+
+.u-z-20 {
+    z-index: 20;
+}
+
+.u-z-30 {
+    z-index: 30;
+}
+
+.u-z-40 {
+    z-index: 40;
+}
+
+.u-z-50 {
+    z-index: 50;
+}
+
+.u-z-dropdown {
+    z-index: var(--z-dropdown);          /* 100 */
+}
+
+.u-z-sticky {
+    z-index: var(--z-sticky);            /* 200 */
+}
+
+.u-z-fixed {
+    z-index: var(--z-fixed);             /* 300 */
+}
+
+.u-z-sidebar {
+    z-index: var(--z-sidebar);           /* 400 */
+}
+
+.u-z-header {
+    z-index: var(--z-header);            /* 500 */
+}
+
+.u-z-overlay-panel {
+    z-index: var(--z-overlay-panel);     /* 900 */
+}
+
+.u-z-overlay-indicator {
+    z-index: var(--z-overlay-indicator); /* 1000 */
+}
+
+.u-z-tooltip {
+    z-index: var(--z-tooltip);           /* 1100 */
+}
+
+.u-z-context-menu {
+    z-index: var(--z-context-menu);      /* 1200 */
+}
+
+.u-z-popover {
+    z-index: var(--z-popover);           /* 1300 */
+}
+
+.u-z-modal-backdrop {
+    z-index: var(--z-modal-backdrop);    /* 9998 */
+}
+
+.u-z-modal {
+    z-index: var(--z-modal);             /* 9999 */
+}
+
+.u-z-toast {
+    z-index: var(--z-toast);             /* 10000 */
+}
+
+.u-z-recovery-dialog {
+    z-index: var(--z-recovery-dialog);   /* 10001 */
+}
+
+.u-z-max {
+    z-index: var(--z-max);               /* 99999 */
+}
+
+/* =============================================
+   🔄 TRANSFORM UTILITIES
+   ============================================= */
+
+/* Translate */
+.u-translate-x-0 {
+    transform: translateX(0);
+}
+
+.u-translate-y-0 {
+    transform: translateY(0);
+}
+
+.u-translate-x-1\/2 {
+    transform: translateX(50%);
+}
+
+.u-translate-y-1\/2 {
+    transform: translateY(50%);
+}
+
+.u--translate-x-1\/2 {
+    transform: translateX(-50%);
+}
+
+.u--translate-y-1\/2 {
+    transform: translateY(-50%);
+}
+
+.u-translate-x-full {
+    transform: translateX(100%);
+}
+
+.u--translate-x-full {
+    transform: translateX(-100%);
+}
+
+.u-translate-y-full {
+    transform: translateY(100%);
+}
+
+.u--translate-y-full {
+    transform: translateY(-100%);
+}
+
+/* Center absolutely positioned element */
+.u-center-absolute {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Center horizontally */
+.u-center-x {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Center vertically */
+.u-center-y {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Rotate */
+.u-rotate-0 {
+    transform: rotate(0deg);
+}
+
+.u-rotate-45 {
+    transform: rotate(45deg);
+}
+
+.u-rotate-90 {
+    transform: rotate(90deg);
+}
+
+.u-rotate-180 {
+    transform: rotate(180deg);
+}
+
+.u--rotate-45 {
+    transform: rotate(-45deg);
+}
+
+.u--rotate-90 {
+    transform: rotate(-90deg);
+}
+
+.u--rotate-180 {
+    transform: rotate(-180deg);
+}
+
+/* Scale */
+.u-scale-0 {
+    transform: scale(0);
+}
+
+.u-scale-50 {
+    transform: scale(0.5);
+}
+
+.u-scale-75 {
+    transform: scale(0.75);
+}
+
+.u-scale-90 {
+    transform: scale(0.9);
+}
+
+.u-scale-95 {
+    transform: scale(0.95);
+}
+
+.u-scale-100 {
+    transform: scale(1);
+}
+
+.u-scale-105 {
+    transform: scale(1.05);
+}
+
+.u-scale-110 {
+    transform: scale(1.1);
+}
+
+.u-scale-125 {
+    transform: scale(1.25);
+}
+
+.u-scale-150 {
+    transform: scale(1.5);
+}
+
+/* =============================================
+   🎯 TRANSFORM ORIGIN
+   ============================================= */
+.u-origin-center {
+    transform-origin: center;
+}
+
+.u-origin-top {
+    transform-origin: top;
+}
+
+.u-origin-top-right {
+    transform-origin: top right;
+}
+
+.u-origin-right {
+    transform-origin: right;
+}
+
+.u-origin-bottom-right {
+    transform-origin: bottom right;
+}
+
+.u-origin-bottom {
+    transform-origin: bottom;
+}
+
+.u-origin-bottom-left {
+    transform-origin: bottom left;
+}
+
+.u-origin-left {
+    transform-origin: left;
+}
+
+.u-origin-top-left {
+    transform-origin: top left;
+}
+
+/* =============================================
+   👆 POINTER EVENTS
+   ============================================= */
+.u-pointer-events-none {
+    pointer-events: none;
+}
+
+.u-pointer-events-auto {
+    pointer-events: auto;
+}
+
+/* =============================================
+   👁️ VISIBILITY
+   ============================================= */
+.u-visible {
+    visibility: visible;
+}
+
+.u-invisible {
+    visibility: hidden;
+}
+
+.u-collapse {
+    visibility: collapse;
+}

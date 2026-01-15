@@ -1,0 +1,561 @@
+/**
+ * _text.css
+ * =========
+ * SHERLOCK SKY 3DSim - Text Utility Classes
+ * 
+ * Font Size, Weight, Color, Alignment 관련 유틸리티 클래스
+ * Design Token 시스템의 --font-*, --content-* 변수 기반
+ * 
+ * @version 3.0.0
+ * @created 2026-01-16 (Phase 2: Utilities)
+ * @based-on Design Token System (_primitives.css, _semantic-*.css)
+ * 
+ * [USAGE EXAMPLE]
+ * <span class="equipment-panel__info-value u-font-mono u-text-lg">
+ *   EQ-01-05
+ * </span>
+ */
+
+/* =============================================
+   📏 FONT SIZE
+   ============================================= */
+.u-text-xs {
+    font-size: var(--font-size-xs);    /* 11px */
+}
+
+.u-text-sm {
+    font-size: var(--font-size-sm);    /* 12px */
+}
+
+.u-text-base {
+    font-size: var(--font-size-base);  /* 14px */
+}
+
+.u-text-md {
+    font-size: var(--font-size-md);    /* 16px */
+}
+
+.u-text-lg {
+    font-size: var(--font-size-lg);    /* 18px */
+}
+
+.u-text-xl {
+    font-size: var(--font-size-xl);    /* 20px */
+}
+
+.u-text-2xl {
+    font-size: var(--font-size-2xl);   /* 24px */
+}
+
+.u-text-3xl {
+    font-size: var(--font-size-3xl);   /* 30px */
+}
+
+.u-text-4xl {
+    font-size: var(--font-size-4xl);   /* 36px */
+}
+
+/* =============================================
+   ⚖️ FONT WEIGHT
+   ============================================= */
+.u-font-normal {
+    font-weight: var(--font-weight-normal);    /* 400 */
+}
+
+.u-font-medium {
+    font-weight: var(--font-weight-medium);    /* 500 */
+}
+
+.u-font-semibold {
+    font-weight: var(--font-weight-semibold);  /* 600 */
+}
+
+.u-font-bold {
+    font-weight: var(--font-weight-bold);      /* 700 */
+}
+
+/* =============================================
+   🔤 FONT FAMILY
+   ============================================= */
+.u-font-base {
+    font-family: var(--font-family-base);
+}
+
+.u-font-mono {
+    font-family: var(--font-family-mono);
+}
+
+/* =============================================
+   📏 LINE HEIGHT
+   ============================================= */
+.u-leading-none {
+    line-height: 1;
+}
+
+.u-leading-tight {
+    line-height: var(--line-height-tight);     /* 1.25 */
+}
+
+.u-leading-snug {
+    line-height: var(--line-height-snug);      /* 1.375 */
+}
+
+.u-leading-normal {
+    line-height: var(--line-height-normal);    /* 1.5 */
+}
+
+.u-leading-relaxed {
+    line-height: var(--line-height-relaxed);   /* 1.625 */
+}
+
+.u-leading-loose {
+    line-height: var(--line-height-loose);     /* 2 */
+}
+
+/* =============================================
+   🔤 LETTER SPACING
+   ============================================= */
+.u-tracking-tighter {
+    letter-spacing: -0.05em;
+}
+
+.u-tracking-tight {
+    letter-spacing: -0.025em;
+}
+
+.u-tracking-normal {
+    letter-spacing: 0;
+}
+
+.u-tracking-wide {
+    letter-spacing: 0.025em;
+}
+
+.u-tracking-wider {
+    letter-spacing: 0.05em;
+}
+
+.u-tracking-widest {
+    letter-spacing: 0.1em;
+}
+
+/* =============================================
+   📐 TEXT ALIGNMENT
+   ============================================= */
+.u-text-left {
+    text-align: left;
+}
+
+.u-text-center {
+    text-align: center;
+}
+
+.u-text-right {
+    text-align: right;
+}
+
+.u-text-justify {
+    text-align: justify;
+}
+
+.u-text-start {
+    text-align: start;
+}
+
+.u-text-end {
+    text-align: end;
+}
+
+/* =============================================
+   🎨 TEXT COLORS (Semantic)
+   =============================================
+   Design Token의 --content-* 변수 사용
+   ============================================= */
+.u-text-primary {
+    color: var(--content-primary);
+}
+
+.u-text-secondary {
+    color: var(--content-secondary);
+}
+
+.u-text-tertiary {
+    color: var(--content-tertiary);
+}
+
+.u-text-muted {
+    color: var(--content-muted);
+}
+
+.u-text-disabled {
+    color: var(--content-disabled);
+}
+
+.u-text-inverse {
+    color: var(--content-inverse);
+}
+
+/* =============================================
+   🎯 TEXT COLORS (Interactive)
+   =============================================
+   상태 표시, 강조용 색상
+   ============================================= */
+.u-text-interactive {
+    color: var(--interactive-primary);
+}
+
+.u-text-success {
+    color: var(--interactive-success);
+}
+
+.u-text-danger {
+    color: var(--interactive-danger);
+}
+
+.u-text-warning {
+    color: var(--interactive-warning);
+}
+
+.u-text-info {
+    color: var(--interactive-info);
+}
+
+/* =============================================
+   🎨 TEXT COLORS (Direct - Brand Colors)
+   =============================================
+   직접 색상 지정이 필요한 경우
+   ============================================= */
+.u-text-blue {
+    color: var(--primitive-blue-500);
+}
+
+.u-text-cyan {
+    color: var(--primitive-cyan-500);
+}
+
+.u-text-green {
+    color: var(--primitive-green-500);
+}
+
+.u-text-yellow {
+    color: var(--primitive-yellow-500);
+}
+
+.u-text-orange {
+    color: var(--primitive-orange-500);
+}
+
+.u-text-red {
+    color: var(--primitive-red-500);
+}
+
+.u-text-purple {
+    color: var(--primitive-purple-500);
+}
+
+/* =============================================
+   🔄 TEXT TRANSFORM
+   ============================================= */
+.u-uppercase {
+    text-transform: uppercase;
+}
+
+.u-lowercase {
+    text-transform: lowercase;
+}
+
+.u-capitalize {
+    text-transform: capitalize;
+}
+
+.u-normal-case {
+    text-transform: none;
+}
+
+/* =============================================
+   📝 TEXT DECORATION
+   ============================================= */
+.u-underline {
+    text-decoration: underline;
+}
+
+.u-overline {
+    text-decoration: overline;
+}
+
+.u-line-through {
+    text-decoration: line-through;
+}
+
+.u-no-underline {
+    text-decoration: none;
+}
+
+/* =============================================
+   📝 TEXT STYLE
+   ============================================= */
+.u-italic {
+    font-style: italic;
+}
+
+.u-not-italic {
+    font-style: normal;
+}
+
+/* =============================================
+   📊 FONT VARIANT (숫자 정렬용)
+   =============================================
+   고정폭 숫자 사용 - 데이터 테이블 정렬에 유용
+   ============================================= */
+.u-tabular-nums {
+    font-variant-numeric: tabular-nums;
+}
+
+.u-proportional-nums {
+    font-variant-numeric: proportional-nums;
+}
+
+.u-oldstyle-nums {
+    font-variant-numeric: oldstyle-nums;
+}
+
+.u-lining-nums {
+    font-variant-numeric: lining-nums;
+}
+
+/* =============================================
+   ✂️ TEXT OVERFLOW
+   ============================================= */
+.u-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.u-text-ellipsis {
+    text-overflow: ellipsis;
+}
+
+.u-text-clip {
+    text-overflow: clip;
+}
+
+/* =============================================
+   📐 WHITESPACE
+   ============================================= */
+.u-whitespace-normal {
+    white-space: normal;
+}
+
+.u-whitespace-nowrap {
+    white-space: nowrap;
+}
+
+.u-whitespace-pre {
+    white-space: pre;
+}
+
+.u-whitespace-pre-line {
+    white-space: pre-line;
+}
+
+.u-whitespace-pre-wrap {
+    white-space: pre-wrap;
+}
+
+.u-whitespace-break-spaces {
+    white-space: break-spaces;
+}
+
+/* =============================================
+   📐 WORD BREAK
+   ============================================= */
+.u-break-normal {
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
+.u-break-words {
+    overflow-wrap: break-word;
+}
+
+.u-break-all {
+    word-break: break-all;
+}
+
+.u-break-keep {
+    word-break: keep-all;
+}
+
+/* =============================================
+   📐 TEXT INDENT
+   ============================================= */
+.u-indent-0 {
+    text-indent: 0;
+}
+
+.u-indent-1 {
+    text-indent: var(--spacing-1);
+}
+
+.u-indent-2 {
+    text-indent: var(--spacing-2);
+}
+
+.u-indent-4 {
+    text-indent: var(--spacing-4);
+}
+
+.u-indent-8 {
+    text-indent: var(--spacing-8);
+}
+
+/* =============================================
+   📐 VERTICAL ALIGNMENT
+   ============================================= */
+.u-align-baseline {
+    vertical-align: baseline;
+}
+
+.u-align-top {
+    vertical-align: top;
+}
+
+.u-align-middle {
+    vertical-align: middle;
+}
+
+.u-align-bottom {
+    vertical-align: bottom;
+}
+
+.u-align-text-top {
+    vertical-align: text-top;
+}
+
+.u-align-text-bottom {
+    vertical-align: text-bottom;
+}
+
+.u-align-sub {
+    vertical-align: sub;
+}
+
+.u-align-super {
+    vertical-align: super;
+}
+
+/* =============================================
+   🎯 LINE CLAMP (Multi-line truncation)
+   =============================================
+   여러 줄 텍스트 자르기 (말줄임표)
+   ============================================= */
+.u-line-clamp-1 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    overflow: hidden;
+}
+
+.u-line-clamp-2 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+}
+
+.u-line-clamp-3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+}
+
+.u-line-clamp-4 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    overflow: hidden;
+}
+
+.u-line-clamp-5 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 5;
+    overflow: hidden;
+}
+
+.u-line-clamp-none {
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: horizontal;
+    overflow: visible;
+}
+
+/* =============================================
+   🔤 TEXT SELECTION
+   ============================================= */
+.u-select-none {
+    user-select: none;
+}
+
+.u-select-text {
+    user-select: text;
+}
+
+.u-select-all {
+    user-select: all;
+}
+
+.u-select-auto {
+    user-select: auto;
+}
+
+/* =============================================
+   🎯 SPECIAL TEXT CLASSES
+   =============================================
+   특수 목적 텍스트 클래스
+   ============================================= */
+
+/* Equipment ID 스타일 */
+.u-text-equipment-id {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: 0.5px;
+}
+
+/* 데이터 값 스타일 */
+.u-text-data-value {
+    font-family: var(--font-family-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+/* 타임스탬프 스타일 */
+.u-text-timestamp {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    color: var(--content-muted);
+}
+
+/* 좌표값 스타일 */
+.u-text-coordinate {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+    color: var(--content-tertiary);
+}
+
+/* 라벨 스타일 */
+.u-text-label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* 패널 타이틀 스타일 */
+.u-text-panel-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--interactive-primary);
+}

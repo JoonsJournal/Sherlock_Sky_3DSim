@@ -3,16 +3,22 @@
  * ========
  * SHERLOCK SKY 3DSim - CSS 진입점
  * 
- * @version 3.0.0 (Design Token 아키텍처)
- * @updated 2026-01-16 (Phase 1: Foundation 완료)
+ * @version 3.1.0 (Utilities 추가)
+ * @updated 2026-01-16 (Phase 2: Utilities 완료)
  * 
  * [ARCHITECTURE]
  * Layer 1: Design Tokens (primitives, semantic-light, semantic-dark, legacy-mapping)
- * Layer 2: Base Styles (reset, typography)
- * Layer 3: Components (22개 컴포넌트)
- * Layer 4: Pages (viewer-3d, layout-editor)
+ * Layer 2: Utilities (layout, spacing, text, position, effects) ← 🆕 추가
+ * Layer 3: Base Styles (reset, typography)
+ * Layer 4: Components (22개 컴포넌트)
+ * Layer 5: Pages (viewer-3d, layout-editor)
  * 
  * [CHANGELOG]
+ * - v3.1.0: Utilities 레이어 추가
+ *   - utilities/ 폴더 추가 (5개 파일)
+ *   - u-* 접두사 유틸리티 클래스 도입
+ *   - Glassmorphism/Glow 유틸리티 제공
+ * 
  * - v3.0.0: Design Token 아키텍처 전환
  *   - tokens/ 폴더 추가 (4개 파일)
  *   - Inter + JetBrains Mono 폰트 도입
@@ -34,13 +40,26 @@
 @import './base/_variables.css';
 
 /* =============================================
-   Layer 2: Base Styles
+   Layer 2: Utility Classes (🆕 Phase 2)
+   =============================================
+   BEM과 함께 사용하는 유틸리티 클래스
+   - u-flex, u-p-4, u-glass 등
+   - 컴포넌트보다 먼저 로드하여 오버라이드 가능
+   ============================================= */
+@import './utilities/_layout.css';
+@import './utilities/_spacing.css';
+@import './utilities/_text.css';
+@import './utilities/_position.css';
+@import './utilities/_effects.css';
+
+/* =============================================
+   Layer 3: Base Styles
    ============================================= */
 @import './base/_reset.css';
 @import './base/_typography.css';
 
 /* =============================================
-   Layer 3: Component Styles - Core
+   Layer 4: Component Styles - Core
    ============================================= */
 @import './components/_buttons.css';
 @import './components/_modals.css';
@@ -103,7 +122,7 @@
 @import './components/_misc.css';
 
 /* =============================================
-   Layer 4: Page Styles
+   Layer 5: Page Styles
    ============================================= */
 @import './pages/_viewer-3d.css';
 @import './pages/_layout-editor.css';

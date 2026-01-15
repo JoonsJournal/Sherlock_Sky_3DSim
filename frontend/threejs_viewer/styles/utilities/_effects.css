@@ -1,0 +1,830 @@
+/**
+ * _effects.css
+ * ============
+ * SHERLOCK SKY 3DSim - Visual Effects Utility Classes
+ * 
+ * Glass, Glow, Shadow, Border, Opacity 관련 유틸리티 클래스
+ * Design Token 시스템의 --glass-*, --glow-*, --shadow-* 변수 기반
+ * 
+ * @version 3.0.0
+ * @created 2026-01-16 (Phase 2: Utilities)
+ * @based-on Design Token System (_semantic-light.css, _semantic-dark.css)
+ * 
+ * [KEY FEATURES]
+ * ⭐ u-glass: Glassmorphism 효과 한번에 적용
+ * ⭐ u-glow-*: Dark Mode 전용 Glow 효과
+ * ⭐ u-shadow-*: 테마별 자동 Shadow 적용
+ * 
+ * [USAGE EXAMPLE]
+ * <div class="equipment-panel u-glass u-shadow-lg">
+ *   Glassmorphism panel with shadow
+ * </div>
+ */
+
+/* =============================================
+   ✨ GLASSMORPHISM (핵심!)
+   =============================================
+   3D Scene 위 오버레이 패널에 적용
+   Light: 흰색 반투명 + blur
+   Dark: 어두운 반투명 + blur (Smoke Glass)
+   ============================================= */
+
+/* 기본 Glass 효과 */
+.u-glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+}
+
+/* 강한 Glass 효과 */
+.u-glass-strong {
+    background: var(--glass-bg-strong);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border-strong);
+}
+
+/* Glass with Shadow */
+.u-glass-elevated {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+}
+
+/* Glass with elevated Shadow */
+.u-glass-elevated-strong {
+    background: var(--glass-bg-strong);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border-strong);
+    box-shadow: var(--glass-shadow-elevated);
+}
+
+/* =============================================
+   ⚡ GLOW EFFECTS (Dark Mode 핵심!)
+   =============================================
+   Cybernetic 느낌의 발광 효과
+   Light Mode에서는 none으로 무시됨
+   ============================================= */
+
+/* Primary Glow (Cyan in Dark, none in Light) */
+.u-glow-primary {
+    box-shadow: var(--glow-primary);
+}
+
+.u-glow-primary-strong {
+    box-shadow: var(--glow-primary-strong);
+}
+
+.u-glow-primary-subtle {
+    box-shadow: var(--glow-primary-subtle);
+}
+
+/* Success Glow (Green) */
+.u-glow-success {
+    box-shadow: var(--glow-success);
+}
+
+.u-glow-success-strong {
+    box-shadow: var(--glow-success-strong);
+}
+
+/* Error Glow (Red) */
+.u-glow-error {
+    box-shadow: var(--glow-error);
+}
+
+.u-glow-error-strong {
+    box-shadow: var(--glow-error-strong);
+}
+
+/* Warning Glow (Yellow) */
+.u-glow-warning {
+    box-shadow: var(--glow-warning);
+}
+
+.u-glow-warning-strong {
+    box-shadow: var(--glow-warning-strong);
+}
+
+/* Info Glow (Cyan) */
+.u-glow-info {
+    box-shadow: var(--glow-info);
+}
+
+/* Glow 제거 */
+.u-glow-none {
+    box-shadow: none;
+}
+
+/* =============================================
+   🔲 SHADOWS
+   =============================================
+   테마별 자동 적용 Shadow
+   ============================================= */
+.u-shadow-none {
+    box-shadow: none;
+}
+
+.u-shadow-xs {
+    box-shadow: var(--shadow-xs-value);
+}
+
+.u-shadow-sm {
+    box-shadow: var(--shadow-sm-value);
+}
+
+.u-shadow-md {
+    box-shadow: var(--shadow-md-value);
+}
+
+.u-shadow-lg {
+    box-shadow: var(--shadow-lg-value);
+}
+
+.u-shadow-xl {
+    box-shadow: var(--shadow-xl-value);
+}
+
+.u-shadow-2xl {
+    box-shadow: var(--shadow-2xl-value);
+}
+
+.u-shadow-overlay {
+    box-shadow: var(--shadow-overlay);
+}
+
+.u-shadow-panel {
+    box-shadow: var(--shadow-panel);
+}
+
+/* Inner Shadow */
+.u-shadow-inner {
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* =============================================
+   🔘 BORDER RADIUS
+   ============================================= */
+.u-rounded-none {
+    border-radius: var(--radius-none);
+}
+
+.u-rounded-sm {
+    border-radius: var(--radius-sm);
+}
+
+.u-rounded-md {
+    border-radius: var(--radius-md);
+}
+
+.u-rounded {
+    border-radius: var(--radius-md);
+}
+
+.u-rounded-lg {
+    border-radius: var(--radius-lg);
+}
+
+.u-rounded-xl {
+    border-radius: var(--radius-xl);
+}
+
+.u-rounded-2xl {
+    border-radius: var(--radius-2xl);
+}
+
+.u-rounded-3xl {
+    border-radius: var(--radius-3xl);
+}
+
+.u-rounded-full {
+    border-radius: var(--radius-full);
+}
+
+/* Directional Border Radius */
+.u-rounded-t-none {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+.u-rounded-t-sm {
+    border-top-left-radius: var(--radius-sm);
+    border-top-right-radius: var(--radius-sm);
+}
+
+.u-rounded-t-md {
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
+}
+
+.u-rounded-t-lg {
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
+}
+
+.u-rounded-t-xl {
+    border-top-left-radius: var(--radius-xl);
+    border-top-right-radius: var(--radius-xl);
+}
+
+.u-rounded-b-none {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.u-rounded-b-sm {
+    border-bottom-left-radius: var(--radius-sm);
+    border-bottom-right-radius: var(--radius-sm);
+}
+
+.u-rounded-b-md {
+    border-bottom-left-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
+}
+
+.u-rounded-b-lg {
+    border-bottom-left-radius: var(--radius-lg);
+    border-bottom-right-radius: var(--radius-lg);
+}
+
+.u-rounded-b-xl {
+    border-bottom-left-radius: var(--radius-xl);
+    border-bottom-right-radius: var(--radius-xl);
+}
+
+.u-rounded-l-none {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.u-rounded-l-md {
+    border-top-left-radius: var(--radius-md);
+    border-bottom-left-radius: var(--radius-md);
+}
+
+.u-rounded-l-lg {
+    border-top-left-radius: var(--radius-lg);
+    border-bottom-left-radius: var(--radius-lg);
+}
+
+.u-rounded-r-none {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.u-rounded-r-md {
+    border-top-right-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
+}
+
+.u-rounded-r-lg {
+    border-top-right-radius: var(--radius-lg);
+    border-bottom-right-radius: var(--radius-lg);
+}
+
+/* =============================================
+   🔲 BORDER WIDTH
+   ============================================= */
+.u-border-0 {
+    border-width: var(--border-width-0);
+}
+
+.u-border {
+    border-width: var(--border-width-1);
+}
+
+.u-border-2 {
+    border-width: var(--border-width-2);
+}
+
+.u-border-4 {
+    border-width: var(--border-width-4);
+}
+
+.u-border-8 {
+    border-width: var(--border-width-8);
+}
+
+/* Directional Border */
+.u-border-t {
+    border-top-width: var(--border-width-1);
+}
+
+.u-border-t-0 {
+    border-top-width: 0;
+}
+
+.u-border-t-2 {
+    border-top-width: var(--border-width-2);
+}
+
+.u-border-b {
+    border-bottom-width: var(--border-width-1);
+}
+
+.u-border-b-0 {
+    border-bottom-width: 0;
+}
+
+.u-border-b-2 {
+    border-bottom-width: var(--border-width-2);
+}
+
+.u-border-l {
+    border-left-width: var(--border-width-1);
+}
+
+.u-border-l-0 {
+    border-left-width: 0;
+}
+
+.u-border-l-2 {
+    border-left-width: var(--border-width-2);
+}
+
+.u-border-l-4 {
+    border-left-width: var(--border-width-4);
+}
+
+.u-border-r {
+    border-right-width: var(--border-width-1);
+}
+
+.u-border-r-0 {
+    border-right-width: 0;
+}
+
+.u-border-r-2 {
+    border-right-width: var(--border-width-2);
+}
+
+/* =============================================
+   🎨 BORDER COLORS (Semantic)
+   ============================================= */
+.u-border-transparent {
+    border-color: transparent;
+}
+
+.u-border-subtle {
+    border-color: var(--border-subtle);
+}
+
+.u-border-default {
+    border-color: var(--border-default);
+}
+
+.u-border-strong {
+    border-color: var(--border-strong);
+}
+
+.u-border-focus {
+    border-color: var(--border-focus);
+}
+
+.u-border-error {
+    border-color: var(--border-error);
+}
+
+.u-border-success {
+    border-color: var(--border-success);
+}
+
+/* Brand Color Borders */
+.u-border-primary {
+    border-color: var(--interactive-primary);
+}
+
+.u-border-danger {
+    border-color: var(--interactive-danger);
+}
+
+.u-border-warning {
+    border-color: var(--interactive-warning);
+}
+
+.u-border-info {
+    border-color: var(--interactive-info);
+}
+
+/* =============================================
+   🖼️ BORDER STYLE
+   ============================================= */
+.u-border-solid {
+    border-style: solid;
+}
+
+.u-border-dashed {
+    border-style: dashed;
+}
+
+.u-border-dotted {
+    border-style: dotted;
+}
+
+.u-border-double {
+    border-style: double;
+}
+
+.u-border-none {
+    border-style: none;
+}
+
+/* =============================================
+   🎭 OPACITY
+   ============================================= */
+.u-opacity-0 {
+    opacity: var(--opacity-0);
+}
+
+.u-opacity-5 {
+    opacity: var(--opacity-5);
+}
+
+.u-opacity-10 {
+    opacity: var(--opacity-10);
+}
+
+.u-opacity-20 {
+    opacity: var(--opacity-20);
+}
+
+.u-opacity-25 {
+    opacity: var(--opacity-25);
+}
+
+.u-opacity-30 {
+    opacity: var(--opacity-30);
+}
+
+.u-opacity-40 {
+    opacity: var(--opacity-40);
+}
+
+.u-opacity-50 {
+    opacity: var(--opacity-50);
+}
+
+.u-opacity-60 {
+    opacity: var(--opacity-60);
+}
+
+.u-opacity-70 {
+    opacity: var(--opacity-70);
+}
+
+.u-opacity-75 {
+    opacity: var(--opacity-75);
+}
+
+.u-opacity-80 {
+    opacity: var(--opacity-80);
+}
+
+.u-opacity-90 {
+    opacity: var(--opacity-90);
+}
+
+.u-opacity-95 {
+    opacity: var(--opacity-95);
+}
+
+.u-opacity-100 {
+    opacity: var(--opacity-100);
+}
+
+/* =============================================
+   🎨 BACKGROUND COLORS (Semantic)
+   ============================================= */
+.u-bg-transparent {
+    background-color: transparent;
+}
+
+.u-bg-app {
+    background-color: var(--surface-app-bg);
+}
+
+.u-bg-panel {
+    background-color: var(--surface-panel);
+}
+
+.u-bg-surface {
+    background-color: var(--surface-primary);
+}
+
+.u-bg-surface-secondary {
+    background-color: var(--surface-secondary);
+}
+
+.u-bg-surface-hover {
+    background-color: var(--surface-primary-hover);
+}
+
+.u-bg-surface-selected {
+    background-color: var(--surface-primary-selected);
+}
+
+/* Interactive Background Colors */
+.u-bg-primary {
+    background-color: var(--interactive-primary);
+}
+
+.u-bg-primary-subtle {
+    background-color: var(--interactive-primary-subtle);
+}
+
+.u-bg-success {
+    background-color: var(--interactive-success);
+}
+
+.u-bg-success-subtle {
+    background-color: var(--interactive-success-subtle);
+}
+
+.u-bg-danger {
+    background-color: var(--interactive-danger);
+}
+
+.u-bg-danger-subtle {
+    background-color: var(--interactive-danger-subtle);
+}
+
+.u-bg-warning {
+    background-color: var(--interactive-warning);
+}
+
+.u-bg-warning-subtle {
+    background-color: var(--interactive-warning-subtle);
+}
+
+/* =============================================
+   🔲 BACKDROP BLUR
+   ============================================= */
+.u-backdrop-blur-none {
+    backdrop-filter: blur(var(--blur-none));
+    -webkit-backdrop-filter: blur(var(--blur-none));
+}
+
+.u-backdrop-blur-sm {
+    backdrop-filter: blur(var(--blur-sm));
+    -webkit-backdrop-filter: blur(var(--blur-sm));
+}
+
+.u-backdrop-blur-md {
+    backdrop-filter: blur(var(--blur-md));
+    -webkit-backdrop-filter: blur(var(--blur-md));
+}
+
+.u-backdrop-blur {
+    backdrop-filter: blur(var(--blur-lg));
+    -webkit-backdrop-filter: blur(var(--blur-lg));
+}
+
+.u-backdrop-blur-lg {
+    backdrop-filter: blur(var(--blur-lg));
+    -webkit-backdrop-filter: blur(var(--blur-lg));
+}
+
+.u-backdrop-blur-xl {
+    backdrop-filter: blur(var(--blur-xl));
+    -webkit-backdrop-filter: blur(var(--blur-xl));
+}
+
+.u-backdrop-blur-2xl {
+    backdrop-filter: blur(var(--blur-2xl));
+    -webkit-backdrop-filter: blur(var(--blur-2xl));
+}
+
+.u-backdrop-blur-3xl {
+    backdrop-filter: blur(var(--blur-3xl));
+    -webkit-backdrop-filter: blur(var(--blur-3xl));
+}
+
+/* =============================================
+   ⏱️ TRANSITIONS
+   ============================================= */
+.u-transition-none {
+    transition-property: none;
+}
+
+.u-transition-all {
+    transition-property: all;
+    transition-timing-function: var(--ease-default);
+    transition-duration: var(--transition-base);
+}
+
+.u-transition {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+    transition-timing-function: var(--ease-default);
+    transition-duration: var(--transition-base);
+}
+
+.u-transition-colors {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-timing-function: var(--ease-default);
+    transition-duration: var(--transition-base);
+}
+
+.u-transition-opacity {
+    transition-property: opacity;
+    transition-timing-function: var(--ease-default);
+    transition-duration: var(--transition-base);
+}
+
+.u-transition-shadow {
+    transition-property: box-shadow;
+    transition-timing-function: var(--ease-default);
+    transition-duration: var(--transition-base);
+}
+
+.u-transition-transform {
+    transition-property: transform;
+    transition-timing-function: var(--ease-default);
+    transition-duration: var(--transition-base);
+}
+
+/* Transition Duration */
+.u-duration-fast {
+    transition-duration: var(--transition-fast);
+}
+
+.u-duration-base {
+    transition-duration: var(--transition-base);
+}
+
+.u-duration-slow {
+    transition-duration: var(--transition-slow);
+}
+
+.u-duration-slower {
+    transition-duration: var(--transition-slower);
+}
+
+/* Transition Easing */
+.u-ease-default {
+    transition-timing-function: var(--ease-default);
+}
+
+.u-ease-in {
+    transition-timing-function: var(--ease-in);
+}
+
+.u-ease-out {
+    transition-timing-function: var(--ease-default);
+}
+
+.u-ease-in-out {
+    transition-timing-function: var(--ease-in-out);
+}
+
+.u-ease-linear {
+    transition-timing-function: var(--ease-linear);
+}
+
+/* =============================================
+   🖱️ CURSOR
+   ============================================= */
+.u-cursor-auto {
+    cursor: auto;
+}
+
+.u-cursor-default {
+    cursor: default;
+}
+
+.u-cursor-pointer {
+    cursor: pointer;
+}
+
+.u-cursor-wait {
+    cursor: wait;
+}
+
+.u-cursor-text {
+    cursor: text;
+}
+
+.u-cursor-move {
+    cursor: move;
+}
+
+.u-cursor-help {
+    cursor: help;
+}
+
+.u-cursor-not-allowed {
+    cursor: not-allowed;
+}
+
+.u-cursor-none {
+    cursor: none;
+}
+
+.u-cursor-grab {
+    cursor: grab;
+}
+
+.u-cursor-grabbing {
+    cursor: grabbing;
+}
+
+.u-cursor-crosshair {
+    cursor: crosshair;
+}
+
+.u-cursor-zoom-in {
+    cursor: zoom-in;
+}
+
+.u-cursor-zoom-out {
+    cursor: zoom-out;
+}
+
+/* =============================================
+   🎨 SPECIAL EFFECT COMBINATIONS
+   =============================================
+   자주 사용하는 효과 조합
+   ============================================= */
+
+/* Panel with Glass + Shadow */
+.u-panel-glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--glass-shadow);
+}
+
+/* Card with Surface + Shadow */
+.u-card {
+    background: var(--surface-panel);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm-value);
+}
+
+/* Elevated Card */
+.u-card-elevated {
+    background: var(--surface-panel);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md-value);
+}
+
+/* Status Indicator with Glow (Dark Mode) */
+.u-status-running {
+    background: var(--status-running);
+    box-shadow: var(--glow-success);
+}
+
+.u-status-idle {
+    background: var(--status-idle);
+    box-shadow: var(--glow-warning);
+}
+
+.u-status-alarm {
+    background: var(--status-alarm);
+    box-shadow: var(--glow-error);
+}
+
+/* Input Focus Ring */
+.u-focus-ring {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--input-focus-ring);
+}
+
+/* Overlay Backdrop */
+.u-overlay-backdrop {
+    background: var(--overlay-bg);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+}
+
+/* =============================================
+   🎭 DIVIDE UTILITIES
+   =============================================
+   자식 요소 사이 구분선
+   ============================================= */
+.u-divide-y > * + * {
+    border-top-width: 1px;
+    border-top-style: solid;
+    border-top-color: var(--border-default);
+}
+
+.u-divide-x > * + * {
+    border-left-width: 1px;
+    border-left-style: solid;
+    border-left-color: var(--border-default);
+}
+
+.u-divide-subtle > * + * {
+    border-color: var(--border-subtle);
+}
+
+.u-divide-strong > * + * {
+    border-color: var(--border-strong);
+}

@@ -1,0 +1,647 @@
+/**
+ * _layout.css
+ * ===========
+ * SHERLOCK SKY 3DSim - Layout Utility Classes
+ * 
+ * Flexbox, Grid, Display, Gap 관련 유틸리티 클래스
+ * 모든 클래스는 `u-` 접두사 사용 (BEM Utility Convention)
+ * 
+ * @version 3.0.0
+ * @created 2026-01-16 (Phase 2: Utilities)
+ * @based-on Design Token System (_primitives.css)
+ * 
+ * [USAGE EXAMPLE]
+ * <div class="equipment-panel__header u-flex u-justify-between u-items-center">
+ *   <h2 class="equipment-panel__title">Title</h2>
+ *   <button class="equipment-panel__close">×</button>
+ * </div>
+ */
+
+/* =============================================
+   📦 DISPLAY
+   ============================================= */
+.u-block {
+    display: block;
+}
+
+.u-inline-block {
+    display: inline-block;
+}
+
+.u-inline {
+    display: inline;
+}
+
+.u-flex {
+    display: flex;
+}
+
+.u-inline-flex {
+    display: inline-flex;
+}
+
+.u-grid {
+    display: grid;
+}
+
+.u-inline-grid {
+    display: inline-grid;
+}
+
+.u-hidden {
+    display: none;
+}
+
+.u-contents {
+    display: contents;
+}
+
+/* =============================================
+   ➡️ FLEX DIRECTION
+   ============================================= */
+.u-flex-row {
+    flex-direction: row;
+}
+
+.u-flex-row-reverse {
+    flex-direction: row-reverse;
+}
+
+.u-flex-col {
+    flex-direction: column;
+}
+
+.u-flex-col-reverse {
+    flex-direction: column-reverse;
+}
+
+/* =============================================
+   🔄 FLEX WRAP
+   ============================================= */
+.u-flex-wrap {
+    flex-wrap: wrap;
+}
+
+.u-flex-wrap-reverse {
+    flex-wrap: wrap-reverse;
+}
+
+.u-flex-nowrap {
+    flex-wrap: nowrap;
+}
+
+/* =============================================
+   ↔️ JUSTIFY CONTENT
+   ============================================= */
+.u-justify-start {
+    justify-content: flex-start;
+}
+
+.u-justify-end {
+    justify-content: flex-end;
+}
+
+.u-justify-center {
+    justify-content: center;
+}
+
+.u-justify-between {
+    justify-content: space-between;
+}
+
+.u-justify-around {
+    justify-content: space-around;
+}
+
+.u-justify-evenly {
+    justify-content: space-evenly;
+}
+
+/* =============================================
+   ↕️ ALIGN ITEMS
+   ============================================= */
+.u-items-start {
+    align-items: flex-start;
+}
+
+.u-items-end {
+    align-items: flex-end;
+}
+
+.u-items-center {
+    align-items: center;
+}
+
+.u-items-baseline {
+    align-items: baseline;
+}
+
+.u-items-stretch {
+    align-items: stretch;
+}
+
+/* =============================================
+   🎯 ALIGN SELF
+   ============================================= */
+.u-self-auto {
+    align-self: auto;
+}
+
+.u-self-start {
+    align-self: flex-start;
+}
+
+.u-self-end {
+    align-self: flex-end;
+}
+
+.u-self-center {
+    align-self: center;
+}
+
+.u-self-stretch {
+    align-self: stretch;
+}
+
+.u-self-baseline {
+    align-self: baseline;
+}
+
+/* =============================================
+   📐 ALIGN CONTENT (Multi-line flex)
+   ============================================= */
+.u-content-start {
+    align-content: flex-start;
+}
+
+.u-content-end {
+    align-content: flex-end;
+}
+
+.u-content-center {
+    align-content: center;
+}
+
+.u-content-between {
+    align-content: space-between;
+}
+
+.u-content-around {
+    align-content: space-around;
+}
+
+.u-content-evenly {
+    align-content: space-evenly;
+}
+
+/* =============================================
+   📊 FLEX GROW / SHRINK / BASIS
+   ============================================= */
+.u-flex-1 {
+    flex: 1 1 0%;
+}
+
+.u-flex-auto {
+    flex: 1 1 auto;
+}
+
+.u-flex-initial {
+    flex: 0 1 auto;
+}
+
+.u-flex-none {
+    flex: none;
+}
+
+.u-grow {
+    flex-grow: 1;
+}
+
+.u-grow-0 {
+    flex-grow: 0;
+}
+
+.u-shrink {
+    flex-shrink: 1;
+}
+
+.u-shrink-0 {
+    flex-shrink: 0;
+}
+
+/* =============================================
+   🔢 ORDER
+   ============================================= */
+.u-order-first {
+    order: -9999;
+}
+
+.u-order-last {
+    order: 9999;
+}
+
+.u-order-none {
+    order: 0;
+}
+
+.u-order-1 {
+    order: 1;
+}
+
+.u-order-2 {
+    order: 2;
+}
+
+.u-order-3 {
+    order: 3;
+}
+
+/* =============================================
+   📏 GAP (Design Token 기반)
+   ============================================= */
+.u-gap-0 {
+    gap: var(--spacing-0);
+}
+
+.u-gap-px {
+    gap: var(--spacing-px);
+}
+
+.u-gap-0-5 {
+    gap: var(--spacing-0-5);
+}
+
+.u-gap-1 {
+    gap: var(--spacing-1);
+}
+
+.u-gap-1-5 {
+    gap: var(--spacing-1-5);
+}
+
+.u-gap-2 {
+    gap: var(--spacing-2);
+}
+
+.u-gap-2-5 {
+    gap: var(--spacing-2-5);
+}
+
+.u-gap-3 {
+    gap: var(--spacing-3);
+}
+
+.u-gap-3-5 {
+    gap: var(--spacing-3-5);
+}
+
+.u-gap-4 {
+    gap: var(--spacing-4);
+}
+
+.u-gap-5 {
+    gap: var(--spacing-5);
+}
+
+.u-gap-6 {
+    gap: var(--spacing-6);
+}
+
+.u-gap-7 {
+    gap: var(--spacing-7);
+}
+
+.u-gap-8 {
+    gap: var(--spacing-8);
+}
+
+.u-gap-10 {
+    gap: var(--spacing-10);
+}
+
+.u-gap-12 {
+    gap: var(--spacing-12);
+}
+
+/* Gap X (Column Gap) */
+.u-gap-x-0 {
+    column-gap: var(--spacing-0);
+}
+
+.u-gap-x-1 {
+    column-gap: var(--spacing-1);
+}
+
+.u-gap-x-2 {
+    column-gap: var(--spacing-2);
+}
+
+.u-gap-x-3 {
+    column-gap: var(--spacing-3);
+}
+
+.u-gap-x-4 {
+    column-gap: var(--spacing-4);
+}
+
+.u-gap-x-6 {
+    column-gap: var(--spacing-6);
+}
+
+.u-gap-x-8 {
+    column-gap: var(--spacing-8);
+}
+
+/* Gap Y (Row Gap) */
+.u-gap-y-0 {
+    row-gap: var(--spacing-0);
+}
+
+.u-gap-y-1 {
+    row-gap: var(--spacing-1);
+}
+
+.u-gap-y-2 {
+    row-gap: var(--spacing-2);
+}
+
+.u-gap-y-3 {
+    row-gap: var(--spacing-3);
+}
+
+.u-gap-y-4 {
+    row-gap: var(--spacing-4);
+}
+
+.u-gap-y-6 {
+    row-gap: var(--spacing-6);
+}
+
+.u-gap-y-8 {
+    row-gap: var(--spacing-8);
+}
+
+/* =============================================
+   🔲 GRID TEMPLATE COLUMNS
+   ============================================= */
+.u-grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.u-grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.u-grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.u-grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.u-grid-cols-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.u-grid-cols-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.u-grid-cols-12 {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.u-grid-cols-none {
+    grid-template-columns: none;
+}
+
+/* =============================================
+   📐 GRID TEMPLATE ROWS
+   ============================================= */
+.u-grid-rows-1 {
+    grid-template-rows: repeat(1, minmax(0, 1fr));
+}
+
+.u-grid-rows-2 {
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+
+.u-grid-rows-3 {
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+}
+
+.u-grid-rows-4 {
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+}
+
+.u-grid-rows-none {
+    grid-template-rows: none;
+}
+
+/* =============================================
+   📍 GRID COLUMN SPAN
+   ============================================= */
+.u-col-auto {
+    grid-column: auto;
+}
+
+.u-col-span-1 {
+    grid-column: span 1 / span 1;
+}
+
+.u-col-span-2 {
+    grid-column: span 2 / span 2;
+}
+
+.u-col-span-3 {
+    grid-column: span 3 / span 3;
+}
+
+.u-col-span-4 {
+    grid-column: span 4 / span 4;
+}
+
+.u-col-span-6 {
+    grid-column: span 6 / span 6;
+}
+
+.u-col-span-12 {
+    grid-column: span 12 / span 12;
+}
+
+.u-col-span-full {
+    grid-column: 1 / -1;
+}
+
+/* =============================================
+   📍 GRID ROW SPAN
+   ============================================= */
+.u-row-auto {
+    grid-row: auto;
+}
+
+.u-row-span-1 {
+    grid-row: span 1 / span 1;
+}
+
+.u-row-span-2 {
+    grid-row: span 2 / span 2;
+}
+
+.u-row-span-3 {
+    grid-row: span 3 / span 3;
+}
+
+.u-row-span-full {
+    grid-row: 1 / -1;
+}
+
+/* =============================================
+   📐 WIDTH & HEIGHT
+   ============================================= */
+.u-w-full {
+    width: 100%;
+}
+
+.u-w-auto {
+    width: auto;
+}
+
+.u-w-screen {
+    width: 100vw;
+}
+
+.u-w-min {
+    width: min-content;
+}
+
+.u-w-max {
+    width: max-content;
+}
+
+.u-w-fit {
+    width: fit-content;
+}
+
+.u-h-full {
+    height: 100%;
+}
+
+.u-h-auto {
+    height: auto;
+}
+
+.u-h-screen {
+    height: 100vh;
+}
+
+.u-h-min {
+    height: min-content;
+}
+
+.u-h-max {
+    height: max-content;
+}
+
+.u-h-fit {
+    height: fit-content;
+}
+
+.u-min-w-0 {
+    min-width: 0;
+}
+
+.u-min-w-full {
+    min-width: 100%;
+}
+
+.u-min-h-0 {
+    min-height: 0;
+}
+
+.u-min-h-full {
+    min-height: 100%;
+}
+
+.u-min-h-screen {
+    min-height: 100vh;
+}
+
+.u-max-w-full {
+    max-width: 100%;
+}
+
+.u-max-h-full {
+    max-height: 100%;
+}
+
+.u-max-h-screen {
+    max-height: 100vh;
+}
+
+/* =============================================
+   🔄 OVERFLOW
+   ============================================= */
+.u-overflow-auto {
+    overflow: auto;
+}
+
+.u-overflow-hidden {
+    overflow: hidden;
+}
+
+.u-overflow-visible {
+    overflow: visible;
+}
+
+.u-overflow-scroll {
+    overflow: scroll;
+}
+
+.u-overflow-x-auto {
+    overflow-x: auto;
+}
+
+.u-overflow-y-auto {
+    overflow-y: auto;
+}
+
+.u-overflow-x-hidden {
+    overflow-x: hidden;
+}
+
+.u-overflow-y-hidden {
+    overflow-y: hidden;
+}
+
+/* =============================================
+   🎯 PLACE ITEMS / PLACE CONTENT (Grid)
+   ============================================= */
+.u-place-items-center {
+    place-items: center;
+}
+
+.u-place-items-start {
+    place-items: start;
+}
+
+.u-place-items-end {
+    place-items: end;
+}
+
+.u-place-content-center {
+    place-content: center;
+}
+
+.u-place-content-start {
+    place-content: start;
+}
+
+.u-place-content-end {
+    place-content: end;
+}
+
+.u-place-content-between {
+    place-content: space-between;
+}
