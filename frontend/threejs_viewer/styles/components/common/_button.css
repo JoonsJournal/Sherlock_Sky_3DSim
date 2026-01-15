@@ -1,0 +1,568 @@
+/**
+ * _button.css
+ * ===========
+ * 모든 버튼 스타일 - BEM 리팩토링 버전
+ * 
+ * Block: .btn
+ * 
+ * @version 4.0.0 (BEM Refactoring)
+ * @updated 2026-01-15
+ * 
+ * [BEM 구조]
+ * .btn                     → Block
+ * .btn__icon               → Element
+ * .btn__text               → Element
+ * .btn__spinner            → Element
+ * .btn--primary            → Modifier (컬러)
+ * .btn--secondary          → Modifier (컬러)
+ * .btn--danger             → Modifier (컬러)
+ * .btn--success            → Modifier (컬러)
+ * .btn--ghost              → Modifier (컬러)
+ * .btn--sm                 → Modifier (크기)
+ * .btn--md                 → Modifier (크기)
+ * .btn--lg                 → Modifier (크기)
+ * .btn--disabled           → Modifier (상태)
+ * .btn--loading            → Modifier (상태)
+ * .btn--overlay            → Modifier (3D 오버레이용)
+ * 
+ * [Interactive States]
+ * Normal → Hover → Active → Disabled
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/common/_button.css
+ */
+
+/* =============================================
+   Button - Block (Base)
+   ============================================= */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-1-5);
+    padding: var(--spacing-2-5) var(--spacing-5);
+    border: none;
+    border-radius: var(--radius-md);
+    
+    /* Typography */
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    font-family: var(--font-family-base);
+    text-decoration: none;
+    
+    /* Interaction */
+    cursor: pointer;
+    transition: var(--transition-fast);
+    outline: none;
+}
+
+.btn:focus-visible {
+    box-shadow: 0 0 0 3px var(--border-focus);
+}
+
+/* =============================================
+   Button Sizes - Modifiers
+   ============================================= */
+.btn--sm {
+    padding: var(--spacing-1) var(--spacing-2);
+    font-size: var(--font-size-sm);
+    min-width: 60px;
+}
+
+.btn--md {
+    padding: var(--spacing-2) var(--spacing-4);
+    font-size: var(--font-size-base);
+    min-width: 80px;
+}
+
+.btn--lg {
+    padding: var(--spacing-3) var(--spacing-6);
+    font-size: var(--font-size-md);
+    min-width: 100px;
+}
+
+/* =============================================
+   Button Colors - Primary
+   ============================================= */
+.btn--primary {
+    background: var(--interactive-primary-normal);
+    color: var(--content-inverse);
+}
+
+.btn--primary:hover:not(:disabled):not(.btn--disabled) {
+    background: var(--interactive-primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btn--primary:active:not(:disabled):not(.btn--disabled) {
+    background: var(--interactive-primary-active);
+    transform: translateY(0);
+}
+
+.btn--primary:disabled,
+.btn--primary.btn--disabled {
+    background: var(--interactive-primary-disabled);
+}
+
+/* =============================================
+   Button Colors - Secondary
+   ============================================= */
+.btn--secondary {
+    background: var(--interactive-secondary-normal);
+    color: var(--content-inverse);
+}
+
+.btn--secondary:hover:not(:disabled):not(.btn--disabled) {
+    background: var(--interactive-secondary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
+}
+
+.btn--secondary:active:not(:disabled):not(.btn--disabled) {
+    background: var(--interactive-secondary-active);
+    transform: translateY(0);
+}
+
+.btn--secondary:disabled,
+.btn--secondary.btn--disabled {
+    background: var(--interactive-secondary-disabled);
+}
+
+/* =============================================
+   Button Colors - Danger
+   ============================================= */
+.btn--danger {
+    background: var(--interactive-danger-normal);
+    color: var(--content-inverse);
+}
+
+.btn--danger:hover:not(:disabled):not(.btn--disabled) {
+    background: var(--interactive-danger-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn--danger:active:not(:disabled):not(.btn--disabled) {
+    background: var(--interactive-danger-active);
+    transform: translateY(0);
+}
+
+.btn--danger:disabled,
+.btn--danger.btn--disabled {
+    background: var(--interactive-danger-disabled);
+}
+
+/* =============================================
+   Button Colors - Success
+   ============================================= */
+.btn--success {
+    background: var(--interactive-success-normal);
+    color: var(--content-inverse);
+}
+
+.btn--success:hover:not(:disabled):not(.btn--disabled) {
+    background: var(--interactive-success-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+}
+
+.btn--success:active:not(:disabled):not(.btn--disabled) {
+    background: var(--interactive-success-active);
+    transform: translateY(0);
+}
+
+.btn--success:disabled,
+.btn--success.btn--disabled {
+    background: var(--interactive-success-disabled);
+}
+
+/* =============================================
+   Button Colors - Warning
+   ============================================= */
+.btn--warning {
+    background: var(--status-warning);
+    color: var(--content-primary);
+}
+
+.btn--warning:hover:not(:disabled):not(.btn--disabled) {
+    background: #e0a800;
+    transform: translateY(-2px);
+}
+
+.btn--warning:active:not(:disabled):not(.btn--disabled) {
+    transform: translateY(0);
+}
+
+/* =============================================
+   Button Colors - Ghost
+   ============================================= */
+.btn--ghost {
+    background: transparent;
+    color: var(--content-primary);
+    border: 1px solid var(--border-default);
+}
+
+.btn--ghost:hover:not(:disabled):not(.btn--disabled) {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+}
+
+.btn--ghost:active:not(:disabled):not(.btn--disabled) {
+    background: var(--surface-active);
+}
+
+/* =============================================
+   Button State - Disabled
+   ============================================= */
+.btn:disabled,
+.btn--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn:disabled:hover,
+.btn--disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* =============================================
+   Button State - Loading
+   ============================================= */
+.btn--loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.btn--loading .btn__text {
+    visibility: hidden;
+}
+
+.btn--loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: var(--radius-full);
+    animation: btn-spin 0.8s linear infinite;
+}
+
+@keyframes btn-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* =============================================
+   Button - Overlay Variants (3D Scene)
+   ============================================= */
+.btn--primary--overlay {
+    background: var(--interactive-primary-normal);
+    color: var(--content-inverse);
+}
+
+.btn--primary--overlay:hover:not(:disabled) {
+    background: var(--interactive-primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.btn--secondary--overlay {
+    background: var(--surface-secondary);
+    color: var(--content-primary);
+    border: 1px solid var(--border-default);
+}
+
+.btn--secondary--overlay:hover:not(:disabled) {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+}
+
+.btn--ghost--overlay {
+    background: transparent;
+    color: var(--content-primary);
+    border: 1px solid var(--border-default);
+}
+
+.btn--ghost--overlay:hover:not(:disabled) {
+    background: var(--surface-hover);
+}
+
+/* =============================================
+   Button Elements
+   ============================================= */
+.btn__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn__text {
+    display: inline-block;
+}
+
+.btn__spinner {
+    display: inline-block;
+    animation: btn-spin 1s linear infinite;
+}
+
+/* =============================================
+   Icon Button - Block
+   ============================================= */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: var(--surface-secondary);
+    color: var(--content-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.btn-icon:hover:not(:disabled) {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+    color: var(--content-primary);
+}
+
+.btn-icon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Icon Button Sizes */
+.btn-icon--sm {
+    width: 24px;
+    height: 24px;
+    font-size: var(--font-size-sm);
+}
+
+.btn-icon--lg {
+    width: 40px;
+    height: 40px;
+    font-size: var(--font-size-lg);
+}
+
+/* Icon Button - Overlay */
+.btn-icon--overlay {
+    background: transparent;
+    color: var(--content-muted);
+    border: none;
+}
+
+.btn-icon--overlay:hover:not(:disabled) {
+    background: var(--surface-hover);
+    color: var(--content-primary);
+}
+
+/* =============================================
+   Floating Button - Block
+   ============================================= */
+.floating-btn {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: var(--radius-full);
+    font-size: 24px;
+    cursor: pointer;
+    z-index: var(--z-fixed);
+    box-shadow: var(--shadow-md);
+    transition: var(--transition-normal);
+    color: var(--content-inverse);
+}
+
+.floating-btn:hover {
+    transform: scale(1.1);
+}
+
+/* Floating Button Tooltip */
+.floating-btn::after {
+    position: absolute;
+    left: 60px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--surface-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    color: var(--content-primary);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: var(--transition-fast);
+    border: 1px solid var(--glass-border);
+}
+
+.floating-btn:hover::after {
+    opacity: 1;
+}
+
+/* =============================================
+   Button Group
+   ============================================= */
+.btn-group {
+    display: inline-flex;
+}
+
+.btn-group .btn {
+    border-radius: 0;
+}
+
+.btn-group .btn:first-child {
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.btn-group .btn:last-child {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.btn-group .btn:not(:last-child) {
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* =============================================
+   Action Buttons
+   ============================================= */
+.btn-disconnect {
+    padding: var(--spacing-1) var(--spacing-3);
+    background: var(--status-error);
+    color: var(--content-inverse);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.btn-disconnect:hover {
+    background: var(--interactive-danger-hover);
+    transform: scale(1.05);
+}
+
+.btn-retry {
+    padding: var(--spacing-1) var(--spacing-3);
+    background: var(--status-warning);
+    color: var(--content-primary);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.btn-retry:hover {
+    background: #e0a800;
+    transform: scale(1.05);
+}
+
+.btn-select {
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--interactive-primary-normal);
+    color: var(--content-inverse);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.btn-select:hover:not(:disabled) {
+    background: var(--interactive-primary-hover);
+}
+
+.btn-select:disabled {
+    background: var(--border-strong);
+    cursor: not-allowed;
+}
+
+/* =============================================
+   Legacy Alias (하위 호환성)
+   ============================================= */
+.btn-primary {
+    background: var(--interactive-primary-normal);
+    color: var(--content-inverse);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--interactive-primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.btn-primary:active:not(:disabled) {
+    background: var(--interactive-primary-active);
+    transform: translateY(0);
+}
+
+.btn-secondary {
+    background: var(--interactive-secondary-normal);
+    color: var(--content-inverse);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--interactive-secondary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.btn-danger {
+    background: var(--interactive-danger-normal);
+    color: var(--content-inverse);
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: var(--interactive-danger-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.btn-success {
+    background: var(--interactive-success-normal);
+    color: var(--content-inverse);
+}
+
+.btn-success:hover:not(:disabled) {
+    background: var(--interactive-success-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+}
+
+.btn-warning {
+    background: var(--status-warning);
+    color: var(--content-primary);
+}
+
+.btn-warning:hover:not(:disabled) {
+    background: #e0a800;
+    transform: translateY(-2px);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--content-primary);
+    border: 1px solid var(--border-default);
+}
+
+.btn-ghost:hover:not(:disabled) {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+}
+
+/* =============================================
+   Animation
+   ============================================= */
+@keyframes btn-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}

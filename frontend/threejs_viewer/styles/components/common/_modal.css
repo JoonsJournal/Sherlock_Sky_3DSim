@@ -1,0 +1,372 @@
+/**
+ * _modal.css
+ * ==========
+ * Modal Dialog - BEM 리팩토링 버전
+ * 
+ * Block: .modal
+ * 
+ * @version 4.0.0 (BEM Refactoring)
+ * @updated 2026-01-15
+ * 
+ * [BEM 구조]
+ * .modal                      → Block
+ * .modal__overlay             → Element
+ * .modal__container           → Element
+ * .modal__header              → Element
+ * .modal__title               → Element
+ * .modal__close-btn           → Element
+ * .modal__body                → Element
+ * .modal__footer              → Element
+ * .modal--active              → Modifier
+ * .modal--large               → Modifier
+ * .modal--fullscreen          → Modifier
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/common/_modal.css
+ */
+
+/* =============================================
+   Modal Overlay - Element
+   ============================================= */
+.modal__overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: var(--z-modal);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal__overlay--active {
+    display: flex;
+    opacity: 1;
+}
+
+/* Legacy Alias */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: var(--z-modal);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* =============================================
+   Modal Container - Block
+   ============================================= */
+.modal {
+    position: relative;
+    background: var(--surface-panel);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    min-width: 400px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform: scale(0.95) translateY(-20px);
+    transition: transform 0.3s ease;
+}
+
+.modal--active {
+    transform: scale(1) translateY(0);
+}
+
+/* Size Modifiers */
+.modal--sm {
+    min-width: 320px;
+    max-width: 400px;
+}
+
+.modal--md {
+    min-width: 400px;
+    max-width: 600px;
+}
+
+.modal--lg {
+    min-width: 600px;
+    max-width: 800px;
+}
+
+.modal--xl {
+    min-width: 800px;
+    max-width: 1000px;
+}
+
+.modal--fullscreen {
+    min-width: unset;
+    max-width: unset;
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+}
+
+/* =============================================
+   Modal Header - Element
+   ============================================= */
+.modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-4) var(--spacing-5);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--surface-secondary);
+}
+
+/* Legacy Alias */
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-4) var(--spacing-5);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--surface-secondary);
+}
+
+/* =============================================
+   Modal Title - Element
+   ============================================= */
+.modal__title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-primary);
+}
+
+.modal__title-icon {
+    font-size: var(--font-size-xl);
+}
+
+/* Legacy Alias */
+.modal-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-primary);
+}
+
+/* =============================================
+   Modal Close Button - Element
+   ============================================= */
+.modal__close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--content-muted);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.modal__close-btn:hover {
+    background: var(--surface-hover);
+    color: var(--content-primary);
+}
+
+.modal__close-btn:active {
+    background: var(--surface-active);
+}
+
+/* Legacy Alias */
+.modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--content-muted);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.modal-close:hover {
+    background: var(--surface-hover);
+    color: var(--content-primary);
+}
+
+/* =============================================
+   Modal Body - Element
+   ============================================= */
+.modal__body {
+    padding: var(--spacing-5);
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Legacy Alias */
+.modal-body {
+    padding: var(--spacing-5);
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Body with sections */
+.modal__body--sections {
+    padding: 0;
+}
+
+/* =============================================
+   Modal Footer - Element
+   ============================================= */
+.modal__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-top: 1px solid var(--border-default);
+    background: var(--surface-secondary);
+}
+
+.modal__footer--centered {
+    justify-content: center;
+}
+
+.modal__footer--space-between {
+    justify-content: space-between;
+}
+
+/* Legacy Alias */
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-top: 1px solid var(--border-default);
+    background: var(--surface-secondary);
+}
+
+/* =============================================
+   Modal Section (내부 영역)
+   ============================================= */
+.modal__section {
+    padding: var(--spacing-4) var(--spacing-5);
+    border-bottom: 1px solid var(--border-default);
+}
+
+.modal__section:last-child {
+    border-bottom: none;
+}
+
+.modal__section-title {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-secondary);
+    margin-bottom: var(--spacing-3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* =============================================
+   Modal Actions
+   ============================================= */
+.modal__actions {
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+.modal__actions--vertical {
+    flex-direction: column;
+}
+
+/* =============================================
+   Animations
+   ============================================= */
+@keyframes modal-fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modal-slide-up {
+    from {
+        transform: scale(0.95) translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Modal with animation */
+.modal--animated {
+    animation: modal-slide-up 0.3s ease;
+}
+
+/* =============================================
+   Responsive
+   ============================================= */
+@media (max-width: 768px) {
+    .modal {
+        min-width: unset;
+        max-width: 95vw;
+        margin: var(--spacing-2);
+    }
+    
+    .modal__header,
+    .modal-header {
+        padding: var(--spacing-3) var(--spacing-4);
+    }
+    
+    .modal__title,
+    .modal-title {
+        font-size: var(--font-size-md);
+    }
+    
+    .modal__body,
+    .modal-body {
+        padding: var(--spacing-4);
+    }
+    
+    .modal__footer,
+    .modal-footer {
+        padding: var(--spacing-3) var(--spacing-4);
+        flex-wrap: wrap;
+    }
+}
+
+/* =============================================
+   Reduced Motion
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+    .modal,
+    .modal__overlay,
+    .modal-overlay {
+        transition: none !important;
+        animation: none !important;
+    }
+}

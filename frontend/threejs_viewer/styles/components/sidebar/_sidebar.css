@@ -1,0 +1,564 @@
+/**
+ * _sidebar.css
+ * ============
+ * Cleanroom Sidebar - BEM 리팩토링 버전
+ * 
+ * Block: .sidebar
+ * 
+ * @version 4.0.0 (BEM Refactoring)
+ * @updated 2026-01-15
+ * 
+ * [BEM 구조]
+ * .sidebar                    → Block
+ * .sidebar__brand             → Element
+ * .sidebar__nav               → Element
+ * .sidebar__divider           → Element
+ * .sidebar__spacer            → Element
+ * .sidebar--collapsed         → Modifier
+ * .sidebar--mobile-open       → Modifier
+ * 
+ * [하위 호환성]
+ * - 기존 .sidebar 선택자 유지
+ * - .icon-btn, .submenu 등 기존 클래스 alias
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/sidebar/_sidebar.css
+ */
+
+/* =============================================
+   Sidebar - Block
+   ============================================= */
+.sidebar {
+    width: 80px;
+    min-width: 80px;
+    height: 100vh;
+    background-color: var(--bg-sidebar);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: var(--spacing-6);
+    z-index: var(--z-sidebar);
+    box-shadow: 4px 0 15px var(--shadow-color);
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* =============================================
+   Sidebar Brand - Element
+   ============================================= */
+.sidebar__brand {
+    width: 54px;
+    height: 54px;
+    margin-bottom: var(--spacing-4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar__brand-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* =============================================
+   Sidebar Nav - Element
+   ============================================= */
+.sidebar__nav {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+/* =============================================
+   Sidebar Divider - Element
+   ============================================= */
+.sidebar__divider {
+    width: 40px;
+    height: 1px;
+    background: var(--border-color);
+    margin: var(--spacing-2) 0;
+}
+
+/* Legacy Alias */
+.sidebar-divider {
+    width: 40px;
+    height: 1px;
+    background: var(--border-color);
+    margin: 8px 0;
+}
+
+/* =============================================
+   Sidebar Spacer - Element
+   ============================================= */
+.sidebar__spacer {
+    flex-grow: 1;
+}
+
+/* Legacy Alias */
+.sidebar-spacer {
+    flex-grow: 1;
+}
+
+/* =============================================
+   Sidebar - Modifiers
+   ============================================= */
+
+/* Collapsed State */
+.sidebar--collapsed {
+    width: 60px;
+    min-width: 60px;
+}
+
+/* Mobile Open State */
+.sidebar--mobile-open {
+    left: 0;
+}
+
+/* =============================================
+   Icon Button - Block
+   사이드바 내 아이콘 버튼
+   ============================================= */
+.sidebar__icon-btn {
+    width: 54px;
+    height: 54px;
+    margin-bottom: var(--spacing-3);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    transition: transform var(--transition-normal) cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: var(--radius-md);
+}
+
+/* Icon SVG */
+.sidebar__icon-btn svg {
+    width: var(--icon-size, 36px);
+    height: var(--icon-size, 36px);
+    fill: none;
+    stroke: var(--icon-normal);
+    stroke-width: 1px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: all var(--transition-normal);
+}
+
+/* Hover State */
+.sidebar__icon-btn:not(.sidebar__icon-btn--selected):not(.sidebar__icon-btn--disabled):hover {
+    transform: scale(1.1) translateY(-3px);
+}
+
+.sidebar__icon-btn:not(.sidebar__icon-btn--selected):not(.sidebar__icon-btn--disabled):hover svg {
+    stroke: var(--icon-hover);
+    filter: drop-shadow(0 0 3px var(--glow-color));
+}
+
+/* Selected State */
+.sidebar__icon-btn--selected {
+    transform: scale(1.08) translateY(-2px);
+}
+
+.sidebar__icon-btn--selected svg {
+    stroke: var(--icon-selected);
+    filter: drop-shadow(0 0 6px var(--icon-selected));
+}
+
+/* Selected Indicator Bar */
+.sidebar__icon-btn--selected::after {
+    content: '';
+    position: absolute;
+    left: -13px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 28px;
+    background-color: var(--icon-selected);
+    border-radius: 0 3px 3px 0;
+    box-shadow: 0 0 6px var(--icon-selected);
+}
+
+/* Disabled State */
+.sidebar__icon-btn--disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.sidebar__icon-btn--disabled svg {
+    stroke: var(--icon-disabled);
+}
+
+/* Hidden State */
+.sidebar__icon-btn--hidden {
+    display: none !important;
+}
+
+/* =============================================
+   Icon Button Tooltip
+   ============================================= */
+.sidebar__icon-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 70px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: var(--spacing-2) var(--spacing-3);
+    background: var(--bg-panel);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.sidebar__icon-btn[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* =============================================
+   Legacy Alias - Icon Button
+   ============================================= */
+.icon-btn {
+    width: 54px;
+    height: 54px;
+    margin-bottom: 12px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    transition: transform var(--transition-speed, 0.25s) cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: var(--radius-md, 8px);
+}
+
+.icon-btn svg {
+    width: var(--icon-size, 36px);
+    height: var(--icon-size, 36px);
+    fill: none;
+    stroke: var(--icon-normal);
+    stroke-width: 1px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: all var(--transition-speed, 0.25s);
+}
+
+.icon-btn:not(.selected):not(.disabled):hover {
+    transform: scale(1.1) translateY(-3px);
+}
+
+.icon-btn:not(.selected):not(.disabled):hover svg {
+    stroke: var(--icon-hover);
+    filter: drop-shadow(0 0 3px var(--glow-color));
+}
+
+.icon-btn.selected {
+    transform: scale(1.08) translateY(-2px);
+}
+
+.icon-btn.selected svg {
+    stroke: var(--icon-selected);
+    filter: drop-shadow(0 0 6px var(--icon-selected));
+}
+
+.icon-btn.selected::after {
+    content: '';
+    position: absolute;
+    left: -13px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 28px;
+    background-color: var(--icon-selected);
+    border-radius: 0 3px 3px 0;
+    box-shadow: 0 0 6px var(--icon-selected);
+}
+
+.icon-btn.disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.icon-btn.disabled svg {
+    stroke: var(--icon-disabled);
+}
+
+.icon-btn.hidden {
+    display: none !important;
+}
+
+.icon-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 70px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 8px 12px;
+    background: var(--bg-panel);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.icon-btn[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* =============================================
+   Dev Mode Badge
+   ============================================= */
+.dev-mode-badge {
+    position: fixed;
+    top: 10px;
+    left: 90px;
+    padding: var(--spacing-1-5) var(--spacing-3-5);
+    background: rgba(251, 191, 36, 0.2);
+    border: 1px solid var(--text-warning);
+    border-radius: var(--radius-xl);
+    font-size: var(--font-size-sm);
+    color: var(--text-warning);
+    font-weight: var(--font-weight-semibold);
+    z-index: var(--z-modal);
+    display: none;
+    white-space: nowrap;
+    font-family: var(--font-family-base);
+    transition: all var(--transition-fast);
+}
+
+.dev-mode-badge.active {
+    display: inline-flex;
+    align-items: center;
+}
+
+.dev-mode-badge:hover {
+    background: rgba(251, 191, 36, 0.3);
+}
+
+/* Light Theme - Dev Mode Badge */
+[data-theme="light"] .dev-mode-badge {
+    background: rgba(217, 119, 6, 0.15);
+    border-color: #D97706;
+    color: #D97706;
+}
+
+[data-theme="light"] .dev-mode-badge:hover {
+    background: rgba(217, 119, 6, 0.25);
+}
+
+/* =============================================
+   Debug Panel
+   ============================================= */
+#debug-panel {
+    position: fixed;
+    bottom: 50px;
+    right: 20px;
+    width: 400px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 10px 40px var(--shadow-color);
+    z-index: var(--z-dropdown);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    font-family: var(--font-family-base);
+}
+
+#debug-panel.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.debug-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-3) var(--spacing-4);
+    background: var(--bg-panel-header);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.debug-panel-title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-primary);
+}
+
+.debug-panel-content {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+    color: var(--debug-text, #0f0);
+    background: var(--debug-bg, #1a1a1a);
+    padding: var(--spacing-3);
+    max-height: 300px;
+    overflow-y: auto;
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+}
+
+.debug-section {
+    margin-bottom: var(--spacing-3);
+}
+
+.debug-section-title {
+    color: var(--debug-section-title, #0ff);
+    margin-bottom: var(--spacing-2);
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+}
+
+.debug-state-item {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-1) 0;
+}
+
+.debug-state-label {
+    color: var(--debug-label, #888);
+}
+
+.debug-state-value {
+    color: var(--debug-value, #ff0);
+}
+
+.debug-state-value.on {
+    color: var(--debug-on, #0f0);
+}
+
+.debug-state-value.off {
+    color: var(--debug-off, #f00);
+}
+
+/* =============================================
+   Always Normal State (Non-selectable buttons)
+   Connection, Settings, Debug buttons
+   ============================================= */
+#btn-connection,
+#btn-settings-wrapper .icon-btn,
+#btn-debug-wrapper .icon-btn {
+    transform: none !important;
+}
+
+#btn-connection::after,
+#btn-settings-wrapper .icon-btn::after,
+#btn-debug-wrapper .icon-btn::after {
+    display: none !important;
+}
+
+#btn-connection svg,
+#btn-settings-wrapper .icon-btn svg,
+#btn-debug-wrapper .icon-btn svg {
+    stroke: var(--icon-normal) !important;
+    filter: none !important;
+}
+
+#btn-connection:hover svg,
+#btn-settings-wrapper .icon-btn:hover svg,
+#btn-debug-wrapper .icon-btn:hover svg {
+    stroke: var(--icon-hover) !important;
+    filter: drop-shadow(0 0 3px var(--glow-color)) !important;
+}
+
+#btn-connection:hover,
+#btn-settings-wrapper:hover .icon-btn,
+#btn-debug-wrapper:hover .icon-btn {
+    transform: scale(1.1) translateY(-3px) !important;
+}
+
+/* =============================================
+   Responsive - Tablet
+   ============================================= */
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 60px;
+        min-width: 60px;
+        padding-top: 16px;
+    }
+    
+    .icon-btn,
+    .sidebar__icon-btn {
+        width: 44px;
+        height: 44px;
+        margin-bottom: 8px;
+    }
+    
+    .icon-btn svg,
+    .sidebar__icon-btn svg {
+        width: 28px;
+        height: 28px;
+    }
+    
+    .dev-mode-badge {
+        left: 70px;
+    }
+    
+    .icon-btn[data-tooltip]::after,
+    .sidebar__icon-btn[data-tooltip]::after {
+        left: 55px;
+    }
+}
+
+/* =============================================
+   Responsive - Mobile
+   ============================================= */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: -80px;
+        transition: left 0.3s ease;
+    }
+    
+    .sidebar.mobile-open,
+    .sidebar--mobile-open {
+        left: 0;
+    }
+    
+    .dev-mode-badge {
+        left: 10px;
+        top: auto;
+        bottom: 50px;
+    }
+    
+    #debug-panel {
+        width: calc(100% - 20px);
+        left: 10px;
+        right: 10px;
+    }
+}
+
+/* =============================================
+   Reduced Motion
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+    .icon-btn,
+    .sidebar__icon-btn,
+    .dev-mode-badge,
+    #debug-panel {
+        transition: none !important;
+    }
+}

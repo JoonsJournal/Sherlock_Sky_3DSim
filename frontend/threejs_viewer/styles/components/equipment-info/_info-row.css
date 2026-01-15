@@ -1,0 +1,349 @@
+/**
+ * _info-row.css
+ * =============
+ * Equipment Info Panel - Info Row 전용 스타일
+ * 
+ * Block: .info-row
+ * 
+ * @version 4.0.0 (BEM Refactoring)
+ * @updated 2026-01-15
+ * 
+ * [BEM 구조]
+ * .info-row                    → Block
+ * .info-row__label             → Element
+ * .info-row__value             → Element
+ * .info-row__icon              → Element
+ * .info-row--warning           → Modifier
+ * .info-row--error             → Modifier
+ * .info-row--hint              → Modifier
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/equipment-info/_info-row.css
+ */
+
+/* =============================================
+   Info Row - Block
+   ============================================= */
+.info-row {
+    display: flex;
+    align-items: center;
+    margin: var(--spacing-2) 0;
+    padding: var(--spacing-2-5) var(--spacing-3);
+    background: var(--surface-secondary);
+    border-radius: var(--radius-sm);
+}
+
+.info-row:first-child {
+    margin-top: 0;
+}
+
+/* =============================================
+   Info Row Label - Element
+   ============================================= */
+.info-row__label {
+    min-width: 90px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-muted);
+    font-size: var(--font-size-sm);
+}
+
+/* =============================================
+   Info Row Value - Element
+   ============================================= */
+.info-row__value {
+    flex: 1;
+    color: var(--content-primary);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+}
+
+/* Small Value (긴 텍스트용) */
+.info-row__value--small {
+    font-size: var(--font-size-xs);
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+/* Mono Value (숫자/코드용) */
+.info-row__value--mono {
+    font-family: var(--font-family-mono);
+}
+
+/* Meta Value (타임스탬프 등) */
+.info-row__value--meta {
+    font-size: var(--font-size-xs);
+    color: var(--content-muted);
+}
+
+/* =============================================
+   Info Row Icon - Element
+   ============================================= */
+.info-row__icon {
+    margin-right: var(--spacing-2);
+    font-size: var(--font-size-md);
+}
+
+/* =============================================
+   Info Row Text - Element
+   ============================================= */
+.info-row__text {
+    flex: 1;
+    font-size: var(--font-size-sm);
+}
+
+/* =============================================
+   Info Row Badge - Element
+   ============================================= */
+.info-row__badge {
+    background: var(--interactive-primary);
+    color: var(--content-inverse);
+    padding: var(--spacing-0-5) var(--spacing-2);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    margin-left: auto;
+}
+
+/* =============================================
+   Info Row - Modifiers (상태별)
+   ============================================= */
+
+/* Warning */
+.info-row--warning {
+    background: rgba(234, 179, 8, 0.15);
+    border-left: 3px solid var(--status-warning);
+}
+
+/* Error */
+.info-row--error {
+    background: rgba(239, 68, 68, 0.15);
+    border-left: 3px solid var(--status-error);
+}
+
+/* Hint / Info */
+.info-row--hint {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 3px solid var(--status-info);
+}
+
+/* Multi-select header */
+.info-row--multi-select {
+    background: rgba(59, 130, 246, 0.15);
+    border-left: 3px solid var(--interactive-primary);
+    margin-bottom: var(--spacing-3);
+}
+
+/* Unmapped notice */
+.info-row--unmapped {
+    background: rgba(255, 193, 7, 0.2);
+    border-left: 3px solid var(--status-warning);
+}
+
+/* Meta row (타임스탬프) */
+.info-row--meta {
+    background: transparent;
+    padding: var(--spacing-1-5) var(--spacing-3);
+    margin-top: var(--spacing-3);
+    border-top: 1px solid var(--border-default);
+}
+
+/* Placeholder */
+.info-row--placeholder {
+    justify-content: center;
+    color: var(--content-muted);
+    font-style: italic;
+}
+
+/* =============================================
+   Info Row Divider
+   ============================================= */
+.info-row__divider {
+    height: 1px;
+    background: var(--border-default);
+    margin: var(--spacing-3) 0;
+    border: none;
+    padding: 0;
+}
+
+/* =============================================
+   Info Row Spacer
+   ============================================= */
+.info-row__spacer {
+    height: var(--spacing-4);
+    background: transparent;
+    margin: 0;
+    padding: 0;
+}
+
+/* =============================================
+   Section Header (그룹 타이틀)
+   ============================================= */
+.info-row__section-header {
+    display: flex;
+    align-items: center;
+    margin: var(--spacing-4) 0 var(--spacing-2) 0;
+    padding: 0;
+    background: transparent;
+}
+
+.info-row__section-header:first-child {
+    margin-top: 0;
+}
+
+.info-row__section-title {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-row__section-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-default);
+    margin-left: var(--spacing-2-5);
+}
+
+/* =============================================
+   PC Info System Row (합친 셀)
+   CPU/Cores, OS/Arch 등
+   ============================================= */
+.info-row--system {
+    padding: var(--spacing-2) var(--spacing-3);
+    margin: var(--spacing-1-5) 0;
+}
+
+.info-row--system .info-row__label {
+    min-width: 50px;
+}
+
+.info-row--system .info-row__value {
+    font-size: var(--font-size-sm);
+}
+
+.info-row__value-separator {
+    color: var(--content-muted);
+    margin: 0 var(--spacing-1-5);
+}
+
+/* =============================================
+   Status Counts (Multi Selection)
+   ============================================= */
+.info-row--status {
+    flex-wrap: wrap;
+}
+
+.info-row__status-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    flex: 1;
+}
+
+.info-row__status-count-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-1) var(--spacing-2-5);
+    background: var(--surface-primary);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+}
+
+.info-row__status-count-item--running {
+    background: rgba(76, 175, 80, 0.2);
+    color: var(--equip-running);
+}
+
+.info-row__status-count-item--idle {
+    background: rgba(255, 193, 7, 0.2);
+    color: var(--equip-idle);
+}
+
+.info-row__status-count-item--stop {
+    background: rgba(255, 152, 0, 0.2);
+    color: var(--status-warning);
+}
+
+.info-row__status-count-item--error {
+    background: rgba(244, 67, 54, 0.2);
+    color: var(--equip-alarm);
+}
+
+.info-row__status-count-item--disconnected {
+    background: rgba(102, 102, 102, 0.2);
+    color: var(--content-disabled);
+}
+
+.info-row__status-count-icon {
+    font-size: var(--font-size-sm);
+}
+
+.info-row__status-count-number {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+}
+
+/* "외 N개" 스타일 */
+.info-row__more-count {
+    color: var(--content-muted);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-normal);
+    font-style: italic;
+}
+
+/* =============================================
+   Legacy Alias (하위 호환성)
+   #equipmentInfo 내부 선택자 지원
+   ============================================= */
+#equipmentInfo .info-row {
+    display: flex;
+    align-items: center;
+    margin: 8px 0;
+    padding: 10px 12px;
+    background: var(--surface-secondary);
+    border-radius: var(--radius-sm);
+}
+
+#equipmentInfo .info-row:first-child {
+    margin-top: 0;
+}
+
+#equipmentInfo .info-label {
+    min-width: 90px;
+    font-weight: 600;
+    color: var(--content-muted);
+    font-size: var(--font-size-sm);
+}
+
+#equipmentInfo .info-value {
+    flex: 1;
+    color: var(--content-primary);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+}
+
+#equipmentInfo .info-value-small {
+    font-size: 11px;
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+/* =============================================
+   Responsive
+   ============================================= */
+@media (max-width: 768px) {
+    .info-row__label {
+        min-width: 70px;
+    }
+    
+    .info-row__status-counts {
+        gap: var(--spacing-1-5);
+    }
+    
+    .info-row__status-count-item {
+        padding: 3px 8px;
+        font-size: var(--font-size-xs);
+    }
+}

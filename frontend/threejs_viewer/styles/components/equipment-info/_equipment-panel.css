@@ -1,0 +1,363 @@
+/**
+ * _equipment-panel.css
+ * ====================
+ * Equipment Info Panel - BEM 리팩토링 버전
+ * 
+ * Block: .equipment-panel
+ * 
+ * @version 4.0.0 (BEM Refactoring)
+ * @updated 2026-01-15
+ * 
+ * [BEM 구조]
+ * .equipment-panel              → Block
+ * .equipment-panel__header      → Element
+ * .equipment-panel__title       → Element
+ * .equipment-panel__close-btn   → Element
+ * .equipment-panel__tabs        → Element
+ * .equipment-panel__tab         → Element
+ * .equipment-panel__content     → Element
+ * .equipment-panel--active      → Modifier (표시 상태)
+ * .equipment-panel--loading     → Modifier (로딩 상태)
+ * .equipment-panel__tab--active → Modifier (탭 활성)
+ * 
+ * [Hybrid 적용]
+ * - Layout: Utility 클래스 사용 (u-flex, u-justify-between 등)
+ * - Visual: 이 파일에서 정의 (배경, 그림자, 색상)
+ * 
+ * [하위 호환성]
+ * - 기존 #equipmentInfo 선택자 유지
+ * - _legacy-mapping.css에서 alias 제공
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/equipment-info/_equipment-panel.css
+ */
+
+/* =============================================
+   Equipment Panel - Block
+   ============================================= */
+.equipment-panel {
+    position: absolute;
+    top: var(--spacing-2-5);
+    right: var(--spacing-2-5);
+    width: 320px;
+    max-height: 85vh;
+    overflow-y: auto;
+    
+    /* Glassmorphism 효과 */
+    background: var(--surface-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--glass-shadow);
+    
+    /* Typography */
+    color: var(--content-primary);
+    font-family: var(--font-family-base);
+    
+    /* State */
+    display: none;
+    z-index: var(--z-dropdown);
+}
+
+/* Active State */
+.equipment-panel--active {
+    display: block;
+    animation: equipment-panel-slide-in 0.3s ease-out;
+}
+
+/* Loading State */
+.equipment-panel--loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+@keyframes equipment-panel-slide-in {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* =============================================
+   Equipment Panel Header - Element
+   ============================================= */
+.equipment-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-4) var(--spacing-12) var(--spacing-3) var(--spacing-4);
+    gap: var(--spacing-3);
+}
+
+/* =============================================
+   Equipment Panel Title - Element
+   ============================================= */
+.equipment-panel__title {
+    margin: 0;
+    padding: 0;
+    color: var(--interactive-primary);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Multi-select modifier */
+.equipment-panel__title--multi-select {
+    color: var(--status-info);
+}
+
+/* =============================================
+   Equipment Panel Close Button - Element
+   ============================================= */
+.equipment-panel__close-btn {
+    position: absolute;
+    top: var(--spacing-3);
+    right: var(--spacing-3);
+    
+    /* Visual */
+    background: var(--interactive-danger);
+    color: var(--content-inverse);
+    border: none;
+    border-radius: var(--radius-full);
+    
+    /* Size */
+    width: 28px;
+    height: 28px;
+    
+    /* Layout */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    /* Typography */
+    font-size: var(--font-size-lg);
+    line-height: 1;
+    
+    /* Interaction */
+    cursor: pointer;
+    transition: var(--transition-fast);
+    z-index: 10;
+}
+
+.equipment-panel__close-btn:hover {
+    background: var(--interactive-danger-hover);
+    transform: scale(1.1);
+}
+
+.equipment-panel__close-btn:active {
+    background: var(--interactive-danger-active);
+    transform: scale(1);
+}
+
+/* =============================================
+   Equipment Panel Header Status - Element
+   ============================================= */
+.equipment-panel__header-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1-5);
+    padding: var(--spacing-1) var(--spacing-2-5);
+    background: var(--surface-secondary);
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+
+.equipment-panel__status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+}
+
+.equipment-panel__status-text {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-primary);
+}
+
+/* Status Indicator Colors - Modifiers */
+.equipment-panel__status-indicator--running {
+    background: var(--equip-running);
+    box-shadow: var(--glow-success);
+}
+
+.equipment-panel__status-indicator--idle {
+    background: var(--equip-idle);
+}
+
+.equipment-panel__status-indicator--stop {
+    background: var(--status-warning);
+}
+
+.equipment-panel__status-indicator--error {
+    background: var(--equip-alarm);
+    box-shadow: var(--glow-error);
+    animation: status-blink 0.5s ease-in-out infinite;
+}
+
+.equipment-panel__status-indicator--disconnected {
+    background: var(--content-disabled);
+}
+
+@keyframes status-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* =============================================
+   Equipment Panel Tabs - Element
+   Classic Folder Style (Windows)
+   ============================================= */
+.equipment-panel__tabs {
+    display: flex;
+    padding: 0 var(--spacing-3);
+    background: transparent;
+    position: relative;
+    margin-bottom: -1px;
+    z-index: 1;
+}
+
+.equipment-panel__tab {
+    position: relative;
+    padding: var(--spacing-2-5) var(--spacing-5);
+    margin-right: var(--spacing-1);
+    
+    /* Visual - Inactive */
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-default);
+    border-bottom: 1px solid var(--border-default);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    
+    /* Typography */
+    color: var(--content-muted);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    font-family: var(--font-family-base);
+    
+    /* Interaction */
+    cursor: pointer;
+    transition: var(--transition-fast);
+    transform: translateY(2px);
+}
+
+.equipment-panel__tab:hover {
+    color: var(--content-primary);
+    background: var(--surface-hover);
+}
+
+/* Active Tab Modifier */
+.equipment-panel__tab--active {
+    background: var(--surface-primary);
+    color: var(--interactive-primary);
+    border-bottom-color: var(--surface-primary);
+    font-weight: var(--font-weight-semibold);
+    transform: translateY(0);
+    z-index: 2;
+}
+
+/* Active Tab Indicator */
+.equipment-panel__tab--active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--interactive-primary);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+/* =============================================
+   Equipment Panel Content - Element
+   ============================================= */
+.equipment-panel__content {
+    padding: var(--spacing-4);
+    background: var(--surface-primary);
+    border-top: 1px solid var(--border-default);
+    position: relative;
+    z-index: 0;
+}
+
+.equipment-panel__tab-content {
+    display: none;
+}
+
+.equipment-panel__tab-content--active {
+    display: block;
+    animation: tab-fade-in 0.2s ease-out;
+}
+
+@keyframes tab-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =============================================
+   Legacy Alias (하위 호환성)
+   #equipmentInfo 선택자 지원
+   ============================================= */
+#equipmentInfo {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 320px;
+    max-height: 85vh;
+    overflow-y: auto;
+    background: var(--surface-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--glass-shadow);
+    color: var(--content-primary);
+    display: none;
+    z-index: var(--z-dropdown);
+}
+
+#equipmentInfo.active {
+    display: block;
+    animation: equipment-panel-slide-in 0.3s ease-out;
+}
+
+/* =============================================
+   Responsive
+   ============================================= */
+@media (max-width: 768px) {
+    .equipment-panel,
+    #equipmentInfo {
+        width: 90%;
+        right: 5%;
+        max-height: 70vh;
+    }
+    
+    .equipment-panel__header {
+        flex-wrap: wrap;
+        gap: var(--spacing-2);
+    }
+    
+    .equipment-panel__title {
+        flex-basis: 100%;
+    }
+    
+    .equipment-panel__header-status {
+        margin-left: auto;
+    }
+    
+    .equipment-panel__tab {
+        padding: var(--spacing-2) var(--spacing-3);
+        font-size: var(--font-size-xs);
+    }
+}

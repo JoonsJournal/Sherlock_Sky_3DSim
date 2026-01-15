@@ -1,0 +1,361 @@
+/**
+ * _toast.css
+ * ==========
+ * Toast Notifications - BEM 리팩토링 버전
+ * 
+ * Block: .toast
+ * 
+ * @version 4.0.0 (BEM Refactoring)
+ * @updated 2026-01-15
+ * 
+ * [BEM 구조]
+ * .toast                      → Block
+ * .toast__icon                → Element
+ * .toast__content             → Element
+ * .toast__title               → Element
+ * .toast__message             → Element
+ * .toast__close               → Element
+ * .toast--success             → Modifier
+ * .toast--error               → Modifier
+ * .toast--warning             → Modifier
+ * .toast--info                → Modifier
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/common/_toast.css
+ */
+
+/* =============================================
+   Toast Container
+   ============================================= */
+.toast-container {
+    position: fixed;
+    bottom: var(--spacing-5);
+    right: var(--spacing-5);
+    z-index: var(--z-toast);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    pointer-events: none;
+}
+
+.toast-container--top-right {
+    bottom: auto;
+    top: var(--spacing-5);
+}
+
+.toast-container--top-left {
+    bottom: auto;
+    top: var(--spacing-5);
+    right: auto;
+    left: var(--spacing-5);
+}
+
+.toast-container--bottom-left {
+    right: auto;
+    left: var(--spacing-5);
+}
+
+.toast-container--center {
+    right: 50%;
+    transform: translateX(50%);
+}
+
+/* =============================================
+   Toast - Block
+   ============================================= */
+.toast {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+    min-width: 320px;
+    max-width: 450px;
+    padding: var(--spacing-3) var(--spacing-4);
+    background: var(--surface-panel);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    pointer-events: auto;
+    animation: toast-slide-in 0.3s ease;
+}
+
+@keyframes toast-slide-in {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes toast-slide-out {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.toast--closing {
+    animation: toast-slide-out 0.3s ease forwards;
+}
+
+/* =============================================
+   Toast Variants - Modifiers
+   ============================================= */
+
+/* Success */
+.toast--success {
+    border-left: 4px solid var(--status-success);
+    background: linear-gradient(90deg, rgba(34, 197, 94, 0.1), var(--surface-panel));
+}
+
+.toast--success .toast__icon {
+    color: var(--status-success);
+}
+
+/* Error */
+.toast--error {
+    border-left: 4px solid var(--status-error);
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.1), var(--surface-panel));
+}
+
+.toast--error .toast__icon {
+    color: var(--status-error);
+}
+
+/* Warning */
+.toast--warning {
+    border-left: 4px solid var(--status-warning);
+    background: linear-gradient(90deg, rgba(234, 179, 8, 0.1), var(--surface-panel));
+}
+
+.toast--warning .toast__icon {
+    color: var(--status-warning);
+}
+
+/* Info */
+.toast--info {
+    border-left: 4px solid var(--status-info);
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.1), var(--surface-panel));
+}
+
+.toast--info .toast__icon {
+    color: var(--status-info);
+}
+
+/* =============================================
+   Toast Icon - Element
+   ============================================= */
+.toast__icon {
+    font-size: var(--font-size-xl);
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+/* =============================================
+   Toast Content - Element
+   ============================================= */
+.toast__content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}
+
+/* =============================================
+   Toast Title - Element
+   ============================================= */
+.toast__title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-primary);
+}
+
+/* =============================================
+   Toast Message - Element
+   ============================================= */
+.toast__message {
+    font-size: var(--font-size-sm);
+    color: var(--content-secondary);
+    line-height: 1.5;
+}
+
+/* =============================================
+   Toast Close - Element
+   ============================================= */
+.toast__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--content-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: var(--transition-fast);
+}
+
+.toast__close:hover {
+    background: var(--surface-hover);
+    color: var(--content-primary);
+}
+
+/* =============================================
+   Toast Progress Bar
+   ============================================= */
+.toast__progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: var(--interactive-primary);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    animation: toast-progress linear forwards;
+}
+
+@keyframes toast-progress {
+    from {
+        width: 100%;
+    }
+    to {
+        width: 0%;
+    }
+}
+
+/* =============================================
+   Legacy Alias (하위 호환성)
+   ============================================= */
+.toast-notification {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+    min-width: 320px;
+    max-width: 450px;
+    padding: var(--spacing-3) var(--spacing-4);
+    background: var(--surface-panel);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    pointer-events: auto;
+    animation: toast-slide-in 0.3s ease;
+}
+
+.toast-notification.success {
+    border-left: 4px solid var(--status-success);
+    background: linear-gradient(90deg, rgba(34, 197, 94, 0.1), var(--surface-panel));
+}
+
+.toast-notification.error {
+    border-left: 4px solid var(--status-error);
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.1), var(--surface-panel));
+}
+
+.toast-notification.warning {
+    border-left: 4px solid var(--status-warning);
+    background: linear-gradient(90deg, rgba(234, 179, 8, 0.1), var(--surface-panel));
+}
+
+.toast-notification.info {
+    border-left: 4px solid var(--status-info);
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.1), var(--surface-panel));
+}
+
+.toast-icon {
+    font-size: var(--font-size-xl);
+    flex-shrink: 0;
+}
+
+.toast-notification.success .toast-icon { color: var(--status-success); }
+.toast-notification.error .toast-icon { color: var(--status-error); }
+.toast-notification.warning .toast-icon { color: var(--status-warning); }
+.toast-notification.info .toast-icon { color: var(--status-info); }
+
+.toast-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}
+
+.toast-title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-primary);
+}
+
+.toast-message {
+    font-size: var(--font-size-sm);
+    color: var(--content-secondary);
+    line-height: 1.5;
+}
+
+.toast-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--content-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: var(--transition-fast);
+}
+
+.toast-close:hover {
+    background: var(--surface-hover);
+    color: var(--content-primary);
+}
+
+/* =============================================
+   Responsive
+   ============================================= */
+@media (max-width: 768px) {
+    .toast-container {
+        bottom: var(--spacing-3);
+        right: var(--spacing-3);
+        left: var(--spacing-3);
+    }
+    
+    .toast,
+    .toast-notification {
+        min-width: unset;
+        width: 100%;
+    }
+}
+
+/* =============================================
+   Theme Transition Exclusion
+   토스트는 테마 전환 시 트랜지션 제외
+   ============================================= */
+html[data-theme] .toast,
+html[data-theme] .toast *,
+html[data-theme] .toast-container,
+html[data-theme] .toast-notification,
+html[data-theme] .toast-notification * {
+    transition: none;
+}
+
+/* =============================================
+   Reduced Motion
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+    .toast,
+    .toast-notification {
+        animation: none;
+    }
+    
+    .toast--closing {
+        animation: none;
+        display: none;
+    }
+}

@@ -1,0 +1,483 @@
+/**
+ * _status-indicator.css
+ * =====================
+ * Equipment Info Panel - Gauge & Status Indicator 전용 스타일
+ * 
+ * Block: .gauge, .status-dot
+ * 
+ * @version 4.0.0 (BEM Refactoring)
+ * @updated 2026-01-15
+ * 
+ * [BEM 구조]
+ * .gauge                      → Block (Unified Gauge)
+ * .gauge__label               → Element
+ * .gauge__container           → Element
+ * .gauge__bar                 → Element
+ * .gauge__fill                → Element
+ * .gauge__value               → Element
+ * .gauge--cpu                 → Modifier
+ * .gauge--memory              → Modifier
+ * .gauge--disk                → Modifier
+ * .gauge__fill--green         → Color Modifier
+ * .gauge__fill--yellow        → Color Modifier
+ * .gauge__fill--red           → Color Modifier
+ * .gauge__fill--blue          → Color Modifier
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/equipment-info/_status-indicator.css
+ */
+
+/* =============================================
+   Gauge Section Container
+   ============================================= */
+.gauge-section {
+    margin-top: var(--spacing-4);
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--border-default);
+}
+
+.gauge-section__title {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-2-5);
+}
+
+/* =============================================
+   Gauge - Block (Unified Gauge Row)
+   ============================================= */
+.gauge {
+    display: flex;
+    align-items: center;
+    margin: var(--spacing-1-5) 0;
+    padding: var(--spacing-2) var(--spacing-3);
+    background: var(--surface-secondary);
+    border-radius: var(--radius-sm);
+}
+
+/* =============================================
+   Gauge Label - Element
+   ============================================= */
+.gauge__label {
+    min-width: 50px;
+    width: 50px;
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-sm);
+    color: var(--content-muted);
+    flex-shrink: 0;
+}
+
+/* Disk Label (C:, D:) */
+.gauge__label--disk {
+    min-width: 30px;
+    width: 30px;
+    font-weight: var(--font-weight-bold);
+    color: var(--content-primary);
+}
+
+/* =============================================
+   Gauge Container - Element
+   ============================================= */
+.gauge__container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2-5);
+    flex: 1;
+}
+
+/* =============================================
+   Gauge Bar - Element
+   ============================================= */
+.gauge__bar {
+    flex: 1;
+    height: 14px;
+    background: var(--surface-primary);
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid var(--border-default);
+}
+
+/* Disk Gauge Bar (smaller) */
+.gauge--disk .gauge__bar {
+    height: 12px;
+    border-radius: 6px;
+}
+
+/* Average Gauge Bar (smaller) */
+.gauge--avg .gauge__bar {
+    height: 10px;
+    border-radius: 5px;
+}
+
+/* =============================================
+   Gauge Fill - Element
+   ============================================= */
+.gauge__fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.5s ease, background 0.3s ease;
+}
+
+.gauge--disk .gauge__fill {
+    border-radius: 5px;
+}
+
+.gauge--avg .gauge__fill {
+    border-radius: 4px;
+}
+
+/* =============================================
+   Gauge Fill Colors - Modifiers
+   ============================================= */
+.gauge__fill--green {
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+}
+
+.gauge__fill--yellow {
+    background: linear-gradient(90deg, #eab308, #facc15);
+    box-shadow: 0 0 6px rgba(234, 179, 8, 0.4);
+}
+
+.gauge__fill--red {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+.gauge__fill--blue {
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
+}
+
+.gauge__fill--gray {
+    background: var(--content-disabled);
+}
+
+/* Disk Gauge (less glow) */
+.gauge--disk .gauge__fill--green {
+    box-shadow: 0 0 4px rgba(34, 197, 94, 0.3);
+}
+
+.gauge--disk .gauge__fill--yellow {
+    box-shadow: 0 0 4px rgba(234, 179, 8, 0.3);
+}
+
+.gauge--disk .gauge__fill--red {
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.3);
+}
+
+.gauge--disk .gauge__fill--blue {
+    box-shadow: 0 0 4px rgba(59, 130, 246, 0.3);
+}
+
+/* Average Gauge (no glow) */
+.gauge--avg .gauge__fill--green,
+.gauge--avg .gauge__fill--yellow,
+.gauge--avg .gauge__fill--red {
+    box-shadow: none;
+}
+
+/* =============================================
+   Gauge Value - Element
+   ============================================= */
+.gauge__value {
+    min-width: 80px;
+    text-align: right;
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-sm);
+    color: var(--content-primary);
+    flex-shrink: 0;
+    font-family: var(--font-family-mono);
+}
+
+/* CPU Gauge Value (narrower) */
+.gauge--cpu .gauge__value {
+    min-width: 50px;
+}
+
+/* Memory Gauge Value */
+.gauge--memory .gauge__value {
+    min-width: 85px;
+}
+
+/* Disk Gauge Value */
+.gauge--disk .gauge__value {
+    min-width: 95px;
+    font-size: var(--font-size-xs);
+}
+
+/* Average Gauge Value (smaller) */
+.gauge--avg .gauge__value {
+    min-width: 40px;
+    font-size: var(--font-size-xs);
+}
+
+/* Average Gauge Label (smaller) */
+.gauge--avg .gauge__label {
+    min-width: 70px;
+    font-size: var(--font-size-xs);
+}
+
+/* =============================================
+   Gauge Detail - Element
+   Memory (12.5 / 16 GB), Disk (120 / 500 GB) 등
+   ============================================= */
+.gauge__detail {
+    font-size: var(--font-size-xs);
+    color: var(--content-muted);
+    margin-left: var(--spacing-1);
+}
+
+.gauge--disk .gauge__detail {
+    font-size: 10px;
+}
+
+/* =============================================
+   Gauge N/A - Element
+   값이 없을 때 표시
+   ============================================= */
+.gauge__na {
+    color: var(--content-muted);
+    font-style: italic;
+    font-size: var(--font-size-sm);
+    flex: 1;
+}
+
+/* =============================================
+   Boot Duration
+   ============================================= */
+.boot-duration {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1-5);
+}
+
+.boot-duration__value {
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-primary);
+    font-family: var(--font-family-mono);
+}
+
+.boot-duration__unit {
+    font-size: var(--font-size-xs);
+    color: var(--content-muted);
+}
+
+/* Warning (장기 가동) */
+.boot-duration--warning .boot-duration__value {
+    color: var(--status-warning);
+}
+
+.boot-duration--danger .boot-duration__value {
+    color: var(--status-error);
+}
+
+/* =============================================
+   Status Dot - Block
+   작은 상태 표시 점
+   ============================================= */
+.status-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+    margin-right: var(--spacing-2);
+}
+
+.status-dot--running {
+    background: var(--equip-running);
+    box-shadow: var(--glow-success);
+}
+
+.status-dot--idle {
+    background: var(--equip-idle);
+}
+
+.status-dot--stop {
+    background: var(--status-warning);
+}
+
+.status-dot--error {
+    background: var(--equip-alarm);
+    box-shadow: var(--glow-error);
+    animation: status-dot-blink 0.5s ease-in-out infinite;
+}
+
+.status-dot--disconnected {
+    background: var(--content-disabled);
+}
+
+@keyframes status-dot-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* =============================================
+   Loading Container
+   ============================================= */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-8) var(--spacing-5);
+    gap: var(--spacing-3);
+}
+
+.loading-container__text {
+    color: var(--content-muted);
+    font-size: var(--font-size-sm);
+}
+
+.loading-container__spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-default);
+    border-top-color: var(--interactive-primary);
+    border-radius: var(--radius-full);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* =============================================
+   Legacy Alias (하위 호환성)
+   #equipmentInfo 내부 선택자
+   ============================================= */
+
+/* Unified Gauge Row */
+#equipmentInfo .unified-gauge-row {
+    display: flex;
+    align-items: center;
+    margin: 6px 0;
+    padding: 8px 12px;
+    background: var(--surface-secondary);
+    border-radius: var(--radius-sm);
+}
+
+#equipmentInfo .unified-gauge-label {
+    min-width: 50px;
+    width: 50px;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--content-muted);
+    flex-shrink: 0;
+}
+
+#equipmentInfo .unified-gauge-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+#equipmentInfo .unified-gauge-bar {
+    flex: 1;
+    height: 14px;
+    background: var(--surface-primary);
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid var(--border-default);
+}
+
+#equipmentInfo .unified-gauge-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.5s ease, background 0.3s ease;
+}
+
+#equipmentInfo .unified-gauge-value {
+    min-width: 80px;
+    text-align: right;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--content-primary);
+    flex-shrink: 0;
+}
+
+/* CPU Gauge */
+#equipmentInfo .cpu-gauge-container { display: flex; align-items: center; gap: 10px; flex: 1; }
+#equipmentInfo .cpu-gauge-bar { flex: 1; height: 14px; background: var(--surface-primary); border-radius: 7px; overflow: hidden; border: 1px solid var(--border-default); }
+#equipmentInfo .cpu-gauge-fill { height: 100%; border-radius: 6px; transition: width 0.5s ease, background 0.3s ease; }
+#equipmentInfo .cpu-gauge-value { min-width: 50px; text-align: right; font-weight: 600; font-size: var(--font-size-sm); color: var(--content-primary); }
+
+/* Memory Gauge */
+#equipmentInfo .memory-gauge-container { display: flex; align-items: center; gap: 10px; flex: 1; }
+#equipmentInfo .memory-gauge-bar { flex: 1; height: 14px; background: var(--surface-primary); border-radius: 7px; overflow: hidden; border: 1px solid var(--border-default); }
+#equipmentInfo .memory-gauge-fill { height: 100%; border-radius: 6px; transition: width 0.5s ease, background 0.3s ease; }
+#equipmentInfo .memory-gauge-value { min-width: 85px; text-align: right; font-weight: 600; font-size: var(--font-size-sm); color: var(--content-primary); }
+
+/* Disk Gauge */
+#equipmentInfo .disk-gauge-row { display: flex; align-items: center; margin: 6px 0; padding: 8px 12px; background: var(--surface-secondary); border-radius: var(--radius-sm); }
+#equipmentInfo .disk-label { min-width: 30px; font-weight: 700; font-size: var(--font-size-sm); color: var(--content-primary); }
+#equipmentInfo .disk-gauge-container { display: flex; align-items: center; gap: 10px; flex: 1; }
+#equipmentInfo .disk-gauge-bar { flex: 1; height: 12px; background: var(--surface-primary); border-radius: 6px; overflow: hidden; border: 1px solid var(--border-default); }
+#equipmentInfo .disk-gauge-fill { height: 100%; border-radius: 5px; transition: width 0.5s ease, background 0.3s ease; }
+#equipmentInfo .disk-gauge-value { min-width: 95px; text-align: right; font-weight: 600; font-size: var(--font-size-xs); color: var(--content-primary); }
+
+/* Gauge Colors */
+#equipmentInfo .gauge-green { background: linear-gradient(90deg, #22c55e, #4ade80); box-shadow: 0 0 6px rgba(34, 197, 94, 0.4); }
+#equipmentInfo .gauge-yellow { background: linear-gradient(90deg, #eab308, #facc15); box-shadow: 0 0 6px rgba(234, 179, 8, 0.4); }
+#equipmentInfo .gauge-red { background: linear-gradient(90deg, #ef4444, #f87171); box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
+#equipmentInfo .gauge-blue { background: linear-gradient(90deg, #3b82f6, #60a5fa); box-shadow: 0 0 6px rgba(59, 130, 246, 0.4); }
+#equipmentInfo .gauge-gray { background: #4a4a5a; }
+
+/* Status Indicators */
+#equipmentInfo .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: var(--radius-full); margin-right: 8px; }
+#equipmentInfo .status-running { background: var(--equip-running); box-shadow: 0 0 8px var(--equip-running); }
+#equipmentInfo .status-idle { background: var(--equip-idle); }
+#equipmentInfo .status-stop { background: var(--status-warning); }
+#equipmentInfo .status-error { background: var(--equip-alarm); box-shadow: 0 0 8px var(--equip-alarm); animation: status-dot-blink 0.5s ease-in-out infinite; }
+#equipmentInfo .status-disconnected { background: #666666; }
+
+/* =============================================
+   Responsive
+   ============================================= */
+@media (max-width: 768px) {
+    .gauge__bar {
+        height: 12px;
+    }
+    
+    .gauge__value {
+        min-width: 70px;
+        font-size: var(--font-size-xs);
+    }
+    
+    .gauge__label {
+        min-width: 40px;
+        width: 40px;
+        font-size: var(--font-size-xs);
+    }
+    
+    .gauge--disk .gauge__bar {
+        height: 10px;
+    }
+    
+    .gauge--disk .gauge__value {
+        min-width: 75px;
+        font-size: 10px;
+    }
+    
+    .gauge--disk .gauge__label {
+        min-width: 24px;
+        font-size: var(--font-size-xs);
+    }
+    
+    .gauge--avg .gauge__bar {
+        height: 8px;
+    }
+    
+    .gauge--avg .gauge__value {
+        min-width: 35px;
+        font-size: 10px;
+    }
+    
+    .gauge--avg .gauge__label {
+        min-width: 55px;
+        font-size: 10px;
+    }
+}

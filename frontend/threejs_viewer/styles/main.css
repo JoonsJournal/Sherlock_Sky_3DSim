@@ -3,31 +3,24 @@
  * ========
  * SHERLOCK SKY 3DSim - CSS 진입점
  * 
- * @version 3.1.0 (Utilities 추가)
- * @updated 2026-01-16 (Phase 2: Utilities 완료)
+ * @version 4.0.0 (Phase 3: BEM Components Refactoring)
+ * @updated 2026-01-15
  * 
  * [ARCHITECTURE]
  * Layer 1: Design Tokens (primitives, semantic-light, semantic-dark, legacy-mapping)
- * Layer 2: Utilities (layout, spacing, text, position, effects) ← 🆕 추가
+ * Layer 2: Utilities (layout, spacing, text, position, effects)
  * Layer 3: Base Styles (reset, typography)
- * Layer 4: Components (22개 컴포넌트)
+ * Layer 4: Components - BEM 구조 (서브폴더별 분리)
  * Layer 5: Pages (viewer-3d, layout-editor)
  * 
  * [CHANGELOG]
+ * - v4.0.0: Phase 3 BEM Components 리팩토링
+ *   - components/ 서브폴더 구조 적용
+ *   - BEM 네이밍 규칙 전면 적용
+ *   - 하위 호환성 유지 (legacy alias)
+ * 
  * - v3.1.0: Utilities 레이어 추가
- *   - utilities/ 폴더 추가 (5개 파일)
- *   - u-* 접두사 유틸리티 클래스 도입
- *   - Glassmorphism/Glow 유틸리티 제공
- * 
  * - v3.0.0: Design Token 아키텍처 전환
- *   - tokens/ 폴더 추가 (4개 파일)
- *   - Inter + JetBrains Mono 폰트 도입
- *   - 기존 변수 호환 레이어 유지
- * 
- * - v2.7.0: StatusBar CSS 충돌 해결
- * - v2.6.0: Analysis Mode CSS 추가
- * - v2.5.0: Overlay UI, Misc CSS 추가
- * - v2.4.0: ModeIndicatorPanel pill 스타일 지원
  * 
  * 위치: frontend/threejs_viewer/styles/main.css
  */
@@ -40,7 +33,7 @@
 @import './base/_variables.css';
 
 /* =============================================
-   Layer 2: Utility Classes (🆕 Phase 2)
+   Layer 2: Utility Classes
    =============================================
    BEM과 함께 사용하는 유틸리티 클래스
    - u-flex, u-p-4, u-glass 등
@@ -59,67 +52,70 @@
 @import './base/_typography.css';
 
 /* =============================================
-   Layer 4: Component Styles - Core
+   Layer 4: Components - Common (공통)
+   =============================================
+   기본 UI 컴포넌트 (BEM 리팩토링)
    ============================================= */
-@import './components/_buttons.css';
-@import './components/_modals.css';
-@import './components/_panels.css';
-@import './components/_forms.css';
-@import './components/_toast.css';
+@import './components/common/_button.css';
+@import './components/common/_modal.css';
+@import './components/common/_panel.css';
+@import './components/common/_form.css';
+@import './components/common/_toast.css';
 
 /* =============================================
-   Component Styles - Modal 시스템
+   Layer 4: Components - Sidebar
+   =============================================
+   사이드바 시스템 (BEM 리팩토링)
    ============================================= */
+@import './components/sidebar/_sidebar.css';
+@import './components/sidebar/_submenu.css';
+
+/* =============================================
+   Layer 4: Components - Equipment Info
+   =============================================
+   Equipment Info Panel 시스템 (BEM 리팩토링)
+   ============================================= */
+@import './components/equipment-info/_equipment-panel.css';
+@import './components/equipment-info/_info-row.css';
+@import './components/equipment-info/_status-indicator.css';
+
+/* =============================================
+   Layer 4: Components - Legacy (점진적 마이그레이션)
+   =============================================
+   아직 BEM 리팩토링되지 않은 기존 컴포넌트
+   추후 Phase 3 확장 시 서브폴더로 이동 예정
+   ============================================= */
+
+/* Modal 시스템 - Legacy */
 @import './components/_equipment-edit-modal.css';
 @import './components/_recovery-dialog.css';
 @import './components/_connection-modal.css';
 
-/* =============================================
-   Component Styles - Indicator 시스템
-   ============================================= */
+/* Indicator 시스템 - Legacy */
 @import './components/_connection-indicator.css'; 
 @import './components/_autosave-indicator.css'; 
 
-/* =============================================
-   Component Styles - Panel 시스템
-   ============================================= */
+/* Panel 시스템 - Legacy */
 @import './components/_connection-panels.css';
 
-/* =============================================
-   Component Styles - 공통 UI
-   ============================================= */
+/* 공통 UI - Legacy */
 @import './components/_common-ui.css';
 @import './components/_file-controls.css';
 @import './components/_equipment-edit-button.css';
 
-/* =============================================
-   Component Styles - Equipment Info Panel
-   ============================================= */
-@import './components/_equipment-info-panel.css';
-
-/* =============================================
-   Cleanroom Sidebar Theme
-   ============================================= */
-@import './components/_sidebar.css';
+/* Status Bar & Cover Screen */
 @import './components/_status-bar.css';
 @import './components/_cover-screen.css';
 
-/* =============================================
-   Mode Indicator Panel (Pill Style)
-   CURRENT MODE (cyan) + DEV MODE (amber)
-   ============================================= */
+/* Mode Indicator Panel */
 @import './components/_mode-indicator.css';
 
-/* =============================================
-   Analysis Mode
-   Analysis 모드 컨테이너 및 Placeholder 스타일
-   ============================================= */
+/* Analysis Mode */
 @import './components/_analysis-mode.css';
 
-/* =============================================
-   Miscellaneous (Close Button, Legacy Styles)
-   ============================================= */
+/* Miscellaneous */
 @import './components/_misc.css';
+@import './components/_overlay-ui.css';
 
 /* =============================================
    Layer 5: Page Styles
@@ -133,30 +129,6 @@
    StatusBar의 .status-item, .status-label, .status-value와 충돌 방지
    ============================================ */
 
-.status-panel {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-3) var(--spacing-6);
-    display: flex;
-    gap: var(--spacing-3);
-    align-items: center;
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    z-index: var(--z-overlay-indicator);
-    box-shadow: var(--glass-shadow);
-    font-family: var(--font-family-base);
-}
-
-body:has(.status-bar) .status-panel {
-    bottom: calc(var(--status-bar-height) + 20px);
-}
-
-/* .status-panel 범위로 한정 */
 .status-panel .status-item {
     display: flex;
     align-items: center;
@@ -175,13 +147,11 @@ body:has(.status-bar) .status-panel {
     color: var(--interactive-warning);
 }
 
-/* .status-panel 범위로 한정 */
 .status-panel .status-label {
     color: var(--content-muted);
     font-size: var(--font-size-sm);
 }
 
-/* .status-panel 범위로 한정 */
 .status-panel .status-value {
     color: var(--content-primary);
     font-weight: var(--font-weight-semibold);
@@ -274,13 +244,14 @@ body:has(.status-bar) .status-panel {
     position: fixed;
     top: 100px;
     left: 20px;
-    background: var(--glass-bg);
+    background: var(--surface-glass);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
     padding: var(--spacing-3);
     z-index: var(--z-dropdown);
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
+    box-shadow: var(--glass-shadow);
 }
 
 body:has(.sidebar) .monitoring-legend {
