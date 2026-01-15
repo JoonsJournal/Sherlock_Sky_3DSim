@@ -3,20 +3,20 @@
  * =====================
  * 설비 상세 정보 패널 (Coordinator)
  * 
- * @version 3.6.0
+ * @version 4.0.0
  * @description
- * - 🆕 v3.6.0: 최종 슬림화 (~280줄)
+ * - 🆕 v4.0.0: Phase 4 CSS Integration
+ *   - CSS 클래스명 static 상수 정의
+ *   - classList.add/remove/toggle 방식 통일
+ *   - BEM 네이밍 규칙 적용
+ * - v3.6.0: 최종 슬림화 (~280줄)
  *   - DataCache 분리: 캐시 관리 위임
  *   - panelTemplate 분리: HTML 템플릿 분리
  *   - 조율자(Coordinator) 역할에 집중
- * - v3.5.0: 탭 컴포넌트 분리 (GeneralTab, PCInfoTab)
- * - v3.4.0: 컴포넌트 분리 (GaugeRenderer, HeaderStatus)
- * - v3.3.0: 유틸리티 분리
- * - v3.2.0: equipmentDetailApi 통합
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/EquipmentInfoPanel.js
  * 작성일: 2026-01-06
- * 수정일: 2026-01-09
+ * 수정일: 2026-01-15
  */
 
 import { debugLog } from '../core/utils/Config.js';
@@ -29,15 +29,64 @@ import { PCInfoTab } from './equipment-info/tabs/PCInfoTab.js';
 import { DOM_IDS, TAB_NAMES, getPanelTemplate, getDOMReferences } from './equipment-info/panelTemplate.js';
 
 export class EquipmentInfoPanel {
+    // =========================================================================
+    // CSS 클래스 상수 (Phase 4)
+    // =========================================================================
+    
+    /**
+     * BEM 클래스명 상수
+     * @static
+     */
+    static CSS = {
+        // Block
+        BLOCK: 'equipment-panel',
+        
+        // Block Modifiers
+        ACTIVE: 'equipment-panel--active',
+        LOADING: 'equipment-panel--loading',
+        HIDDEN: 'equipment-panel--hidden',
+        
+        // Elements
+        HEADER: 'equipment-panel__header',
+        TITLE: 'equipment-panel__title',
+        TITLE_MULTI: 'equipment-panel__title--multi',
+        CLOSE_BTN: 'equipment-panel__close-btn',
+        
+        TAB_NAV: 'equipment-panel__tab-nav',
+        TAB_BTN: 'equipment-panel__tab-btn',
+        TAB_BTN_ACTIVE: 'equipment-panel__tab-btn--active',
+        TAB_CONTENT: 'equipment-panel__tab-content',
+        TAB_CONTENT_ACTIVE: 'equipment-panel__tab-content--active',
+        
+        BODY: 'equipment-panel__body',
+        SECTION: 'equipment-panel__section',
+        
+        // Legacy alias (하위 호환)
+        LEGACY_ACTIVE: 'active'
+    };
+    
+    /**
+     * Utility 클래스 상수
+     * @static
+     */
+    static UTIL = {
+        FLEX: 'u-flex',
+        FLEX_CENTER: 'u-flex-center',
+        GLASS: 'u-glass',
+        GLASS_DARK: 'u-glass-dark',
+        GLOW: 'u-glow',
+        HIDDEN: 'u-hidden',
+        SR_ONLY: 'u-sr-only'
+    };
+    
     constructor(options = {}) {
         // DOM
         this.panelEl = document.getElementById(DOM_IDS.PANEL);
         this.dom = null;
         
-        // API
         // API - 동적 URL
-		const defaultApiUrl = `http://${window.location.hostname}:8000/api/equipment/detail`;
-		this.apiBaseUrl = options.apiBaseUrl || defaultApiUrl;
+        const defaultApiUrl = `http://${window.location.hostname}:8000/api/equipment/detail`;
+        this.apiBaseUrl = options.apiBaseUrl || defaultApiUrl;
         if (options.apiBaseUrl) {
             equipmentDetailApi.setBaseUrl(options.apiBaseUrl);
         }
@@ -68,7 +117,7 @@ export class EquipmentInfoPanel {
         this._refreshTimeout = null;
         
         this._init();
-        debugLog('📊 EquipmentInfoPanel initialized (v3.6.0 - Slim)');
+        debugLog('📊 EquipmentInfoPanel initialized (v4.0.0 - CSS Integration)');
     }
     
     // =========================================================================
@@ -84,6 +133,9 @@ export class EquipmentInfoPanel {
         // DOM 구조 생성
         this.panelEl.innerHTML = getPanelTemplate();
         this.dom = getDOMReferences(this.panelEl);
+        
+        // BEM 클래스 적용
+        this.panelEl.classList.add(EquipmentInfoPanel.CSS.BLOCK);
         
         // 자식 컴포넌트 초기화
         this.headerStatus = new HeaderStatus(this.panelEl);
@@ -109,11 +161,15 @@ export class EquipmentInfoPanel {
         this.state.currentTab = tabName;
         
         this.dom.tabButtons?.forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.tab === tabName);
+            const isActive = btn.dataset.tab === tabName;
+            btn.classList.toggle(EquipmentInfoPanel.CSS.TAB_BTN_ACTIVE, isActive);
+            btn.classList.toggle(EquipmentInfoPanel.CSS.LEGACY_ACTIVE, isActive);
         });
         
         this.dom.tabContents?.forEach(content => {
-            content.classList.toggle('active', content.id === `tab-${tabName}`);
+            const isActive = content.id === `tab-${tabName}`;
+            content.classList.toggle(EquipmentInfoPanel.CSS.TAB_CONTENT_ACTIVE, isActive);
+            content.classList.toggle(EquipmentInfoPanel.CSS.LEGACY_ACTIVE, isActive);
         });
     }
     
@@ -146,7 +202,8 @@ export class EquipmentInfoPanel {
     }
     
     hide() {
-        this.panelEl?.classList.remove('active');
+        this.panelEl?.classList.remove(EquipmentInfoPanel.CSS.ACTIVE);
+        this.panelEl?.classList.remove(EquipmentInfoPanel.CSS.LEGACY_ACTIVE);
         this.state.isVisible = false;
         this._resetState();
         this.generalTab?.stopTimer();
@@ -357,18 +414,22 @@ export class EquipmentInfoPanel {
     _updateHeader(title, isMulti = false) {
         if (this.dom.equipName) {
             this.dom.equipName.textContent = title;
+            this.dom.equipName.classList.toggle(EquipmentInfoPanel.CSS.TITLE_MULTI, isMulti);
             this.dom.equipName.classList.toggle('multi-select', isMulti);
         }
     }
     
     _showLoading() {
         this.state.isLoading = true;
+        this.panelEl?.classList.add(EquipmentInfoPanel.CSS.LOADING);
         this.generalTab.showLoading();
         this.pcInfoTab.showLoading();
     }
     
     _showPanel() {
-        this.panelEl?.classList.add('active');
+        this.panelEl?.classList.add(EquipmentInfoPanel.CSS.ACTIVE);
+        this.panelEl?.classList.add(EquipmentInfoPanel.CSS.LEGACY_ACTIVE);
+        this.panelEl?.classList.remove(EquipmentInfoPanel.CSS.LOADING);
         this.state.isVisible = true;
     }
     

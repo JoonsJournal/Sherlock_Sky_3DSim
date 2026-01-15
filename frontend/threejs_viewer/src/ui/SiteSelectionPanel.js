@@ -2,9 +2,16 @@
  * SiteSelectionPanel.js
  * 사이트 선택 및 연결 관리 패널
  * 
- * @version 2.1.0
- * @description BasePanel 상속 적용, 인라인 스타일 제거
- * @modified 2026-01-06 (Phase 5 - CSS 클래스 기반으로 전환)
+ * @version 3.0.0
+ * @description
+ * - 🆕 v3.0.0: Phase 4 CSS Integration
+ *   - CSS 클래스명 static 상수 정의
+ *   - BEM 네이밍 규칙 적용
+ *   - classList API 통일
+ * - v2.1.0: BasePanel 상속 적용, 인라인 스타일 제거
+ * 
+ * 📁 위치: frontend/threejs_viewer/src/ui/SiteSelectionPanel.js
+ * 수정일: 2026-01-15
  */
 
 import { BasePanel } from '../core/base/BasePanel.js';
@@ -16,6 +23,64 @@ import { toast } from './common/Toast.js';
  * 사이트 연결 관리 패널
  */
 export class SiteSelectionPanel extends BasePanel {
+    // =========================================================================
+    // CSS 클래스 상수 (Phase 4)
+    // =========================================================================
+    
+    /**
+     * BEM 클래스명 상수
+     * @static
+     */
+    static CSS = {
+        // Block
+        BLOCK: 'site-selection-panel',
+        
+        // Elements
+        HEADER: 'site-selection-panel__header',
+        ACTIONS: 'site-selection-panel__actions',
+        LIST: 'site-selection-panel__list',
+        FOOTER: 'site-selection-panel__footer',
+        
+        // Site Item
+        SITE_ITEM: 'site-item',
+        SITE_ITEM_SELECTED: 'site-item--selected',
+        SITE_ITEM_CONNECTED: 'site-item--connected',
+        SITE_ITEM_CONNECTING: 'site-item--connecting',
+        SITE_ITEM_FAILED: 'site-item--failed',
+        
+        SITE_CHECKBOX: 'site-item__checkbox',
+        SITE_INFO: 'site-item__info',
+        SITE_NAME: 'site-item__name',
+        SITE_REGION: 'site-item__region',
+        SITE_META: 'site-item__meta',
+        SITE_STATUS: 'site-item__status',
+        
+        // Buttons
+        BTN_CONNECT: 'site-selection-panel__connect-btn',
+        BTN_CONNECT_DISABLED: 'site-selection-panel__connect-btn--disabled',
+        BTN_DISCONNECT: 'site-item__disconnect-btn',
+        BTN_RETRY: 'site-item__retry-btn',
+        
+        // States
+        LOADING: 'site-selection-panel--loading',
+        NO_SITES: 'site-selection-panel__no-sites',
+        
+        // Legacy alias
+        LEGACY_SELECTED: 'selected',
+        LEGACY_CONNECTED: 'connected'
+    };
+    
+    /**
+     * Utility 클래스 상수
+     * @static
+     */
+    static UTIL = {
+        HIDDEN: 'u-hidden',
+        FLEX: 'u-flex',
+        FLEX_CENTER: 'u-flex-center',
+        GLASS: 'u-glass'
+    };
+    
     /**
      * @param {Object} options
      * @param {Object} options.connectionService - 연결 서비스
@@ -25,7 +90,7 @@ export class SiteSelectionPanel extends BasePanel {
             ...options,
             title: '🔍 Site Connection',
             collapsible: false,
-            className: 'connection-panel site-selection-panel'
+            className: `connection-panel ${SiteSelectionPanel.CSS.BLOCK}`
         });
         
         this.connectionService = options.connectionService;
@@ -42,9 +107,9 @@ export class SiteSelectionPanel extends BasePanel {
         const autoConnect = connectionStore.getState().autoConnect;
         
         return `
-            <div class="panel-header">
+            <div class="panel-header ${SiteSelectionPanel.CSS.HEADER}">
                 <h3>🔍 Site Connection</h3>
-                <div class="panel-actions">
+                <div class="panel-actions ${SiteSelectionPanel.CSS.ACTIONS}">
                     <label class="auto-connect-label">
                         <input type="checkbox" id="auto-connect-checkbox" ${autoConnect ? 'checked' : ''}>
                         <span>Auto Connect</span>
@@ -61,15 +126,15 @@ export class SiteSelectionPanel extends BasePanel {
      */
     renderContent() {
         return `
-            <div class="site-list" id="site-list">
+            <div class="site-list ${SiteSelectionPanel.CSS.LIST}" id="site-list">
                 <div class="loading-spinner-small"></div>
                 <span class="loading-text">Loading sites...</span>
             </div>
-            <div class="panel-footer">
+            <div class="panel-footer ${SiteSelectionPanel.CSS.FOOTER}">
                 <div class="selection-info">
                     <span id="selection-count">Selected: 0</span>
                 </div>
-                <button class="btn-connect" id="connect-btn" disabled>
+                <button class="${SiteSelectionPanel.CSS.BTN_CONNECT} btn-connect" id="connect-btn" disabled>
                     🔌 Connect
                 </button>
             </div>
@@ -154,7 +219,7 @@ export class SiteSelectionPanel extends BasePanel {
         if (!siteList) return;
         
         if (this.profiles.length === 0) {
-            siteList.innerHTML = '<div class="no-sites">No sites available</div>';
+            siteList.innerHTML = `<div class="${SiteSelectionPanel.CSS.NO_SITES} no-sites">No sites available</div>`;
             return;
         }
 
@@ -168,27 +233,32 @@ export class SiteSelectionPanel extends BasePanel {
             const isFailed = status.status === 'failed';
             const isSelected = this.selectedSites.includes(profile.id);
 
-            // 클래스 결정
+            // BEM 클래스 결정
             const itemClasses = [
-                'site-item',
-                isSelected ? 'site-item--selected' : '',
-                isConnected ? 'site-item--connected' : ''
+                SiteSelectionPanel.CSS.SITE_ITEM,
+                'site-item', // Legacy
+                isSelected ? SiteSelectionPanel.CSS.SITE_ITEM_SELECTED : '',
+                isSelected ? SiteSelectionPanel.CSS.LEGACY_SELECTED : '',
+                isConnected ? SiteSelectionPanel.CSS.SITE_ITEM_CONNECTED : '',
+                isConnected ? SiteSelectionPanel.CSS.LEGACY_CONNECTED : '',
+                isConnecting ? SiteSelectionPanel.CSS.SITE_ITEM_CONNECTING : '',
+                isFailed ? SiteSelectionPanel.CSS.SITE_ITEM_FAILED : ''
             ].filter(Boolean).join(' ');
 
             return `
                 <div class="${itemClasses}" data-site-id="${profile.id}">
-                    <div class="site-checkbox">
+                    <div class="${SiteSelectionPanel.CSS.SITE_CHECKBOX} site-checkbox">
                         <input type="checkbox" 
                                id="site-${profile.id}" 
                                ${isSelected ? 'checked' : ''}
                                ${isConnecting ? 'disabled' : ''}>
                     </div>
-                    <div class="site-info">
+                    <div class="${SiteSelectionPanel.CSS.SITE_INFO} site-info">
                         <div class="site-main">
-                            <span class="site-name">${profile.display_name}</span>
-                            <span class="site-region">${profile.region}</span>
+                            <span class="${SiteSelectionPanel.CSS.SITE_NAME} site-name">${profile.display_name}</span>
+                            <span class="${SiteSelectionPanel.CSS.SITE_REGION} site-region">${profile.region}</span>
                         </div>
-                        <div class="site-meta">
+                        <div class="${SiteSelectionPanel.CSS.SITE_META} site-meta">
                             ${status.last_connected ? `
                                 <span class="last-connected">Last: ${new Date(status.last_connected).toLocaleString()}</span>
                             ` : ''}
@@ -197,15 +267,15 @@ export class SiteSelectionPanel extends BasePanel {
                             ` : ''}
                         </div>
                     </div>
-                    <div class="site-status">
+                    <div class="${SiteSelectionPanel.CSS.SITE_STATUS} site-status">
                         ${isConnecting ? `
                             <div class="loading-spinner-small"></div>
                         ` : isConnected ? `
                             <span class="status-icon">✅</span>
-                            <button class="btn-disconnect" data-site-id="${profile.id}">Disconnect</button>
+                            <button class="${SiteSelectionPanel.CSS.BTN_DISCONNECT} btn-disconnect" data-site-id="${profile.id}">Disconnect</button>
                         ` : isFailed ? `
                             <span class="status-icon">❌</span>
-                            <button class="btn-retry" data-site-id="${profile.id}">Retry</button>
+                            <button class="${SiteSelectionPanel.CSS.BTN_RETRY} btn-retry" data-site-id="${profile.id}">Retry</button>
                         ` : `
                             <span class="status-icon">⚪</span>
                         `}
@@ -223,7 +293,7 @@ export class SiteSelectionPanel extends BasePanel {
         });
 
         // 연결 해제 버튼 이벤트
-        siteList.querySelectorAll('.btn-disconnect').forEach(btn => {
+        siteList.querySelectorAll(`.${SiteSelectionPanel.CSS.BTN_DISCONNECT}, .btn-disconnect`).forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const siteId = btn.dataset.siteId;
@@ -232,7 +302,7 @@ export class SiteSelectionPanel extends BasePanel {
         });
 
         // 재시도 버튼 이벤트
-        siteList.querySelectorAll('.btn-retry').forEach(btn => {
+        siteList.querySelectorAll(`.${SiteSelectionPanel.CSS.BTN_RETRY}, .btn-retry`).forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const siteId = btn.dataset.siteId;
@@ -300,6 +370,7 @@ export class SiteSelectionPanel extends BasePanel {
         if (connectBtn) {
             const isDisabled = this.selectedSites.length === 0 || this.isConnecting;
             connectBtn.disabled = isDisabled;
+            connectBtn.classList.toggle(SiteSelectionPanel.CSS.BTN_CONNECT_DISABLED, isDisabled);
         }
     }
     
@@ -313,6 +384,7 @@ export class SiteSelectionPanel extends BasePanel {
         const connectBtn = this.$('#connect-btn');
         if (connectBtn) {
             connectBtn.disabled = true;
+            connectBtn.classList.add(SiteSelectionPanel.CSS.BTN_CONNECT_DISABLED);
             connectBtn.textContent = '⏳ Connecting...';
         }
 
@@ -349,6 +421,7 @@ export class SiteSelectionPanel extends BasePanel {
             this.isConnecting = false;
             if (connectBtn) {
                 connectBtn.disabled = false;
+                connectBtn.classList.remove(SiteSelectionPanel.CSS.BTN_CONNECT_DISABLED);
                 connectBtn.textContent = '🔌 Connect';
             }
         }

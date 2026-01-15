@@ -2,9 +2,16 @@
  * DatabaseListPanel.js
  * 연결된 데이터베이스 테이블 목록 표시 패널
  * 
- * @version 2.1.0
- * @description BasePanel 상속 적용, 인라인 스타일 제거
- * @modified 2026-01-06 (Phase 5 - CSS 클래스 기반으로 전환)
+ * @version 3.0.0
+ * @description
+ * - 🆕 v3.0.0: Phase 4 CSS Integration
+ *   - CSS 클래스명 static 상수 정의
+ *   - BEM 네이밍 규칙 적용
+ *   - classList API 통일
+ * - v2.1.0: BasePanel 상속 적용, 인라인 스타일 제거
+ * 
+ * 📁 위치: frontend/threejs_viewer/src/ui/DatabaseListPanel.js
+ * 수정일: 2026-01-15
  */
 
 import { BasePanel } from '../core/base/BasePanel.js';
@@ -15,6 +22,72 @@ import { toast } from './common/Toast.js';
  * 데이터베이스 테이블 목록 패널
  */
 export class DatabaseListPanel extends BasePanel {
+    // =========================================================================
+    // CSS 클래스 상수 (Phase 4)
+    // =========================================================================
+    
+    /**
+     * BEM 클래스명 상수
+     * @static
+     */
+    static CSS = {
+        // Block
+        BLOCK: 'database-list-panel',
+        
+        // Elements
+        HEADER: 'database-list-panel__header',
+        ACTIONS: 'database-list-panel__actions',
+        LIST: 'database-list-panel__list',
+        
+        // Database Item
+        DB_ITEM: 'database-item',
+        DB_HEADER: 'database-item__header',
+        DB_STATS: 'database-item__stats',
+        DB_INFO: 'database-item__info',
+        
+        // Table Item
+        TABLE_ITEM: 'table-item',
+        TABLE_ITEM_EXPANDED: 'table-item--expanded',
+        TABLE_HEADER: 'table-item__header',
+        TABLE_NAME: 'table-item__name',
+        TABLE_ROWS: 'table-item__rows',
+        TABLE_SIZE: 'table-item__size',
+        TABLE_DETAILS: 'table-item__details',
+        
+        // States
+        NO_CONNECTION: 'database-list-panel__no-connection',
+        NO_TABLES: 'database-list-panel__no-tables',
+        LOADING: 'database-list-panel--loading',
+        
+        // Icons
+        EXPAND_ICON: 'table-item__expand-icon',
+        EXPAND_ICON_OPEN: 'table-item__expand-icon--open',
+        
+        // Stat Items
+        STAT_ITEM: 'database-item__stat',
+        STAT_LABEL: 'database-item__stat-label',
+        STAT_VALUE: 'database-item__stat-value',
+        
+        // Detail Items
+        DETAIL_ITEM: 'table-item__detail',
+        DETAIL_LABEL: 'table-item__detail-label',
+        DETAIL_VALUE: 'table-item__detail-value',
+        
+        // Legacy aliases
+        LEGACY_EXPANDED: 'expanded'
+    };
+    
+    /**
+     * Utility 클래스 상수
+     * @static
+     */
+    static UTIL = {
+        HIDDEN: 'u-hidden',
+        FLEX: 'u-flex',
+        FLEX_CENTER: 'u-flex-center',
+        GLASS: 'u-glass'
+    };
+    
     /**
      * @param {Object} options
      * @param {Object} options.connectionService - 연결 서비스
@@ -24,7 +97,7 @@ export class DatabaseListPanel extends BasePanel {
             ...options,
             title: '📊 Connected Databases',
             collapsible: false,
-            className: 'connection-panel database-list-panel'
+            className: `connection-panel ${DatabaseListPanel.CSS.BLOCK}`
         });
         
         this.connectionService = options.connectionService;
@@ -37,9 +110,9 @@ export class DatabaseListPanel extends BasePanel {
      */
     renderHeader() {
         return `
-            <div class="panel-header">
+            <div class="panel-header ${DatabaseListPanel.CSS.HEADER}">
                 <h3>📊 Connected Databases</h3>
-                <div class="panel-actions">
+                <div class="panel-actions ${DatabaseListPanel.CSS.ACTIONS}">
                     <button class="btn-icon" id="refresh-db-btn" title="Refresh">🔄</button>
                     <button class="btn-icon" id="export-status-btn" title="Export Status">📤</button>
                 </div>
@@ -52,8 +125,8 @@ export class DatabaseListPanel extends BasePanel {
      */
     renderContent() {
         return `
-            <div class="database-list" id="database-list">
-                <div class="no-connection">
+            <div class="database-list ${DatabaseListPanel.CSS.LIST}" id="database-list">
+                <div class="${DatabaseListPanel.CSS.NO_CONNECTION} no-connection">
                     <span class="no-connection-icon">📂</span>
                     <p>No database connected</p>
                     <small>Connect to a site to view tables</small>
@@ -101,7 +174,7 @@ export class DatabaseListPanel extends BasePanel {
 
         if (this.connectedSites.length === 0) {
             dbList.innerHTML = `
-                <div class="no-connection">
+                <div class="${DatabaseListPanel.CSS.NO_CONNECTION} no-connection">
                     <span class="no-connection-icon">📂</span>
                     <p>No database connected</p>
                     <small>Connect to a site to view tables</small>
@@ -116,22 +189,22 @@ export class DatabaseListPanel extends BasePanel {
             const dbType = dbInfo.db_type || 'unknown';
             
             return `
-                <div class="database-item">
-                    <div class="database-header">
+                <div class="${DatabaseListPanel.CSS.DB_ITEM} database-item">
+                    <div class="${DatabaseListPanel.CSS.DB_HEADER} database-header">
                         <h4>🗄️ ${displayName}</h4>
-                        <div class="database-stats">
-                            <span class="stat-item">
-                                <span class="stat-label">Tables:</span>
-                                <span class="stat-value">${totalTables}</span>
+                        <div class="${DatabaseListPanel.CSS.DB_STATS} database-stats">
+                            <span class="${DatabaseListPanel.CSS.STAT_ITEM} stat-item">
+                                <span class="${DatabaseListPanel.CSS.STAT_LABEL} stat-label">Tables:</span>
+                                <span class="${DatabaseListPanel.CSS.STAT_VALUE} stat-value">${totalTables}</span>
                             </span>
-                            <span class="stat-item">
-                                <span class="stat-label">Type:</span>
-                                <span class="stat-value">${dbType.toUpperCase()}</span>
+                            <span class="${DatabaseListPanel.CSS.STAT_ITEM} stat-item">
+                                <span class="${DatabaseListPanel.CSS.STAT_LABEL} stat-label">Type:</span>
+                                <span class="${DatabaseListPanel.CSS.STAT_VALUE} stat-value">${dbType.toUpperCase()}</span>
                             </span>
                         </div>
                     </div>
                     
-                    <div class="connection-info">
+                    <div class="${DatabaseListPanel.CSS.DB_INFO} connection-info">
                         <span class="info-label">Site ID:</span>
                         <span class="info-value">${dbInfo.site_id}</span>
                     </div>
@@ -152,28 +225,41 @@ export class DatabaseListPanel extends BasePanel {
      */
     _renderTables(tables, siteId) {
         if (!tables || tables.length === 0) {
-            return '<div class="no-tables">No tables found</div>';
+            return `<div class="${DatabaseListPanel.CSS.NO_TABLES} no-tables">No tables found</div>`;
         }
 
         return tables.map(table => {
             const isExpanded = this.expandedTables.has(`${siteId}-${table.name}`);
-            const expandedClass = isExpanded ? 'table-item--expanded' : '';
+            
+            // BEM 클래스
+            const itemClasses = [
+                DatabaseListPanel.CSS.TABLE_ITEM,
+                'table-item', // Legacy
+                isExpanded ? DatabaseListPanel.CSS.TABLE_ITEM_EXPANDED : '',
+                isExpanded ? DatabaseListPanel.CSS.LEGACY_EXPANDED : ''
+            ].filter(Boolean).join(' ');
+            
+            const expandIconClasses = [
+                DatabaseListPanel.CSS.EXPAND_ICON,
+                'expand-icon',
+                isExpanded ? DatabaseListPanel.CSS.EXPAND_ICON_OPEN : ''
+            ].filter(Boolean).join(' ');
             
             return `
-                <div class="table-item ${expandedClass}" 
+                <div class="${itemClasses}" 
                      data-site-id="${siteId}" 
                      data-table-name="${table.name}">
-                    <div class="table-header">
+                    <div class="${DatabaseListPanel.CSS.TABLE_HEADER} table-header">
                         <div class="table-info-main">
-                            <span class="expand-icon">${isExpanded ? '▼' : '▶'}</span>
-                            <span class="table-name">${table.name}</span>
+                            <span class="${expandIconClasses}">${isExpanded ? '▼' : '▶'}</span>
+                            <span class="${DatabaseListPanel.CSS.TABLE_NAME} table-name">${table.name}</span>
                             ${table.row_count !== null && table.row_count !== undefined ? `
-                                <span class="table-rows">${this._formatNumber(table.row_count)} rows</span>
+                                <span class="${DatabaseListPanel.CSS.TABLE_ROWS} table-rows">${this._formatNumber(table.row_count)} rows</span>
                             ` : ''}
                         </div>
                         <div class="table-actions">
                             ${table.size_mb !== null && table.size_mb !== undefined ? `
-                                <span class="table-size">${table.size_mb.toFixed(2)} MB</span>
+                                <span class="${DatabaseListPanel.CSS.TABLE_SIZE} table-size">${table.size_mb.toFixed(2)} MB</span>
                             ` : ''}
                             ${table.schema ? `
                                 <span class="table-schema">${table.schema}</span>
@@ -182,23 +268,23 @@ export class DatabaseListPanel extends BasePanel {
                     </div>
                     
                     ${isExpanded ? `
-                        <div class="table-details">
+                        <div class="${DatabaseListPanel.CSS.TABLE_DETAILS} table-details">
                             <div class="table-detail-grid">
-                                <div class="detail-item">
-                                    <span class="detail-label">Schema:</span>
-                                    <span class="detail-value">${table.schema || 'N/A'}</span>
+                                <div class="${DatabaseListPanel.CSS.DETAIL_ITEM} detail-item">
+                                    <span class="${DatabaseListPanel.CSS.DETAIL_LABEL} detail-label">Schema:</span>
+                                    <span class="${DatabaseListPanel.CSS.DETAIL_VALUE} detail-value">${table.schema || 'N/A'}</span>
                                 </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Type:</span>
-                                    <span class="detail-value">${table.type || 'N/A'}</span>
+                                <div class="${DatabaseListPanel.CSS.DETAIL_ITEM} detail-item">
+                                    <span class="${DatabaseListPanel.CSS.DETAIL_LABEL} detail-label">Type:</span>
+                                    <span class="${DatabaseListPanel.CSS.DETAIL_VALUE} detail-value">${table.type || 'N/A'}</span>
                                 </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Row Count:</span>
-                                    <span class="detail-value">${table.row_count !== null && table.row_count !== undefined ? this._formatNumber(table.row_count) : 'N/A'}</span>
+                                <div class="${DatabaseListPanel.CSS.DETAIL_ITEM} detail-item">
+                                    <span class="${DatabaseListPanel.CSS.DETAIL_LABEL} detail-label">Row Count:</span>
+                                    <span class="${DatabaseListPanel.CSS.DETAIL_VALUE} detail-value">${table.row_count !== null && table.row_count !== undefined ? this._formatNumber(table.row_count) : 'N/A'}</span>
                                 </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Size:</span>
-                                    <span class="detail-value">${table.size_mb !== null && table.size_mb !== undefined ? `${table.size_mb.toFixed(2)} MB` : 'N/A'}</span>
+                                <div class="${DatabaseListPanel.CSS.DETAIL_ITEM} detail-item">
+                                    <span class="${DatabaseListPanel.CSS.DETAIL_LABEL} detail-label">Size:</span>
+                                    <span class="${DatabaseListPanel.CSS.DETAIL_VALUE} detail-value">${table.size_mb !== null && table.size_mb !== undefined ? `${table.size_mb.toFixed(2)} MB` : 'N/A'}</span>
                                 </div>
                             </div>
                         </div>
@@ -212,10 +298,10 @@ export class DatabaseListPanel extends BasePanel {
      * 테이블 클릭 이벤트 등록
      */
     _attachTableClickEvents() {
-        const tableItems = this.element?.querySelectorAll('.table-item');
+        const tableItems = this.element?.querySelectorAll(`.${DatabaseListPanel.CSS.TABLE_ITEM}, .table-item`);
         
         tableItems?.forEach(item => {
-            const header = item.querySelector('.table-header');
+            const header = item.querySelector(`.${DatabaseListPanel.CSS.TABLE_HEADER}, .table-header`);
             if (header) {
                 header.addEventListener('click', () => {
                     const siteId = item.dataset.siteId;

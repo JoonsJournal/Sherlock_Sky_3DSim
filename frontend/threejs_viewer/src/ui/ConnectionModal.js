@@ -3,7 +3,13 @@
  * ==================
  * 데이터베이스 연결 관리 모달
  * 
- * @version 2.0.0
+ * @version 3.0.0
+ * @description
+ * - 🆕 v3.0.0: Phase 4 CSS Integration
+ *   - CSS 클래스명 static 상수 정의
+ *   - BEM 네이밍 규칙 적용
+ * - v2.0.0: BaseModal 상속 적용
+ * 
  * @deprecated v2.1.0 - Sidebar.js의 ConnectionModalManager.js로 대체됨
  * 
  * ⚠️ DEPRECATED NOTICE ⚠️
@@ -28,7 +34,8 @@
  * 
  * 삭제 예정일: 2026-02-01
  * 
- * @description BaseModal 상속 적용
+ * 📁 위치: frontend/threejs_viewer/src/ui/ConnectionModal.js
+ * 수정일: 2026-01-15
  */
 
 import { BaseModal } from '../core/base/BaseModal.js';
@@ -49,6 +56,51 @@ console.warn(
  * @deprecated Use Sidebar.js + ConnectionModalManager.js instead
  */
 export class ConnectionModal extends BaseModal {
+    // =========================================================================
+    // CSS 클래스 상수 (Phase 4)
+    // =========================================================================
+    
+    /**
+     * BEM 클래스명 상수
+     * @static
+     */
+    static CSS = {
+        // Block
+        BLOCK: 'connection-modal',
+        
+        // Elements
+        BODY: 'connection-modal__body',
+        FOOTER: 'connection-modal__footer',
+        FOOTER_LEFT: 'connection-modal__footer-left',
+        HINT: 'connection-modal__hint',
+        
+        // Panel Containers
+        PANEL_CONTAINER: 'connection-modal__panel-container',
+        API_STATUS_CONTAINER: 'connection-modal__api-status',
+        SITE_SELECTION_CONTAINER: 'connection-modal__site-selection',
+        DB_LIST_CONTAINER: 'connection-modal__db-list',
+        
+        // Buttons
+        BTN_CANCEL: 'connection-modal__cancel-btn',
+        
+        // States
+        LOADING: 'connection-modal--loading',
+        
+        // Legacy aliases
+        LEGACY_BODY: 'connection-modal-body',
+        LEGACY_PANEL: 'panel-container'
+    };
+    
+    /**
+     * Utility 클래스 상수
+     * @static
+     */
+    static UTIL = {
+        HIDDEN: 'u-hidden',
+        FLEX: 'u-flex',
+        GLASS: 'u-glass'
+    };
+    
     constructor(options = {}) {
         // Deprecation 경고
         console.warn('[ConnectionModal] This class is deprecated. Use Sidebar.openConnectionModal() instead.');
@@ -75,15 +127,15 @@ export class ConnectionModal extends BaseModal {
      */
     renderBody() {
         return `
-            <div class="connection-modal-body">
+            <div class="${ConnectionModal.CSS.BODY} ${ConnectionModal.CSS.LEGACY_BODY}">
                 <!-- API Status Panel -->
-                <div id="api-status-container" class="panel-container"></div>
+                <div id="api-status-container" class="${ConnectionModal.CSS.PANEL_CONTAINER} ${ConnectionModal.CSS.LEGACY_PANEL}"></div>
                 
                 <!-- Site Selection Panel -->
-                <div id="site-selection-container" class="panel-container"></div>
+                <div id="site-selection-container" class="${ConnectionModal.CSS.PANEL_CONTAINER} ${ConnectionModal.CSS.LEGACY_PANEL}"></div>
                 
                 <!-- Database List Panel -->
-                <div id="database-list-container" class="panel-container"></div>
+                <div id="database-list-container" class="${ConnectionModal.CSS.PANEL_CONTAINER} ${ConnectionModal.CSS.LEGACY_PANEL}"></div>
             </div>
         `;
     }
@@ -93,10 +145,10 @@ export class ConnectionModal extends BaseModal {
      */
     renderFooter() {
         return `
-            <div class="modal-footer-left">
-                <span class="footer-hint">Ctrl+K to toggle</span>
+            <div class="${ConnectionModal.CSS.FOOTER_LEFT} modal-footer-left">
+                <span class="${ConnectionModal.CSS.HINT} footer-hint">Ctrl+K to toggle</span>
             </div>
-            <button class="btn-secondary modal-cancel-btn">Close</button>
+            <button class="${ConnectionModal.CSS.BTN_CANCEL} btn-secondary modal-cancel-btn">Close</button>
         `;
     }
     

@@ -3,29 +3,62 @@
  * ========================
  * Sidebar 서브메뉴 생성 유틸리티 함수 모듈
  * 
- * @version 1.0.0
+ * @version 2.0.0
  * @created 2026-01-11
- * @source Sidebar.js v1.4.0 (서브메뉴 생성 메서드)
+ * @modified 2026-01-15
  * 
- * @description
- * Sidebar.js 리팩토링 Phase 4
- * - 서브메뉴 생성 함수 분리
- * - 테마 토글 생성 함수 분리
- * - Mock Test 섹션 생성 함수 분리
+ * @changelog
+ * - 🆕 v2.0.0: Phase 4 CSS Integration
+ *   - SUBMENU_CSS 상수 객체 추가
+ *   - BEM 네이밍 규칙 적용
+ * - v1.0.0: 초기 버전
  * 
- * @usage
- * import { 
- *     createSubmenu, 
- *     createThemeToggle,
- *     createMockTestSection,
- *     updateSubmenuActiveState
- * } from './SidebarSubmenuFactory.js';
- * 
- * const submenu = createSubmenu(config, getIcon, onItemClick);
- * wrapper.appendChild(submenu);
- * 
- * 위치: frontend/threejs_viewer/src/ui/sidebar/SidebarSubmenuFactory.js
+ * 📁 위치: frontend/threejs_viewer/src/ui/sidebar/SidebarSubmenuFactory.js
  */
+
+// ============================================
+// CSS 클래스 상수 (Phase 4)
+// ============================================
+
+/**
+ * Submenu 관련 BEM 클래스명 상수
+ * @constant
+ */
+export const SUBMENU_CSS = {
+    // Submenu Container
+    SUBMENU: 'submenu',
+    SUBMENU_HEADER: 'submenu__header',
+    SUBMENU_DIVIDER: 'submenu__divider',
+    
+    // Submenu Item
+    ITEM: 'submenu__item',
+    ITEM_ACTIVE: 'submenu__item--active',
+    ITEM_DISABLED: 'submenu__item--disabled',
+    
+    // Theme Toggle
+    THEME_TOGGLE: 'submenu__theme-toggle',
+    THEME_TOGGLE_LABEL: 'submenu__theme-toggle-label',
+    THEME_SWITCH: 'submenu__theme-switch',
+    THEME_SWITCH_ACTIVE: 'submenu__theme-switch--active',
+    
+    // Mock Test Section
+    MOCK_SECTION: 'submenu__mock-section',
+    MOCK_LIST: 'submenu__mock-list',
+    MOCK_ITEM: 'submenu__mock-item',
+    
+    // Legacy aliases (하위 호환)
+    LEGACY_SUBMENU: 'submenu',
+    LEGACY_HEADER: 'submenu-header',
+    LEGACY_DIVIDER: 'submenu-divider',
+    LEGACY_ITEM: 'submenu-item',
+    LEGACY_ACTIVE: 'active',
+    LEGACY_DISABLED: 'disabled',
+    LEGACY_THEME_TOGGLE: 'theme-toggle-item',
+    LEGACY_THEME_LABEL: 'theme-toggle-label',
+    LEGACY_THEME_SWITCH: 'theme-switch',
+    LEGACY_MOCK_LIST: 'mock-test-list',
+    LEGACY_MOCK_ITEM: 'mock-test-item'
+};
 
 // ============================================
 // Submenu Creation Functions
@@ -46,7 +79,7 @@ export function createSubmenu(config, getIcon, onItemClick, context = {}) {
     }
     
     const submenu = document.createElement('div');
-    submenu.className = 'submenu';
+    submenu.classList.add(SUBMENU_CSS.SUBMENU, SUBMENU_CSS.LEGACY_SUBMENU);
     
     if (config.id) {
         submenu.id = config.id;
@@ -55,7 +88,7 @@ export function createSubmenu(config, getIcon, onItemClick, context = {}) {
     // Header 생성
     if (config.header) {
         const header = document.createElement('div');
-        header.className = 'submenu-header';
+        header.classList.add(SUBMENU_CSS.SUBMENU_HEADER, SUBMENU_CSS.LEGACY_HEADER);
         header.textContent = config.header;
         submenu.appendChild(header);
     }
@@ -86,7 +119,7 @@ export function createSubmenuItem(item, getIcon, onItemClick, context = {}) {
     // 구분선
     if (item.type === 'divider') {
         const divider = document.createElement('div');
-        divider.className = 'submenu-divider';
+        divider.classList.add(SUBMENU_CSS.SUBMENU_DIVIDER, SUBMENU_CSS.LEGACY_DIVIDER);
         return divider;
     }
     
@@ -102,13 +135,13 @@ export function createSubmenuItem(item, getIcon, onItemClick, context = {}) {
     
     // 일반 메뉴 아이템
     const menuItem = document.createElement('button');
-    menuItem.className = 'submenu-item';
+    menuItem.classList.add(SUBMENU_CSS.ITEM, SUBMENU_CSS.LEGACY_ITEM);
     
     if (item.id) {
         menuItem.id = item.id;
     }
     if (item.disabled) {
-        menuItem.classList.add('disabled');
+        menuItem.classList.add(SUBMENU_CSS.ITEM_DISABLED, SUBMENU_CSS.LEGACY_DISABLED);
     }
     if (item.requiresDevMode) {
         menuItem.dataset.requiresDevMode = 'true';
@@ -126,7 +159,7 @@ export function createSubmenuItem(item, getIcon, onItemClick, context = {}) {
     
     // 클릭 이벤트
     menuItem.addEventListener('click', () => {
-        if (menuItem.classList.contains('disabled')) return;
+        if (menuItem.classList.contains(SUBMENU_CSS.LEGACY_DISABLED)) return;
         if (onItemClick) {
             onItemClick(item);
         }
@@ -145,22 +178,22 @@ export function createSubmenuItem(item, getIcon, onItemClick, context = {}) {
  */
 export function createThemeToggle(currentTheme, onToggle, getIcon) {
     const container = document.createElement('div');
-    container.className = 'theme-toggle-item';
+    container.classList.add(SUBMENU_CSS.THEME_TOGGLE, SUBMENU_CSS.LEGACY_THEME_TOGGLE);
     
     // 아이콘과 라벨
     const iconHtml = getIcon ? getIcon('sun') : '☀️';
     container.innerHTML = `
-        <div class="theme-toggle-label">
+        <div class="${SUBMENU_CSS.THEME_TOGGLE_LABEL} ${SUBMENU_CSS.LEGACY_THEME_LABEL}">
             ${iconHtml}
             <span>Theme</span>
         </div>
-        <div class="theme-switch" id="theme-switch"></div>
+        <div class="${SUBMENU_CSS.THEME_SWITCH} ${SUBMENU_CSS.LEGACY_THEME_SWITCH}" id="theme-switch"></div>
     `;
     
     // 현재 테마 반영
-    const themeSwitch = container.querySelector('.theme-switch');
+    const themeSwitch = container.querySelector(`.${SUBMENU_CSS.LEGACY_THEME_SWITCH}`);
     if (currentTheme === 'light' && themeSwitch) {
-        themeSwitch.classList.add('active');
+        themeSwitch.classList.add(SUBMENU_CSS.THEME_SWITCH_ACTIVE, SUBMENU_CSS.LEGACY_ACTIVE);
     }
     
     // 토글 이벤트
@@ -180,20 +213,21 @@ export function createThemeToggle(currentTheme, onToggle, getIcon) {
 export function createMockTestSection(onTestSelect) {
     const section = document.createElement('div');
     section.id = 'mock-test-section';
+    section.classList.add(SUBMENU_CSS.MOCK_SECTION);
     section.style.display = 'none';  // 기본 숨김 (Dev Mode에서만 표시)
     
     section.innerHTML = `
-        <div class="submenu-divider"></div>
-        <div class="submenu-header">Mock Test Files</div>
-        <div class="mock-test-list">
-            <div class="mock-test-item" data-test="equipment-status">📦 Equipment Status Test</div>
-            <div class="mock-test-item" data-test="realtime-update">🔄 Realtime Update Test</div>
-            <div class="mock-test-item" data-test="multi-site">🌐 Multi-Site Test</div>
+        <div class="${SUBMENU_CSS.SUBMENU_DIVIDER} ${SUBMENU_CSS.LEGACY_DIVIDER}"></div>
+        <div class="${SUBMENU_CSS.SUBMENU_HEADER} ${SUBMENU_CSS.LEGACY_HEADER}">Mock Test Files</div>
+        <div class="${SUBMENU_CSS.MOCK_LIST} ${SUBMENU_CSS.LEGACY_MOCK_LIST}">
+            <div class="${SUBMENU_CSS.MOCK_ITEM} ${SUBMENU_CSS.LEGACY_MOCK_ITEM}" data-test="equipment-status">📦 Equipment Status Test</div>
+            <div class="${SUBMENU_CSS.MOCK_ITEM} ${SUBMENU_CSS.LEGACY_MOCK_ITEM}" data-test="realtime-update">🔄 Realtime Update Test</div>
+            <div class="${SUBMENU_CSS.MOCK_ITEM} ${SUBMENU_CSS.LEGACY_MOCK_ITEM}" data-test="multi-site">🌐 Multi-Site Test</div>
         </div>
     `;
     
     // 테스트 선택 이벤트
-    section.querySelectorAll('.mock-test-item').forEach(item => {
+    section.querySelectorAll(`.${SUBMENU_CSS.LEGACY_MOCK_ITEM}`).forEach(item => {
         item.addEventListener('click', () => {
             const testName = item.dataset.test;
             if (onTestSelect) {
@@ -216,17 +250,17 @@ export function createMockTestSection(onTestSelect) {
  */
 export function updateSubmenuActiveState(activeSubmode) {
     // 모든 아이템 비활성화
-    document.querySelectorAll('.submenu-item').forEach(item => {
-        item.classList.remove('active');
+    document.querySelectorAll(`.${SUBMENU_CSS.LEGACY_ITEM}`).forEach(item => {
+        item.classList.remove(SUBMENU_CSS.ITEM_ACTIVE, SUBMENU_CSS.LEGACY_ACTIVE);
     });
     
     // 해당 서브모드 활성화
     if (activeSubmode) {
         const activeItem = document.querySelector(
-            `.submenu-item[data-submode="${activeSubmode}"]`
+            `.${SUBMENU_CSS.LEGACY_ITEM}[data-submode="${activeSubmode}"]`
         );
         if (activeItem) {
-            activeItem.classList.add('active');
+            activeItem.classList.add(SUBMENU_CSS.ITEM_ACTIVE, SUBMENU_CSS.LEGACY_ACTIVE);
         }
     }
 }
@@ -251,7 +285,8 @@ export function setMockTestSectionVisible(visible) {
 export function updateThemeSwitchState(theme) {
     const themeSwitch = document.getElementById('theme-switch');
     if (themeSwitch) {
-        themeSwitch.classList.toggle('active', theme === 'light');
+        themeSwitch.classList.toggle(SUBMENU_CSS.THEME_SWITCH_ACTIVE, theme === 'light');
+        themeSwitch.classList.toggle(SUBMENU_CSS.LEGACY_ACTIVE, theme === 'light');
     }
 }
 
@@ -293,7 +328,7 @@ export function updateDevModeLabel(enabled) {
 export function updateDevModeBadge(enabled) {
     const badge = document.getElementById('dev-mode-badge');
     if (badge) {
-        badge.classList.toggle('active', enabled);
+        badge.classList.toggle(SUBMENU_CSS.LEGACY_ACTIVE, enabled);
     }
 }
 
@@ -323,7 +358,8 @@ export function findSubmenuItem(submenuId, itemId) {
 export function setSubmenuItemEnabled(itemId, enabled) {
     const item = document.getElementById(itemId);
     if (item) {
-        item.classList.toggle('disabled', !enabled);
+        item.classList.toggle(SUBMENU_CSS.ITEM_DISABLED, !enabled);
+        item.classList.toggle(SUBMENU_CSS.LEGACY_DISABLED, !enabled);
     }
 }
 
@@ -332,6 +368,9 @@ export function setSubmenuItemEnabled(itemId, enabled) {
 // ============================================
 
 export default {
+    // CSS Constants
+    SUBMENU_CSS,
+    
     // Creation
     createSubmenu,
     createSubmenuItem,
