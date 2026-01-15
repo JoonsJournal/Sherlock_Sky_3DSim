@@ -7,10 +7,15 @@
  * - 호버 시 상세 정보 툴팁 표시
  * - Mock 모드 테스트 컨트롤 (개발 모드)
  * 
- * @version 2.0.0
+ * @version 3.0.0
  * @description
- *   - v1.0.0: 초기 버전
+ *   - 🆕 v3.0.0: Phase 4 CSS Integration
+ *     - static CSS 상수 정의
+ *     - BEM 네이밍 규칙 적용
+ *     - classList API 통일
+ *     - Glow 효과 클래스 추가 (Dark Mode)
  *   - v2.0.0: _injectStyles() 제거, CSS 파일 분리 (_connection-indicator.css)
+ *   - v1.0.0: 초기 버전
  * 
  * @location frontend/threejs_viewer/src/ui/ConnectionIndicator.js
  */
@@ -19,6 +24,70 @@ import ConnectionStatusService, {
     ConnectionState, 
     ConnectionEvents 
 } from '../services/ConnectionStatusService.js';
+
+// ============================================
+// CSS 클래스 상수 (Phase 4)
+// ============================================
+
+/**
+ * ConnectionIndicator BEM 클래스명 상수
+ * @static
+ */
+const CSS = {
+    // Block
+    BLOCK: 'connection-indicator',
+    
+    // Position Modifiers
+    FIXED: 'connection-indicator--fixed',
+    TOP_RIGHT: 'connection-indicator--top-right',
+    TOP_LEFT: 'connection-indicator--top-left',
+    BOTTOM_RIGHT: 'connection-indicator--bottom-right',
+    BOTTOM_LEFT: 'connection-indicator--bottom-left',
+    
+    // Size Modifiers
+    SMALL: 'connection-indicator--small',
+    MEDIUM: 'connection-indicator--medium',
+    LARGE: 'connection-indicator--large',
+    
+    // State Modifiers
+    HIDDEN: 'connection-indicator--hidden',
+    ANIMATE: 'connection-indicator--animate',
+    
+    // Glow Effect (Dark Mode)
+    GLOW: 'connection-indicator--glow',
+    GLOW_ONLINE: 'connection-indicator--glow-online',
+    GLOW_OFFLINE: 'connection-indicator--glow-offline',
+    
+    // Elements - Dot
+    DOT: 'connection-indicator__dot',
+    DOT_ONLINE: 'connection-indicator__dot--online',
+    DOT_OFFLINE: 'connection-indicator__dot--offline',
+    DOT_CHECKING: 'connection-indicator__dot--checking',
+    DOT_UNKNOWN: 'connection-indicator__dot--unknown',
+    
+    // Elements - Label
+    LABEL: 'connection-indicator__label',
+    LABEL_ONLINE: 'connection-indicator__label--online',
+    LABEL_OFFLINE: 'connection-indicator__label--offline',
+    LABEL_CHECKING: 'connection-indicator__label--checking',
+    LABEL_UNKNOWN: 'connection-indicator__label--unknown',
+    
+    // Elements - Tooltip
+    TOOLTIP: 'connection-indicator__tooltip',
+    TOOLTIP_ROW: 'connection-indicator__tooltip-row',
+    TOOLTIP_LABEL: 'connection-indicator__tooltip-label',
+    TOOLTIP_VALUE: 'connection-indicator__tooltip-value',
+    TOOLTIP_VALUE_SUCCESS: 'connection-indicator__tooltip-value--success',
+    TOOLTIP_VALUE_ERROR: 'connection-indicator__tooltip-value--error',
+    
+    // Elements - Mock Controls
+    MOCK_CONTROLS: 'connection-indicator__mock-controls',
+    MOCK_BTN: 'connection-indicator__mock-btn',
+    MOCK_BTN_ON: 'connection-indicator__mock-btn--on',
+    MOCK_BTN_OFF: 'connection-indicator__mock-btn--off',
+    MOCK_BTN_TOGGLE: 'connection-indicator__mock-btn--toggle',
+    MOCK_BADGE: 'connection-indicator__mock-badge'
+};
 
 /**
  * 상태별 설정
@@ -29,28 +98,40 @@ const STATUS_CONFIG = {
         pulseColor: '#4ade80',
         icon: '●',
         label: 'Connected',
-        description: 'Backend 서버에 연결됨'
+        description: 'Backend 서버에 연결됨',
+        dotModifier: CSS.DOT_ONLINE,
+        labelModifier: CSS.LABEL_ONLINE,
+        glowModifier: CSS.GLOW_ONLINE
     },
     [ConnectionState.OFFLINE]: {
         color: '#ef4444',
         pulseColor: '#f87171',
         icon: '●',
         label: 'Disconnected',
-        description: 'Backend 서버에 연결할 수 없음'
+        description: 'Backend 서버에 연결할 수 없음',
+        dotModifier: CSS.DOT_OFFLINE,
+        labelModifier: CSS.LABEL_OFFLINE,
+        glowModifier: CSS.GLOW_OFFLINE
     },
     [ConnectionState.CHECKING]: {
         color: '#f59e0b',
         pulseColor: '#fbbf24',
         icon: '◐',
         label: 'Checking...',
-        description: '연결 상태 확인 중'
+        description: '연결 상태 확인 중',
+        dotModifier: CSS.DOT_CHECKING,
+        labelModifier: CSS.LABEL_CHECKING,
+        glowModifier: null
     },
     [ConnectionState.UNKNOWN]: {
         color: '#6b7280',
         pulseColor: '#9ca3af',
         icon: '○',
         label: 'Unknown',
-        description: '연결 상태를 알 수 없음'
+        description: '연결 상태를 알 수 없음',
+        dotModifier: CSS.DOT_UNKNOWN,
+        labelModifier: CSS.LABEL_UNKNOWN,
+        glowModifier: null
     }
 };
 
@@ -60,6 +141,12 @@ const STATUS_CONFIG = {
  * Backend 연결 상태를 표시하는 UI 컴포넌트
  */
 class ConnectionIndicator {
+    // =========================================================================
+    // Static CSS 상수 (외부 접근용)
+    // =========================================================================
+    
+    static CSS = CSS;
+    
     /**
      * @param {Object} options - 설정 옵션
      * @param {HTMLElement|string} options.container - 컨테이너 요소 또는 선택자
@@ -68,6 +155,7 @@ class ConnectionIndicator {
      * @param {boolean} options.showTooltip - 툴팁 표시 여부
      * @param {boolean} options.showMockControls - Mock 컨트롤 표시 여부 (개발용)
      * @param {boolean} options.animate - 애니메이션 효과 여부
+     * @param {boolean} options.enableGlow - Glow 효과 활성화 (Dark Mode)
      * @param {string} options.size - 크기 ('small', 'medium', 'large')
      * @param {number} options.zIndex - z-index 값
      */
@@ -79,6 +167,7 @@ class ConnectionIndicator {
             showTooltip: options.showTooltip ?? true,
             showMockControls: options.showMockControls ?? false,
             animate: options.animate ?? true,
+            enableGlow: options.enableGlow ?? true,
             size: options.size || 'medium',
             zIndex: options.zIndex || 9999,
             offsetX: options.offsetX || 20,
@@ -91,6 +180,9 @@ class ConnectionIndicator {
         this._labelElement = null;
         this._tooltipElement = null;
         this._mockControlsElement = null;
+
+        // 현재 상태 추적 (클래스 토글용)
+        this._currentState = null;
 
         // 서비스 연결
         this._connectionService = ConnectionStatusService.getInstance();
@@ -137,7 +229,7 @@ class ConnectionIndicator {
 
         // 메인 요소 생성
         this._element = document.createElement('div');
-        this._element.className = this._buildClassNames();
+        this._applyBaseClasses();
         this._element.style.setProperty('--ci-offset-x', `${this._options.offsetX}px`);
         this._element.style.setProperty('--ci-offset-y', `${this._options.offsetY}px`);
         this._element.style.zIndex = this._options.zIndex;
@@ -146,10 +238,10 @@ class ConnectionIndicator {
         this._element.innerHTML = this._buildInnerHTML();
 
         // 요소 참조 저장
-        this._indicatorDot = this._element.querySelector('.connection-indicator__dot');
-        this._labelElement = this._element.querySelector('.connection-indicator__label');
-        this._tooltipElement = this._element.querySelector('.connection-indicator__tooltip');
-        this._mockControlsElement = this._element.querySelector('.connection-indicator__mock-controls');
+        this._indicatorDot = this._element.querySelector(`.${CSS.DOT}`);
+        this._labelElement = this._element.querySelector(`.${CSS.LABEL}`);
+        this._tooltipElement = this._element.querySelector(`.${CSS.TOOLTIP}`);
+        this._mockControlsElement = this._element.querySelector(`.${CSS.MOCK_CONTROLS}`);
 
         // Mock 컨트롤 이벤트 바인딩
         if (this._options.showMockControls) {
@@ -161,29 +253,60 @@ class ConnectionIndicator {
     }
 
     /**
-     * 클래스명 빌드
+     * 기본 클래스 적용
      * @private
      */
-    _buildClassNames() {
-        const classes = ['connection-indicator'];
+    _applyBaseClasses() {
+        // Block 클래스
+        this._element.classList.add(CSS.BLOCK);
 
         // 위치
         if (this._options.position !== 'custom') {
-            classes.push('connection-indicator--fixed');
-            classes.push(`connection-indicator--${this._options.position}`);
+            this._element.classList.add(CSS.FIXED);
+            this._element.classList.add(this._getPositionClass(this._options.position));
         }
 
         // 크기
         if (this._options.size !== 'medium') {
-            classes.push(`connection-indicator--${this._options.size}`);
+            this._element.classList.add(this._getSizeClass(this._options.size));
         }
 
         // 애니메이션
         if (this._options.animate) {
-            classes.push('connection-indicator--animate');
+            this._element.classList.add(CSS.ANIMATE);
         }
 
-        return classes.join(' ');
+        // Glow 효과
+        if (this._options.enableGlow) {
+            this._element.classList.add(CSS.GLOW);
+        }
+    }
+
+    /**
+     * 위치 클래스 반환
+     * @private
+     */
+    _getPositionClass(position) {
+        const positionMap = {
+            'top-right': CSS.TOP_RIGHT,
+            'top-left': CSS.TOP_LEFT,
+            'bottom-right': CSS.BOTTOM_RIGHT,
+            'bottom-left': CSS.BOTTOM_LEFT
+        };
+        return positionMap[position] || CSS.TOP_RIGHT;
+    }
+
+    /**
+     * 크기 클래스 반환
+     * @private
+     */
+    _getSizeClass(size) {
+        const sizeMap = {
+            'small': CSS.SMALL,
+            'medium': CSS.MEDIUM,
+            'large': CSS.LARGE
+        };
+        return sizeMap[size] || CSS.MEDIUM;
     }
 
     /**
@@ -191,24 +314,22 @@ class ConnectionIndicator {
      * @private
      */
     _buildInnerHTML() {
-        let html = `
-            <div class="connection-indicator__dot"></div>
-        `;
+        let html = `<div class="${CSS.DOT}"></div>`;
 
         // 라벨
         if (this._options.showLabel) {
-            html += `<span class="connection-indicator__label">Unknown</span>`;
+            html += `<span class="${CSS.LABEL}">Unknown</span>`;
         }
 
         // Mock 컨트롤
         if (this._options.showMockControls) {
             html += `
-                <div class="connection-indicator__mock-controls">
-                    <button class="connection-indicator__mock-btn connection-indicator__mock-btn--on" 
+                <div class="${CSS.MOCK_CONTROLS}">
+                    <button class="${CSS.MOCK_BTN} ${CSS.MOCK_BTN_ON}" 
                             data-action="mock-on" title="Set Online">ON</button>
-                    <button class="connection-indicator__mock-btn connection-indicator__mock-btn--off" 
+                    <button class="${CSS.MOCK_BTN} ${CSS.MOCK_BTN_OFF}" 
                             data-action="mock-off" title="Set Offline">OFF</button>
-                    <button class="connection-indicator__mock-btn connection-indicator__mock-btn--toggle" 
+                    <button class="${CSS.MOCK_BTN} ${CSS.MOCK_BTN_TOGGLE}" 
                             data-action="mock-toggle" title="Toggle">⟳</button>
                 </div>
             `;
@@ -217,26 +338,26 @@ class ConnectionIndicator {
         // 툴팁
         if (this._options.showTooltip) {
             html += `
-                <div class="connection-indicator__tooltip">
-                    <div class="connection-indicator__tooltip-row">
-                        <span class="connection-indicator__tooltip-label">상태</span>
-                        <span class="connection-indicator__tooltip-value" data-field="status">-</span>
+                <div class="${CSS.TOOLTIP}">
+                    <div class="${CSS.TOOLTIP_ROW}">
+                        <span class="${CSS.TOOLTIP_LABEL}">상태</span>
+                        <span class="${CSS.TOOLTIP_VALUE}" data-field="status">-</span>
                     </div>
-                    <div class="connection-indicator__tooltip-row">
-                        <span class="connection-indicator__tooltip-label">마지막 체크</span>
-                        <span class="connection-indicator__tooltip-value" data-field="lastCheck">-</span>
+                    <div class="${CSS.TOOLTIP_ROW}">
+                        <span class="${CSS.TOOLTIP_LABEL}">마지막 체크</span>
+                        <span class="${CSS.TOOLTIP_VALUE}" data-field="lastCheck">-</span>
                     </div>
-                    <div class="connection-indicator__tooltip-row">
-                        <span class="connection-indicator__tooltip-label">성공률</span>
-                        <span class="connection-indicator__tooltip-value" data-field="successRate">-</span>
+                    <div class="${CSS.TOOLTIP_ROW}">
+                        <span class="${CSS.TOOLTIP_LABEL}">성공률</span>
+                        <span class="${CSS.TOOLTIP_VALUE}" data-field="successRate">-</span>
                     </div>
-                    <div class="connection-indicator__tooltip-row">
-                        <span class="connection-indicator__tooltip-label">연속 실패</span>
-                        <span class="connection-indicator__tooltip-value" data-field="failures">-</span>
+                    <div class="${CSS.TOOLTIP_ROW}">
+                        <span class="${CSS.TOOLTIP_LABEL}">연속 실패</span>
+                        <span class="${CSS.TOOLTIP_VALUE}" data-field="failures">-</span>
                     </div>
-                    <div class="connection-indicator__tooltip-row">
-                        <span class="connection-indicator__tooltip-label">모드</span>
-                        <span class="connection-indicator__tooltip-value" data-field="mode">-</span>
+                    <div class="${CSS.TOOLTIP_ROW}">
+                        <span class="${CSS.TOOLTIP_LABEL}">모드</span>
+                        <span class="${CSS.TOOLTIP_VALUE}" data-field="mode">-</span>
                     </div>
                 </div>
             `;
@@ -327,23 +448,42 @@ class ConnectionIndicator {
 
         const state = this._connectionService.getState();
         const config = STATUS_CONFIG[state] || STATUS_CONFIG[ConnectionState.UNKNOWN];
+        const prevState = this._currentState;
 
         // CSS 변수 업데이트
         this._element.style.setProperty('--ci-color', config.color);
         this._element.style.setProperty('--ci-pulse-color', config.pulseColor);
 
-        // Dot 클래스 업데이트
-        if (this._indicatorDot) {
-            this._indicatorDot.className = 'connection-indicator__dot';
-            this._indicatorDot.classList.add(`connection-indicator__dot--${state}`);
+        // 이전 상태 클래스 제거
+        if (prevState && STATUS_CONFIG[prevState]) {
+            const prevConfig = STATUS_CONFIG[prevState];
+            if (this._indicatorDot && prevConfig.dotModifier) {
+                this._indicatorDot.classList.remove(prevConfig.dotModifier);
+            }
+            if (this._labelElement && prevConfig.labelModifier) {
+                this._labelElement.classList.remove(prevConfig.labelModifier);
+            }
+            if (this._options.enableGlow && prevConfig.glowModifier) {
+                this._element.classList.remove(prevConfig.glowModifier);
+            }
         }
 
-        // 라벨 업데이트
+        // 새 상태 클래스 추가
+        if (this._indicatorDot && config.dotModifier) {
+            this._indicatorDot.classList.add(config.dotModifier);
+        }
         if (this._labelElement) {
             this._labelElement.textContent = config.label;
-            this._labelElement.className = 'connection-indicator__label';
-            this._labelElement.classList.add(`connection-indicator__label--${state}`);
+            if (config.labelModifier) {
+                this._labelElement.classList.add(config.labelModifier);
+            }
         }
+        if (this._options.enableGlow && config.glowModifier) {
+            this._element.classList.add(config.glowModifier);
+        }
+
+        // 현재 상태 저장
+        this._currentState = state;
 
         // Mock 뱃지 업데이트
         this._updateMockBadge();
@@ -358,7 +498,7 @@ class ConnectionIndicator {
      */
     _updateMockBadge() {
         // 기존 뱃지 제거
-        const existingBadge = this._element.querySelector('.connection-indicator__mock-badge');
+        const existingBadge = this._element.querySelector(`.${CSS.MOCK_BADGE}`);
         if (existingBadge) {
             existingBadge.remove();
         }
@@ -366,7 +506,7 @@ class ConnectionIndicator {
         // Mock 모드일 때만 뱃지 추가
         if (this._connectionService.isMockMode()) {
             const badge = document.createElement('span');
-            badge.className = 'connection-indicator__mock-badge';
+            badge.classList.add(CSS.MOCK_BADGE);
             badge.textContent = 'MOCK';
             
             // 라벨 다음에 삽입
@@ -393,11 +533,13 @@ class ConnectionIndicator {
         const statusEl = this._tooltipElement.querySelector('[data-field="status"]');
         if (statusEl) {
             statusEl.textContent = config.description;
-            statusEl.className = 'connection-indicator__tooltip-value';
+            // 이전 상태 클래스 제거
+            statusEl.classList.remove(CSS.TOOLTIP_VALUE_SUCCESS, CSS.TOOLTIP_VALUE_ERROR);
+            // 새 상태 클래스 추가
             if (state === ConnectionState.ONLINE) {
-                statusEl.classList.add('connection-indicator__tooltip-value--success');
+                statusEl.classList.add(CSS.TOOLTIP_VALUE_SUCCESS);
             } else if (state === ConnectionState.OFFLINE) {
-                statusEl.classList.add('connection-indicator__tooltip-value--error');
+                statusEl.classList.add(CSS.TOOLTIP_VALUE_ERROR);
             }
         }
 
@@ -414,9 +556,10 @@ class ConnectionIndicator {
         const failuresEl = this._tooltipElement.querySelector('[data-field="failures"]');
         if (failuresEl) {
             failuresEl.textContent = status.consecutiveFailures.toString();
-            failuresEl.className = 'connection-indicator__tooltip-value';
+            // 이전 상태 클래스 제거 후 조건부 추가
+            failuresEl.classList.remove(CSS.TOOLTIP_VALUE_ERROR);
             if (status.consecutiveFailures > 0) {
-                failuresEl.classList.add('connection-indicator__tooltip-value--error');
+                failuresEl.classList.add(CSS.TOOLTIP_VALUE_ERROR);
             }
         }
 
@@ -475,7 +618,7 @@ class ConnectionIndicator {
      */
     show() {
         if (this._element) {
-            this._element.classList.remove('connection-indicator--hidden');
+            this._element.classList.remove(CSS.HIDDEN);
         }
     }
 
@@ -484,7 +627,7 @@ class ConnectionIndicator {
      */
     hide() {
         if (this._element) {
-            this._element.classList.add('connection-indicator--hidden');
+            this._element.classList.add(CSS.HIDDEN);
         }
     }
 
@@ -493,7 +636,7 @@ class ConnectionIndicator {
      */
     toggle() {
         if (this._element) {
-            this._element.classList.toggle('connection-indicator--hidden');
+            this._element.classList.toggle(CSS.HIDDEN);
         }
     }
 
@@ -502,7 +645,7 @@ class ConnectionIndicator {
      * @returns {boolean}
      */
     isVisible() {
-        return this._element && !this._element.classList.contains('connection-indicator--hidden');
+        return this._element && !this._element.classList.contains(CSS.HIDDEN);
     }
 
     /**
@@ -514,19 +657,19 @@ class ConnectionIndicator {
 
         // 기존 위치 클래스 제거
         this._element.classList.remove(
-            'connection-indicator--top-right',
-            'connection-indicator--top-left',
-            'connection-indicator--bottom-right',
-            'connection-indicator--bottom-left'
+            CSS.TOP_RIGHT,
+            CSS.TOP_LEFT,
+            CSS.BOTTOM_RIGHT,
+            CSS.BOTTOM_LEFT
         );
 
         this._options.position = position;
 
         if (position !== 'custom') {
-            this._element.classList.add('connection-indicator--fixed');
-            this._element.classList.add(`connection-indicator--${position}`);
+            this._element.classList.add(CSS.FIXED);
+            this._element.classList.add(this._getPositionClass(position));
         } else {
-            this._element.classList.remove('connection-indicator--fixed');
+            this._element.classList.remove(CSS.FIXED);
         }
     }
 
@@ -545,6 +688,28 @@ class ConnectionIndicator {
     }
 
     /**
+     * Glow 효과 활성화/비활성화
+     * @param {boolean} enabled - 활성화 여부
+     */
+    setGlowEnabled(enabled) {
+        if (!this._element) return;
+
+        this._options.enableGlow = enabled;
+        this._element.classList.toggle(CSS.GLOW, enabled);
+        
+        // 현재 상태의 glow 클래스도 업데이트
+        if (enabled && this._currentState) {
+            const config = STATUS_CONFIG[this._currentState];
+            if (config && config.glowModifier) {
+                this._element.classList.add(config.glowModifier);
+            }
+        } else {
+            // 모든 glow 상태 클래스 제거
+            this._element.classList.remove(CSS.GLOW_ONLINE, CSS.GLOW_OFFLINE);
+        }
+    }
+
+    /**
      * Mock 컨트롤 표시/숨김
      * @param {boolean} show - 표시 여부
      */
@@ -554,13 +719,13 @@ class ConnectionIndicator {
         if (show && !this._mockControlsElement) {
             // Mock 컨트롤 추가
             const controls = document.createElement('div');
-            controls.className = 'connection-indicator__mock-controls';
+            controls.classList.add(CSS.MOCK_CONTROLS);
             controls.innerHTML = `
-                <button class="connection-indicator__mock-btn connection-indicator__mock-btn--on" 
+                <button class="${CSS.MOCK_BTN} ${CSS.MOCK_BTN_ON}" 
                         data-action="mock-on" title="Set Online">ON</button>
-                <button class="connection-indicator__mock-btn connection-indicator__mock-btn--off" 
+                <button class="${CSS.MOCK_BTN} ${CSS.MOCK_BTN_OFF}" 
                         data-action="mock-off" title="Set Offline">OFF</button>
-                <button class="connection-indicator__mock-btn connection-indicator__mock-btn--toggle" 
+                <button class="${CSS.MOCK_BTN} ${CSS.MOCK_BTN_TOGGLE}" 
                         data-action="mock-toggle" title="Toggle">⟳</button>
             `;
             this._element.appendChild(controls);
@@ -611,6 +776,7 @@ class ConnectionIndicator {
         this._labelElement = null;
         this._tooltipElement = null;
         this._mockControlsElement = null;
+        this._currentState = null;
     }
 
     /**
@@ -625,6 +791,6 @@ class ConnectionIndicator {
 export default ConnectionIndicator;
 
 // Named export
-export { ConnectionIndicator, STATUS_CONFIG };
+export { ConnectionIndicator, CSS as CONNECTION_INDICATOR_CSS, STATUS_CONFIG };
 
-console.log('✅ ConnectionIndicator.js v2.0.0 로드 완료');
+console.log('✅ ConnectionIndicator.js v3.0.0 로드 완료 (Phase 4 CSS Integration)');
