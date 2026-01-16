@@ -3,14 +3,23 @@
  * =============
  * WebSocket 실시간 데이터 병합 유틸리티
  * 
- * @version 1.0.0
+ * @version 2.1.0
+ * @changelog
+ * - v2.1.0: Production Count, Tact Time 필드 병합 지원
+ *           - production_count: 조건부 업데이트
+ *           - tact_time_seconds: 조건부 업데이트
+ *           - 기존 기능 100% 호환 유지
+ * - v1.0.0: 초기 버전
+ * 
  * @description
  * - 현재 데이터와 WebSocket 업데이트 데이터 병합
  * - 필드별 업데이트 규칙 적용
  * - 불변 필드 보호 (line_name 등)
+ * - 🆕 Production/Tact Time 필드 병합
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/equipment-info/utils/DataMerger.js
  * 작성일: 2026-01-09
+ * 수정일: 2026-01-16
  */
 
 import { debugLog } from '../../../core/utils/Config.js';
@@ -29,6 +38,8 @@ import { debugLog } from '../../../core/utils/Config.js';
  * - is_lot_active: 새 값이 있으면 업데이트
  * - Product/Lot 관련: 새 값이 있으면 업데이트
  * - Memory/Disk 관련: 새 값이 있으면 업데이트
+ * - 🆕 production_count: 새 값이 있으면 업데이트 (Lot Active 시에만 유효)
+ * - 🆕 tact_time_seconds: 새 값이 있으면 업데이트
  * - Timestamp: 항상 새 값으로 업데이트
  * 
  * @example
@@ -129,10 +140,24 @@ export function mergeEquipmentData(currentData, updateData) {
             : currentData.disk_d_total_gb,
         disk_d_used_gb: updateData.disk_d_used_gb !== undefined
             ? updateData.disk_d_used_gb
-            : currentData.disk_d_used_gb
+            : currentData.disk_d_used_gb,
+        
+        // =====================================================================
+        // 🆕 v2.1.0: Production & Tact Time 정보
+        // =====================================================================
+        
+        // Production Count (Lot Active 시에만 유효한 값)
+        production_count: updateData.production_count !== undefined
+            ? updateData.production_count
+            : currentData.production_count,
+        
+        // Tact Time (Lot 상태와 무관하게 항상 유효)
+        tact_time_seconds: updateData.tact_time_seconds !== undefined
+            ? updateData.tact_time_seconds
+            : currentData.tact_time_seconds
     };
     
-    debugLog(`📊 Data merged: status=${mergedData.status}, is_lot_active=${mergedData.is_lot_active}`);
+    debugLog(`📊 Data merged: status=${mergedData.status}, is_lot_active=${mergedData.is_lot_active}, production=${mergedData.production_count}, tact_time=${mergedData.tact_time_seconds}`);
     
     return mergedData;
 }
@@ -222,10 +247,26 @@ export function hasFieldsChanged(oldData, newData, fields) {
     return false;
 }
 
+/**
+ * 🆕 v2.1.0: Production/Tact Time 관련 필드 변경 여부 확인
+ * 
+ * @param {Object} oldData - 이전 데이터
+ * @param {Object} newData - 새 데이터
+ * @returns {boolean} 변경 여부
+ */
+export function hasProductionFieldsChanged(oldData, newData) {
+    return hasFieldsChanged(oldData, newData, [
+        'production_count',
+        'tact_time_seconds',
+        'is_lot_active'
+    ]);
+}
+
 // 기본 내보내기 (하위 호환성)
 export default {
     mergeEquipmentData,
     mergePartial,
     updateCacheEntry,
-    hasFieldsChanged
-};
+    hasFieldsChanged,
+    hasProductionFieldsChanged  // 🆕 v2.1.0
+}; 

@@ -3,9 +3,19 @@
  * =============
  * General 탭 컴포넌트
  * 
- * @version 1.0.0
+ * @version 2.1.0
+ * @changelog
+ * - v2.1.0: Production Count, Tact Time 표시 추가
+ *           - _renderLotActive(): production_count, tact_time_seconds 필드 추가
+ *           - _renderLotInactive(): tact_time_seconds 필드 추가 (Lot 상태와 무관)
+ *           - renderMulti(): production_total, tact_time_avg 집계 표시 추가
+ *           - 기존 기능 100% 호환 유지
+ * - v1.0.0: 초기 버전
+ * 
  * @description
  * - Line, Product, Lot, Duration 정보 표시
+ * - 🆕 Production Count 표시 (Lot Active 시)
+ * - 🆕 Tact Time 표시 (항상, Lot 상태 무관)
  * - Lot Active/Inactive 분기 처리
  * - Duration Timer 관리
  * - Single/Multi Selection 지원
@@ -19,6 +29,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/equipment-info/tabs/GeneralTab.js
  * 작성일: 2026-01-09
+ * 수정일: 2026-01-16
  */
 
 import { debugLog } from '../../../core/utils/Config.js';
@@ -52,7 +63,7 @@ export class GeneralTab {
          */
         this.currentMode = null;
         
-        debugLog('📑 GeneralTab initialized');
+        debugLog('📑 GeneralTab initialized (v2.1.0)');
     }
     
     // =========================================================================
@@ -96,7 +107,7 @@ export class GeneralTab {
             ` : ''}
         `;
         
-        debugLog(`✅ GeneralTab rendered: is_lot_active=${isLotActive}`);
+        debugLog(`✅ GeneralTab rendered: is_lot_active=${isLotActive}, production_count=${data.production_count}, tact_time=${data.tact_time_seconds}`);
     }
     
     /**
@@ -125,6 +136,17 @@ export class GeneralTab {
             <div class="info-row">
                 <span class="info-label">Lot Duration:</span>
                 <span class="info-value" id="durationDisplay">${durationDisplay}</span>
+            </div>
+            
+            <!-- 🆕 v2.1.0: Production & Tact Time Section -->
+            <div class="info-row-divider"></div>
+            <div class="info-row">
+                <span class="info-label">Production:</span>
+                <span class="info-value">${DataFormatter.formatProductionCount(data.production_count)}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Tact Time:</span>
+                <span class="info-value">${DataFormatter.formatTactTime(data.tact_time_seconds)}</span>
             </div>
         `;
     }
@@ -161,6 +183,17 @@ export class GeneralTab {
             <div class="info-row">
                 <span class="info-label">Duration:</span>
                 <span class="info-value" id="durationDisplay">${durationDisplay}</span>
+            </div>
+            
+            <!-- 🆕 v2.1.0: Tact Time (Lot 비활성 시에도 표시, Production은 - 표시) -->
+            <div class="info-row-divider"></div>
+            <div class="info-row">
+                <span class="info-label">Production:</span>
+                <span class="info-value info-value-inactive">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Tact Time:</span>
+                <span class="info-value">${DataFormatter.formatTactTime(data.tact_time_seconds)}</span>
             </div>
         `;
     }
@@ -223,6 +256,19 @@ export class GeneralTab {
                 </div>
             </div>
             
+            <!-- 🆕 v2.1.0: Production & Tact Time 집계 -->
+            <div class="info-row-divider"></div>
+            <div class="info-row">
+                <span class="info-label">Production:</span>
+                <span class="info-value">${DataFormatter.formatProductionCount(data.production_total, '합계')}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Tact Time:</span>
+                <span class="info-value">${DataFormatter.formatTactTime(data.tact_time_avg, '평균')}</span>
+            </div>
+            
+            <div class="info-row-divider"></div>
+            
             <div class="info-row">
                 <span class="info-label">Product:</span>
                 <span class="info-value">${productsDisplay || '-'}</span>
@@ -236,7 +282,7 @@ export class GeneralTab {
             <div class="info-row-spacer"></div>
         `;
         
-        debugLog(`✅ GeneralTab Multi rendered: ${totalCount} items`);
+        debugLog(`✅ GeneralTab Multi rendered: ${totalCount} items, production_total=${data.production_total}, tact_time_avg=${data.tact_time_avg}`);
     }
     
     /**
@@ -330,6 +376,14 @@ export class GeneralTab {
                 <span class="info-value">-</span>
             </div>
             <div class="info-row">
+                <span class="info-label">Production:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Tact Time:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
                 <span class="info-label">Product:</span>
                 <span class="info-value">-</span>
             </div>
@@ -376,6 +430,15 @@ export class GeneralTab {
             </div>
             <div class="info-row">
                 <span class="info-label">Duration:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row-divider"></div>
+            <div class="info-row">
+                <span class="info-label">Production:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Tact Time:</span>
                 <span class="info-value">-</span>
             </div>
             <div class="info-row info-row-warning">
@@ -448,6 +511,14 @@ export class GeneralTab {
             </div>
             <div class="info-row">
                 <span class="info-label">Status:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Production:</span>
+                <span class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Tact Time:</span>
                 <span class="info-value">-</span>
             </div>
             <div class="info-row">

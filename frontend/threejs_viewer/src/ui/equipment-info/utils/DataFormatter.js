@@ -3,15 +3,25 @@
  * ================
  * 데이터 포맷팅 유틸리티
  * 
- * @version 1.0.0
+ * @version 2.1.0
+ * @changelog
+ * - v2.1.0: Production Count, Tact Time 포맷 함수 추가
+ *           - formatTactTime(): Tact Time 초 → "MM:SS" 또는 "SS.X sec" 형식
+ *           - formatProductionCount(): 생산 개수 → "N pcs" 형식
+ *           - 기존 기능 100% 호환 유지
+ * - v1.0.0: 초기 버전
+ * 
  * @description
  * - 날짜/시간 포맷팅
  * - Boot Duration 포맷팅
  * - 리스트 "외 N개" 포맷팅
  * - CPU 이름 축약
+ * - 🆕 Tact Time 포맷팅
+ * - 🆕 Production Count 포맷팅
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/equipment-info/utils/DataFormatter.js
  * 작성일: 2026-01-09
+ * 수정일: 2026-01-16
  */
 
 /**
@@ -209,6 +219,117 @@ export const DataFormatter = {
         } catch (e) {
             return 0;
         }
+    },
+    
+    // =========================================================================
+    // 🆕 v2.1.0: Tact Time 포맷팅
+    // =========================================================================
+    
+    /**
+     * Tact Time 포맷팅 (초 → 시간 형식)
+     * @param {number|null} seconds - 초 단위 Tact Time
+     * @param {string} [suffix] - 접미사 (예: '평균')
+     * @returns {string} 포맷된 Tact Time
+     * 
+     * @example
+     * DataFormatter.formatTactTime(72.5);        // "01:12"
+     * DataFormatter.formatTactTime(45.3);        // "45.3 sec"
+     * DataFormatter.formatTactTime(125.0);       // "02:05"
+     * DataFormatter.formatTactTime(68.3, '평균'); // "01:08 (평균)"
+     * DataFormatter.formatTactTime(null);        // "-"
+     */
+    formatTactTime(seconds, suffix = null) {
+        if (seconds == null || isNaN(seconds)) {
+            return '-';
+        }
+        
+        let formatted;
+        
+        if (seconds < 60) {
+            // 60초 미만: "SS.X sec" 형식
+            formatted = `${seconds.toFixed(1)} sec`;
+        } else {
+            // 60초 이상: "MM:SS" 형식
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            formatted = `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        // 접미사 추가
+        if (suffix) {
+            formatted += ` (${suffix})`;
+        }
+        
+        return formatted;
+    },
+    
+    /**
+     * Tact Time 경고 클래스 반환
+     * @param {number|null} seconds - 초 단위 Tact Time
+     * @param {number} [warningThreshold=120] - 경고 임계값 (초)
+     * @param {number} [dangerThreshold=180] - 위험 임계값 (초)
+     * @returns {string} CSS 클래스 ('danger' | 'warning' | '')
+     * 
+     * @example
+     * DataFormatter.getTactTimeClass(150);  // "warning"
+     * DataFormatter.getTactTimeClass(200);  // "danger"
+     */
+    getTactTimeClass(seconds, warningThreshold = 120, dangerThreshold = 180) {
+        if (seconds == null || isNaN(seconds)) {
+            return '';
+        }
+        
+        if (seconds >= dangerThreshold) return 'danger';
+        if (seconds >= warningThreshold) return 'warning';
+        return '';
+    },
+    
+    // =========================================================================
+    // 🆕 v2.1.0: Production Count 포맷팅
+    // =========================================================================
+    
+    /**
+     * Production Count 포맷팅
+     * @param {number|null} count - 생산 개수
+     * @param {string} [suffix] - 접미사 (예: '합계')
+     * @returns {string} 포맷된 Production Count (예: "127 pcs", "1,234 pcs (합계)")
+     * 
+     * @example
+     * DataFormatter.formatProductionCount(127);          // "127 pcs"
+     * DataFormatter.formatProductionCount(1234);         // "1,234 pcs"
+     * DataFormatter.formatProductionCount(1234, '합계'); // "1,234 pcs (합계)"
+     * DataFormatter.formatProductionCount(null);         // "-"
+     */
+    formatProductionCount(count, suffix = null) {
+        if (count == null || isNaN(count)) {
+            return '-';
+        }
+        
+        // 천 단위 구분자 추가
+        const formatted = count.toLocaleString('ko-KR');
+        let result = `${formatted} pcs`;
+        
+        // 접미사 추가
+        if (suffix) {
+            result += ` (${suffix})`;
+        }
+        
+        return result;
+    },
+    
+    /**
+     * Production Count 경고 클래스 반환 (저생산 경고)
+     * @param {number|null} count - 생산 개수
+     * @param {number} [lowThreshold=10] - 저생산 임계값
+     * @returns {string} CSS 클래스 ('warning' | '')
+     */
+    getProductionCountClass(count, lowThreshold = 10) {
+        if (count == null || isNaN(count)) {
+            return '';
+        }
+        
+        if (count < lowThreshold) return 'warning';
+        return '';
     },
     
     // =========================================================================
