@@ -3,9 +3,14 @@
  * =====================
  * 설비 상세 정보 패널 (Coordinator)
  * 
- * @version 4.0.0
+ * @version 5.0.0
  * @description
- * - 🆕 v4.0.0: Phase 4 CSS Integration
+ * - 🆕 v5.0.0: Equipment Drawer Integration
+ *   - Drawer CSS 클래스 상수 추가
+ *   - Hybrid 애니메이션 (열림: width→transform, 닫힘: transform→width)
+ *   - _triggerResize() 메서드로 3D Viewer 리사이즈 트리거
+ *   - drawer-toggle 커스텀 이벤트 발생
+ * - v4.0.0: Phase 4 CSS Integration
  *   - CSS 클래스명 static 상수 정의
  *   - classList.add/remove/toggle 방식 통일
  *   - BEM 네이밍 규칙 적용
@@ -16,7 +21,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/EquipmentInfoPanel.js
  * 작성일: 2026-01-06
- * 수정일: 2026-01-15
+ * 수정일: 2026-01-16
  */
 
 import { debugLog } from '../core/utils/Config.js';
@@ -30,7 +35,7 @@ import { DOM_IDS, TAB_NAMES, getPanelTemplate, getDOMReferences } from './equipm
 
 export class EquipmentInfoPanel {
     // =========================================================================
-    // CSS 클래스 상수 (Phase 4)
+    // CSS 클래스 상수 (Phase 4 + v5.0.0 Drawer)
     // =========================================================================
     
     /**
@@ -38,13 +43,22 @@ export class EquipmentInfoPanel {
      * @static
      */
     static CSS = {
-        // Block
+        // Block - Legacy Panel (하위 호환)
         BLOCK: 'equipment-panel',
         
-        // Block Modifiers
+        // Block Modifiers - Legacy
         ACTIVE: 'equipment-panel--active',
         LOADING: 'equipment-panel--loading',
         HIDDEN: 'equipment-panel--hidden',
+        
+        // 🆕 v5.0.0: Drawer Block
+        DRAWER: 'equipment-drawer',
+        
+        // 🆕 v5.0.0: Drawer Modifiers (Hybrid Animation)
+        DRAWER_OPEN: 'equipment-drawer--open',
+        DRAWER_OPENING: 'equipment-drawer--opening',
+        DRAWER_CLOSING: 'equipment-drawer--closing',
+        DRAWER_LOADING: 'equipment-drawer--loading',
         
         // Elements
         HEADER: 'equipment-panel__header',
@@ -79,6 +93,16 @@ export class EquipmentInfoPanel {
         SR_ONLY: 'u-sr-only'
     };
     
+    /**
+     * 🆕 v5.0.0: 애니메이션 설정
+     * CSS의 --drawer-transition-duration과 일치해야 함
+     * @static
+     */
+    static ANIMATION = {
+        DURATION: 300,  // ms (CSS와 동기화)
+        RESIZE_DELAY: 50  // ms (CSS 전환 후 리사이즈 지연)
+    };
+    
     constructor(options = {}) {
         // DOM
         this.panelEl = document.getElementById(DOM_IDS.PANEL);
@@ -95,6 +119,7 @@ export class EquipmentInfoPanel {
         this.state = {
             isVisible: false,
             isLoading: false,
+            isAnimating: false,  // 🆕 v5.0.0: 애니메이션 진행 중 플래그
             currentTab: TAB_NAMES.GENERAL,
             currentFrontendId: null,
             currentEquipmentId: null,
@@ -113,11 +138,15 @@ export class EquipmentInfoPanel {
         this.generalTab = null;
         this.pcInfoTab = null;
         
-        // Debounce
+        // Debounce / Timeout
         this._refreshTimeout = null;
+        this._animationTimeout = null;  // 🆕 v5.0.0
+        
+        // 🆕 v5.0.0: Drawer 모드 활성화 여부 (CSS 클래스 확인)
+        this._isDrawerMode = false;
         
         this._init();
-        debugLog('📊 EquipmentInfoPanel initialized (v4.0.0 - CSS Integration)');
+        debugLog('📊 EquipmentInfoPanel initialized (v5.0.0 - Drawer Integration)');
     }
     
     // =========================================================================
@@ -136,6 +165,12 @@ export class EquipmentInfoPanel {
         
         // BEM 클래스 적용
         this.panelEl.classList.add(EquipmentInfoPanel.CSS.BLOCK);
+        
+        // 🆕 v5.0.0: Drawer 모드 감지
+        this._isDrawerMode = this.panelEl.classList.contains(EquipmentInfoPanel.CSS.DRAWER);
+        if (this._isDrawerMode) {
+            debugLog('📊 Drawer 모드 활성화됨');
+        }
         
         // 자식 컴포넌트 초기화
         this.headerStatus = new HeaderStatus(this.panelEl);
@@ -183,6 +218,12 @@ export class EquipmentInfoPanel {
     }
     
     async show(equipmentData) {
+        // 🆕 v5.0.0: 애니메이션 중이면 무시
+        if (this.state.isAnimating) {
+            debugLog('⚠️ 애니메이션 진행 중 - show() 무시');
+            return;
+        }
+        
         const dataArray = Array.isArray(equipmentData) ? equipmentData : [equipmentData];
         
         if (dataArray.length === 0) {
@@ -201,13 +242,76 @@ export class EquipmentInfoPanel {
         this._showPanel();
     }
     
+    /**
+     * 🆕 v5.0.0: 패널/Drawer 숨기기 (Hybrid 애니메이션)
+     */
     hide() {
+        // 애니메이션 중이면 무시
+        if (this.state.isAnimating) {
+            debugLog('⚠️ 애니메이션 진행 중 - hide() 무시');
+            return;
+        }
+        
+        if (!this.state.isVisible) {
+            return;
+        }
+        
+        // 🆕 v5.0.0: Drawer 모드 - Hybrid 닫기 애니메이션
+        if (this._isDrawerMode) {
+            this._hideDrawerHybrid();
+        } else {
+            // Legacy 모드 - 즉시 숨김
+            this._hideLegacy();
+        }
+    }
+    
+    /**
+     * 🆕 v5.0.0: Drawer Hybrid 닫기 애니메이션
+     * Phase 1: transform (오른쪽으로 슬라이드)
+     * Phase 2: width (0으로 축소)
+     */
+    _hideDrawerHybrid() {
+        this.state.isAnimating = true;
+        
+        // Phase 1: 닫기 시작 (transform 애니메이션)
+        this.panelEl.classList.add(EquipmentInfoPanel.CSS.DRAWER_CLOSING);
+        this.panelEl.classList.remove(EquipmentInfoPanel.CSS.DRAWER_OPEN);
+        
+        debugLog('📊 Drawer 닫기 Phase 1: transform');
+        
+        // Phase 2: 애니메이션 완료 후 width 0으로
+        clearTimeout(this._animationTimeout);
+        this._animationTimeout = setTimeout(() => {
+            this.panelEl.classList.remove(EquipmentInfoPanel.CSS.DRAWER_CLOSING);
+            
+            // Legacy 클래스도 제거
+            this.panelEl.classList.remove(EquipmentInfoPanel.CSS.ACTIVE);
+            this.panelEl.classList.remove(EquipmentInfoPanel.CSS.LEGACY_ACTIVE);
+            
+            this.state.isVisible = false;
+            this.state.isAnimating = false;
+            
+            debugLog('📊 Drawer 닫기 완료');
+            
+            // 🆕 3D Viewer 리사이즈 트리거
+            this._triggerResize(false);
+            
+            this._resetState();
+            this.generalTab?.stopTimer();
+            
+        }, EquipmentInfoPanel.ANIMATION.DURATION);
+    }
+    
+    /**
+     * Legacy 모드 숨기기 (즉시)
+     */
+    _hideLegacy() {
         this.panelEl?.classList.remove(EquipmentInfoPanel.CSS.ACTIVE);
         this.panelEl?.classList.remove(EquipmentInfoPanel.CSS.LEGACY_ACTIVE);
         this.state.isVisible = false;
         this._resetState();
         this.generalTab?.stopTimer();
-        debugLog('📊 Panel hidden');
+        debugLog('📊 Panel hidden (legacy mode)');
     }
     
     updateRealtime(updateData) {
@@ -247,6 +351,7 @@ export class EquipmentInfoPanel {
         this.pcInfoTab?.dispose();
         this.headerStatus?.dispose();
         clearTimeout(this._refreshTimeout);
+        clearTimeout(this._animationTimeout);
         debugLog('📊 Panel disposed');
     }
     
@@ -422,15 +527,105 @@ export class EquipmentInfoPanel {
     _showLoading() {
         this.state.isLoading = true;
         this.panelEl?.classList.add(EquipmentInfoPanel.CSS.LOADING);
+        
+        // 🆕 v5.0.0: Drawer 로딩 상태
+        if (this._isDrawerMode) {
+            this.panelEl?.classList.add(EquipmentInfoPanel.CSS.DRAWER_LOADING);
+        }
+        
         this.generalTab.showLoading();
         this.pcInfoTab.showLoading();
     }
     
+    /**
+     * 🆕 v5.0.0: 패널/Drawer 표시 (Hybrid 애니메이션)
+     */
     _showPanel() {
+        // 이미 표시 중이면 클래스만 업데이트
+        if (this.state.isVisible && !this.state.isAnimating) {
+            this.panelEl?.classList.remove(EquipmentInfoPanel.CSS.LOADING);
+            if (this._isDrawerMode) {
+                this.panelEl?.classList.remove(EquipmentInfoPanel.CSS.DRAWER_LOADING);
+            }
+            return;
+        }
+        
+        // 🆕 v5.0.0: Drawer 모드 - Hybrid 열기 애니메이션
+        if (this._isDrawerMode) {
+            this._showDrawerHybrid();
+        } else {
+            // Legacy 모드 - 즉시 표시
+            this._showLegacy();
+        }
+    }
+    
+    /**
+     * 🆕 v5.0.0: Drawer Hybrid 열기 애니메이션
+     * Phase 1: width (0 → drawer-width)
+     * Phase 2: transform 정상화
+     */
+    _showDrawerHybrid() {
+        this.state.isAnimating = true;
+        
+        // Phase 1: 열기 시작 (width 애니메이션)
+        this.panelEl.classList.add(EquipmentInfoPanel.CSS.DRAWER_OPENING);
+        
+        debugLog('📊 Drawer 열기 Phase 1: width');
+        
+        // Phase 2: 애니메이션 완료 후 열림 상태로 전환
+        clearTimeout(this._animationTimeout);
+        this._animationTimeout = setTimeout(() => {
+            this.panelEl.classList.remove(EquipmentInfoPanel.CSS.DRAWER_OPENING);
+            this.panelEl.classList.add(EquipmentInfoPanel.CSS.DRAWER_OPEN);
+            
+            // Legacy 클래스도 추가 (하위 호환)
+            this.panelEl.classList.add(EquipmentInfoPanel.CSS.ACTIVE);
+            this.panelEl.classList.add(EquipmentInfoPanel.CSS.LEGACY_ACTIVE);
+            
+            // 로딩 상태 제거
+            this.panelEl.classList.remove(EquipmentInfoPanel.CSS.LOADING);
+            this.panelEl.classList.remove(EquipmentInfoPanel.CSS.DRAWER_LOADING);
+            
+            this.state.isVisible = true;
+            this.state.isAnimating = false;
+            
+            debugLog('📊 Drawer 열기 완료');
+            
+            // 🆕 3D Viewer 리사이즈 트리거
+            this._triggerResize(true);
+            
+        }, EquipmentInfoPanel.ANIMATION.DURATION);
+    }
+    
+    /**
+     * Legacy 모드 표시 (즉시)
+     */
+    _showLegacy() {
         this.panelEl?.classList.add(EquipmentInfoPanel.CSS.ACTIVE);
         this.panelEl?.classList.add(EquipmentInfoPanel.CSS.LEGACY_ACTIVE);
         this.panelEl?.classList.remove(EquipmentInfoPanel.CSS.LOADING);
         this.state.isVisible = true;
+        debugLog('📊 Panel shown (legacy mode)');
+    }
+    
+    /**
+     * 🆕 v5.0.0: 3D Viewer 리사이즈 트리거
+     * SceneManager에서 drawer-toggle 이벤트를 수신하여 리사이즈
+     * @param {boolean} isOpen - Drawer 열림 여부
+     */
+    _triggerResize(isOpen) {
+        // 약간의 지연 후 리사이즈 이벤트 발생 (CSS 전환 완료 대기)
+        setTimeout(() => {
+            // Custom Event 발생 (SceneManager에서 수신)
+            window.dispatchEvent(new CustomEvent('drawer-toggle', {
+                detail: { isOpen }
+            }));
+            
+            // window resize 이벤트도 발생 (폴백)
+            window.dispatchEvent(new Event('resize'));
+            
+            debugLog(`📊 리사이즈 트리거 발생 (isOpen: ${isOpen})`);
+        }, EquipmentInfoPanel.ANIMATION.RESIZE_DELAY);
     }
     
     _updateState(updates) {
@@ -447,5 +642,30 @@ export class EquipmentInfoPanel {
             selectedEquipmentIds: []
         });
         this.cache.clearMulti();
+    }
+    
+    // =========================================================================
+    // 🆕 v5.0.0: 공개 유틸리티
+    // =========================================================================
+    
+    /**
+     * 🆕 v5.0.0: Drawer 모드 여부 반환
+     */
+    isDrawerMode() {
+        return this._isDrawerMode;
+    }
+    
+    /**
+     * 🆕 v5.0.0: 현재 표시 상태 반환
+     */
+    isVisible() {
+        return this.state.isVisible;
+    }
+    
+    /**
+     * 🆕 v5.0.0: 애니메이션 진행 중 여부 반환
+     */
+    isAnimating() {
+        return this.state.isAnimating;
     }
 }

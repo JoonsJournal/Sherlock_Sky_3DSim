@@ -3,7 +3,14 @@
  * Three.js 씬, 카메라, 렌더러 초기화 및 관리
  * 10,000 Class 클린룸 스타일 적용 - 최적화 버전
  * 
- * @version 1.4.0 - Phase 1.6 헬퍼/그리드 토글 추가
+ * @version 1.5.0 - Equipment Drawer 지원 (컨테이너 기준 리사이즈)
+ * 
+ * 변경사항 (v1.5.0):
+ * - 🆕 onWindowResize() 컨테이너 기준으로 변경
+ * - 🆕 init()에서 렌더러를 #threejs-container에 추가
+ * - 🆕 _resizeHandler를 인스턴스 메서드로 바인딩 (이벤트 제거 가능)
+ * - 🆕 drawer-toggle 커스텀 이벤트 리스너 추가
+ * - 🆕 triggerResize() 메서드 추가 (외부에서 리사이즈 요청)
  * 
  * 변경사항 (v1.4.0):
  * - toggleHelpers() 메서드 추가
@@ -48,6 +55,13 @@ export class SceneManager {
         
         // ✨ Phase 4.4: 재구축 상태 플래그
         this._isRebuilding = false;
+        
+        // 🆕 v1.5.0: 컨테이너 참조
+        this._container = null;
+        
+        // 🆕 v1.5.0: 이벤트 핸들러 바인딩 (이벤트 제거 가능하도록)
+        this._resizeHandler = this.onWindowResize.bind(this);
+        this._drawerToggleHandler = this._onDrawerToggle.bind(this);
     }
     
     /**
@@ -60,13 +74,17 @@ export class SceneManager {
         // 클린룸 배경 - 매우 밝은 아이보리/연한 회색
         this.scene.background = new THREE.Color(0xf8f8f8);
         
-        // 클린룸 환경 시뮬레이션을 위한 Fog (선택적 - 매우 약하게)
-        // this.scene.fog = new THREE.Fog(0xf8f8f8, 50, 200);
+        // 🆕 v1.5.0: 컨테이너 참조 저장
+        this._container = document.getElementById('threejs-container');
         
-        // 카메라 생성
+        // 🆕 v1.5.0: 초기 크기를 컨테이너 기준으로 계산 (폴백: window)
+        const initialWidth = this._container?.clientWidth || window.innerWidth;
+        const initialHeight = this._container?.clientHeight || window.innerHeight;
+        
+        // 카메라 생성 (🆕 컨테이너 크기 기준)
         this.camera = new THREE.PerspectiveCamera(
             CONFIG.CAMERA.FOV,
-            window.innerWidth / window.innerHeight,
+            initialWidth / initialHeight,
             CONFIG.CAMERA.NEAR,
             CONFIG.CAMERA.FAR
         );
@@ -79,45 +97,73 @@ export class SceneManager {
         // ⭐ 최적화된 렌더러 생성
         this.renderer = new THREE.WebGLRenderer({ 
             antialias: CONFIG.RENDERER.ANTIALIAS,
-            powerPreference: 'high-performance',  // ⭐ 고성능 모드
-            stencil: false,  // ⭐ Stencil 버퍼 비활성화 (사용하지 않음)
+            powerPreference: 'high-performance',
+            stencil: false,
             depth: true
         });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setSize(initialWidth, initialHeight);  // 🆕 컨테이너 크기 기준
         
-        // ⭐ PixelRatio 최적화 (고해상도 디스플레이에서 성능 향상)
-        const pixelRatio = Math.min(window.devicePixelRatio, 2);  // 최대 2로 제한
+        // ⭐ PixelRatio 최적화
+        const pixelRatio = Math.min(window.devicePixelRatio, 2);
         this.renderer.setPixelRatio(pixelRatio);
         debugLog(`🖥️ Pixel Ratio: ${pixelRatio} (디바이스: ${window.devicePixelRatio})`);
         
-        // 그림자 설정 - 부드러운 그림자
+        // 그림자 설정
         this.renderer.shadowMap.enabled = CONFIG.RENDERER.SHADOW_MAP_ENABLED;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         
-        // 톤 매핑 - 클린룸의 밝은 조명 환경
+        // 톤 매핑
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.3; // 더 밝게
+        this.renderer.toneMappingExposure = 1.3;
         
         // 색 공간 설정
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         
-        // DOM에 추가
-        document.body.appendChild(this.renderer.domElement);
+        // 🆕 v1.5.0: DOM에 추가 (컨테이너 우선, 폴백으로 body)
+        if (this._container) {
+            this._container.appendChild(this.renderer.domElement);
+            debugLog('🎨 Renderer → #threejs-container에 추가됨');
+        } else {
+            document.body.appendChild(this.renderer.domElement);
+            console.warn('⚠️ #threejs-container 없음 - document.body에 추가 (폴백)');
+        }
         
         debugLog('✅ Three.js 초기화 완료 (10,000 Class 클린룸 모드 - 최적화)');
-        debugLog('📷 초기 카메라 위치:', this.camera.position);
-        debugLog('🎨 Renderer domElement:', this.renderer.domElement);
+        debugLog(`📷 초기 카메라 위치: (${this.camera.position.x}, ${this.camera.position.y}, ${this.camera.position.z})`);
+        debugLog(`📐 초기 렌더러 크기: ${initialWidth} x ${initialHeight}`);
         
         // 바닥 추가
         this.addCleanRoomFloor();
         
-        // ⭐ 클린룸 환경 구축 (params 전달 지원)
+        // ⭐ 클린룸 환경 구축
         this.initRoomEnvironment(roomParams);
         
-        // 창 크기 변경 이벤트 리스너
-        window.addEventListener('resize', () => this.onWindowResize());
+        // 🆕 v1.5.0: 이벤트 리스너 (바인딩된 핸들러 사용)
+        window.addEventListener('resize', this._resizeHandler);
+        
+        // 🆕 v1.5.0: Drawer 토글 이벤트 리스너
+        window.addEventListener('drawer-toggle', this._drawerToggleHandler);
         
         return true;
+    }
+    
+    // =========================================================
+    // 🆕 v1.5.0: Drawer 토글 이벤트 핸들러
+    // =========================================================
+    
+    /**
+     * 🆕 v1.5.0: Drawer 토글 이벤트 핸들러
+     * EquipmentInfoPanel에서 drawer-toggle 이벤트 발생 시 호출
+     * @param {CustomEvent} event - drawer-toggle 이벤트
+     */
+    _onDrawerToggle(event) {
+        const { isOpen } = event.detail || {};
+        debugLog(`🔄 Drawer 토글 감지: ${isOpen ? '열림' : '닫힘'}`);
+        
+        // CSS 전환 완료 대기 후 리사이즈
+        requestAnimationFrame(() => {
+            this.onWindowResize();
+        });
     }
     
     // =========================================================
@@ -131,12 +177,10 @@ export class SceneManager {
     toggleHelpers() {
         this._helpersVisible = !this._helpersVisible;
         
-        // AxesHelper 토글
         if (this.axesHelper) {
             this.axesHelper.visible = this._helpersVisible;
         }
         
-        // 기타 헬퍼들 토글 (이름에 'Helper' 포함)
         this.scene.traverse((object) => {
             if (object.type === 'AxesHelper' || 
                 object.name?.toLowerCase().includes('helper')) {
@@ -155,12 +199,10 @@ export class SceneManager {
     toggleGrid() {
         this._gridVisible = !this._gridVisible;
         
-        // Grid 토글
         if (this.grid) {
             this.grid.visible = this._gridVisible;
         }
         
-        // 다른 GridHelper들도 토글
         this.scene.traverse((object) => {
             if (object.type === 'GridHelper') {
                 object.visible = this._gridVisible;
@@ -171,16 +213,10 @@ export class SceneManager {
         return this._gridVisible;
     }
     
-    /**
-     * ⭐ Phase 1.6: 헬퍼 표시 상태 반환
-     */
     isHelpersVisible() {
         return this._helpersVisible;
     }
     
-    /**
-     * ⭐ Phase 1.6: 그리드 표시 상태 반환
-     */
     isGridVisible() {
         return this._gridVisible;
     }
@@ -189,24 +225,15 @@ export class SceneManager {
     // ✨ Phase 4.4: EquipmentLoader 연결
     // =========================================================
     
-    /**
-     * ✨ Phase 4.4: EquipmentLoader 참조 설정
-     * @param {EquipmentLoader} loader - EquipmentLoader 인스턴스
-     */
     setEquipmentLoader(loader) {
         if (!loader) {
             console.warn('[SceneManager] setEquipmentLoader: loader가 null입니다');
             return;
         }
-        
         this._equipmentLoader = loader;
         console.log('[SceneManager] ✅ EquipmentLoader 연결 완료');
     }
     
-    /**
-     * ✨ Phase 4.4: EquipmentLoader 반환
-     * @returns {EquipmentLoader|null}
-     */
     getEquipmentLoader() {
         return this._equipmentLoader;
     }
@@ -215,23 +242,14 @@ export class SceneManager {
     // ✨ Phase 4.2: RoomEnvironment 초기화 메서드
     // =========================================================
     
-    /**
-     * ✨ Phase 4.2: RoomEnvironment 초기화 (params 지원)
-     * @param {Object|null} params - RoomEnvironment 파라미터
-     * @returns {RoomEnvironment} 생성된 RoomEnvironment 인스턴스
-     */
     initRoomEnvironment(params = null) {
-        // 기존 RoomEnvironment가 있으면 정리
         if (this.roomEnvironment) {
             this.roomEnvironment.dispose();
             this.roomEnvironment = null;
         }
         
-        // ✨ Phase 4.2: params와 함께 RoomEnvironment 생성
         this.roomEnvironment = new RoomEnvironment(this.scene, params);
         this.roomEnvironment.buildEnvironment();
-        
-        // 현재 params 저장
         this._currentLayoutParams = params;
         
         if (params) {
@@ -243,11 +261,6 @@ export class SceneManager {
         return this.roomEnvironment;
     }
     
-    /**
-     * ✨ Phase 4.2: RoomEnvironment 재초기화 (새 params로)
-     * @param {Object} params - 새로운 RoomEnvironment 파라미터
-     * @returns {RoomEnvironment} 생성된 RoomEnvironment 인스턴스
-     */
     reinitRoomEnvironment(params) {
         console.log('[SceneManager] RoomEnvironment 재초기화 시작...');
         return this.initRoomEnvironment(params);
@@ -255,23 +268,19 @@ export class SceneManager {
     
     /**
      * 클린룸 스타일 바닥 및 그리드 추가
-     * - 반사되는 광택 바닥
-     * - 매우 밝은 아이보리/회색 색상
      */
     addCleanRoomFloor() {
-        // 바닥 geometry
         const floorGeometry = new THREE.PlaneGeometry(
             CONFIG.SCENE.FLOOR_SIZE, 
             CONFIG.SCENE.FLOOR_SIZE
         );
         
-        // 클린룸 바닥 재질 - 반사가 있는 광택 바닥
         const floorMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xf5f5f5,        // 매우 밝은 회색/아이보리
-            roughness: 0.15,        // 낮은 거칠기 (매끄러운 표면)
-            metalness: 0.05,        // 약간의 금속성 (반사 효과)
-            envMapIntensity: 0.3,   // 환경 맵 반사 강도
-            side: THREE.DoubleSide  // 양면 렌더링
+            color: 0xf5f5f5,
+            roughness: 0.15,
+            metalness: 0.05,
+            envMapIntensity: 0.3,
+            side: THREE.DoubleSide
         });
         
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
@@ -279,23 +288,21 @@ export class SceneManager {
         floor.receiveShadow = true;
         floor.name = 'cleanroom-floor';
         this.scene.add(floor);
-        this.floor = floor;  // ✨ Phase 4: 참조 저장
+        this.floor = floor;
         
-        // 매우 미세한 그리드 (클린룸 타일 효과)
         const gridHelper = new THREE.GridHelper(
             CONFIG.SCENE.FLOOR_SIZE, 
             CONFIG.SCENE.GRID_DIVISIONS,
-            0xe5e5e5,  // 중앙선 색상 - 밝은 회색
-            0xf0f0f0   // 그리드 색상 - 매우 밝은 회색
+            0xe5e5e5,
+            0xf0f0f0
         );
-        gridHelper.material.opacity = 0.2;  // 매우 투명하게
+        gridHelper.material.opacity = 0.2;
         gridHelper.material.transparent = true;
         gridHelper.name = 'cleanroom-grid';
         this.scene.add(gridHelper);
-        this.grid = gridHelper;  // ✨ Phase 4: 참조 저장
+        this.grid = gridHelper;
         
-        // ⭐ Phase 1.6: AxesHelper 추가
-        const axesHelper = new THREE.AxesHelper(10);  // 10m 크기
+        const axesHelper = new THREE.AxesHelper(10);
         axesHelper.name = 'axes-helper';
         axesHelper.visible = this._helpersVisible;
         this.scene.add(axesHelper);
@@ -303,39 +310,29 @@ export class SceneManager {
         
         debugLog('🏗️ 클린룸 스타일 바닥 생성 완료');
         debugLog(`📐 바닥 크기: ${CONFIG.SCENE.FLOOR_SIZE}m × ${CONFIG.SCENE.FLOOR_SIZE}m`);
-        debugLog(`✨ 바닥 재질: 광택 (roughness: 0.15, metalness: 0.05)`);
-        debugLog(`🔧 AxesHelper 추가됨 (H키로 토글)`);
     }
     
     // =========================================================
     // ✨ Phase 4.4: Scene 정리 및 재구축 메서드
     // =========================================================
     
-    /**
-     * ✨ Phase 4.4: Scene 정리 (Floor, Grid 제외)
-     * RoomEnvironment와 Equipment만 정리
-     */
     clearScene() {
         console.log('[SceneManager] Scene 정리 시작...');
         this._isRebuilding = true;
         
-        // 1. RoomEnvironment 정리
         if (this.roomEnvironment) {
             this.roomEnvironment.dispose();
             this.roomEnvironment = null;
             console.log('  - RoomEnvironment 정리 완료');
         }
         
-        // 2. EquipmentLoader 정리 (연결된 경우)
         if (this._equipmentLoader) {
             this._equipmentLoader.dispose();
             console.log('  - EquipmentLoader 정리 완료');
         }
         
-        // 3. 기타 동적 객체 정리 (Floor, Grid, Lights, AxesHelper 제외)
         const objectsToRemove = [];
         this.scene.traverse((object) => {
-            // Floor, Grid, Lights, AxesHelper는 유지
             if (object.name === 'cleanroom-floor' || 
                 object.name === 'cleanroom-grid' ||
                 object.name === 'axes-helper' ||
@@ -343,9 +340,7 @@ export class SceneManager {
                 return;
             }
             
-            // Mesh, Group 등은 정리 대상
             if (object.isMesh || object.isGroup) {
-                // 이미 정리된 RoomEnvironment나 Equipment가 아닌 것들
                 if (object.parent === this.scene) {
                     objectsToRemove.push(object);
                 }
@@ -368,42 +363,30 @@ export class SceneManager {
         this._isRebuilding = false;
     }
     
-    /**
-     * ✨ Phase 4.4: Scene 재구축
-     * @param {Object} roomParams - Room 파라미터
-     * @param {Object} equipmentConfig - Equipment CONFIG (선택적)
-     * @param {Function} updateStatusCallback - 상태 업데이트 콜백 (선택적)
-     */
     rebuildScene(roomParams, equipmentConfig = null, updateStatusCallback = null) {
         console.log('[SceneManager] Scene 재구축 시작...');
         this._isRebuilding = true;
         
         try {
-            // 1. Floor 업데이트
             if (roomParams) {
                 this.updateFloor(roomParams);
             }
             
-            // 2. RoomEnvironment 재생성
             this.initRoomEnvironment(roomParams);
             
-            // 3. Equipment 재배치 (EquipmentLoader가 연결된 경우)
             if (this._equipmentLoader && equipmentConfig) {
                 console.log('[SceneManager] Equipment 재배치 시작...');
                 
-                // CONFIG 업데이트
                 if (typeof updateEquipmentConfig === 'function') {
                     updateEquipmentConfig(equipmentConfig);
                 }
                 
-                // 설비 재로드
                 this._equipmentLoader.loadEquipmentArray(updateStatusCallback);
                 console.log('[SceneManager] Equipment 재배치 완료');
             }
             
             console.log('[SceneManager] ✅ Scene 재구축 완료');
             
-            // 재구축 완료 이벤트 발생
             window.dispatchEvent(new CustomEvent('scene-rebuilt', {
                 detail: { roomParams, equipmentConfig }
             }));
@@ -420,14 +403,6 @@ export class SceneManager {
     // ✨ Phase 4: Layout 적용 메서드
     // =========================================================
     
-    /**
-     * ✨ Phase 4: 변환된 Layout 적용
-     * Layout2DTo3DConverter의 출력을 받아 Scene 업데이트
-     * 
-     * @param {Object} convertedLayout - Layout2DTo3DConverter.convert() 결과
-     * @param {Object} options - 적용 옵션
-     * @returns {boolean} 성공 여부
-     */
     applyLayout(convertedLayout, options = {}) {
         if (!convertedLayout) {
             console.error('[SceneManager] applyLayout: convertedLayout이 없습니다');
@@ -439,18 +414,15 @@ export class SceneManager {
         try {
             const { roomParams, equipmentConfig, officeParams } = convertedLayout;
             
-            // 1. Scene CONFIG 업데이트 (Floor Size)
             if (roomParams) {
                 const newFloorSize = Math.max(roomParams.roomWidth, roomParams.roomDepth) + 20;
                 updateSceneConfig({ FLOOR_SIZE: newFloorSize });
             }
             
-            // 2. Floor/Grid 업데이트
             if (options.updateFloor !== false) {
                 this.updateFloor(roomParams);
             }
             
-            // 3. RoomEnvironment 업데이트
             if (options.updateRoom !== false && this.roomEnvironment) {
                 this.roomEnvironment.updateDimensions(roomParams);
                 
@@ -458,20 +430,17 @@ export class SceneManager {
                     this.roomEnvironment.updateOfficeParams(officeParams);
                 }
                 
-                // 재구축
                 if (options.rebuildRoom !== false) {
                     this.roomEnvironment.rebuild();
                 }
             }
             
-            // ✨ Phase 4.4: Equipment 재배치 (옵션)
             if (options.updateEquipment !== false && this._equipmentLoader && equipmentConfig) {
                 this._equipmentLoader.applyDynamicConfig(equipmentConfig);
             }
             
             console.log('[SceneManager] ✅ Layout 적용 완료');
             
-            // 적용 완료 이벤트 발생
             window.dispatchEvent(new CustomEvent('layout-applied', {
                 detail: { convertedLayout, options }
             }));
@@ -484,12 +453,6 @@ export class SceneManager {
         }
     }
     
-    /**
-     * ✨ Phase 4.2: RoomParamsAdapter 결과로 Layout 적용
-     * @param {Object} adaptedParams - RoomParamsAdapter.adapt() 결과
-     * @param {Object} options - 적용 옵션
-     * @returns {boolean} 성공 여부
-     */
     applyLayoutWithParams(adaptedParams, options = {}) {
         if (!adaptedParams) {
             console.error('[SceneManager] applyLayoutWithParams: adaptedParams가 없습니다');
@@ -499,7 +462,6 @@ export class SceneManager {
         console.log('[SceneManager] Layout 적용 (params 방식) 시작...');
         
         try {
-            // 1. Floor 업데이트
             if (options.updateFloor !== false) {
                 const newFloorSize = Math.max(
                     adaptedParams.roomWidth || 40, 
@@ -512,14 +474,12 @@ export class SceneManager {
                 });
             }
             
-            // 2. RoomEnvironment 재초기화 (새 params로)
             if (options.rebuildRoom !== false) {
                 this.reinitRoomEnvironment(adaptedParams);
             }
             
             console.log('[SceneManager] ✅ Layout 적용 완료 (params 방식)');
             
-            // 적용 완료 이벤트 발생
             window.dispatchEvent(new CustomEvent('layout-params-applied', {
                 detail: { adaptedParams, options }
             }));
@@ -532,14 +492,6 @@ export class SceneManager {
         }
     }
     
-    /**
-     * ✨ Phase 4.4: 전체 Layout 적용 (Room + Equipment)
-     * LayoutEditorMain.goTo3DViewer()에서 호출
-     * 
-     * @param {Object} layoutData - Layout JSON 데이터
-     * @param {Object} options - 적용 옵션
-     * @returns {boolean} 성공 여부
-     */
     applyLayoutFull(layoutData, options = {}) {
         if (!layoutData) {
             console.error('[SceneManager] applyLayoutFull: layoutData가 없습니다');
@@ -549,7 +501,6 @@ export class SceneManager {
         console.log('[SceneManager] 전체 Layout 적용 시작 (Room + Equipment)...');
         
         try {
-            // Layout2DTo3DConverter가 전역에 있는지 확인
             const converter = window.layout2DTo3DConverter;
             const adapter = window.roomParamsAdapter;
             
@@ -558,18 +509,15 @@ export class SceneManager {
                 return false;
             }
             
-            // 1. Layout 변환
             const convertedLayout = converter.convert(layoutData);
             if (!convertedLayout) {
                 throw new Error('Layout 변환 실패');
             }
             
-            // 2. Params 변환 (RoomParamsAdapter 사용)
             let adaptedParams = null;
             if (adapter) {
                 adaptedParams = adapter.adapt(convertedLayout);
             } else {
-                // Adapter 없으면 직접 추출
                 adaptedParams = {
                     roomWidth: convertedLayout.roomParams?.roomWidth || 40,
                     roomDepth: convertedLayout.roomParams?.roomDepth || 60,
@@ -583,31 +531,22 @@ export class SceneManager {
                 };
             }
             
-            // 3. Scene 정리
             if (options.clearFirst !== false) {
                 this.clearScene();
             }
             
-            // 4. Scene 재구축
             this.rebuildScene(
                 adaptedParams, 
                 convertedLayout.equipmentConfig,
                 options.updateStatusCallback || null
             );
             
-            // 5. 현재 Layout 저장
             this._currentLayoutParams = adaptedParams;
             
             console.log('[SceneManager] ✅ 전체 Layout 적용 완료');
             
-            // 적용 완료 이벤트 발생
             window.dispatchEvent(new CustomEvent('layout-full-applied', {
-                detail: { 
-                    layoutData, 
-                    convertedLayout,
-                    adaptedParams,
-                    options 
-                }
+                detail: { layoutData, convertedLayout, adaptedParams, options }
             }));
             
             return true;
@@ -626,20 +565,17 @@ export class SceneManager {
         
         const newSize = Math.max(roomParams.roomWidth, roomParams.roomDepth) + 20;
         
-        // 기존 Floor 제거
         if (this.floor) {
             this.floor.geometry.dispose();
             this.scene.remove(this.floor);
         }
         
-        // 기존 Grid 제거
         if (this.grid) {
             this.grid.geometry.dispose();
             this.grid.material.dispose();
             this.scene.remove(this.grid);
         }
         
-        // 새 Floor 생성
         const floorGeometry = new THREE.PlaneGeometry(newSize, newSize);
         const floorMaterial = new THREE.MeshStandardMaterial({ 
             color: 0xf5f5f5,
@@ -655,25 +591,56 @@ export class SceneManager {
         this.floor.name = 'cleanroom-floor';
         this.scene.add(this.floor);
         
-        // 새 Grid 생성
         this.grid = new THREE.GridHelper(newSize, CONFIG.SCENE.GRID_DIVISIONS, 0xe5e5e5, 0xf0f0f0);
         this.grid.material.opacity = 0.2;
         this.grid.material.transparent = true;
         this.grid.name = 'cleanroom-grid';
-        this.grid.visible = this._gridVisible;  // ⭐ 현재 표시 상태 유지
+        this.grid.visible = this._gridVisible;
         this.scene.add(this.grid);
         
         debugLog(`[SceneManager] Floor 업데이트 완료: ${newSize}m × ${newSize}m`);
     }
     
     /**
-     * 창 크기 변경 핸들러
+     * 🆕 v1.5.0: 창/컨테이너 크기 변경 핸들러
+     * - 컨테이너(#threejs-container) 크기 기준으로 리사이즈
+     * - 컨테이너가 없으면 window 크기 사용 (폴백, 기존 동작 유지)
      */
     onWindowResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
+        // 🆕 컨테이너 기준으로 크기 계산
+        let width, height;
+        
+        if (this._container) {
+            width = this._container.clientWidth;
+            height = this._container.clientHeight;
+        } else {
+            // 폴백: window 크기 (기존 동작 유지)
+            width = window.innerWidth;
+            height = window.innerHeight;
+        }
+        
+        // 크기가 0이면 무시 (숨겨진 상태)
+        if (width === 0 || height === 0) {
+            debugLog('⚠️ 컨테이너 크기가 0 - 리사이즈 스킵');
+            return;
+        }
+        
+        // 카메라 업데이트
+        this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        debugLog('📱 창 크기 변경:', window.innerWidth, 'x', window.innerHeight);
+        
+        // 렌더러 업데이트
+        this.renderer.setSize(width, height);
+        
+        debugLog(`📱 리사이즈: ${width} x ${height} (컨테이너: ${!!this._container})`);
+    }
+    
+    /**
+     * 🆕 v1.5.0: 수동 리사이즈 트리거
+     * 외부에서 명시적으로 리사이즈를 요청할 때 사용
+     */
+    triggerResize() {
+        this.onWindowResize();
     }
     
     /**
@@ -683,14 +650,12 @@ export class SceneManager {
         this.frameCount++;
         this.fpsFrameCount++;
         
-        // 초기 프레임 로그
         if (this.frameCount === 1) {
             debugLog('🎬 첫 프레임 렌더링 완료');
             debugLog('📷 현재 카메라:', this.camera.position);
             debugLog('🎯 카메라 방향:', this.camera.getWorldDirection(new THREE.Vector3()));
         }
         
-        // FPS 계산 (1초마다)
         const currentTime = performance.now();
         if (currentTime >= this.fpsLastTime + 1000) {
             this.currentFps = Math.round((this.fpsFrameCount * 1000) / (currentTime - this.fpsLastTime));
@@ -706,12 +671,8 @@ export class SceneManager {
         this.renderer.render(this.scene, this.camera);
     }
     
-    /**
-     * 성능 통계 반환
-     */
     getStats() {
         const info = this.renderer.info;
-        
         return {
             fps: this.currentFps,
             frameTime: this.currentFps > 0 ? 1000 / this.currentFps : 0,
@@ -722,55 +683,14 @@ export class SceneManager {
         };
     }
     
-    /**
-     * 씬 반환
-     */
-    getScene() {
-        return this.scene;
-    }
+    getScene() { return this.scene; }
+    getCamera() { return this.camera; }
+    getRenderer() { return this.renderer; }
+    getContainer() { return this._container; }  // 🆕 v1.5.0
+    getRoomEnvironment() { return this.roomEnvironment; }
+    getCurrentLayoutParams() { return this._currentLayoutParams; }
+    isRebuilding() { return this._isRebuilding; }
     
-    /**
-     * 카메라 반환
-     */
-    getCamera() {
-        return this.camera;
-    }
-    
-    /**
-     * 렌더러 반환
-     */
-    getRenderer() {
-        return this.renderer;
-    }
-    
-    /**
-     * ⭐ RoomEnvironment 반환
-     */
-    getRoomEnvironment() {
-        return this.roomEnvironment;
-    }
-    
-    /**
-     * ✨ Phase 4.2: 현재 Layout params 반환
-     */
-    getCurrentLayoutParams() {
-        return this._currentLayoutParams;
-    }
-    
-    /**
-     * ✨ Phase 4.4: 재구축 중 여부 반환
-     */
-    isRebuilding() {
-        return this._isRebuilding;
-    }
-    
-    // =========================================================
-    // ✨ Phase 4: 추가 유틸리티
-    // =========================================================
-    
-    /**
-     * ✨ Phase 4: 디버그 정보 출력
-     */
     debug() {
         console.group('[SceneManager] Debug Info');
         console.log('Scene children:', this.scene.children.length);
@@ -782,6 +702,8 @@ export class SceneManager {
         console.log('Is Rebuilding:', this._isRebuilding);
         console.log('Helpers visible:', this._helpersVisible);
         console.log('Grid visible:', this._gridVisible);
+        console.log('Container:', this._container);
+        console.log('Renderer size:', this.renderer.getSize(new THREE.Vector2()));
         
         if (this.roomEnvironment) {
             this.roomEnvironment.debug();
@@ -789,15 +711,15 @@ export class SceneManager {
         console.groupEnd();
     }
     
-    /**
-     * 리소스 정리
-     */
     dispose() {
+        // 🆕 v1.5.0: 이벤트 리스너 제거 (바인딩된 핸들러 사용)
+        window.removeEventListener('resize', this._resizeHandler);
+        window.removeEventListener('drawer-toggle', this._drawerToggleHandler);
+        
         if (this.renderer) {
             this.renderer.dispose();
         }
         
-        // Floor/Grid 정리
         if (this.floor) {
             this.floor.geometry.dispose();
             this.floor.material.dispose();
@@ -807,21 +729,17 @@ export class SceneManager {
             this.grid.material.dispose();
         }
         
-        // ⭐ AxesHelper 정리
         if (this.axesHelper) {
             this.axesHelper.dispose();
         }
         
-        // ⭐ RoomEnvironment 정리
         if (this.roomEnvironment) {
             this.roomEnvironment.dispose();
         }
         
-        // 참조 초기화
         this._currentLayoutParams = null;
         this._equipmentLoader = null;
-        
-        window.removeEventListener('resize', () => this.onWindowResize());
+        this._container = null;
         
         debugLog('🗑️ SceneManager 정리 완료');
     }
