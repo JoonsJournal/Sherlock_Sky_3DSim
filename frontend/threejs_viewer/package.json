@@ -1,9 +1,11 @@
 {
   "name": "sherlock-sky-3dsim-viewer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "3D Equipment Viewer",
   "scripts": {
-    "dev": "http-server . -p 8080 -c-1",
+    "dev": "http-server . -p 8088 -c-1",
+    "dev:old": "http-server . -p 8080 -c-1",
+    "start": "npm run dev",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
