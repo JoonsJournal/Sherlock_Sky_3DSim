@@ -2,8 +2,13 @@
 Equipment Detail API - Pydantic Schemas
 설비 상세 정보 패널용 데이터 모델
 
-@version 2.0.0
+@version 2.1.0
 @changelog
+- v2.1.0: Production Count & Tact Time 추가
+          - EquipmentDetailResponse: production_count, tact_time_seconds 추가
+          - MultiEquipmentDetailResponse: production_total, tact_time_avg 추가
+          - EquipmentDetailData: Production, Tact Time 필드 추가
+          - ⚠️ 호환성: 기존 모든 필드 100% 유지
 - v2.0.0: PC Info Tab 확장 - Memory, Disk 필드 추가
           - EquipmentDetailResponse: memory_total_gb, memory_used_gb, disk_c_*, disk_d_* 추가
           - MultiEquipmentDetailResponse: avg_memory_usage_percent, avg_disk_c/d_usage_percent 추가
@@ -19,7 +24,7 @@ Equipment Detail API - Pydantic Schemas
 - v1.0.0: 초기 버전
 
 작성일: 2026-01-06
-수정일: 2026-01-09
+수정일: 2026-01-16
 """
 
 from pydantic import BaseModel, Field
@@ -68,17 +73,19 @@ class MultiEquipmentDetailRequest(BaseModel):
 class EquipmentDetailResponse(BaseModel):
     """단일 설비 상세 정보 응답
     
+    🆕 v2.1.0: Production Count & Tact Time 추가
     🆕 v2.0.0: PC Info Tab 확장 - Memory, Disk 필드 추가
     
     DB 테이블 매핑:
     - core.Equipment: EquipmentId, EquipmentName, LineName
     - log.EquipmentState: Status, OccurredAtUtc
     - log.Lotinfo: LotId, ProductModel, IsStart, OccurredAtUtc
+    - log.CycleTime: Time (Tact Time 계산용)
     - core.EquipmentPCInfo: OS, Architecture, LastBootTime, CPUName, CPULogicalCount, GPUName, UpdateAtUtc
     - log.EquipmentPCInfo: CPUUsagePercent, MemoryTotalMb, MemoryUsedMb, DiskTotalGb, DiskUsedGb, DiskTotalGb2, DiskUsedGb2
     
     Lot Active/Inactive 분기:
-    - is_lot_active=True (IsStart=1): Product, Lot No, Lot Start, Lot Duration 표시
+    - is_lot_active=True (IsStart=1): Product, Lot No, Lot Start, Lot Duration, Production, Tact Time 표시
     - is_lot_active=False (IsStart=0): Product="-", Lot No="-", Since, Duration 표시
     """
     
@@ -112,6 +119,19 @@ class EquipmentDetailResponse(BaseModel):
     since_time: Optional[datetime] = Field(
         None,
         description="Lot 종료 시점 (log.Lotinfo.OccurredAtUtc, IsStart=0인 경우, Duration 계산용)"
+    )
+    
+    # ============================================
+    # 🆕 v2.1.0: Production & Tact Time 필드
+    # ============================================
+    production_count: Optional[int] = Field(
+        None,
+        description="현재 Lot 시작 이후 생산 개수 (log.CycleTime COUNT, is_lot_active=True일 때만 유효)"
+    )
+    
+    tact_time_seconds: Optional[float] = Field(
+        None,
+        description="마지막 Tact Time 초 단위 (log.CycleTime 최근 2개 간격)"
     )
     
     # ============================================
@@ -194,11 +214,14 @@ class EquipmentDetailResponse(BaseModel):
                 "status": "RUN",
                 "product_model": "MODEL-X123",
                 "lot_id": "LOT-2026-001",
-                "last_updated": "2026-01-09T21:24:55+08:00",
+                "last_updated": "2026-01-16T21:24:55+08:00",
                 # 🆕 v1.4.0: Lot Active/Inactive
                 "is_lot_active": True,
-                "lot_start_time": "2026-01-09T10:30:00+08:00",
+                "lot_start_time": "2026-01-16T10:30:00+08:00",
                 "since_time": None,
+                # 🆕 v2.1.0: Production & Tact Time
+                "production_count": 127,
+                "tact_time_seconds": 72.5,
                 # PC Info Tab - 고정 정보
                 "cpu_name": "Intel(R) Core(TM) i7-12700K",
                 "cpu_logical_count": 20,
@@ -206,7 +229,7 @@ class EquipmentDetailResponse(BaseModel):
                 "os_name": "Windows 11 Pro",
                 "os_architecture": "64-bit",
                 "last_boot_time": "2026-01-01T08:00:00+08:00",
-                "pc_last_update_time": "2026-01-09T10:00:00+08:00",
+                "pc_last_update_time": "2026-01-16T10:00:00+08:00",
                 # PC Info Tab - 실시간 정보
                 "cpu_usage_percent": 45.2,
                 # 🆕 v2.0.0: Memory, Disk
@@ -232,6 +255,10 @@ class StatusCount(BaseModel):
 
 class MultiEquipmentDetailResponse(BaseModel):
     """다중 설비 상세 정보 응답 (집계)
+    
+    🆕 v2.1.0: Production 합계 & Tact Time 평균 추가
+    - production_total: 전체 Production 합계
+    - tact_time_avg: 평균 Tact Time (초)
     
     🆕 v2.0.0: Memory, Disk 평균 추가
     - avg_memory_usage_percent: 평균 Memory 사용율 %
@@ -262,6 +289,19 @@ class MultiEquipmentDetailResponse(BaseModel):
     # Lot ID 정보 (중복 제거, 최대 3개)
     lot_ids: List[str] = Field(default_factory=list, description="Lot ID 목록 (최대 3개)")
     lot_ids_more: bool = Field(False, description="3개 초과 여부")
+    
+    # ============================================
+    # 🆕 v2.1.0: Production & Tact Time 집계
+    # ============================================
+    production_total: Optional[int] = Field(
+        None,
+        description="전체 Production 합계 (모든 선택 설비의 production_count SUM)"
+    )
+    
+    tact_time_avg: Optional[float] = Field(
+        None,
+        description="평균 Tact Time 초 단위 (유효한 값만 평균 계산)"
+    )
     
     # ============================================
     # PC Info Tab 집계 (기존 필드 - 호환성 유지)
@@ -321,6 +361,9 @@ class MultiEquipmentDetailResponse(BaseModel):
                 "products_more": False,
                 "lot_ids": ["LOT-001", "LOT-002", "LOT-003"],
                 "lot_ids_more": True,
+                # 🆕 v2.1.0: Production & Tact Time 집계
+                "production_total": 1234,
+                "tact_time_avg": 68.3,
                 # PC Info 집계
                 "avg_cpu_usage_percent": 48.5,
                 # 🆕 v2.0.0: Memory, Disk 평균
@@ -345,6 +388,7 @@ class MultiEquipmentDetailResponse(BaseModel):
 class EquipmentDetailData(BaseModel):
     """내부용 설비 상세 데이터
     
+    🆕 v2.1.0: Production & Tact Time 필드 추가
     🆕 v2.0.0: Memory, Disk 필드 추가
     🆕 v1.4.0: Lot Active/Inactive 필드 추가
     """
@@ -361,6 +405,10 @@ class EquipmentDetailData(BaseModel):
     is_lot_active: Optional[bool] = None  # IsStart 값 (1=True, 0=False)
     lot_start_time: Optional[datetime] = None  # IsStart=1인 경우
     since_time: Optional[datetime] = None  # IsStart=0인 경우
+    
+    # 🆕 v2.1.0: Production & Tact Time
+    production_count: Optional[int] = None  # Lot 시작 이후 CycleTime COUNT
+    tact_time_seconds: Optional[float] = None  # 최근 2개 CycleTime 간격 (초)
     
     # PC Info (고정 정보)
     cpu_name: Optional[str] = None

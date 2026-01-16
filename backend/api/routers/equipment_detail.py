@@ -6,8 +6,14 @@ API Endpoints:
 - GET  /api/equipment/detail/{frontend_id} : 단일 설비 상세 정보
 - POST /api/equipment/detail/multi        : 다중 설비 상세 정보 (집계)
 
-@version 2.0.0
+@version 2.1.0
 @changelog
+- v2.1.0: Production Count & Tact Time 추가
+          - SQL 쿼리에 log.CycleTime 조회 추가 (별도 쿼리로 분리하여 성능 최적화)
+          - Single Selection: production_count, tact_time_seconds 추가
+          - Multi Selection: production_total (SUM), tact_time_avg (AVG) 추가
+          - is_lot_active=True일 때만 Production 표시 (Lot 시작 시점 기준)
+          - ⚠️ 호환성: 기존 모든 필드/로직 100% 유지
 - v2.0.0: PC Info Tab 확장 - Memory, Disk 필드 추가
           - SQL 쿼리에 MemoryTotalMb, MemoryUsedMb, DiskTotalGb, DiskUsedGb, DiskTotalGb2, DiskUsedGb2 추가
           - Memory MB → GB 변환 (/ 1024)
@@ -28,7 +34,7 @@ API Endpoints:
 - v1.0.0: 초기 버전
 
 작성일: 2026-01-06
-수정일: 2026-01-09
+수정일: 2026-01-16
 """
 
 from fastapi import APIRouter, HTTPException, Query
@@ -121,12 +127,149 @@ def get_active_site_connection():
 
 
 # ============================================================================
+# 🆕 v2.1.0: Production Count & Tact Time 조회 헬퍼 함수
+# ============================================================================
+
+def fetch_production_count(conn, equipment_id: int, lot_start_time: datetime) -> Optional[int]:
+    """
+    Lot 시작 이후 생산 개수 조회
+    
+    🆕 v2.1.0: CycleTime COUNT 쿼리
+    
+    Args:
+        conn: DB Connection
+        equipment_id: Equipment ID
+        lot_start_time: Lot 시작 시간 (이 시점 이후의 CycleTime COUNT)
+    
+    Returns:
+        int or None: 생산 개수
+    """
+    if lot_start_time is None:
+        return None
+    
+    cursor = None
+    try:
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT COUNT(*) AS production_count
+            FROM log.CycleTime
+            WHERE EquipmentId = %d
+              AND Time >= %s
+        """
+        
+        cursor.execute(query, (equipment_id, lot_start_time))
+        row = cursor.fetchone()
+        
+        if row:
+            return int(row[0])
+        return None
+        
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to fetch production count for equipment {equipment_id}: {e}")
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+
+
+def fetch_tact_time(conn, equipment_id: int) -> Optional[float]:
+    """
+    최근 2개 CycleTime 간격으로 Tact Time 계산
+    
+    🆕 v2.1.0: 최근 2개 CycleTime 조회 후 간격 계산
+    
+    Args:
+        conn: DB Connection
+        equipment_id: Equipment ID
+    
+    Returns:
+        float or None: Tact Time (초)
+    """
+    cursor = None
+    try:
+        cursor = conn.cursor()
+        
+        # 최근 2개 CycleTime 조회
+        query = """
+            SELECT TOP 2 Time
+            FROM log.CycleTime
+            WHERE EquipmentId = %d
+            ORDER BY Time DESC
+        """
+        
+        cursor.execute(query, (equipment_id,))
+        rows = cursor.fetchall()
+        
+        # 2개 미만이면 Tact Time 계산 불가
+        if len(rows) < 2:
+            return None
+        
+        # 최신 시간과 이전 시간의 간격 (초 단위)
+        newer_time = rows[0][0]
+        older_time = rows[1][0]
+        
+        if newer_time and older_time:
+            delta = newer_time - older_time
+            tact_time_seconds = delta.total_seconds()
+            return round(tact_time_seconds, 1)
+        
+        return None
+        
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to fetch tact time for equipment {equipment_id}: {e}")
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+
+
+def fetch_production_and_tact_batch(conn, equipment_ids: List[int], lot_start_times: Dict[int, datetime]) -> Dict[int, Dict]:
+    """
+    다중 설비의 Production Count & Tact Time 일괄 조회
+    
+    🆕 v2.1.0: Multi Selection 최적화
+    
+    Args:
+        conn: DB Connection
+        equipment_ids: Equipment ID 목록
+        lot_start_times: {equipment_id: lot_start_time} 딕셔너리
+    
+    Returns:
+        {equipment_id: {'production_count': int, 'tact_time_seconds': float}}
+    """
+    if not equipment_ids:
+        return {}
+    
+    result = {}
+    
+    # 각 설비별로 개별 조회 (Lot 시작 시간이 다르므로 일괄 쿼리 어려움)
+    for eq_id in equipment_ids:
+        lot_start = lot_start_times.get(eq_id)
+        
+        prod_count = None
+        if lot_start:
+            prod_count = fetch_production_count(conn, eq_id, lot_start)
+        
+        tact_time = fetch_tact_time(conn, eq_id)
+        
+        result[eq_id] = {
+            'production_count': prod_count,
+            'tact_time_seconds': tact_time
+        }
+    
+    return result
+
+
+# ============================================================================
 # ✅ v2.0.0: Raw SQL 쿼리 함수 (cursor 기반) - Memory, Disk 추가
 # ============================================================================
 
 def fetch_equipment_detail_raw(conn, equipment_id: int) -> Optional[Dict]:
     """
     단일 설비 상세 정보 조회 (raw cursor)
+    
+    🆕 v2.1.0: Production Count & Tact Time은 별도 함수로 조회 (성능 최적화)
     
     🆕 v2.0.0: Memory, Disk 필드 추가
     - MemoryTotalMb, MemoryUsedMb → memory_total_gb, memory_used_gb (MB→GB 변환)
@@ -360,13 +503,14 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
     """
     다중 설비 상세 정보 조회 (raw cursor)
     
+    🆕 v2.1.0: lot_start_time 반환 추가 (Production Count 계산용)
     🆕 v2.0.0: Memory, Disk 필드 추가
     
     🆕 v1.5.0: Lot Active/Inactive 분기 지원
     - Multi Selection에서는 기존 집계 방식 유지
     - is_lot_active 필드는 개별 조회에만 사용
     
-    SELECT 컬럼 인덱스 (v2.0.0):
+    SELECT 컬럼 인덱스 (v2.1.0):
     - 0: EquipmentId
     - 1: EquipmentName
     - 2: LineName
@@ -374,7 +518,7 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
     - 4: StatusOccurredAt
     - 5: ProductModel
     - 6: LotId
-    - 7: LotOccurredAt
+    - 7: LotOccurredAt  ← 🆕 v2.1.0: lot_start_time으로 사용
     - 8: CPUName
     - 9: CPULogicalCount
     - 10: GPUName
@@ -524,7 +668,7 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
                 # Lot 정보
                 'product_model': row[5],
                 'lot_id': row[6],
-                'lot_occurred_at': row[7],
+                'lot_occurred_at': row[7],  # 🆕 v2.1.0: lot_start_time으로 사용
                 
                 # PC 고정 정보
                 'cpu_name': row[8],
@@ -561,11 +705,47 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
 # API Endpoints
 # ============================================================================
 
+# ⚠️ 중요: 구체적인 경로를 path parameter보다 먼저 정의해야 함!
+
+# ============================================================================
+# Health Check (먼저 정의!)
+# ============================================================================
+
+@router.get(
+    "/health",
+    summary="Equipment Detail API 헬스체크"
+)
+async def health_check():
+    """Equipment Detail API 헬스체크"""
+    return {
+        "status": "ok",
+        "service": "equipment-detail",
+        "version": "2.1.0",
+        "timestamp": datetime.now().isoformat(),
+        "features": {
+            "general_tab": True,
+            "pc_info_tab": True,
+            "lot_start_time": True,
+            "cpu_usage_gauge": True,
+            # v1.5.0
+            "lot_active_inactive": True,
+            "since_time": True,
+            # v2.0.0
+            "memory_gauge": True,
+            "disk_c_gauge": True,
+            "disk_d_gauge": True,
+            # v2.1.0
+            "production_count": True,
+            "tact_time": True
+        }
+    }
+
+
 @router.get(
     "/{frontend_id}",
     response_model=EquipmentDetailResponse,
     summary="단일 설비 상세 정보 조회",
-    description="Frontend ID로 설비의 Line, Status, Product, Lot, PC Info 정보를 조회합니다. Lot Active/Inactive 분기를 지원합니다."
+    description="Frontend ID로 설비의 Line, Status, Product, Lot, Production, Tact Time, PC Info 정보를 조회합니다. Lot Active/Inactive 분기를 지원합니다."
 )
 @handle_errors
 async def get_equipment_detail(
@@ -575,16 +755,20 @@ async def get_equipment_detail(
     """
     단일 설비 상세 정보 조회
     
+    🆕 v2.1.0: Production Count & Tact Time 추가
+    - production_count: Lot 시작 이후 생산 개수 (log.CycleTime COUNT)
+    - tact_time_seconds: 마지막 Tact Time 초 단위 (log.CycleTime 최근 2개 간격)
+    
     🆕 v2.0.0: Memory, Disk 정보 추가
     🆕 v1.5.0: Lot Active/Inactive 분기 지원
-    - is_lot_active=True: Product, Lot No, Lot Start, Lot Duration 표시
+    - is_lot_active=True: Product, Lot No, Lot Start, Lot Duration, Production, Tact Time 표시
     - is_lot_active=False: Product="-", Lot No="-", Since, Duration 표시
     
     - **frontend_id**: Frontend ID (예: EQ-17-03)
     - **equipment_id**: Equipment ID (옵션, Frontend에서 전달 시 우선 사용)
     
     Returns:
-        설비 상세 정보 (Lot Active/Inactive 분기, PC Info 포함, Memory/Disk 포함)
+        설비 상세 정보 (Lot Active/Inactive 분기, Production, Tact Time, PC Info 포함, Memory/Disk 포함)
     """
     logger.info(f"📡 GET /equipment/detail/{frontend_id}" + 
                 (f"?equipment_id={equipment_id}" if equipment_id else ""))
@@ -605,6 +789,9 @@ async def get_equipment_detail(
             is_lot_active=False,
             lot_start_time=None,
             since_time=None,
+            # 🆕 v2.1.0: Production & Tact Time
+            production_count=None,
+            tact_time_seconds=None,
             # PC Info
             cpu_name=None,
             cpu_logical_count=None,
@@ -645,6 +832,9 @@ async def get_equipment_detail(
                 is_lot_active=False,
                 lot_start_time=None,
                 since_time=None,
+                # 🆕 v2.1.0: Production & Tact Time
+                production_count=None,
+                tact_time_seconds=None,
                 # PC Info
                 cpu_name=None,
                 cpu_logical_count=None,
@@ -672,7 +862,18 @@ async def get_equipment_detail(
         elif data.get('lot_occurred_at'):
             last_updated = data['lot_occurred_at']
         
-        # 🆕 v2.0.0: 확장된 응답 생성 (Memory, Disk 포함)
+        # 🆕 v2.1.0: Production Count & Tact Time 조회
+        production_count = None
+        tact_time_seconds = None
+        
+        # Lot Active일 때만 Production Count 조회
+        if data['is_lot_active'] and data['lot_start_time']:
+            production_count = fetch_production_count(conn, equipment_id, data['lot_start_time'])
+        
+        # Tact Time은 Lot Active/Inactive 상관없이 조회
+        tact_time_seconds = fetch_tact_time(conn, equipment_id)
+        
+        # 🆕 v2.1.0: 확장된 응답 생성 (Production, Tact Time, Memory, Disk 포함)
         response = EquipmentDetailResponse(
             # 기본 정보 (기존 필드 - 호환성 유지)
             frontend_id=frontend_id,
@@ -688,6 +889,10 @@ async def get_equipment_detail(
             is_lot_active=data['is_lot_active'],
             lot_start_time=data['lot_start_time'],  # Active 시
             since_time=data['since_time'],  # Inactive 시
+            
+            # 🆕 v2.1.0: Production & Tact Time
+            production_count=production_count,
+            tact_time_seconds=tact_time_seconds,
             
             # PC Info Tab - 고정 정보
             cpu_name=data['cpu_name'],
@@ -712,6 +917,7 @@ async def get_equipment_detail(
         
         logger.info(f"✅ Equipment detail fetched: {frontend_id} -> eq_id={equipment_id}, "
                    f"status={response.status}, is_lot_active={response.is_lot_active}, "
+                   f"production={response.production_count}, tact_time={response.tact_time_seconds}s, "
                    f"cpu={response.cpu_usage_percent}%, "
                    f"memory={response.memory_used_gb}/{response.memory_total_gb}GB")
         return response
@@ -730,7 +936,7 @@ async def get_equipment_detail(
     "/multi",
     response_model=MultiEquipmentDetailResponse,
     summary="다중 설비 상세 정보 조회 (집계)",
-    description="여러 설비의 Line, Status, Product, Lot, PC Info 정보를 집계하여 조회합니다."
+    description="여러 설비의 Line, Status, Product, Lot, Production, Tact Time, PC Info 정보를 집계하여 조회합니다."
 )
 @handle_errors
 async def get_multi_equipment_detail(
@@ -738,6 +944,10 @@ async def get_multi_equipment_detail(
 ):
     """
     다중 설비 상세 정보 조회 (집계)
+    
+    🆕 v2.1.0: Production 합계 & Tact Time 평균 추가
+    - production_total: 전체 Production 합계 (Active Lot만)
+    - tact_time_avg: 평균 Tact Time (초)
     
     🆕 v2.0.0: Memory, Disk 평균 추가
     - avg_memory_usage_percent: 평균 Memory 사용율 %
@@ -750,7 +960,7 @@ async def get_multi_equipment_detail(
     - **equipment_ids**: Equipment ID 목록 (Frontend에서 전달)
     
     Returns:
-        집계된 설비 정보 (PC Info 포함, Memory/Disk 평균 포함)
+        집계된 설비 정보 (Production 합계, Tact Time 평균, PC Info 포함, Memory/Disk 평균 포함)
     """
     logger.info(f"📡 POST /equipment/detail/multi - {len(request.frontend_ids)} frontend_ids" +
                 (f", {len(request.equipment_ids)} equipment_ids" if request.equipment_ids else ""))
@@ -767,6 +977,9 @@ async def get_multi_equipment_detail(
             products_more=False,
             lot_ids=[],
             lot_ids_more=False,
+            # 🆕 v2.1.0: Production & Tact Time
+            production_total=None,
+            tact_time_avg=None,
             # PC Info 집계
             avg_cpu_usage_percent=None,
             # 🆕 v2.0.0: Memory, Disk 평균
@@ -801,6 +1014,9 @@ async def get_multi_equipment_detail(
         os_names_set = set()
         cpu_usage_values: List[float] = []
         
+        # 🆕 v2.1.0: Production & Tact Time 집계용
+        lot_start_times: Dict[int, datetime] = {}  # {equipment_id: lot_start_time}
+        
         # 🆕 v2.0.0: Memory, Disk 집계용 리스트
         memory_usage_values: List[float] = []  # 사용율 %
         disk_c_usage_values: List[float] = []  # 사용율 %
@@ -823,6 +1039,10 @@ async def get_multi_equipment_detail(
             # Lot ID 수집
             if data.get('lot_id'):
                 lot_ids_set.add(data['lot_id'])
+            
+            # 🆕 v2.1.0: lot_start_time 수집 (Production Count 계산용)
+            if data.get('lot_occurred_at'):
+                lot_start_times[data['equipment_id']] = data['lot_occurred_at']
             
             # PC Info 수집
             if data.get('cpu_name'):
@@ -851,6 +1071,28 @@ async def get_multi_equipment_detail(
             if data.get('disk_d_total_gb') and data.get('disk_d_used_gb') and data['disk_d_total_gb'] > 0:
                 disk_d_percent = (data['disk_d_used_gb'] / data['disk_d_total_gb']) * 100
                 disk_d_usage_values.append(disk_d_percent)
+        
+        # 🆕 v2.1.0: Production & Tact Time 일괄 조회
+        prod_tact_data = fetch_production_and_tact_batch(conn, request.equipment_ids, lot_start_times)
+        
+        # Production 합계 & Tact Time 평균 계산
+        production_total = 0
+        tact_time_values: List[float] = []
+        
+        for eq_id, pt_data in prod_tact_data.items():
+            if pt_data.get('production_count') is not None:
+                production_total += pt_data['production_count']
+            
+            if pt_data.get('tact_time_seconds') is not None:
+                tact_time_values.append(pt_data['tact_time_seconds'])
+        
+        # Production 합계 (0이면 None)
+        production_total = production_total if production_total > 0 else None
+        
+        # Tact Time 평균
+        tact_time_avg = None
+        if tact_time_values:
+            tact_time_avg = round(sum(tact_time_values) / len(tact_time_values), 1)
         
         # 최대 3개 제한
         MAX_DISPLAY = 3
@@ -896,6 +1138,10 @@ async def get_multi_equipment_detail(
             lot_ids=lot_ids[:MAX_DISPLAY],
             lot_ids_more=len(lot_ids) > MAX_DISPLAY,
             
+            # 🆕 v2.1.0: Production & Tact Time
+            production_total=production_total,
+            tact_time_avg=tact_time_avg,
+            
             # PC Info 집계
             avg_cpu_usage_percent=avg_cpu_usage,
             
@@ -915,6 +1161,7 @@ async def get_multi_equipment_detail(
         
         logger.info(f"✅ Multi equipment detail fetched: {response.count} items, "
                    f"lines={len(response.lines)}, status_counts={response.status_counts}, "
+                   f"production_total={response.production_total}, tact_time_avg={response.tact_time_avg}s, "
                    f"avg_cpu={response.avg_cpu_usage_percent}%, "
                    f"avg_memory={response.avg_memory_usage_percent}%, "
                    f"avg_disk_c={response.avg_disk_c_usage_percent}%, "
@@ -932,31 +1179,5 @@ async def get_multi_equipment_detail(
 
 
 # ============================================================================
-# Health Check
+# End of File
 # ============================================================================
-
-@router.get(
-    "/health",
-    summary="Equipment Detail API 헬스체크"
-)
-async def health_check():
-    """Equipment Detail API 헬스체크"""
-    return {
-        "status": "ok",
-        "service": "equipment-detail",
-        "version": "2.0.0",  # 🆕 버전 업데이트
-        "timestamp": datetime.now().isoformat(),
-        "features": {
-            "general_tab": True,
-            "pc_info_tab": True,
-            "lot_start_time": True,
-            "cpu_usage_gauge": True,
-            # 🆕 v1.5.0
-            "lot_active_inactive": True,
-            "since_time": True,
-            # 🆕 v2.0.0
-            "memory_gauge": True,
-            "disk_c_gauge": True,
-            "disk_d_gauge": True
-        }
-    }
