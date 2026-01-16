@@ -5,11 +5,17 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 2.0.3
+ * @version 2.0.4
  * @created 2026-01-11
- * @updated 2026-01-15
+ * @updated 2026-01-16
  * 
  * @changelog
+ * - v2.0.4: 🔧 UI 개선 (2026-01-16)
+ *           - z-index: 토큰 var(--z-status-bar) 사용으로 변경
+ *           - 높이: 토큰 참조로 통일 (fallback 제거)
+ *           - .status-item: 배경색 투명으로 변경 (색 구분 제거)
+ *           - .monitoring-stat-item: 배경색 투명으로 변경
+ *           - ⚠️ 호환성: 기존 모든 클래스/기능 100% 유지
  * - v2.0.3: 🔧 완전 복원 + 새 기능 통합 (2026-01-15)
  *           - 원래 레이아웃 100% 복원 (gap: 16px, 직접 변수)
  *           - Light Theme Overrides 섹션 복원
@@ -22,7 +28,7 @@
  * - v1.0.0: 초기 버전
  * 
  * 구조:
- * - Status Bar Container (36px 높이)
+ * - Status Bar Container (27px 높이)
  * - Status Groups (좌/가운데/우)
  * - Status Items (NET, API, DB, FPS, MEM)
  * - 🆕 Monitoring Stats Panel (총 장비, 매핑 상태, 상태별 카운트)
@@ -31,6 +37,7 @@
  * - Performance Bars (FPS, Memory)
  * 
  * 의존성:
+ * - tokens/_primitives.css (--z-status-bar, --status-bar-height)
  * - _variables.css (기본 CSS 변수 사용 - 호환성 확보)
  * 
  * [COMPATIBILITY NOTE]
@@ -46,7 +53,7 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    height: var(--status-bar-height, 36px);
+    height: var(--status-bar-height);
     background-color: var(--bg-sidebar);
     border-top: 1px solid var(--border-color);
     display: flex;
@@ -55,7 +62,7 @@
     padding: 0 16px;
     font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
     font-size: 11px;
-    z-index: 20;
+    z-index: var(--z-status-bar);
     box-sizing: border-box;
 }
 
@@ -78,13 +85,14 @@
 
 /* =============================================
    Status Item
+   🔧 v2.0.4: background 투명으로 변경
    ============================================= */
 .status-item {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 4px 10px;
-    background: var(--bg-input);
+    background: transparent;
     border-radius: 4px;
     font-family: 'Consolas', 'Monaco', 'Menlo', monospace;
 }
@@ -208,6 +216,7 @@
     margin: 0 8px;
 }
 
+/* 🔧 v2.0.4: background 투명으로 변경 */
 .monitoring-stat-item {
     display: flex;
     align-items: center;
@@ -215,7 +224,7 @@
     padding: 4px 8px;
     min-width: 44px;
     justify-content: center;
-    background: var(--bg-input);
+    background: transparent;
     border-radius: 4px;
 }
 

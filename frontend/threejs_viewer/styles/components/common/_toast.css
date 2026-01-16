@@ -5,30 +5,48 @@
  * 
  * Block: .toast
  * 
- * @version 4.0.0 (BEM Refactoring)
- * @updated 2026-01-15
+ * @version 4.1.0 (Default Position Fix)
+ * @created 2026-01-15
+ * @updated 2026-01-17
+ * 
+ * @changelog
+ * - v4.1.0: 🐛 FIX: 기본 위치를 상단(top-right)으로 변경 (2026-01-17)
+ *           - UX 표준: 대부분의 앱에서 토스트는 오른쪽 상단
+ *           - Modifier는 예외 케이스용으로 유지
+ *           - --bottom-right, --bottom-left 등 하단 옵션 제공
+ * - v4.0.0: BEM Refactoring 초기 버전 (2026-01-15)
  * 
  * [BEM 구조]
- * .toast                      → Block
- * .toast__icon                → Element
- * .toast__content             → Element
- * .toast__title               → Element
- * .toast__message             → Element
- * .toast__close               → Element
- * .toast--success             → Modifier
- * .toast--error               → Modifier
- * .toast--warning             → Modifier
- * .toast--info                → Modifier
+ * .toast-container              → Block (컨테이너)
+ * .toast-container--bottom-right → Modifier (하단 우측)
+ * .toast-container--bottom-left  → Modifier (하단 좌측)
+ * .toast-container--top-left     → Modifier (상단 좌측)
+ * .toast-container--center       → Modifier (중앙)
+ * 
+ * .toast                        → Block (토스트 아이템)
+ * .toast__icon                  → Element
+ * .toast__content               → Element
+ * .toast__title                 → Element
+ * .toast__message               → Element
+ * .toast__close                 → Element
+ * .toast__progress              → Element
+ * .toast--success               → Modifier (성공)
+ * .toast--error                 → Modifier (에러)
+ * .toast--warning               → Modifier (경고)
+ * .toast--info                  → Modifier (정보)
+ * .toast--closing               → Modifier (닫히는 중)
  * 
  * 📁 위치: frontend/threejs_viewer/styles/components/common/_toast.css
  */
 
 /* =============================================
-   Toast Container
+   Toast Container - Block
+   =============================================
+   기본 위치: 오른쪽 상단 (UX 표준)
    ============================================= */
 .toast-container {
     position: fixed;
-    bottom: var(--spacing-5);
+    top: var(--spacing-5);
     right: var(--spacing-5);
     z-index: var(--z-toast);
     display: flex;
@@ -37,26 +55,69 @@
     pointer-events: none;
 }
 
+/* =============================================
+   Toast Container Position Modifiers
+   =============================================
+   기본값(top-right) 외 위치가 필요한 경우 사용
+   ============================================= */
+
+/* 상단 우측 - 명시적 사용을 위한 Alias (기본값과 동일) */
 .toast-container--top-right {
-    bottom: auto;
     top: var(--spacing-5);
+    right: var(--spacing-5);
+    bottom: auto;
+    left: auto;
 }
 
+/* 상단 좌측 */
 .toast-container--top-left {
-    bottom: auto;
     top: var(--spacing-5);
-    right: auto;
     left: var(--spacing-5);
+    right: auto;
+    bottom: auto;
 }
 
+/* 하단 우측 */
+.toast-container--bottom-right {
+    top: auto;
+    bottom: var(--spacing-5);
+    right: var(--spacing-5);
+    left: auto;
+}
+
+/* 하단 좌측 */
 .toast-container--bottom-left {
-    right: auto;
+    top: auto;
+    bottom: var(--spacing-5);
     left: var(--spacing-5);
+    right: auto;
 }
 
+/* 상단 중앙 */
+.toast-container--top-center {
+    top: var(--spacing-5);
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    transform: translateX(-50%);
+}
+
+/* 하단 중앙 */
+.toast-container--bottom-center {
+    top: auto;
+    bottom: var(--spacing-5);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+}
+
+/* Legacy: center alias (하위 호환) */
 .toast-container--center {
-    right: 50%;
-    transform: translateX(50%);
+    top: var(--spacing-5);
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    transform: translateX(-50%);
 }
 
 /* =============================================
@@ -77,6 +138,9 @@
     animation: toast-slide-in 0.3s ease;
 }
 
+/* =============================================
+   Toast Animations
+   ============================================= */
 @keyframes toast-slide-in {
     from {
         transform: translateX(100%);
@@ -99,8 +163,42 @@
     }
 }
 
+/* 좌측 배치 시 애니메이션 */
+@keyframes toast-slide-in-left {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes toast-slide-out-left {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+}
+
 .toast--closing {
     animation: toast-slide-out 0.3s ease forwards;
+}
+
+/* 좌측 배치 컨테이너 내 토스트 애니메이션 */
+.toast-container--top-left .toast,
+.toast-container--bottom-left .toast {
+    animation: toast-slide-in-left 0.3s ease;
+}
+
+.toast-container--top-left .toast--closing,
+.toast-container--bottom-left .toast--closing {
+    animation: toast-slide-out-left 0.3s ease forwards;
 }
 
 /* =============================================
@@ -208,7 +306,7 @@
 }
 
 /* =============================================
-   Toast Progress Bar
+   Toast Progress Bar - Element
    ============================================= */
 .toast__progress {
     position: absolute;
@@ -231,6 +329,8 @@
 
 /* =============================================
    Legacy Alias (하위 호환성)
+   =============================================
+   기존 클래스명 지원 - 점진적 마이그레이션
    ============================================= */
 .toast-notification {
     display: flex;
@@ -321,9 +421,20 @@
    ============================================= */
 @media (max-width: 768px) {
     .toast-container {
-        bottom: var(--spacing-3);
+        top: var(--spacing-3);
         right: var(--spacing-3);
         left: var(--spacing-3);
+    }
+    
+    /* 모바일에서는 위치 modifier 무시하고 전체 너비 사용 */
+    .toast-container--top-left,
+    .toast-container--bottom-right,
+    .toast-container--bottom-left {
+        top: var(--spacing-3);
+        right: var(--spacing-3);
+        left: var(--spacing-3);
+        bottom: auto;
+        transform: none;
     }
     
     .toast,

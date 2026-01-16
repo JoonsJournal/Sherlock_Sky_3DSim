@@ -11,9 +11,17 @@
  * - 트랜지션 (Transitions)
  * - Z-Index 레이어
  * 
- * @version 3.0.0
+ * @version 3.1.0
  * @created 2026-01-16
+ * @updated 2026-01-16
  * @based-on DesignSystemGuidev2.jsx tokens
+ * 
+ * @changelog
+ * - v3.1.0: 🔧 Status Bar UI 개선 (2026-01-16)
+ *           - --z-status-bar: 500 토큰 추가 (sidebar 위, header 동급)
+ *           - --status-bar-height: 36px → 27px 변경 (25% 축소)
+ *           - ⚠️ 호환성: 기존 모든 토큰 100% 유지
+ * - v3.0.0: 초기 버전
  * 
  * [USAGE]
  * 이 파일의 변수들은 직접 사용하지 않고,
@@ -256,12 +264,14 @@
        📚 Z-INDEX LAYERS
        =============================================
        체계적인 레이어 시스템
+       🆕 v3.1.0: --z-status-bar 추가
        ============================================= */
     --z-base: 1;
     --z-dropdown: 100;
     --z-sticky: 200;
     --z-fixed: 300;
     --z-sidebar: 400;
+    --z-status-bar: 500;          /* 🆕 v3.1.0: Status Bar (sidebar 위) */
     --z-header: 500;
     --z-overlay-panel: 900;
     --z-overlay-indicator: 1000;
@@ -276,11 +286,13 @@
 
     /* =============================================
        📐 LAYOUT DIMENSIONS
+       =============================================
+       🔧 v3.1.0: --status-bar-height 36px → 27px
        ============================================= */
     --sidebar-width: 80px;
     --sidebar-width-collapsed: 60px;
     --sidebar-width-expanded: 200px;
-    --status-bar-height: 36px;
+    --status-bar-height: 27px;    /* 🔧 v3.1.0: 36px → 27px (25% 축소) */
     --header-height: 60px;
     --equipment-panel-width: 320px;
     --modal-max-width: 700px;

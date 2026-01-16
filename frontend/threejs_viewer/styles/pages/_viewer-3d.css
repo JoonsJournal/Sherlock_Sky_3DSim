@@ -3,11 +3,15 @@
  * ==============
  * 3D Viewer 페이지 전용 스타일
  * 
- * @version 1.2.0
+ * @version 1.2.1
  * @created 2026-01-02
- * @updated 2026-01-16
+ * @updated 2026-01-17
  * 
  * @changelog
+ * - v1.2.1: 🐛 FIX: Sidebar margin-left 이중 적용 버그 수정 (2026-01-17)
+ *           - body:has(.sidebar) .app-layout margin-left 규칙 제거
+ *           - Sidebar가 flex 자식으로 공간을 차지하므로 추가 margin 불필요
+ *           - 문제: Sidebar(80px) + margin-left(80px) = 160px 밀림 현상
  * - v1.2.0: 🆕 Equipment Drawer App Layout 추가 (2026-01-16)
  *           - .app-layout 래퍼 클래스
  *           - Three.js 컨테이너 자동 리사이즈 지원
@@ -19,7 +23,7 @@
  * - v1.0.0: 초기 버전
  * 
  * 구조:
- * - App Layout (Drawer 지원)  ← 🆕
+ * - App Layout (Drawer 지원)
  * - 3D Viewer Container
  * - Badge 스타일
  * - Info Box 스타일
@@ -39,10 +43,17 @@
    body 내 app-layout 클래스 적용 시 활성화
    - main-content: flex: 1 (남은 공간 차지)
    - equipment-drawer: width로 제어
+   
+   ⚠️ 레이아웃 구조 (v1.2.1 기준):
+   [body display:flex]
+   ├── [.sidebar 80px] ← position: relative, flex 자식으로 공간 차지
+   └── [.app-layout]   ← flex: 1, 남은 공간 자동 차지 (margin-left 불필요!)
+       └── [.main-content]
+           └── [#threejs-container]
    ============================================= */
 .app-layout {
     display: flex;
-    width: 100vw;
+    flex: 1;                   /* 🔧 v1.2.1: Sidebar 옆 남은 공간 차지 */
     height: 100vh;
     overflow: hidden;
 }
@@ -86,17 +97,28 @@
     /* 기존 위치 유지 */
 }
 
-/* Sidebar와 함께 사용 시 */
-body:has(.sidebar) .app-layout {
-    margin-left: var(--sidebar-width, 60px);
-    width: calc(100vw - var(--sidebar-width, 60px));
-}
-
-/* Sidebar expanded 상태 */
-body:has(.sidebar.expanded) .app-layout {
-    margin-left: var(--sidebar-width-expanded, 200px);
-    width: calc(100vw - var(--sidebar-width-expanded, 200px));
-}
+/* =============================================
+   🔧 v1.2.1 FIX: Sidebar margin-left 규칙 제거
+   =============================================
+   
+   ❌ 삭제된 코드 (이중 적용 문제 발생):
+   
+   body:has(.sidebar) .app-layout {
+       margin-left: var(--sidebar-width, 60px);
+       width: calc(100vw - var(--sidebar-width, 60px));
+   }
+   
+   body:has(.sidebar.expanded) .app-layout {
+       margin-left: var(--sidebar-width-expanded, 200px);
+       width: calc(100vw - var(--sidebar-width-expanded, 200px));
+   }
+   
+   ✅ 이유:
+   - body가 display: flex일 때 sidebar는 flex 자식으로 이미 공간 차지
+   - app-layout에 margin-left 추가 시 이중으로 밀림
+   - 결과: Sidebar(80px) + margin-left(80px) = 160px 왼쪽 빈 공간
+   - flex: 1만으로 충분히 남은 공간을 차지함
+   ============================================= */
 
 /* 작은 화면 대응 */
 @media (max-width: 1024px) {
