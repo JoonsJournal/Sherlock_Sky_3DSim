@@ -1,35 +1,35 @@
 <!DOCTYPE html>
 <html lang="ko" data-theme="dark">
 <!--
- * index.html v7.2.0
- * SHERLOCK SKY 3DSim - Phase 4 CSS Integration
+ * index.html v7.3.0
+ * SHERLOCK SKY 3DSim - Equipment Drawer Integration
  * 
- * @version 7.2.0
+ * @version 7.3.0
  * @created 2026-01-11
- * @updated 2026-01-15
+ * @updated 2026-01-16
  * 
  * @changelog
- * - v7.2.0: 🆕 Phase 4 CSS Integration (2026-01-15)
- *           - JS 파일들 CSS 클래스 상수화 적용
- *           - BEM 네이밍 규칙 통일
+ * - v7.3.0: 🆕 Equipment Drawer 레이아웃 (2026-01-16)
+ *           - body에 app-layout 래퍼 추가
+ *           - #equipmentInfo에 equipment-drawer 클래스 추가
+ *           - Three.js 컨테이너 자동 리사이즈 지원
+ * - v7.2.0: Phase 4 CSS Integration (2026-01-15)
  * - v7.1.0: Analysis 모드 컨테이너 추가 (2026-01-13)
- *           - #analysis-container 추가
- *           - Dark/Light 테마 지원
  * - v7.0.0: JS 리팩토링 완료 (2026-01-11)
  * 
  * 위치: frontend/threejs_viewer/index.html
  * 
  * CSS 의존성:
  * - styles/main.css (진입점)
- *   ├── base/_variables.css (CSS 변수 SSOT)
- *   ├── components/_analysis-mode.css
+ *   ├── components/equipment-info/_equipment-drawer.css (🆕)
+ *   ├── pages/_viewer-3d.css (app-layout 추가)
  *   └── ... 기타 컴포넌트
 -->
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🏭 Sherlock Sky 3DSim v7.2</title>
+    <title>🏭 Sherlock Sky 3DSim v7.3</title>
     <!-- Google Fonts: Inter (UI), JetBrains Mono (코드/숫자) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,51 +53,67 @@
     <!-- Toast Container -->
     <div class="toast-container" id="toast-container"></div>
 
-    <!-- MAIN CONTENT -->
-    <main class="main-content" id="main-content">
-        <!-- Three.js Container -->
-        <div id="threejs-container"></div>
+    <!-- 🆕 v7.3.0: App Layout Wrapper (Drawer 지원) -->
+    <div class="app-layout">
+        <!-- MAIN CONTENT -->
+        <main class="main-content" id="main-content">
+            <!-- Three.js Container -->
+            <div id="threejs-container"></div>
 
-        <!-- v7.1.0: Analysis Container -->
-        <div id="analysis-container" class="analysis-container hidden">
-            <div class="analysis-content">
-                <div class="analysis-placeholder">
-                    <div class="analysis-placeholder-icon">📊</div>
-                    <h2 class="analysis-placeholder-title">Analysis Mode</h2>
-                    <p class="analysis-placeholder-subtitle">분석 기능이 준비 중입니다</p>
-                    <div class="analysis-placeholder-features">
-                        <div class="analysis-feature-item">
-                            <span class="analysis-feature-icon">📈</span>
-                            <span class="analysis-feature-text">Calendar Heatmap</span>
-                            <span class="analysis-feature-badge">Coming Soon</span>
-                        </div>
-                        <div class="analysis-feature-item">
-                            <span class="analysis-feature-icon">🔍</span>
-                            <span class="analysis-feature-text">SUDDENSTOP Analysis</span>
-                            <span class="analysis-feature-badge">Coming Soon</span>
-                        </div>
-                        <div class="analysis-feature-item">
-                            <span class="analysis-feature-icon">⏱️</span>
-                            <span class="analysis-feature-text">Shift Change Impact</span>
-                            <span class="analysis-feature-badge">Coming Soon</span>
+            <!-- v7.1.0: Analysis Container -->
+            <div id="analysis-container" class="analysis-container hidden">
+                <div class="analysis-content">
+                    <div class="analysis-placeholder">
+                        <div class="analysis-placeholder-icon">📊</div>
+                        <h2 class="analysis-placeholder-title">Analysis Mode</h2>
+                        <p class="analysis-placeholder-subtitle">분석 기능이 준비 중입니다</p>
+                        <div class="analysis-placeholder-features">
+                            <div class="analysis-feature-item">
+                                <span class="analysis-feature-icon">📈</span>
+                                <span class="analysis-feature-text">Calendar Heatmap</span>
+                                <span class="analysis-feature-badge">Coming Soon</span>
+                            </div>
+                            <div class="analysis-feature-item">
+                                <span class="analysis-feature-icon">🔍</span>
+                                <span class="analysis-feature-text">SUDDENSTOP Analysis</span>
+                                <span class="analysis-feature-badge">Coming Soon</span>
+                            </div>
+                            <div class="analysis-feature-item">
+                                <span class="analysis-feature-icon">⏱️</span>
+                                <span class="analysis-feature-text">Shift Change Impact</span>
+                                <span class="analysis-feature-badge">Coming Soon</span>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Overlay UI (레거시) -->
-        <div class="overlay-ui" id="overlay-ui"></div>
-    </main>
+            <!-- Overlay UI (레거시) -->
+            <div class="overlay-ui" id="overlay-ui"></div>
+        </main>
 
-    <!-- Equipment Info Panel -->
-    <div id="equipmentInfo" class="equipment-panel">
-        <button class="equipment-panel__close-btn close-btn" onclick="document.getElementById('equipmentInfo').classList.remove('active')">×</button>
-        <h2 id="equipName" class="equipment-panel__title" style="font-size: 16px; margin-bottom: 12px;">설비 정보</h2>
-        <div id="equipDetails" class="equipment-panel__body"></div>
+        <!-- 🆕 v7.3.0: Equipment Detail Drawer (main과 형제, app-layout 내부) -->
+        <aside id="equipmentInfo" class="equipment-panel equipment-drawer">
+            <!-- 
+                기존 equipment-panel 클래스 유지 (하위 호환성)
+                equipment-drawer 클래스 추가 (새 Drawer 스타일)
+                
+                JS에서 다음 클래스로 상태 제어:
+                - equipment-drawer--opening: 열리는 중
+                - equipment-drawer--open: 열림
+                - equipment-drawer--closing: 닫히는 중
+                - equipment-drawer--loading: 로딩 중
+            -->
+            <button class="equipment-panel__close-btn equipment-drawer__close-btn close-btn" 
+                    onclick="document.getElementById('equipmentInfo').classList.remove('equipment-drawer--open', 'active')">×</button>
+            <h2 id="equipName" class="equipment-panel__title equipment-drawer__title" 
+                style="font-size: 16px; margin-bottom: 12px;">설비 정보</h2>
+            <div id="equipDetails" class="equipment-panel__body equipment-drawer__body"></div>
+        </aside>
     </div>
+    <!-- /app-layout -->
 
-    <!-- Debug Panel -->
+    <!-- Debug Panel (app-layout 바깥, 독립적) -->
     <div id="debug-panel" class="debug-panel">
         <div class="debug-panel__header debug-panel-header">
             <span class="debug-panel__title debug-panel-title">🐛 Debug Panel</span>
@@ -153,7 +169,7 @@
             document.documentElement.setAttribute('data-theme', saved);
         })();
         
-        console.log('🏭 Sherlock Sky 3DSim v7.2.0 (Phase 4 CSS Integration)');
+        console.log('🏭 Sherlock Sky 3DSim v7.3.0 (Equipment Drawer Integration)');
     </script>
     
     <!-- Main Application (ES Module) -->

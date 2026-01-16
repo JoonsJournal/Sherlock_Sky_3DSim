@@ -76,6 +76,7 @@
    Equipment Info Panel 시스템 (BEM 리팩토링)
    ============================================= */
 @import './components/equipment-info/_equipment-panel.css';
+@import './components/equipment-info/_equipment-drawer.css';  /* 🆕 Drawer 추가 */
 @import './components/equipment-info/_info-row.css';
 @import './components/equipment-info/_status-indicator.css';
 

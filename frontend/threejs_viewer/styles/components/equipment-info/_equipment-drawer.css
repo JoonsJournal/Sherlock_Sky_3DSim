@@ -1,0 +1,497 @@
+/**
+ * _equipment-drawer.css
+ * =====================
+ * Equipment Detail Drawer 컴포넌트
+ * 
+ * 플로팅 패널에서 오른쪽 고정 Drawer로 전환
+ * Hybrid 애니메이션: 열림(width→transform), 닫힘(transform→width)
+ * 
+ * @version 1.0.0
+ * @created 2026-01-16
+ * 
+ * [BEM 구조]
+ * .equipment-drawer              → Block
+ * .equipment-drawer__header      → Element
+ * .equipment-drawer__close-btn   → Element
+ * .equipment-drawer__tabs        → Element
+ * .equipment-drawer__tab         → Element
+ * .equipment-drawer__body        → Element
+ * .equipment-drawer__footer      → Element
+ * .equipment-drawer--open        → Modifier (열림)
+ * .equipment-drawer--opening     → Modifier (열리는 중)
+ * .equipment-drawer--closing     → Modifier (닫히는 중)
+ * .equipment-drawer--loading     → Modifier (로딩)
+ * .equipment-drawer__tab--active → Modifier (탭 활성)
+ * 
+ * [의존성]
+ * - tokens/_primitives.css (spacing, transitions, z-index)
+ * - tokens/_semantic-light.css (surface-glass, glass-blur)
+ * - tokens/_semantic-dark.css (dark mode support)
+ * 
+ * [하위 호환성]
+ * - #equipmentInfo 선택자 drawer 모드 지원
+ * - .equipment-panel 클래스와 병행 사용 가능
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/equipment-info/_equipment-drawer.css
+ */
+
+/* =============================================
+   Drawer 전용 CSS 변수 (쉬운 조정용)
+   :root에 정의하여 어디서든 접근 가능
+   ============================================= */
+:root {
+    /* Drawer 크기 - 이 값만 변경하면 너비 조정 가능 */
+    --drawer-width: 380px;
+    --drawer-min-width: 320px;
+    --drawer-max-width: 500px;
+    
+    /* Drawer 애니메이션 */
+    --drawer-transition-duration: 0.3s;
+    --drawer-transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* =============================================
+   Block: .equipment-drawer
+   ============================================= */
+.equipment-drawer {
+    /* Position & Size */
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 100vh;
+    
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    
+    /* Stacking */
+    z-index: var(--z-modal, 1000);
+    
+    /* 🎨 Glassmorphism 효과 (가이드라인 준수) */
+    background: var(--surface-glass, rgba(255, 255, 255, 0.85));
+    backdrop-filter: blur(var(--glass-blur, 12px));
+    -webkit-backdrop-filter: blur(var(--glass-blur, 12px));
+    border-left: 1px solid var(--glass-border, rgba(255, 255, 255, 0.3));
+    box-shadow: var(--glass-shadow, -4px 0 24px rgba(0, 0, 0, 0.15));
+    
+    /* Typography */
+    color: var(--content-primary, #1a1a2e);
+    font-family: var(--font-family-base, 'Inter', sans-serif);
+}
+
+/* =============================================
+   Modifiers: 애니메이션 상태
+   Hybrid 방식 - JS에서 순차적 클래스 제어
+   ============================================= */
+
+/* 
+ * 열리는 중 (Phase 1: width 애니메이션)
+ * - width: 0 → drawer-width
+ * - 3D 뷰어가 자동으로 줄어듦
+ */
+.equipment-drawer--opening {
+    width: var(--drawer-width);
+    transition: width var(--drawer-transition-duration) var(--drawer-transition-easing);
+}
+
+/* 
+ * 열림 상태 (최종)
+ * - width 고정, transform 초기화
+ */
+.equipment-drawer--open {
+    width: var(--drawer-width);
+    transform: translateX(0);
+}
+
+/* 
+ * 닫히는 중 (Phase 1: transform 애니메이션)
+ * - transform: 0 → 100% (오른쪽으로 슬라이드)
+ */
+.equipment-drawer--closing {
+    width: var(--drawer-width); /* width 유지하면서 transform */
+    transform: translateX(100%);
+    transition: transform var(--drawer-transition-duration) var(--drawer-transition-easing);
+}
+
+/* 
+ * 로딩 상태
+ * - 클릭 비활성화
+ * - 오버레이 표시
+ */
+.equipment-drawer--loading {
+    pointer-events: none;
+}
+
+.equipment-drawer--loading::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--surface-glass, rgba(255, 255, 255, 0.7));
+    backdrop-filter: blur(4px);
+    z-index: 100;
+}
+
+.equipment-drawer--loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 32px;
+    height: 32px;
+    margin: -16px 0 0 -16px;
+    border: 3px solid var(--border-default, #e0e0e0);
+    border-top-color: var(--interactive-primary, #667eea);
+    border-radius: 50%;
+    z-index: 101;
+    animation: drawer-spinner 0.8s linear infinite;
+}
+
+@keyframes drawer-spinner {
+    to { transform: rotate(360deg); }
+}
+
+/* =============================================
+   Element: Header
+   ============================================= */
+.equipment-drawer__header {
+    /* Layout */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-3, 12px);
+    
+    /* Size */
+    padding: var(--spacing-4, 16px);
+    padding-right: var(--spacing-12, 48px); /* Close button 공간 */
+    min-height: 60px;
+    flex-shrink: 0;
+    
+    /* Visual */
+    background: var(--surface-panel-header, transparent);
+    border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+    
+    /* Position for absolute close button */
+    position: relative;
+}
+
+/* =============================================
+   Element: Title (Header 내부)
+   ============================================= */
+.equipment-drawer__title {
+    margin: 0;
+    padding: 0;
+    
+    /* Typography */
+    color: var(--interactive-primary, #667eea);
+    font-size: var(--font-size-lg, 18px);
+    font-weight: var(--font-weight-semibold, 600);
+    
+    /* Overflow */
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Multi-select 모드 */
+.equipment-drawer__title--multi-select {
+    color: var(--status-info, #3b82f6);
+}
+
+/* =============================================
+   Element: Close Button
+   ============================================= */
+.equipment-drawer__close-btn {
+    /* Position */
+    position: absolute;
+    top: var(--spacing-4, 16px);
+    right: var(--spacing-4, 16px);
+    
+    /* Size */
+    width: 28px;
+    height: 28px;
+    
+    /* Layout */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    /* Visual */
+    background: var(--interactive-danger, #ef4444);
+    color: var(--content-inverse, #ffffff);
+    border: none;
+    border-radius: var(--radius-full, 9999px);
+    
+    /* Typography */
+    font-size: var(--font-size-lg, 18px);
+    line-height: 1;
+    
+    /* Interaction */
+    cursor: pointer;
+    transition: all var(--transition-fast, 150ms) ease;
+    z-index: 10;
+}
+
+.equipment-drawer__close-btn:hover {
+    background: var(--interactive-danger-hover, #dc2626);
+    transform: scale(1.1);
+}
+
+.equipment-drawer__close-btn:active {
+    background: var(--interactive-danger-active, #b91c1c);
+    transform: scale(1);
+}
+
+/* =============================================
+   Element: Header Status Badge
+   ============================================= */
+.equipment-drawer__header-status {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1-5, 6px);
+    padding: var(--spacing-1, 4px) var(--spacing-2-5, 10px);
+    background: var(--surface-secondary, #f1f5f9);
+    border-radius: var(--radius-full, 9999px);
+    flex-shrink: 0;
+}
+
+.equipment-drawer__status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full, 9999px);
+}
+
+.equipment-drawer__status-text {
+    font-size: var(--font-size-sm, 13px);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--content-primary, #1a1a2e);
+}
+
+/* Status Indicator Colors */
+.equipment-drawer__status-indicator--running {
+    background: var(--equip-running, #22c55e);
+    box-shadow: var(--glow-success, 0 0 8px rgba(34, 197, 94, 0.5));
+}
+
+.equipment-drawer__status-indicator--idle {
+    background: var(--equip-idle, #facc15);
+}
+
+.equipment-drawer__status-indicator--stop {
+    background: var(--status-warning, #f59e0b);
+}
+
+.equipment-drawer__status-indicator--error {
+    background: var(--equip-alarm, #ef4444);
+    box-shadow: var(--glow-error, 0 0 8px rgba(239, 68, 68, 0.5));
+    animation: drawer-status-blink 0.5s ease-in-out infinite;
+}
+
+.equipment-drawer__status-indicator--disconnected {
+    background: var(--content-disabled, #9ca3af);
+}
+
+@keyframes drawer-status-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* =============================================
+   Element: Tabs (Classic Folder Style)
+   ============================================= */
+.equipment-drawer__tabs {
+    display: flex;
+    padding: 0 var(--spacing-4, 16px);
+    background: transparent;
+    position: relative;
+    margin-bottom: -1px;
+    z-index: 1;
+    flex-shrink: 0;
+}
+
+.equipment-drawer__tab {
+    /* Position */
+    position: relative;
+    
+    /* Size */
+    padding: var(--spacing-2-5, 10px) var(--spacing-5, 20px);
+    margin-right: var(--spacing-1, 4px);
+    
+    /* Visual - Inactive */
+    background: var(--surface-secondary, #f1f5f9);
+    border: 1px solid var(--border-default, #e2e8f0);
+    border-bottom: 1px solid var(--border-default, #e2e8f0);
+    border-radius: var(--radius-md, 6px) var(--radius-md, 6px) 0 0;
+    
+    /* Typography */
+    color: var(--content-muted, #64748b);
+    font-size: var(--font-size-sm, 13px);
+    font-weight: var(--font-weight-medium, 500);
+    font-family: var(--font-family-base, 'Inter', sans-serif);
+    
+    /* Interaction */
+    cursor: pointer;
+    transition: all var(--transition-fast, 150ms) ease;
+    transform: translateY(2px);
+}
+
+.equipment-drawer__tab:hover {
+    color: var(--content-primary, #1a1a2e);
+    background: var(--surface-hover, #f8fafc);
+}
+
+/* Active Tab */
+.equipment-drawer__tab--active {
+    background: var(--surface-primary, #ffffff);
+    color: var(--interactive-primary, #667eea);
+    border-bottom-color: var(--surface-primary, #ffffff);
+    font-weight: var(--font-weight-semibold, 600);
+    transform: translateY(0);
+    z-index: 2;
+}
+
+/* Active Tab Top Indicator */
+.equipment-drawer__tab--active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--interactive-primary, #667eea);
+    border-radius: var(--radius-md, 6px) var(--radius-md, 6px) 0 0;
+}
+
+/* =============================================
+   Element: Body (Scrollable Content)
+   ============================================= */
+.equipment-drawer__body {
+    /* Layout */
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    
+    /* Size */
+    padding: var(--spacing-4, 16px);
+    
+    /* Visual */
+    background: var(--surface-primary, #ffffff);
+    border-top: 1px solid var(--border-default, #e2e8f0);
+}
+
+/* Tab Content Container */
+.equipment-drawer__tab-content {
+    display: none;
+}
+
+.equipment-drawer__tab-content--active {
+    display: block;
+    animation: drawer-tab-fade-in 0.2s ease-out;
+}
+
+@keyframes drawer-tab-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =============================================
+   Element: Footer (Optional)
+   ============================================= */
+.equipment-drawer__footer {
+    /* Layout */
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--spacing-2, 8px);
+    
+    /* Size */
+    padding: var(--spacing-3, 12px) var(--spacing-4, 16px);
+    flex-shrink: 0;
+    
+    /* Visual */
+    background: var(--surface-secondary, #f1f5f9);
+    border-top: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+}
+
+/* =============================================
+   Legacy Support: #equipmentInfo + .equipment-drawer
+   기존 HTML의 #equipmentInfo에 .equipment-drawer 클래스 추가 시 동작
+   ============================================= */
+#equipmentInfo.equipment-drawer {
+    /* 기존 absolute → fixed로 오버라이드 */
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 100vh;
+    max-height: none;
+    border-radius: 0;
+    
+    /* Drawer 스타일 적용 */
+    display: flex;
+    flex-direction: column;
+}
+
+/* 기존 .active 클래스 대신 .equipment-drawer--open 사용 */
+#equipmentInfo.equipment-drawer.equipment-drawer--open,
+#equipmentInfo.equipment-drawer.equipment-drawer--opening {
+    width: var(--drawer-width);
+}
+
+/* =============================================
+   Dark Mode Support
+   ============================================= */
+[data-theme="dark"] .equipment-drawer {
+    background: var(--surface-glass, rgba(15, 23, 42, 0.85));
+    border-left-color: var(--glass-border, rgba(255, 255, 255, 0.1));
+    box-shadow: var(--glass-shadow, -4px 0 24px rgba(0, 0, 0, 0.4));
+}
+
+[data-theme="dark"] .equipment-drawer__header {
+    border-bottom-color: var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+[data-theme="dark"] .equipment-drawer__body {
+    background: var(--surface-primary, #1e293b);
+    border-top-color: var(--border-default, #334155);
+}
+
+[data-theme="dark"] .equipment-drawer__tab {
+    background: var(--surface-secondary, #334155);
+    border-color: var(--border-default, #475569);
+    color: var(--content-muted, #94a3b8);
+}
+
+[data-theme="dark"] .equipment-drawer__tab:hover {
+    background: var(--surface-hover, #3f4f63);
+    color: var(--content-primary, #f1f5f9);
+}
+
+[data-theme="dark"] .equipment-drawer__tab--active {
+    background: var(--surface-primary, #1e293b);
+    color: var(--interactive-primary, #60a5fa);
+    border-bottom-color: var(--surface-primary, #1e293b);
+}
+
+[data-theme="dark"] .equipment-drawer__footer {
+    background: var(--surface-secondary, #334155);
+    border-top-color: var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+/* =============================================
+   Print Styles
+   ============================================= */
+@media print {
+    .equipment-drawer {
+        display: none !important;
+    }
+}

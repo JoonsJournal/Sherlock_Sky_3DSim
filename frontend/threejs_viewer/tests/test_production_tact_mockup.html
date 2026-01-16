@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipment Detail v2.1.0 - Production/Tact Time Mockup Test</title>
+    <style>
+        /* ===================================================================== */
+        /* Base Styles                                                          */
+        /* ===================================================================== */
+        
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-panel: #0f3460;
+            --text-primary: #e8e8e8;
+            --text-secondary: #a0a0a0;
+            --text-muted: #6c6c6c;
+            --accent-blue: #4a90d9;
+            --accent-green: #22c55e;
+            --accent-yellow: #facc15;
+            --accent-red: #ef4444;
+            --accent-orange: #f97316;
+            --border-color: #2d3748;
+            --divider-color: #374151;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        h1 {
+            color: var(--accent-blue);
+            margin-bottom: 8px;
+            font-size: 1.5rem;
+        }
+        
+        .version-badge {
+            display: inline-block;
+            background: var(--accent-green);
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        
+        .description {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+        
+        /* ===================================================================== */
+        /* Layout                                                               */
+        /* ===================================================================== */
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        
+        /* ===================================================================== */
+        /* Panel Styles                                                         */
+        /* ===================================================================== */
+        
+        .panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            background: var(--bg-panel);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .panel-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+        
+        .panel-title .status-icon {
+            font-size: 1.2rem;
+        }
+        
+        .panel-content {
+            padding: 16px;
+        }
+        
+        .panel-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        
+        /* ===================================================================== */
+        /* Info Row Styles                                                      */
+        /* ===================================================================== */
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+        
+        .info-row-divider {
+            height: 1px;
+            background: var(--divider-color);
+            margin: 8px 0;
+        }
+        
+        .info-label {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .info-value {
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .info-value-inactive {
+            color: var(--text-muted);
+        }
+        
+        .info-value-meta {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+        
+        /* ===================================================================== */
+        /* Multi Selection Header                                               */
+        /* ===================================================================== */
+        
+        .multi-select-header {
+            background: rgba(74, 144, 217, 0.1);
+            border-radius: 6px;
+            padding: 12px !important;
+            margin-bottom: 8px;
+        }
+        
+        .multi-select-header .info-icon {
+            font-size: 1.2rem;
+        }
+        
+        .multi-select-header .info-text {
+            flex: 1;
+            margin-left: 8px;
+            font-weight: 600;
+        }
+        
+        .multi-select-header .info-badge {
+            background: var(--accent-blue);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        
+        /* ===================================================================== */
+        /* Status Counts                                                        */
+        /* ===================================================================== */
+        
+        .status-row {
+            flex-wrap: wrap;
+        }
+        
+        .status-counts {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .status-count-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+        
+        .status-count-item.status-run {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--accent-green);
+        }
+        
+        .status-count-item.status-idle {
+            background: rgba(250, 204, 21, 0.2);
+            color: var(--accent-yellow);
+        }
+        
+        .status-count-item.status-stop {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-red);
+        }
+        
+        /* ===================================================================== */
+        /* Highlight for new features                                           */
+        /* ===================================================================== */
+        
+        .new-feature {
+            position: relative;
+        }
+        
+        .new-feature::after {
+            content: '🆕';
+            position: absolute;
+            right: -24px;
+            font-size: 0.75rem;
+        }
+        
+        .highlight-row {
+            background: rgba(34, 197, 94, 0.05);
+            margin: 0 -16px;
+            padding: 8px 16px !important;
+            border-left: 3px solid var(--accent-green);
+        }
+        
+        /* ===================================================================== */
+        /* Controls                                                             */
+        /* ===================================================================== */
+        
+        .controls {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .controls h3 {
+            color: var(--accent-blue);
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        button {
+            background: var(--bg-panel);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+        
+        button.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+        
+        /* ===================================================================== */
+        /* More count span                                                      */
+        /* ===================================================================== */
+        
+        .more-count {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+        
+        /* ===================================================================== */
+        /* Code Block                                                           */
+        /* ===================================================================== */
+        
+        .code-block {
+            background: #0d1117;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 24px;
+            overflow-x: auto;
+        }
+        
+        .code-block h3 {
+            color: var(--accent-blue);
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+        
+        pre {
+            color: #c9d1d9;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .json-key {
+            color: #7ee787;
+        }
+        
+        .json-string {
+            color: #a5d6ff;
+        }
+        
+        .json-number {
+            color: #f97583;
+        }
+        
+        .json-boolean {
+            color: #ff7b72;
+        }
+        
+        .json-null {
+            color: #8b949e;
+        }
+        
+        /* ===================================================================== */
+        /* Footer                                                               */
+        /* ===================================================================== */
+        
+        .footer {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            Equipment Detail Panel 
+            <span class="version-badge">v2.1.0</span>
+        </h1>
+        <p class="description">
+            Production Count & Tact Time 기능 추가 - Mockup 테스트 페이지
+        </p>
+        
+        <!-- Controls -->
+        <div class="controls">
+            <h3>🎮 테스트 컨트롤</h3>
+            <div class="control-group">
+                <button onclick="showSingleActive()" class="active">Single (Lot Active)</button>
+                <button onclick="showSingleInactive()">Single (Lot Inactive)</button>
+                <button onclick="showMultiSelection()">Multi Selection</button>
+            </div>
+            <div class="control-group">
+                <button onclick="updateProductionCount()">🔄 Production 업데이트</button>
+                <button onclick="updateTactTime()">🔄 Tact Time 업데이트</button>
+                <button onclick="simulateWebSocket()">📡 WebSocket 시뮬레이션</button>
+            </div>
+        </div>
+        
+        <!-- Panels -->
+        <div class="grid">
+            <!-- Single Selection Panel -->
+            <div class="panel" id="singlePanel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span class="status-icon">🟢</span>
+                        <span id="equipmentId">CUT-066</span>
+                    </div>
+                    <span style="color: var(--text-muted); font-size: 0.75rem;">EQ-17-03</span>
+                </div>
+                <div class="panel-content" id="singleContent">
+                    <!-- Content will be rendered by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Multi Selection Panel -->
+            <div class="panel" id="multiPanel" style="display: none;">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <span class="status-icon">📊</span>
+                        <span>다중 선택</span>
+                    </div>
+                </div>
+                <div class="panel-content" id="multiContent">
+                    <!-- Content will be rendered by JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- API Response Preview -->
+        <div class="code-block">
+            <h3>📋 API Response (v2.1.0)</h3>
+            <pre id="apiResponse"></pre>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            SHERLOCK_SKY_3DSIM - Equipment Detail API v2.1.0 Mockup Test<br>
+            Production Count & Tact Time Feature Test
+        </div>
+    </div>
+    
+    <script>
+        // =====================================================================
+        // Mock Data
+        // =====================================================================
+        
+        const mockSingleActive = {
+            frontend_id: "EQ-17-03",
+            equipment_id: 75,
+            equipment_name: "CUT-066",
+            line_name: "Line-A",
+            status: "RUN",
+            is_lot_active: true,
+            product_model: "ABC-1234",
+            lot_id: "LOT20260116001",
+            lot_start_time: new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString(), // 2.5시간 전
+            since_time: null,
+            // 🆕 v2.1.0
+            production_count: 127,
+            tact_time_seconds: 72.5,
+            // PC Info
+            cpu_usage_percent: 45.2,
+            memory_total_gb: 32,
+            memory_used_gb: 18.5,
+            disk_c_total_gb: 256,
+            disk_c_used_gb: 180,
+            disk_d_total_gb: 512,
+            disk_d_used_gb: 320,
+            last_updated: new Date().toISOString()
+        };
+        
+        const mockSingleInactive = {
+            frontend_id: "EQ-17-04",
+            equipment_id: 76,
+            equipment_name: "CUT-067",
+            line_name: "Line-A",
+            status: "IDLE",
+            is_lot_active: false,
+            product_model: null,
+            lot_id: null,
+            lot_start_time: null,
+            since_time: new Date(Date.now() - 45 * 60 * 1000).toISOString(), // 45분 전
+            // 🆕 v2.1.0
+            production_count: null, // Lot Inactive이므로 null
+            tact_time_seconds: 85.3, // 이전 작업 기준 Tact Time (표시됨)
+            // PC Info
+            cpu_usage_percent: 12.8,
+            memory_total_gb: 32,
+            memory_used_gb: 8.2,
+            disk_c_total_gb: 256,
+            disk_c_used_gb: 150,
+            disk_d_total_gb: 512,
+            disk_d_used_gb: 280,
+            last_updated: new Date().toISOString()
+        };
+        
+        const mockMultiSelection = {
+            count: 5,
+            lines: ["Line-A", "Line-B"],
+            lines_more: false,
+            status_counts: {
+                "RUN": 3,
+                "IDLE": 1,
+                "STOP": 1
+            },
+            products: ["ABC-1234", "DEF-5678"],
+            products_more: true,
+            lot_ids: ["LOT001", "LOT002", "LOT003"],
+            lot_ids_more: true,
+            // 🆕 v2.1.0
+            production_total: 1234,
+            tact_time_avg: 68.3,
+            // Aggregated
+            avg_cpu_usage_percent: 48.5,
+            avg_memory_usage_percent: 78.2,
+            last_updated: new Date().toISOString()
+        };
+        
+        // =====================================================================
+        // Formatter Functions (from DataFormatter.js v2.1.0)
+        // =====================================================================
+        
+        const DataFormatter = {
+            formatDateTime(isoString) {
+                if (!isoString) return '-';
+                try {
+                    const date = new Date(isoString);
+                    if (isNaN(date.getTime())) return isoString;
+                    return date.toLocaleString('ko-KR', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                } catch (e) {
+                    return isoString;
+                }
+            },
+            
+            formatDuration(startTime) {
+                if (!startTime) return '-';
+                try {
+                    const start = new Date(startTime);
+                    const now = new Date();
+                    let diffMs = now - start;
+                    if (diffMs < 0) diffMs = 0;
+                    
+                    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+                    
+                    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                } catch (e) {
+                    return '-';
+                }
+            },
+            
+            // 🆕 v2.1.0: Tact Time 포맷
+            formatTactTime(seconds, suffix = null) {
+                if (seconds == null || isNaN(seconds)) return '-';
+                
+                let formatted;
+                if (seconds < 60) {
+                    formatted = `${seconds.toFixed(1)} sec`;
+                } else {
+                    const min = Math.floor(seconds / 60);
+                    const sec = Math.floor(seconds % 60);
+                    formatted = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+                }
+                
+                if (suffix) {
+                    formatted += ` (${suffix})`;
+                }
+                
+                return formatted;
+            },
+            
+            // 🆕 v2.1.0: Production Count 포맷
+            formatProductionCount(count, suffix = null) {
+                if (count == null || isNaN(count)) return '-';
+                
+                const formatted = count.toLocaleString('ko-KR');
+                let result = `${formatted} pcs`;
+                
+                if (suffix) {
+                    result += ` (${suffix})`;
+                }
+                
+                return result;
+            },
+            
+            formatListWithMore(items, hasMore = false, maxDisplay = 3) {
+                if (!items || !Array.isArray(items) || items.length === 0) return '-';
+                
+                const displayItems = items.slice(0, maxDisplay);
+                let result = displayItems.join(', ');
+                
+                const remainingCount = items.length - maxDisplay;
+                if (hasMore || remainingCount > 0) {
+                    const moreCount = remainingCount > 0 ? remainingCount : '...';
+                    result += ` <span class="more-count">외 ${moreCount}개</span>`;
+                }
+                
+                return result;
+            }
+        };
+        
+        // =====================================================================
+        // Render Functions
+        // =====================================================================
+        
+        function renderSingleActive(data) {
+            const duration = DataFormatter.formatDuration(data.lot_start_time);
+            
+            return `
+                <div class="info-row">
+                    <span class="info-label">Line:</span>
+                    <span class="info-value">${data.line_name || '-'}</span>
+                </div>
+                
+                <div class="info-row-divider"></div>
+                
+                <div class="info-row">
+                    <span class="info-label">Product:</span>
+                    <span class="info-value">${data.product_model || '-'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Lot No.:</span>
+                    <span class="info-value">${data.lot_id || '-'}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Lot Start:</span>
+                    <span class="info-value">${DataFormatter.formatDateTime(data.lot_start_time)}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Lot Duration:</span>
+                    <span class="info-value" id="durationDisplay">${duration}</span>
+                </div>
+                
+                <!-- 🆕 v2.1.0: Production & Tact Time -->
+                <div class="info-row-divider"></div>
+                <div class="info-row highlight-row new-feature">
+                    <span class="info-label">Production:</span>
+                    <span class="info-value" id="productionDisplay">${DataFormatter.formatProductionCount(data.production_count)}</span>
+                </div>
+                <div class="info-row highlight-row new-feature">
+                    <span class="info-label">Tact Time:</span>
+                    <span class="info-value" id="tactTimeDisplay">${DataFormatter.formatTactTime(data.tact_time_seconds)}</span>
+                </div>
+                
+                <div class="info-row-divider"></div>
+                <div class="info-row">
+                    <span class="info-label">Updated:</span>
+                    <span class="info-value info-value-meta">${DataFormatter.formatDateTime(data.last_updated)}</span>
+                </div>
+            `;
+        }
+        
+        function renderSingleInactive(data) {
+            const duration = DataFormatter.formatDuration(data.since_time);
+            
+            return `
+                <div class="info-row">
+                    <span class="info-label">Line:</span>
+                    <span class="info-value">${data.line_name || '-'}</span>
+                </div>
+                
+                <div class="info-row-divider"></div>
+                
+                <div class="info-row">
+                    <span class="info-label">Product:</span>
+                    <span class="info-value info-value-inactive">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Lot No.:</span>
+                    <span class="info-value info-value-inactive">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Since:</span>
+                    <span class="info-value">${DataFormatter.formatDateTime(data.since_time)}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Duration:</span>
+                    <span class="info-value" id="durationDisplay">${duration}</span>
+                </div>
+                
+                <!-- 🆕 v2.1.0: Production & Tact Time (Lot Inactive) -->
+                <div class="info-row-divider"></div>
+                <div class="info-row highlight-row new-feature">
+                    <span class="info-label">Production:</span>
+                    <span class="info-value info-value-inactive">-</span>
+                </div>
+                <div class="info-row highlight-row new-feature">
+                    <span class="info-label">Tact Time:</span>
+                    <span class="info-value" id="tactTimeDisplay">${DataFormatter.formatTactTime(data.tact_time_seconds)}</span>
+                </div>
+                
+                <div class="info-row-divider"></div>
+                <div class="info-row">
+                    <span class="info-label">Updated:</span>
+                    <span class="info-value info-value-meta">${DataFormatter.formatDateTime(data.last_updated)}</span>
+                </div>
+            `;
+        }
+        
+        function renderMultiSelection(data) {
+            const statusDisplay = Object.entries(data.status_counts)
+                .filter(([_, count]) => count > 0)
+                .map(([status, count]) => {
+                    const icon = status === 'RUN' ? '🟢' : status === 'IDLE' ? '🟡' : '🔴';
+                    const cls = `status-${status.toLowerCase()}`;
+                    return `<span class="status-count-item ${cls}">${icon} ${count}</span>`;
+                })
+                .join('');
+            
+            return `
+                <div class="info-row multi-select-header">
+                    <span class="info-icon">📊</span>
+                    <span class="info-text">${data.count}개 설비 집계 정보</span>
+                    <span class="info-badge">${data.count}개 조회됨</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Line:</span>
+                    <span class="info-value">${DataFormatter.formatListWithMore(data.lines, data.lines_more)}</span>
+                </div>
+                
+                <div class="info-row status-row">
+                    <span class="info-label">Status:</span>
+                    <div class="status-counts">${statusDisplay}</div>
+                </div>
+                
+                <!-- 🆕 v2.1.0: Production & Tact Time 집계 -->
+                <div class="info-row-divider"></div>
+                <div class="info-row highlight-row new-feature">
+                    <span class="info-label">Production:</span>
+                    <span class="info-value" id="productionTotalDisplay">${DataFormatter.formatProductionCount(data.production_total, '합계')}</span>
+                </div>
+                <div class="info-row highlight-row new-feature">
+                    <span class="info-label">Tact Time:</span>
+                    <span class="info-value" id="tactTimeAvgDisplay">${DataFormatter.formatTactTime(data.tact_time_avg, '평균')}</span>
+                </div>
+                
+                <div class="info-row-divider"></div>
+                
+                <div class="info-row">
+                    <span class="info-label">Product:</span>
+                    <span class="info-value">${DataFormatter.formatListWithMore(data.products, data.products_more)}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Lot No.:</span>
+                    <span class="info-value">${DataFormatter.formatListWithMore(data.lot_ids, data.lot_ids_more)}</span>
+                </div>
+            `;
+        }
+        
+        function formatJson(obj) {
+            return JSON.stringify(obj, null, 2)
+                .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+                .replace(/: "([^"]+)"/g, ': <span class="json-string">"$1"</span>')
+                .replace(/: (\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+                .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
+                .replace(/: null/g, ': <span class="json-null">null</span>');
+        }
+        
+        // =====================================================================
+        // Control Functions
+        // =====================================================================
+        
+        let currentData = mockSingleActive;
+        let currentMode = 'single-active';
+        
+        function updateButtons(activeButton) {
+            document.querySelectorAll('.controls button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+        }
+        
+        function showSingleActive() {
+            currentData = { ...mockSingleActive };
+            currentMode = 'single-active';
+            
+            document.getElementById('singlePanel').style.display = 'block';
+            document.getElementById('multiPanel').style.display = 'none';
+            document.getElementById('equipmentId').textContent = currentData.equipment_name;
+            document.querySelector('#singlePanel .status-icon').textContent = '🟢';
+            document.getElementById('singleContent').innerHTML = renderSingleActive(currentData);
+            document.getElementById('apiResponse').innerHTML = formatJson(currentData);
+            
+            updateButtons(event.target);
+            startDurationTimer();
+        }
+        
+        function showSingleInactive() {
+            currentData = { ...mockSingleInactive };
+            currentMode = 'single-inactive';
+            
+            document.getElementById('singlePanel').style.display = 'block';
+            document.getElementById('multiPanel').style.display = 'none';
+            document.getElementById('equipmentId').textContent = currentData.equipment_name;
+            document.querySelector('#singlePanel .status-icon').textContent = '🟡';
+            document.getElementById('singleContent').innerHTML = renderSingleInactive(currentData);
+            document.getElementById('apiResponse').innerHTML = formatJson(currentData);
+            
+            updateButtons(event.target);
+            startDurationTimer();
+        }
+        
+        function showMultiSelection() {
+            currentData = { ...mockMultiSelection };
+            currentMode = 'multi';
+            
+            document.getElementById('singlePanel').style.display = 'none';
+            document.getElementById('multiPanel').style.display = 'block';
+            document.getElementById('multiContent').innerHTML = renderMultiSelection(currentData);
+            document.getElementById('apiResponse').innerHTML = formatJson(currentData);
+            
+            updateButtons(event.target);
+            stopDurationTimer();
+        }
+        
+        function updateProductionCount() {
+            if (currentMode === 'multi') {
+                currentData.production_total += Math.floor(Math.random() * 50) + 10;
+                document.getElementById('productionTotalDisplay').textContent = 
+                    DataFormatter.formatProductionCount(currentData.production_total, '합계');
+            } else if (currentMode === 'single-active') {
+                currentData.production_count += Math.floor(Math.random() * 5) + 1;
+                document.getElementById('productionDisplay').textContent = 
+                    DataFormatter.formatProductionCount(currentData.production_count);
+            }
+            document.getElementById('apiResponse').innerHTML = formatJson(currentData);
+        }
+        
+        function updateTactTime() {
+            const newTactTime = 60 + Math.random() * 60; // 60~120초
+            
+            if (currentMode === 'multi') {
+                currentData.tact_time_avg = parseFloat(newTactTime.toFixed(1));
+                document.getElementById('tactTimeAvgDisplay').textContent = 
+                    DataFormatter.formatTactTime(currentData.tact_time_avg, '평균');
+            } else {
+                currentData.tact_time_seconds = parseFloat(newTactTime.toFixed(1));
+                document.getElementById('tactTimeDisplay').textContent = 
+                    DataFormatter.formatTactTime(currentData.tact_time_seconds);
+            }
+            document.getElementById('apiResponse').innerHTML = formatJson(currentData);
+        }
+        
+        function simulateWebSocket() {
+            // Simulate WebSocket update
+            const wsUpdate = {
+                status: ['RUN', 'IDLE', 'STOP'][Math.floor(Math.random() * 3)],
+                production_count: currentData.production_count ? currentData.production_count + 1 : null,
+                tact_time_seconds: 60 + Math.random() * 60,
+                last_updated: new Date().toISOString()
+            };
+            
+            // Merge (simplified)
+            Object.assign(currentData, wsUpdate);
+            
+            if (currentMode === 'single-active') {
+                document.getElementById('singleContent').innerHTML = renderSingleActive(currentData);
+            } else if (currentMode === 'single-inactive') {
+                document.getElementById('singleContent').innerHTML = renderSingleInactive(currentData);
+            }
+            
+            document.getElementById('apiResponse').innerHTML = formatJson(currentData);
+            
+            console.log('📡 WebSocket Update:', wsUpdate);
+        }
+        
+        // =====================================================================
+        // Duration Timer
+        // =====================================================================
+        
+        let durationInterval = null;
+        
+        function startDurationTimer() {
+            stopDurationTimer();
+            
+            durationInterval = setInterval(() => {
+                const el = document.getElementById('durationDisplay');
+                if (el) {
+                    const baseTime = currentMode === 'single-active' 
+                        ? currentData.lot_start_time 
+                        : currentData.since_time;
+                    el.textContent = DataFormatter.formatDuration(baseTime);
+                }
+            }, 1000);
+        }
+        
+        function stopDurationTimer() {
+            if (durationInterval) {
+                clearInterval(durationInterval);
+                durationInterval = null;
+            }
+        }
+        
+        // =====================================================================
+        // Initialize
+        // =====================================================================
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            showSingleActive();
+        });
+    </script>
+</body>
+</html>
