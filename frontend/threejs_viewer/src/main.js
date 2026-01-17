@@ -4,8 +4,14 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 5.6.0
+ * @version 5.7.0
  * @changelog
+ * - v5.7.0: 🆕 ViewManager 패턴 도입 (2026-01-18)
+ *           - ViewBootstrap.js 통합 (VIEW_REGISTRY, ViewManager 클래스)
+ *           - initViewManager() 호출 추가 (서비스 주입)
+ *           - View 생명주기 중앙 관리 (Lazy 초기화, 싱글톤)
+ *           - viewManager 전역 노출 (디버깅용)
+ *           - Facade 함수: getView, showView, hideView, toggleView, destroyView
  * - v5.6.0: 🔧 매핑 로드 "API 우선" 전략 적용 (2026-01-14)
  *           - _loadEquipmentMappingsAfterConnection() 로직 변경
  *           - 기존: 로컬 데이터 있으면 API 스킵 (Origin 격리 문제 발생)
@@ -83,7 +89,18 @@ import {
     initPreviewGenerator,
     
     // Cleanup
-    cleanup
+    cleanup,
+
+        // 🆕 v5.7.0: ViewBootstrap - ViewManager 패턴
+    viewManager as bootstrapViewManager,  // 기존 viewManager와 충돌 방지
+    initViewManager,
+    getView,
+    showView,
+    hideView,
+    toggleView,
+    destroyView,
+    VIEW_REGISTRY
+
 } from './bootstrap/index.js';
 
 // Utils
@@ -124,6 +141,7 @@ let sidebarUI = null;
 let reconnectionCleanup = null;
 
 // 서비스 객체 저장소
+// 서비스 객체 저장소
 const services = {
     scene: null,
     ui: null,
@@ -131,6 +149,10 @@ const services = {
     // 🆕 v5.5.0: Mapping 서비스 추가
     mapping: {
         equipmentMappingService: null
+    },
+    // 🆕 v5.7.0: Views 관리 (ViewManager 참조)
+    views: {
+        viewManager: null  // initViewManager() 호출 후 할당
     }
 };
 
@@ -460,6 +482,16 @@ const viewManager = {
                 sidebarUI.statusBar.setPerformanceMonitor(services.scene.performanceMonitor);
             }
             
+            // 🆕 v5.7.0: ViewManager에 추가 서비스 주입 (Scene 초기화 후)
+            if (bootstrapViewManager) {
+                bootstrapViewManager.addService('webSocketClient', services.monitoring?.monitoringService?.getDataLoader?.()?.wsManager);
+                bootstrapViewManager.addService('monitoringService', services.monitoring?.monitoringService);
+                bootstrapViewManager.addService('signalTowerManager', services.monitoring?.signalTowerManager);
+                bootstrapViewManager.addService('sceneManager', services.scene?.sceneManager);
+                bootstrapViewManager.initEagerViews();  // Eager View 초기화
+                console.log('  ✅ ViewManager 서비스 업데이트 완료');
+            }
+            
             // 13. 로딩 상태 숨김
             hideLoadingStatus(1000);
 
@@ -591,6 +623,12 @@ function toggleMonitoringMode(submode = '3d-view') {
     
     if (prevMode === APP_MODE.MONITORING && window.sidebarState?.currentSubMode === submode) {
         appModeManager.switchMode(APP_MODE.MAIN_VIEWER);
+
+        // 🆕 v5.7.0: ViewManager를 통해 현재 View 숨김
+        if (submode === 'ranking-view') {
+            hideView('ranking-view');
+        }
+
         viewManager.showCoverScreen();
         updateModeIndicator(null, null);
         return;
@@ -600,6 +638,9 @@ function toggleMonitoringMode(submode = '3d-view') {
     
     if (submode === '3d-view') {
         viewManager.show3DView();
+    } else if (submode === 'ranking-view') {
+        // 🆕 v5.7.0: ViewManager를 통해 RankingView 표시
+        showView('ranking-view');
     } else {
         viewManager.showCoverScreen();
     }
@@ -1742,6 +1783,8 @@ function _exposeGlobalObjectsAfterSceneInit() {
     const { monitoringService, signalTowerManager } = services.monitoring || {};
     // 🆕 v5.5.0: Mapping 서비스 추가
     const { equipmentMappingService } = services.mapping || {};
+    // 🆕 v5.7.0: Views 서비스 추가
+    const { viewManager: servicesViewManager } = services.views || {};
     
     exposeGlobalObjects({
         // Scene
@@ -1774,6 +1817,15 @@ function _exposeGlobalObjectsAfterSceneInit() {
         
         // 🆕 v5.5.0: Mapping
         equipmentMappingService,
+
+        // 🆕 v5.7.0: ViewManager
+        bootstrapViewManager,       // ViewManager 싱글톤 인스턴스
+        VIEW_REGISTRY,              // View 설정 레지스트리
+        getView,                    // Facade 함수
+        showView,
+        hideView,
+        toggleView,
+        destroyView,
 
         // Core
         appModeManager,
@@ -1811,7 +1863,7 @@ function _exposeGlobalObjectsAfterSceneInit() {
 // ============================================
 
 function init() {
-    console.log('🚀 Sherlock Sky 3DSim 초기화 (v5.4.0 - 재연결 복구 로직)...');
+    console.log('🚀 Sherlock Sky 3DSim 초기화 (v5.7.0 - ViewManager 패턴)...');
     console.log(`📍 Site ID: ${SITE_ID}`);
     
     try {
@@ -1820,10 +1872,9 @@ function init() {
         console.log('  ✅ Core Managers 초기화 완료');
         
         // 2. UI 컴포넌트 초기화 (기존)
-        // 🆕 v5.4.0: autoStart: false 전달 (UIBootstrap v1.4.0)
         services.ui = initUIComponents({
             connectionOptions: {
-                autoStart: false,  // Health Check 지연 시작
+                autoStart: false,
                 debug: false
             }
         });
@@ -1832,7 +1883,17 @@ function init() {
         // 3. 🆕 v5.1.0: Sidebar UI 초기화 (동적 렌더링)
         initSidebarUI();
         
-        // 4. EquipmentEditButton 연동
+        // 4. 🆕 v5.7.0: ViewManager 초기화
+        services.views.viewManager = initViewManager({
+            // 서비스 주입 (eventBus는 기본 포함)
+            webSocketClient: null,  // Scene 초기화 후 설정
+            apiClient: services.ui?.apiClient
+        }, {
+            initEager: false  // Scene 초기화 후 Eager View 생성
+        });
+        console.log('  ✅ ViewManager 초기화 완료');
+        
+        // 5. EquipmentEditButton 연동 (기존 4번)
         if (services.ui?.equipmentEditButton) {
             connectEquipmentEditButton(services.ui.equipmentEditButton, toggleEditMode);
             console.log('  ✅ EquipmentEditButton 연동 완료');
@@ -1935,6 +1996,21 @@ function init() {
         console.log('   H - Helper 토글 (3D View)');
         console.log('   G - Grid 토글 (3D View)');
         console.log('');
+        console.log('✅ 모든 초기화 완료! (v5.7.0 - ViewManager 패턴)');
+        console.log('');
+        console.log('📺 Cover Screen 표시 중 (CoverScreen.js)');
+        console.log('🎨 Sidebar 렌더링 완료 (Sidebar.js)');
+        console.log('📊 StatusBar 렌더링 완료 (StatusBar.js)');
+        console.log('');
+        console.log('🆕 v5.7.0: ViewManager 패턴 도입');
+        console.log('   - View 중앙 관리: bootstrapViewManager.debug()');
+        console.log('   - View 조회: getView("ranking-view")');
+        console.log('   - View 표시: showView("ranking-view")');
+        console.log('   - View 숨김: hideView("ranking-view")');
+        console.log('   - View 토글: toggleView("ranking-view")');
+        console.log('   - 등록된 View: VIEW_REGISTRY');
+        console.log('');
+        console.log('🆕 v5.4.0: 재연결 복구 기능');
         
     } catch (error) {
         console.error('❌ 초기화 중 오류 발생:', error);
@@ -2071,6 +2147,12 @@ function handleCleanup() {
     if (services.mapping?.equipmentMappingService) {
         services.mapping.equipmentMappingService.clearCache();
         services.mapping.equipmentMappingService = null;
+    }
+
+        // 🆕 v5.7.0: ViewManager 정리
+    if (bootstrapViewManager) {
+        bootstrapViewManager.destroyAll();
+        console.log('  🗑️ ViewManager 정리 완료');
     }
 
     // Equipment AutoSave 중지

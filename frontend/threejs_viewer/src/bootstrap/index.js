@@ -4,10 +4,13 @@
  * 
  * Bootstrap 모듈 통합 export
  * 
- * @version 2.3.0
+ * @version 2.5.0
  * @module bootstrap
  * 
  * @changelog
+ * - v2.5.0: 🆕 ViewBootstrap 추가 - ViewManager 패턴 도입
+ *   - viewManager, getView, showView, hideView, toggleView, destroyView
+ *   - VIEW_REGISTRY, initViewManager
  * - v2.3.0: 🔧 IDataLoader v1.1.0 EventEmitter 패턴 연동 확인
  *   - MonitoringService._setupDataLoaderEvents()에서 loader.on() 정상 작동
  * - v2.2.0: 🆕 UIBootstrap v1.4.0 연동 - Connection 관련 함수 추가
@@ -86,3 +89,25 @@ export {
     cleanup,
     disposeComponent
 } from './CleanupManager.js';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🆕 v2.5.0: ViewBootstrap - ViewManager 패턴 도입
+// ═══════════════════════════════════════════════════════════════════════════
+
+export {
+    // ViewManager 싱글톤 인스턴스
+    viewManager,
+    
+    // VIEW_REGISTRY (모든 View 설정)
+    VIEW_REGISTRY,
+    
+    // Facade 함수들
+    getView,
+    showView,
+    hideView,
+    toggleView,
+    destroyView,
+    
+    // 초기화 함수
+    initViewManager
+} from './ViewBootstrap.js';
