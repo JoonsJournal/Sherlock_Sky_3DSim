@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking View Phase 4 - Animation Test (v1.3)</title>
+    <style>
+        /* =============================================
+           Design Tokens
+           ============================================= */
+        :root {
+            /* Spacing */
+            --spacing-1: 4px;
+            --spacing-2: 8px;
+            --spacing-3: 12px;
+            --spacing-4: 16px;
+            --spacing-5: 20px;
+            --spacing-6: 24px;
+            --spacing-8: 32px;
+            
+            /* Font */
+            --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-family-mono: 'JetBrains Mono', 'Consolas', monospace;
+            --font-size-xs: 11px;
+            --font-size-sm: 12px;
+            --font-size-base: 14px;
+            --font-size-lg: 16px;
+            --font-size-xl: 18px;
+            
+            /* Radius */
+            --radius-sm: 4px;
+            --radius-md: 6px;
+            --radius-lg: 8px;
+            
+            /* Shadow */
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+            
+            /* Transition */
+            --transition-fast: 150ms ease;
+            --transition-base: 200ms ease;
+            --transition-normal: 250ms ease;
+            
+            /* Z-index layers */
+            --z-index-lane: 1;
+            --z-index-card: 10;
+            --z-index-card-animating: 100;
+            --z-index-overlay: 1000;
+        }
+        
+        /* Light Theme */
+        [data-theme="light"] {
+            --surface-app-bg: #f1f5f9;
+            --surface-panel: #ffffff;
+            --surface-secondary: #f8fafc;
+            --surface-hover: #e2e8f0;
+            --content-primary: #1e293b;
+            --content-secondary: #64748b;
+            --content-muted: #94a3b8;
+            --border-default: #e2e8f0;
+            --border-strong: #cbd5e1;
+            --interactive-primary-normal: #3b82f6;
+            --interactive-primary-hover: #2563eb;
+            --interactive-success: #22c55e;
+            --interactive-warning: #eab308;
+            --interactive-danger-normal: #ef4444;
+            --interactive-danger-hover: #dc2626;
+        }
+        
+        /* Dark Theme */
+        [data-theme="dark"] {
+            --surface-app-bg: #0f172a;
+            --surface-panel: #1e293b;
+            --surface-secondary: #334155;
+            --surface-hover: #475569;
+            --content-primary: #f1f5f9;
+            --content-secondary: #94a3b8;
+            --content-muted: #64748b;
+            --border-default: #334155;
+            --border-strong: #475569;
+            --interactive-primary-normal: #38bdf8;
+            --interactive-primary-hover: #0ea5e9;
+            --interactive-success: #22c55e;
+            --interactive-warning: #facc15;
+            --interactive-danger-normal: #f87171;
+            --interactive-danger-hover: #ef4444;
+        }
+        
+        /* =============================================
+           Animation Tokens
+           ============================================= */
+        :root {
+            --ranking-duration-fast: 150ms;
+            --ranking-duration-base: 200ms;
+            --ranking-duration-normal: 300ms;
+            --ranking-duration-slow: 400ms;
+            --ranking-ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+            --ranking-ease-in: cubic-bezier(0.5, 0, 0.75, 0);
+            --ranking-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ranking-pulse-warning-color: rgba(234, 179, 8, 0.4);
+            --ranking-pulse-danger-color: rgba(239, 68, 68, 0.4);
+            --ranking-pulse-critical-color: rgba(220, 38, 38, 0.5);
+        }
+        
+        /* =============================================
+           Base Styles
+           ============================================= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: var(--font-family-base);
+            font-size: var(--font-size-base);
+            background: var(--surface-app-bg);
+            color: var(--content-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* =============================================
+           Layout
+           ============================================= */
+        .test-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .test-header {
+            background: var(--surface-panel);
+            border-bottom: 1px solid var(--border-default);
+            padding: var(--spacing-4);
+            flex-shrink: 0;
+        }
+        
+        .test-header h1 {
+            font-size: var(--font-size-xl);
+            margin-bottom: var(--spacing-2);
+        }
+        
+        .test-header p {
+            color: var(--content-secondary);
+            font-size: var(--font-size-sm);
+        }
+        
+        .test-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-2);
+            padding: var(--spacing-3);
+            background: var(--surface-secondary);
+            border-bottom: 1px solid var(--border-default);
+            flex-shrink: 0;
+        }
+        
+        .test-controls button {
+            padding: var(--spacing-2) var(--spacing-4);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            background: var(--surface-panel);
+            color: var(--content-primary);
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+            transition: var(--transition-fast);
+        }
+        
+        .test-controls button:hover {
+            background: var(--surface-hover);
+            border-color: var(--border-strong);
+        }
+        
+        .test-controls button.primary {
+            background: var(--interactive-primary-normal);
+            color: white;
+            border-color: var(--interactive-primary-normal);
+        }
+        
+        .test-controls button.primary:hover {
+            background: var(--interactive-primary-hover);
+        }
+        
+        .test-controls button.danger {
+            background: var(--interactive-danger-normal);
+            color: white;
+            border-color: var(--interactive-danger-normal);
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-2);
+            padding: var(--spacing-2) var(--spacing-3);
+            background: var(--surface-panel);
+            border-radius: var(--radius-md);
+        }
+        
+        .control-group label {
+            font-size: var(--font-size-sm);
+            color: var(--content-secondary);
+        }
+        
+        .test-main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 150px;
+        }
+        
+        /* =============================================
+           Ranking View
+           ============================================= */
+        .ranking-view {
+            display: flex;
+            flex: 1;
+            padding: var(--spacing-3);
+            gap: var(--spacing-2);
+            overflow-x: auto;
+            overflow-y: hidden;
+            position: relative;
+        }
+        
+        /* =============================================
+           Ranking Lane
+           ============================================= */
+        .ranking-lane {
+            flex: 0 0 200px;
+            min-width: 180px;
+            max-width: 220px;
+            display: flex;
+            flex-direction: column;
+            background: var(--surface-panel);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            position: relative;
+            z-index: var(--z-index-lane);
+        }
+        
+        .ranking-lane--remote { border-top: 3px solid #8b5cf6; }
+        .ranking-lane--sudden-stop { border-top: 3px solid #ef4444; }
+        .ranking-lane--stop { border-top: 3px solid #f97316; }
+        .ranking-lane--run { border-top: 3px solid #22c55e; }
+        .ranking-lane--idle { border-top: 3px solid #eab308; }
+        .ranking-lane--wait { border-top: 3px solid #64748b; }
+        
+        /* 목표 레인 하이라이트 */
+        .ranking-lane--target {
+            border-color: var(--interactive-primary-normal);
+            box-shadow: 0 0 0 2px var(--interactive-primary-normal), 
+                        inset 0 0 20px rgba(56, 189, 248, 0.1);
+        }
+        
+        .lane-header {
+            padding: var(--spacing-3);
+            background: var(--surface-secondary);
+            border-bottom: 1px solid var(--border-default);
+            text-align: center;
+            flex-shrink: 0;
+        }
+        
+        .lane-header__title {
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            margin-bottom: var(--spacing-1);
+        }
+        
+        .lane-header__count {
+            font-size: var(--font-size-xs);
+            color: var(--content-secondary);
+        }
+        
+        .ranking-lane__cards-container {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: var(--spacing-2);
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-2);
+            min-height: 200px;
+            position: relative;
+        }
+        
+        /* Custom scrollbar */
+        .ranking-lane__cards-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .ranking-lane__cards-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .ranking-lane__cards-container::-webkit-scrollbar-thumb {
+            background: var(--border-strong);
+            border-radius: 3px;
+        }
+        
+        .ranking-lane__cards-container::-webkit-scrollbar-thumb:hover {
+            background: var(--content-muted);
+        }
+        
+        /* =============================================
+           Equipment Card
+           ============================================= */
+        .equipment-card {
+            background: var(--surface-panel);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-3);
+            cursor: pointer;
+            transition: border-color var(--transition-fast), 
+                        box-shadow var(--transition-fast),
+                        background-color var(--transition-fast);
+            position: relative;
+            z-index: var(--z-index-card);
+        }
+        
+        .equipment-card:hover {
+            border-color: var(--interactive-primary-normal);
+            background-color: var(--surface-secondary);
+        }
+        
+        .equipment-card:active {
+            background-color: var(--surface-hover);
+        }
+        
+        .equipment-card--selected {
+            border-color: var(--interactive-primary-normal);
+            box-shadow: 0 0 0 2px var(--interactive-primary-normal);
+            background-color: var(--surface-secondary);
+        }
+        
+        /* Status Colors */
+        .equipment-card--run { border-left: 4px solid #22c55e; }
+        .equipment-card--stop { border-left: 4px solid #f97316; }
+        .equipment-card--sudden-stop { border-left: 4px solid #ef4444; }
+        .equipment-card--remote { border-left: 4px solid #8b5cf6; }
+        .equipment-card--idle { border-left: 4px solid #eab308; }
+        .equipment-card--wait { border-left: 4px solid #64748b; }
+        
+        .equipment-card__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-2);
+        }
+        
+        .equipment-card__id {
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+        }
+        
+        .equipment-card__status {
+            font-size: var(--font-size-xs);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            background: var(--surface-secondary);
+        }
+        
+        .equipment-card__duration {
+            font-size: var(--font-size-xs);
+            color: var(--content-secondary);
+        }
+        
+        .equipment-card__alarm {
+            margin-top: var(--spacing-2);
+            padding: var(--spacing-1) var(--spacing-2);
+            background: rgba(239, 68, 68, 0.1);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-xs);
+            color: var(--interactive-danger-normal);
+        }
+        
+        /* =============================================
+           Animation Keyframes
+           ============================================= */
+        @keyframes ranking-card-enter {
+            0% {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            60% {
+                opacity: 1;
+                transform: translateY(5px) scale(1.02);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        @keyframes ranking-card-leave {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+        }
+        
+        @keyframes ranking-pulse-warning {
+            0%, 100% {
+                box-shadow: 0 0 0 0 var(--ranking-pulse-warning-color), var(--shadow-sm);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(234, 179, 8, 0), var(--shadow-md);
+            }
+        }
+        
+        @keyframes ranking-pulse-danger {
+            0%, 100% {
+                box-shadow: 0 0 0 0 var(--ranking-pulse-danger-color), var(--shadow-sm);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0), var(--shadow-lg);
+            }
+        }
+        
+        @keyframes ranking-pulse-critical {
+            0%, 100% {
+                box-shadow: 0 0 0 0 var(--ranking-pulse-critical-color), 0 0 20px rgba(220, 38, 38, 0.2);
+                border-color: var(--interactive-danger-normal);
+            }
+            50% {
+                box-shadow: 0 0 0 12px rgba(220, 38, 38, 0), 0 0 30px rgba(220, 38, 38, 0.3);
+                border-color: var(--interactive-danger-hover);
+            }
+        }
+        
+        @keyframes ranking-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        @keyframes ranking-status-change {
+            0% { transform: scale(1); filter: brightness(1); }
+            30% { transform: scale(1.05); filter: brightness(1.2); }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+        
+        /* =============================================
+           Animation Modifier Classes
+           ============================================= */
+        
+        /* 애니메이션 중인 카드 - 레인 위로 띄움 */
+        .equipment-card--animating {
+            position: fixed !important;
+            z-index: var(--z-index-card-animating) !important;
+            pointer-events: none;
+            will-change: transform, opacity;
+            box-shadow: var(--shadow-lg), 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .equipment-card--entering {
+            animation: ranking-card-enter 300ms var(--ranking-ease-bounce) forwards;
+        }
+        
+        .equipment-card--leaving {
+            animation: ranking-card-leave 200ms var(--ranking-ease-in) forwards;
+        }
+        
+        /* 밀림 애니메이션 */
+        .equipment-card--pushed {
+            transition: transform 250ms var(--ranking-ease-out);
+            will-change: transform;
+        }
+        
+        .equipment-card--urgency-warning {
+            animation: ranking-pulse-warning 2s ease-in-out infinite;
+            border-color: var(--interactive-warning);
+        }
+        
+        .equipment-card--urgency-danger {
+            animation: ranking-pulse-danger 1.5s ease-in-out infinite;
+            border-color: var(--interactive-danger-normal);
+        }
+        
+        .equipment-card--urgency-critical {
+            animation: ranking-pulse-critical 1s ease-in-out infinite;
+            border-color: var(--interactive-danger-hover);
+        }
+        
+        .equipment-card--status-changed {
+            animation: ranking-status-change 400ms var(--ranking-ease-out);
+        }
+        
+        .equipment-card--loading {
+            background: linear-gradient(90deg, var(--surface-secondary) 25%, var(--surface-hover) 50%, var(--surface-secondary) 75%);
+            background-size: 200% 100%;
+            animation: ranking-shimmer 1.5s ease-in-out infinite;
+        }
+        
+        /* Lane highlight */
+        .ranking-lane--highlight {
+            border-color: var(--interactive-primary-normal);
+            box-shadow: 0 0 0 2px var(--interactive-primary-normal);
+        }
+        
+        /* Ghost placeholder */
+        .equipment-card--ghost {
+            visibility: hidden;
+            pointer-events: none;
+        }
+        
+        /* 공간 확보용 placeholder */
+        .equipment-card--placeholder {
+            background: transparent;
+            border: 2px dashed var(--interactive-primary-normal);
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        /* =============================================
+           Log Panel
+           ============================================= */
+        .log-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 150px;
+            background: var(--surface-panel);
+            border-top: 1px solid var(--border-default);
+            display: flex;
+            flex-direction: column;
+            z-index: var(--z-index-overlay);
+        }
+        
+        .log-panel__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-2) var(--spacing-3);
+            background: var(--surface-secondary);
+            border-bottom: 1px solid var(--border-default);
+            flex-shrink: 0;
+        }
+        
+        .log-panel__header h3 {
+            font-size: var(--font-size-sm);
+        }
+        
+        .log-panel__content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: var(--spacing-2);
+            font-family: var(--font-family-mono);
+            font-size: var(--font-size-xs);
+        }
+        
+        .log-entry {
+            padding: var(--spacing-1) 0;
+            border-bottom: 1px solid var(--border-default);
+        }
+        
+        .log-entry--info { color: var(--interactive-primary-normal); }
+        .log-entry--success { color: var(--interactive-success); }
+        .log-entry--warning { color: var(--interactive-warning); }
+        .log-entry--error { color: var(--interactive-danger-normal); }
+        
+        /* Theme toggle */
+        .theme-toggle {
+            position: fixed;
+            top: var(--spacing-2);
+            right: var(--spacing-2);
+            z-index: var(--z-index-overlay);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <header class="test-header">
+            <h1>🎬 Ranking View Phase 4 - Animation Test (v1.3)</h1>
+            <p>레인 간 이동 시 목표 위치 카드가 먼저 밀려나고 → 이동 카드 안착</p>
+        </header>
+        
+        <div class="test-controls">
+            <div class="control-group">
+                <label>기본 테스트:</label>
+                <button onclick="testCardEnter()">카드 진입</button>
+                <button onclick="testCardLeave()">카드 퇴장</button>
+                <button onclick="testStatusChange()">상태 변경</button>
+            </div>
+            
+            <div class="control-group">
+                <label>레인 이동:</label>
+                <button class="primary" onclick="testLaneChange()">레인 간 이동</button>
+                <button onclick="testPushDown()">밀림 효과</button>
+                <button onclick="testMultipleAnimations()">다중 애니메이션</button>
+            </div>
+            
+            <div class="control-group">
+                <label>긴급도:</label>
+                <button onclick="testUrgencyWarning()">⚠️ Warning</button>
+                <button onclick="testUrgencyDanger()">🔴 Danger</button>
+                <button onclick="testUrgencyCritical()">🚨 Critical</button>
+            </div>
+            
+            <div class="control-group">
+                <label>스크롤:</label>
+                <button onclick="testScrollToCard()">카드로 스크롤</button>
+                <button onclick="testScrollSync()">스크롤 동기화</button>
+            </div>
+            
+            <div class="control-group">
+                <button class="danger" onclick="resetAll()">🔄 초기화</button>
+            </div>
+        </div>
+        
+        <main class="test-main">
+            <div class="ranking-view" id="rankingView">
+                <!-- Lanes will be generated here -->
+            </div>
+        </main>
+        
+        <button class="theme-toggle" onclick="toggleTheme()">🌓 테마 전환</button>
+    </div>
+    
+    <div class="log-panel">
+        <div class="log-panel__header">
+            <h3>📋 Animation Log</h3>
+            <button onclick="clearLog()">Clear</button>
+        </div>
+        <div class="log-panel__content" id="logContent"></div>
+    </div>
+
+    <script>
+        // =============================================
+        // Mock Data
+        // =============================================
+        const LANES = [
+            { id: 'remote', name: 'Remote', color: '#8b5cf6' },
+            { id: 'sudden-stop', name: 'Sudden Stop', color: '#ef4444' },
+            { id: 'stop', name: 'Stop', color: '#f97316' },
+            { id: 'run', name: 'Run', color: '#22c55e' },
+            { id: 'idle', name: 'Idle', color: '#eab308' },
+            { id: 'wait', name: 'Wait', color: '#64748b' }
+        ];
+        
+        const MOCK_EQUIPMENT = [
+            { id: 'EQ-01-01', status: 'run', duration: '00:05:32', alarm: null },
+            { id: 'EQ-01-02', status: 'run', duration: '00:12:45', alarm: null },
+            { id: 'EQ-02-01', status: 'sudden-stop', duration: '00:08:21', alarm: '10047' },
+            { id: 'EQ-02-02', status: 'stop', duration: '00:03:15', alarm: null },
+            { id: 'EQ-03-01', status: 'idle', duration: '00:15:00', alarm: null },
+            { id: 'EQ-03-02', status: 'remote', duration: '00:10:30', alarm: '61' },
+            { id: 'EQ-04-01', status: 'run', duration: '00:07:22', alarm: null },
+            { id: 'EQ-04-02', status: 'wait', duration: '00:20:00', alarm: null },
+            { id: 'EQ-05-01', status: 'sudden-stop', duration: '00:02:10', alarm: '10048' },
+            { id: 'EQ-05-02', status: 'run', duration: '00:18:45', alarm: null },
+        ];
+        
+        // =============================================
+        // Animation Timing Constants
+        // =============================================
+        const TIMING = {
+            PUSH_DOWN_DURATION: 250,      // 밀림 애니메이션
+            PUSH_DOWN_DELAY: 50,          // 밀림 시작 전 대기
+            LANE_MOVE_DURATION: 450,      // 레인 이동 애니메이션
+            LANE_MOVE_START_DELAY: 100,   // 밀림 시작 후 이동 시작까지 대기
+            SETTLE_DURATION: 200          // 안착 애니메이션
+        };
+        
+        // =============================================
+        // State Management
+        // =============================================
+        let cardCounter = 0;
+        let selectedCard = null;
+        
+        // =============================================
+        // Logger
+        // =============================================
+        function log(message, type = 'info') {
+            const logContent = document.getElementById('logContent');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-entry--${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContent.insertBefore(entry, logContent.firstChild);
+            
+            while (logContent.children.length > 50) {
+                logContent.removeChild(logContent.lastChild);
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('logContent').innerHTML = '';
+            log('Log cleared', 'info');
+        }
+        
+        // =============================================
+        // DOM Helpers
+        // =============================================
+        function createCard(data, laneId) {
+            const card = document.createElement('div');
+            card.className = `equipment-card equipment-card--${data.status}`;
+            card.dataset.id = data.id;
+            card.dataset.lane = laneId;
+            
+            card.innerHTML = `
+                <div class="equipment-card__header">
+                    <span class="equipment-card__id">${data.id}</span>
+                    <span class="equipment-card__status">${data.status.toUpperCase()}</span>
+                </div>
+                <div class="equipment-card__duration">${data.duration}</div>
+                ${data.alarm ? `<div class="equipment-card__alarm">Alarm: ${data.alarm}</div>` : ''}
+            `;
+            
+            card.addEventListener('click', () => selectCard(card));
+            
+            return card;
+        }
+        
+        function selectCard(card) {
+            if (selectedCard) {
+                selectedCard.classList.remove('equipment-card--selected');
+            }
+            selectedCard = card;
+            card.classList.add('equipment-card--selected');
+            log(`Selected: ${card.dataset.id}`, 'info');
+        }
+        
+        function getLane(laneId) {
+            return document.querySelector(`.ranking-lane[data-lane="${laneId}"]`);
+        }
+        
+        function getCardsContainer(laneId) {
+            const lane = getLane(laneId);
+            return lane ? lane.querySelector('.ranking-lane__cards-container') : null;
+        }
+        
+        function updateLaneCount(laneId) {
+            const lane = getLane(laneId);
+            if (!lane) return;
+            
+            const container = lane.querySelector('.ranking-lane__cards-container');
+            const count = container.querySelectorAll('.equipment-card:not(.equipment-card--ghost):not(.equipment-card--placeholder)').length;
+            const countEl = lane.querySelector('.lane-header__count');
+            if (countEl) {
+                countEl.textContent = `${count} 설비`;
+            }
+        }
+        
+        // =============================================
+        // Animation Functions
+        // =============================================
+        
+        function animateEnter(card, container, index = 0) {
+            return new Promise((resolve) => {
+                card.classList.add('equipment-card--entering');
+                
+                const cards = container.querySelectorAll('.equipment-card:not(.equipment-card--ghost):not(.equipment-card--placeholder)');
+                if (index < cards.length) {
+                    container.insertBefore(card, cards[index]);
+                } else {
+                    container.appendChild(card);
+                }
+                
+                card.addEventListener('animationend', () => {
+                    card.classList.remove('equipment-card--entering');
+                    resolve();
+                }, { once: true });
+            });
+        }
+        
+        function animateLeave(card) {
+            return new Promise((resolve) => {
+                card.classList.add('equipment-card--leaving');
+                
+                card.addEventListener('animationend', () => {
+                    card.remove();
+                    resolve();
+                }, { once: true });
+            });
+        }
+        
+        /**
+         * 목표 레인의 카드들을 아래로 밀어내는 애니메이션
+         * @param {HTMLElement[]} cards - 밀어낼 카드들
+         * @param {number} distance - 밀어낼 거리 (px)
+         * @returns {Promise}
+         */
+        function animatePushDownCards(cards, distance) {
+            return new Promise((resolve) => {
+                if (cards.length === 0) {
+                    resolve();
+                    return;
+                }
+                
+                log(`  ↓ Pushing down ${cards.length} cards by ${distance}px`, 'info');
+                
+                // 모든 카드에 transition 클래스 추가
+                cards.forEach(card => {
+                    card.classList.add('equipment-card--pushed');
+                });
+                
+                // 약간의 지연 후 transform 적용 (브라우저 렌더링 보장)
+                requestAnimationFrame(() => {
+                    cards.forEach((card, index) => {
+                        // 순차적으로 밀림 효과 (wave effect)
+                        setTimeout(() => {
+                            card.style.transform = `translateY(${distance}px)`;
+                        }, index * 20);
+                    });
+                });
+                
+                // 애니메이션 완료 후 정리
+                setTimeout(() => {
+                    resolve();
+                }, TIMING.PUSH_DOWN_DURATION + (cards.length * 20));
+            });
+        }
+        
+        /**
+         * 밀린 카드들의 transform 제거 (실제 DOM 위치로 정착)
+         * @param {HTMLElement[]} cards 
+         */
+        function settlePushedCards(cards) {
+            cards.forEach(card => {
+                card.classList.remove('equipment-card--pushed');
+                card.style.transform = '';
+            });
+        }
+        
+        /**
+         * [v1.3] 레인 간 이동 애니메이션 - 순서 개선
+         * 1. 이동 카드 출발 준비 (살짝 떠오름)
+         * 2. 목표 레인 카드들 밀림 (공간 확보)
+         * 3. 이동 카드가 빈 공간으로 이동
+         * 4. 안착
+         */
+        function animateLaneChange(card, fromLaneId, toLaneId, targetIndex = 0) {
+            return new Promise(async (resolve) => {
+                const fromContainer = getCardsContainer(fromLaneId);
+                const toContainer = getCardsContainer(toLaneId);
+                const toLane = getLane(toLaneId);
+                
+                if (!fromContainer || !toContainer) {
+                    log('❌ Container not found', 'error');
+                    resolve();
+                    return;
+                }
+                
+                // 현재 카드의 viewport 기준 위치 저장
+                const fromRect = card.getBoundingClientRect();
+                const cardWidth = fromRect.width;
+                const cardHeight = fromRect.height;
+                const cardGap = 8; // gap between cards
+                
+                log(`🚀 Phase 1: Preparing card lift-off`, 'info');
+                
+                // 목표 레인의 카드들 (밀어낼 대상)
+                const toCards = Array.from(
+                    toContainer.querySelectorAll('.equipment-card:not(.equipment-card--ghost):not(.equipment-card--placeholder)')
+                );
+                const cardsToPush = toCards.slice(targetIndex);
+                
+                // 1. 원본 카드를 숨김 (ghost로 변환)
+                card.classList.add('equipment-card--ghost');
+                
+                // 2. 애니메이션용 복제본 생성
+                const clone = card.cloneNode(true);
+                clone.classList.remove('equipment-card--ghost', 'equipment-card--selected');
+                clone.classList.add('equipment-card--animating');
+                clone.style.position = 'fixed';
+                clone.style.left = `${fromRect.left}px`;
+                clone.style.top = `${fromRect.top}px`;
+                clone.style.width = `${cardWidth}px`;
+                clone.style.height = `${cardHeight}px`;
+                clone.style.margin = '0';
+                clone.style.zIndex = '100';
+                
+                document.body.appendChild(clone);
+                
+                // 목표 레인 하이라이트
+                toLane.classList.add('ranking-lane--target');
+                
+                // 3. 카드 살짝 떠오르기 (lift)
+                const liftAnimation = clone.animate([
+                    { transform: 'scale(1)', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' },
+                    { transform: 'scale(1.05) translateY(-10px)', boxShadow: '0 20px 30px rgba(0, 0, 0, 0.2)' }
+                ], {
+                    duration: 150,
+                    easing: 'ease-out',
+                    fill: 'forwards'
+                });
+                
+                await liftAnimation.finished;
+                log(`📦 Phase 2: Making space in target lane`, 'info');
+                
+                // 4. 목표 레인의 카드들 밀기 (공간 확보)
+                const pushDistance = cardHeight + cardGap;
+                
+                if (cardsToPush.length > 0) {
+                    await animatePushDownCards(cardsToPush, pushDistance);
+                }
+                
+                log(`✈️ Phase 3: Moving card to target position`, 'info');
+                
+                // 5. 목표 위치 계산 (밀린 후의 위치)
+                const toContainerRect = toContainer.getBoundingClientRect();
+                let targetTop;
+                const targetLeft = toContainerRect.left + 8;
+                
+                if (targetIndex === 0 || toCards.length === 0) {
+                    // 첫 번째 위치
+                    targetTop = toContainerRect.top + 8;
+                } else if (targetIndex < toCards.length) {
+                    // 밀린 카드의 원래 위치 (transform 전 위치)
+                    const refCard = toCards[targetIndex];
+                    const refRect = refCard.getBoundingClientRect();
+                    // transform이 적용된 상태이므로, 원래 위치를 계산
+                    targetTop = refRect.top - pushDistance;
+                } else {
+                    // 마지막 위치
+                    const lastCard = toCards[toCards.length - 1];
+                    const lastCardRect = lastCard.getBoundingClientRect();
+                    targetTop = lastCardRect.bottom + cardGap - pushDistance;
+                }
+                
+                // 델타 계산 (현재 lift된 위치 기준)
+                const currentTop = fromRect.top - 10; // lift offset
+                const deltaX = targetLeft - fromRect.left;
+                const deltaY = targetTop - currentTop;
+                
+                // 6. 대각선 이동 애니메이션
+                const moveAnimation = clone.animate([
+                    { 
+                        transform: 'scale(1.05) translateY(-10px)',
+                        boxShadow: '0 20px 30px rgba(0, 0, 0, 0.2)'
+                    },
+                    { 
+                        transform: `scale(1.03) translate(${deltaX * 0.4}px, ${deltaY * 0.3 - 20}px)`,
+                        boxShadow: '0 25px 35px rgba(0, 0, 0, 0.25)',
+                        offset: 0.4 
+                    },
+                    { 
+                        transform: `scale(1.02) translate(${deltaX * 0.8}px, ${deltaY * 0.7}px)`,
+                        boxShadow: '0 15px 25px rgba(0, 0, 0, 0.2)',
+                        offset: 0.8 
+                    },
+                    { 
+                        transform: `scale(1) translate(${deltaX}px, ${deltaY + 10}px)`,
+                        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                    }
+                ], {
+                    duration: TIMING.LANE_MOVE_DURATION,
+                    easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                    fill: 'forwards'
+                });
+                
+                await moveAnimation.finished;
+                log(`🎯 Phase 4: Settling card in place`, 'info');
+                
+                // 7. 정리 및 실제 DOM 이동
+                clone.remove();
+                toLane.classList.remove('ranking-lane--target');
+                
+                // 밀린 카드들 transform 제거
+                settlePushedCards(cardsToPush);
+                
+                // 원본 카드 표시 및 목표 레인으로 이동
+                card.classList.remove('equipment-card--ghost');
+                
+                const currentCards = toContainer.querySelectorAll('.equipment-card:not(.equipment-card--ghost):not(.equipment-card--placeholder)');
+                if (targetIndex < currentCards.length) {
+                    toContainer.insertBefore(card, currentCards[targetIndex]);
+                } else {
+                    toContainer.appendChild(card);
+                }
+                
+                card.dataset.lane = toLaneId;
+                
+                // 안착 효과
+                card.classList.add('equipment-card--status-changed');
+                setTimeout(() => {
+                    card.classList.remove('equipment-card--status-changed');
+                }, 400);
+                
+                // 카운트 업데이트
+                updateLaneCount(fromLaneId);
+                updateLaneCount(toLaneId);
+                
+                log(`✅ Lane change complete: ${fromLaneId} → ${toLaneId}`, 'success');
+                resolve();
+            });
+        }
+        
+        function animatePushDown(cards, distance) {
+            return new Promise((resolve) => {
+                if (cards.length === 0) {
+                    resolve();
+                    return;
+                }
+                
+                const animations = cards.map((card, index) => {
+                    return new Promise((res) => {
+                        card.classList.add('equipment-card--pushed');
+                        
+                        setTimeout(() => {
+                            card.style.transform = `translateY(${distance}px)`;
+                            
+                            setTimeout(() => {
+                                card.classList.remove('equipment-card--pushed');
+                                card.style.transform = '';
+                                res();
+                            }, 300);
+                        }, index * 30);
+                    });
+                });
+                
+                Promise.all(animations).then(resolve);
+            });
+        }
+        
+        // =============================================
+        // Test Functions
+        // =============================================
+        
+        function testCardEnter() {
+            log('🎬 Testing card enter animation...', 'info');
+            
+            const laneId = 'run';
+            const container = getCardsContainer(laneId);
+            
+            const newCard = createCard({
+                id: `EQ-NEW-${++cardCounter}`,
+                status: 'run',
+                duration: '00:00:00',
+                alarm: null
+            }, laneId);
+            
+            animateEnter(newCard, container).then(() => {
+                updateLaneCount(laneId);
+                log('✅ Card enter animation complete', 'success');
+            });
+        }
+        
+        function testCardLeave() {
+            if (!selectedCard) {
+                log('⚠️ Please select a card first', 'warning');
+                return;
+            }
+            
+            log('🎬 Testing card leave animation...', 'info');
+            
+            const laneId = selectedCard.dataset.lane;
+            
+            animateLeave(selectedCard).then(() => {
+                updateLaneCount(laneId);
+                selectedCard = null;
+                log('✅ Card leave animation complete', 'success');
+            });
+        }
+        
+        function testStatusChange() {
+            if (!selectedCard) {
+                log('⚠️ Please select a card first', 'warning');
+                return;
+            }
+            
+            log('🎬 Testing status change animation...', 'info');
+            
+            selectedCard.classList.add('equipment-card--status-changed');
+            
+            setTimeout(() => {
+                selectedCard.classList.remove('equipment-card--status-changed');
+                log('✅ Status change animation complete', 'success');
+            }, 400);
+        }
+        
+        function testLaneChange() {
+            if (!selectedCard) {
+                log('⚠️ Please select a card first', 'warning');
+                return;
+            }
+            
+            const currentLane = selectedCard.dataset.lane;
+            const laneIds = LANES.map(l => l.id);
+            const currentIndex = laneIds.indexOf(currentLane);
+            const nextLane = laneIds[(currentIndex + 1) % laneIds.length];
+            
+            log(`🎬 Moving card from ${currentLane} to ${nextLane}...`, 'info');
+            
+            animateLaneChange(selectedCard, currentLane, nextLane, 0);
+        }
+        
+        function testPushDown() {
+            log('🎬 Testing push down animation...', 'info');
+            
+            const laneId = 'run';
+            const container = getCardsContainer(laneId);
+            const cards = Array.from(container.querySelectorAll('.equipment-card:not(.equipment-card--ghost):not(.equipment-card--placeholder)'));
+            
+            if (cards.length < 2) {
+                log('⚠️ Need at least 2 cards in RUN lane', 'warning');
+                return;
+            }
+            
+            const cardsToPush = cards.slice(1);
+            
+            animatePushDown(cardsToPush, 80).then(() => {
+                log('✅ Push down animation complete', 'success');
+            });
+        }
+        
+        function testMultipleAnimations() {
+            log('🎬 Testing multiple simultaneous animations...', 'info');
+            
+            const promises = [];
+            
+            ['run', 'stop', 'idle'].forEach((laneId, index) => {
+                const container = getCardsContainer(laneId);
+                const newCard = createCard({
+                    id: `EQ-MULTI-${++cardCounter}`,
+                    status: laneId,
+                    duration: '00:00:00',
+                    alarm: null
+                }, laneId);
+                
+                promises.push(
+                    new Promise(resolve => {
+                        setTimeout(() => {
+                            animateEnter(newCard, container).then(() => {
+                                updateLaneCount(laneId);
+                                resolve();
+                            });
+                        }, index * 100);
+                    })
+                );
+            });
+            
+            Promise.all(promises).then(() => {
+                log('✅ Multiple animations complete', 'success');
+            });
+        }
+        
+        function testUrgencyWarning() {
+            if (!selectedCard) {
+                log('⚠️ Please select a card first', 'warning');
+                return;
+            }
+            
+            log('🎬 Applying warning urgency...', 'info');
+            
+            selectedCard.classList.remove('equipment-card--urgency-danger', 'equipment-card--urgency-critical');
+            selectedCard.classList.add('equipment-card--urgency-warning');
+            
+            log('✅ Warning pulse applied (5min+ style)', 'success');
+        }
+        
+        function testUrgencyDanger() {
+            if (!selectedCard) {
+                log('⚠️ Please select a card first', 'warning');
+                return;
+            }
+            
+            log('🎬 Applying danger urgency...', 'info');
+            
+            selectedCard.classList.remove('equipment-card--urgency-warning', 'equipment-card--urgency-critical');
+            selectedCard.classList.add('equipment-card--urgency-danger');
+            
+            log('✅ Danger pulse applied (10min+ style)', 'success');
+        }
+        
+        function testUrgencyCritical() {
+            if (!selectedCard) {
+                log('⚠️ Please select a card first', 'warning');
+                return;
+            }
+            
+            log('🎬 Applying critical urgency...', 'info');
+            
+            selectedCard.classList.remove('equipment-card--urgency-warning', 'equipment-card--urgency-danger');
+            selectedCard.classList.add('equipment-card--urgency-critical');
+            
+            log('✅ Critical pulse applied (15min+ style)', 'success');
+        }
+        
+        function testScrollToCard() {
+            const laneId = 'run';
+            const container = getCardsContainer(laneId);
+            const cards = container.querySelectorAll('.equipment-card:not(.equipment-card--ghost):not(.equipment-card--placeholder)');
+            
+            if (cards.length === 0) {
+                log('⚠️ No cards in RUN lane', 'warning');
+                return;
+            }
+            
+            log('🎬 Testing smooth scroll to card...', 'info');
+            
+            const lastCard = cards[cards.length - 1];
+            
+            container.scrollTo({
+                top: lastCard.offsetTop - container.clientHeight / 2 + lastCard.clientHeight / 2,
+                behavior: 'smooth'
+            });
+            
+            setTimeout(() => {
+                log('✅ Scroll to card complete', 'success');
+            }, 300);
+        }
+        
+        function testScrollSync() {
+            log('🎬 Testing vertical scroll synchronization...', 'info');
+            
+            LANES.forEach((lane, index) => {
+                const container = getCardsContainer(lane.id);
+                if (container) {
+                    setTimeout(() => {
+                        container.scrollTo({
+                            top: 100,
+                            left: 0,
+                            behavior: 'smooth'
+                        });
+                        log(`  ↓ ${lane.name} lane scrolled to top: 100px`, 'info');
+                    }, index * 100);
+                }
+            });
+            
+            setTimeout(() => {
+                log('✅ Vertical scroll sync test complete', 'success');
+            }, 800);
+        }
+        
+        function resetAll() {
+            log('🔄 Resetting all...', 'info');
+            
+            selectedCard = null;
+            cardCounter = 0;
+            
+            initializeLanes();
+            
+            log('✅ Reset complete', 'success');
+        }
+        
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            log(`Theme changed to: ${newTheme}`, 'info');
+        }
+        
+        // =============================================
+        // Initialization
+        // =============================================
+        
+        function initializeLanes() {
+            const rankingView = document.getElementById('rankingView');
+            rankingView.innerHTML = '';
+            
+            LANES.forEach(lane => {
+                const laneEl = document.createElement('div');
+                laneEl.className = `ranking-lane ranking-lane--${lane.id}`;
+                laneEl.dataset.lane = lane.id;
+                
+                laneEl.innerHTML = `
+                    <div class="lane-header">
+                        <div class="lane-header__title">${lane.name}</div>
+                        <div class="lane-header__count">0 설비</div>
+                    </div>
+                    <div class="ranking-lane__cards-container"></div>
+                `;
+                
+                rankingView.appendChild(laneEl);
+            });
+            
+            MOCK_EQUIPMENT.forEach(equip => {
+                const laneId = equip.status === 'sudden-stop' ? 'sudden-stop' : equip.status;
+                const container = getCardsContainer(laneId);
+                
+                if (container) {
+                    const card = createCard(equip, laneId);
+                    container.appendChild(card);
+                }
+            });
+            
+            LANES.forEach(lane => updateLaneCount(lane.id));
+        }
+        
+        // Start
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeLanes();
+            log('🚀 Ranking View Phase 4 Animation Test v1.3 initialized', 'success');
+            log('💡 Click a card to select, then use buttons to test animations', 'info');
+            log('📝 v1.3: Cards push down FIRST, then moving card lands in empty space', 'info');
+        });
+    </script>
+</body>
+</html>
