@@ -3,9 +3,12 @@
  * ========
  * SHERLOCK SKY 3DSim - CSS 진입점
  * 
- * @version 4.0.0 (Phase 3: BEM Components Refactoring)
- * @updated 2026-01-15
- * 
+ * @version 4.1.0 (Phase 3: BEM Components Refactoring)
+ * @updated 2026-01-17
+ * @changelog
+ * - v4.1.0: Ranking View CSS 추가
+ *   - ranking-view/ 서브폴더 CSS import
+ *   - ⚠️ 호환성: 기존 모든 스타일 100% 유지
  * [ARCHITECTURE]
  * Layer 1: Design Tokens (primitives, semantic-light, semantic-dark, legacy-mapping)
  * Layer 2: Utilities (layout, spacing, text, position, effects)
@@ -79,6 +82,25 @@
 @import './components/equipment-info/_equipment-drawer.css';  /* 🆕 Drawer 추가 */
 @import './components/equipment-info/_info-row.css';
 @import './components/equipment-info/_status-indicator.css';
+
+/* =============================================
+   Layer 4: Components - Ranking View
+   =============================================
+   Ranking View 시스템 (BEM 리팩토링)
+   
+   추가 위치: Layer 4: Components - Equipment Info 섹션 다음
+   (약 73행 @import './components/equipment-info/_status-indicator.css'; 다음)
+   ============================================= */
+@import './components/ranking-view/_ranking-view.css';
+@import './components/ranking-view/_ranking-lane.css';
+@import './components/ranking-view/_lane-header.css';
+
+/* Phase 2에서 추가 예정 */
+/* @import './components/ranking-view/_equipment-card.css'; */
+
+/* Phase 6에서 추가 예정 */
+/* @import './components/ranking-view/_mini-timeline.css'; */
+/* @import './components/ranking-view/_animations.css'; */
 
 /* =============================================
    Layer 4: Components - Legacy (점진적 마이그레이션)

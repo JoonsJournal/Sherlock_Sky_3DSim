@@ -1,0 +1,358 @@
+/**
+ * _lane-header.css
+ * ================
+ * 레인 헤더 컴포넌트 스타일 (세로 레이아웃)
+ * 
+ * Block: .lane-header
+ * 
+ * @version 1.0.0
+ * @updated 2026-01-17
+ * 
+ * [BEM 구조]
+ * .lane-header                    → Block
+ * .lane-header__title-row         → Element (제목 행)
+ * .lane-header__icon              → Element (상태 아이콘)
+ * .lane-header__title             → Element (레인명)
+ * .lane-header__count             → Element (설비 수)
+ * .lane-header__stats             → Element (통계 컨테이너)
+ * .lane-header__stat              → Element (개별 통계 항목)
+ * .lane-header__stat-icon         → Element (통계 아이콘)
+ * .lane-header__stat-label        → Element (통계 라벨)
+ * .lane-header__stat-value        → Element (통계 값)
+ * .lane-header--collapsed         → Modifier (접힌 상태)
+ * 
+ * [Layout - 세로 배치]
+ * ┌─────────────────────┐
+ * │  🔴 Remote (3)      │  ← 아이콘 + 레인명 + 개수
+ * ├─────────────────────┤
+ * │  ⏱️ Avg: 08:32      │  ← 평균 지속시간/생산개수
+ * ├─────────────────────┤
+ * │  📊 Max: 23:15      │  ← 최대 지속시간/생산개수
+ * └─────────────────────┘
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/ranking-view/_lane-header.css
+ */
+
+/* =============================================
+   Block (Base)
+   ============================================= */
+.lane-header {
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    
+    /* Box Model */
+    padding: var(--spacing-3);
+    gap: var(--spacing-2);
+    
+    /* Visual */
+    background: var(--surface-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+/* =============================================
+   Element: Title Row
+   ============================================= */
+.lane-header__title-row {
+    /* Layout */
+    display: flex;
+    align-items: center;
+    
+    /* Box Model */
+    gap: var(--spacing-2);
+}
+
+/* =============================================
+   Element: Icon
+   ============================================= */
+.lane-header__icon {
+    /* Layout */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    
+    /* Box Model */
+    width: 24px;
+    height: 24px;
+    
+    /* Typography */
+    font-size: var(--font-size-md);
+}
+
+/* 상태별 아이콘 색상 */
+.lane-header--remote .lane-header__icon {
+    color: var(--interactive-danger-normal);
+}
+
+.lane-header--sudden-stop .lane-header__icon {
+    color: #ef4444;
+}
+
+.lane-header--stop .lane-header__icon {
+    color: var(--interactive-warning);
+}
+
+.lane-header--run .lane-header__icon {
+    color: var(--interactive-success);
+}
+
+.lane-header--idle .lane-header__icon {
+    color: #fbbf24;
+}
+
+.lane-header--wait .lane-header__icon {
+    color: var(--content-muted);
+}
+
+/* =============================================
+   Element: Title
+   ============================================= */
+.lane-header__title {
+    /* Layout */
+    flex: 1;
+    
+    /* Typography */
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* =============================================
+   Element: Count (설비 수)
+   ============================================= */
+.lane-header__count {
+    /* Layout */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    
+    /* Box Model */
+    min-width: 26px;
+    height: 22px;
+    padding: 0 var(--spacing-1-5);
+    
+    /* Visual */
+    background: var(--surface-panel);
+    border-radius: var(--radius-full);
+    
+    /* Typography */
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--content-primary);
+    font-family: var(--font-family-mono);
+}
+
+/* =============================================
+   Element: Stats Container
+   ============================================= */
+.lane-header__stats {
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    
+    /* Box Model */
+    gap: var(--spacing-1);
+}
+
+/* =============================================
+   Element: Individual Stat
+   ============================================= */
+.lane-header__stat {
+    /* Layout */
+    display: flex;
+    align-items: center;
+    
+    /* Box Model */
+    gap: var(--spacing-1-5);
+    
+    /* Visual */
+    padding: var(--spacing-1) var(--spacing-1-5);
+    background: var(--surface-panel);
+    border-radius: var(--radius-sm);
+}
+
+/* =============================================
+   Element: Stat Icon
+   ============================================= */
+.lane-header__stat-icon {
+    /* Layout */
+    flex-shrink: 0;
+    
+    /* Typography */
+    font-size: var(--font-size-xs);
+    color: var(--content-muted);
+}
+
+/* =============================================
+   Element: Stat Label
+   ============================================= */
+.lane-header__stat-label {
+    /* Layout */
+    flex-shrink: 0;
+    
+    /* Typography */
+    font-size: var(--font-size-xs);
+    color: var(--content-secondary);
+}
+
+/* =============================================
+   Element: Stat Value
+   ============================================= */
+.lane-header__stat-value {
+    /* Layout */
+    flex: 1;
+    text-align: right;
+    
+    /* Typography */
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-primary);
+    font-family: var(--font-family-mono);
+}
+
+/* =============================================
+   Stat Type Variants (평균 vs 최대)
+   ============================================= */
+.lane-header__stat--avg .lane-header__stat-icon {
+    color: var(--interactive-primary-normal);
+}
+
+.lane-header__stat--max .lane-header__stat-icon {
+    color: var(--interactive-warning);
+}
+
+/* =============================================
+   Lane Type Specific Styling
+   ============================================= */
+
+/* Remote - 강조 배경 */
+.lane-header--remote {
+    background: linear-gradient(
+        135deg,
+        rgba(239, 68, 68, 0.08) 0%,
+        var(--surface-secondary) 100%
+    );
+}
+
+/* Sudden Stop */
+.lane-header--sudden-stop {
+    background: linear-gradient(
+        135deg,
+        rgba(239, 68, 68, 0.05) 0%,
+        var(--surface-secondary) 100%
+    );
+}
+
+/* Stop */
+.lane-header--stop {
+    background: linear-gradient(
+        135deg,
+        rgba(251, 191, 36, 0.08) 0%,
+        var(--surface-secondary) 100%
+    );
+}
+
+/* Run - 건강한 상태 */
+.lane-header--run {
+    background: linear-gradient(
+        135deg,
+        rgba(34, 197, 94, 0.08) 0%,
+        var(--surface-secondary) 100%
+    );
+}
+
+/* Idle */
+.lane-header--idle {
+    background: linear-gradient(
+        135deg,
+        rgba(251, 191, 36, 0.05) 0%,
+        var(--surface-secondary) 100%
+    );
+}
+
+/* Wait */
+.lane-header--wait {
+    background: linear-gradient(
+        135deg,
+        rgba(148, 163, 184, 0.08) 0%,
+        var(--surface-secondary) 100%
+    );
+}
+
+/* =============================================
+   Collapsed Modifier
+   ============================================= */
+.lane-header--collapsed {
+    padding: var(--spacing-2);
+}
+
+.lane-header--collapsed .lane-header__stats {
+    display: none;
+}
+
+/* =============================================
+   Responsive Design
+   ============================================= */
+
+/* 태블릿 이하 */
+@media (max-width: 1024px) {
+    .lane-header {
+        padding: var(--spacing-2);
+        gap: var(--spacing-1-5);
+    }
+    
+    .lane-header__title {
+        font-size: var(--font-size-xs);
+    }
+    
+    .lane-header__stat {
+        padding: var(--spacing-0-5) var(--spacing-1);
+    }
+}
+
+/* 모바일 */
+@media (max-width: 768px) {
+    .lane-header__icon {
+        width: 20px;
+        height: 20px;
+        font-size: var(--font-size-sm);
+    }
+    
+    .lane-header__count {
+        min-width: 22px;
+        height: 18px;
+        font-size: 10px;
+    }
+}
+
+/* =============================================
+   Dark Theme Adjustments
+   ============================================= */
+[data-theme="dark"] .lane-header--remote {
+    background: linear-gradient(
+        135deg,
+        rgba(239, 68, 68, 0.12) 0%,
+        var(--surface-secondary) 100%
+    );
+}
+
+[data-theme="dark"] .lane-header--run {
+    background: linear-gradient(
+        135deg,
+        rgba(34, 197, 94, 0.12) 0%,
+        var(--surface-secondary) 100%
+    );
+}
+
+/* =============================================
+   Legacy Alias (하위 호환)
+   ============================================= */
+.lane-header.collapsed .lane-header__stats {
+    display: none;
+}

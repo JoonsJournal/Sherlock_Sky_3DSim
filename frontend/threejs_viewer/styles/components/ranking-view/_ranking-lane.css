@@ -1,0 +1,329 @@
+/**
+ * _ranking-lane.css
+ * =================
+ * 개별 레인 컴포넌트 스타일
+ * 
+ * Block: .ranking-lane
+ * 
+ * @version 1.0.0
+ * @updated 2026-01-17
+ * 
+ * [BEM 구조]
+ * .ranking-lane                           → Block
+ * .ranking-lane__scroll-container         → Element (스크롤 영역)
+ * .ranking-lane__cards-container          → Element (카드 컨테이너)
+ * .ranking-lane__empty-message            → Element (빈 상태 메시지)
+ * .ranking-lane--remote                   → Modifier (Remote 레인)
+ * .ranking-lane--sudden-stop              → Modifier (Sudden Stop 레인)
+ * .ranking-lane--stop                     → Modifier (Stop 레인)
+ * .ranking-lane--run                      → Modifier (Run 레인)
+ * .ranking-lane--idle                     → Modifier (Idle 레인)
+ * .ranking-lane--wait                     → Modifier (Wait 레인)
+ * .ranking-lane--focused                  → Modifier (키보드 포커스)
+ * 
+ * [Lane Types - 6개 레인]
+ * 1. Remote     - SUDDENSTOP + Remote Alarm Code
+ * 2. Sudden Stop - SUDDENSTOP + Non-Remote Alarm
+ * 3. Stop       - STOP 상태
+ * 4. Run        - RUN 상태
+ * 5. Idle       - IDLE 상태
+ * 6. Wait       - 비생산 대기
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/ranking-view/_ranking-lane.css
+ */
+
+/* =============================================
+   Block (Base)
+   ============================================= */
+.ranking-lane {
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 200px;
+    max-width: 280px;
+    
+    /* Visual */
+    background: var(--surface-panel);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    
+    /* Interaction */
+    overflow: hidden;
+    transition: border-color var(--transition-fast), 
+                box-shadow var(--transition-fast);
+}
+
+/* Hover State */
+.ranking-lane:hover {
+    border-color: var(--border-strong);
+}
+
+/* =============================================
+   Element: Scroll Container
+   ============================================= */
+.ranking-lane__scroll-container {
+    /* Layout */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    
+    /* Visual */
+    overflow-y: auto;
+    overflow-x: hidden;
+    
+    /* Scrollbar Styling */
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) transparent;
+}
+
+/* Webkit Scrollbar */
+.ranking-lane__scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ranking-lane__scroll-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.ranking-lane__scroll-container::-webkit-scrollbar-thumb {
+    background: var(--border-default);
+    border-radius: var(--radius-full);
+}
+
+.ranking-lane__scroll-container::-webkit-scrollbar-thumb:hover {
+    background: var(--border-strong);
+}
+
+/* =============================================
+   Element: Cards Container
+   ============================================= */
+.ranking-lane__cards-container {
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    
+    /* Box Model */
+    gap: var(--spacing-2);
+    padding: var(--spacing-2);
+    
+    /* Visual */
+    min-height: 100%;
+}
+
+/* =============================================
+   Element: Empty Message
+   ============================================= */
+.ranking-lane__empty-message {
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    
+    /* Box Model */
+    padding: var(--spacing-6) var(--spacing-3);
+    flex: 1;
+    gap: var(--spacing-2);
+}
+
+.ranking-lane__empty-icon {
+    /* Typography */
+    font-size: 32px;
+    color: var(--content-muted);
+    opacity: 0.5;
+}
+
+.ranking-lane__empty-text {
+    /* Typography */
+    font-size: var(--font-size-sm);
+    color: var(--content-muted);
+    text-align: center;
+}
+
+/* =============================================
+   Lane Type Modifiers - 상단 강조선
+   ============================================= */
+
+/* Remote Lane - 진한 빨강 (가장 긴급) */
+.ranking-lane--remote {
+    border-top: 3px solid var(--interactive-danger-normal);
+}
+
+.ranking-lane--remote:hover {
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+}
+
+/* Sudden Stop Lane - 빨강 */
+.ranking-lane--sudden-stop {
+    border-top: 3px solid #ef4444;
+}
+
+.ranking-lane--sudden-stop:hover {
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+}
+
+/* Stop Lane - 주황 */
+.ranking-lane--stop {
+    border-top: 3px solid var(--interactive-warning);
+}
+
+.ranking-lane--stop:hover {
+    box-shadow: 0 0 12px rgba(251, 191, 36, 0.2);
+}
+
+/* Run Lane - 초록 */
+.ranking-lane--run {
+    border-top: 3px solid var(--interactive-success);
+}
+
+.ranking-lane--run:hover {
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.2);
+}
+
+/* Idle Lane - 노랑 */
+.ranking-lane--idle {
+    border-top: 3px solid #fbbf24;
+}
+
+.ranking-lane--idle:hover {
+    box-shadow: 0 0 12px rgba(251, 191, 36, 0.15);
+}
+
+/* Wait Lane - 회색 */
+.ranking-lane--wait {
+    border-top: 3px solid var(--content-muted);
+}
+
+.ranking-lane--wait:hover {
+    box-shadow: 0 0 12px rgba(148, 163, 184, 0.2);
+}
+
+/* =============================================
+   Keyboard Focus Modifier
+   ============================================= */
+.ranking-lane--focused {
+    border-color: var(--interactive-primary-normal);
+    box-shadow: 0 0 0 3px var(--border-focus);
+    outline: none;
+}
+
+/* =============================================
+   Lane Count Badge (레인 내 설비 수)
+   ============================================= */
+.ranking-lane__count-badge {
+    /* Layout */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    
+    /* Box Model */
+    min-width: 24px;
+    height: 24px;
+    padding: 0 var(--spacing-2);
+    
+    /* Visual */
+    background: var(--surface-secondary);
+    border-radius: var(--radius-full);
+    
+    /* Typography */
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--content-primary);
+    font-family: var(--font-family-mono);
+}
+
+/* 상태별 배지 색상 */
+.ranking-lane--remote .ranking-lane__count-badge {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--interactive-danger-normal);
+}
+
+.ranking-lane--sudden-stop .ranking-lane__count-badge {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.ranking-lane--stop .ranking-lane__count-badge {
+    background: rgba(251, 191, 36, 0.15);
+    color: var(--interactive-warning);
+}
+
+.ranking-lane--run .ranking-lane__count-badge {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--interactive-success);
+}
+
+.ranking-lane--idle .ranking-lane__count-badge {
+    background: rgba(251, 191, 36, 0.1);
+    color: #fbbf24;
+}
+
+.ranking-lane--wait .ranking-lane__count-badge {
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--content-muted);
+}
+
+/* =============================================
+   Responsive Design
+   ============================================= */
+
+/* 태블릿 이하 */
+@media (max-width: 1024px) {
+    .ranking-lane {
+        min-width: 180px;
+        max-width: 240px;
+    }
+    
+    .ranking-lane__cards-container {
+        gap: var(--spacing-1-5);
+        padding: var(--spacing-1-5);
+    }
+}
+
+/* 모바일 */
+@media (max-width: 768px) {
+    .ranking-lane {
+        min-width: 160px;
+        max-width: 200px;
+    }
+    
+    .ranking-lane__empty-message {
+        padding: var(--spacing-4) var(--spacing-2);
+    }
+}
+
+/* =============================================
+   Dark Theme Adjustments
+   ============================================= */
+[data-theme="dark"] .ranking-lane--remote:hover {
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.3);
+}
+
+[data-theme="dark"] .ranking-lane--sudden-stop:hover {
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.25);
+}
+
+[data-theme="dark"] .ranking-lane--stop:hover {
+    box-shadow: 0 0 16px rgba(251, 191, 36, 0.3);
+}
+
+[data-theme="dark"] .ranking-lane--run:hover {
+    box-shadow: 0 0 16px rgba(34, 197, 94, 0.3);
+}
+
+[data-theme="dark"] .ranking-lane--idle:hover {
+    box-shadow: 0 0 16px rgba(251, 191, 36, 0.25);
+}
+
+[data-theme="dark"] .ranking-lane--wait:hover {
+    box-shadow: 0 0 16px rgba(148, 163, 184, 0.3);
+}
+
+/* =============================================
+   Legacy Alias (하위 호환)
+   ============================================= */
+.ranking-lane.focused {
+    border-color: var(--interactive-primary-normal);
+    box-shadow: 0 0 0 3px var(--border-focus);
+}

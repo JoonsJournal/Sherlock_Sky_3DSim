@@ -1,0 +1,266 @@
+/**
+ * _ranking-view.css
+ * =================
+ * Ranking View 전체 레이아웃 스타일
+ * 
+ * Block: .ranking-view
+ * 
+ * @version 1.0.1
+ * @updated 2026-01-17
+ * 
+ * [BEM 구조]
+ * .ranking-view                       → Block (메인 컨테이너)
+ * .ranking-view__lanes-container      → Element (레인들을 감싸는 컨테이너)
+ * .ranking-view__loading              → Element (로딩 상태 표시)
+ * .ranking-view__empty                → Element (빈 상태 표시)
+ * .ranking-view--hidden               → Modifier (숨김 상태)
+ * .ranking-view--loading              → Modifier (로딩 중)
+ * .ranking-view--active               → Modifier (활성 상태)
+ * 
+ * [Interactive States]
+ * Hidden → Active → Loading
+ * 
+ * @changelog
+ * - v1.0.1: CSS Lint 에러 수정 (빈 규칙셋 제거)
+ * - v1.0.0: 초기 버전
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/ranking-view/_ranking-view.css
+ */
+
+/* =============================================
+   Block (Base)
+   ============================================= */
+.ranking-view {
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    
+    /* Box Model */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    
+    /* Visual */
+    background: var(--surface-app-bg);
+    
+    /* Interaction */
+    z-index: var(--z-base);
+    overflow: hidden;
+}
+
+/* =============================================
+   Element: Lanes Container
+   ============================================= */
+.ranking-view__lanes-container {
+    /* Layout */
+    display: flex;
+    flex: 1;
+    flex-direction: row;
+    
+    /* Box Model */
+    gap: var(--spacing-2);
+    padding: var(--spacing-3);
+    
+    /* Visual */
+    overflow-x: auto;
+    overflow-y: hidden;
+    
+    /* Scrollbar Styling */
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) transparent;
+}
+
+/* Webkit Scrollbar */
+.ranking-view__lanes-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.ranking-view__lanes-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.ranking-view__lanes-container::-webkit-scrollbar-thumb {
+    background: var(--border-default);
+    border-radius: var(--radius-full);
+}
+
+.ranking-view__lanes-container::-webkit-scrollbar-thumb:hover {
+    background: var(--border-strong);
+}
+
+/* =============================================
+   Element: Loading State
+   ============================================= */
+.ranking-view__loading {
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    
+    /* Box Model */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    gap: var(--spacing-4);
+    
+    /* Visual */
+    background: var(--surface-app-bg);
+    opacity: 0;
+    pointer-events: none;
+    
+    /* Interaction */
+    z-index: var(--z-dropdown);
+    transition: opacity var(--transition-fast);
+}
+
+.ranking-view__loading-spinner {
+    /* Layout */
+    width: 48px;
+    height: 48px;
+    
+    /* Visual */
+    border: 3px solid var(--border-default);
+    border-top-color: var(--interactive-primary-normal);
+    border-radius: var(--radius-full);
+    
+    /* Animation */
+    animation: ranking-view-spin 1s linear infinite;
+}
+
+.ranking-view__loading-text {
+    /* Typography */
+    font-size: var(--font-size-base);
+    color: var(--content-secondary);
+}
+
+@keyframes ranking-view-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* =============================================
+   Element: Empty State
+   ============================================= */
+.ranking-view__empty {
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    
+    /* Box Model */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    gap: var(--spacing-3);
+    
+    /* Visual */
+    background: var(--surface-app-bg);
+    opacity: 0;
+    pointer-events: none;
+    
+    /* Interaction */
+    z-index: var(--z-dropdown);
+    transition: opacity var(--transition-fast);
+}
+
+.ranking-view__empty-icon {
+    /* Typography */
+    font-size: 48px;
+    color: var(--content-muted);
+}
+
+.ranking-view__empty-title {
+    /* Typography */
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-primary);
+}
+
+.ranking-view__empty-message {
+    /* Typography */
+    font-size: var(--font-size-sm);
+    color: var(--content-secondary);
+    text-align: center;
+    max-width: 300px;
+}
+
+/* =============================================
+   Block Modifiers
+   ============================================= */
+
+/* Hidden State */
+.ranking-view--hidden {
+    display: none;
+}
+
+/* Loading State */
+.ranking-view--loading .ranking-view__loading {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.ranking-view--loading .ranking-view__lanes-container {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Empty State */
+.ranking-view--empty .ranking-view__empty {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.ranking-view--empty .ranking-view__lanes-container {
+    display: none;
+}
+
+/* Active State - 활성화 시 시각적 피드백 */
+.ranking-view--active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* =============================================
+   Responsive Design
+   ============================================= */
+
+/* 태블릿 이하 */
+@media (max-width: 1024px) {
+    .ranking-view__lanes-container {
+        gap: var(--spacing-1-5);
+        padding: var(--spacing-2);
+    }
+}
+
+/* 모바일 */
+@media (max-width: 768px) {
+    .ranking-view__lanes-container {
+        padding: var(--spacing-2);
+        gap: var(--spacing-1);
+    }
+}
+
+/* =============================================
+   Legacy Alias (하위 호환)
+   ============================================= */
+.ranking-view.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.ranking-view.hidden {
+    display: none;
+}
+
+.ranking-view.loading .ranking-view__loading {
+    opacity: 1;
+    pointer-events: auto;
+}
