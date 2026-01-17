@@ -5,12 +5,21 @@
  * 
  * Block: .equipment-card (animation modifiers)
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @updated 2026-01-17
+ * 
+ * @changelog
+ * - v1.1.0 (2026-01-17)
+ *   - [FIX] `.equipment-card--animating` z-index 100으로 변경 (레인 앞으로)
+ *   - [FIX] position: fixed 추가로 레인 밖에서 애니메이션
+ *   - [ADD] `.equipment-card--ghost` - 원본 위치 유지용 플레이스홀더
+ *   - [ADD] `.ranking-lane--target` - 목표 레인 하이라이트
+ *   - [ADD] `.equipment-card--lifting` - 떠오름 애니메이션
  * 
  * [Animations]
  * - ranking-card-enter: 카드 진입 애니메이션
  * - ranking-card-leave: 카드 퇴장 애니메이션
+ * - ranking-card-lift: 카드 떠오름 애니메이션 (NEW)
  * - ranking-pulse-warning: 경고 펄스 (5분 초과)
  * - ranking-pulse-danger: 위험 펄스 (10분 초과)
  * - ranking-pulse-critical: 긴급 펄스 (15분 초과)
@@ -18,10 +27,12 @@
  * - ranking-glow: 선택 시 글로우 효과
  * 
  * [Animation Modifiers]
- * .equipment-card--animating     → 애니메이션 중
+ * .equipment-card--animating     → 애니메이션 중 (레인 위로 띄움)
  * .equipment-card--entering      → 진입 중
  * .equipment-card--leaving       → 퇴장 중
  * .equipment-card--pushed        → 밀림 중
+ * .equipment-card--lifting       → 떠오름 중 (NEW)
+ * .equipment-card--ghost         → 원본 위치 유지 (NEW)
  * .equipment-card--urgency-*     → 긴급도 표시
  * 
  * 📁 위치: frontend/threejs_viewer/styles/components/ranking-view/_animations.css
@@ -36,6 +47,9 @@
     --ranking-duration-base: 200ms;
     --ranking-duration-normal: 300ms;
     --ranking-duration-slow: 400ms;
+    --ranking-duration-lift: 150ms;
+    --ranking-duration-push: 250ms;
+    --ranking-duration-move: 450ms;
     
     /* Animation Easing */
     --ranking-ease-out: cubic-bezier(0.25, 1, 0.5, 1);
@@ -48,6 +62,9 @@
     --ranking-pulse-warning-color: rgba(234, 179, 8, 0.4);
     --ranking-pulse-danger-color: rgba(239, 68, 68, 0.4);
     --ranking-pulse-critical-color: rgba(220, 38, 38, 0.5);
+    
+    /* Z-index Layers (Animation specific) */
+    --z-index-card-animating: 100;
 }
 
 /* =============================================
@@ -91,6 +108,18 @@
     100% {
         opacity: 1;
         transform: translateX(0) scale(1);
+    }
+}
+
+/* [NEW] 카드 떠오름 (레인 이동 시작 시) */
+@keyframes ranking-card-lift {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    100% {
+        transform: scale(1.05) translateY(-10px);
+        box-shadow: 0 20px 30px rgba(0, 0, 0, 0.2);
     }
 }
 
@@ -213,15 +242,38 @@
     }
 }
 
+/* [NEW] 목표 레인 펄스 */
+@keyframes ranking-lane-target-pulse {
+    0%, 100% {
+        box-shadow: 
+            0 0 0 2px var(--interactive-primary-normal),
+            inset 0 0 20px rgba(56, 189, 248, 0.1);
+    }
+    50% {
+        box-shadow: 
+            0 0 0 3px var(--interactive-primary-hover),
+            inset 0 0 30px rgba(56, 189, 248, 0.15);
+    }
+}
+
 /* =============================================
    Animation Modifier Classes
    ============================================= */
 
-/* 애니메이션 중 기본 스타일 */
+/**
+ * [MODIFIED v1.1.0] 애니메이션 중 기본 스타일
+ * - position: fixed로 레인 밖에서 애니메이션
+ * - z-index: 100으로 레인(z-index: 1) 위에 표시
+ * - 강화된 그림자로 입체감 표현
+ */
 .equipment-card--animating {
-    will-change: transform, opacity;
+    position: fixed !important;
+    z-index: var(--z-index-card-animating) !important;
     pointer-events: none;
-    z-index: 10;
+    will-change: transform, opacity;
+    box-shadow: 
+        var(--shadow-lg), 
+        0 0 20px rgba(0, 0, 0, 0.3);
 }
 
 /* 진입 애니메이션 */
@@ -236,7 +288,26 @@
 
 /* 밀림 애니메이션 */
 .equipment-card--pushed {
-    transition: transform var(--ranking-duration-normal) var(--ranking-ease-out);
+    transition: transform var(--ranking-duration-push) var(--ranking-ease-out);
+    will-change: transform;
+}
+
+/**
+ * [NEW v1.1.0] 카드 떠오름 애니메이션
+ * 레인 이동 Phase 1에서 사용
+ */
+.equipment-card--lifting {
+    animation: ranking-card-lift var(--ranking-duration-lift) ease-out forwards;
+}
+
+/**
+ * [NEW v1.1.0] Ghost placeholder
+ * 원본 카드 위치를 유지하면서 숨김
+ * 애니메이션용 복제본이 이동하는 동안 사용
+ */
+.equipment-card--ghost {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 /* =============================================
@@ -327,6 +398,25 @@
 
 .ranking-lane--highlight {
     animation: ranking-lane-highlight 1s ease-in-out infinite;
+}
+
+/**
+ * [NEW v1.1.0] 목표 레인 하이라이트
+ * 레인 이동 시 목표 레인을 강조 표시
+ */
+.ranking-lane--target {
+    border-color: var(--interactive-primary-normal) !important;
+    box-shadow: 
+        0 0 0 2px var(--interactive-primary-normal),
+        inset 0 0 20px rgba(56, 189, 248, 0.1);
+    transition: 
+        box-shadow var(--ranking-duration-fast) ease,
+        border-color var(--ranking-duration-fast) ease;
+}
+
+/* 목표 레인 펄스 효과 (선택적) */
+.ranking-lane--target-animated {
+    animation: ranking-lane-target-pulse 1s ease-in-out infinite;
 }
 
 /* 레인 업데이트 알림 */
@@ -428,6 +518,20 @@
         0 0 15px rgba(56, 189, 248, 0.4);
 }
 
+/* [NEW] Dark theme - animating card shadow */
+[data-theme="dark"] .equipment-card--animating {
+    box-shadow: 
+        0 10px 15px rgba(0, 0, 0, 0.3),
+        0 0 30px rgba(0, 0, 0, 0.4);
+}
+
+/* [NEW] Dark theme - target lane */
+[data-theme="dark"] .ranking-lane--target {
+    box-shadow: 
+        0 0 0 2px var(--interactive-primary-normal),
+        inset 0 0 25px rgba(56, 189, 248, 0.15);
+}
+
 /* =============================================
    Reduced Motion
    ============================================= */
@@ -436,6 +540,7 @@
     .equipment-card--entering,
     .equipment-card--leaving,
     .equipment-card--animating,
+    .equipment-card--lifting,
     .equipment-card--urgency-warning,
     .equipment-card--urgency-danger,
     .equipment-card--urgency-critical,
@@ -443,6 +548,8 @@
     .equipment-card--status-changed,
     .equipment-card--loading,
     .ranking-lane--highlight,
+    .ranking-lane--target,
+    .ranking-lane--target-animated,
     .ranking-lane--updated,
     .lane-header__count--changed,
     .equipment-card__duration--ticking,
@@ -465,6 +572,12 @@
     .equipment-card--urgency-critical {
         border-width: 4px;
         border-color: var(--interactive-danger-hover);
+    }
+    
+    /* 정적 목표 레인 표시 */
+    .ranking-lane--target {
+        border-width: 3px;
+        border-color: var(--interactive-primary-normal);
     }
 }
 

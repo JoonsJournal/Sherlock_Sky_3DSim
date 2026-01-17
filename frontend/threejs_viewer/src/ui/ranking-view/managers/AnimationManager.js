@@ -3,19 +3,22 @@
  * ===================
  * Ranking View 애니메이션 관리자
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
- * - 레인 간 이동 애니메이션 (대각선 이동)
+ * - 레인 간 이동 애니메이션 (4-Phase 시퀀스)
  * - 밀림 효과 (Push Down) 처리
  * - 다중 카드 동시 애니메이션
  * - 상태 변경 감지 및 처리
  * 
  * @changelog
+ * - v1.1.0 (2026-01-17): 4-Phase 애니메이션 시퀀스 구현
+ *   - Phase 1: 카드 떠오름 (Lift)
+ *   - Phase 2: 목표 레인 카드 밀림 (Push Down)
+ *   - Phase 3: 대각선 이동 (Move)
+ *   - Phase 4: 안착 (Settle)
+ *   - Clone 패턴 적용 (원본 ghost 유지)
+ *   - 목표 레인 하이라이트 추가
  * - v1.0.0: 초기 구현
- *   - 상태 변경 처리 로직
- *   - 애니메이션 타입 결정
- *   - 일괄 애니메이션 실행
- *   - ⚠️ 호환성: 신규 파일
  * 
  * @dependencies
  * - PositionCalculator.js
@@ -40,7 +43,7 @@ import { BatchAnimator } from '../utils/BatchAnimator.js';
  * 주요 기능:
  * 1. 상태 변경 감지 및 변경 목록 추출
  * 2. 애니메이션 타입 결정 (lane-change, push-down, rank-change)
- * 3. 모든 카드 위치 계산 후 일괄 애니메이션 실행
+ * 3. 4-Phase 레인 이동 애니메이션 (떠오름 → 밀림 → 이동 → 안착)
  * 4. 스크롤 위치 고려한 정확한 좌표 계산
  */
 export class AnimationManager {
@@ -50,47 +53,66 @@ export class AnimationManager {
     
     /**
      * 애니메이션 타이밍 설정 (밀리초)
+     * @version 1.1.0 - LIFT, PUSH_DOWN_STAGGER, LANE_CHANGE 업데이트
      */
     static TIMING = {
-        LANE_CHANGE: 400,      // 레인 간 이동 (대각선)
-        PUSH_DOWN: 300,        // 밀림 효과
-        RANK_CHANGE: 300,      // 순위 변경 (수직 이동)
-        ENTER: 250,            // 카드 진입
-        LEAVE: 200,            // 카드 퇴장
-        STAGGER_DELAY: 30      // 연속 애니메이션 딜레이
+        // Phase 1: 떠오름
+        LIFT: 150,
+        
+        // Phase 2: 밀림
+        PUSH_DOWN: 250,
+        PUSH_DOWN_STAGGER: 20,      // 밀림 wave 딜레이
+        
+        // Phase 3: 레인 이동
+        LANE_CHANGE: 450,
+        
+        // Phase 4: 안착
+        SETTLE: 200,
+        
+        // 기타
+        RANK_CHANGE: 300,
+        ENTER: 250,
+        LEAVE: 200,
+        STAGGER_DELAY: 30
     };
     
     /**
      * 애니메이션 Easing 함수
      */
     static EASING = {
-        LANE_CHANGE: 'cubic-bezier(0.4, 0, 0.2, 1)',    // ease-out-quart
-        PUSH_DOWN: 'cubic-bezier(0.25, 0.1, 0.25, 1)',  // ease
+        LIFT: 'ease-out',
+        LANE_CHANGE: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        PUSH_DOWN: 'cubic-bezier(0.25, 0.1, 0.25, 1)',
         RANK_CHANGE: 'ease-out',
-        ENTER: 'cubic-bezier(0.0, 0, 0.2, 1)',          // ease-out
-        LEAVE: 'cubic-bezier(0.4, 0, 1, 1)'             // ease-in
+        ENTER: 'cubic-bezier(0.0, 0, 0.2, 1)',
+        LEAVE: 'cubic-bezier(0.4, 0, 1, 1)'
     };
     
     /**
      * 애니메이션 타입
      */
     static ANIMATION_TYPE = {
-        LANE_CHANGE: 'lane-change',    // 레인 간 이동
-        PUSH_DOWN: 'push-down',        // 밀림 효과
-        RANK_CHANGE: 'rank-change',    // 순위 변경
-        ENTER: 'enter',                // 진입
-        LEAVE: 'leave',                // 퇴장
-        NONE: 'none'                   // 애니메이션 없음
+        LANE_CHANGE: 'lane-change',
+        PUSH_DOWN: 'push-down',
+        RANK_CHANGE: 'rank-change',
+        ENTER: 'enter',
+        LEAVE: 'leave',
+        NONE: 'none'
     };
     
     /**
      * CSS 클래스 상수
+     * @version 1.1.0 - GHOST, LIFTING, LANE_TARGET 추가
      */
     static CSS = {
         ANIMATING: 'equipment-card--animating',
         ENTERING: 'equipment-card--entering',
         LEAVING: 'equipment-card--leaving',
-        PUSHED: 'equipment-card--pushed'
+        PUSHED: 'equipment-card--pushed',
+        GHOST: 'equipment-card--ghost',
+        LIFTING: 'equipment-card--lifting',
+        STATUS_CHANGED: 'equipment-card--status-changed',
+        LANE_TARGET: 'ranking-lane--target'
     };
     
     // ─────────────────────────────────────────────────────────────
@@ -142,7 +164,7 @@ export class AnimationManager {
      * @private
      */
     _init() {
-        console.log('[AnimationManager] 🎬 Initializing...');
+        console.log('[AnimationManager] 🎬 Initializing v1.1.0...');
         this._setupEventListeners();
     }
     
@@ -151,7 +173,6 @@ export class AnimationManager {
      * @private
      */
     _setupEventListeners() {
-        // EventBus 구독
         this._boundHandlers.onStatusChange = this._handleStatusChange.bind(this);
         this._boundHandlers.onLaneUpdate = this._handleLaneUpdate.bind(this);
         
@@ -171,7 +192,6 @@ export class AnimationManager {
     processStateChange(previousState, currentState) {
         console.log('[AnimationManager] 🔄 Processing state change...');
         
-        // 1. 변경 감지
         const changes = this._detectChanges(previousState, currentState);
         
         if (changes.length === 0) {
@@ -181,28 +201,30 @@ export class AnimationManager {
         
         console.log(`[AnimationManager] 📊 Detected ${changes.length} change(s)`);
         
-        // 2. 모든 위치 계산
         const positionMap = this._calculateAllPositions(currentState, changes);
-        
-        // 3. 일괄 애니메이션
         this._animateBatch(positionMap, changes);
-        
-        // 4. 이전 상태 저장
         this._previousState = currentState;
     }
     
     /**
-     * 단일 카드 애니메이션
+     * [v1.1.0] 레인 간 이동 애니메이션 (4-Phase 시퀀스)
+     * 
+     * Phase 1: 카드 떠오름 (Lift)
+     * Phase 2: 목표 레인 카드 밀림 (Push Down for Space)
+     * Phase 3: 대각선 이동 (Move)
+     * Phase 4: 안착 (Settle)
+     * 
      * @param {string} equipmentId - 설비 ID
      * @param {string} fromLaneId - 출발 레인 ID
      * @param {string} toLaneId - 도착 레인 ID
      * @param {Object} options - 추가 옵션
+     * @param {number} options.targetIndex - 목표 인덱스 (기본: 0)
      */
-    animateCard(equipmentId, fromLaneId, toLaneId, options = {}) {
+    async animateLaneChange(equipmentId, fromLaneId, toLaneId, options = {}) {
         const card = this.cardsMap.get(equipmentId);
-        if (!card) {
+        if (!card || !card.element) {
             console.warn(`[AnimationManager] ⚠️ Card not found: ${equipmentId}`);
-            return Promise.resolve();
+            return;
         }
         
         const fromLane = this.lanesMap.get(fromLaneId);
@@ -210,10 +232,142 @@ export class AnimationManager {
         
         if (!fromLane || !toLane) {
             console.warn(`[AnimationManager] ⚠️ Lane not found: ${fromLaneId} or ${toLaneId}`);
+            return;
+        }
+        
+        const element = card.element;
+        const toContainer = toLane.element.querySelector('.ranking-lane__cards-container');
+        
+        if (!toContainer) {
+            console.warn(`[AnimationManager] ⚠️ Target container not found`);
+            return;
+        }
+        
+        console.log(`[AnimationManager] 🚀 Starting 4-Phase lane change: ${fromLaneId} → ${toLaneId}`);
+        
+        this._isAnimating = true;
+        
+        try {
+            // 현재 위치 저장
+            const fromRect = element.getBoundingClientRect();
+            const cardWidth = fromRect.width;
+            const cardHeight = fromRect.height;
+            const targetIndex = options.targetIndex || 0;
+            
+            // ─── Phase 1: Ghost + Clone 생성 ───
+            console.log('[AnimationManager] 📍 Phase 1: Preparing lift-off');
+            
+            element.classList.add(AnimationManager.CSS.GHOST);
+            
+            const clone = element.cloneNode(true);
+            clone.classList.remove(
+                AnimationManager.CSS.GHOST,
+                'equipment-card--selected'
+            );
+            clone.classList.add(AnimationManager.CSS.ANIMATING);
+            clone.style.cssText = `
+                position: fixed;
+                left: ${fromRect.left}px;
+                top: ${fromRect.top}px;
+                width: ${cardWidth}px;
+                height: ${cardHeight}px;
+                margin: 0;
+                z-index: 100;
+            `;
+            document.body.appendChild(clone);
+            
+            // 목표 레인 하이라이트
+            toLane.element.classList.add(AnimationManager.CSS.LANE_TARGET);
+            
+            // Lift animation
+            await this._animateLift(clone);
+            
+            // ─── Phase 2: 목표 레인 카드들 밀림 ───
+            console.log('[AnimationManager] 📦 Phase 2: Making space');
+            
+            const cardsToPush = this._getCardsToPush(toContainer, targetIndex);
+            const pushDistance = cardHeight + 8; // card height + gap
+            
+            if (cardsToPush.length > 0) {
+                await this._animatePushDownForSpace(cardsToPush, pushDistance);
+            }
+            
+            // ─── Phase 3: 대각선 이동 ───
+            console.log('[AnimationManager] ✈️ Phase 3: Moving to target');
+            
+            const targetPosition = this._calculateTargetPositionForLaneChange(
+                toContainer,
+                targetIndex,
+                cardsToPush,
+                pushDistance
+            );
+            
+            await this._animateMoveTo(clone, fromRect, targetPosition);
+            
+            // ─── Phase 4: 정리 및 안착 ───
+            console.log('[AnimationManager] 🎯 Phase 4: Settling');
+            
+            clone.remove();
+            toLane.element.classList.remove(AnimationManager.CSS.LANE_TARGET);
+            
+            // 밀린 카드들 원위치 (실제 DOM 위치는 변경되지 않았으므로 transform만 제거)
+            this._settlePushedCards(cardsToPush);
+            
+            // 원본 카드 표시 및 목표 레인으로 이동
+            element.classList.remove(AnimationManager.CSS.GHOST);
+            this._insertCardAtIndex(element, toContainer, targetIndex);
+            
+            // 안착 효과
+            element.classList.add(AnimationManager.CSS.STATUS_CHANGED);
+            setTimeout(() => {
+                element.classList.remove(AnimationManager.CSS.STATUS_CHANGED);
+            }, 400);
+            
+            console.log(`[AnimationManager] ✅ Lane change complete: ${fromLaneId} → ${toLaneId}`);
+            
+            // 완료 이벤트 발행
+            EventBus.emit('ranking:animation:lane-change:complete', {
+                equipmentId,
+                fromLaneId,
+                toLaneId
+            });
+            
+        } catch (error) {
+            console.error('[AnimationManager] ❌ Lane change animation error:', error);
+            
+            // 에러 시 복구
+            element.classList.remove(AnimationManager.CSS.GHOST);
+            toLane.element.classList.remove(AnimationManager.CSS.LANE_TARGET);
+            
+            // 혹시 clone이 남아있다면 제거
+            const orphanClone = document.body.querySelector(`.${AnimationManager.CSS.ANIMATING}`);
+            if (orphanClone) orphanClone.remove();
+            
+        } finally {
+            this._isAnimating = false;
+        }
+    }
+    
+    /**
+     * 단일 카드 애니메이션 (레인 내 이동용)
+     * @param {string} equipmentId - 설비 ID
+     * @param {string} fromLaneId - 출발 레인 ID
+     * @param {string} toLaneId - 도착 레인 ID
+     * @param {Object} options - 추가 옵션
+     */
+    animateCard(equipmentId, fromLaneId, toLaneId, options = {}) {
+        // 레인이 다르면 4-Phase 애니메이션 사용
+        if (fromLaneId !== toLaneId) {
+            return this.animateLaneChange(equipmentId, fromLaneId, toLaneId, options);
+        }
+        
+        // 같은 레인 내 이동은 기존 로직
+        const card = this.cardsMap.get(equipmentId);
+        if (!card) {
+            console.warn(`[AnimationManager] ⚠️ Card not found: ${equipmentId}`);
             return Promise.resolve();
         }
         
-        // 위치 계산
         const fromRect = card.element.getBoundingClientRect();
         const toPosition = this._positionCalculator.calculateTargetPosition(
             equipmentId,
@@ -221,21 +375,13 @@ export class AnimationManager {
             options.targetIndex || 0
         );
         
-        // 델타 계산
         const deltaX = toPosition.x - fromRect.left;
         const deltaY = toPosition.y - fromRect.top;
         
-        // 애니메이션 타입 결정
-        const animationType = this._determineAnimationType({
-            isMoving: fromLaneId !== toLaneId,
-            isPushed: false
-        }, deltaX, deltaY);
-        
-        // 애니메이션 실행
         return this._animateSingleCard(card, {
             deltaX,
             deltaY,
-            type: animationType,
+            type: AnimationManager.ANIMATION_TYPE.RANK_CHANGE,
             fromLaneId,
             toLaneId,
             ...options
@@ -289,33 +435,18 @@ export class AnimationManager {
     }
     
     /**
-     * 밀림 효과 애니메이션
+     * 밀림 효과 애니메이션 (외부 호출용)
      * @param {Array<EquipmentCard>} cards - 밀려날 카드들
      * @param {number} distance - 밀림 거리 (px)
      */
     animatePushDown(cards, distance) {
         if (!cards || cards.length === 0) return Promise.resolve();
         
-        const animations = cards.map((card, index) => {
-            if (!card || !card.element) return Promise.resolve();
-            
-            const element = card.element;
-            element.classList.add(AnimationManager.CSS.PUSHED);
-            
-            return this._batchAnimator.animate(element, {
-                keyframes: [
-                    { transform: 'translateY(0)' },
-                    { transform: `translateY(${distance}px)` }
-                ],
-                duration: AnimationManager.TIMING.PUSH_DOWN,
-                easing: AnimationManager.EASING.PUSH_DOWN,
-                delay: index * AnimationManager.TIMING.STAGGER_DELAY
-            }).then(() => {
-                element.classList.remove(AnimationManager.CSS.PUSHED);
-            });
-        });
+        const elements = cards
+            .filter(card => card && card.element)
+            .map(card => card.element);
         
-        return Promise.all(animations);
+        return this._animatePushDownElements(elements, distance);
     }
     
     /**
@@ -339,6 +470,17 @@ export class AnimationManager {
         this._batchAnimator.cancelAll();
         this._activeAnimations.clear();
         this._isAnimating = false;
+        
+        // 남아있는 ghost/animating 클래스 정리
+        document.querySelectorAll(`.${AnimationManager.CSS.GHOST}`).forEach(el => {
+            el.classList.remove(AnimationManager.CSS.GHOST);
+        });
+        document.querySelectorAll(`.${AnimationManager.CSS.ANIMATING}`).forEach(el => {
+            el.remove();
+        });
+        document.querySelectorAll(`.${AnimationManager.CSS.LANE_TARGET}`).forEach(el => {
+            el.classList.remove(AnimationManager.CSS.LANE_TARGET);
+        });
     }
     
     /**
@@ -350,15 +492,192 @@ export class AnimationManager {
     }
     
     // ─────────────────────────────────────────────────────────────
+    // Private: 4-Phase Animation Helpers
+    // ─────────────────────────────────────────────────────────────
+    
+    /**
+     * [Phase 1] 카드 떠오름 애니메이션
+     * @private
+     * @param {HTMLElement} clone - 복제본 요소
+     */
+    async _animateLift(clone) {
+        return this._batchAnimator.animate(clone, {
+            keyframes: [
+                { 
+                    transform: 'scale(1)', 
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' 
+                },
+                { 
+                    transform: 'scale(1.05) translateY(-10px)', 
+                    boxShadow: '0 20px 30px rgba(0, 0, 0, 0.2)' 
+                }
+            ],
+            duration: AnimationManager.TIMING.LIFT,
+            easing: AnimationManager.EASING.LIFT,
+            fill: 'forwards'
+        });
+    }
+    
+    /**
+     * [Phase 2] 공간 확보용 밀림 애니메이션
+     * @private
+     * @param {HTMLElement[]} cards - 밀어낼 카드 요소들
+     * @param {number} distance - 밀림 거리
+     */
+    async _animatePushDownForSpace(cards, distance) {
+        if (cards.length === 0) return;
+        
+        console.log(`[AnimationManager]   ↓ Pushing down ${cards.length} cards by ${distance}px`);
+        
+        // 모든 카드에 transition 클래스 추가
+        cards.forEach(card => {
+            card.classList.add(AnimationManager.CSS.PUSHED);
+        });
+        
+        // Wave effect로 순차 밀림
+        return new Promise(resolve => {
+            cards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.transform = `translateY(${distance}px)`;
+                }, index * AnimationManager.TIMING.PUSH_DOWN_STAGGER);
+            });
+            
+            // 애니메이션 완료 대기
+            const totalDuration = AnimationManager.TIMING.PUSH_DOWN + 
+                                  (cards.length * AnimationManager.TIMING.PUSH_DOWN_STAGGER);
+            setTimeout(resolve, totalDuration);
+        });
+    }
+    
+    /**
+     * [Phase 3] 대각선 이동 애니메이션
+     * @private
+     * @param {HTMLElement} clone - 복제본 요소
+     * @param {DOMRect} fromRect - 시작 위치
+     * @param {Object} targetPosition - 목표 위치 {x, y}
+     */
+    async _animateMoveTo(clone, fromRect, targetPosition) {
+        const deltaX = targetPosition.x - fromRect.left;
+        const deltaY = targetPosition.y - fromRect.top - 10; // lift offset 보정
+        
+        return this._batchAnimator.animate(clone, {
+            keyframes: [
+                { 
+                    transform: 'scale(1.05) translateY(-10px)',
+                    boxShadow: '0 20px 30px rgba(0, 0, 0, 0.2)'
+                },
+                { 
+                    transform: `scale(1.03) translate(${deltaX * 0.4}px, ${deltaY * 0.3 - 20}px)`,
+                    boxShadow: '0 25px 35px rgba(0, 0, 0, 0.25)',
+                    offset: 0.4 
+                },
+                { 
+                    transform: `scale(1.02) translate(${deltaX * 0.8}px, ${deltaY * 0.7}px)`,
+                    boxShadow: '0 15px 25px rgba(0, 0, 0, 0.2)',
+                    offset: 0.8 
+                },
+                { 
+                    transform: `scale(1) translate(${deltaX}px, ${deltaY + 10}px)`,
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                }
+            ],
+            duration: AnimationManager.TIMING.LANE_CHANGE,
+            easing: AnimationManager.EASING.LANE_CHANGE,
+            fill: 'forwards'
+        });
+    }
+    
+    /**
+     * [Phase 4] 밀린 카드들 원위치
+     * @private
+     * @param {HTMLElement[]} cards
+     */
+    _settlePushedCards(cards) {
+        cards.forEach(card => {
+            card.classList.remove(AnimationManager.CSS.PUSHED);
+            card.style.transform = '';
+        });
+    }
+    
+    /**
+     * 밀어야 할 카드 목록 가져오기
+     * @private
+     * @param {HTMLElement} container - 카드 컨테이너
+     * @param {number} targetIndex - 목표 인덱스
+     * @returns {HTMLElement[]}
+     */
+    _getCardsToPush(container, targetIndex) {
+        if (!container) return [];
+        
+        const cards = Array.from(
+            container.querySelectorAll(`.equipment-card:not(.${AnimationManager.CSS.GHOST})`)
+        );
+        
+        return cards.slice(targetIndex);
+    }
+    
+    /**
+     * 레인 이동용 목표 위치 계산
+     * @private
+     * @param {HTMLElement} container - 목표 컨테이너
+     * @param {number} targetIndex - 목표 인덱스
+     * @param {HTMLElement[]} pushedCards - 밀린 카드들
+     * @param {number} pushDistance - 밀린 거리
+     * @returns {Object} {x, y}
+     */
+    _calculateTargetPositionForLaneChange(container, targetIndex, pushedCards, pushDistance) {
+        const containerRect = container.getBoundingClientRect();
+        const cards = Array.from(
+            container.querySelectorAll(`.equipment-card:not(.${AnimationManager.CSS.GHOST})`)
+        );
+        
+        const targetLeft = containerRect.left + 8; // padding
+        let targetTop;
+        
+        if (targetIndex === 0 || cards.length === 0) {
+            // 첫 번째 위치
+            targetTop = containerRect.top + 8;
+        } else if (targetIndex < cards.length) {
+            // 밀린 카드의 원래 위치 (transform 전)
+            const refCard = cards[targetIndex];
+            const refRect = refCard.getBoundingClientRect();
+            targetTop = refRect.top - pushDistance;
+        } else {
+            // 마지막 위치
+            const lastCard = cards[cards.length - 1];
+            const lastCardRect = lastCard.getBoundingClientRect();
+            targetTop = lastCardRect.bottom + 8 - pushDistance;
+        }
+        
+        return { x: targetLeft, y: targetTop };
+    }
+    
+    /**
+     * 카드를 특정 인덱스에 삽입
+     * @private
+     * @param {HTMLElement} element - 삽입할 카드 요소
+     * @param {HTMLElement} container - 컨테이너
+     * @param {number} targetIndex - 목표 인덱스
+     */
+    _insertCardAtIndex(element, container, targetIndex) {
+        const cards = container.querySelectorAll(
+            `.equipment-card:not(.${AnimationManager.CSS.GHOST})`
+        );
+        
+        if (targetIndex < cards.length) {
+            container.insertBefore(element, cards[targetIndex]);
+        } else {
+            container.appendChild(element);
+        }
+    }
+    
+    // ─────────────────────────────────────────────────────────────
     // Change Detection
     // ─────────────────────────────────────────────────────────────
     
     /**
      * 상태 변경 감지
      * @private
-     * @param {Object} previousState - 이전 상태
-     * @param {Object} currentState - 현재 상태
-     * @returns {Array} 변경 목록
      */
     _detectChanges(previousState, currentState) {
         const changes = [];
@@ -370,7 +689,6 @@ export class AnimationManager {
         const prevLanes = previousState.lanes || {};
         const currLanes = currentState.lanes || {};
         
-        // 각 레인별 변경 감지
         const allLaneIds = new Set([
             ...Object.keys(prevLanes),
             ...Object.keys(currLanes)
@@ -380,11 +698,10 @@ export class AnimationManager {
             const prevEquipments = prevLanes[laneId] || [];
             const currEquipments = currLanes[laneId] || [];
             
-            // 이전에는 없고 현재에 있는 설비 (진입)
+            // 진입/이동
             for (const equip of currEquipments) {
                 const wasInLane = prevEquipments.some(e => e.equipmentId === equip.equipmentId);
                 if (!wasInLane) {
-                    // 다른 레인에서 왔는지 확인
                     const fromLaneId = this._findPreviousLane(equip.equipmentId, prevLanes);
                     
                     changes.push({
@@ -397,15 +714,13 @@ export class AnimationManager {
                 }
             }
             
-            // 이전에는 있고 현재에 없는 설비 (퇴장)
+            // 퇴장
             for (const equip of prevEquipments) {
                 const stillInLane = currEquipments.some(e => e.equipmentId === equip.equipmentId);
                 if (!stillInLane) {
-                    // 다른 레인으로 갔는지 확인
                     const toLaneId = this._findCurrentLane(equip.equipmentId, currLanes);
                     
                     if (!toLaneId) {
-                        // 완전히 퇴장
                         changes.push({
                             equipmentId: equip.equipmentId,
                             type: 'leave',
@@ -417,7 +732,7 @@ export class AnimationManager {
                 }
             }
             
-            // 순위 변경 감지
+            // 순위 변경
             this._detectRankChanges(prevEquipments, currEquipments, laneId, changes);
         }
         
@@ -480,14 +795,10 @@ export class AnimationManager {
     /**
      * 모든 위치 계산
      * @private
-     * @param {Object} currentState - 현재 상태
-     * @param {Array} changes - 변경 목록
-     * @returns {Map} 위치 맵
      */
     _calculateAllPositions(currentState, changes) {
         const positionMap = new Map();
         
-        // 변경된 카드들의 목표 위치 계산
         for (const change of changes) {
             if (change.type === 'leave') continue;
             
@@ -497,10 +808,7 @@ export class AnimationManager {
             const targetLane = this.lanesMap.get(change.toLaneId);
             if (!targetLane) continue;
             
-            // 현재 위치
             const currentRect = card.element.getBoundingClientRect();
-            
-            // 목표 위치 계산
             const targetIndex = this._getTargetIndex(change, currentState);
             const targetPosition = this._positionCalculator.calculateTargetPosition(
                 change.equipmentId,
@@ -519,7 +827,6 @@ export class AnimationManager {
             });
         }
         
-        // 밀려날 카드들의 위치 계산
         this._calculatePushDownPositions(changes, currentState, positionMap);
         
         return positionMap;
@@ -539,7 +846,6 @@ export class AnimationManager {
      * @private
      */
     _calculatePushDownPositions(changes, currentState, positionMap) {
-        // 각 레인에서 삽입되는 카드가 있는 경우, 아래 카드들의 밀림 계산
         const laneInsertions = new Map();
         
         for (const change of changes) {
@@ -552,28 +858,24 @@ export class AnimationManager {
             }
         }
         
-        // 각 레인별로 밀림 계산
         for (const [laneId, insertions] of laneInsertions) {
             const laneEquipments = currentState.lanes?.[laneId] || [];
             const lane = this.lanesMap.get(laneId);
             
             if (!lane) continue;
             
-            // 삽입 위치 이후의 카드들
             for (const insertion of insertions) {
                 const insertIndex = this._getTargetIndex(insertion, currentState);
                 
-                // 삽입 위치 이후 카드들에게 밀림 적용
                 for (let i = insertIndex + 1; i < laneEquipments.length; i++) {
                     const equipmentId = laneEquipments[i].equipmentId;
                     
-                    // 이미 이동 중인 카드는 제외
                     if (positionMap.has(equipmentId)) continue;
                     
                     const card = this.cardsMap.get(equipmentId);
                     if (!card) continue;
                     
-                    const cardHeight = card.element.offsetHeight + 8; // gap 포함
+                    const cardHeight = card.element.offsetHeight + 8;
                     
                     positionMap.set(equipmentId, {
                         change: {
@@ -600,8 +902,6 @@ export class AnimationManager {
     /**
      * 일괄 애니메이션 실행
      * @private
-     * @param {Map} positionMap - 위치 맵
-     * @param {Array} changes - 변경 목록
      */
     async _animateBatch(positionMap, changes) {
         if (positionMap.size === 0) return;
@@ -610,19 +910,32 @@ export class AnimationManager {
         
         console.log(`[AnimationManager] 🎬 Starting batch animation for ${positionMap.size} card(s)`);
         
-        // 퇴장 애니메이션 먼저 실행
+        // 퇴장 애니메이션
         const leaveChanges = changes.filter(c => c.type === 'leave');
         if (leaveChanges.length > 0) {
             await this._animateLeaveCards(leaveChanges);
         }
         
-        // 이동/밀림/순위변경 애니메이션
-        const moveAnimations = [];
+        // 레인 이동 (4-Phase 사용)
+        const moveChanges = changes.filter(c => c.type === 'move');
+        for (const change of moveChanges) {
+            await this.animateLaneChange(
+                change.equipmentId,
+                change.fromLaneId,
+                change.toLaneId,
+                { targetIndex: this._getTargetIndex(change, this._previousState) }
+            );
+        }
         
+        // 순위 변경 및 밀림
+        const otherAnimations = [];
         for (const [equipmentId, posData] of positionMap) {
+            if (posData.change.type === 'move') continue;
+            if (posData.change.type === 'leave') continue;
+            
             const animationType = this._determineAnimationType(
                 {
-                    isMoving: posData.change.fromLaneId !== posData.change.toLaneId,
+                    isMoving: false,
                     isPushed: posData.isPushed
                 },
                 posData.deltaX,
@@ -637,10 +950,10 @@ export class AnimationManager {
                 toLaneId: posData.change.toLaneId
             });
             
-            moveAnimations.push(animation);
+            otherAnimations.push(animation);
         }
         
-        await Promise.all(moveAnimations);
+        await Promise.all(otherAnimations);
         
         // 진입 애니메이션
         const enterChanges = changes.filter(c => c.type === 'enter');
@@ -651,8 +964,6 @@ export class AnimationManager {
         this._isAnimating = false;
         
         console.log('[AnimationManager] ✅ Batch animation complete');
-        
-        // 완료 이벤트 발행
         EventBus.emit('ranking:animation:complete', { changes });
     }
     
@@ -687,22 +998,20 @@ export class AnimationManager {
     }
     
     /**
-     * 단일 카드 애니메이션 실행
+     * 단일 카드 애니메이션 (레인 내 이동)
      * @private
      */
     async _animateSingleCard(card, options) {
         if (!card || !card.element) return;
         
-        const { deltaX, deltaY, type, fromLaneId, toLaneId } = options;
+        const { deltaX, deltaY, type } = options;
         const element = card.element;
         
-        // 애니메이션 설정
         const timing = this._getTimingForType(type);
         const easing = this._getEasingForType(type);
         
         element.classList.add(AnimationManager.CSS.ANIMATING);
         
-        // FLIP 애니메이션 (First, Last, Invert, Play)
         const keyframes = this._generateKeyframes(deltaX, deltaY, type);
         
         try {
@@ -713,32 +1022,34 @@ export class AnimationManager {
                 fill: 'forwards'
             });
             
-            // 실제 DOM 위치 업데이트 (레인 변경 시)
-            if (fromLaneId !== toLaneId) {
-                this._moveCardToLane(card, toLaneId);
-            }
-            
         } finally {
             element.classList.remove(AnimationManager.CSS.ANIMATING);
-            
-            // transform 초기화
             element.style.transform = '';
         }
     }
     
     /**
-     * 카드를 새 레인으로 이동
+     * 요소 배열 밀림 애니메이션
      * @private
      */
-    _moveCardToLane(card, toLaneId) {
-        const targetLane = this.lanesMap.get(toLaneId);
-        if (!targetLane) return;
+    async _animatePushDownElements(elements, distance) {
+        const animations = elements.map((element, index) => {
+            element.classList.add(AnimationManager.CSS.PUSHED);
+            
+            return this._batchAnimator.animate(element, {
+                keyframes: [
+                    { transform: 'translateY(0)' },
+                    { transform: `translateY(${distance}px)` }
+                ],
+                duration: AnimationManager.TIMING.PUSH_DOWN,
+                easing: AnimationManager.EASING.PUSH_DOWN,
+                delay: index * AnimationManager.TIMING.STAGGER_DELAY
+            }).then(() => {
+                element.classList.remove(AnimationManager.CSS.PUSHED);
+            });
+        });
         
-        // DOM에서 카드 이동
-        const cardsContainer = targetLane.element.querySelector('.ranking-lane__cards-container');
-        if (cardsContainer) {
-            cardsContainer.appendChild(card.element);
-        }
+        return Promise.all(animations);
     }
     
     /**
@@ -763,7 +1074,6 @@ export class AnimationManager {
     _generateKeyframes(deltaX, deltaY, type) {
         switch (type) {
             case AnimationManager.ANIMATION_TYPE.LANE_CHANGE:
-                // 대각선 이동 (살짝 위로 올라갔다가 내려오는 곡선)
                 return [
                     { transform: `translate(0, 0)` },
                     { transform: `translate(${deltaX * 0.3}px, ${-20}px)`, offset: 0.3 },
@@ -772,14 +1082,7 @@ export class AnimationManager {
                 ];
                 
             case AnimationManager.ANIMATION_TYPE.PUSH_DOWN:
-                // 부드러운 수직 이동
-                return [
-                    { transform: 'translateY(0)' },
-                    { transform: `translateY(${deltaY}px)` }
-                ];
-                
             case AnimationManager.ANIMATION_TYPE.RANK_CHANGE:
-                // 순위 변경 (수직 이동)
                 return [
                     { transform: 'translateY(0)' },
                     { transform: `translateY(${deltaY}px)` }
@@ -794,7 +1097,7 @@ export class AnimationManager {
     }
     
     /**
-     * 타입별 타이밍 가져오기
+     * 타입별 타이밍
      * @private
      */
     _getTimingForType(type) {
@@ -811,7 +1114,7 @@ export class AnimationManager {
     }
     
     /**
-     * 타입별 Easing 가져오기
+     * 타입별 Easing
      * @private
      */
     _getEasingForType(type) {
@@ -845,7 +1148,6 @@ export class AnimationManager {
      * @private
      */
     _handleLaneUpdate(event) {
-        // 레인 업데이트 시 포지션 캐시 무효화
         this._positionCalculator.invalidateCache();
     }
     
@@ -871,7 +1173,6 @@ export class AnimationManager {
     
     /**
      * 컨테이너 설정
-     * @param {HTMLElement} container
      */
     setContainer(container) {
         this.container = container;
@@ -880,7 +1181,6 @@ export class AnimationManager {
     
     /**
      * 레인 맵 설정
-     * @param {Map} lanesMap
      */
     setLanesMap(lanesMap) {
         this.lanesMap = lanesMap;
@@ -889,7 +1189,6 @@ export class AnimationManager {
     
     /**
      * 카드 맵 설정
-     * @param {Map} cardsMap
      */
     setCardsMap(cardsMap) {
         this.cardsMap = cardsMap;
@@ -905,14 +1204,11 @@ export class AnimationManager {
     dispose() {
         console.log('[AnimationManager] 🗑️ Disposing...');
         
-        // 모든 애니메이션 취소
         this.cancelAll();
         
-        // 이벤트 리스너 제거
         EventBus.off('ranking:status:change', this._boundHandlers.onStatusChange);
         EventBus.off('ranking:lane:update', this._boundHandlers.onLaneUpdate);
         
-        // 참조 해제
         this._boundHandlers = {};
         this._animationQueue = [];
         this._previousState = null;
@@ -920,7 +1216,6 @@ export class AnimationManager {
         this.lanesMap = null;
         this.cardsMap = null;
         
-        // 하위 모듈 정리
         this._positionCalculator?.dispose?.();
         this._batchAnimator?.dispose?.();
         
