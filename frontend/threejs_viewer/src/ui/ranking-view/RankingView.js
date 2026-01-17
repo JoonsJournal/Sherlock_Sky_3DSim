@@ -3,7 +3,7 @@
  * ==============
  * Ranking View 메인 컨트롤러 (Orchestrator)
  * 
- * @version 1.2.0
+ * @version 1.3.0
  * @description
  * - 6개 레인 레이아웃 관리 (Remote, Sudden Stop, Stop, Run, Idle, Wait)
  * - 레인 컴포넌트 생성 및 조율
@@ -13,6 +13,12 @@
  * - CameraNavigator 가시성 제어 (3D View 전용)
  * 
  * @changelog
+ * - v1.3.0: 🆕 Phase 5 - LaneManager 통합
+ *   - LaneManager 인스턴스 생성 및 관리
+ *   - 키보드 네비게이션 개선 (1-6, 방향키)
+ *   - EventBus 이벤트 핸들러 확장
+ *   - show()/hide()에서 LaneManager activate/deactivate
+ *   - ⚠️ 호환성: 기존 모든 기능 100% 유지
  * - v1.2.0: CameraNavigator 가시성 제어 추가
  *   - show() 시 CameraNavigator 숨김
  *   - hide() 시 CameraNavigator 표시 (3D View 활성 시에만)
@@ -31,6 +37,7 @@
  * - EventBus (src/core/managers/EventBus.js)
  * - RankingLane (./components/RankingLane.js)
  * - EquipmentCard (./components/EquipmentCard.js)
+ * - LaneManager (./managers/LaneManager.js) 🆕 v1.3.0
  * 
  * @exports
  * - RankingView
@@ -43,6 +50,8 @@
 import { eventBus } from '../../core/managers/EventBus.js';
 import { RankingLane } from './components/RankingLane.js';
 import { EquipmentCard } from './components/EquipmentCard.js';
+// 🆕 v1.3.0: LaneManager import
+import { LaneManager } from './managers/LaneManager.js';
 
 /**
  * 레인 설정 정의
@@ -143,7 +152,7 @@ export class RankingView {
      * @param {Object} options.webSocketClient - WebSocket 클라이언트 (선택)
      */
     constructor(options = {}) {
-        console.log('[RankingView] 🚀 초기화 시작 (v1.2.0 - CameraNavigator 제어)...');
+        console.log('[RankingView] 🚀 초기화 시작 (v1.3.0 - Phase 5 LaneManager 통합)...');
         
         // Options
         this._container = options.container || document.body;
@@ -168,6 +177,9 @@ export class RankingView {
         // Components
         this._lanes = new Map(); // Map<laneId, RankingLane>
         
+        // 🆕 v1.3.0: LaneManager 인스턴스
+        this._laneManager = null;
+        
         // Event Handlers (for cleanup)
         this._boundHandlers = {};
         this._eventSubscriptions = [];
@@ -189,10 +201,11 @@ export class RankingView {
         
         this._createDOM();
         this._createLanes();
+        this._createLaneManager();  // 🆕 v1.3.0
         this._setupEventListeners();
         
         this._isInitialized = true;
-        console.log('[RankingView] ✅ 초기화 완료 (v1.2.0)');
+        console.log('[RankingView] ✅ 초기화 완료 (v1.3.0)');
     }
     
     /**
@@ -299,6 +312,21 @@ export class RankingView {
     }
     
     /**
+     * 🆕 v1.3.0: LaneManager 생성
+     * @private
+     */
+    _createLaneManager() {
+        console.log('[RankingView] 🎯 _createLaneManager() - LaneManager 생성');
+        
+        this._laneManager = new LaneManager({
+            lanes: this._lanes,
+            onCardSelect: (data) => this._handleLaneManagerCardSelect(data)
+        });
+        
+        console.log('[RankingView] ✅ LaneManager 생성 완료');
+    }
+    
+    /**
      * 이벤트 리스너 설정
      * @private
      */
@@ -326,7 +354,29 @@ export class RankingView {
             eventBus.on('equipment:select', this._boundHandlers.onEquipmentSelect),
             
             // WebSocket 데이터 이벤트 (Phase 3에서 확장)
-            eventBus.on('websocket:equipment:status', (data) => this._handleStatusChange(data))
+            eventBus.on('websocket:equipment:status', (data) => this._handleStatusChange(data)),
+            
+            // 🆕 v1.3.0: 레인 포커스 이벤트 (KeyboardManager에서 발행)
+            eventBus.on('ranking:lane:focus', (data) => {
+                if (this._laneManager && data.laneIndex !== undefined) {
+                    this._laneManager.focusLane(data.laneIndex);
+                }
+            }),
+            eventBus.on('ranking:lane:previous', () => {
+                if (this._laneManager) this._laneManager.focusPreviousLane();
+            }),
+            eventBus.on('ranking:lane:next', () => {
+                if (this._laneManager) this._laneManager.focusNextLane();
+            }),
+            eventBus.on('ranking:card:previous', () => {
+                if (this._laneManager) this._laneManager.selectPreviousCard();
+            }),
+            eventBus.on('ranking:card:next', () => {
+                if (this._laneManager) this._laneManager.selectNextCard();
+            }),
+            eventBus.on('ranking:card:detail', () => {
+                if (this._laneManager) this._laneManager.showSelectedCardDetail();
+            })
         );
         
         console.log('[RankingView] ✅ 이벤트 리스너 설정 완료');
@@ -417,6 +467,11 @@ export class RankingView {
         
         this._isVisible = true;
         
+        // 🆕 v1.3.0: LaneManager 활성화
+        if (this._laneManager) {
+            this._laneManager.activate();
+        }
+        
         // Emit event
         eventBus.emit('ranking:shown');
         
@@ -440,6 +495,11 @@ export class RankingView {
         this.element.classList.remove(RankingView.CSS.LEGACY_ACTIVE);
         
         this._isVisible = false;
+        
+        // 🆕 v1.3.0: LaneManager 비활성화
+        if (this._laneManager) {
+            this._laneManager.deactivate();
+        }
         
         // 🆕 v1.2.0: CameraNavigator 이전 상태로 복원
         // 3D View가 활성화된 경우에만 표시
@@ -568,6 +628,14 @@ export class RankingView {
     }
     
     /**
+     * 🆕 v1.3.0: LaneManager 인스턴스 가져오기
+     * @returns {LaneManager|null}
+     */
+    getLaneManager() {
+        return this._laneManager;
+    }
+    
+    /**
      * 가시성 상태
      * @returns {boolean}
      */
@@ -601,21 +669,27 @@ export class RankingView {
         });
         this._eventSubscriptions = [];
         
-        // 3. 레인 컴포넌트 정리
+        // 3. 🆕 v1.3.0: LaneManager 정리
+        if (this._laneManager) {
+            this._laneManager.dispose();
+            this._laneManager = null;
+        }
+        
+        // 4. 레인 컴포넌트 정리
         this._lanes.forEach((lane, id) => {
             lane.dispose();
         });
         this._lanes.clear();
         
-        // 4. 🆕 v1.2.0: CameraNavigator 가시성 복원
+        // 5. 🆕 v1.2.0: CameraNavigator 가시성 복원
         if (this._cameraNavigatorWasVisible) {
             this._setCameraNavigatorVisible(true);
         }
         
-        // 5. DOM 요소 제거
+        // 6. DOM 요소 제거
         this.element?.remove();
         
-        // 6. 참조 해제
+        // 7. 참조 해제
         this.element = null;
         this._lanesContainer = null;
         this._loadingElement = null;
@@ -671,6 +745,19 @@ export class RankingView {
     }
     
     /**
+     * 🆕 v1.3.0: LaneManager에서 카드 선택 시 호출
+     * @private
+     */
+    _handleLaneManagerCardSelect(data) {
+        const { equipmentId, frontendId, laneId, cardIndex } = data;
+        
+        console.log(`[RankingView] 🎯 LaneManager 카드 선택: ${frontendId} (lane: ${laneId}, index: ${cardIndex})`);
+        
+        // 선택 상태 업데이트
+        this._selectedEquipmentId = equipmentId || frontendId;
+    }
+    
+    /**
      * 선택 해제
      * @private
      */
@@ -690,6 +777,22 @@ export class RankingView {
     _handleKeyDown(event) {
         if (!this._isVisible) return;
         
+        // 🆕 v1.3.0: LaneManager가 있으면 대부분의 키 처리를 위임
+        // LaneManager가 없는 경우에만 직접 처리
+        if (this._laneManager && this._laneManager.isActive) {
+            // LaneManager가 활성화되어 있으면 키 이벤트는 
+            // KeyboardManager → LaneManager 경로로 처리됨
+            // 여기서는 Escape만 추가 처리
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                eventBus.emit('ranking:escape');
+                this.hide();
+                eventBus.emit('mode:3d-view');
+            }
+            return;
+        }
+        
+        // LaneManager가 없는 경우 (폴백) - 기존 로직 유지
         const laneIds = Array.from(this._lanes.keys());
         
         switch (event.key) {
@@ -717,12 +820,12 @@ export class RankingView {
                 break;
                 
             case 'ArrowUp':
-                // 현재 레인에서 이전 카드 선택 (Phase 5에서 구현)
+                // 현재 레인에서 이전 카드 선택
                 event.preventDefault();
                 break;
                 
             case 'ArrowDown':
-                // 현재 레인에서 다음 카드 선택 (Phase 5에서 구현)
+                // 현재 레인에서 다음 카드 선택
                 event.preventDefault();
                 break;
                 
@@ -748,7 +851,7 @@ export class RankingView {
     }
     
     /**
-     * 레인 포커스
+     * 레인 포커스 (폴백용 - LaneManager가 없는 경우)
      * @private
      * @param {number} index
      */
@@ -809,18 +912,23 @@ export class RankingView {
      * 디버그 정보 출력
      */
     debug() {
-        console.group('[RankingView] Debug Info (v1.2.0)');
+        console.group('[RankingView] Debug Info (v1.3.0)');
         console.log('isVisible:', this._isVisible);
         console.log('isInitialized:', this._isInitialized);
         console.log('isLoading:', this._isLoading);
         console.log('selectedEquipmentId:', this._selectedEquipmentId);
         console.log('focusedLaneIndex:', this._focusedLaneIndex);
         console.log('cameraNavigatorWasVisible:', this._cameraNavigatorWasVisible);
+        console.log('laneManager:', this._laneManager ? 'connected' : 'null');
         console.log('레인 수:', this._lanes.size);
         console.log('레인 목록:');
         this._lanes.forEach((lane, id) => {
             console.log(`  ${id}: ${lane.count} cards`);
         });
+        if (this._laneManager) {
+            console.log('--- LaneManager Debug ---');
+            this._laneManager.debug();
+        }
         console.groupEnd();
     }
     

@@ -2,8 +2,24 @@
  * KeyboardManager.js
  * 키보드 단축키 관리
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description 컨텍스트별 단축키 처리
+ * 
+ * @changelog
+ * - v1.1.0: Phase 5 - Ranking View 키보드 단축키 추가
+ *   - RANKING_VIEW 컨텍스트 지원
+ *   - 1-6 키로 레인 포커스 이동
+ *   - 방향키로 카드/레인 네비게이션
+ *   - Enter로 선택 카드 상세 표시
+ *   - Esc로 3D View 복귀
+ *   - _isRankingViewActive() 메서드 추가
+ *   - _handleRankingViewKeys() 메서드 추가
+ *   - ⚠️ 호환성: 기존 모든 기능 100% 유지
+ * - v1.0.0: 초기 버전
+ * 
+ * 📁 위치: frontend/threejs_viewer/src/core/managers/KeyboardManager.js
+ * 작성일: 2026-01-17
+ * 수정일: 2026-01-17
  */
 
 import { KEYBOARD_CONTEXT } from '../config/constants.js';
@@ -23,6 +39,10 @@ class KeyboardManagerClass {
         this._customHandlers = new Map();
         this._enabled = true;
         this._heldKeys = new Set();
+        
+        // 🆕 v1.1.0: Ranking View 관련 상태
+        this._rankingViewActive = false;
+        this._laneManager = null;  // LaneManager 참조
         
         // 로거 설정
         this._logger = logger.child('Keyboard');
@@ -131,6 +151,236 @@ class KeyboardManagerClass {
         this._logger.debug('액션 실행:', action, param);
     }
     
+    // =========================================
+    // 🆕 v1.1.0: Ranking View 관련 메서드
+    // =========================================
+    
+    /**
+     * Ranking View 활성화 상태 설정
+     * @param {boolean} active
+     */
+    setRankingViewActive(active) {
+        this._rankingViewActive = active;
+        this._logger.debug(`Ranking View 활성화: ${active}`);
+    }
+    
+    /**
+     * LaneManager 참조 설정
+     * @param {LaneManager} laneManager
+     */
+    setLaneManager(laneManager) {
+        this._laneManager = laneManager;
+        this._logger.debug('LaneManager 연결됨');
+    }
+    
+    /**
+     * Ranking View 활성화 여부 확인
+     * @private
+     * @returns {boolean}
+     */
+    _isRankingViewActive() {
+        // 방법 1: 직접 플래그 확인
+        if (this._rankingViewActive) return true;
+        
+        // 방법 2: DOM 상태 확인 (폴백)
+        const rankingView = document.querySelector('.ranking-view');
+        if (rankingView && !rankingView.classList.contains('ranking-view--hidden') &&
+            !rankingView.classList.contains('hidden')) {
+            return true;
+        }
+        
+        // 방법 3: AppModeManager 상태 확인 (폴백)
+        if (window.appModeManager) {
+            const currentMode = window.appModeManager.getCurrentMode();
+            if (currentMode === 'ranking_view' || currentMode === 'RANKING_VIEW') {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Ranking View 전용 키보드 이벤트 처리
+     * @private
+     * @param {KeyboardEvent} event
+     * @returns {boolean} - 이벤트가 처리되었으면 true
+     */
+    _handleRankingViewKeys(event) {
+        if (!this._isRankingViewActive()) return false;
+        
+        const key = event.key;
+        
+        switch (key) {
+            // 1-6: 레인 포커스 이동
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+                event.preventDefault();
+                this._focusLane(parseInt(key) - 1);
+                return true;
+            
+            // 방향키 위: 이전 카드 선택
+            case 'ArrowUp':
+                event.preventDefault();
+                this._selectPreviousCard();
+                return true;
+            
+            // 방향키 아래: 다음 카드 선택
+            case 'ArrowDown':
+                event.preventDefault();
+                this._selectNextCard();
+                return true;
+            
+            // 방향키 좌: 이전 레인으로 이동
+            case 'ArrowLeft':
+                event.preventDefault();
+                this._focusPreviousLane();
+                return true;
+            
+            // 방향키 우: 다음 레인으로 이동
+            case 'ArrowRight':
+                event.preventDefault();
+                this._focusNextLane();
+                return true;
+            
+            // Enter: 선택 카드 상세 표시
+            case 'Enter':
+                event.preventDefault();
+                this._showSelectedCardDetail();
+                return true;
+            
+            // Escape: 3D View 복귀
+            case 'Escape':
+                event.preventDefault();
+                this._returnTo3DView();
+                return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * 레인 포커스 이동
+     * @private
+     * @param {number} laneIndex - 0-5
+     */
+    _focusLane(laneIndex) {
+        this._logger.debug(`레인 포커스: ${laneIndex + 1}`);
+        
+        // LaneManager 사용
+        if (this._laneManager && this._laneManager.isActive) {
+            this._laneManager.focusLane(laneIndex);
+            return;
+        }
+        
+        // 폴백: EventBus 이벤트 발행
+        eventBus.emit('ranking:lane:focus', { laneIndex });
+    }
+    
+    /**
+     * 이전 레인으로 이동
+     * @private
+     */
+    _focusPreviousLane() {
+        this._logger.debug('이전 레인');
+        
+        if (this._laneManager && this._laneManager.isActive) {
+            this._laneManager.focusPreviousLane();
+            return;
+        }
+        
+        eventBus.emit('ranking:lane:previous');
+    }
+    
+    /**
+     * 다음 레인으로 이동
+     * @private
+     */
+    _focusNextLane() {
+        this._logger.debug('다음 레인');
+        
+        if (this._laneManager && this._laneManager.isActive) {
+            this._laneManager.focusNextLane();
+            return;
+        }
+        
+        eventBus.emit('ranking:lane:next');
+    }
+    
+    /**
+     * 이전 카드 선택
+     * @private
+     */
+    _selectPreviousCard() {
+        this._logger.debug('이전 카드');
+        
+        if (this._laneManager && this._laneManager.isActive) {
+            this._laneManager.selectPreviousCard();
+            return;
+        }
+        
+        eventBus.emit('ranking:card:previous');
+    }
+    
+    /**
+     * 다음 카드 선택
+     * @private
+     */
+    _selectNextCard() {
+        this._logger.debug('다음 카드');
+        
+        if (this._laneManager && this._laneManager.isActive) {
+            this._laneManager.selectNextCard();
+            return;
+        }
+        
+        eventBus.emit('ranking:card:next');
+    }
+    
+    /**
+     * 선택 카드 상세 표시
+     * @private
+     */
+    _showSelectedCardDetail() {
+        this._logger.debug('카드 상세 표시');
+        
+        if (this._laneManager && this._laneManager.isActive) {
+            this._laneManager.showSelectedCardDetail();
+            return;
+        }
+        
+        eventBus.emit('ranking:card:detail');
+    }
+    
+    /**
+     * 3D View로 복귀
+     * @private
+     */
+    _returnTo3DView() {
+        this._logger.debug('3D View 복귀');
+        
+        // Ranking View 비활성화
+        this._rankingViewActive = false;
+        
+        // EventBus 이벤트 발행
+        eventBus.emit('ranking:escape');
+        eventBus.emit('submenu:ranking-view:deactivate');
+        eventBus.emit('mode:3d-view');
+        
+        // AppModeManager가 있으면 직접 호출
+        if (window.appModeManager?.setMode) {
+            window.appModeManager.setMode('MONITORING');
+        }
+    }
+    
+    // =========================================
+    // 기존 메서드들 (v1.0.0 호환)
+    // =========================================
+    
     /**
      * 키 다운 이벤트 처리
      * @param {KeyboardEvent} event
@@ -141,6 +391,11 @@ class KeyboardManagerClass {
         // 입력 필드에서는 단축키 무시 (일부 제외)
         if (this._isInputFocused(event) && !this._isAllowedInInput(event)) {
             return;
+        }
+        
+        // 🆕 v1.1.0: Ranking View 키보드 이벤트 먼저 처리
+        if (this._handleRankingViewKeys(event)) {
+            return;  // 처리되었으면 종료
         }
         
         const shortcut = eventToShortcut(event);
@@ -267,6 +522,8 @@ class KeyboardManagerClass {
         this._logger.info('활성화 상태:', this._enabled);
         this._logger.info('눌린 키:', this.getHeldKeys());
         this._logger.info('커스텀 핸들러:', Array.from(this._customHandlers.keys()));
+        this._logger.info('🆕 Ranking View 활성:', this._rankingViewActive);
+        this._logger.info('🆕 LaneManager 연결:', !!this._laneManager);
         this._logger.groupEnd();
     }
 }

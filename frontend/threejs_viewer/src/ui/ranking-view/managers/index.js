@@ -1,30 +1,37 @@
 /**
- * ranking-view/managers/index.js
- * ==============================
- * Ranking View Managers Barrel Export
+ * managers/index.js
+ * =================
+ * Ranking View 매니저 모듈 Barrel Export
  * 
  * @version 1.1.0
- * @description
- * - 모든 Ranking View 매니저 모듈 통합 Export
+ * @description Ranking View 관련 매니저들의 중앙 export 파일
  * 
  * @changelog
- * - v1.1.0: Phase 4 애니메이션 매니저 추가
- *   - AnimationManager export 추가
- *   - ScrollSyncManager export 추가
- *   - ⚠️ 호환성: 기존 export 100% 유지
+ * - v1.1.0: 🆕 LaneManager 추가 (2026-01-17) - Phase 5
+ *   - 레인 포커스 및 카드 네비게이션 관리
+ *   - ⚠️ 호환성: 기존 모든 export 100% 유지
  * - v1.0.0: 초기 버전
  *   - RankingDataManager export
+ *   - AnimationManager export
+ *   - ScrollSyncManager export
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/managers/index.js
  * 작성일: 2026-01-17
  * 수정일: 2026-01-17
  */
 
-// Data Manager
+// 기존 매니저들
 export { RankingDataManager } from './RankingDataManager.js';
-
-// Animation Manager (Phase 4)
 export { AnimationManager } from './AnimationManager.js';
-
-// Scroll Sync Manager (Phase 4)
 export { ScrollSyncManager } from './ScrollSyncManager.js';
+
+// 🆕 v1.1.0: LaneManager 추가 (Phase 5)
+export { LaneManager } from './LaneManager.js';
+
+// Default export
+export default {
+    RankingDataManager: () => import('./RankingDataManager.js'),
+    AnimationManager: () => import('./AnimationManager.js'),
+    ScrollSyncManager: () => import('./ScrollSyncManager.js'),
+    LaneManager: () => import('./LaneManager.js')  // 🆕 v1.1.0
+};

@@ -7,10 +7,17 @@
  * - 각 모드의 책임을 명확히 분리
  * - Sub_mode 확장 지원 준비
  * 
- * @version 1.2.0
+ * @version 1.3.0
  * @description 상호 배타적 모드 전환 시 자동 정리 지원
  * 
  * @changelog
+ * - v1.3.0: 🆕 RankingViewModeHandler 추가 (2026-01-17) - Phase 5
+ *           - Ranking View 모드 진입/종료 핸들러
+ *           - 3D View ↔ Ranking View 전환 지원
+ *           - KeyboardManager 연동
+ *           - LaneManager 연동
+ *           - CameraNavigator 가시성 제어
+ *           - ⚠️ 호환성: 기존 모든 핸들러/로직 100% 유지
  * - v1.2.0: 🆕 AnalyticsModeHandler 추가 (2026-01-13)
  *           - Analysis 모드 진입/종료 핸들러
  *           - Analysis 컨테이너 표시/숨김
@@ -34,13 +41,14 @@ import { keyboardManager } from './KeyboardManager.js';
  * @param {string} activeMode - 현재 활성화된 모드
  */
 export function syncAllButtonStates(activeMode) {
-    // 🔧 v1.2.0: analysisBtn 추가
+    // 🔧 v1.3.0: rankingViewBtn 추가
     const buttonModeMap = {
         'editBtn': APP_MODE.EQUIPMENT_EDIT,
         'monitoringBtn': APP_MODE.MONITORING,
         'btn-monitoring': APP_MODE.MONITORING,
         'btn-analysis': APP_MODE.ANALYTICS,
-        'btn-simulation': APP_MODE.SIMULATION
+        'btn-simulation': APP_MODE.SIMULATION,
+        'sub-ranking-view': 'ranking_view'  // 🆕 v1.3.0
     };
     
     Object.entries(buttonModeMap).forEach(([btnId, mode]) => {
@@ -71,13 +79,19 @@ export class MainViewerModeHandler {
     onEnter(context = {}) {
         logger.info('Main Viewer 모드 진입');
         keyboardManager.setContext(KEYBOARD_CONTEXT.VIEWER_3D);
-        document.body.classList.remove('edit-mode-active', 'monitoring-mode-active', 'analysis-mode-active');
+        document.body.classList.remove('edit-mode-active', 'monitoring-mode-active', 'analysis-mode-active', 'ranking-view-active');
         syncAllButtonStates(APP_MODE.MAIN_VIEWER);
         
         // Analysis 컨테이너 숨김
         const analysisContainer = document.getElementById('analysis-container');
         if (analysisContainer) {
             analysisContainer.classList.add('hidden');
+        }
+        
+        // 🆕 v1.3.0: Ranking View 숨김
+        const rankingView = document.querySelector('.ranking-view');
+        if (rankingView) {
+            rankingView.classList.add('ranking-view--hidden', 'hidden');
         }
     }
     
@@ -128,7 +142,7 @@ export class EquipmentEditModeHandler {
         
         // 3. CSS 클래스 추가
         document.body.classList.add('edit-mode-active');
-        document.body.classList.remove('monitoring-mode-active', 'analysis-mode-active');
+        document.body.classList.remove('monitoring-mode-active', 'analysis-mode-active', 'ranking-view-active');
         
         // 4. 버튼 상태 동기화
         syncAllButtonStates(APP_MODE.EQUIPMENT_EDIT);
@@ -137,6 +151,12 @@ export class EquipmentEditModeHandler {
         const analysisContainer = document.getElementById('analysis-container');
         if (analysisContainer) {
             analysisContainer.classList.add('hidden');
+        }
+        
+        // 🆕 v1.3.0: Ranking View 숨김
+        const rankingView = document.querySelector('.ranking-view');
+        if (rankingView) {
+            rankingView.classList.add('ranking-view--hidden', 'hidden');
         }
     }
     
@@ -195,7 +215,7 @@ export class MonitoringModeHandler {
         
         // 2. CSS 클래스 추가
         document.body.classList.add('monitoring-mode-active');
-        document.body.classList.remove('edit-mode-active', 'analysis-mode-active');
+        document.body.classList.remove('edit-mode-active', 'analysis-mode-active', 'ranking-view-active');
         
         // 3. 버튼 상태 동기화
         syncAllButtonStates(APP_MODE.MONITORING);
@@ -204,6 +224,12 @@ export class MonitoringModeHandler {
         const analysisContainer = document.getElementById('analysis-container');
         if (analysisContainer) {
             analysisContainer.classList.add('hidden');
+        }
+        
+        // 🆕 v1.3.0: Ranking View 숨김 (3D View submode일 때)
+        const rankingView = document.querySelector('.ranking-view');
+        if (rankingView) {
+            rankingView.classList.add('ranking-view--hidden', 'hidden');
         }
     }
     
@@ -264,7 +290,7 @@ export class AnalyticsModeHandler {
         
         // 1. CSS 클래스 추가
         document.body.classList.add('analysis-mode-active');
-        document.body.classList.remove('edit-mode-active', 'monitoring-mode-active');
+        document.body.classList.remove('edit-mode-active', 'monitoring-mode-active', 'ranking-view-active');
         
         // 2. 버튼 상태 동기화
         syncAllButtonStates(APP_MODE.ANALYTICS);
@@ -291,6 +317,12 @@ export class AnalyticsModeHandler {
         if (this._analyticsService && typeof this._analyticsService.start === 'function') {
             this._analyticsService.start();
         }
+        
+        // 🆕 v1.3.0: Ranking View 숨김
+        const rankingView = document.querySelector('.ranking-view');
+        if (rankingView) {
+            rankingView.classList.add('ranking-view--hidden', 'hidden');
+        }
     }
     
     onExit(context = {}) {
@@ -316,19 +348,193 @@ export class AnalyticsModeHandler {
     }
 }
 
+/**
+ * 🆕 v1.3.0: Ranking View 모드 핸들러 (Phase 5)
+ */
+export class RankingViewModeHandler {
+    constructor() {
+        this.name = 'Ranking View';
+        this.keyboardContext = KEYBOARD_CONTEXT.VIEWER_3D;
+        
+        // 서비스 참조 (나중에 설정)
+        this._rankingView = null;
+        this._laneManager = null;
+        this._viewer3D = null;
+        this._webSocketClient = null;
+    }
+    
+    /**
+     * 서비스 설정 (main.js에서 호출)
+     * @param {Object} services - { rankingView, laneManager, viewer3D, webSocketClient }
+     */
+    setServices(services) {
+        this._rankingView = services.rankingView || null;
+        this._laneManager = services.laneManager || null;
+        this._viewer3D = services.viewer3D || null;
+        this._webSocketClient = services.webSocketClient || null;
+        logger.debug('RankingViewModeHandler 서비스 설정 완료');
+    }
+    
+    onEnter(context = {}) {
+        logger.info('🔄 Ranking View 모드 진입');
+        
+        // 1. CSS 클래스 추가
+        document.body.classList.add('ranking-view-active');
+        document.body.classList.remove('edit-mode-active', 'analysis-mode-active');
+        // monitoring-mode-active는 유지 (Ranking View는 Monitoring의 서브모드)
+        
+        // 2. 3D View 숨김 (dispose 하지 않음!)
+        if (this._viewer3D) {
+            if (typeof this._viewer3D.hide === 'function') {
+                this._viewer3D.hide();
+            }
+        }
+        
+        // Three.js 컨테이너 비활성화
+        const threejsContainer = document.getElementById('threejs-container');
+        if (threejsContainer) {
+            threejsContainer.classList.remove('active');
+            threejsContainer.style.display = 'none';
+        }
+        
+        // 3. CameraNavigator 숨김
+        this._setCameraNavigatorVisible(false);
+        
+        // 4. Ranking View 표시
+        if (this._rankingView) {
+            this._rankingView.show();
+        } else {
+            // Ranking View 인스턴스가 없으면 DOM 직접 조작
+            const rankingViewEl = document.querySelector('.ranking-view');
+            if (rankingViewEl) {
+                rankingViewEl.classList.remove('ranking-view--hidden', 'hidden');
+                rankingViewEl.classList.add('ranking-view--active', 'active');
+            }
+        }
+        
+        // 5. LaneManager 활성화
+        if (this._laneManager) {
+            this._laneManager.activate();
+        }
+        
+        // 6. KeyboardManager에 Ranking View 상태 알림
+        keyboardManager.setRankingViewActive(true);
+        if (this._laneManager) {
+            keyboardManager.setLaneManager(this._laneManager);
+        }
+        
+        // 7. 버튼 상태 동기화
+        syncAllButtonStates('ranking_view');
+        
+        // 8. 서브메뉴 아이템 활성화
+        const submenuItem = document.getElementById('sub-ranking-view');
+        if (submenuItem) {
+            submenuItem.classList.add('active', 'submenu__item--active');
+        }
+        
+        logger.info('✅ Ranking View 모드 진입 완료');
+    }
+    
+    onExit(context = {}) {
+        logger.info('🔄 Ranking View 모드 종료');
+        
+        // 1. CSS 클래스 제거
+        document.body.classList.remove('ranking-view-active');
+        
+        // 2. Ranking View 숨김
+        if (this._rankingView) {
+            this._rankingView.hide();
+        } else {
+            const rankingViewEl = document.querySelector('.ranking-view');
+            if (rankingViewEl) {
+                rankingViewEl.classList.add('ranking-view--hidden', 'hidden');
+                rankingViewEl.classList.remove('ranking-view--active', 'active');
+            }
+        }
+        
+        // 3. LaneManager 비활성화
+        if (this._laneManager) {
+            this._laneManager.deactivate();
+        }
+        
+        // 4. KeyboardManager 상태 업데이트
+        keyboardManager.setRankingViewActive(false);
+        
+        // 5. 3D View 복원
+        if (this._viewer3D) {
+            if (typeof this._viewer3D.show === 'function') {
+                this._viewer3D.show();
+            }
+        }
+        
+        // Three.js 컨테이너 활성화
+        const threejsContainer = document.getElementById('threejs-container');
+        if (threejsContainer) {
+            threejsContainer.classList.add('active');
+            threejsContainer.style.display = 'block';
+        }
+        
+        // 6. CameraNavigator 표시
+        this._setCameraNavigatorVisible(true);
+        
+        // 7. 서브메뉴 아이템 비활성화
+        const submenuItem = document.getElementById('sub-ranking-view');
+        if (submenuItem) {
+            submenuItem.classList.remove('active', 'submenu__item--active');
+        }
+        
+        logger.info('✅ Ranking View 모드 종료 완료');
+    }
+    
+    onUpdate(data) {
+        // Ranking View 모드에서의 업데이트 처리
+        // WebSocket 데이터가 들어오면 카드 업데이트
+        if (this._rankingView && data) {
+            // Phase 5 이후 구현
+        }
+    }
+    
+    /**
+     * CameraNavigator 가시성 설정
+     * @private
+     * @param {boolean} visible
+     */
+    _setCameraNavigatorVisible(visible) {
+        // 방법 1: 전역 window.cameraNavigator 사용
+        if (window.cameraNavigator?.setVisible) {
+            window.cameraNavigator.setVisible(visible);
+            return;
+        }
+        
+        // 방법 2: window.services.scene.cameraNavigator 사용
+        if (window.services?.scene?.cameraNavigator?.setVisible) {
+            window.services.scene.cameraNavigator.setVisible(visible);
+            return;
+        }
+        
+        // 방법 3: DOM 직접 접근 (폴백)
+        const navigatorEl = document.getElementById('camera-navigator');
+        if (navigatorEl) {
+            navigatorEl.style.display = visible ? 'block' : 'none';
+        }
+    }
+}
+
 // ============================================
 // 모드 핸들러 레지스트리
 // ============================================
 
 /**
  * 모든 모드 핸들러 인스턴스
- * 🔧 v1.2.0: APP_MODE.ANALYTICS 추가
+ * 🔧 v1.3.0: RANKING_VIEW 추가
  */
 export const modeHandlers = {
     [APP_MODE.MAIN_VIEWER]: new MainViewerModeHandler(),
     [APP_MODE.EQUIPMENT_EDIT]: new EquipmentEditModeHandler(),
     [APP_MODE.MONITORING]: new MonitoringModeHandler(),
-    [APP_MODE.ANALYTICS]: new AnalyticsModeHandler()
+    [APP_MODE.ANALYTICS]: new AnalyticsModeHandler(),
+    // 🆕 v1.3.0: Ranking View 모드 핸들러 추가
+    'ranking_view': new RankingViewModeHandler()
 };
 
 /**
@@ -341,7 +547,12 @@ export function connectModeHandlerServices(services) {
         equipmentEditButton,
         monitoringService,
         signalTowerManager,
-        analyticsService  // 🆕 v1.2.0
+        analyticsService,
+        // 🆕 v1.3.0
+        rankingView,
+        laneManager,
+        viewer3D,
+        webSocketClient
     } = services;
     
     // Equipment Edit 핸들러에 서비스 연결
@@ -364,6 +575,16 @@ export function connectModeHandlerServices(services) {
     if (modeHandlers[APP_MODE.ANALYTICS]) {
         modeHandlers[APP_MODE.ANALYTICS].setServices({
             analyticsService
+        });
+    }
+    
+    // 🆕 v1.3.0: Ranking View 핸들러에 서비스 연결
+    if (modeHandlers['ranking_view']) {
+        modeHandlers['ranking_view'].setServices({
+            rankingView,
+            laneManager,
+            viewer3D,
+            webSocketClient
         });
     }
     
@@ -398,6 +619,30 @@ export function getModeHandler(mode) {
 }
 
 // ============================================
+// 🆕 v1.3.0: Ranking View 전용 함수
+// ============================================
+
+/**
+ * Ranking View 모드 활성화
+ */
+export function activateRankingViewMode() {
+    const handler = modeHandlers['ranking_view'];
+    if (handler) {
+        handler.onEnter({});
+    }
+}
+
+/**
+ * Ranking View 모드 비활성화
+ */
+export function deactivateRankingViewMode() {
+    const handler = modeHandlers['ranking_view'];
+    if (handler) {
+        handler.onExit({});
+    }
+}
+
+// ============================================
 // 디버깅 유틸리티
 // ============================================
 
@@ -410,7 +655,7 @@ export function debugModeHandlers() {
         console.log(`${mode}:`, {
             name: handler.name,
             keyboardContext: handler.keyboardContext,
-            hasServices: !!(handler._equipmentEditState || handler._monitoringService || handler._analyticsService)
+            hasServices: !!(handler._equipmentEditState || handler._monitoringService || handler._analyticsService || handler._rankingView)
         });
     });
     console.groupEnd();
@@ -419,4 +664,6 @@ export function debugModeHandlers() {
 // 전역 디버그 함수 노출
 if (typeof window !== 'undefined') {
     window.debugModeHandlers = debugModeHandlers;
+    window.activateRankingViewMode = activateRankingViewMode;
+    window.deactivateRankingViewMode = deactivateRankingViewMode;
 }

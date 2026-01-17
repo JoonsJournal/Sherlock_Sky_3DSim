@@ -2,10 +2,13 @@
  * constants.js
  * 애플리케이션 전역 상수 정의
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @description 모든 상수는 이 파일에서 중앙 관리
  * 
  * @changelog
+ * - v1.2.0: 🆕 KEYBOARD_CONTEXT.RANKING_VIEW 추가 (2026-01-17) - Phase 5
+ *           - Ranking View 전용 키보드 컨텍스트
+ *           - ⚠️ 호환성: 기존 모든 상수 100% 유지
  * - v1.1.0: 🆕 APP_MODE에 ANALYTICS, PLAYBACK, SIMULATION, SETTINGS 추가 (2026-01-13)
  *           - Analysis 모드 활성화 지원
  */
@@ -25,7 +28,9 @@ export const APP_MODE = Object.freeze({
     ANALYTICS: 'analytics',           // 분석 모드
     PLAYBACK: 'playback',             // 재생 모드
     SIMULATION: 'simulation',         // 시뮬레이션 모드
-    SETTINGS: 'settings'              // 설정 모드
+    SETTINGS: 'settings',             // 설정 모드
+    // 🆕 v1.2.0: Ranking View 모드 (Monitoring의 서브모드)
+    RANKING_VIEW: 'ranking_view'      // Ranking View 모드
 });
 
 // =====================================================
@@ -100,7 +105,9 @@ export const KEYBOARD_CONTEXT = Object.freeze({
     GLOBAL: 'global',
     VIEWER_3D: 'viewer_3d',
     EDITOR_2D: 'editor_2d',
-    MODAL: 'modal'
+    MODAL: 'modal',
+    // 🆕 v1.2.0: Ranking View 컨텍스트 추가
+    RANKING_VIEW: 'ranking_view'
 });
 
 // =====================================================
@@ -136,6 +143,13 @@ export const EVENT_NAME = Object.freeze({
     MAPPING_SAVED: 'mapping:saved',
     MAPPING_LOADED: 'mapping:loaded',
     MAPPING_VALIDATED: 'mapping:validated',
+    
+    // 🆕 v1.2.0: Ranking View 관련 이벤트
+    RANKING_SHOW: 'ranking:show',
+    RANKING_HIDE: 'ranking:hide',
+    RANKING_LANE_FOCUS: 'ranking:lane:focus',
+    RANKING_CARD_SELECT: 'ranking:card:select',
+    RANKING_ESCAPE: 'ranking:escape',
     
     // UI 관련
     MODAL_OPEN: 'modal:open',
@@ -210,7 +224,9 @@ export const STORAGE_KEY = Object.freeze({
     CAMERA_POSITION: 'sherlock_cameraPosition',
     UI_PREFERENCES: 'sherlock_uiPreferences',
     // ⭐ 매핑 관련 (신규 추가)
-    EQUIPMENT_MAPPINGS: 'sherlock_equipment_mappings'
+    EQUIPMENT_MAPPINGS: 'sherlock_equipment_mappings',
+    // 🆕 v1.2.0: Ranking View 관련
+    RANKING_VIEW_PREFERENCES: 'sherlock_ranking_view_preferences'
 });
 
 // =====================================================
@@ -226,5 +242,51 @@ export const DEFAULTS = Object.freeze({
     SNAP_THRESHOLD: 15,            // px
     // ⭐ 매핑 관련 (신규 추가)
     TOTAL_EQUIPMENTS: 117,         // 전체 설비 수
-    MAPPING_CACHE_DURATION: 300000 // 5분 (ms)
+    MAPPING_CACHE_DURATION: 300000, // 5분 (ms)
+    // 🆕 v1.2.0: Ranking View 관련
+    RANKING_LANE_COUNT: 6,         // 레인 수
+    RANKING_UPDATE_INTERVAL: 2000  // 카드 업데이트 주기 (ms)
+});
+
+// =====================================================
+// 🆕 v1.2.0: Ranking View 레인 설정
+// =====================================================
+
+export const RANKING_LANE_CONFIG = Object.freeze({
+    REMOTE: {
+        id: 'remote',
+        name: 'Remote',
+        index: 0,
+        key: '1'
+    },
+    SUDDEN_STOP: {
+        id: 'sudden-stop',
+        name: 'Sudden Stop',
+        index: 1,
+        key: '2'
+    },
+    STOP: {
+        id: 'stop',
+        name: 'Stop',
+        index: 2,
+        key: '3'
+    },
+    RUN: {
+        id: 'run',
+        name: 'Run',
+        index: 3,
+        key: '4'
+    },
+    IDLE: {
+        id: 'idle',
+        name: 'Idle',
+        index: 4,
+        key: '5'
+    },
+    WAIT: {
+        id: 'wait',
+        name: 'Wait',
+        index: 5,
+        key: '6'
+    }
 });

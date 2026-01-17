@@ -3,11 +3,16 @@
  * =================
  * Sidebar UI 컴포넌트의 설정 및 상수 정의
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @created 2026-01-11
- * @updated 2026-01-13
+ * @updated 2026-01-17
  * 
  * @changelog
+ * - v1.2.0: 🆕 Ranking View 메뉴 활성화 (2026-01-17) - Phase 5
+ *           - 'sub-ranking-view' disabled: false로 변경
+ *           - 라벨에서 "(Coming Soon)" 제거
+ *           - MODE_MAP에 'ranking-view' 추가
+ *           - ⚠️ 호환성: 기존 모든 설정 100% 유지
  * - v1.1.0: 🆕 Analysis 버튼 활성화 (2026-01-13)
  *           - disabled: true 제거
  *           - selectable: true 추가
@@ -155,12 +160,13 @@ export const SUBMENUS = {
                 icon: '3d-view', 
                 submode: '3d-view' 
             },
+            // 🔧 v1.2.0: Ranking View 활성화! (Phase 5)
             { 
                 id: 'sub-ranking-view', 
-                label: 'Ranking View (Coming Soon)', 
+                label: 'Ranking View',   // "(Coming Soon)" 제거
                 icon: 'ranking-view', 
-                submode: 'ranking-view', 
-                disabled: true 
+                submode: 'ranking-view'
+                // disabled: true 제거!
             }
         ]
     },
@@ -309,13 +315,51 @@ export const SITE_LIST = [
  * 
  * Sidebar 내부에서 사용하는 모드 키를
  * AppModeManager의 APP_MODE 상수로 변환
+ * 
+ * 🔧 v1.2.0: 'ranking-view' 추가 (Phase 5)
  */
 export const MODE_MAP = {
     'monitoring': 'MONITORING',
-    'analysis': 'ANALYTICS',       // 🔧 v1.1.0: 확인
+    'analysis': 'ANALYTICS',
     'simulation': 'SIMULATION',
     'layout': 'LAYOUT_EDITOR',
-    'equipment_edit': 'EQUIPMENT_EDIT'
+    'equipment_edit': 'EQUIPMENT_EDIT',
+    // 🆕 v1.2.0: Ranking View 매핑 추가
+    'ranking-view': 'ranking_view',
+    '3d-view': 'MONITORING'  // 3D View는 Monitoring 모드의 기본 서브모드
+};
+
+// ============================================
+// 🆕 v1.2.0: Submode 매핑 (Phase 5)
+// ============================================
+
+/**
+ * 서브모드 매핑
+ * 메인 버튼의 서브메뉴 아이템 → 실제 모드 매핑
+ */
+export const SUBMODE_MAP = {
+    // Monitoring 서브메뉴
+    '3d-view': {
+        parentMode: 'monitoring',
+        handler: 'show3DView'
+    },
+    'ranking-view': {
+        parentMode: 'monitoring',
+        handler: 'showRankingView'
+    },
+    // Analysis 서브메뉴
+    'dashboard': {
+        parentMode: 'analysis',
+        handler: 'showDashboard'
+    },
+    'heatmap': {
+        parentMode: 'analysis',
+        handler: 'showHeatmap'
+    },
+    'trend': {
+        parentMode: 'analysis',
+        handler: 'showTrend'
+    }
 };
 
 // ============================================
@@ -375,6 +419,27 @@ export function getSitesSortedByPriority() {
     return [...SITE_LIST].sort((a, b) => b.priority - a.priority);
 }
 
+/**
+ * 🆕 v1.2.0: 서브모드 매핑 정보 반환
+ * @param {string} submode - 서브모드 키
+ * @returns {Object|null} 서브모드 매핑 정보 또는 null
+ */
+export function getSubmodeMapping(submode) {
+    return SUBMODE_MAP[submode] || null;
+}
+
+/**
+ * 🆕 v1.2.0: Ranking View 활성화 여부 확인
+ * @returns {boolean}
+ */
+export function isRankingViewEnabled() {
+    const monitoringSubmenu = SUBMENUS['monitoring-submenu'];
+    if (!monitoringSubmenu) return false;
+    
+    const rankingItem = monitoringSubmenu.items.find(item => item.id === 'sub-ranking-view');
+    return rankingItem && !rankingItem.disabled;
+}
+
 // ============================================
 // Default Export
 // ============================================
@@ -384,11 +449,14 @@ export default {
     SUBMENUS,
     SITE_LIST,
     MODE_MAP,
+    SUBMODE_MAP,  // 🆕 v1.2.0
     // Helper functions
     getButtonKeys,
     getButtonsWithSubmenu,
     getButtonConfig,
     getSubmenuConfig,
     getSiteById,
-    getSitesSortedByPriority
+    getSitesSortedByPriority,
+    getSubmodeMapping,     // 🆕 v1.2.0
+    isRankingViewEnabled   // 🆕 v1.2.0
 };
