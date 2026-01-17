@@ -1,0 +1,483 @@
+/**
+ * _equipment-card.css
+ * ===================
+ * Ranking View 설비 카드 스타일
+ * 
+ * Block: .equipment-card
+ * 
+ * @version 1.0.0
+ * @updated 2026-01-17
+ * 
+ * [BEM 구조]
+ * .equipment-card                         → Block
+ * .equipment-card__header                 → Element (헤더)
+ * .equipment-card__status-indicator       → Element (상태 인디케이터)
+ * .equipment-card__equipment-id           → Element (설비 ID)
+ * .equipment-card__duration               → Element (지속 시간)
+ * .equipment-card__body                   → Element (바디)
+ * .equipment-card__alarm-info             → Element (알람 정보)
+ * .equipment-card__production-info        → Element (생산 정보)
+ * .equipment-card__production-bar         → Element (진행 바)
+ * .equipment-card__lot-time               → Element (Lot 시간)
+ * .equipment-card--run                    → Modifier (RUN 상태)
+ * .equipment-card--stop                   → Modifier (STOP 상태)
+ * .equipment-card--sudden-stop            → Modifier (SUDDENSTOP 상태)
+ * .equipment-card--remote                 → Modifier (Remote 알람)
+ * .equipment-card--urgency-warning        → Modifier (5분 초과)
+ * .equipment-card--urgency-danger         → Modifier (10분 초과)
+ * .equipment-card--urgency-critical       → Modifier (15분 초과)
+ * .equipment-card--selected               → Modifier (선택됨)
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/ranking-view/_equipment-card.css
+ */
+
+/* =============================================
+   Block (Base)
+   ============================================= */
+.equipment-card {
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+    
+    /* Box Model */
+    padding: var(--spacing-3);
+    min-width: 180px;
+    max-width: 220px;
+    
+    /* Visual */
+    background: var(--surface-panel);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--border-default);
+    
+    /* Typography */
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-sm);
+    
+    /* Interaction */
+    cursor: pointer;
+    transition: 
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        transform var(--transition-fast),
+        background-color var(--transition-fast);
+    
+    /* Focus */
+    outline: none;
+}
+
+/* =============================================
+   Interactive States
+   ============================================= */
+.equipment-card:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.equipment-card:focus-visible {
+    box-shadow: 0 0 0 3px var(--border-focus);
+}
+
+.equipment-card:active {
+    transform: translateY(0);
+}
+
+/* =============================================
+   Status Modifiers (Border Left Color)
+   ============================================= */
+
+/* RUN - 녹색 */
+.equipment-card--run {
+    border-left-color: var(--interactive-success);
+}
+
+.equipment-card--run .equipment-card__status-indicator::before {
+    background-color: var(--interactive-success);
+}
+
+/* STOP - 노란색 */
+.equipment-card--stop {
+    border-left-color: var(--interactive-warning-normal);
+}
+
+.equipment-card--stop .equipment-card__status-indicator::before {
+    background-color: var(--interactive-warning-normal);
+}
+
+/* IDLE - 회색 */
+.equipment-card--idle {
+    border-left-color: var(--content-muted);
+}
+
+.equipment-card--idle .equipment-card__status-indicator::before {
+    background-color: var(--content-muted);
+}
+
+/* SUDDENSTOP - 빨간색 */
+.equipment-card--sudden-stop {
+    border-left-color: var(--interactive-danger-normal);
+}
+
+.equipment-card--sudden-stop .equipment-card__status-indicator::before {
+    background-color: var(--interactive-danger-normal);
+}
+
+/* Remote - 진한 빨간색 + 배경 틴트 */
+.equipment-card--remote {
+    border-left-color: var(--interactive-danger-normal);
+    background: linear-gradient(
+        135deg,
+        rgba(239, 68, 68, 0.08) 0%,
+        var(--surface-panel) 100%
+    );
+}
+
+.equipment-card--remote .equipment-card__status-indicator::before {
+    background-color: var(--interactive-danger-normal);
+    box-shadow: 0 0 8px var(--interactive-danger-normal);
+}
+
+/* WAIT - 보라색 */
+.equipment-card--wait {
+    border-left-color: #8b5cf6;
+}
+
+.equipment-card--wait .equipment-card__status-indicator::before {
+    background-color: #8b5cf6;
+}
+
+/* DISCONNECTED - 회색 점선 */
+.equipment-card--disconnected {
+    border-left-color: var(--content-muted);
+    border-left-style: dashed;
+    opacity: 0.7;
+}
+
+.equipment-card--disconnected .equipment-card__status-indicator::before {
+    background-color: var(--content-muted);
+}
+
+/* =============================================
+   Urgency Modifiers (Border + Animation)
+   ============================================= */
+
+/* Warning (5분 초과) - 노란색 테두리 */
+.equipment-card--urgency-warning {
+    border-color: #eab308;
+    border-left-color: #eab308 !important;
+}
+
+/* Danger (10분 초과) - 주황색 테두리 + Pulse */
+.equipment-card--urgency-danger {
+    border-color: #f97316;
+    border-left-color: #f97316 !important;
+    animation: pulse-orange 2s ease-in-out infinite;
+}
+
+/* Critical (15분 초과) - 빨간색 테두리 + 강한 Pulse */
+.equipment-card--urgency-critical {
+    border-color: var(--interactive-danger-normal);
+    border-left-color: var(--interactive-danger-normal) !important;
+    animation: pulse-red 1.5s ease-in-out infinite;
+}
+
+/* =============================================
+   Selection State
+   ============================================= */
+.equipment-card--selected,
+.equipment-card.selected {
+    border-color: var(--interactive-primary-normal);
+    border-left-color: var(--interactive-primary-normal) !important;
+    box-shadow: 
+        0 0 0 2px var(--interactive-primary-normal),
+        var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+/* =============================================
+   Animation States
+   ============================================= */
+.equipment-card--animating {
+    pointer-events: none;
+}
+
+.equipment-card--entering {
+    animation: card-enter 300ms ease-out forwards;
+}
+
+.equipment-card--leaving {
+    animation: card-leave 200ms ease-in forwards;
+}
+
+/* =============================================
+   Header Element
+   ============================================= */
+.equipment-card__header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+/* =============================================
+   Status Indicator Element
+   ============================================= */
+.equipment-card__status-indicator {
+    position: relative;
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+}
+
+.equipment-card__status-indicator::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    background-color: var(--content-muted);
+    transition: background-color var(--transition-fast);
+}
+
+/* =============================================
+   Equipment ID Element
+   ============================================= */
+.equipment-card__equipment-id {
+    flex: 1;
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* =============================================
+   Duration Element
+   ============================================= */
+.equipment-card__duration {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    flex-shrink: 0;
+}
+
+.equipment-card__duration-icon {
+    font-size: var(--font-size-xs);
+}
+
+.equipment-card__duration-value {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--content-secondary);
+}
+
+/* =============================================
+   Body Element
+   ============================================= */
+.equipment-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+}
+
+/* =============================================
+   Alarm Info Element
+   ============================================= */
+.equipment-card__alarm-info {
+    padding: var(--spacing-2);
+    background: rgba(239, 68, 68, 0.08);
+    border-radius: var(--radius-sm);
+    border-left: 2px solid var(--interactive-danger-normal);
+}
+
+.equipment-card__alarm-code {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--interactive-danger-normal);
+}
+
+.equipment-card__alarm-message {
+    margin-top: var(--spacing-1);
+    font-size: var(--font-size-xs);
+    color: var(--content-secondary);
+    line-height: 1.3;
+}
+
+.equipment-card__alarm-repeat {
+    margin-left: auto;
+    font-size: var(--font-size-xs);
+    color: var(--content-muted);
+}
+
+/* =============================================
+   Production Info Element
+   ============================================= */
+.equipment-card__production-info {
+    padding: var(--spacing-2) 0;
+}
+
+.equipment-card__production-label {
+    font-size: var(--font-size-xs);
+    color: var(--content-secondary);
+}
+
+.equipment-card__production-value {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--content-primary);
+}
+
+/* =============================================
+   Production Bar Element
+   ============================================= */
+.equipment-card__production-bar {
+    height: 4px;
+    background: var(--surface-secondary);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.equipment-card__production-bar-fill {
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        var(--interactive-primary-normal) 0%,
+        var(--interactive-success) 100%
+    );
+    border-radius: var(--radius-full);
+    transition: width var(--transition-base);
+}
+
+/* High production (>80%) */
+.equipment-card--run .equipment-card__production-bar-fill {
+    background: var(--interactive-success);
+}
+
+/* =============================================
+   Lot Time Element
+   ============================================= */
+.equipment-card__lot-time {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding-top: var(--spacing-2);
+    border-top: 1px solid var(--border-subtle);
+    font-size: var(--font-size-xs);
+    color: var(--content-secondary);
+}
+
+.equipment-card__lot-time-icon {
+    font-size: var(--font-size-xs);
+}
+
+.equipment-card__lot-time-value {
+    font-family: var(--font-family-mono);
+    font-weight: var(--font-weight-medium);
+    color: var(--content-primary);
+}
+
+/* =============================================
+   Animations
+   ============================================= */
+
+/* Card Enter */
+@keyframes card-enter {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Card Leave */
+@keyframes card-leave {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+    }
+}
+
+/* Pulse Orange (Danger) */
+@keyframes pulse-orange {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
+    }
+}
+
+/* Pulse Red (Critical) */
+@keyframes pulse-red {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+        transform: scale(1.02);
+    }
+}
+
+/* =============================================
+   Dark Theme Adjustments
+   ============================================= */
+[data-theme="dark"] .equipment-card {
+    background: var(--surface-panel);
+}
+
+[data-theme="dark"] .equipment-card:hover {
+    background: var(--surface-hover);
+}
+
+[data-theme="dark"] .equipment-card--remote {
+    background: linear-gradient(
+        135deg,
+        rgba(239, 68, 68, 0.15) 0%,
+        var(--surface-panel) 100%
+    );
+}
+
+[data-theme="dark"] .equipment-card__alarm-info {
+    background: rgba(239, 68, 68, 0.15);
+}
+
+[data-theme="dark"] .equipment-card--selected,
+[data-theme="dark"] .equipment-card.selected {
+    box-shadow: 
+        0 0 0 2px var(--interactive-primary-normal),
+        0 0 20px rgba(56, 189, 248, 0.2);
+}
+
+/* =============================================
+   Responsive Adjustments
+   ============================================= */
+@media (max-width: 768px) {
+    .equipment-card {
+        min-width: 160px;
+        max-width: 180px;
+        padding: var(--spacing-2);
+    }
+    
+    .equipment-card__equipment-id {
+        font-size: var(--font-size-xs);
+    }
+}

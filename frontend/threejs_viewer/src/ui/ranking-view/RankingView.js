@@ -3,23 +3,29 @@
  * ==============
  * Ranking View 메인 컨트롤러 (Orchestrator)
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - 6개 레인 레이아웃 관리 (Remote, Sudden Stop, Stop, Run, Idle, Wait)
  * - 레인 컴포넌트 생성 및 조율
  * - EventBus 이벤트 구독/라우팅
  * - show()/hide()/dispose() 라이프사이클 관리
+ * - Equipment Info Drawer 연동
  * 
  * @changelog
+ * - v1.1.0: Phase 2 업데이트
+ *   - RankingLane 컴포넌트 사용
+ *   - EquipmentCard 연동
+ *   - EventBus 'equipment:select' 이벤트 연결
+ *   - Equipment Info Drawer 연동
  * - v1.0.0: Phase 1 초기 버전
  *   - 기본 레이아웃 및 6개 레인 구조 구현
  *   - CSS 기반 스타일링
  *   - show()/hide() 라이프사이클 관리
- *   - ⚠️ 호환성: 신규 모듈
  * 
  * @dependencies
  * - EventBus (src/core/managers/EventBus.js)
- * - RankingLane (./components/RankingLane.js) - Phase 2에서 구현
+ * - RankingLane (./components/RankingLane.js)
+ * - EquipmentCard (./components/EquipmentCard.js)
  * 
  * @exports
  * - RankingView
@@ -30,8 +36,8 @@
  */
 
 import { eventBus } from '../../core/managers/EventBus.js';
-// Phase 2에서 import 추가 예정:
-// import { RankingLane } from './components/RankingLane.js';
+import { RankingLane } from './components/RankingLane.js';
+import { EquipmentCard } from './components/EquipmentCard.js';
 
 /**
  * 레인 설정 정의
@@ -132,7 +138,7 @@ export class RankingView {
      * @param {Object} options.webSocketClient - WebSocket 클라이언트 (선택)
      */
     constructor(options = {}) {
-        console.log('[RankingView] 🚀 초기화 시작...');
+        console.log('[RankingView] 🚀 초기화 시작 (v1.1.0 - Phase 2)...');
         
         // Options
         this._container = options.container || document.body;
@@ -142,6 +148,8 @@ export class RankingView {
         this._isVisible = false;
         this._isInitialized = false;
         this._isLoading = false;
+        this._selectedEquipmentId = null;
+        this._focusedLaneIndex = 0;
         
         // DOM References
         this.element = null;
@@ -176,7 +184,7 @@ export class RankingView {
         this._setupEventListeners();
         
         this._isInitialized = true;
-        console.log('[RankingView] ✅ 초기화 완료');
+        console.log('[RankingView] ✅ 초기화 완료 (v1.1.0)');
     }
     
     /**
@@ -262,155 +270,24 @@ export class RankingView {
     }
     
     /**
-     * 6개 레인 생성
+     * 6개 레인 생성 (Phase 2: RankingLane 컴포넌트 사용)
      * @private
      */
     _createLanes() {
-        console.log('[RankingView] 🏗️ _createLanes() - 6개 레인 생성');
+        console.log('[RankingView] 🏗️ _createLanes() - 6개 레인 생성 (RankingLane 컴포넌트)');
         
         LANE_CONFIG.forEach(config => {
-            // Phase 1: 간단한 placeholder 레인 생성
-            // Phase 2에서 RankingLane 컴포넌트로 교체
-            const laneElement = this._createPlaceholderLane(config);
-            this._lanesContainer.appendChild(laneElement);
+            // RankingLane 컴포넌트 생성
+            const lane = new RankingLane(config);
             
-            // 레인 참조 저장 (Phase 2에서 RankingLane 인스턴스로 교체)
-            this._lanes.set(config.id, {
-                config,
-                element: laneElement,
-                cards: []
-            });
+            // DOM에 추가
+            this._lanesContainer.appendChild(lane.element);
+            
+            // 레인 참조 저장
+            this._lanes.set(config.id, lane);
         });
         
         console.log(`[RankingView] ✅ ${this._lanes.size}개 레인 생성 완료`);
-    }
-    
-    /**
-     * Placeholder 레인 생성 (Phase 1용)
-     * Phase 2에서 RankingLane 컴포넌트로 교체됨
-     * @private
-     * @param {Object} config - 레인 설정
-     * @returns {HTMLElement}
-     */
-    _createPlaceholderLane(config) {
-        const lane = document.createElement('div');
-        lane.classList.add('ranking-lane');
-        lane.classList.add(`ranking-lane--${config.id}`);
-        lane.dataset.laneId = config.id;
-        
-        // Header
-        const header = document.createElement('div');
-        header.classList.add('lane-header');
-        header.classList.add(`lane-header--${config.id}`);
-        
-        // Title Row
-        const titleRow = document.createElement('div');
-        titleRow.classList.add('lane-header__title-row');
-        
-        const icon = document.createElement('span');
-        icon.classList.add('lane-header__icon');
-        icon.textContent = config.icon;
-        
-        const title = document.createElement('span');
-        title.classList.add('lane-header__title');
-        title.textContent = config.name;
-        
-        const count = document.createElement('span');
-        count.classList.add('lane-header__count');
-        count.textContent = '0';
-        count.dataset.countElement = 'true';
-        
-        titleRow.appendChild(icon);
-        titleRow.appendChild(title);
-        titleRow.appendChild(count);
-        
-        // Stats
-        const stats = document.createElement('div');
-        stats.classList.add('lane-header__stats');
-        
-        // Avg Stat
-        const avgStat = this._createStatElement(
-            config.sortKey === 'production' ? '📦' : '⏱️',
-            'Avg',
-            config.sortKey === 'production' ? '0' : '00:00'
-        );
-        avgStat.classList.add('lane-header__stat--avg');
-        
-        // Max Stat
-        const maxStat = this._createStatElement(
-            '📊',
-            'Max',
-            config.sortKey === 'production' ? '0' : '00:00'
-        );
-        maxStat.classList.add('lane-header__stat--max');
-        
-        stats.appendChild(avgStat);
-        stats.appendChild(maxStat);
-        
-        header.appendChild(titleRow);
-        header.appendChild(stats);
-        
-        // Scroll Container
-        const scrollContainer = document.createElement('div');
-        scrollContainer.classList.add('ranking-lane__scroll-container');
-        
-        // Cards Container
-        const cardsContainer = document.createElement('div');
-        cardsContainer.classList.add('ranking-lane__cards-container');
-        cardsContainer.dataset.cardsContainer = 'true';
-        
-        // Empty Message
-        const emptyMsg = document.createElement('div');
-        emptyMsg.classList.add('ranking-lane__empty-message');
-        
-        const emptyIcon = document.createElement('div');
-        emptyIcon.classList.add('ranking-lane__empty-icon');
-        emptyIcon.textContent = '✓';
-        
-        const emptyText = document.createElement('div');
-        emptyText.classList.add('ranking-lane__empty-text');
-        emptyText.textContent = config.id === 'run' 
-            ? '가동 중인 설비 없음' 
-            : '해당 상태 설비 없음';
-        
-        emptyMsg.appendChild(emptyIcon);
-        emptyMsg.appendChild(emptyText);
-        cardsContainer.appendChild(emptyMsg);
-        
-        scrollContainer.appendChild(cardsContainer);
-        
-        lane.appendChild(header);
-        lane.appendChild(scrollContainer);
-        
-        return lane;
-    }
-    
-    /**
-     * 통계 요소 생성 헬퍼
-     * @private
-     */
-    _createStatElement(iconText, label, value) {
-        const stat = document.createElement('div');
-        stat.classList.add('lane-header__stat');
-        
-        const icon = document.createElement('span');
-        icon.classList.add('lane-header__stat-icon');
-        icon.textContent = iconText;
-        
-        const labelEl = document.createElement('span');
-        labelEl.classList.add('lane-header__stat-label');
-        labelEl.textContent = `${label}:`;
-        
-        const valueEl = document.createElement('span');
-        valueEl.classList.add('lane-header__stat-value');
-        valueEl.textContent = value;
-        valueEl.dataset.statValue = label.toLowerCase();
-        
-        stat.appendChild(icon);
-        stat.appendChild(labelEl);
-        stat.appendChild(valueEl);
-        
-        return stat;
     }
     
     /**
@@ -423,20 +300,25 @@ export class RankingView {
         // Bind handlers for cleanup
         this._boundHandlers.onKeyDown = this._handleKeyDown.bind(this);
         this._boundHandlers.onResize = this._handleResize.bind(this);
-        this._boundHandlers.onLaneClick = this._handleLaneClick.bind(this);
+        this._boundHandlers.onEquipmentSelect = this._handleEquipmentSelect.bind(this);
         
         // DOM Events
         document.addEventListener('keydown', this._boundHandlers.onKeyDown);
         window.addEventListener('resize', this._boundHandlers.onResize);
-        this._lanesContainer.addEventListener('click', this._boundHandlers.onLaneClick);
         
         // EventBus Subscriptions
-        // Phase 3에서 WebSocket 이벤트 연결 예정
         this._eventSubscriptions.push(
+            // Ranking View 토글
             eventBus.on('ranking:show', () => this.show()),
             eventBus.on('ranking:hide', () => this.hide()),
             eventBus.on('submenu:ranking-view:activate', () => this.show()),
-            eventBus.on('submenu:ranking-view:deactivate', () => this.hide())
+            eventBus.on('submenu:ranking-view:deactivate', () => this.hide()),
+            
+            // 설비 선택 이벤트 (Phase 2: Drawer 연동)
+            eventBus.on('equipment:select', this._boundHandlers.onEquipmentSelect),
+            
+            // WebSocket 데이터 이벤트 (Phase 3에서 확장)
+            eventBus.on('websocket:equipment:status', (data) => this._handleStatusChange(data))
         );
         
         console.log('[RankingView] ✅ 이벤트 리스너 설정 완료');
@@ -538,18 +420,69 @@ export class RankingView {
     }
     
     /**
-     * 레인 수 업데이트 (테스트용)
-     * @param {string} laneId
-     * @param {number} count
+     * 설비 카드 추가
+     * @param {string} laneId - 레인 ID
+     * @param {Object} data - 설비 데이터
+     * @returns {EquipmentCard|null}
      */
-    updateLaneCount(laneId, count) {
+    addEquipment(laneId, data) {
         const lane = this._lanes.get(laneId);
-        if (!lane) return;
-        
-        const countEl = lane.element.querySelector('[data-count-element]');
-        if (countEl) {
-            countEl.textContent = count.toString();
+        if (!lane) {
+            console.warn(`[RankingView] ⚠️ 레인을 찾을 수 없음: ${laneId}`);
+            return null;
         }
+        
+        const card = lane.addCard(data);
+        this.setEmpty(false);
+        
+        console.log(`[RankingView] ➕ 설비 추가: ${data.frontendId} → ${laneId}`);
+        return card;
+    }
+    
+    /**
+     * 설비 카드 제거
+     * @param {string} laneId - 레인 ID
+     * @param {string} equipmentId - 설비 ID
+     */
+    removeEquipment(laneId, equipmentId) {
+        const lane = this._lanes.get(laneId);
+        if (lane) {
+            lane.removeCard(equipmentId);
+            console.log(`[RankingView] ➖ 설비 제거: ${equipmentId} from ${laneId}`);
+            
+            // 전체 빈 상태 확인
+            this._checkEmpty();
+        }
+    }
+    
+    /**
+     * 설비 카드 업데이트
+     * @param {string} laneId - 레인 ID
+     * @param {string} equipmentId - 설비 ID
+     * @param {Object} newData - 새 데이터
+     */
+    updateEquipment(laneId, equipmentId, newData) {
+        const lane = this._lanes.get(laneId);
+        if (lane) {
+            lane.updateCard(equipmentId, newData);
+        }
+    }
+    
+    /**
+     * 레인 가져오기
+     * @param {string} laneId
+     * @returns {RankingLane|undefined}
+     */
+    getLane(laneId) {
+        return this._lanes.get(laneId);
+    }
+    
+    /**
+     * 모든 레인 가져오기
+     * @returns {Map<string, RankingLane>}
+     */
+    getAllLanes() {
+        return new Map(this._lanes);
     }
     
     /**
@@ -561,6 +494,14 @@ export class RankingView {
     }
     
     /**
+     * 선택된 설비 ID
+     * @returns {string|null}
+     */
+    get selectedEquipmentId() {
+        return this._selectedEquipmentId;
+    }
+    
+    /**
      * 리소스 정리 및 제거
      */
     dispose() {
@@ -569,7 +510,6 @@ export class RankingView {
         // 1. DOM 이벤트 리스너 제거
         document.removeEventListener('keydown', this._boundHandlers.onKeyDown);
         window.removeEventListener('resize', this._boundHandlers.onResize);
-        this._lanesContainer?.removeEventListener('click', this._boundHandlers.onLaneClick);
         
         // 2. EventBus 구독 해제
         this._eventSubscriptions.forEach(unsubscribe => {
@@ -579,9 +519,9 @@ export class RankingView {
         });
         this._eventSubscriptions = [];
         
-        // 3. 레인 컴포넌트 정리 (Phase 2에서 확장)
+        // 3. 레인 컴포넌트 정리
         this._lanes.forEach((lane, id) => {
-            // Phase 2: lane.component?.dispose();
+            lane.dispose();
         });
         this._lanes.clear();
         
@@ -604,13 +544,67 @@ export class RankingView {
     // =========================================
     
     /**
+     * 설비 선택 이벤트 처리 (Phase 2: Drawer 연동)
+     * @private
+     */
+    _handleEquipmentSelect(data) {
+        if (!this._isVisible) return;
+        
+        const { equipmentId, frontendId, source } = data;
+        
+        console.log(`[RankingView] 🎯 설비 선택: ${frontendId || equipmentId} (source: ${source})`);
+        
+        // 이전 선택 해제
+        this._clearSelection();
+        
+        // 새 선택 설정
+        this._selectedEquipmentId = equipmentId || frontendId;
+        
+        // 카드 선택 상태 업데이트
+        this._lanes.forEach(lane => {
+            const card = lane.getCard(this._selectedEquipmentId);
+            if (card) {
+                card.setSelected(true);
+            }
+        });
+        
+        // Equipment Info Drawer에 데이터 전달 (source가 ranking-view인 경우)
+        if (source === 'ranking-view' && data.cardData) {
+            // EquipmentInfoPanel.show()에 전달할 데이터 포맷
+            const panelData = {
+                id: frontendId,
+                frontendId: frontendId,
+                equipmentId: equipmentId,
+                ...data.cardData
+            };
+            
+            // Drawer 표시를 위한 이벤트 발행
+            eventBus.emit('equipment:detail:show', panelData);
+        }
+    }
+    
+    /**
+     * 선택 해제
+     * @private
+     */
+    _clearSelection() {
+        this._lanes.forEach(lane => {
+            lane.getAllCards().forEach(card => {
+                card.setSelected(false);
+            });
+        });
+        this._selectedEquipmentId = null;
+    }
+    
+    /**
      * 키보드 이벤트 처리
      * @private
      */
     _handleKeyDown(event) {
         if (!this._isVisible) return;
         
-        // Phase 5에서 상세 구현 예정
+        const laneIds = Array.from(this._lanes.keys());
+        
         switch (event.key) {
             case '1':
             case '2':
@@ -619,11 +613,49 @@ export class RankingView {
             case '5':
             case '6':
                 // 레인 포커스 이동
+                event.preventDefault();
                 this._focusLane(parseInt(event.key) - 1);
                 break;
+                
+            case 'ArrowLeft':
+                // 이전 레인으로 이동
+                event.preventDefault();
+                this._focusLane(Math.max(0, this._focusedLaneIndex - 1));
+                break;
+                
+            case 'ArrowRight':
+                // 다음 레인으로 이동
+                event.preventDefault();
+                this._focusLane(Math.min(laneIds.length - 1, this._focusedLaneIndex + 1));
+                break;
+                
+            case 'ArrowUp':
+                // 현재 레인에서 이전 카드 선택 (Phase 5에서 구현)
+                event.preventDefault();
+                break;
+                
+            case 'ArrowDown':
+                // 현재 레인에서 다음 카드 선택 (Phase 5에서 구현)
+                event.preventDefault();
+                break;
+                
+            case 'Enter':
+                // 선택된 카드 상세 보기
+                event.preventDefault();
+                if (this._selectedEquipmentId) {
+                    eventBus.emit('equipment:detail:show', {
+                        id: this._selectedEquipmentId,
+                        frontendId: this._selectedEquipmentId
+                    });
+                }
+                break;
+                
             case 'Escape':
                 // 3D View로 복귀
+                event.preventDefault();
                 eventBus.emit('ranking:escape');
+                this.hide();
+                eventBus.emit('mode:3d-view');
                 break;
         }
     }
@@ -631,24 +663,34 @@ export class RankingView {
     /**
      * 레인 포커스
      * @private
+     * @param {number} index
      */
     _focusLane(index) {
         const laneIds = Array.from(this._lanes.keys());
         if (index < 0 || index >= laneIds.length) return;
         
-        const laneId = laneIds[index];
-        const lane = this._lanes.get(laneId);
-        
-        // 모든 레인에서 focused 제거
-        this._lanes.forEach(l => {
-            l.element.classList.remove('ranking-lane--focused');
+        // 모든 레인에서 포커스 제거
+        this._lanes.forEach(lane => {
+            lane.setFocused(false);
         });
         
-        // 선택된 레인에 focused 추가
-        lane.element.classList.add('ranking-lane--focused');
-        lane.element.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        // 선택된 레인에 포커스 추가
+        const laneId = laneIds[index];
+        const lane = this._lanes.get(laneId);
+        lane.setFocused(true);
         
-        console.log(`[RankingView] 🎯 레인 포커스: ${laneId}`);
+        this._focusedLaneIndex = index;
+        
+        console.log(`[RankingView] 🎯 레인 포커스: ${laneId} (index: ${index})`);
+    }
+    
+    /**
+     * 상태 변경 이벤트 처리 (Phase 3에서 확장)
+     * @private
+     */
+    _handleStatusChange(data) {
+        // Phase 3에서 구현 예정
+        // 레인 간 이동 로직
     }
     
     /**
@@ -660,22 +702,16 @@ export class RankingView {
     }
     
     /**
-     * 레인 클릭 이벤트 처리
+     * 전체 빈 상태 확인
      * @private
      */
-    _handleLaneClick(event) {
-        // Phase 2에서 카드 클릭 처리 구현
-        const card = event.target.closest('.equipment-card');
-        if (card) {
-            const equipmentId = card.dataset.equipmentId;
-            console.log(`[RankingView] 🖱️ 카드 클릭: ${equipmentId}`);
-            
-            // EventBus로 선택 이벤트 발행
-            eventBus.emit('equipment:select', {
-                equipmentId,
-                source: 'ranking-view'
-            });
-        }
+    _checkEmpty() {
+        let totalCount = 0;
+        this._lanes.forEach(lane => {
+            totalCount += lane.count;
+        });
+        
+        this.setEmpty(totalCount === 0);
     }
     
     // =========================================
@@ -686,13 +722,110 @@ export class RankingView {
      * 디버그 정보 출력
      */
     debug() {
-        console.group('[RankingView] Debug Info');
+        console.group('[RankingView] Debug Info (v1.1.0)');
         console.log('isVisible:', this._isVisible);
         console.log('isInitialized:', this._isInitialized);
         console.log('isLoading:', this._isLoading);
+        console.log('selectedEquipmentId:', this._selectedEquipmentId);
+        console.log('focusedLaneIndex:', this._focusedLaneIndex);
         console.log('레인 수:', this._lanes.size);
-        console.log('레인 목록:', Array.from(this._lanes.keys()));
+        console.log('레인 목록:');
+        this._lanes.forEach((lane, id) => {
+            console.log(`  ${id}: ${lane.count} cards`);
+        });
         console.groupEnd();
+    }
+    
+    /**
+     * 테스트 데이터 추가 (개발용)
+     */
+    addTestData() {
+        console.log('[RankingView] 🧪 테스트 데이터 추가...');
+        
+        // Remote 레인 테스트 데이터
+        this.addEquipment('remote', {
+            equipmentId: 'EQ001',
+            frontendId: 'EQ-17-01',
+            equipmentName: '설비 17-01',
+            status: 'SUDDENSTOP',
+            occurredAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(), // 20분 전
+            alarmCode: 10047,
+            alarmMessage: 'BLADE BROKEN',
+            alarmRepeatCount: 3,
+            productionCount: 45,
+            targetCount: 100
+        });
+        
+        // Sudden Stop 레인 테스트 데이터
+        this.addEquipment('sudden-stop', {
+            equipmentId: 'EQ002',
+            frontendId: 'EQ-17-02',
+            equipmentName: '설비 17-02',
+            status: 'SUDDENSTOP',
+            occurredAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(), // 8분 전
+            alarmCode: 1234,
+            alarmMessage: 'SENSOR ERROR',
+            productionCount: 72,
+            targetCount: 100
+        });
+        
+        // Run 레인 테스트 데이터
+        this.addEquipment('run', {
+            equipmentId: 'EQ003',
+            frontendId: 'EQ-17-03',
+            equipmentName: '설비 17-03',
+            status: 'RUN',
+            occurredAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2시간 전
+            productionCount: 95,
+            targetCount: 100,
+            lotStartTime: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
+        });
+        
+        this.addEquipment('run', {
+            equipmentId: 'EQ004',
+            frontendId: 'EQ-17-04',
+            equipmentName: '설비 17-04',
+            status: 'RUN',
+            occurredAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30분 전
+            productionCount: 67,
+            targetCount: 100,
+            lotStartTime: new Date(Date.now() - 45 * 60 * 1000).toISOString()
+        });
+        
+        // Stop 레인 테스트 데이터
+        this.addEquipment('stop', {
+            equipmentId: 'EQ005',
+            frontendId: 'EQ-17-05',
+            equipmentName: '설비 17-05',
+            status: 'STOP',
+            occurredAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(), // 12분 전
+            productionCount: 33,
+            targetCount: 100
+        });
+        
+        // Idle 레인 테스트 데이터
+        this.addEquipment('idle', {
+            equipmentId: 'EQ006',
+            frontendId: 'EQ-17-06',
+            equipmentName: '설비 17-06',
+            status: 'IDLE',
+            occurredAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(), // 3분 전
+            productionCount: 88,
+            targetCount: 100
+        });
+        
+        // Wait 레인 테스트 데이터
+        this.addEquipment('wait', {
+            equipmentId: 'EQ007',
+            frontendId: 'EQ-17-07',
+            equipmentName: '설비 17-07',
+            status: 'WAIT',
+            occurredAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(), // 25분 전
+            productionCount: 0,
+            targetCount: 0
+        });
+        
+        console.log('[RankingView] ✅ 테스트 데이터 추가 완료');
     }
 }
 
