@@ -104,6 +104,9 @@ import { EquipmentMappingService } from './services/mapping/EquipmentMappingServ
 // 🆕 v5.1.0: Sidebar UI 컴포넌트 import
 import { createSidebarUI } from './ui/sidebar/index.js';
 
+// 🆕 RankingView import 추가
+import { RankingView } from './ui/ranking-view/index.js';
+
 // 🆕 v5.4.0: ConnectionMode import
 import { ConnectionMode, ConnectionEvents } from './services/ConnectionStatusService.js';
 
@@ -1938,6 +1941,9 @@ function init() {
         console.error('스택:', error.stack);
         showInitError(error);
     }
+
+    // 🆕 RankingView 전역 노출 (디버깅용)
+    window.RankingView = RankingView;
 }
 
 // ============================================
