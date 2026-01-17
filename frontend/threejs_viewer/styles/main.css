@@ -93,11 +93,12 @@
    ============================================= */
 @import './components/ranking-view/_ranking-view.css';
 @import './components/ranking-view/_ranking-lane.css';
+@import './components/ranking-view/_equipment-card.css';
 @import './components/ranking-view/_lane-header.css';
-
+@import './components/ranking-view/_animations.css';  /* ← 추가 */
 /* Phase 2에서 추가 예정 */
 /* @import './components/ranking-view/_equipment-card.css'; */
-@import './components/ranking-view/_equipment-card.css';
+
 /* Phase 6에서 추가 예정 */
 /* @import './components/ranking-view/_mini-timeline.css'; */
 /* @import './components/ranking-view/_animations.css'; */

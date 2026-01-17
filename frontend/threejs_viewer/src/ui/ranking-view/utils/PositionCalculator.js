@@ -1,0 +1,487 @@
+/**
+ * PositionCalculator.js
+ * =====================
+ * 카드 위치 계산 유틸리티
+ * 
+ * @version 1.0.0
+ * @description
+ * - 레인 내 카드 목표 위치 계산
+ * - 스크롤 오프셋 고려
+ * - 뷰포트 기준 좌표 변환
+ * - 위치 캐싱 및 무효화
+ * 
+ * @changelog
+ * - v1.0.0: 초기 구현
+ *   - 위치 계산 로직
+ *   - 스크롤 처리
+ *   - 캐시 시스템
+ *   - ⚠️ 호환성: 신규 파일
+ * 
+ * @dependencies
+ * - 없음 (Pure utility)
+ * 
+ * @exports
+ * - PositionCalculator
+ * 
+ * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/utils/PositionCalculator.js
+ * 작성일: 2026-01-17
+ * 수정일: 2026-01-17
+ */
+
+/**
+ * PositionCalculator - 카드 위치 계산 유틸리티
+ * 
+ * 주요 기능:
+ * 1. 레인 내 목표 위치 계산
+ * 2. 스크롤 오프셋 보정
+ * 3. 뷰포트 좌표 ↔ 문서 좌표 변환
+ * 4. 레인/카드 경계 계산
+ */
+export class PositionCalculator {
+    // ─────────────────────────────────────────────────────────────
+    // Static Constants
+    // ─────────────────────────────────────────────────────────────
+    
+    /**
+     * 기본 설정
+     */
+    static DEFAULTS = {
+        CARD_GAP: 8,           // 카드 간 간격 (px)
+        LANE_PADDING: 12,      // 레인 패딩 (px)
+        HEADER_HEIGHT: 80,     // 레인 헤더 높이 (px)
+        CACHE_TTL: 1000        // 캐시 유효 시간 (ms)
+    };
+    
+    // ─────────────────────────────────────────────────────────────
+    // Constructor
+    // ─────────────────────────────────────────────────────────────
+    
+    /**
+     * PositionCalculator 생성자
+     * @param {Object} options - 설정 옵션
+     * @param {HTMLElement} options.container - 레인 컨테이너
+     * @param {Map} options.lanesMap - 레인 맵 (laneId → RankingLane)
+     */
+    constructor(options = {}) {
+        this.container = options.container || null;
+        this.lanesMap = options.lanesMap || new Map();
+        
+        // 설정
+        this._config = {
+            ...PositionCalculator.DEFAULTS,
+            ...options.config
+        };
+        
+        // 캐시
+        this._positionCache = new Map();
+        this._laneRectCache = new Map();
+        this._cacheTimestamp = 0;
+        
+        this._init();
+    }
+    
+    // ─────────────────────────────────────────────────────────────
+    // Initialization
+    // ─────────────────────────────────────────────────────────────
+    
+    /**
+     * 초기화
+     * @private
+     */
+    _init() {
+        console.log('[PositionCalculator] 📐 Initializing...');
+    }
+    
+    // ─────────────────────────────────────────────────────────────
+    // Public API
+    // ─────────────────────────────────────────────────────────────
+    
+    /**
+     * 목표 위치 계산 (메인 API)
+     * @param {string} equipmentId - 설비 ID
+     * @param {string} laneId - 레인 ID
+     * @param {number} targetIndex - 목표 인덱스
+     * @returns {Object} { x, y, width, height }
+     */
+    calculateTargetPosition(equipmentId, laneId, targetIndex) {
+        // 캐시 확인
+        const cacheKey = `${laneId}:${targetIndex}`;
+        const cached = this._getFromCache(cacheKey);
+        
+        if (cached) {
+            return cached;
+        }
+        
+        // 레인 정보 가져오기
+        const lane = this.lanesMap.get(laneId);
+        if (!lane) {
+            console.warn(`[PositionCalculator] ⚠️ Lane not found: ${laneId}`);
+            return { x: 0, y: 0, width: 0, height: 0 };
+        }
+        
+        // 레인 위치 정보
+        const laneRect = this._getLaneRect(laneId);
+        const cardsContainer = this._getCardsContainer(lane);
+        
+        if (!cardsContainer) {
+            return { x: laneRect.x, y: laneRect.y, width: 0, height: 0 };
+        }
+        
+        // 카드 높이 계산 (기존 카드 참조 또는 기본값)
+        const cardHeight = this._estimateCardHeight(lane);
+        
+        // 스크롤 오프셋
+        const scrollOffset = this._getScrollOffset(cardsContainer);
+        
+        // 목표 Y 위치 계산
+        const containerRect = cardsContainer.getBoundingClientRect();
+        const targetY = containerRect.top + 
+                        (targetIndex * (cardHeight + this._config.CARD_GAP)) - 
+                        scrollOffset;
+        
+        const position = {
+            x: containerRect.left,
+            y: targetY,
+            width: containerRect.width,
+            height: cardHeight
+        };
+        
+        // 캐시 저장
+        this._setToCache(cacheKey, position);
+        
+        return position;
+    }
+    
+    /**
+     * 카드 현재 위치 가져오기
+     * @param {HTMLElement} cardElement - 카드 엘리먼트
+     * @returns {Object} { x, y, width, height }
+     */
+    getCurrentPosition(cardElement) {
+        if (!cardElement) {
+            return { x: 0, y: 0, width: 0, height: 0 };
+        }
+        
+        const rect = cardElement.getBoundingClientRect();
+        
+        return {
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height
+        };
+    }
+    
+    /**
+     * 두 위치 간 델타 계산
+     * @param {Object} from - 시작 위치
+     * @param {Object} to - 목표 위치
+     * @returns {Object} { deltaX, deltaY, distance, angle }
+     */
+    calculateDelta(from, to) {
+        const deltaX = to.x - from.x;
+        const deltaY = to.y - from.y;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+        
+        return {
+            deltaX,
+            deltaY,
+            distance,
+            angle
+        };
+    }
+    
+    /**
+     * 레인 위치 정보 가져오기
+     * @param {string} laneId - 레인 ID
+     * @returns {Object} { x, y, width, height, scrollTop }
+     */
+    getLanePosition(laneId) {
+        return this._getLaneRect(laneId);
+    }
+    
+    /**
+     * 특정 인덱스의 카드가 보이는지 확인
+     * @param {string} laneId - 레인 ID
+     * @param {number} index - 카드 인덱스
+     * @returns {boolean}
+     */
+    isCardVisible(laneId, index) {
+        const lane = this.lanesMap.get(laneId);
+        if (!lane) return false;
+        
+        const cardsContainer = this._getCardsContainer(lane);
+        if (!cardsContainer) return false;
+        
+        const cardHeight = this._estimateCardHeight(lane);
+        const scrollTop = cardsContainer.scrollTop;
+        const containerHeight = cardsContainer.clientHeight;
+        
+        const cardTop = index * (cardHeight + this._config.CARD_GAP);
+        const cardBottom = cardTop + cardHeight;
+        
+        return cardBottom > scrollTop && cardTop < scrollTop + containerHeight;
+    }
+    
+    /**
+     * 카드가 뷰포트 내에 있는지 확인
+     * @param {HTMLElement} cardElement - 카드 엘리먼트
+     * @returns {boolean}
+     */
+    isInViewport(cardElement) {
+        if (!cardElement) return false;
+        
+        const rect = cardElement.getBoundingClientRect();
+        
+        return (
+            rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+            rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+        );
+    }
+    
+    /**
+     * 인덱스로 스크롤 위치 계산
+     * @param {string} laneId - 레인 ID
+     * @param {number} index - 카드 인덱스
+     * @returns {number} 스크롤 위치 (scrollTop)
+     */
+    calculateScrollToIndex(laneId, index) {
+        const lane = this.lanesMap.get(laneId);
+        if (!lane) return 0;
+        
+        const cardHeight = this._estimateCardHeight(lane);
+        const cardsContainer = this._getCardsContainer(lane);
+        
+        if (!cardsContainer) return 0;
+        
+        const containerHeight = cardsContainer.clientHeight;
+        const targetTop = index * (cardHeight + this._config.CARD_GAP);
+        
+        // 카드가 중앙에 오도록 스크롤
+        return Math.max(0, targetTop - (containerHeight / 2) + (cardHeight / 2));
+    }
+    
+    /**
+     * 모든 레인의 카드 위치 계산
+     * @returns {Map} laneId → Array<{ index, position }>
+     */
+    calculateAllPositions() {
+        const result = new Map();
+        
+        for (const [laneId, lane] of this.lanesMap) {
+            const positions = [];
+            const cardsContainer = this._getCardsContainer(lane);
+            
+            if (cardsContainer) {
+                const cards = cardsContainer.querySelectorAll('.equipment-card');
+                cards.forEach((card, index) => {
+                    positions.push({
+                        index,
+                        position: this.getCurrentPosition(card)
+                    });
+                });
+            }
+            
+            result.set(laneId, positions);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 삽입 위치의 Y 좌표 계산
+     * @param {string} laneId - 레인 ID
+     * @param {number} insertIndex - 삽입 인덱스
+     * @returns {number} Y 좌표
+     */
+    calculateInsertY(laneId, insertIndex) {
+        const position = this.calculateTargetPosition(null, laneId, insertIndex);
+        return position.y;
+    }
+    
+    /**
+     * 밀림 거리 계산
+     * @param {string} laneId - 레인 ID
+     * @returns {number} 밀림 거리 (px)
+     */
+    calculatePushDistance(laneId) {
+        const lane = this.lanesMap.get(laneId);
+        if (!lane) return 0;
+        
+        return this._estimateCardHeight(lane) + this._config.CARD_GAP;
+    }
+    
+    // ─────────────────────────────────────────────────────────────
+    // Private Methods
+    // ─────────────────────────────────────────────────────────────
+    
+    /**
+     * 레인 Rect 가져오기
+     * @private
+     */
+    _getLaneRect(laneId) {
+        // 캐시 확인
+        if (this._laneRectCache.has(laneId) && this._isCacheValid()) {
+            return this._laneRectCache.get(laneId);
+        }
+        
+        const lane = this.lanesMap.get(laneId);
+        if (!lane || !lane.element) {
+            return { x: 0, y: 0, width: 0, height: 0, scrollTop: 0 };
+        }
+        
+        const rect = lane.element.getBoundingClientRect();
+        const cardsContainer = this._getCardsContainer(lane);
+        
+        const laneRect = {
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height,
+            scrollTop: cardsContainer ? cardsContainer.scrollTop : 0
+        };
+        
+        this._laneRectCache.set(laneId, laneRect);
+        return laneRect;
+    }
+    
+    /**
+     * 카드 컨테이너 가져오기
+     * @private
+     */
+    _getCardsContainer(lane) {
+        if (!lane || !lane.element) return null;
+        return lane.element.querySelector('.ranking-lane__cards-container');
+    }
+    
+    /**
+     * 카드 높이 추정
+     * @private
+     */
+    _estimateCardHeight(lane) {
+        const cardsContainer = this._getCardsContainer(lane);
+        
+        if (cardsContainer) {
+            const firstCard = cardsContainer.querySelector('.equipment-card');
+            if (firstCard) {
+                return firstCard.offsetHeight;
+            }
+        }
+        
+        // 기본값 (카드 높이 추정)
+        return 100;
+    }
+    
+    /**
+     * 스크롤 오프셋 가져오기
+     * @private
+     */
+    _getScrollOffset(container) {
+        return container ? container.scrollTop : 0;
+    }
+    
+    // ─────────────────────────────────────────────────────────────
+    // Cache Methods
+    // ─────────────────────────────────────────────────────────────
+    
+    /**
+     * 캐시에서 가져오기
+     * @private
+     */
+    _getFromCache(key) {
+        if (!this._isCacheValid()) {
+            this._clearCache();
+            return null;
+        }
+        
+        return this._positionCache.get(key);
+    }
+    
+    /**
+     * 캐시에 저장
+     * @private
+     */
+    _setToCache(key, value) {
+        this._positionCache.set(key, value);
+        this._cacheTimestamp = Date.now();
+    }
+    
+    /**
+     * 캐시 유효성 확인
+     * @private
+     */
+    _isCacheValid() {
+        return Date.now() - this._cacheTimestamp < this._config.CACHE_TTL;
+    }
+    
+    /**
+     * 캐시 초기화
+     * @private
+     */
+    _clearCache() {
+        this._positionCache.clear();
+        this._laneRectCache.clear();
+        this._cacheTimestamp = 0;
+    }
+    
+    /**
+     * 캐시 무효화 (외부 호출용)
+     */
+    invalidateCache() {
+        this._clearCache();
+    }
+    
+    // ─────────────────────────────────────────────────────────────
+    // Setters
+    // ─────────────────────────────────────────────────────────────
+    
+    /**
+     * 컨테이너 설정
+     * @param {HTMLElement} container
+     */
+    setContainer(container) {
+        this.container = container;
+        this.invalidateCache();
+    }
+    
+    /**
+     * 레인 맵 설정
+     * @param {Map} lanesMap
+     */
+    setLanesMap(lanesMap) {
+        this.lanesMap = lanesMap;
+        this.invalidateCache();
+    }
+    
+    /**
+     * 설정 업데이트
+     * @param {Object} config
+     */
+    updateConfig(config) {
+        this._config = {
+            ...this._config,
+            ...config
+        };
+        this.invalidateCache();
+    }
+    
+    // ─────────────────────────────────────────────────────────────
+    // Cleanup
+    // ─────────────────────────────────────────────────────────────
+    
+    /**
+     * 리소스 정리
+     */
+    dispose() {
+        console.log('[PositionCalculator] 🗑️ Disposing...');
+        
+        this._clearCache();
+        this.container = null;
+        this.lanesMap = null;
+        
+        console.log('[PositionCalculator] ✅ Disposed');
+    }
+}
