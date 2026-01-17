@@ -3,7 +3,7 @@
  * ==============
  * Ranking View 메인 컨트롤러 (Orchestrator)
  * 
- * @version 1.3.0
+ * @version 1.3.1
  * @description
  * - 6개 레인 레이아웃 관리 (Remote, Sudden Stop, Stop, Run, Idle, Wait)
  * - 레인 컴포넌트 생성 및 조율
@@ -11,8 +11,13 @@
  * - show()/hide()/dispose() 라이프사이클 관리
  * - Equipment Info Drawer 연동
  * - CameraNavigator 가시성 제어 (3D View 전용)
+ * - Dev Mode 자동 테스트 데이터 지원
  * 
  * @changelog
+ * - v1.3.1: 🐛 Bug Fix - CameraNavigator 숨김 강화 + Dev Mode 지원
+ *   - CameraNavigator 숨김 로직 강화 (다중 경로 시도)
+ *   - Dev Mode 감지 및 자동 테스트 데이터 추가
+ *   - show() 시 데이터 확인 후 빈 상태 처리
  * - v1.3.0: 🆕 Phase 5 - LaneManager 통합
  *   - LaneManager 인스턴스 생성 및 관리
  *   - 키보드 네비게이션 개선 (1-6, 방향키)
@@ -37,7 +42,7 @@
  * - EventBus (src/core/managers/EventBus.js)
  * - RankingLane (./components/RankingLane.js)
  * - EquipmentCard (./components/EquipmentCard.js)
- * - LaneManager (./managers/LaneManager.js) 🆕 v1.3.0
+ * - LaneManager (./managers/LaneManager.js)
  * 
  * @exports
  * - RankingView
@@ -152,7 +157,7 @@ export class RankingView {
      * @param {Object} options.webSocketClient - WebSocket 클라이언트 (선택)
      */
     constructor(options = {}) {
-        console.log('[RankingView] 🚀 초기화 시작 (v1.3.0 - Phase 5 LaneManager 통합)...');
+        console.log('[RankingView] 🚀 초기화 시작 (v1.3.1 - CameraNavigator 수정 + Dev Mode 지원)...');
         
         // Options
         this._container = options.container || document.body;
@@ -164,6 +169,9 @@ export class RankingView {
         this._isLoading = false;
         this._selectedEquipmentId = null;
         this._focusedLaneIndex = 0;
+        
+        // 🆕 v1.3.1: Dev Mode 감지
+        this._isDevMode = this._detectDevMode();
         
         // 🆕 v1.2.0: CameraNavigator 이전 가시성 상태 저장
         this._cameraNavigatorWasVisible = true;
@@ -205,7 +213,44 @@ export class RankingView {
         this._setupEventListeners();
         
         this._isInitialized = true;
-        console.log('[RankingView] ✅ 초기화 완료 (v1.3.0)');
+        console.log('[RankingView] ✅ 초기화 완료 (v1.3.1)');
+    }
+    
+    /**
+     * 🆕 v1.3.1: Dev Mode 감지
+     * @private
+     * @returns {boolean}
+     */
+    _detectDevMode() {
+        // 방법 1: URL 파라미터
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('dev') === 'true' || urlParams.get('devmode') === 'true') {
+            console.log('[RankingView] 🧪 Dev Mode 감지 (URL 파라미터)');
+            return true;
+        }
+        
+        // 방법 2: DOM에서 DEV MODE 버튼 존재 확인
+        const devModeButton = document.querySelector('[data-dev-mode]') || 
+                              document.querySelector('.dev-mode-btn') ||
+                              document.querySelector('#dev-mode-toggle');
+        if (devModeButton && devModeButton.classList.contains('active')) {
+            console.log('[RankingView] 🧪 Dev Mode 감지 (버튼 활성화)');
+            return true;
+        }
+        
+        // 방법 3: 전역 플래그
+        if (window.IS_DEV_MODE === true || window.devMode === true) {
+            console.log('[RankingView] 🧪 Dev Mode 감지 (전역 플래그)');
+            return true;
+        }
+        
+        // 방법 4: localStorage
+        if (localStorage.getItem('devMode') === 'true') {
+            console.log('[RankingView] 🧪 Dev Mode 감지 (localStorage)');
+            return true;
+        }
+        
+        return false;
     }
     
     /**
@@ -383,38 +428,67 @@ export class RankingView {
     }
     
     // =========================================
-    // 🆕 v1.2.0: CameraNavigator 제어
+    // 🆕 v1.3.1: CameraNavigator 제어 (강화)
     // =========================================
     
     /**
-     * CameraNavigator 가시성 설정
+     * CameraNavigator 가시성 설정 (강화 버전)
      * @private
      * @param {boolean} visible - 표시 여부
      */
     _setCameraNavigatorVisible(visible) {
+        console.log(`[RankingView] 📐 CameraNavigator ${visible ? '표시' : '숨김'} 시도...`);
+        
+        let success = false;
+        
         // 방법 1: 전역 window.cameraNavigator 사용
         if (window.cameraNavigator?.setVisible) {
             window.cameraNavigator.setVisible(visible);
-            console.log(`[RankingView] 📐 CameraNavigator ${visible ? '표시' : '숨김'} (window.cameraNavigator)`);
-            return;
+            console.log(`[RankingView] ✅ CameraNavigator ${visible ? '표시' : '숨김'} (window.cameraNavigator)`);
+            success = true;
         }
         
-        // 방법 2: window.services.scene.cameraNavigator 사용
+        // 방법 2: window.services.cameraNavigator 사용
+        if (window.services?.cameraNavigator?.setVisible) {
+            window.services.cameraNavigator.setVisible(visible);
+            console.log(`[RankingView] ✅ CameraNavigator ${visible ? '표시' : '숨김'} (services.cameraNavigator)`);
+            success = true;
+        }
+        
+        // 방법 3: window.services.scene.cameraNavigator 사용
         if (window.services?.scene?.cameraNavigator?.setVisible) {
             window.services.scene.cameraNavigator.setVisible(visible);
-            console.log(`[RankingView] 📐 CameraNavigator ${visible ? '표시' : '숨김'} (services.scene)`);
-            return;
+            console.log(`[RankingView] ✅ CameraNavigator ${visible ? '표시' : '숨김'} (services.scene.cameraNavigator)`);
+            success = true;
         }
         
-        // 방법 3: DOM 직접 접근 (폴백)
-        const navigatorEl = document.getElementById('camera-navigator');
-        if (navigatorEl) {
-            navigatorEl.style.display = visible ? 'block' : 'none';
-            console.log(`[RankingView] 📐 CameraNavigator ${visible ? '표시' : '숨김'} (DOM 직접)`);
-            return;
+        // 방법 4: DOM 직접 접근 (폴백) - ID로 찾기
+        const navigatorById = document.getElementById('camera-navigator');
+        if (navigatorById) {
+            navigatorById.style.display = visible ? 'block' : 'none';
+            console.log(`[RankingView] ✅ CameraNavigator ${visible ? '표시' : '숨김'} (DOM #camera-navigator)`);
+            success = true;
         }
         
-        console.log('[RankingView] ⚠️ CameraNavigator를 찾을 수 없음');
+        // 방법 5: DOM 직접 접근 - 클래스로 찾기
+        const navigatorByClass = document.querySelector('.camera-navigator');
+        if (navigatorByClass) {
+            navigatorByClass.style.display = visible ? 'block' : 'none';
+            console.log(`[RankingView] ✅ CameraNavigator ${visible ? '표시' : '숨김'} (DOM .camera-navigator)`);
+            success = true;
+        }
+        
+        // 방법 6: SVG 네비게이터 찾기 (CameraNavigator의 실제 구조 기반)
+        const svgNavigator = document.querySelector('#camera-navigator svg');
+        if (svgNavigator && svgNavigator.parentElement) {
+            svgNavigator.parentElement.style.display = visible ? 'block' : 'none';
+            console.log(`[RankingView] ✅ CameraNavigator ${visible ? '표시' : '숨김'} (SVG parent)`);
+            success = true;
+        }
+        
+        if (!success) {
+            console.log('[RankingView] ⚠️ CameraNavigator를 찾을 수 없음 - 모든 방법 실패');
+        }
     }
     
     /**
@@ -426,6 +500,10 @@ export class RankingView {
         // 전역 접근
         if (window.cameraNavigator?.navContainer) {
             return window.cameraNavigator.navContainer.style.display !== 'none';
+        }
+        
+        if (window.services?.cameraNavigator?.navContainer) {
+            return window.services.cameraNavigator.navContainer.style.display !== 'none';
         }
         
         if (window.services?.scene?.cameraNavigator?.navContainer) {
@@ -456,7 +534,7 @@ export class RankingView {
         
         console.log('[RankingView] 👁️ show()');
         
-        // 🆕 v1.2.0: CameraNavigator 현재 상태 저장 후 숨김
+        // 🆕 v1.3.1: CameraNavigator 현재 상태 저장 후 숨김 (강화)
         this._cameraNavigatorWasVisible = this._getCameraNavigatorVisible();
         this._setCameraNavigatorVisible(false);
         
@@ -472,10 +550,71 @@ export class RankingView {
             this._laneManager.activate();
         }
         
+        // 🆕 v1.3.1: 데이터 확인 및 Dev Mode 처리
+        this._checkDataAndLoadTestData();
+        
         // Emit event
         eventBus.emit('ranking:shown');
         
         console.log('[RankingView] ✅ 표시됨');
+    }
+    
+    /**
+     * 🆕 v1.3.1: 데이터 확인 후 필요시 테스트 데이터 로드
+     * @private
+     */
+    _checkDataAndLoadTestData() {
+        // 모든 레인의 카드 수 확인
+        let totalCards = 0;
+        this._lanes.forEach(lane => {
+            totalCards += lane.count;
+        });
+        
+        console.log(`[RankingView] 📊 현재 카드 수: ${totalCards}`);
+        
+        if (totalCards === 0) {
+            // 🆕 Dev Mode 재감지 (동적으로 변경될 수 있음)
+            this._isDevMode = this._detectDevMode();
+            
+            // Backend 연결 확인
+            const isBackendConnected = this._checkBackendConnection();
+            
+            if (!isBackendConnected || this._isDevMode) {
+                console.log('[RankingView] 🧪 테스트 데이터 자동 로드 (Dev Mode 또는 Backend 미연결)');
+                this.addTestData();
+            } else {
+                // Backend 연결됨 but 데이터 없음
+                this.setEmpty(true);
+            }
+        } else {
+            this.setEmpty(false);
+        }
+    }
+    
+    /**
+     * 🆕 v1.3.1: Backend 연결 상태 확인
+     * @private
+     * @returns {boolean}
+     */
+    _checkBackendConnection() {
+        // WebSocket 연결 상태 확인
+        if (this._webSocketClient?.isConnected) {
+            return this._webSocketClient.isConnected();
+        }
+        
+        // 전역 연결 상태 확인
+        if (window.webSocketClient?.isConnected) {
+            return window.webSocketClient.isConnected();
+        }
+        
+        // ConnectionIndicator 상태 확인
+        const connectionIndicator = document.querySelector('.connection-indicator');
+        if (connectionIndicator?.classList.contains('connected')) {
+            return true;
+        }
+        
+        // 기본: 연결 안 됨으로 가정
+        return false;
     }
     
     /**
@@ -501,14 +640,19 @@ export class RankingView {
             this._laneManager.deactivate();
         }
         
-        // 🆕 v1.2.0: CameraNavigator 이전 상태로 복원
+        // 🆕 v1.3.1: CameraNavigator 복원 (강화)
         // 3D View가 활성화된 경우에만 표시
         if (this._cameraNavigatorWasVisible) {
             const threejsContainer = document.getElementById('threejs-container');
-            const is3DViewActive = threejsContainer && threejsContainer.classList.contains('active');
+            const is3DViewActive = threejsContainer && 
+                                   (threejsContainer.classList.contains('active') || 
+                                    threejsContainer.style.display !== 'none');
             
             if (is3DViewActive) {
-                this._setCameraNavigatorVisible(true);
+                // 약간의 딜레이 후 표시 (전환 애니메이션 고려)
+                setTimeout(() => {
+                    this._setCameraNavigatorVisible(true);
+                }, 100);
             }
         }
         
@@ -912,10 +1056,11 @@ export class RankingView {
      * 디버그 정보 출력
      */
     debug() {
-        console.group('[RankingView] Debug Info (v1.3.0)');
+        console.group('[RankingView] Debug Info (v1.3.1)');
         console.log('isVisible:', this._isVisible);
         console.log('isInitialized:', this._isInitialized);
         console.log('isLoading:', this._isLoading);
+        console.log('isDevMode:', this._isDevMode);
         console.log('selectedEquipmentId:', this._selectedEquipmentId);
         console.log('focusedLaneIndex:', this._focusedLaneIndex);
         console.log('cameraNavigatorWasVisible:', this._cameraNavigatorWasVisible);
@@ -952,6 +1097,19 @@ export class RankingView {
             targetCount: 100
         });
         
+        this.addEquipment('remote', {
+            equipmentId: 'EQ008',
+            frontendId: 'EQ-18-02',
+            equipmentName: '설비 18-02',
+            status: 'SUDDENSTOP',
+            occurredAt: new Date(Date.now() - 35 * 60 * 1000).toISOString(), // 35분 전
+            alarmCode: 20015,
+            alarmMessage: 'MOTOR OVERHEAT',
+            alarmRepeatCount: 5,
+            productionCount: 12,
+            targetCount: 100
+        });
+        
         // Sudden Stop 레인 테스트 데이터
         this.addEquipment('sudden-stop', {
             equipmentId: 'EQ002',
@@ -962,6 +1120,18 @@ export class RankingView {
             alarmCode: 1234,
             alarmMessage: 'SENSOR ERROR',
             productionCount: 72,
+            targetCount: 100
+        });
+        
+        this.addEquipment('sudden-stop', {
+            equipmentId: 'EQ009',
+            frontendId: 'EQ-19-01',
+            equipmentName: '설비 19-01',
+            status: 'SUDDENSTOP',
+            occurredAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15분 전
+            alarmCode: 5678,
+            alarmMessage: 'VACUUM LOSS',
+            productionCount: 55,
             targetCount: 100
         });
         
@@ -988,6 +1158,17 @@ export class RankingView {
             lotStartTime: new Date(Date.now() - 45 * 60 * 1000).toISOString()
         });
         
+        this.addEquipment('run', {
+            equipmentId: 'EQ010',
+            frontendId: 'EQ-20-01',
+            equipmentName: '설비 20-01',
+            status: 'RUN',
+            occurredAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1시간 전
+            productionCount: 82,
+            targetCount: 100,
+            lotStartTime: new Date(Date.now() - 50 * 60 * 1000).toISOString()
+        });
+        
         // Stop 레인 테스트 데이터
         this.addEquipment('stop', {
             equipmentId: 'EQ005',
@@ -996,6 +1177,16 @@ export class RankingView {
             status: 'STOP',
             occurredAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(), // 12분 전
             productionCount: 33,
+            targetCount: 100
+        });
+        
+        this.addEquipment('stop', {
+            equipmentId: 'EQ011',
+            frontendId: 'EQ-21-01',
+            equipmentName: '설비 21-01',
+            status: 'STOP',
+            occurredAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(), // 45분 전
+            productionCount: 88,
             targetCount: 100
         });
         
@@ -1010,6 +1201,16 @@ export class RankingView {
             targetCount: 100
         });
         
+        this.addEquipment('idle', {
+            equipmentId: 'EQ012',
+            frontendId: 'EQ-22-01',
+            equipmentName: '설비 22-01',
+            status: 'IDLE',
+            occurredAt: new Date(Date.now() - 7 * 60 * 1000).toISOString(), // 7분 전
+            productionCount: 65,
+            targetCount: 100
+        });
+        
         // Wait 레인 테스트 데이터
         this.addEquipment('wait', {
             equipmentId: 'EQ007',
@@ -1021,7 +1222,31 @@ export class RankingView {
             targetCount: 0
         });
         
-        console.log('[RankingView] ✅ 테스트 데이터 추가 완료');
+        this.addEquipment('wait', {
+            equipmentId: 'EQ013',
+            frontendId: 'EQ-23-01',
+            equipmentName: '설비 23-01',
+            status: 'WAIT',
+            occurredAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1시간 전
+            productionCount: 0,
+            targetCount: 0
+        });
+        
+        console.log('[RankingView] ✅ 테스트 데이터 추가 완료 (총 13개 설비)');
+    }
+    
+    /**
+     * 🆕 v1.3.1: 모든 데이터 초기화
+     */
+    clearAllData() {
+        console.log('[RankingView] 🗑️ 모든 데이터 초기화...');
+        
+        this._lanes.forEach(lane => {
+            lane.clearCards();
+        });
+        
+        this._checkEmpty();
+        console.log('[RankingView] ✅ 데이터 초기화 완료');
     }
 }
 
