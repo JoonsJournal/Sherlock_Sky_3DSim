@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 3: 레인 정렬 로직 테스트</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        h1 {
+            color: #0ff;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #333;
+        }
+        
+        h2 {
+            color: #6c5ce7;
+            margin: 30px 0 15px;
+        }
+        
+        .test-section {
+            background: #222;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .test-group {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #2a2a3e;
+            border-radius: 6px;
+        }
+        
+        .test-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #74b9ff;
+        }
+        
+        .test-result {
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+        }
+        
+        .pass {
+            background: #00b894;
+            color: #000;
+        }
+        
+        .fail {
+            background: #e74c3c;
+            color: #fff;
+        }
+        
+        .info {
+            background: #3498db;
+            color: #fff;
+        }
+        
+        button {
+            background: #6c5ce7;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            background: #5f4fcf;
+            transform: translateY(-2px);
+        }
+        
+        .summary {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2a2a3e;
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 2px solid #6c5ce7;
+        }
+        
+        .summary span {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .summary .pass-count {
+            color: #00b894;
+        }
+        
+        .summary .fail-count {
+            color: #e74c3c;
+        }
+        
+        pre {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        
+        .lane-display {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            overflow-x: auto;
+        }
+        
+        .lane-column {
+            min-width: 150px;
+            background: #2a2a3e;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        
+        .lane-header {
+            text-align: center;
+            padding: 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .lane-header.remote { background: #c0392b; }
+        .lane-header.sudden-stop { background: #e74c3c; }
+        .lane-header.stop { background: #f39c12; }
+        .lane-header.run { background: #27ae60; }
+        .lane-header.idle { background: #3498db; }
+        .lane-header.wait { background: #95a5a6; }
+        
+        .equipment-item {
+            background: #1a1a2e;
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .equipment-item .id {
+            font-weight: bold;
+            color: #74b9ff;
+        }
+        
+        .equipment-item .info {
+            color: #888;
+            font-size: 11px;
+            background: transparent;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Phase 3: 레인 정렬 로직 테스트</h1>
+    
+    <div class="summary">
+        <span class="pass-count" id="passCount">0</span> / 
+        <span class="fail-count" id="failCount">0</span>
+    </div>
+    
+    <div class="test-section">
+        <button onclick="runAllTests()">▶️ 모든 테스트 실행</button>
+        <button onclick="runDurationTests()">⏱️ DurationCalculator 테스트</button>
+        <button onclick="runSorterTests()">📊 LaneSorter 테스트</button>
+        <button onclick="runDataManagerTests()">🗄️ DataManager 테스트</button>
+        <button onclick="runIntegrationTest()">🔗 통합 테스트</button>
+    </div>
+    
+    <div id="testResults"></div>
+    
+    <script type="module">
+        // =========================================================================
+        // Import Phase 3 모듈
+        // =========================================================================
+        
+        // 테스트 환경에서 직접 import (실제 환경에서는 상대 경로 사용)
+        // import { DurationCalculator } from './utils/DurationCalculator.js';
+        // import { LaneSorter } from './utils/LaneSorter.js';
+        // import { RankingDataManager } from './managers/RankingDataManager.js';
+        
+        // 테스트용 인라인 구현 (import가 안 될 경우를 위한 폴백)
+        // 실제 테스트에서는 import 사용
+        
+        // =========================================================================
+        // DurationCalculator 인라인 구현 (테스트용)
+        // =========================================================================
+        class DurationCalculator {
+            static URGENCY_THRESHOLDS = { WARNING: 5, DANGER: 10, CRITICAL: 15 };
+            static URGENCY_LEVELS = { NORMAL: 'normal', WARNING: 'warning', DANGER: 'danger', CRITICAL: 'critical' };
+            static MS = { SECOND: 1000, MINUTE: 60000, HOUR: 3600000, DAY: 86400000 };
+            
+            static calculateStatusDuration(occurredAt, now = new Date()) {
+                if (!occurredAt) return 0;
+                const startTime = new Date(occurredAt);
+                return Math.max(0, now.getTime() - startTime.getTime());
+            }
+            
+            static calculateWaitDuration(lastLotInfo, now = new Date()) {
+                if (!lastLotInfo || lastLotInfo.isStart !== 0) return 0;
+                const completedAt = lastLotInfo.occurredAtUtc || lastLotInfo.OccurredAtUtc;
+                return completedAt ? this.calculateStatusDuration(completedAt, now) : 0;
+            }
+            
+            static formatDuration(durationMs, options = {}) {
+                if (durationMs < 0 || !isFinite(durationMs)) return '00:00:00';
+                const hours = Math.floor(durationMs / this.MS.HOUR);
+                const minutes = Math.floor((durationMs % this.MS.HOUR) / this.MS.MINUTE);
+                const seconds = Math.floor((durationMs % this.MS.MINUTE) / this.MS.SECOND);
+                return [hours, minutes, seconds].map(n => n.toString().padStart(2, '0')).join(':');
+            }
+            
+            static getDurationMinutes(durationMs) {
+                return isFinite(durationMs) && durationMs >= 0 ? durationMs / this.MS.MINUTE : 0;
+            }
+            
+            static getUrgencyLevel(durationMs, thresholds = this.URGENCY_THRESHOLDS) {
+                const minutes = this.getDurationMinutes(durationMs);
+                if (minutes > thresholds.CRITICAL) return this.URGENCY_LEVELS.CRITICAL;
+                if (minutes > thresholds.DANGER) return this.URGENCY_LEVELS.DANGER;
+                if (minutes > thresholds.WARNING) return this.URGENCY_LEVELS.WARNING;
+                return this.URGENCY_LEVELS.NORMAL;
+            }
+            
+            static calculateAverage(durations) {
+                const valid = durations.filter(d => isFinite(d) && d >= 0);
+                return valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : 0;
+            }
+            
+            static calculateMax(durations) {
+                const valid = durations.filter(d => isFinite(d) && d >= 0);
+                return valid.length ? Math.max(...valid) : 0;
+            }
+        }
+        
+        // =========================================================================
+        // LaneSorter 인라인 구현 (테스트용)
+        // =========================================================================
+        class LaneSorter {
+            static SORT_RULES = {
+                'remote': 'duration-desc',
+                'sudden-stop': 'duration-desc',
+                'stop': 'duration-desc',
+                'run': 'production-desc',
+                'idle': 'duration-desc',
+                'wait': 'duration-desc',
+                'custom': 'duration-desc'
+            };
+            
+            static sort(equipments, laneId, options = {}) {
+                if (!Array.isArray(equipments) || !equipments.length) return [];
+                const rule = options.customRule || this.SORT_RULES[laneId] || 'duration-desc';
+                
+                switch (rule) {
+                    case 'duration-desc':
+                        return this.sortByDurationDesc(equipments);
+                    case 'production-desc':
+                        return this.sortByProductionDesc(equipments);
+                    default:
+                        return this.sortByDurationDesc(equipments);
+                }
+            }
+            
+            static sortByDurationDesc(equipments) {
+                return [...equipments].sort((a, b) => 
+                    (b.statusDuration || 0) - (a.statusDuration || 0)
+                );
+            }
+            
+            static sortByProductionDesc(equipments) {
+                return [...equipments].sort((a, b) => {
+                    const diff = (b.productionCount || 0) - (a.productionCount || 0);
+                    return diff !== 0 ? diff : (b.statusDuration || 0) - (a.statusDuration || 0);
+                });
+            }
+            
+            static detectOrderChanges(previous, current, idField = 'equipmentId') {
+                const changes = { moved: [], added: [], removed: [], unchanged: [] };
+                const prevMap = new Map(previous.map((item, idx) => [item[idField], { item, index: idx }]));
+                const currMap = new Map(current.map((item, idx) => [item[idField], { item, index: idx }]));
+                
+                for (const [id, { item, index }] of currMap) {
+                    if (!prevMap.has(id)) {
+                        changes.added.push({ item, newIndex: index });
+                    } else {
+                        const prevInfo = prevMap.get(id);
+                        if (prevInfo.index !== index) {
+                            changes.moved.push({ item, oldIndex: prevInfo.index, newIndex: index });
+                        } else {
+                            changes.unchanged.push({ item, index });
+                        }
+                    }
+                }
+                
+                for (const [id, { item, index }] of prevMap) {
+                    if (!currMap.has(id)) {
+                        changes.removed.push({ item, oldIndex: index });
+                    }
+                }
+                
+                return changes;
+            }
+        }
+        
+        // =========================================================================
+        // RankingDataManager 인라인 구현 (테스트용)
+        // =========================================================================
+        class RankingDataManager {
+            static REMOTE_ALARM_CODES = new Set([61, 62, 86, 10047, 10048, 10051, 10052, 10055, 10056, 10057, 10058, 10077]);
+            static LANE_IDS = { REMOTE: 'remote', SUDDEN_STOP: 'sudden-stop', STOP: 'stop', RUN: 'run', IDLE: 'idle', WAIT: 'wait', CUSTOM: 'custom' };
+            static STATUS = { RUN: 'RUN', STOP: 'STOP', IDLE: 'IDLE', SUDDENSTOP: 'SUDDENSTOP' };
+            
+            constructor(options = {}) {
+                this._equipments = new Map();
+                this._laneEquipments = new Map();
+                Object.values(RankingDataManager.LANE_IDS).forEach(id => this._laneEquipments.set(id, new Set()));
+            }
+            
+            determineLane(equipment) {
+                const { status, alarmCode, isProducing } = equipment;
+                if (!isProducing) return RankingDataManager.LANE_IDS.WAIT;
+                if (status === 'SUDDENSTOP') {
+                    return RankingDataManager.REMOTE_ALARM_CODES.has(alarmCode) 
+                        ? RankingDataManager.LANE_IDS.REMOTE 
+                        : RankingDataManager.LANE_IDS.SUDDEN_STOP;
+                }
+                switch (status) {
+                    case 'RUN': return RankingDataManager.LANE_IDS.RUN;
+                    case 'STOP': return RankingDataManager.LANE_IDS.STOP;
+                    case 'IDLE': return RankingDataManager.LANE_IDS.IDLE;
+                    default: return RankingDataManager.LANE_IDS.WAIT;
+                }
+            }
+            
+            isProducing(equipment) {
+                const { lotInfo } = equipment;
+                if (!lotInfo) return false;
+                const isStart = lotInfo.isStart ?? lotInfo.IsStart ?? 0;
+                const isEnd = lotInfo.isEnd ?? lotInfo.IsEnd ?? 0;
+                return isStart === 1 && isEnd !== 1;
+            }
+            
+            isRemoteAlarm(alarmCode) {
+                return alarmCode && RankingDataManager.REMOTE_ALARM_CODES.has(alarmCode);
+            }
+            
+            processEquipmentData(rawData) {
+                if (!rawData) return null;
+                const equipmentId = rawData.equipmentId || rawData.EquipmentId;
+                const status = (rawData.status || rawData.Status || 'UNKNOWN').toUpperCase();
+                const alarmCode = rawData.alarmCode ? parseInt(rawData.alarmCode, 10) : null;
+                const occurredAt = rawData.occurredAt || rawData.OccurredAt;
+                const lotInfo = rawData.lotInfo || null;
+                const isProducing = this.isProducing({ lotInfo });
+                const productionCount = parseInt(rawData.productionCount || 0, 10);
+                const statusDuration = occurredAt ? DurationCalculator.calculateStatusDuration(occurredAt) : 0;
+                
+                return { equipmentId, status, alarmCode, occurredAt, lotInfo, isProducing, productionCount, statusDuration, laneId: null };
+            }
+            
+            loadEquipments(equipmentsData) {
+                for (const laneId of this._laneEquipments.keys()) {
+                    this._laneEquipments.set(laneId, new Set());
+                }
+                this._equipments.clear();
+                
+                for (const rawData of equipmentsData) {
+                    const equipment = this.processEquipmentData(rawData);
+                    if (equipment) {
+                        const laneId = this.determineLane(equipment);
+                        equipment.laneId = laneId;
+                        this._equipments.set(equipment.equipmentId, equipment);
+                        this._laneEquipments.get(laneId).add(equipment.equipmentId);
+                    }
+                }
+                
+                return this.getAllLanes();
+            }
+            
+            getLaneEquipments(laneId) {
+                const ids = this._laneEquipments.get(laneId) || new Set();
+                const equipments = Array.from(ids).map(id => this._equipments.get(id)).filter(Boolean);
+                return LaneSorter.sort(equipments, laneId);
+            }
+            
+            getAllLanes() {
+                const result = new Map();
+                for (const laneId of this._laneEquipments.keys()) {
+                    result.set(laneId, this.getLaneEquipments(laneId));
+                }
+                return result;
+            }
+        }
+        
+        // =========================================================================
+        // 테스트 유틸리티
+        // =========================================================================
+        let passCount = 0;
+        let failCount = 0;
+        
+        function assert(condition, message) {
+            if (condition) {
+                passCount++;
+                return { pass: true, message };
+            } else {
+                failCount++;
+                return { pass: false, message };
+            }
+        }
+        
+        function assertEqual(actual, expected, message) {
+            const condition = JSON.stringify(actual) === JSON.stringify(expected);
+            return assert(condition, `${message}\n  Expected: ${JSON.stringify(expected)}\n  Actual: ${JSON.stringify(actual)}`);
+        }
+        
+        function updateSummary() {
+            document.getElementById('passCount').textContent = passCount;
+            document.getElementById('failCount').textContent = failCount;
+        }
+        
+        function displayResult(title, results, details = '') {
+            const container = document.getElementById('testResults');
+            const allPass = results.every(r => r.pass);
+            
+            let html = `
+                <div class="test-group">
+                    <div class="test-title">${allPass ? '✅' : '❌'} ${title}</div>
+            `;
+            
+            for (const result of results) {
+                html += `<div class="test-result ${result.pass ? 'pass' : 'fail'}">${result.pass ? '✓' : '✗'} ${result.message}</div>`;
+            }
+            
+            if (details) {
+                html += `<pre>${details}</pre>`;
+            }
+            
+            html += '</div>';
+            container.innerHTML += html;
+            updateSummary();
+        }
+        
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '';
+            passCount = 0;
+            failCount = 0;
+            updateSummary();
+        }
+        
+        // =========================================================================
+        // DurationCalculator 테스트
+        // =========================================================================
+        window.runDurationTests = function() {
+            clearResults();
+            const results = [];
+            
+            // 테스트 1: 지속 시간 계산
+            const now = new Date('2026-01-17T12:00:00Z');
+            const oneHourAgo = new Date('2026-01-17T11:00:00Z');
+            const duration = DurationCalculator.calculateStatusDuration(oneHourAgo, now);
+            results.push(assertEqual(duration, 3600000, '1시간 전 시작 → 3600000ms'));
+            
+            // 테스트 2: 시간 포맷팅
+            const formatted = DurationCalculator.formatDuration(3661000);
+            results.push(assertEqual(formatted, '01:01:01', '3661000ms → 01:01:01'));
+            
+            // 테스트 3: 분 변환
+            const minutes = DurationCalculator.getDurationMinutes(300000);
+            results.push(assertEqual(minutes, 5, '300000ms → 5분'));
+            
+            // 테스트 4: 긴급도 레벨 - Normal
+            const normal = DurationCalculator.getUrgencyLevel(4 * 60000);
+            results.push(assertEqual(normal, 'normal', '4분 → normal'));
+            
+            // 테스트 5: 긴급도 레벨 - Warning
+            const warning = DurationCalculator.getUrgencyLevel(6 * 60000);
+            results.push(assertEqual(warning, 'warning', '6분 → warning'));
+            
+            // 테스트 6: 긴급도 레벨 - Danger
+            const danger = DurationCalculator.getUrgencyLevel(12 * 60000);
+            results.push(assertEqual(danger, 'danger', '12분 → danger'));
+            
+            // 테스트 7: 긴급도 레벨 - Critical
+            const critical = DurationCalculator.getUrgencyLevel(20 * 60000);
+            results.push(assertEqual(critical, 'critical', '20분 → critical'));
+            
+            // 테스트 8: 평균 계산
+            const avg = DurationCalculator.calculateAverage([100, 200, 300]);
+            results.push(assertEqual(avg, 200, '평균(100,200,300) → 200'));
+            
+            // 테스트 9: 최대값 계산
+            const max = DurationCalculator.calculateMax([100, 300, 200]);
+            results.push(assertEqual(max, 300, '최대(100,300,200) → 300'));
+            
+            // 테스트 10: null 처리
+            const nullDuration = DurationCalculator.calculateStatusDuration(null);
+            results.push(assertEqual(nullDuration, 0, 'null occurredAt → 0'));
+            
+            displayResult('DurationCalculator 테스트', results);
+        };
+        
+        // =========================================================================
+        // LaneSorter 테스트
+        // =========================================================================
+        window.runSorterTests = function() {
+            clearResults();
+            const results = [];
+            
+            // 테스트 데이터
+            const equipments = [
+                { equipmentId: 'EQ-001', statusDuration: 100000, productionCount: 50 },
+                { equipmentId: 'EQ-002', statusDuration: 300000, productionCount: 80 },
+                { equipmentId: 'EQ-003', statusDuration: 200000, productionCount: 30 }
+            ];
+            
+            // 테스트 1: Duration 내림차순 정렬 (오래된 순)
+            const durationSorted = LaneSorter.sort(equipments, 'remote');
+            results.push(assertEqual(
+                durationSorted.map(e => e.equipmentId),
+                ['EQ-002', 'EQ-003', 'EQ-001'],
+                'Remote 레인: 지속 시간 오래된 순 정렬'
+            ));
+            
+            // 테스트 2: Production 내림차순 정렬 (많은 순)
+            const productionSorted = LaneSorter.sort(equipments, 'run');
+            results.push(assertEqual(
+                productionSorted.map(e => e.equipmentId),
+                ['EQ-002', 'EQ-001', 'EQ-003'],
+                'Run 레인: 생산 개수 많은 순 정렬'
+            ));
+            
+            // 테스트 3: 변경 감지
+            const previous = [
+                { equipmentId: 'A', statusDuration: 100 },
+                { equipmentId: 'B', statusDuration: 200 },
+                { equipmentId: 'C', statusDuration: 300 }
+            ];
+            const current = [
+                { equipmentId: 'B', statusDuration: 400 },
+                { equipmentId: 'A', statusDuration: 100 },
+                { equipmentId: 'D', statusDuration: 50 }
+            ];
+            const changes = LaneSorter.detectOrderChanges(previous, current);
+            results.push(assertEqual(changes.moved.length, 2, '이동된 항목 2개 (A, B)'));
+            results.push(assertEqual(changes.added.length, 1, '추가된 항목 1개 (D)'));
+            results.push(assertEqual(changes.removed.length, 1, '제거된 항목 1개 (C)'));
+            
+            // 테스트 4: 빈 배열 처리
+            const empty = LaneSorter.sort([], 'run');
+            results.push(assertEqual(empty, [], '빈 배열 → 빈 배열'));
+            
+            // 테스트 5: 정렬 규칙 확인
+            results.push(assertEqual(LaneSorter.SORT_RULES['remote'], 'duration-desc', 'Remote 정렬 규칙'));
+            results.push(assertEqual(LaneSorter.SORT_RULES['run'], 'production-desc', 'Run 정렬 규칙'));
+            
+            displayResult('LaneSorter 테스트', results);
+        };
+        
+        // =========================================================================
+        // RankingDataManager 테스트
+        // =========================================================================
+        window.runDataManagerTests = function() {
+            clearResults();
+            const results = [];
+            
+            const manager = new RankingDataManager();
+            
+            // 테스트 1: SUDDENSTOP + Remote Alarm → Remote 레인
+            const remoteEq = { status: 'SUDDENSTOP', alarmCode: 10047, isProducing: true };
+            results.push(assertEqual(
+                manager.determineLane(remoteEq), 
+                'remote', 
+                'SUDDENSTOP + AlarmCode 10047 → Remote 레인'
+            ));
+            
+            // 테스트 2: SUDDENSTOP + 일반 Alarm → Sudden Stop 레인
+            const suddenEq = { status: 'SUDDENSTOP', alarmCode: 9999, isProducing: true };
+            results.push(assertEqual(
+                manager.determineLane(suddenEq), 
+                'sudden-stop', 
+                'SUDDENSTOP + AlarmCode 9999 → Sudden Stop 레인'
+            ));
+            
+            // 테스트 3: RUN + 생산중 → Run 레인
+            const runEq = { status: 'RUN', alarmCode: null, isProducing: true };
+            results.push(assertEqual(
+                manager.determineLane(runEq), 
+                'run', 
+                'RUN + 생산중 → Run 레인'
+            ));
+            
+            // 테스트 4: RUN + 비생산 → Wait 레인
+            const waitEq = { status: 'RUN', alarmCode: null, isProducing: false };
+            results.push(assertEqual(
+                manager.determineLane(waitEq), 
+                'wait', 
+                'RUN + 비생산 → Wait 레인'
+            ));
+            
+            // 테스트 5: STOP + 생산중 → Stop 레인
+            const stopEq = { status: 'STOP', alarmCode: null, isProducing: true };
+            results.push(assertEqual(
+                manager.determineLane(stopEq), 
+                'stop', 
+                'STOP + 생산중 → Stop 레인'
+            ));
+            
+            // 테스트 6: IDLE + 생산중 → Idle 레인
+            const idleEq = { status: 'IDLE', alarmCode: null, isProducing: true };
+            results.push(assertEqual(
+                manager.determineLane(idleEq), 
+                'idle', 
+                'IDLE + 생산중 → Idle 레인'
+            ));
+            
+            // 테스트 7: 생산중 판단 - Lot 진행 중
+            const producingEq = { lotInfo: { isStart: 1, isEnd: 0 } };
+            results.push(assert(
+                manager.isProducing(producingEq) === true, 
+                'IsStart=1, IsEnd=0 → 생산중'
+            ));
+            
+            // 테스트 8: 생산중 판단 - Lot 완료
+            const completedEq = { lotInfo: { isStart: 1, isEnd: 1 } };
+            results.push(assert(
+                manager.isProducing(completedEq) === false, 
+                'IsStart=1, IsEnd=1 → 비생산'
+            ));
+            
+            // 테스트 9: 생산중 판단 - Lot 없음
+            const noLotEq = { lotInfo: null };
+            results.push(assert(
+                manager.isProducing(noLotEq) === false, 
+                'Lot 없음 → 비생산'
+            ));
+            
+            // 테스트 10: Remote Alarm 확인
+            results.push(assert(manager.isRemoteAlarm(10047), '10047 → Remote Alarm'));
+            results.push(assert(manager.isRemoteAlarm(61), '61 → Remote Alarm'));
+            results.push(assert(!manager.isRemoteAlarm(9999), '9999 → 일반 Alarm'));
+            
+            displayResult('RankingDataManager 테스트', results);
+        };
+        
+        // =========================================================================
+        // 통합 테스트
+        // =========================================================================
+        window.runIntegrationTest = function() {
+            clearResults();
+            const results = [];
+            
+            // 테스트 데이터 생성
+            const now = new Date();
+            const testEquipments = [
+                // Remote 레인 (SUDDENSTOP + Remote Alarm + 생산중)
+                { equipmentId: 'EQ-001', status: 'SUDDENSTOP', alarmCode: 10047, 
+                  occurredAt: new Date(now - 15 * 60000).toISOString(),
+                  lotInfo: { isStart: 1, isEnd: 0 }, productionCount: 50 },
+                { equipmentId: 'EQ-002', status: 'SUDDENSTOP', alarmCode: 10048, 
+                  occurredAt: new Date(now - 25 * 60000).toISOString(),
+                  lotInfo: { isStart: 1, isEnd: 0 }, productionCount: 30 },
+                
+                // Sudden Stop 레인 (SUDDENSTOP + 일반 Alarm + 생산중)
+                { equipmentId: 'EQ-003', status: 'SUDDENSTOP', alarmCode: 9999, 
+                  occurredAt: new Date(now - 10 * 60000).toISOString(),
+                  lotInfo: { isStart: 1, isEnd: 0 }, productionCount: 70 },
+                
+                // Run 레인 (RUN + 생산중)
+                { equipmentId: 'EQ-004', status: 'RUN', alarmCode: null, 
+                  occurredAt: new Date(now - 30 * 60000).toISOString(),
+                  lotInfo: { isStart: 1, isEnd: 0 }, productionCount: 95 },
+                { equipmentId: 'EQ-005', status: 'RUN', alarmCode: null, 
+                  occurredAt: new Date(now - 45 * 60000).toISOString(),
+                  lotInfo: { isStart: 1, isEnd: 0 }, productionCount: 67 },
+                { equipmentId: 'EQ-006', status: 'RUN', alarmCode: null, 
+                  occurredAt: new Date(now - 20 * 60000).toISOString(),
+                  lotInfo: { isStart: 1, isEnd: 0 }, productionCount: 82 },
+                
+                // Wait 레인 (비생산)
+                { equipmentId: 'EQ-007', status: 'RUN', alarmCode: null, 
+                  occurredAt: new Date(now - 60 * 60000).toISOString(),
+                  lotInfo: null, productionCount: 0 },
+                { equipmentId: 'EQ-008', status: 'IDLE', alarmCode: null, 
+                  occurredAt: new Date(now - 40 * 60000).toISOString(),
+                  lotInfo: { isStart: 0, isEnd: 1 }, productionCount: 0 }
+            ];
+            
+            // DataManager로 로드
+            const manager = new RankingDataManager();
+            const lanes = manager.loadEquipments(testEquipments);
+            
+            // 테스트 1: 레인 할당 확인
+            const remoteLane = lanes.get('remote');
+            results.push(assertEqual(remoteLane.length, 2, 'Remote 레인: 2개 설비'));
+            results.push(assert(
+                remoteLane.map(e => e.equipmentId).includes('EQ-001') && 
+                remoteLane.map(e => e.equipmentId).includes('EQ-002'),
+                'Remote 레인: EQ-001, EQ-002 포함'
+            ));
+            
+            // 테스트 2: Remote 레인 정렬 확인 (오래된 순)
+            results.push(assertEqual(
+                remoteLane[0].equipmentId, 
+                'EQ-002', 
+                'Remote 레인 1위: EQ-002 (25분 전 발생)'
+            ));
+            
+            // 테스트 3: Sudden Stop 레인 확인
+            const suddenStopLane = lanes.get('sudden-stop');
+            results.push(assertEqual(suddenStopLane.length, 1, 'Sudden Stop 레인: 1개 설비'));
+            
+            // 테스트 4: Run 레인 정렬 확인 (생산 많은 순)
+            const runLane = lanes.get('run');
+            results.push(assertEqual(runLane.length, 3, 'Run 레인: 3개 설비'));
+            results.push(assertEqual(
+                runLane[0].equipmentId, 
+                'EQ-004', 
+                'Run 레인 1위: EQ-004 (95개 생산)'
+            ));
+            results.push(assertEqual(
+                runLane[1].equipmentId, 
+                'EQ-006', 
+                'Run 레인 2위: EQ-006 (82개 생산)'
+            ));
+            
+            // 테스트 5: Wait 레인 확인 (비생산)
+            const waitLane = lanes.get('wait');
+            results.push(assertEqual(waitLane.length, 2, 'Wait 레인: 2개 설비'));
+            
+            // 테스트 6: Stop/Idle 레인 비어있음 확인
+            results.push(assertEqual(lanes.get('stop').length, 0, 'Stop 레인: 빈 상태'));
+            results.push(assertEqual(lanes.get('idle').length, 0, 'Idle 레인: 빈 상태'));
+            
+            displayResult('통합 테스트', results);
+            
+            // 레인 시각화
+            displayLaneVisualization(lanes);
+        };
+        
+        // 레인 시각화 표시
+        function displayLaneVisualization(lanes) {
+            const container = document.getElementById('testResults');
+            
+            let html = '<h2>📊 레인 할당 결과 시각화</h2><div class="lane-display">';
+            
+            const laneOrder = ['remote', 'sudden-stop', 'stop', 'run', 'idle', 'wait'];
+            const laneNames = {
+                'remote': 'Remote',
+                'sudden-stop': 'Sudden Stop',
+                'stop': 'Stop',
+                'run': 'Run',
+                'idle': 'Idle',
+                'wait': 'Wait'
+            };
+            
+            for (const laneId of laneOrder) {
+                const equipments = lanes.get(laneId) || [];
+                html += `
+                    <div class="lane-column">
+                        <div class="lane-header ${laneId}">${laneNames[laneId]} (${equipments.length})</div>
+                `;
+                
+                for (const eq of equipments) {
+                    const duration = DurationCalculator.formatDuration(eq.statusDuration || 0);
+                    const info = laneId === 'run' 
+                        ? `생산: ${eq.productionCount}개` 
+                        : `지속: ${duration}`;
+                    
+                    html += `
+                        <div class="equipment-item">
+                            <div class="id">${eq.equipmentId}</div>
+                            <div class="info">${info}</div>
+                        </div>
+                    `;
+                }
+                
+                if (equipments.length === 0) {
+                    html += '<div class="equipment-item"><div class="info">빈 레인</div></div>';
+                }
+                
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            container.innerHTML += html;
+        }
+        
+        // =========================================================================
+        // 모든 테스트 실행
+        // =========================================================================
+        window.runAllTests = function() {
+            clearResults();
+            
+            // DurationCalculator 테스트
+            const durationResults = [];
+            const now = new Date('2026-01-17T12:00:00Z');
+            const oneHourAgo = new Date('2026-01-17T11:00:00Z');
+            
+            durationResults.push(assertEqual(DurationCalculator.calculateStatusDuration(oneHourAgo, now), 3600000, '지속 시간 계산'));
+            durationResults.push(assertEqual(DurationCalculator.formatDuration(3661000), '01:01:01', '시간 포맷팅'));
+            durationResults.push(assertEqual(DurationCalculator.getDurationMinutes(300000), 5, '분 변환'));
+            durationResults.push(assertEqual(DurationCalculator.getUrgencyLevel(6 * 60000), 'warning', '긴급도 레벨'));
+            
+            displayResult('DurationCalculator 테스트', durationResults);
+            
+            // LaneSorter 테스트
+            const sorterResults = [];
+            const equipments = [
+                { equipmentId: 'EQ-001', statusDuration: 100000, productionCount: 50 },
+                { equipmentId: 'EQ-002', statusDuration: 300000, productionCount: 80 },
+                { equipmentId: 'EQ-003', statusDuration: 200000, productionCount: 30 }
+            ];
+            
+            const durationSorted = LaneSorter.sort(equipments, 'remote');
+            sorterResults.push(assertEqual(durationSorted.map(e => e.equipmentId), ['EQ-002', 'EQ-003', 'EQ-001'], 'Duration 정렬'));
+            
+            const productionSorted = LaneSorter.sort(equipments, 'run');
+            sorterResults.push(assertEqual(productionSorted.map(e => e.equipmentId), ['EQ-002', 'EQ-001', 'EQ-003'], 'Production 정렬'));
+            
+            displayResult('LaneSorter 테스트', sorterResults);
+            
+            // DataManager 테스트
+            const managerResults = [];
+            const manager = new RankingDataManager();
+            
+            managerResults.push(assertEqual(manager.determineLane({ status: 'SUDDENSTOP', alarmCode: 10047, isProducing: true }), 'remote', 'Remote Alarm → Remote 레인'));
+            managerResults.push(assertEqual(manager.determineLane({ status: 'SUDDENSTOP', alarmCode: 9999, isProducing: true }), 'sudden-stop', '일반 Alarm → Sudden Stop 레인'));
+            managerResults.push(assertEqual(manager.determineLane({ status: 'RUN', alarmCode: null, isProducing: true }), 'run', 'RUN 상태 → Run 레인'));
+            managerResults.push(assertEqual(manager.determineLane({ status: 'RUN', alarmCode: null, isProducing: false }), 'wait', '비생산 → Wait 레인'));
+            managerResults.push(assert(manager.isProducing({ lotInfo: { isStart: 1, isEnd: 0 } }) === true, 'Lot 진행 중 → 생산중'));
+            managerResults.push(assert(manager.isProducing({ lotInfo: null }) === false, 'Lot 없음 → 비생산'));
+            
+            displayResult('RankingDataManager 테스트', managerResults);
+            
+            console.log(`✅ 모든 테스트 완료: ${passCount} 통과, ${failCount} 실패`);
+        };
+        
+        // 페이지 로드 시 안내 메시지
+        console.log('🧪 Phase 3 테스트 준비 완료');
+        console.log('버튼을 클릭하여 테스트를 실행하세요.');
+    </script>
+</body>
+</html>

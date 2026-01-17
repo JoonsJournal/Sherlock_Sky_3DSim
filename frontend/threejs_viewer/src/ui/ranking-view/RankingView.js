@@ -3,15 +3,20 @@
  * ==============
  * Ranking View 메인 컨트롤러 (Orchestrator)
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @description
  * - 6개 레인 레이아웃 관리 (Remote, Sudden Stop, Stop, Run, Idle, Wait)
  * - 레인 컴포넌트 생성 및 조율
  * - EventBus 이벤트 구독/라우팅
  * - show()/hide()/dispose() 라이프사이클 관리
  * - Equipment Info Drawer 연동
+ * - CameraNavigator 가시성 제어 (3D View 전용)
  * 
  * @changelog
+ * - v1.2.0: CameraNavigator 가시성 제어 추가
+ *   - show() 시 CameraNavigator 숨김
+ *   - hide() 시 CameraNavigator 표시 (3D View 활성 시에만)
+ *   - _setCameraNavigatorVisible() 헬퍼 메서드 추가
  * - v1.1.0: Phase 2 업데이트
  *   - RankingLane 컴포넌트 사용
  *   - EquipmentCard 연동
@@ -138,7 +143,7 @@ export class RankingView {
      * @param {Object} options.webSocketClient - WebSocket 클라이언트 (선택)
      */
     constructor(options = {}) {
-        console.log('[RankingView] 🚀 초기화 시작 (v1.1.0 - Phase 2)...');
+        console.log('[RankingView] 🚀 초기화 시작 (v1.2.0 - CameraNavigator 제어)...');
         
         // Options
         this._container = options.container || document.body;
@@ -150,6 +155,9 @@ export class RankingView {
         this._isLoading = false;
         this._selectedEquipmentId = null;
         this._focusedLaneIndex = 0;
+        
+        // 🆕 v1.2.0: CameraNavigator 이전 가시성 상태 저장
+        this._cameraNavigatorWasVisible = true;
         
         // DOM References
         this.element = null;
@@ -184,7 +192,7 @@ export class RankingView {
         this._setupEventListeners();
         
         this._isInitialized = true;
-        console.log('[RankingView] ✅ 초기화 완료 (v1.1.0)');
+        console.log('[RankingView] ✅ 초기화 완료 (v1.2.0)');
     }
     
     /**
@@ -325,6 +333,65 @@ export class RankingView {
     }
     
     // =========================================
+    // 🆕 v1.2.0: CameraNavigator 제어
+    // =========================================
+    
+    /**
+     * CameraNavigator 가시성 설정
+     * @private
+     * @param {boolean} visible - 표시 여부
+     */
+    _setCameraNavigatorVisible(visible) {
+        // 방법 1: 전역 window.cameraNavigator 사용
+        if (window.cameraNavigator?.setVisible) {
+            window.cameraNavigator.setVisible(visible);
+            console.log(`[RankingView] 📐 CameraNavigator ${visible ? '표시' : '숨김'} (window.cameraNavigator)`);
+            return;
+        }
+        
+        // 방법 2: window.services.scene.cameraNavigator 사용
+        if (window.services?.scene?.cameraNavigator?.setVisible) {
+            window.services.scene.cameraNavigator.setVisible(visible);
+            console.log(`[RankingView] 📐 CameraNavigator ${visible ? '표시' : '숨김'} (services.scene)`);
+            return;
+        }
+        
+        // 방법 3: DOM 직접 접근 (폴백)
+        const navigatorEl = document.getElementById('camera-navigator');
+        if (navigatorEl) {
+            navigatorEl.style.display = visible ? 'block' : 'none';
+            console.log(`[RankingView] 📐 CameraNavigator ${visible ? '표시' : '숨김'} (DOM 직접)`);
+            return;
+        }
+        
+        console.log('[RankingView] ⚠️ CameraNavigator를 찾을 수 없음');
+    }
+    
+    /**
+     * CameraNavigator 현재 가시성 상태 확인
+     * @private
+     * @returns {boolean}
+     */
+    _getCameraNavigatorVisible() {
+        // 전역 접근
+        if (window.cameraNavigator?.navContainer) {
+            return window.cameraNavigator.navContainer.style.display !== 'none';
+        }
+        
+        if (window.services?.scene?.cameraNavigator?.navContainer) {
+            return window.services.scene.cameraNavigator.navContainer.style.display !== 'none';
+        }
+        
+        // DOM 직접 접근
+        const navigatorEl = document.getElementById('camera-navigator');
+        if (navigatorEl) {
+            return navigatorEl.style.display !== 'none';
+        }
+        
+        return true; // 기본값
+    }
+    
+    // =========================================
     // Public Methods
     // =========================================
     
@@ -338,6 +405,10 @@ export class RankingView {
         }
         
         console.log('[RankingView] 👁️ show()');
+        
+        // 🆕 v1.2.0: CameraNavigator 현재 상태 저장 후 숨김
+        this._cameraNavigatorWasVisible = this._getCameraNavigatorVisible();
+        this._setCameraNavigatorVisible(false);
         
         this.element.classList.remove(RankingView.CSS.HIDDEN);
         this.element.classList.remove(RankingView.CSS.LEGACY_HIDDEN);
@@ -369,6 +440,17 @@ export class RankingView {
         this.element.classList.remove(RankingView.CSS.LEGACY_ACTIVE);
         
         this._isVisible = false;
+        
+        // 🆕 v1.2.0: CameraNavigator 이전 상태로 복원
+        // 3D View가 활성화된 경우에만 표시
+        if (this._cameraNavigatorWasVisible) {
+            const threejsContainer = document.getElementById('threejs-container');
+            const is3DViewActive = threejsContainer && threejsContainer.classList.contains('active');
+            
+            if (is3DViewActive) {
+                this._setCameraNavigatorVisible(true);
+            }
+        }
         
         // Emit event
         eventBus.emit('ranking:hidden');
@@ -525,10 +607,15 @@ export class RankingView {
         });
         this._lanes.clear();
         
-        // 4. DOM 요소 제거
+        // 4. 🆕 v1.2.0: CameraNavigator 가시성 복원
+        if (this._cameraNavigatorWasVisible) {
+            this._setCameraNavigatorVisible(true);
+        }
+        
+        // 5. DOM 요소 제거
         this.element?.remove();
         
-        // 5. 참조 해제
+        // 6. 참조 해제
         this.element = null;
         this._lanesContainer = null;
         this._loadingElement = null;
@@ -722,12 +809,13 @@ export class RankingView {
      * 디버그 정보 출력
      */
     debug() {
-        console.group('[RankingView] Debug Info (v1.1.0)');
+        console.group('[RankingView] Debug Info (v1.2.0)');
         console.log('isVisible:', this._isVisible);
         console.log('isInitialized:', this._isInitialized);
         console.log('isLoading:', this._isLoading);
         console.log('selectedEquipmentId:', this._selectedEquipmentId);
         console.log('focusedLaneIndex:', this._focusedLaneIndex);
+        console.log('cameraNavigatorWasVisible:', this._cameraNavigatorWasVisible);
         console.log('레인 수:', this._lanes.size);
         console.log('레인 목록:');
         this._lanes.forEach((lane, id) => {

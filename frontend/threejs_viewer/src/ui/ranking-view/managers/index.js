@@ -1,41 +1,28 @@
 /**
  * ranking-view/managers/index.js
- * ===============================
- * Ranking View Managers Barrel Export
+ * ==============================
+ * Ranking View 매니저 Barrel Export
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
- * - 비즈니스 로직 매니저 통합 Export
- * - Phase 3~4에서 실제 매니저 추가 예정
+ * - 모든 Ranking View 매니저 통합 Export
  * 
  * @changelog
- * - v1.0.0: Phase 1 placeholder
- *   - ⚠️ 호환성: 신규 모듈
+ * - v1.1.0: Phase 3 매니저 추가
+ *   - RankingDataManager: 데이터 가공 및 레인 할당
+ * - v1.0.0: 초기 생성
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/managers/index.js
  * 작성일: 2026-01-17
  * 수정일: 2026-01-17
  */
 
-// =============================================
-// Phase 3에서 추가 예정
-// =============================================
+// Phase 3: 데이터 매니저
+export { RankingDataManager } from './RankingDataManager.js';
 
-// export { RankingDataManager } from './RankingDataManager.js';
-
-// =============================================
-// Phase 4에서 추가 예정
-// =============================================
-
+// Phase 4 예정: 애니메이션 매니저
 // export { AnimationManager } from './AnimationManager.js';
-// export { ScrollSyncManager } from './ScrollSyncManager.js';
 
-// =============================================
-// Phase 5에서 추가 예정
-// =============================================
-
+// Phase 5 예정: 레인 매니저, 스크롤 매니저
 // export { LaneManager } from './LaneManager.js';
-
-// Placeholder export (Phase 1)
-export const MANAGERS_VERSION = '1.0.0';
-export const MANAGERS_STATUS = 'Phase 3 준비중';
+// export { ScrollSyncManager } from './ScrollSyncManager.js';
