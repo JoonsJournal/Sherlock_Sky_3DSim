@@ -4,8 +4,14 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 6.3.0
+ * @version 6.4.0
  * @changelog
+ * - v6.4.0: 🔧 View 전환 조율 로직 추가 (2026-01-18)
+ *           - toggleMonitoringMode()에서 screenManager ↔ ViewManager 조율
+ *           - screenManager.show3DView()에 ViewManager View 자동 숨김 추가
+ *           - screenManager.showCoverScreen()에 ViewManager View 자동 숨김 추가
+ *           - 🐛 Bug Fix: Ranking View → 3D View 빈 화면 문제 해결
+ *           - ⚠️ 호환성: 기존 모든 기능 100% 유지
  * - v6.3.0: 🆕 Phase 4 - Legacy 전역 변수 마이그레이션 (2026-01-18)
  *           - USE_DEPRECATION_WARNINGS = true 활성화
  *           - migrateGlobalToNamespace() 사용
@@ -478,8 +484,23 @@ const screenManager = {
     
     /**
      * Cover Screen 표시 (기본 상태)
+     * 
+     * 🆕 v6.4.0: ViewManager 관리 View들 자동 숨김 추가
      */
     showCoverScreen() {
+        console.log('[screenManager] 📺 showCoverScreen() 시작');
+        
+        // ═══════════════════════════════════════════════════════════════
+        // ✅ v6.4.0: ViewManager가 관리하는 활성 View 먼저 숨김
+        // ═══════════════════════════════════════════════════════════════
+        if (typeof hideView === 'function' && typeof bootstrapViewManager !== 'undefined') {
+            const currentView = bootstrapViewManager?.getCurrentView?.();
+            if (currentView) {
+                console.log(`[screenManager]    ↳ ViewManager View 숨김: ${currentView}`);
+                hideView(currentView);
+            }
+        }
+        
         // 🆕 v5.1.0: CoverScreen.js 사용
         if (sidebarUI?.coverScreen) {
             sidebarUI.coverScreen.show();
@@ -497,13 +518,29 @@ const screenManager = {
         this.stopAnimation();
         updateModeIndicator(null, null);
         
-        console.log('📺 Cover Screen 표시');
+        console.log('[screenManager] ✅ Cover Screen 표시 완료');
     },
     
     /**
      * 3D View 표시 + Three.js 초기화
+     * 
+     * 🆕 v6.4.0: ViewManager 관리 View 자동 숨김 추가
      */
     show3DView() {
+        console.log('[screenManager] 🎮 show3DView() 시작');
+        
+        // ═══════════════════════════════════════════════════════════════
+        // ✅ v6.4.0: ViewManager가 관리하는 활성 View 먼저 숨김
+        // Ranking View 등이 표시 중이면 먼저 숨김
+        // ═══════════════════════════════════════════════════════════════
+        if (typeof hideView === 'function' && typeof bootstrapViewManager !== 'undefined') {
+            const currentView = bootstrapViewManager?.getCurrentView?.();
+            if (currentView) {
+                console.log(`[screenManager]    ↳ ViewManager View 숨김: ${currentView}`);
+                hideView(currentView);
+            }
+        }
+        
         // 🆕 v5.1.0: CoverScreen.js 사용
         if (sidebarUI?.coverScreen) {
             sidebarUI.coverScreen.hide();
@@ -520,14 +557,14 @@ const screenManager = {
         
         // 최초 1회만 Three.js 초기화
         if (!this.threejsInitialized) {
-            console.log('🎬 Three.js 지연 초기화 시작...');
+            console.log('[screenManager] 🎬 Three.js 지연 초기화 시작...');
             this._initThreeJS();
             this.threejsInitialized = true;
         }
         
         this.startAnimation();
         
-        console.log('🎮 3D View 표시');
+        console.log('[screenManager] ✅ 3D View 표시 완료');
     },
     
     /**
@@ -763,6 +800,13 @@ function toggleEditMode() {
 
 /**
  * Monitoring 모드 토글
+ * 
+ * 🆕 v6.4.0: screenManager ↔ ViewManager 상호 배제 로직 추가
+ *            - 3D View 전환 시 Ranking View 자동 숨김
+ *            - Ranking View 전환 시 3D 애니메이션 중지
+ *            - 🐛 Bug Fix: View 전환 시 빈 화면 문제 해결
+ * 
+ * @param {string} submode - '3d-view' | 'ranking-view'
  */
 function toggleMonitoringMode(submode = '3d-view') {
     if (!canAccessFeatures()) {
@@ -771,28 +815,74 @@ function toggleMonitoringMode(submode = '3d-view') {
     }
     
     const prevMode = appModeManager.getCurrentMode();
+    const prevSubMode = window.sidebarState?.currentSubMode;
     
-    if (prevMode === APP_MODE.MONITORING && window.sidebarState?.currentSubMode === submode) {
+    console.log(`[toggleMonitoringMode] 🔄 ${prevMode}/${prevSubMode} → MONITORING/${submode}`);
+    
+    // ═══════════════════════════════════════════════════════════════════
+    // 토글 처리 (같은 submode 다시 클릭 → Cover Screen으로 복귀)
+    // ═══════════════════════════════════════════════════════════════════
+    if (prevMode === APP_MODE.MONITORING && prevSubMode === submode) {
+        console.log('[toggleMonitoringMode] 토글 OFF → Cover Screen');
+        
         appModeManager.switchMode(APP_MODE.MAIN_VIEWER);
 
-        // 🆕 v5.7.0: ViewManager를 통해 현재 View 숨김
-        if (submode === 'ranking-view') {
-            hideView('ranking-view');
+        // ✅ v6.4.0: ViewManager 관리 View들 숨김
+        const currentView = bootstrapViewManager?.getCurrentView?.();
+        if (currentView) {
+            hideView(currentView);
         }
-
+        
+        // Cover Screen 표시 (show3DView/Animation 정리는 showCoverScreen 내부에서)
         screenManager.showCoverScreen();
+        
         updateModeIndicator(null, null);
         return;
     }
     
+    // ═══════════════════════════════════════════════════════════════════
+    // Monitoring 모드 진입
+    // ═══════════════════════════════════════════════════════════════════
     appModeManager.switchMode(APP_MODE.MONITORING);
     
     if (submode === '3d-view') {
+        // ─────────────────────────────────────────────────────────────
+        // ✅ v6.4.0: 3D View 전환 - ViewManager 관리 View 먼저 숨김
+        // ─────────────────────────────────────────────────────────────
+        const currentView = bootstrapViewManager?.getCurrentView?.();
+        if (currentView) {
+            console.log(`[toggleMonitoringMode]    ↳ ${currentView} 숨김`);
+            hideView(currentView);
+        }
+        
+        // 3D View 표시 (show3DView 내부에서도 안전장치 있음)
         screenManager.show3DView();
+        
     } else if (submode === 'ranking-view') {
-        // 🆕 v5.7.0: ViewManager를 통해 RankingView 표시
+        // ─────────────────────────────────────────────────────────────
+        // ✅ v6.4.0: Ranking View 전환 - 3D 애니메이션 중지
+        // ─────────────────────────────────────────────────────────────
+        
+        // 1. 3D 애니메이션 중지 (성능 최적화)
+        if (screenManager.animationRunning) {
+            screenManager.stopAnimation();
+            console.log('[toggleMonitoringMode]    ↳ 3D 애니메이션 중지');
+        }
+        
+        // 2. ViewManager를 통해 RankingView 표시
+        //    (ViewManager.show()가 내부적으로 이전 View 숨김 처리)
         showView('ranking-view');
+        
     } else {
+        // ─────────────────────────────────────────────────────────────
+        // 기타 submode (향후 확장용)
+        // ─────────────────────────────────────────────────────────────
+        console.log(`[toggleMonitoringMode] ⚠️ 알 수 없는 submode: ${submode}`);
+        
+        const currentView = bootstrapViewManager?.getCurrentView?.();
+        if (currentView) {
+            hideView(currentView);
+        }
         screenManager.showCoverScreen();
     }
     
