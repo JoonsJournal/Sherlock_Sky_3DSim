@@ -4,10 +4,13 @@
  * 
  * Bootstrap 모듈 통합 export
  * 
- * @version 2.5.0
+ * @version 2.6.0
  * @module bootstrap
  * 
  * @changelog
+ * - v2.6.0: 🔧 ViewManager export 명칭 명확화 (2026-01-18)
+ *   - viewManager → bootstrapViewManager (명확한 이름)
+ *   - main.js의 screenManager와 구분
  * - v2.5.0: 🆕 ViewBootstrap 추가 - ViewManager 패턴 도입
  *   - viewManager, getView, showView, hideView, toggleView, destroyView
  *   - VIEW_REGISTRY, initViewManager
@@ -92,11 +95,14 @@ export {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🆕 v2.5.0: ViewBootstrap - ViewManager 패턴 도입
+// 🔧 v2.6.0: viewManager → bootstrapViewManager (명확한 이름)
 // ═══════════════════════════════════════════════════════════════════════════
 
 export {
-    // ViewManager 싱글톤 인스턴스
-    viewManager,
+    // 🔧 v2.6.0: ViewManager 싱글톤 인스턴스 (명확한 이름으로 export)
+    // - main.js의 screenManager (Cover/3D 전환)와 구분
+    // - View 생명주기 관리 담당
+    viewManager as bootstrapViewManager,
     
     // VIEW_REGISTRY (모든 View 설정)
     VIEW_REGISTRY,
