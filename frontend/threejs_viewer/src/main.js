@@ -838,11 +838,10 @@ function toggleDebugPanel() {
 window.toggleDebugPanel = toggleDebugPanel;
 
 /**
-/**
  * Equipment Edit Modal 열기 (Equipment Mapping 모드 진입)
  * 🆕 v7.1.0: 모드 전환 + PanelManager 동기화 추가
  */
-function openEquipmentEditModal() {
+async function openEquipmentEditModal() {  // 🔧 async 추가!
     // 접근 권한 체크
     if (!canAccessFeatures()) {
         window.showToast?.('Connect DB or enable Dev Mode first', 'warning');
@@ -857,16 +856,15 @@ function openEquipmentEditModal() {
         navigationController.navigate(NAV_MODE.MONITORING, '3d-view');
     }
     
-    // 2. 🆕 APP_MODE를 EQUIPMENT_EDIT로 전환
+    // 2. 🔧 switchMode() 사용! (async)
     const currentMode = appModeManager.getCurrentMode();
     if (currentMode !== APP_MODE.EQUIPMENT_EDIT) {
-        appModeManager.setMode(APP_MODE.EQUIPMENT_EDIT);
+        await appModeManager.switchMode(APP_MODE.EQUIPMENT_EDIT);  // ✅ 올바른 메서드!
         console.log('[openEquipmentEditModal] ✅ APP_MODE → equipment_edit');
     }
     
-    // 3. 🆕 PanelManager 모드 동기화
+    // 3. PanelManager 모드 동기화
     panelManager.setCurrentMode('monitoring', '3d-view');
-    console.log('[openEquipmentEditModal] ✅ PanelManager 모드 동기화');
     
     // 4. ModeIndicator 업데이트
     updateModeIndicator('Edit', 'Equipment Mapping');
