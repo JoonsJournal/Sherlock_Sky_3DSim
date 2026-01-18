@@ -4,8 +4,13 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 6.4.0
+ * @version 7.0.0
  * @changelog
+ * - v7.0.0: 🆕 NavigationController 통합 (2026-01-18)
+ *           - NavigationController import 추가
+ *           - toggleMonitoringMode() 단순화 (60줄 → 10줄)
+ *           - setupNavigationControllerEvents() 추가
+ *           - screenManager deprecated 메서드 추가
  * - v6.4.0: 🔧 View 전환 조율 로직 추가 (2026-01-18)
  *           - toggleMonitoringMode()에서 screenManager ↔ ViewManager 조율
  *           - screenManager.show3DView()에 ViewManager View 자동 숨김 추가
@@ -172,6 +177,15 @@ import { RankingView } from './ui/ranking-view/index.js';
 
 // 🆕 v5.4.0: ConnectionMode import
 import { ConnectionMode, ConnectionEvents } from './services/ConnectionStatusService.js';
+
+// 🆕 v7.0.0: NavigationController import
+import { 
+    navigationController, 
+    NAV_MODE,
+    goTo3DView,
+    goToRankingView,
+    goHome
+} from './core/navigation/index.js';
 
 // ============================================
 // 전역 상태
@@ -473,11 +487,12 @@ window.canAccessFeatures = function() {
     // 폴백: 전역 상태 사용
     return window.sidebarState?.isConnected || window.sidebarState?.devModeEnabled;
 };
-
-// ============================================
-// 🆕 v6.0.0: Screen Manager (Cover/3D 전환)
-// 기존 viewManager에서 이름 변경 - ViewManager (View 생명주기)와 구분
-// ============================================
+    
+    /**
+     * Cover Screen 표시 (기본 상태)
+     * 
+     * 🆕 v6.4.0: ViewManager 관리 View들 자동 숨김 추가
+     */
 const screenManager = {
     threejsInitialized: false,
     animationRunning: false,
@@ -485,86 +500,31 @@ const screenManager = {
     /**
      * Cover Screen 표시 (기본 상태)
      * 
-     * 🆕 v6.4.0: ViewManager 관리 View들 자동 숨김 추가
+     * @version 7.0.0
+     * @deprecated navigationController.goHome() 사용 권장
+     * 하위 호환을 위해 유지되며, 내부적으로 NavigationController 호출
      */
     showCoverScreen() {
-        console.log('[screenManager] 📺 showCoverScreen() 시작');
+        console.log('[screenManager] 📺 showCoverScreen()');
+        console.warn('[screenManager] ⚠️ deprecated → navigationController.goHome() 사용 권장');
         
-        // ═══════════════════════════════════════════════════════════════
-        // ✅ v6.4.0: ViewManager가 관리하는 활성 View 먼저 숨김
-        // ═══════════════════════════════════════════════════════════════
-        if (typeof hideView === 'function' && typeof bootstrapViewManager !== 'undefined') {
-            const currentView = bootstrapViewManager?.getCurrentView?.();
-            if (currentView) {
-                console.log(`[screenManager]    ↳ ViewManager View 숨김: ${currentView}`);
-                hideView(currentView);
-            }
-        }
-        
-        // 🆕 v5.1.0: CoverScreen.js 사용
-        if (sidebarUI?.coverScreen) {
-            sidebarUI.coverScreen.show();
-        } else {
-            // 폴백: 기존 방식
-            const coverScreen = document.getElementById('cover-screen');
-            const threejsContainer = document.getElementById('threejs-container');
-            const overlayUI = document.getElementById('overlay-ui');
-            
-            if (coverScreen) coverScreen.classList.remove('hidden');
-            if (threejsContainer) threejsContainer.classList.remove('active');
-            if (overlayUI) overlayUI.style.display = 'none';
-        }
-        
-        this.stopAnimation();
-        updateModeIndicator(null, null);
-        
-        console.log('[screenManager] ✅ Cover Screen 표시 완료');
+        // NavigationController가 모든 것을 처리
+        navigationController.goHome();
     },
     
     /**
      * 3D View 표시 + Three.js 초기화
      * 
-     * 🆕 v6.4.0: ViewManager 관리 View 자동 숨김 추가
+     * @version 7.0.0
+     * @deprecated navigationController.navigate(NAV_MODE.MONITORING, '3d-view') 사용 권장
+     * 하위 호환을 위해 유지되며, 내부적으로 NavigationController 호출
      */
     show3DView() {
-        console.log('[screenManager] 🎮 show3DView() 시작');
+        console.log('[screenManager] 🎮 show3DView()');
+        console.warn('[screenManager] ⚠️ deprecated → navigationController.navigate() 사용 권장');
         
-        // ═══════════════════════════════════════════════════════════════
-        // ✅ v6.4.0: ViewManager가 관리하는 활성 View 먼저 숨김
-        // Ranking View 등이 표시 중이면 먼저 숨김
-        // ═══════════════════════════════════════════════════════════════
-        if (typeof hideView === 'function' && typeof bootstrapViewManager !== 'undefined') {
-            const currentView = bootstrapViewManager?.getCurrentView?.();
-            if (currentView) {
-                console.log(`[screenManager]    ↳ ViewManager View 숨김: ${currentView}`);
-                hideView(currentView);
-            }
-        }
-        
-        // 🆕 v5.1.0: CoverScreen.js 사용
-        if (sidebarUI?.coverScreen) {
-            sidebarUI.coverScreen.hide();
-        } else {
-            const coverScreen = document.getElementById('cover-screen');
-            if (coverScreen) coverScreen.classList.add('hidden');
-        }
-        
-        const threejsContainer = document.getElementById('threejs-container');
-        const overlayUI = document.getElementById('overlay-ui');
-        
-        if (threejsContainer) threejsContainer.classList.add('active');
-        if (overlayUI) overlayUI.style.display = 'flex';
-        
-        // 최초 1회만 Three.js 초기화
-        if (!this.threejsInitialized) {
-            console.log('[screenManager] 🎬 Three.js 지연 초기화 시작...');
-            this._initThreeJS();
-            this.threejsInitialized = true;
-        }
-        
-        this.startAnimation();
-        
-        console.log('[screenManager] ✅ 3D View 표시 완료');
+        // NavigationController가 모든 것을 처리
+        navigationController.navigate(NAV_MODE.MONITORING, '3d-view');
     },
     
     /**
@@ -718,7 +678,7 @@ const screenManager = {
         if (!this.animationRunning && services.scene) {
             this.animationRunning = true;
             animate();
-            console.log('▶️ 애니메이션 시작');
+            console.log('[screenManager] ▶️ 애니메이션 시작');
         }
     },
     
@@ -728,9 +688,10 @@ const screenManager = {
             animationFrameId = null;
         }
         this.animationRunning = false;
-        console.log('⏹️ 애니메이션 중지');
+        console.log('[screenManager] ⏹️ 애니메이션 중지');
     }
 };
+
 
 // viewManager 전역 노출
 window.viewManager = screenManager;   // 하위 호환
@@ -778,6 +739,9 @@ function canAccessFeatures() {
 
 /**
  * Equipment Edit 모드 토글
+ * 
+ * @version 7.0.0
+ * @description NavigationController 연동 (Edit 모드는 3D View 위에서 동작)
  */
 function toggleEditMode() {
     if (!canAccessFeatures()) {
@@ -785,12 +749,15 @@ function toggleEditMode() {
         return;
     }
     
+    // AppModeManager 토글 (Edit 모드는 오버레이 성격)
     appModeManager.toggleMode(APP_MODE.EQUIPMENT_EDIT);
     
     const currentMode = appModeManager.getCurrentMode();
     if (currentMode === APP_MODE.EQUIPMENT_EDIT) {
+        // 3D View가 필요하면 NavigationController로 전환
         if (!screenManager.threejsInitialized) {
-            screenManager.show3DView();
+            console.log('[toggleEditMode] 3D View 필요 → NavigationController.navigate');
+            navigationController.navigate(NAV_MODE.MONITORING, '3d-view');
         }
         updateModeIndicator('Edit', 'Equipment');
     } else {
@@ -801,93 +768,31 @@ function toggleEditMode() {
 /**
  * Monitoring 모드 토글
  * 
- * 🆕 v6.4.0: screenManager ↔ ViewManager 상호 배제 로직 추가
- *            - 3D View 전환 시 Ranking View 자동 숨김
- *            - Ranking View 전환 시 3D 애니메이션 중지
- *            - 🐛 Bug Fix: View 전환 시 빈 화면 문제 해결
+ * @version 7.0.0
+ * @description NavigationController 사용으로 단순화
  * 
- * @param {string} submode - '3d-view' | 'ranking-view'
+ * @changelog
+ * - v7.0.0: NavigationController.toggle() 사용 (60줄 → 10줄)
+ * - v6.4.0: screenManager ↔ ViewManager 조율 로직
+ * 
+ * @param {string} [submode='3d-view'] - 서브모드 ('3d-view' | 'ranking-view')
  */
 function toggleMonitoringMode(submode = '3d-view') {
+    // 접근 권한 체크
     if (!canAccessFeatures()) {
         window.showToast?.('Connect DB or enable Dev Mode first', 'warning');
         return;
     }
     
-    const prevMode = appModeManager.getCurrentMode();
-    const prevSubMode = window.sidebarState?.currentSubMode;
+    console.log(`[toggleMonitoringMode] 🧭 NavigationController.toggle: monitoring/${submode}`);
     
-    console.log(`[toggleMonitoringMode] 🔄 ${prevMode}/${prevSubMode} → MONITORING/${submode}`);
-    
-    // ═══════════════════════════════════════════════════════════════════
-    // 토글 처리 (같은 submode 다시 클릭 → Cover Screen으로 복귀)
-    // ═══════════════════════════════════════════════════════════════════
-    if (prevMode === APP_MODE.MONITORING && prevSubMode === submode) {
-        console.log('[toggleMonitoringMode] 토글 OFF → Cover Screen');
-        
-        appModeManager.switchMode(APP_MODE.MAIN_VIEWER);
-
-        // ✅ v6.4.0: ViewManager 관리 View들 숨김
-        const currentView = bootstrapViewManager?.getCurrentView?.();
-        if (currentView) {
-            hideView(currentView);
-        }
-        
-        // Cover Screen 표시 (show3DView/Animation 정리는 showCoverScreen 내부에서)
-        screenManager.showCoverScreen();
-        
-        updateModeIndicator(null, null);
-        return;
-    }
-    
-    // ═══════════════════════════════════════════════════════════════════
-    // Monitoring 모드 진입
-    // ═══════════════════════════════════════════════════════════════════
-    appModeManager.switchMode(APP_MODE.MONITORING);
-    
-    if (submode === '3d-view') {
-        // ─────────────────────────────────────────────────────────────
-        // ✅ v6.4.0: 3D View 전환 - ViewManager 관리 View 먼저 숨김
-        // ─────────────────────────────────────────────────────────────
-        const currentView = bootstrapViewManager?.getCurrentView?.();
-        if (currentView) {
-            console.log(`[toggleMonitoringMode]    ↳ ${currentView} 숨김`);
-            hideView(currentView);
-        }
-        
-        // 3D View 표시 (show3DView 내부에서도 안전장치 있음)
-        screenManager.show3DView();
-        
-    } else if (submode === 'ranking-view') {
-        // ─────────────────────────────────────────────────────────────
-        // ✅ v6.4.0: Ranking View 전환 - 3D 애니메이션 중지
-        // ─────────────────────────────────────────────────────────────
-        
-        // 1. 3D 애니메이션 중지 (성능 최적화)
-        if (screenManager.animationRunning) {
-            screenManager.stopAnimation();
-            console.log('[toggleMonitoringMode]    ↳ 3D 애니메이션 중지');
-        }
-        
-        // 2. ViewManager를 통해 RankingView 표시
-        //    (ViewManager.show()가 내부적으로 이전 View 숨김 처리)
-        showView('ranking-view');
-        
-    } else {
-        // ─────────────────────────────────────────────────────────────
-        // 기타 submode (향후 확장용)
-        // ─────────────────────────────────────────────────────────────
-        console.log(`[toggleMonitoringMode] ⚠️ 알 수 없는 submode: ${submode}`);
-        
-        const currentView = bootstrapViewManager?.getCurrentView?.();
-        if (currentView) {
-            hideView(currentView);
-        }
-        screenManager.showCoverScreen();
-    }
-    
-    updateModeIndicator('Monitoring', submode);
-    window.showToast?.(`Monitoring: ${submode}`, 'info');
+    // ✅ NavigationController가 모든 것을 처리
+    // - 이전 상태 정리 (View 숨김, 애니메이션 중지)
+    // - AppModeManager 상태 동기화
+    // - 레이어 전환 (DOM 표시/숨김)
+    // - ViewManager View 전환
+    // - 서비스 활성화
+    navigationController.toggle(NAV_MODE.MONITORING, submode);
 }
 
 /**
@@ -1508,6 +1413,97 @@ function setupConnectionEvents() {
     
     console.log('✅ Connection 이벤트 설정 완료');
 }
+
+/**
+ * 🆕 v7.0.0: NavigationController 이벤트 설정
+ * 
+ * NavigationController의 이벤트를 받아 UI 업데이트 수행
+ */
+function setupNavigationControllerEvents() {
+    console.log('🧭 NavigationController 이벤트 설정 시작...');
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // navigation:complete → UI 업데이트
+    // ─────────────────────────────────────────────────────────────────────────
+    eventBus.on('navigation:complete', ({ state, previousState }) => {
+        console.log(`[Navigation] ✅ 완료: ${state.mode}/${state.submode || 'none'}`);
+        
+        // ModeIndicator 업데이트
+        const modeLabel = state.mode === NAV_MODE.MAIN_VIEWER ? null : state.mode;
+        updateModeIndicator(modeLabel, state.submode);
+        
+        // Toast 알림 (홈으로 돌아가는 경우 제외)
+        if (state.mode !== NAV_MODE.MAIN_VIEWER) {
+            const submodeLabel = state.submode || 'default';
+            window.showToast?.(`${state.mode}: ${submodeLabel}`, 'info');
+        }
+    });
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // navigation:blocked → 경고 메시지
+    // ─────────────────────────────────────────────────────────────────────────
+    eventBus.on('navigation:blocked', ({ mode, reason }) => {
+        console.warn(`[Navigation] ⚠️ 차단: ${mode} - ${reason}`);
+        
+        if (reason === 'connection_required') {
+            window.showToast?.('Connect DB or enable Dev Mode first', 'warning');
+        }
+    });
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // navigation:error → 에러 메시지
+    // ─────────────────────────────────────────────────────────────────────────
+    eventBus.on('navigation:error', ({ error }) => {
+        console.error('[Navigation] ❌ 에러:', error);
+        window.showToast?.('Navigation failed', 'error');
+    });
+    
+    console.log('  ✅ NavigationController 이벤트 설정 완료');
+}
+
+/**
+ * 🆕 v7.0.0: screenManager 이벤트 연결
+ * 
+ * NavigationController가 발행하는 threejs:* 이벤트를 받아
+ * screenManager의 Three.js 초기화/애니메이션 제어
+ */
+function setupScreenManagerEvents() {
+    console.log('🖥️ screenManager 이벤트 연결 시작...');
+    
+    // Three.js 초기화 요청
+    eventBus.on('threejs:init-requested', () => {
+        console.log('[Event] threejs:init-requested');
+        if (!screenManager.threejsInitialized) {
+            screenManager._initThreeJS();
+            screenManager.threejsInitialized = true;
+        }
+    });
+    
+    // Three.js 표시 요청 (애니메이션 시작)
+    eventBus.on('threejs:show-requested', () => {
+        console.log('[Event] threejs:show-requested');
+        if (!screenManager.threejsInitialized) {
+            screenManager._initThreeJS();
+            screenManager.threejsInitialized = true;
+        }
+        screenManager.startAnimation();
+    });
+    
+    // Three.js 중지 요청
+    eventBus.on('threejs:stop-requested', () => {
+        console.log('[Event] threejs:stop-requested');
+        screenManager.stopAnimation();
+    });
+    
+    // 애니메이션만 중지 (Three.js 유지)
+    eventBus.on('threejs:stop-animation-requested', () => {
+        console.log('[Event] threejs:stop-animation-requested');
+        screenManager.stopAnimation();
+    });
+    
+    console.log('  ✅ screenManager 이벤트 연결 완료');
+}
+
 
 /*
 // ============================================
@@ -2285,8 +2281,14 @@ function init() {
         // 5. Equipment AutoSave 초기화
         initEquipmentAutoSave(services.ui?.equipmentEditState);
         
-        // 6. Connection 이벤트 설정 (🆕 v5.4.0: 재연결 핸들러 포함)
+        // 6. Connection 이벤트 설정
         setupConnectionEvents();
+
+        // 🆕 v7.0.0: NavigationController 이벤트 설정
+        setupNavigationControllerEvents();
+
+        // 🆕 v7.0.0: screenManager 이벤트 연결
+        setupScreenManagerEvents();
         
         // ❌ v5.1.0: 제거됨 - Sidebar.js가 처리
         // setupSidebarEvents();
@@ -2338,12 +2340,17 @@ function init() {
             toggleMonitoringMode,
             toggleConnectionModal,
             toggleDebugPanel,
-            toggleDevMode
+            toggleDevMode,
+            // 🆕 v7.0.0: NavigationController
+            navigationController,
+            NAV_MODE,
+            goTo3DView,
+            goToRankingView,
+            goHome
         }, {
             useDeprecation: USE_DEPRECATION_WARNINGS,
             pathMapping: LEGACY_MIGRATION_MAP
         });
-        
         // 10. 초기화 완료 이벤트
         eventBus.emit(EVENT_NAME.APP_INITIALIZED, {
             timestamp: Date.now(),
@@ -2435,6 +2442,14 @@ function init() {
             console.log('     - APP.fn.ui.showToast()');
             console.log('   경고 끄기: APP.setDeprecationConfig({ enabled: false })');
             console.log('   상태 확인: APP.getMigrationStatus()');
+
+        console.log('');
+        console.log('🆕 v7.0.0: NavigationController 통합');
+        console.log('   - 모든 화면 전환: navigationController.navigate(mode, submode)');
+        console.log('   - 홈으로: navigationController.goHome()');
+        console.log('   - 토글: navigationController.toggle(mode, submode)');
+        console.log('   - 상태 확인: navigationController.debug()');
+        console.log('');
         }
         
     } catch (error) {

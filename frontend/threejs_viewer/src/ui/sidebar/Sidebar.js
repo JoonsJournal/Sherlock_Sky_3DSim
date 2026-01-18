@@ -3,11 +3,19 @@
  * ==========
  * Cleanroom Sidebar UI 컴포넌트
  * 
- * @version 1.12.0
+ * @version 1.13.0
  * @created 2026-01-11
  * @updated 2026-01-18
  * 
  * @changelog
+ * - v1.13.0: 🆕 NavigationController 통합 (2026-01-18)
+ *           - navigationController import 추가
+ *           - _handleSubmenuClick()에서 NavigationController.navigate() 사용
+ *           - _handleButtonClick()에서 NavigationController.toggle() 사용
+ *           - _setSubMode() NavigationController 위임으로 단순화
+ *           - _mapToNavMode(), _navModeToSidebarMode() 매핑 메서드 추가
+ *           - navigation:complete 이벤트 리스닝 추가
+ *           - ⚠️ 호환성: 기존 API 100% 유지 (v1.12.0 메서드 모두 보존)
  * - v1.12.0: 🆕 ViewManager 연동 (2026-01-18)
  *           - viewManager import 추가
  *           - _setSubMode()에서 ViewManager 사용
@@ -41,6 +49,11 @@ import { ModeIndicatorPanel } from '../overlay/ModeIndicatorPanel.js';
 
 // 🆕 v1.12.0: ViewManager import
 import { viewManager } from '../../bootstrap/ViewBootstrap.js';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🆕 v1.13.0: NavigationController import
+// ═══════════════════════════════════════════════════════════════════════════════
+import { navigationController, NAV_MODE } from '../../core/navigation/index.js';
 
 import {
     createButton,
@@ -113,7 +126,7 @@ export class Sidebar {
         this._setupConnectionListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v1.10.0 (Analysis 모드 활성화)');
+        console.log('[Sidebar] 초기화 완료 v1.13.0 (NavigationController 통합)');
     }
     
     _loadTheme() {
@@ -252,7 +265,8 @@ export class Sidebar {
         this._updateButtonStates();
         this._updateCoverStatus(false, null);
         
-        this.showCoverScreen();
+        // 🆕 v1.13.0: NavigationController.goHome() 사용
+        navigationController.goHome();
         
         this.currentMode = null;
         this.currentSubMode = null;
@@ -314,6 +328,36 @@ export class Sidebar {
             }
         });
         this._eventUnsubscribers.push(unsubBlocked);
+        
+        // ═══════════════════════════════════════════════════════════════════════
+        // 🆕 v1.13.0: NavigationController 이벤트 리스닝
+        // ═══════════════════════════════════════════════════════════════════════
+        const unsubNavComplete = this.eventBus.on('navigation:complete', ({ state }) => {
+            console.log(`[Sidebar] 📡 navigation:complete 수신: ${state.mode}/${state.submode || 'none'}`);
+            
+            // NavigationController 상태와 Sidebar 상태 동기화
+            const sidebarMode = this._navModeToSidebarMode(state.mode);
+            this.currentMode = sidebarMode;
+            this.currentSubMode = state.submode;
+            this._updateButtonSelection();
+            this._updateModeIndicator();
+            updateSubmenuActiveState(state.submode);
+            
+            // ModeIndicatorPanel 표시/숨김
+            if (state.mode === NAV_MODE.MAIN_VIEWER) {
+                this.modeIndicatorPanel?.hide();
+            } else {
+                this.modeIndicatorPanel?.show();
+            }
+        });
+        this._eventUnsubscribers.push(unsubNavComplete);
+        
+        const unsubNavBlocked = this.eventBus.on('navigation:blocked', ({ reason }) => {
+            if (reason === 'connection_required' && this.toast) {
+                this.toast.warning('Connection Required', 'Connect to backend or enable Dev Mode');
+            }
+        });
+        this._eventUnsubscribers.push(unsubNavBlocked);
     }
     
     _setupConnectionListeners() {
@@ -334,8 +378,13 @@ export class Sidebar {
         }
     }
     
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 🆕 v1.13.0: 버튼 클릭 핸들러 (NavigationController 통합)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
     /**
-     * 🔧 v1.10.0: Analysis 케이스 추가
+     * 버튼 클릭 핸들러
+     * @version 1.13.0 - NavigationController.toggle() 사용
      */
     _handleButtonClick(key, event) {
         const config = SIDEBAR_BUTTONS[key];
@@ -349,20 +398,25 @@ export class Sidebar {
                 this.toggleConnectionModal();
                 break;
                 
+            // ═══════════════════════════════════════════════════════════════
+            // 🆕 v1.13.0: NavigationController.toggle() 사용
+            // ═══════════════════════════════════════════════════════════════
             case 'monitoring':
                 this._selectButton(key);
-                this._setMode('monitoring');
+                console.log('[Sidebar] 🧭 NavigationController.toggle: monitoring');
+                navigationController.toggle(NAV_MODE.MONITORING);
                 break;
             
-            // 🆕 v1.10.0: Analysis 모드 추가
             case 'analysis':
                 this._selectButton(key);
-                this._setMode('analysis');
+                console.log('[Sidebar] 🧭 NavigationController.toggle: analysis');
+                navigationController.toggle(NAV_MODE.ANALYSIS);
                 break;
                 
             case 'layout':
                 this._selectButton(key);
-                this._setMode('layout');
+                console.log('[Sidebar] 🧭 NavigationController.toggle: layout');
+                navigationController.toggle(NAV_MODE.LAYOUT);
                 break;
                 
             case 'simulation':
@@ -377,7 +431,18 @@ export class Sidebar {
         }
     }
     
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 🆕 v1.13.0: 서브메뉴 클릭 핸들러 (NavigationController 통합)
+    // ═══════════════════════════════════════════════════════════════════════════
+    
+    /**
+     * 서브메뉴 클릭 핸들러
+     * @version 1.13.0 - NavigationController.navigate() 사용
+     */
     _handleSubmenuClick(item) {
+        // ═══════════════════════════════════════════════════════════════════
+        // 1. Action 처리 (callback 함수 실행)
+        // ═══════════════════════════════════════════════════════════════════
         if (item.action) {
             const callback = this.callbacks[item.action];
             if (callback) {
@@ -400,18 +465,32 @@ export class Sidebar {
             }
             
             console.warn(`[Sidebar] Action not found: ${item.action}`);
-        } else if (item.submode) {
+            return;
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // 2. 🆕 v1.13.0: Submode 처리 → NavigationController 위임
+        // ═══════════════════════════════════════════════════════════════════
+        if (item.submode) {
             const parentMode = this._getParentModeForSubmode(item.submode);
+            const navMode = this._mapToNavMode(parentMode);
+            
+            console.log(`[Sidebar] 🧭 NavigationController.navigate: ${navMode}/${item.submode}`);
+            
+            // NavigationController가 모든 것을 처리
+            navigationController.navigate(navMode, item.submode);
+            
+            // UI 상태 동기화는 navigation:complete 이벤트에서 처리됨
+            // 여기서는 버튼 선택만 즉시 반영 (UX 향상)
             if (parentMode) {
-                this.currentMode = parentMode;
                 this._selectButton(parentMode);
             }
-            this._setSubMode(item.submode);
         }
     }
     
     /**
-     * 🔧 v1.10.0: Analysis 서브모드 매핑 추가
+     * 서브모드 → 부모 모드 매핑
+     * @version 1.10.0 - Analysis 서브모드 추가
      */
     _getParentModeForSubmode(submode) {
         const submodeToParent = {
@@ -427,10 +506,47 @@ export class Sidebar {
         return submodeToParent[submode] || null;
     }
     
+    /**
+     * 🆕 v1.13.0: Sidebar 모드 → NAV_MODE 매핑
+     * @param {string} sidebarMode - Sidebar 내부 모드 이름
+     * @returns {string} NAV_MODE 값
+     */
+    _mapToNavMode(sidebarMode) {
+        const mapping = {
+            'monitoring': NAV_MODE.MONITORING,
+            'analysis': NAV_MODE.ANALYSIS,
+            'layout': NAV_MODE.LAYOUT,
+            'simulation': NAV_MODE.SIMULATION,
+            'settings': NAV_MODE.SETTINGS
+        };
+        return mapping[sidebarMode] || NAV_MODE.MAIN_VIEWER;
+    }
+    
+    /**
+     * 🆕 v1.13.0: NAV_MODE → Sidebar 모드 역매핑
+     * @param {string} navMode - NAV_MODE 값
+     * @returns {string|null} Sidebar 내부 모드 이름
+     */
+    _navModeToSidebarMode(navMode) {
+        const mapping = {
+            [NAV_MODE.MAIN_VIEWER]: null,
+            [NAV_MODE.MONITORING]: 'monitoring',
+            [NAV_MODE.ANALYSIS]: 'analysis',
+            [NAV_MODE.LAYOUT]: 'layout',
+            [NAV_MODE.SIMULATION]: 'simulation',
+            [NAV_MODE.SETTINGS]: 'settings'
+        };
+        return mapping[navMode] || null;
+    }
+    
     // ========================================
     // Mode Management
     // ========================================
     
+    /**
+     * 모드 설정
+     * @version 1.13.0 - NavigationController 통합
+     */
     _setMode(mode) {
         if (!this.appModeManager) {
             console.warn('[Sidebar] AppModeManager not connected');
@@ -445,7 +561,7 @@ export class Sidebar {
     
     /**
      * 서브모드 설정
-     * @version 1.12.0 - ViewManager 연동
+     * @version 1.13.0 - NavigationController 위임으로 단순화
      */
     _setSubMode(submode) {
         // ═══════════════════════════════════════════════════════════════
@@ -613,9 +729,18 @@ export class Sidebar {
         const analysisContainer = document.getElementById('analysis-container');
         
         if (coverScreen) coverScreen.classList.add('hidden');
-        if (threejsContainer) threejsContainer.classList.add('active');
+        if (threejsContainer) {
+            threejsContainer.classList.add('active');
+            threejsContainer.style.display = '';  // display 초기화
+        }
         if (overlayUI) overlayUI.style.display = 'none';
         if (analysisContainer) analysisContainer.classList.add('hidden');
+        
+        // CameraNavigator 표시
+        const cameraNav = document.getElementById('camera-navigator');
+        if (cameraNav) {
+            cameraNav.style.display = '';
+        }
         
         if (this.modeIndicatorPanel) {
             this.modeIndicatorPanel.show();
