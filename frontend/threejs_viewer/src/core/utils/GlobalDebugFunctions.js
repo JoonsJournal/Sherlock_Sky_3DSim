@@ -196,24 +196,36 @@ export function setupGlobalDebugFunctions(services) {
      * @param {number} col - 설비 열 번호
      */
     const focusEquipment = (row, col) => {
-        if (cameraNavigator && equipmentLoader) {
-            const equipment = equipmentLoader.getEquipmentByPosition(row, col);
-            if (equipment) {
-                // 설비 위치 가져오기
-                const equipPos = equipment.position.clone();
-                // 카메라 위치: 설비 앞쪽 위에서 바라보기
-                const cameraPos = new THREE.Vector3(
-                    equipPos.x + 10,  // 약간 앞으로
-                    equipPos.y + 15,  // 위에서
-                    equipPos.z + 10   // 약간 옆으로
-                );
-                cameraNavigator.animateCameraTo(cameraPos, equipPos);
-                console.log(`🎯 설비 포커스: row=${row}, col=${col}, 위치=(${equipPos.x.toFixed(1)}, ${equipPos.y.toFixed(1)}, ${equipPos.z.toFixed(1)})`);
-            } else {
-                console.warn(`⚠️ 설비를 찾을 수 없음: row=${row}, col=${col}`);
-            }
+        if (!cameraNavigator) {
+            console.error('❌ CameraNavigator가 없습니다');
+            return;
+        }
+        if (!equipmentLoader) {
+            console.error('❌ EquipmentLoader가 없습니다');
+            return;
+        }
+        
+        // 🔧 v2.1.1: getEquipmentByPosition → getEquipmentArray + filter
+        const equipments = equipmentLoader.getEquipmentArray();
+        const equipment = equipments.find(eq => 
+            eq.userData?.position?.row === row && 
+            eq.userData?.position?.col === col
+        );
+        
+        if (equipment) {
+            // 설비 3D 위치 가져오기
+            const equipPos = equipment.position.clone();
+            // 카메라 위치: 설비 앞쪽 위에서 바라보기
+            const cameraPos = new THREE.Vector3(
+                equipPos.x + 10,  // 약간 앞으로
+                equipPos.y + 15,  // 위에서
+                equipPos.z + 10   // 약간 옆으로
+            );
+            cameraNavigator.animateCameraTo(cameraPos, equipPos);
+            console.log(`🎯 설비 포커스: row=${row}, col=${col}, ID=${equipment.userData?.id}, 위치=(${equipPos.x.toFixed(1)}, ${equipPos.y.toFixed(1)}, ${equipPos.z.toFixed(1)})`);
         } else {
-            console.error('❌ CameraNavigator 또는 EquipmentLoader가 없습니다');
+            console.warn(`⚠️ 설비를 찾을 수 없음: row=${row}, col=${col}`);
+            console.log(`   💡 사용 가능한 범위: row=1~26, col=1~6 (총 ${equipments.length}개)`);
         }
     };
     
