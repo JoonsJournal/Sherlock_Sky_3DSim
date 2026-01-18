@@ -562,7 +562,8 @@ const screenManager = {
 };
 
 // viewManager 전역 노출
-window.viewManager = viewManager;
+window.viewManager = screenManager;   // 하위 호환
+window.screenManager = screenManager; // 새 이름
 
 // ============================================
 // Mode Indicator 업데이트
