@@ -4,8 +4,12 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 6.0.0
+ * @version 6.1.0
  * @changelog
+ * - v6.1.0: 🆕 Phase 2 전역 함수 마이그레이션 (2026-01-18)
+ *           - 전역 함수 → APP.fn 이동
+ *           - registerFn() 사용
+ *           - APP.state ↔ sidebarState 동기화
  * - v6.0.0: 🆕 AppNamespace 통합 (2026-01-18)
  *           - 전역 네임스페이스 통합 (window.APP)
  *           - viewManager → screenManager 이름 변경 (충돌 방지)
@@ -109,13 +113,15 @@ import {
 } from './bootstrap/index.js';
 
 // ============================================
-// 🆕 v6.0.0: AppNamespace import
+// 🆕 v6.1.0: AppNamespace import 확장 (Phase 2)
 // ============================================
 import { 
     initNamespace, 
     register,
     get as getFromNamespace,
-    has as hasInNamespace
+    has as hasInNamespace,
+    registerFn,       // 🆕 Phase 2
+    registerDebugFn   // 🆕 Phase 2
 } from './core/AppNamespace.js';
 
 // Utils
@@ -246,14 +252,16 @@ window.sidebarState = window.sidebarState || {
 // index.html 인라인 JS에서 이전된 함수들
 // HTML onclick 속성에서 직접 호출 가능
 
+// ============================================
+// 🆕 v6.1.0: 전역 함수 정의 (내부 함수)
+// Phase 2: APP.fn으로 등록 후 window 별칭 제공
+// ============================================
+
 /**
- * Toast 알림 표시 (전역)
- * HTML onclick에서 사용 가능: onclick="window.showToast('메시지', 'success')"
- * 
- * @param {string} message - 표시할 메시지
- * @param {string} type - 알림 타입 (success, error, warning, info)
+ * Toast 알림 표시 (내부 함수)
+ * @private
  */
-window.showToast = function(message, type = 'info') {
+const _showToast = function(message, type = 'info') {
     // toast 모듈 사용 가능하면 위임
     if (toast?.show) {
         toast.show(message, type);
@@ -281,6 +289,55 @@ window.showToast = function(message, type = 'info') {
         setTimeout(() => toastEl.remove(), 300); 
     }, 3000);
 };
+
+/**
+ * 테마 토글 (내부 함수)
+ * @private
+ */
+const _toggleTheme = function() {
+    const html = document.documentElement;
+    const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    
+    const themeSwitch = document.getElementById('theme-switch');
+    if (themeSwitch) themeSwitch.classList.toggle('active', newTheme === 'light');
+    
+    if (sidebarUI?.sidebar?.setTheme) {
+        sidebarUI.sidebar.setTheme(newTheme);
+    }
+    
+    console.log(`🎨 Theme: ${newTheme}`);
+};
+
+/**
+ * Connection Modal 닫기 (내부 함수)
+ * @private
+ */
+const _closeConnectionModal = function() {
+    if (services.ui?.connectionModal?.close) {
+        services.ui.connectionModal.close();
+    }
+    const modal = document.getElementById('connection-modal');
+    if (modal) modal.classList.remove('active');
+};
+
+/**
+ * 접근 권한 체크 (내부 함수)
+ * @private
+ */
+const _canAccessFeatures = function() {
+    if (sidebarUI?.sidebar) {
+        return sidebarUI.sidebar.getIsConnected() || sidebarUI.sidebar.getDevModeEnabled();
+    }
+    return window.sidebarState?.isConnected || window.sidebarState?.devModeEnabled;
+};
+
+// 하위 호환용 window 노출 (init() 전에 기본 기능 보장)
+window.showToast = _showToast;
+window.toggleTheme = _toggleTheme;
+window.closeConnectionModal = _closeConnectionModal;
+window.canAccessFeatures = _canAccessFeatures;
 
 /**
  * 테마 토글 (전역)
@@ -1911,15 +1968,36 @@ function _exposeGlobalObjectsAfterSceneInit() {
 // ============================================
 
 function init() {
-    console.log('🚀 Sherlock Sky 3DSim 초기화 (v6.0.0 - AppNamespace 통합)...');
+    console.log('🚀 Sherlock Sky 3DSim 초기화 (v6.1.0 - Phase 2 전역 함수 마이그레이션)...');
     console.log(`📍 Site ID: ${SITE_ID}`);
     
     try {
         // ═══════════════════════════════════════════════════════════════
         // 🆕 v6.0.0: 네임스페이스 먼저 초기화 (가장 먼저!)
         // ═══════════════════════════════════════════════════════════════
-        initNamespace();
+        initNamespace()
         console.log('  ✅ AppNamespace 초기화 완료');
+
+        // 🆕 v6.1.0: APP.state와 sidebarState 양방향 동기화
+        if (window.APP && window.sidebarState) {
+            // sidebarState의 기존 값을 APP.state로 복사
+            Object.assign(window.APP.state, window.sidebarState);
+            // sidebarState가 APP.state를 참조하도록 설정 (양방향 동기화)
+            window.sidebarState = window.APP.state;
+            console.log('  ✅ APP.state ↔ sidebarState 동기화 완료');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // 🆕 v6.1.0: 전역 함수 APP.fn에 등록 (Phase 2)
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // UI 함수
+        registerFn('ui', 'showToast', _showToast, 'showToast');
+        registerFn('ui', 'toggleTheme', _toggleTheme, 'toggleTheme');
+        registerFn('ui', 'closeConnectionModal', _closeConnectionModal, 'closeConnectionModal');
+        registerFn('ui', 'canAccessFeatures', _canAccessFeatures, 'canAccessFeatures');
+        
+        console.log('  ✅ 전역 함수 APP.fn.ui 등록 완료');
         
         // 1. Core 매니저 초기화
         initCoreManagers({ registerHandlers: true });
@@ -1946,6 +2024,19 @@ function init() {
         
         // 3. 🆕 v5.1.0: Sidebar UI 초기화 (동적 렌더링)
         initSidebarUI();
+
+        // 🆕 v6.1.0: 추가 UI 함수 등록 (Sidebar 초기화 후)
+        registerFn('ui', 'toggleConnectionModal', toggleConnectionModal, 'toggleConnectionModal');
+        registerFn('ui', 'toggleDebugPanel', toggleDebugPanel, 'toggleDebugPanel');
+        registerFn('ui', 'toggleDevMode', toggleDevMode, 'toggleDevMode');
+        
+        // 모드 함수
+        registerFn('mode', 'toggleEditMode', toggleEditMode, 'toggleEditMode');
+        registerFn('mode', 'toggleMonitoringMode', toggleMonitoringMode, 'toggleMonitoringMode');
+        registerFn('mode', 'toggleFullscreen', toggleFullscreen);
+        registerFn('mode', 'toggleAdaptivePerformance', toggleAdaptivePerformance);
+        
+        console.log('  ✅ 전역 함수 APP.fn.mode 등록 완료');
         
         // 4. 🆕 v5.7.0: ViewManager 초기화
         services.views.viewManager = initViewManager({
@@ -2089,6 +2180,14 @@ function init() {
         console.log('   - 등록된 View: VIEW_REGISTRY');
         console.log('');
         console.log('🆕 v5.4.0: 재연결 복구 기능');
+        console.log('');
+        console.log('🆕 v6.1.0: Phase 2 전역 함수 마이그레이션');
+        console.log('   - APP.fn.ui.showToast(msg, type)');
+        console.log('   - APP.fn.ui.toggleTheme()');
+        console.log('   - APP.fn.mode.toggleEditMode()');
+        console.log('   - APP.fn.mode.toggleMonitoringMode()');
+        console.log('   - APP.state (= sidebarState 동기화)');
+        console.log('   💡 APP.debug() 로 전체 네임스페이스 확인');
         
     } catch (error) {
         console.error('❌ 초기화 중 오류 발생:', error);

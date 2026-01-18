@@ -7,7 +7,7 @@
  * 모든 모듈은 이 네임스페이스를 통해 등록/조회
  * 이름 충돌 방지 및 의존성 관리 중앙화
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @module AppNamespace
  * 
  * @description
@@ -17,10 +17,12 @@
  * - 의존성 파악 용이
  * 
  * @changelog
+ * - v1.1.0: Phase 2 전역 함수 마이그레이션 (2026-01-18)
+ *   - fn 네임스페이스 추가 (ui, mode, camera, mapping, layout)
+ *   - debugFn 네임스페이스 추가
+ *   - registerFn(), registerDebugFn() 헬퍼 함수 추가
+ *   - debug() 출력에 fn, debugFn 포함
  * - v1.0.0: 초기 구현 (2026-01-18)
- *   - APP_NAMESPACE 구조 정의
- *   - register/get/has/unregister API
- *   - 디버그 유틸리티
  * 
  * @dependencies
  * - 없음 (최상위 모듈)
@@ -49,7 +51,7 @@ const APP_NAMESPACE = {
     // ═══════════════════════════════════════════════════════════════════════
     _meta: {
         name: 'SherlockSky3DSim',
-        version: '6.0.0',
+        version: '6.1.0',  // ← Phase 2
         initialized: false,
         initTimestamp: null
     },
@@ -178,6 +180,27 @@ const APP_NAMESPACE = {
         devModeEnabled: false,
         siteId: null,
         theme: 'dark'
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // 🆕 v1.1.0: 전역 함수 계층 (Phase 2)
+    // ═══════════════════════════════════════════════════════════════════════
+    fn: {
+        ui: {},      // showToast, toggleTheme, toggleConnectionModal 등
+        mode: {},    // toggleEditMode, toggleMonitoringMode 등
+        camera: {},  // moveTo, focusEquipment, reset
+        mapping: {}, // getStatus, clearAll, export
+        layout: {}   // applyTest, testRoomResize
+    },
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // 🆕 v1.1.0: 디버그 함수 계층 (Phase 2)
+    // ═══════════════════════════════════════════════════════════════════════
+    debugFn: {
+        help: null,
+        scene: null,
+        listEquipments: null,
+        status: null
     }
 };
 
@@ -308,6 +331,61 @@ function unregister(path) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 🆕 v1.1.0: 함수 등록 헬퍼 (Phase 2)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * 전역 함수 등록 (APP.fn에 등록 + window에 하위 호환 별칭)
+ * 
+ * @param {string} category - 카테고리 (ui, mode, camera, mapping, layout)
+ * @param {string} name - 함수 이름
+ * @param {Function} fn - 함수
+ * @param {string} [windowAlias] - window에 노출할 별칭 (하위 호환)
+ * @returns {boolean} 성공 여부
+ * 
+ * @example
+ * registerFn('ui', 'showToast', _showToast, 'showToast');
+ * // APP.fn.ui.showToast = _showToast
+ * // window.showToast = _showToast (하위 호환)
+ */
+function registerFn(category, name, fn, windowAlias = null) {
+    if (!APP_NAMESPACE.fn[category]) {
+        APP_NAMESPACE.fn[category] = {};
+    }
+    
+    APP_NAMESPACE.fn[category][name] = fn;
+    console.log(`[APP] ✅ 함수 등록: fn.${category}.${name}`);
+    
+    // 하위 호환용 window 별칭
+    if (windowAlias && typeof window !== 'undefined') {
+        window[windowAlias] = fn;
+        console.log(`[APP]    ↳ 별칭: window.${windowAlias}`);
+    }
+    
+    return true;
+}
+
+/**
+ * 디버그 함수 등록
+ * 
+ * @param {string} name - 함수 이름
+ * @param {Function} fn - 함수
+ * @param {string} [windowAlias] - window에 노출할 별칭
+ * @returns {boolean} 성공 여부
+ */
+function registerDebugFn(name, fn, windowAlias = null) {
+    APP_NAMESPACE.debugFn[name] = fn;
+    console.log(`[APP] ✅ 디버그 함수 등록: debugFn.${name}`);
+    
+    if (windowAlias && typeof window !== 'undefined') {
+        window[windowAlias] = fn;
+        console.log(`[APP]    ↳ 별칭: window.${windowAlias}`);
+    }
+    
+    return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 3. 초기화 함수
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -349,6 +427,9 @@ function initNamespace() {
         window.APP.has = has;
         window.APP.unregister = unregister;
         window.APP.debug = debug;
+        // 🆕 v1.1.0: Phase 2 함수
+        window.APP.registerFn = registerFn;
+        window.APP.registerDebugFn = registerDebugFn;
     }
     
     console.log(`[APP] 🚀 네임스페이스 초기화 완료 (v${APP_NAMESPACE._meta.version})`);
@@ -395,6 +476,13 @@ function debug() {
     console.log('\n--- State ---');
     console.log(APP_NAMESPACE.state);
     
+    // 🆕 v1.1.0: Phase 2 추가
+    console.log('\n--- Functions (fn) ---');
+    _debugFunctions(APP_NAMESPACE.fn);
+    
+    console.log('\n--- Debug Functions (debugFn) ---');
+    _debugObject(APP_NAMESPACE.debugFn, 'debugFn');
+    
     console.groupEnd();
 }
 
@@ -421,6 +509,26 @@ function _debugObject(obj, prefix) {
             const status = value ? '✅' : '❌';
             const type = value ? `[${value.constructor?.name || typeof value}]` : '';
             console.log(`  ${status} ${prefix}.${key} ${type}`);
+        }
+    }
+}
+
+/**
+ * 함수 객체 디버그 출력 헬퍼 (fn 전용)
+ * @private
+ */
+function _debugFunctions(fnObj) {
+    for (const [category, functions] of Object.entries(fnObj)) {
+        const funcCount = Object.keys(functions).filter(k => typeof functions[k] === 'function').length;
+        if (funcCount > 0) {
+            console.log(`  📂 fn.${category}: ${funcCount}개 함수`);
+            for (const [name, fn] of Object.entries(functions)) {
+                if (typeof fn === 'function') {
+                    console.log(`     ✅ ${name}()`);
+                }
+            }
+        } else {
+            console.log(`  ❌ fn.${category}: (비어있음)`);
         }
     }
 }
@@ -487,7 +595,10 @@ export {
     // 편의 함수
     getManager,
     getService,
-    getUI
+    getUI,
+    // 🆕 v1.1.0: Phase 2 함수
+    registerFn,
+    registerDebugFn
 };
 
 export default APP_NAMESPACE;
