@@ -2,7 +2,7 @@
  * EquipmentEditModal.js
  * 설비 편집 모달
  * 
- * @version 3.2.0
+ * @version 3.3.0
  * @description 
  *   - BaseModal 상속 적용
  *   - EquipmentMappingService 연동
@@ -14,6 +14,17 @@
  *             - Validate → V2 API (editState.validateOnServer)
  *             - Sync → V2 API only (V1 fallback 제거)
  *             - Save All → V2 API (editState.saveToServer)
+ *   - 🆕 v3.3.0: PanelManager 연동 (2026-01-18)
+ *             - constructor에서 PanelManager 인스턴스 등록
+ *             - open()에서 panelManager.registerOpen() 호출
+ *             - onClose()에서 PanelManager 상태 해제
+ *             - 현재 모드에서 허용되지 않으면 Modal 열기 차단
+ *             - destroy() 메서드 추가
+ *             - ⚠️ 호환성: 기존 모든 기능/로직 100% 유지
+ * 
+ * 📁 위치: frontend/threejs_viewer/src/ui/EquipmentEditModal.js
+ * 작성일: 2026-01-06
+ * 수정일: 2026-01-18
  */
 
 import { BaseModal } from '../core/base/BaseModal.js';
@@ -21,6 +32,9 @@ import { toast } from './common/Toast.js';
 import { debugLog } from '../core/utils/Config.js';
 import { EquipmentMappingService } from '../services/mapping/EquipmentMappingService.js';
 import { extendWithServerSave } from '../services/EquipmentEditStateExtension.js';
+
+// 🆕 v3.3.0: PanelManager 연동
+import { panelManager, PANEL_TYPE } from '../core/navigation/index.js';
 
 /**
  * EquipmentEditModal
@@ -68,6 +82,10 @@ export class EquipmentEditModal extends BaseModal {
         this.validationResult = null;
         this.isValidating = false;
         this.isSaving = false;
+        
+        // 🆕 v3.3.0: PanelManager에 인스턴스 등록
+        panelManager.registerInstance(PANEL_TYPE.EQUIPMENT_EDIT, this);
+        debugLog('📋 EquipmentEditModal registered with PanelManager');
     }
     
     /**
@@ -210,9 +228,18 @@ export class EquipmentEditModal extends BaseModal {
     
     /**
      * Modal 열기 (equipment 데이터와 함께)
+     * 🆕 v3.3.0: PanelManager 연동 추가
      * @param {THREE.Group} equipment - 선택된 설비
      */
     async open(equipment) {
+        // 🆕 v3.3.0: PanelManager에 열기 등록 (모드 체크 포함)
+        const allowed = panelManager.registerOpen(PANEL_TYPE.EQUIPMENT_EDIT);
+        if (!allowed) {
+            console.warn('[EquipmentEditModal] ⚠️ 현재 모드에서 허용되지 않음');
+            toast.warning('Equipment Edit is not available in current mode');
+            return;
+        }
+        
         this.currentEquipment = equipment;
         this.selectedEquipmentId = null;
         this.selectedEquipmentName = null;
@@ -233,10 +260,13 @@ export class EquipmentEditModal extends BaseModal {
         
         // Equipment 목록 로드
         await this._loadAvailableEquipments();
+        
+        debugLog('📋 EquipmentEditModal opened');
     }
     
     /**
      * Modal 닫힐 때
+     * 🆕 v3.3.0: PanelManager 상태 해제
      */
     onClose() {
         this.currentEquipment = null;
@@ -256,6 +286,10 @@ export class EquipmentEditModal extends BaseModal {
         if (validationStatus) {
             validationStatus.style.display = 'none';
         }
+        
+        // 🆕 v3.3.0: PanelManager에서 열림 상태 해제
+        panelManager._openPanels.delete(PANEL_TYPE.EQUIPMENT_EDIT);
+        debugLog('📋 EquipmentEditModal closed (PanelManager state cleared)');
     }
     
     /**
@@ -829,6 +863,25 @@ export class EquipmentEditModal extends BaseModal {
         } else {
             progressEl.textContent = `${completion.mapped} / ${completion.total} Mapped (${completion.percentage}%)`;
         }
+    }
+    
+    // ==========================================
+    // 🆕 v3.3.0: Cleanup
+    // ==========================================
+    
+    /**
+     * 🆕 v3.3.0: 컴포넌트 정리
+     */
+    destroy() {
+        // PanelManager에서 인스턴스 해제
+        panelManager.unregisterInstance(PANEL_TYPE.EQUIPMENT_EDIT);
+        
+        // 기존 정리 로직 (BaseModal에서 상속)
+        if (typeof super.destroy === 'function') {
+            super.destroy();
+        }
+        
+        debugLog('📋 EquipmentEditModal destroyed');
     }
 }
 

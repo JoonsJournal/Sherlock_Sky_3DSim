@@ -3,9 +3,16 @@
  * =====================
  * 설비 상세 정보 패널 (Coordinator)
  * 
- * @version 5.0.0
+ * @version 5.1.0
  * @description
- * - 🆕 v5.0.0: Equipment Drawer Integration
+ * - 🆕 v5.1.0: PanelManager 연동 (2026-01-18)
+ *   - constructor에서 PanelManager 인스턴스 등록
+ *   - show()에서 panelManager.registerOpen() 호출
+ *   - hide()에서 PanelManager 상태 해제
+ *   - 현재 모드에서 허용되지 않으면 Panel 표시 차단
+ *   - dispose()에서 인스턴스 해제
+ *   - ⚠️ 호환성: 기존 모든 기능/로직 100% 유지
+ * - v5.0.0: Equipment Drawer Integration
  *   - Drawer CSS 클래스 상수 추가
  *   - Hybrid 애니메이션 (열림: width→transform, 닫힘: transform→width)
  *   - _triggerResize() 메서드로 3D Viewer 리사이즈 트리거
@@ -21,7 +28,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/EquipmentInfoPanel.js
  * 작성일: 2026-01-06
- * 수정일: 2026-01-16
+ * 수정일: 2026-01-18
  */
 
 import { debugLog } from '../core/utils/Config.js';
@@ -32,6 +39,9 @@ import { HeaderStatus } from './equipment-info/components/HeaderStatus.js';
 import { GeneralTab } from './equipment-info/tabs/GeneralTab.js';
 import { PCInfoTab } from './equipment-info/tabs/PCInfoTab.js';
 import { DOM_IDS, TAB_NAMES, getPanelTemplate, getDOMReferences } from './equipment-info/panelTemplate.js';
+
+// 🆕 v5.1.0: PanelManager 연동
+import { panelManager, PANEL_TYPE } from '../core/navigation/index.js';
 
 export class EquipmentInfoPanel {
     // =========================================================================
@@ -146,7 +156,7 @@ export class EquipmentInfoPanel {
         this._isDrawerMode = false;
         
         this._init();
-        debugLog('📊 EquipmentInfoPanel initialized (v5.0.0 - Drawer Integration)');
+        debugLog('📊 EquipmentInfoPanel initialized (v5.1.0 - PanelManager Integration)');
     }
     
     // =========================================================================
@@ -182,6 +192,10 @@ export class EquipmentInfoPanel {
         
         // 전역 함수
         window.closeEquipmentInfo = () => this.hide();
+        
+        // 🆕 v5.1.0: PanelManager에 인스턴스 등록
+        panelManager.registerInstance(PANEL_TYPE.EQUIPMENT_INFO, this);
+        debugLog('📊 EquipmentInfoPanel registered with PanelManager');
     }
     
     _setupEventListeners() {
@@ -217,6 +231,10 @@ export class EquipmentInfoPanel {
         debugLog('🔗 EquipmentEditState connected');
     }
     
+    /**
+     * 패널 표시
+     * 🆕 v5.1.0: PanelManager 연동 추가
+     */
     async show(equipmentData) {
         // 🆕 v5.0.0: 애니메이션 중이면 무시
         if (this.state.isAnimating) {
@@ -231,6 +249,13 @@ export class EquipmentInfoPanel {
             return;
         }
         
+        // 🆕 v5.1.0: PanelManager에 열기 등록 (모드 체크 포함)
+        const allowed = panelManager.registerOpen(PANEL_TYPE.EQUIPMENT_INFO);
+        if (!allowed) {
+            debugLog('⚠️ EquipmentInfoPanel은 현재 모드에서 허용되지 않음');
+            return;
+        }
+        
         this.state.selectedCount = dataArray.length;
         
         if (dataArray.length === 1) {
@@ -240,10 +265,13 @@ export class EquipmentInfoPanel {
         }
         
         this._showPanel();
+        
+        debugLog('📊 EquipmentInfoPanel shown');
     }
     
     /**
      * 🆕 v5.0.0: 패널/Drawer 숨기기 (Hybrid 애니메이션)
+     * 🆕 v5.1.0: PanelManager 상태 해제
      */
     hide() {
         // 애니메이션 중이면 무시
@@ -263,6 +291,10 @@ export class EquipmentInfoPanel {
             // Legacy 모드 - 즉시 숨김
             this._hideLegacy();
         }
+        
+        // 🆕 v5.1.0: PanelManager에서 열림 상태 해제
+        panelManager._openPanels.delete(PANEL_TYPE.EQUIPMENT_INFO);
+        debugLog('📊 EquipmentInfoPanel hidden (PanelManager state cleared)');
     }
     
     /**
@@ -344,6 +376,10 @@ export class EquipmentInfoPanel {
         debugLog('🗑️ Cache cleared');
     }
     
+    /**
+     * 정리
+     * 🆕 v5.1.0: PanelManager 인스턴스 해제
+     */
     dispose() {
         this.hide();
         this.cache.dispose();
@@ -352,7 +388,11 @@ export class EquipmentInfoPanel {
         this.headerStatus?.dispose();
         clearTimeout(this._refreshTimeout);
         clearTimeout(this._animationTimeout);
-        debugLog('📊 Panel disposed');
+        
+        // 🆕 v5.1.0: PanelManager에서 인스턴스 해제
+        panelManager.unregisterInstance(PANEL_TYPE.EQUIPMENT_INFO);
+        
+        debugLog('📊 Panel disposed (PanelManager instance unregistered)');
     }
     
     // =========================================================================
