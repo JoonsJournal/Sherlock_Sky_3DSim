@@ -185,7 +185,7 @@ import {
     goTo3DView,
     goToRankingView,
     goHome,
-    panelManager  // 🆕 v7.1.0 추가!
+    panelManager  // 🆕 추가!
 } from './core/navigation/index.js';
 
 // ============================================
