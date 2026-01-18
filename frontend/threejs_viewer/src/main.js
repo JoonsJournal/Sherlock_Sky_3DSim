@@ -184,7 +184,8 @@ import {
     NAV_MODE,
     goTo3DView,
     goToRankingView,
-    goHome
+    goHome,
+    panelManager  // 🆕 v7.1.0 추가!
 } from './core/navigation/index.js';
 
 // ============================================
@@ -837,31 +838,43 @@ function toggleDebugPanel() {
 window.toggleDebugPanel = toggleDebugPanel;
 
 /**
- * Equipment Edit Modal 열기
- * 🆕 v7.1.0: 모드 전환 추가
+/**
+ * Equipment Edit Modal 열기 (Equipment Mapping 모드 진입)
+ * 🆕 v7.1.0: 모드 전환 + PanelManager 동기화 추가
  */
 function openEquipmentEditModal() {
-    // 🆕 접근 권한 체크
+    // 접근 권한 체크
     if (!canAccessFeatures()) {
         window.showToast?.('Connect DB or enable Dev Mode first', 'warning');
         return;
     }
     
-    // 🆕 3D View가 필요하면 먼저 초기화
+    console.log('[openEquipmentEditModal] 🛠️ Equipment Mapping 모드 진입');
+    
+    // 1. 3D View가 필요하면 먼저 초기화
     if (!screenManager.threejsInitialized) {
+        console.log('[openEquipmentEditModal] 3D View 초기화 필요');
         navigationController.navigate(NAV_MODE.MONITORING, '3d-view');
     }
     
-    // 🆕 Equipment Edit 모드로 전환
-    appModeManager.toggleMode(APP_MODE.EQUIPMENT_EDIT);
-    
-    // 🆕 PanelManager 모드 동기화
-    panelManager.setCurrentMode('monitoring', '3d-view');
-    
-    // Edit Modal 열기
-    if (services.ui?.equipmentEditModal) {
-        services.ui.equipmentEditModal.open();
+    // 2. 🆕 APP_MODE를 EQUIPMENT_EDIT로 전환
+    const currentMode = appModeManager.getCurrentMode();
+    if (currentMode !== APP_MODE.EQUIPMENT_EDIT) {
+        appModeManager.setMode(APP_MODE.EQUIPMENT_EDIT);
+        console.log('[openEquipmentEditModal] ✅ APP_MODE → equipment_edit');
     }
+    
+    // 3. 🆕 PanelManager 모드 동기화
+    panelManager.setCurrentMode('monitoring', '3d-view');
+    console.log('[openEquipmentEditModal] ✅ PanelManager 모드 동기화');
+    
+    // 4. ModeIndicator 업데이트
+    updateModeIndicator('Edit', 'Equipment Mapping');
+    
+    // 5. Toast 알림
+    window.showToast?.('🛠️ Equipment Mapping Mode - 설비를 클릭하세요', 'info');
+    
+    console.log('[openEquipmentEditModal] ✅ Equipment Mapping 모드 활성화 완료');
 }
 
 /**
