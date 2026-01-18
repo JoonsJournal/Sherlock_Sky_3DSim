@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 4 Migration Test</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { 
+            text-align: center; 
+            margin-bottom: 30px;
+            color: #00d4ff;
+            text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .section h2 {
+            color: #ffd700;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button.success { background: linear-gradient(135deg, #00b894 0%, #00cec9 100%); }
+        button.warning { background: linear-gradient(135deg, #fdcb6e 0%, #f39c12 100%); color: #333; }
+        button.danger { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); }
+        
+        .console-output {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #30363d;
+        }
+        .console-output .log { color: #8b949e; }
+        .console-output .warn { color: #f39c12; }
+        .console-output .error { color: #e74c3c; }
+        .console-output .info { color: #3498db; }
+        .console-output .success { color: #00b894; }
+        
+        .status-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        .status-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .status-item .label { color: #8b949e; font-size: 12px; margin-bottom: 5px; }
+        .status-item .value { font-size: 24px; font-weight: bold; color: #00d4ff; }
+        .status-item .value.on { color: #00b894; }
+        .status-item .value.off { color: #e74c3c; }
+        
+        .code-block {
+            background: #161b22;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        .code-block .comment { color: #8b949e; }
+        .code-block .keyword { color: #ff7b72; }
+        .code-block .string { color: #a5d6ff; }
+        .code-block .function { color: #d2a8ff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Phase 4: Legacy Migration Test</h1>
+        
+        <!-- Status Panel -->
+        <div class="section">
+            <h2>📊 Migration Status</h2>
+            <div class="status-panel" id="statusPanel">
+                <div class="status-item">
+                    <div class="label">Phase</div>
+                    <div class="value" id="stat-phase">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">Deprecation</div>
+                    <div class="value" id="stat-deprecation">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">Progress</div>
+                    <div class="value" id="stat-progress">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">Warnings</div>
+                    <div class="value" id="stat-warnings">-</div>
+                </div>
+                <div class="status-item">
+                    <div class="label">Registered</div>
+                    <div class="value" id="stat-registered">-</div>
+                </div>
+            </div>
+            <button onclick="refreshStatus()" style="margin-top: 15px; width: auto;">🔄 Refresh Status</button>
+        </div>
+        
+        <!-- Test Controls -->
+        <div class="section">
+            <h2>🧪 Deprecation Tests</h2>
+            <div class="test-grid">
+                <button onclick="testLegacyAccess()">Test Legacy Access</button>
+                <button onclick="testNewAPI()">Test New API</button>
+                <button onclick="testFunction()">Test Legacy Function</button>
+                <button onclick="testWarningLimit()">Test Warning Limit</button>
+            </div>
+        </div>
+        
+        <!-- Config Controls -->
+        <div class="section">
+            <h2>⚙️ Configuration</h2>
+            <div class="test-grid">
+                <button class="success" onclick="enableDeprecation()">Enable Warnings</button>
+                <button class="danger" onclick="disableDeprecation()">Disable Warnings</button>
+                <button class="warning" onclick="resetWarnings()">Reset Counters</button>
+                <button onclick="setWarnLimit(5)">Set Limit: 5</button>
+            </div>
+        </div>
+        
+        <!-- Debug Commands -->
+        <div class="section">
+            <h2>🔧 Debug Commands</h2>
+            <div class="test-grid">
+                <button onclick="runDebug()">APP.debug()</button>
+                <button onclick="runMigrationStatus()">getMigrationStatus()</button>
+                <button onclick="runDeprecationStatus()">getDeprecationStatus()</button>
+                <button onclick="runHelp()">debugFn.help()</button>
+            </div>
+        </div>
+        
+        <!-- Console Output -->
+        <div class="section">
+            <h2>📝 Console Output</h2>
+            <button class="danger" onclick="clearConsole()" style="width: auto; margin-bottom: 10px;">Clear</button>
+            <div class="console-output" id="consoleOutput">
+                <div class="info">[Test Page] Ready for Phase 4 testing</div>
+            </div>
+        </div>
+        
+        <!-- Code Examples -->
+        <div class="section">
+            <h2>📖 Code Examples</h2>
+            <div class="code-block">
+<span class="comment">// Legacy API (Deprecated)</span>
+window.sceneManager.scene;  <span class="comment">// ⚠️ Warning</span>
+window.eventBus.emit('event');  <span class="comment">// ⚠️ Warning</span>
+window.showToast('msg', 'info');  <span class="comment">// ⚠️ Warning</span>
+
+<span class="comment">// New API (Recommended)</span>
+APP.services.scene.sceneManager.scene;  <span class="comment">// ✅ No warning</span>
+APP.utils.eventBus.emit('event');  <span class="comment">// ✅ No warning</span>
+APP.fn.ui.showToast('msg', 'info');  <span class="comment">// ✅ No warning</span>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // =====================================================
+        // Mock APP Namespace (Phase 4 시뮬레이션)
+        // =====================================================
+        
+        const _deprecationWarnings = new Map();
+        
+        const DEPRECATION_CONFIG = {
+            warnLimit: 3,
+            enabled: true,
+            style: 'color: #f39c12; font-weight: bold;'
+        };
+        
+        const LEGACY_MIGRATION_MAP = {
+            sceneManager: 'services.scene.sceneManager',
+            equipmentLoader: 'services.scene.equipmentLoader',
+            eventBus: 'utils.eventBus',
+            appModeManager: 'managers.mode',
+            toast: 'ui.toast',
+            showToast: 'fn.ui.showToast'
+        };
+        
+        function createDeprecatedAlias(target, legacyName, newPath) {
+            if (target === null || target === undefined) return target;
+            
+            if (typeof target === 'function') {
+                return function(...args) {
+                    _warnDeprecation(legacyName, newPath);
+                    return target.apply(this, args);
+                };
+            }
+            
+            if (typeof target !== 'object') return target;
+            
+            return new Proxy(target, {
+                get(obj, prop) {
+                    if (prop === '_isProxy') return true;
+                    _warnDeprecation(legacyName, newPath);
+                    const value = obj[prop];
+                    if (typeof value === 'function') return value.bind(obj);
+                    return value;
+                }
+            });
+        }
+        
+        function _warnDeprecation(legacyName, newPath) {
+            if (!DEPRECATION_CONFIG.enabled) return;
+            
+            const count = _deprecationWarnings.get(legacyName) || 0;
+            
+            if (count < DEPRECATION_CONFIG.warnLimit) {
+                const remaining = DEPRECATION_CONFIG.warnLimit - count - 1;
+                const msg = `⚠️ [DEPRECATED] window.${legacyName}\n   → 대신 ${newPath} 를 사용하세요.` +
+                    (remaining > 0 ? `\n   (${remaining}회 더 경고)` : '\n   (마지막 경고)');
+                
+                console.warn(msg);
+                logToOutput(msg, 'warn');
+                
+                _deprecationWarnings.set(legacyName, count + 1);
+            }
+        }
+        
+        // Mock services
+        const mockServices = {
+            scene: { sceneManager: { scene: { children: [] }, render: () => {} } },
+            monitoring: { monitoringService: null },
+            mapping: { equipmentMappingService: null },
+            connection: { connectionStatusService: null }
+        };
+        
+        const mockManagers = { mode: {}, keyboard: {}, debug: {}, view: null, screen: null };
+        const mockUI = { toast: {}, sidebar: null };
+        const mockUtils = { eventBus: { emit: (e) => console.log('Event:', e), on: () => {} }, logger: {} };
+        const mockFn = {
+            ui: { showToast: (msg, type) => console.log(`Toast [${type}]: ${msg}`) },
+            mode: {},
+            camera: {},
+            mapping: {},
+            layout: {}
+        };
+        
+        // Create APP namespace
+        window.APP = {
+            _meta: {
+                version: '6.3.0',
+                initialized: true,
+                migration: { phase: 4, deprecationEnabled: true, migratedCount: 0 }
+            },
+            services: mockServices,
+            managers: mockManagers,
+            ui: mockUI,
+            utils: mockUtils,
+            fn: mockFn,
+            debugFn: { help: () => console.log('Help!'), scene: () => {}, listEquipments: () => {} },
+            state: { currentMode: null, isConnected: false, devModeEnabled: true },
+            
+            // API functions
+            createDeprecatedAlias,
+            resetDeprecationWarnings: () => {
+                _deprecationWarnings.clear();
+                logToOutput('✅ Deprecation 경고 카운터 리셋됨', 'success');
+            },
+            setDeprecationConfig: (config) => {
+                if (typeof config.warnLimit === 'number') DEPRECATION_CONFIG.warnLimit = config.warnLimit;
+                if (typeof config.enabled === 'boolean') DEPRECATION_CONFIG.enabled = config.enabled;
+                logToOutput(`설정 변경: enabled=${DEPRECATION_CONFIG.enabled}, warnLimit=${DEPRECATION_CONFIG.warnLimit}`, 'info');
+            },
+            getDeprecationStatus: () => ({
+                config: { ...DEPRECATION_CONFIG },
+                warnings: Object.fromEntries(_deprecationWarnings),
+                totalWarnings: _deprecationWarnings.size
+            }),
+            getMigrationStatus: () => ({
+                phase: 4,
+                deprecationEnabled: DEPRECATION_CONFIG.enabled,
+                totalLegacyVariables: Object.keys(LEGACY_MIGRATION_MAP).length,
+                migratedCount: window.APP._meta.migration.migratedCount,
+                progress: Math.round((window.APP._meta.migration.migratedCount / Object.keys(LEGACY_MIGRATION_MAP).length) * 100),
+                registered: { services: 4, managers: 5, ui: 2, utils: 2, total: 13 }
+            }),
+            debug: () => {
+                console.group('🔧 APP Namespace Debug');
+                console.log('Version:', window.APP._meta.version);
+                console.log('Phase:', window.APP._meta.migration.phase);
+                console.log('Deprecation:', DEPRECATION_CONFIG.enabled);
+                console.groupEnd();
+                logToOutput('APP.debug() 실행 완료 - 콘솔 확인', 'info');
+            },
+            LEGACY_MIGRATION_MAP
+        };
+        
+        // Create deprecated window aliases
+        window.sceneManager = createDeprecatedAlias(
+            mockServices.scene.sceneManager,
+            'sceneManager',
+            'APP.services.scene.sceneManager'
+        );
+        window.APP._meta.migration.migratedCount++;
+        
+        window.eventBus = createDeprecatedAlias(
+            mockUtils.eventBus,
+            'eventBus',
+            'APP.utils.eventBus'
+        );
+        window.APP._meta.migration.migratedCount++;
+        
+        window.showToast = createDeprecatedAlias(
+            mockFn.ui.showToast,
+            'showToast',
+            'APP.fn.ui.showToast'
+        );
+        window.APP._meta.migration.migratedCount++;
+        
+        // =====================================================
+        // Test Functions
+        // =====================================================
+        
+        function logToOutput(msg, type = 'log') {
+            const output = document.getElementById('consoleOutput');
+            const line = document.createElement('div');
+            line.className = type;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        window.refreshStatus = function() {
+            const status = window.APP.getMigrationStatus();
+            const depStatus = window.APP.getDeprecationStatus();
+            
+            document.getElementById('stat-phase').textContent = status.phase;
+            document.getElementById('stat-deprecation').textContent = depStatus.config.enabled ? 'ON' : 'OFF';
+            document.getElementById('stat-deprecation').className = 'value ' + (depStatus.config.enabled ? 'on' : 'off');
+            document.getElementById('stat-progress').textContent = status.progress + '%';
+            document.getElementById('stat-warnings').textContent = depStatus.totalWarnings;
+            document.getElementById('stat-registered').textContent = status.registered.total;
+            
+            logToOutput('Status refreshed', 'info');
+        };
+        
+        window.testLegacyAccess = function() {
+            logToOutput('Testing legacy access: window.sceneManager.scene', 'log');
+            const scene = window.sceneManager.scene;
+            logToOutput(`Result: ${scene ? 'Success' : 'Failed'}`, scene ? 'success' : 'error');
+        };
+        
+        window.testNewAPI = function() {
+            logToOutput('Testing new API: APP.services.scene.sceneManager.scene', 'log');
+            const scene = APP.services.scene.sceneManager.scene;
+            logToOutput(`Result: ${scene ? 'Success (no warning!)' : 'Failed'}`, scene ? 'success' : 'error');
+        };
+        
+        window.testFunction = function() {
+            logToOutput('Testing legacy function: window.showToast()', 'log');
+            window.showToast('Test message', 'info');
+        };
+        
+        window.testWarningLimit = function() {
+            logToOutput('Testing warning limit (3 times)...', 'log');
+            for (let i = 0; i < 5; i++) {
+                logToOutput(`Access #${i + 1}`, 'log');
+                window.eventBus.emit('test');
+            }
+            logToOutput('After 3 warnings, no more warnings should appear', 'info');
+        };
+        
+        window.enableDeprecation = function() {
+            APP.setDeprecationConfig({ enabled: true });
+            refreshStatus();
+        };
+        
+        window.disableDeprecation = function() {
+            APP.setDeprecationConfig({ enabled: false });
+            refreshStatus();
+        };
+        
+        window.resetWarnings = function() {
+            APP.resetDeprecationWarnings();
+            refreshStatus();
+        };
+        
+        window.setWarnLimit = function(limit) {
+            APP.setDeprecationConfig({ warnLimit: limit });
+            logToOutput(`Warning limit set to ${limit}`, 'info');
+        };
+        
+        window.runDebug = function() {
+            APP.debug();
+        };
+        
+        window.runMigrationStatus = function() {
+            const status = APP.getMigrationStatus();
+            console.log('Migration Status:', status);
+            logToOutput(JSON.stringify(status, null, 2), 'info');
+        };
+        
+        window.runDeprecationStatus = function() {
+            const status = APP.getDeprecationStatus();
+            console.log('Deprecation Status:', status);
+            logToOutput(JSON.stringify(status, null, 2), 'info');
+        };
+        
+        window.runHelp = function() {
+            APP.debugFn.help();
+            logToOutput('Help displayed in console', 'info');
+        };
+        
+        window.clearConsole = function() {
+            document.getElementById('consoleOutput').innerHTML = '<div class="info">[Console cleared]</div>';
+        };
+        
+        // Initial status
+        window.refreshStatus();
+        logToOutput('Phase 4 Test Page initialized', 'success');
+        logToOutput('Deprecated aliases created: sceneManager, eventBus, showToast', 'info');
+    </script>
+</body>
+</html>

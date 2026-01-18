@@ -4,8 +4,12 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 6.2.0
+ * @version 6.3.0
  * @changelog
+ * - v6.3.0: 🆕 Phase 4 - Legacy 전역 변수 마이그레이션 (2026-01-18)
+ *           - USE_DEPRECATION_WARNINGS = true 활성화
+ *           - migrateGlobalToNamespace() 사용
+ *           - exposeGlobalObjects() → migrateGlobalToNamespace() 교체
  * - v6.2.0: 🆕 Phase 3 - Deprecation 경고 시스템 (2026-01-18)
  *           - USE_DEPRECATION_WARNINGS 플래그 추가
  *           - LEGACY_TO_NEW_PATH import
@@ -128,10 +132,13 @@ import {
     register,
     get as getFromNamespace,
     has as hasInNamespace,
-    registerFn,       // 🆕 Phase 2
-    registerDebugFn   // 🆕 Phase 2
+    registerFn,
+    registerDebugFn,
+    // 🆕 Phase 4
+    migrateGlobalToNamespace,
+    getMigrationStatus,
+    LEGACY_MIGRATION_MAP
 } from './core/AppNamespace.js';
-
 // Utils
 import { CONFIG } from './core/utils/Config.js';
 import { memoryManager } from './core/utils/MemoryManager.js';
@@ -247,20 +254,18 @@ const RECOVERY_STRATEGIES = {
     }
 };
 
-// ============================================
-// 🆕 v6.2.0: Phase 3 - Deprecation 설정
-// ============================================
-
 /**
- * 레거시 전역 변수 Deprecation 경고 활성화 여부
+ * 🆕 v6.3.0: Phase 4 - Deprecation 경고 활성화
  * 
- * - false: 기존 방식 (경고 없이 직접 노출)
- * - true: Proxy 래퍼로 접근 시 경고 출력
+ * true로 설정하면:
+ * - window.sceneManager 접근 시 경고 출력
+ * - "APP.services.scene.sceneManager 사용 권장" 안내
+ * - 동일 변수당 최대 3회 경고 (setDeprecationConfig로 변경 가능)
  * 
- * 🔧 개발 중에는 false, 프로덕션 배포 전 true로 전환 권장
- * 충분한 테스트 후 활성화하세요.
+ * 🔧 개발/테스트 중에는 false로 유지 후
+ *    충분한 테스트 후 true로 전환 권장
  */
-const USE_DEPRECATION_WARNINGS = false;
+const USE_DEPRECATION_WARNINGS = true;  // 🆕 Phase 4 활성화!
 
 
 // ============================================
@@ -1919,20 +1924,32 @@ function _delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// ============================================
-// 전역 객체 노출 (Scene 초기화 후)
-// ============================================
-
+/**
+ * 🆕 v6.3.0: Phase 4 - 전역 객체 노출 (Scene 초기화 후)
+ * 
+ * migrateGlobalToNamespace() 사용으로 변경
+ * USE_DEPRECATION_WARNINGS가 true면 Deprecation 래퍼 적용
+ */
 function _exposeGlobalObjectsAfterSceneInit() {
-    const { sceneManager, equipmentLoader, cameraControls, cameraNavigator, interactionHandler, dataOverlay, statusVisualizer, performanceMonitor, adaptivePerformance } = services.scene || {};
-    const { connectionModal, equipmentEditState, equipmentEditModal, equipmentEditButton, apiClient, equipmentInfoPanel, connectionStatusService, connectionIndicator } = services.ui || {};
+    const { 
+        sceneManager, equipmentLoader, cameraControls, cameraNavigator, 
+        interactionHandler, dataOverlay, statusVisualizer, 
+        performanceMonitor, adaptivePerformance 
+    } = services.scene || {};
+    
+    const { 
+        connectionModal, equipmentEditState, equipmentEditModal, 
+        equipmentEditButton, apiClient, equipmentInfoPanel, 
+        connectionStatusService, connectionIndicator 
+    } = services.ui || {};
+    
     const { monitoringService, signalTowerManager } = services.monitoring || {};
-    // 🆕 v5.5.0: Mapping 서비스 추가
     const { equipmentMappingService } = services.mapping || {};
-    // 🆕 v5.7.0: Views 서비스 추가
     const { viewManager: servicesViewManager } = services.views || {};
     
-        // 🆕 v6.0.0: 네임스페이스에도 등록
+    // ═══════════════════════════════════════════════════════════════════
+    // 1. APP 네임스페이스에 등록 (항상 수행)
+    // ═══════════════════════════════════════════════════════════════════
     register('services.scene.sceneManager', sceneManager);
     register('services.scene.equipmentLoader', equipmentLoader);
     register('services.scene.cameraControls', cameraControls);
@@ -1963,8 +1980,10 @@ function _exposeGlobalObjectsAfterSceneInit() {
     
     register('utils.storageService', storageService);
 
-// 🆕 v6.2.0: Phase 3 - Deprecation 옵션 적용
-    exposeGlobalObjects({
+    // ═══════════════════════════════════════════════════════════════════
+    // 2. 🆕 Phase 4: window.* 전역 노출 (Deprecation 래퍼 적용)
+    // ═══════════════════════════════════════════════════════════════════
+    const globalObjects = {
         // Scene
         sceneManager,
         equipmentLoader,
@@ -1985,7 +2004,7 @@ function _exposeGlobalObjectsAfterSceneInit() {
         toast,
         equipmentInfoPanel,
         
-        // Connection Status
+        // Connection
         connectionStatusService,
         connectionIndicator,
         
@@ -2033,11 +2052,18 @@ function _exposeGlobalObjectsAfterSceneInit() {
         toggleConnectionModal,
         toggleDebugPanel,
         toggleDevMode
-    }, {
+    };
+    
+    // 🆕 Phase 4: migrateGlobalToNamespace() 사용
+    const migrationResult = migrateGlobalToNamespace(globalObjects, {
         useDeprecation: USE_DEPRECATION_WARNINGS,
-        pathMapping: LEGACY_TO_NEW_PATH
+        pathMapping: LEGACY_MIGRATION_MAP,
+        silent: false  // 로그 출력
     });
+    
+    console.log(`[main.js] Phase 4 Migration: deprecated=${migrationResult.deprecated}, exposed=${migrationResult.exposed}`);
 }
+
 
 // ============================================
 // 메인 초기화
@@ -2197,7 +2223,7 @@ function init() {
         // viewManager.showCoverScreen() 불필요 - CoverScreen.js가 자동 표시
         
         // 9. 초기 전역 객체 노출
-        exposeGlobalObjects({
+        migrateGlobalToNamespace({
             appModeManager,
             keyboardManager,
             debugManager,
@@ -2206,24 +2232,26 @@ function init() {
             connectionModal: services.ui?.connectionModal,
             toast,
             equipmentInfoPanel: services.ui?.equipmentInfoPanel,
-            // 🆕 v5.5.0: Mapping 서비스 (아직 null일 수 있음)
             equipmentMappingService: services.mapping?.equipmentMappingService,
             connectionStatusService: services.ui?.connectionStatusService,
             storageService,
             viewManager,
             sidebarUI,
-            bootstrapViewManager,  // ← 이 줄 추가
-            VIEW_REGISTRY,         // ← 이 줄 추가
-            getView,               // ← 이 줄 추가
-            showView,              // ← 이 줄 추가
-            hideView,              // ← 이 줄 추가
-            toggleView,            // ← 이 줄 추가
-            destroyView,           // ← 이 줄 추가
+            bootstrapViewManager,
+            VIEW_REGISTRY,
+            getView,
+            showView,
+            hideView,
+            toggleView,
+            destroyView,
             toggleEditMode,
             toggleMonitoringMode,
             toggleConnectionModal,
             toggleDebugPanel,
-            toggleDevMode  // 🆕 v5.1.0: 하위 호환
+            toggleDevMode
+        }, {
+            useDeprecation: USE_DEPRECATION_WARNINGS,
+            pathMapping: LEGACY_MIGRATION_MAP
         });
         
         // 10. 초기화 완료 이벤트
@@ -2302,6 +2330,22 @@ function init() {
         console.log('   - APP.fn.mode.toggleMonitoringMode()');
         console.log('   - APP.state (= sidebarState 동기화)');
         console.log('   💡 APP.debug() 로 전체 네임스페이스 확인');
+
+        // 🆕 v6.3.0: Phase 4 마이그레이션 상태 출력
+        console.log('');
+        console.log('🆕 v6.3.0: Phase 4 Legacy 마이그레이션');
+        console.log(`   Deprecation 경고: ${USE_DEPRECATION_WARNINGS ? 'ON ⚠️' : 'OFF'}`);
+        
+        if (USE_DEPRECATION_WARNINGS) {
+            console.log('   ⚠️ window.* 레거시 접근 시 경고가 표시됩니다.');
+            console.log('   새 API:');
+            console.log('     - APP.services.scene.sceneManager');
+            console.log('     - APP.managers.mode (appModeManager)');
+            console.log('     - APP.utils.eventBus');
+            console.log('     - APP.fn.ui.showToast()');
+            console.log('   경고 끄기: APP.setDeprecationConfig({ enabled: false })');
+            console.log('   상태 확인: APP.getMigrationStatus()');
+        }
         
     } catch (error) {
         console.error('❌ 초기화 중 오류 발생:', error);
