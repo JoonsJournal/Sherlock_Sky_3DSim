@@ -101,7 +101,7 @@ import {
     cleanup,
 
         // 🆕 v5.7.0: ViewBootstrap - ViewManager 패턴
-    viewManager as bootstrapViewManager,  // 기존 viewManager와 충돌 방지
+    bootstrapViewManager,  // ViewManager 싱글톤 (bootstrap/index.js에서 이름 변경됨)
     initViewManager,
     getView,
     showView,
