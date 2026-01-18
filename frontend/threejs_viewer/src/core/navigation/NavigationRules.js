@@ -3,7 +3,7 @@
  * ==================
  * 애플리케이션 네비게이션 규칙 정의
  * 
- * @version 1.1.0
+ * @version 1.1.1
  * @description
  * - Mode/Submode별 레이어 표시 규칙 정의
  * - View 전환 시 필요한 서비스 명시
@@ -11,6 +11,9 @@
  * - 🆕 Panel/Modal 관리 규칙 추가
  * 
  * @changelog
+ * - v1.1.1: 🔧 Equipment Edit Modal 허용 서브모드 확장 (2026-01-18)
+ *           - allowedSubmodes에 'ranking-view' 추가
+ *           - ranking-view에서도 Equipment Mapping Modal 열 수 있도록 수정
  * - v1.1.0: 🆕 Panel 관리 시스템 추가 (2026-01-18)
  *           - PANEL_TYPE 상수 추가 (Panel 식별자)
  *           - PANEL_RULES 규칙 추가 (Panel 동작 규칙)
@@ -137,11 +140,12 @@ export const PANEL_RULES = Object.freeze({
         allowedModes: [NAV_MODE.MONITORING, NAV_MODE.LAYOUT],
         
         /**
-         * 허용 서브모드
+         * 🔧 v1.1.1: 허용 서브모드 확장
          * - 3d-view: 3D 모니터링 뷰에서
          * - mapping: 매핑 전용 서브모드에서
+         * - ranking-view: 🆕 랭킹 뷰에서도 Equipment Mapping Modal 허용
          */
-        allowedSubmodes: ['3d-view', 'mapping'],
+        allowedSubmodes: ['3d-view', 'mapping', 'ranking-view'],
         
         /** 모드 전환 시 자동 닫힘 (⭐ 핵심!) */
         autoCloseOnModeChange: true,
