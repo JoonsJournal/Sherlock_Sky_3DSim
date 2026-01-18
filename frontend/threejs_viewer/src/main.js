@@ -4,8 +4,12 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 6.1.1
-* @changelog
+ * @version 6.2.0
+ * @changelog
+ * - v6.2.0: 🆕 Phase 3 - Deprecation 경고 시스템 (2026-01-18)
+ *           - USE_DEPRECATION_WARNINGS 플래그 추가
+ *           - LEGACY_TO_NEW_PATH import
+ *           - exposeGlobalObjects() 옵션 적용
  * - v6.1.1: 🔧 Placeholder 패턴 적용 (2026-01-18)
  *           - Three.js 의존 함수 placeholder 등록
  *           - 3D View 초기화 전 호출 시 경고 메시지
@@ -131,7 +135,11 @@ import {
 // Utils
 import { CONFIG } from './core/utils/Config.js';
 import { memoryManager } from './core/utils/MemoryManager.js';
-import { setupGlobalDebugFunctions, exposeGlobalObjects } from './core/utils/GlobalDebugFunctions.js';
+import { 
+    setupGlobalDebugFunctions, 
+    exposeGlobalObjects, 
+    LEGACY_TO_NEW_PATH  // 🆕 v6.2.0: Phase 3
+} from './core/utils/GlobalDebugFunctions.js';
 
 // Layout 관련
 import { layout2DTo3DConverter } from './services/converter/Layout2DTo3DConverter.js';
@@ -238,6 +246,22 @@ const RECOVERY_STRATEGIES = {
         toastMessage: null
     }
 };
+
+// ============================================
+// 🆕 v6.2.0: Phase 3 - Deprecation 설정
+// ============================================
+
+/**
+ * 레거시 전역 변수 Deprecation 경고 활성화 여부
+ * 
+ * - false: 기존 방식 (경고 없이 직접 노출)
+ * - true: Proxy 래퍼로 접근 시 경고 출력
+ * 
+ * 🔧 개발 중에는 false, 프로덕션 배포 전 true로 전환 권장
+ * 충분한 테스트 후 활성화하세요.
+ */
+const USE_DEPRECATION_WARNINGS = false;
+
 
 // ============================================
 // 전역 상태 (Sidebar용) - 하위 호환
@@ -1939,6 +1963,7 @@ function _exposeGlobalObjectsAfterSceneInit() {
     
     register('utils.storageService', storageService);
 
+// 🆕 v6.2.0: Phase 3 - Deprecation 옵션 적용
     exposeGlobalObjects({
         // Scene
         sceneManager,
@@ -1968,13 +1993,13 @@ function _exposeGlobalObjectsAfterSceneInit() {
         monitoringService,
         signalTowerManager,
         
-        // 🆕 v5.5.0: Mapping
+        // Mapping
         equipmentMappingService,
 
-        // 🆕 v5.7.0: ViewManager
-        bootstrapViewManager,       // ViewManager 싱글톤 인스턴스
-        VIEW_REGISTRY,              // View 설정 레지스트리
-        getView,                    // Facade 함수
+        // ViewManager
+        bootstrapViewManager,
+        VIEW_REGISTRY,
+        getView,
         showView,
         hideView,
         toggleView,
@@ -1998,7 +2023,7 @@ function _exposeGlobalObjectsAfterSceneInit() {
         // View Manager
         viewManager,
         
-        // 🆕 v5.1.0: Sidebar UI
+        // Sidebar UI
         sidebarUI,     
         
         // 함수 노출
@@ -2007,7 +2032,10 @@ function _exposeGlobalObjectsAfterSceneInit() {
         toggleMonitoringMode,
         toggleConnectionModal,
         toggleDebugPanel,
-        toggleDevMode  // 🆕 v5.1.0: 하위 호환
+        toggleDevMode
+    }, {
+        useDeprecation: USE_DEPRECATION_WARNINGS,
+        pathMapping: LEGACY_TO_NEW_PATH
     });
 }
 
@@ -2214,7 +2242,16 @@ function init() {
         }, 2000);
         
         console.log('');
-        console.log('✅ 모든 초기화 완료! (v5.4.0 - 재연결 복구 로직)');
+        console.log('✅ 모든 초기화 완료! (v6.2.0 - Phase 3 Deprecation)');
+        
+        // 🆕 v6.2.0: Deprecation 상태 출력
+        if (USE_DEPRECATION_WARNINGS) {
+            console.log('');
+            console.log('⚠️ Deprecation 경고 활성화됨');
+            console.log('   window.* 레거시 접근 시 경고가 표시됩니다.');
+            console.log('   새 API: APP.services.*, APP.managers.*, APP.fn.*');
+            console.log('   경고 끄기: APP.setDeprecationConfig({ enabled: false })');
+        }
         console.log('');
         console.log('📺 Cover Screen 표시 중 (CoverScreen.js)');
         console.log('🎨 Sidebar 렌더링 완료 (Sidebar.js)');
