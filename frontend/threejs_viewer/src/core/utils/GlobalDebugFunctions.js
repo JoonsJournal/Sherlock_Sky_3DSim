@@ -229,21 +229,26 @@ export function setupGlobalDebugFunctions(services) {
         }
     };
     
-    /**
+/**
      * 카메라를 기본 위치로 리셋
+     * @param {string} [viewMode='isometric'] - 'isometric' 또는 'top'
      */
-    const resetCamera = () => {
-        if (cameraNavigator) {
-            // 기본 perspective 뷰로 전환
-            cameraNavigator.setViewMode('perspective');
-            // 기본 위치: 전체 씬을 볼 수 있는 위치
-            const defaultCameraPos = new THREE.Vector3(30, 40, 60);
-            const defaultLookAt = new THREE.Vector3(0, 0, 0);
-            cameraNavigator.animateCameraTo(defaultCameraPos, defaultLookAt);
-            console.log('📷 카메라 리셋 (기본 위치로 이동)');
-        } else {
+    const resetCamera = (viewMode = 'isometric') => {
+        if (!cameraNavigator) {
             console.error('❌ CameraNavigator가 없습니다');
+            return;
         }
+        
+        // 🔧 v2.1.1: 유효한 View 모드만 사용 (top, isometric)
+        const validMode = (viewMode === 'top') ? 'top' : 'isometric';
+        cameraNavigator.setViewMode(validMode);
+        
+        // 기본 위치: 전체 씬을 볼 수 있는 위치
+        const defaultCameraPos = new THREE.Vector3(30, 40, 60);
+        const defaultLookAt = new THREE.Vector3(0, 0, 0);
+        cameraNavigator.animateCameraTo(defaultCameraPos, defaultLookAt);
+        
+        console.log(`📷 카메라 리셋 (${validMode.toUpperCase()} 모드, 기본 위치)`);
     };
     
     // ════════════════════════════════════════════════════════════════
