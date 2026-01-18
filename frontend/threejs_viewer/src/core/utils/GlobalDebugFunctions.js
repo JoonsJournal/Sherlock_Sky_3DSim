@@ -5,10 +5,17 @@
  * 전역 디버그 함수 모음 (v2.0.0 리팩토링)
  * APP.fn 및 APP.debugFn 네임스페이스로 조직화
  * 
- * @version 2.0.0
+ * @version 2.1.1
  * @module GlobalDebugFunctions
  * 
  * @changelog
+ * - v2.1.1: 🔧 CameraNavigator API 수정 (2026-01-18)
+ *           - moveTo() → animateCameraTo(targetPos, lookAtPos)
+ *           - focusOn() → animateCameraTo() + 설비 위치 계산
+ *           - reset() → setViewMode() + animateCameraTo()
+ * - v2.1.0: 🔧 Placeholder 교체 패턴 적용 (2026-01-18)
+ *           - main.js에서 등록한 placeholder를 실제 함수로 교체
+ *           - 교체 로그 추가
  * - v2.0.0: Phase 2 APP 네임스페이스 마이그레이션 (2026-01-18)
  *           - registerFn, registerDebugFn 사용
  *           - APP.fn.camera, APP.fn.mapping, APP.fn.layout 등록
@@ -157,22 +164,51 @@ export function setupGlobalDebugFunctions(services) {
     // ════════════════════════════════════════════════════════════════
     // 카메라 함수 정의
     // ════════════════════════════════════════════════════════════════
+        
+// ════════════════════════════════════════════════════════════════════
+    // 🔧 v2.1.1: CameraNavigator API 수정
+    // moveTo/focusOn/reset → animateCameraTo/setViewMode 사용
+    // ════════════════════════════════════════════════════════════════════
     
-    const moveCameraTo = (x, y, z) => {
+    /**
+     * 카메라를 특정 위치로 이동
+     * @param {number} x - X 좌표
+     * @param {number} y - Y 좌표  
+     * @param {number} z - Z 좌표
+     * @param {number} [lookX=0] - 바라볼 X 좌표 (선택)
+     * @param {number} [lookY=0] - 바라볼 Y 좌표 (선택)
+     * @param {number} [lookZ=0] - 바라볼 Z 좌표 (선택)
+     */
+    const moveCameraTo = (x, y, z, lookX = 0, lookY = 0, lookZ = 0) => {
         if (cameraNavigator) {
-            cameraNavigator.moveTo(new THREE.Vector3(x, y, z));
-            console.log(`📷 카메라 이동: (${x}, ${y}, ${z})`);
+            const targetPosition = new THREE.Vector3(x, y, z);
+            const lookAtPosition = new THREE.Vector3(lookX, lookY, lookZ);
+            cameraNavigator.animateCameraTo(targetPosition, lookAtPosition);
+            console.log(`📷 카메라 이동: (${x}, ${y}, ${z}) → 바라보기: (${lookX}, ${lookY}, ${lookZ})`);
         } else {
             console.error('❌ CameraNavigator가 없습니다');
         }
     };
     
+    /**
+     * 특정 설비에 카메라 포커스
+     * @param {number} row - 설비 행 번호
+     * @param {number} col - 설비 열 번호
+     */
     const focusEquipment = (row, col) => {
         if (cameraNavigator && equipmentLoader) {
             const equipment = equipmentLoader.getEquipmentByPosition(row, col);
             if (equipment) {
-                cameraNavigator.focusOn(equipment);
-                console.log(`🎯 설비 포커스: row=${row}, col=${col}`);
+                // 설비 위치 가져오기
+                const equipPos = equipment.position.clone();
+                // 카메라 위치: 설비 앞쪽 위에서 바라보기
+                const cameraPos = new THREE.Vector3(
+                    equipPos.x + 10,  // 약간 앞으로
+                    equipPos.y + 15,  // 위에서
+                    equipPos.z + 10   // 약간 옆으로
+                );
+                cameraNavigator.animateCameraTo(cameraPos, equipPos);
+                console.log(`🎯 설비 포커스: row=${row}, col=${col}, 위치=(${equipPos.x.toFixed(1)}, ${equipPos.y.toFixed(1)}, ${equipPos.z.toFixed(1)})`);
             } else {
                 console.warn(`⚠️ 설비를 찾을 수 없음: row=${row}, col=${col}`);
             }
@@ -181,10 +217,18 @@ export function setupGlobalDebugFunctions(services) {
         }
     };
     
+    /**
+     * 카메라를 기본 위치로 리셋
+     */
     const resetCamera = () => {
         if (cameraNavigator) {
-            cameraNavigator.reset();
-            console.log('📷 카메라 리셋');
+            // 기본 perspective 뷰로 전환
+            cameraNavigator.setViewMode('perspective');
+            // 기본 위치: 전체 씬을 볼 수 있는 위치
+            const defaultCameraPos = new THREE.Vector3(30, 40, 60);
+            const defaultLookAt = new THREE.Vector3(0, 0, 0);
+            cameraNavigator.animateCameraTo(defaultCameraPos, defaultLookAt);
+            console.log('📷 카메라 리셋 (기본 위치로 이동)');
         } else {
             console.error('❌ CameraNavigator가 없습니다');
         }
@@ -277,19 +321,24 @@ export function setupGlobalDebugFunctions(services) {
         sceneManager.applyLayoutWithParams(params);
     };
     
-    // ════════════════════════════════════════════════════════════════
-    // 🆕 v2.0.0: APP 네임스페이스에 등록
-    // ════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════════
+    // 🆕 v2.1.0: APP 네임스페이스에 등록 (Placeholder 덮어쓰기)
+    // main.js에서 등록한 placeholder 함수를 실제 함수로 교체
+    // ════════════════════════════════════════════════════════════════════
     
-    // --- 디버그 함수 등록 ---
+    console.log('🔄 Placeholder → 실제 함수 교체 시작...');
+    
+    // --- 디버그 함수 등록 (placeholder 교체) ---
     registerDebugFn('help', debugHelp, 'debugHelp');
     registerDebugFn('scene', debugScene, 'debugScene');
     registerDebugFn('listEquipments', listEquipments, 'listEquipments');
+    console.log('   ✅ debugFn: help, scene, listEquipments 교체 완료');
     
-    // --- 카메라 함수 등록 ---
+    // --- 카메라 함수 등록 (placeholder 교체) ---
     registerFn('camera', 'moveTo', moveCameraTo, 'moveCameraTo');
     registerFn('camera', 'focusEquipment', focusEquipment, 'focusEquipment');
     registerFn('camera', 'reset', resetCamera, 'resetCamera');
+    console.log('   ✅ fn.camera: moveTo, focusEquipment, reset 교체 완료');
     
     // --- 모드 함수 등록 (main.js에서 이미 등록했으면 건너뜀) ---
     if (!window.APP?.fn?.mode?.toggleEditMode) {
@@ -297,16 +346,18 @@ export function setupGlobalDebugFunctions(services) {
         registerFn('mode', 'toggleMonitoringMode', toggleMonitoringMode, 'toggleMonitoringMode');
     }
     
-    // --- 매핑 함수 등록 ---
+// --- 매핑 함수 등록 (placeholder 교체) ---
     registerFn('mapping', 'getStatus', getMappingStatus, 'getMappingStatus');
     registerFn('mapping', 'clearAll', clearAllMappings, 'clearAllMappings');
     registerFn('mapping', 'export', exportMappings, 'exportMappings');
+    console.log('   ✅ fn.mapping: getStatus, clearAll, export 교체 완료');
     
-    // --- 레이아웃 함수 등록 ---
+    // --- 레이아웃 함수 등록 (placeholder 교체) ---
     registerFn('layout', 'applyTest', applyTestLayout, 'applyTestLayout');
     registerFn('layout', 'testRoomResize', testRoomResize, 'testRoomResize');
+    console.log('   ✅ fn.layout: applyTest, testRoomResize 교체 완료');
     
-    console.log('✅ 전역 디버그 함수 등록 완료 (v2.0.0 - APP 네임스페이스)');
+    console.log('✅ 전역 디버그 함수 등록 완료 (v2.1.0 - Placeholder 교체)');
 }
 
 /**

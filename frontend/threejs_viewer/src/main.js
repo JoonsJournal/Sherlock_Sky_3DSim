@@ -4,8 +4,12 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 6.1.0
- * @changelog
+ * @version 6.1.1
+* @changelog
+ * - v6.1.1: 🔧 Placeholder 패턴 적용 (2026-01-18)
+ *           - Three.js 의존 함수 placeholder 등록
+ *           - 3D View 초기화 전 호출 시 경고 메시지
+ *           - fn.camera, fn.mapping, fn.layout, debugFn
  * - v6.1.0: 🆕 Phase 2 전역 함수 마이그레이션 (2026-01-18)
  *           - 전역 함수 → APP.fn 이동
  *           - registerFn() 사용
@@ -332,6 +336,50 @@ const _canAccessFeatures = function() {
     }
     return window.sidebarState?.isConnected || window.sidebarState?.devModeEnabled;
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🆕 v6.1.1: Placeholder 함수 생성 헬퍼
+// Three.js 초기화 전에 호출되면 경고 메시지 표시
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Placeholder 함수 생성
+ * Three.js 의존 함수가 초기화 전에 호출되면 경고 표시
+ * 
+ * @param {string} funcName - 함수 경로 (예: 'fn.camera.moveTo')
+ * @returns {Function} placeholder 함수
+ */
+function _createPlaceholder(funcName) {
+    return function(...args) {
+        const message = `⚠️ APP.${funcName}(): 3D View를 먼저 활성화하세요 (Monitoring → 3D View)`;
+        console.warn(message);
+        console.warn(`   호출 인자:`, args);
+        window.showToast?.('3D View를 먼저 활성화하세요', 'warning');
+        return null;
+    };
+}
+
+/**
+ * Debug용 Placeholder (더 상세한 정보 제공)
+ * @param {string} funcName - 함수 이름
+ * @returns {Function} placeholder 함수
+ */
+function _createDebugPlaceholder(funcName) {
+    return function(...args) {
+        console.group(`⚠️ ${funcName}() - 아직 사용할 수 없음`);
+        console.warn('Three.js가 초기화되지 않았습니다.');
+        console.warn('해결 방법:');
+        console.warn('  1. Dev Mode 활성화 또는 DB 연결');
+        console.warn('  2. Monitoring → 3D View 진입');
+        console.warn('  3. 다시 이 함수 호출');
+        if (args.length > 0) {
+            console.warn('전달된 인자:', args);
+        }
+        console.groupEnd();
+        window.showToast?.('3D View를 먼저 활성화하세요', 'warning');
+        return null;
+    };
+}
 
 // 하위 호환용 window 노출 (init() 전에 기본 기능 보장)
 window.showToast = _showToast;
@@ -2037,6 +2085,35 @@ function init() {
         registerFn('mode', 'toggleAdaptivePerformance', toggleAdaptivePerformance);
         
         console.log('  ✅ 전역 함수 APP.fn.mode 등록 완료');
+
+        // ═══════════════════════════════════════════════════════════════════
+        // 🆕 v6.1.1: Placeholder 함수 등록 (Three.js 의존 함수)
+        // 3D View 초기화 전에 호출 시 경고 메시지 표시
+        // setupGlobalDebugFunctions()에서 실제 함수로 교체됨
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // Camera 함수 (placeholder)
+        registerFn('camera', 'moveTo', _createPlaceholder('fn.camera.moveTo'), 'moveCameraTo');
+        registerFn('camera', 'focusEquipment', _createPlaceholder('fn.camera.focusEquipment'), 'focusEquipment');
+        registerFn('camera', 'reset', _createPlaceholder('fn.camera.reset'), 'resetCamera');
+        
+        // Mapping 함수 (placeholder)
+        registerFn('mapping', 'getStatus', _createPlaceholder('fn.mapping.getStatus'), 'getMappingStatus');
+        registerFn('mapping', 'clearAll', _createPlaceholder('fn.mapping.clearAll'), 'clearAllMappings');
+        registerFn('mapping', 'export', _createPlaceholder('fn.mapping.export'), 'exportMappings');
+        
+        // Layout 함수 (placeholder)
+        registerFn('layout', 'applyTest', _createPlaceholder('fn.layout.applyTest'), 'applyTestLayout');
+        registerFn('layout', 'testRoomResize', _createPlaceholder('fn.layout.testRoomResize'), 'testRoomResize');
+        
+        // Debug 함수 (placeholder)
+        registerDebugFn('help', _createDebugPlaceholder('debugHelp'), 'debugHelp');
+        registerDebugFn('scene', _createDebugPlaceholder('debugScene'), 'debugScene');
+        registerDebugFn('listEquipments', _createDebugPlaceholder('listEquipments'), 'listEquipments');
+        registerDebugFn('status', _createDebugPlaceholder('debugStatus'), 'debugStatus');
+        
+        console.log('  ✅ Placeholder 함수 등록 완료 (fn.camera, fn.mapping, fn.layout, debugFn)');
+        console.log('     → 3D View 초기화 후 실제 함수로 교체됩니다');
         
         // 4. 🆕 v5.7.0: ViewManager 초기화
         services.views.viewManager = initViewManager({
