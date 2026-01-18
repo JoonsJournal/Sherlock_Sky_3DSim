@@ -3,13 +3,20 @@
  * ==================
  * 애플리케이션 네비게이션 규칙 정의
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - Mode/Submode별 레이어 표시 규칙 정의
  * - View 전환 시 필요한 서비스 명시
  * - 단일 진실 공급원 (Single Source of Truth)
+ * - 🆕 Panel/Modal 관리 규칙 추가
  * 
  * @changelog
+ * - v1.1.0: 🆕 Panel 관리 시스템 추가 (2026-01-18)
+ *           - PANEL_TYPE 상수 추가 (Panel 식별자)
+ *           - PANEL_RULES 규칙 추가 (Panel 동작 규칙)
+ *           - isPanelAllowedInMode() 헬퍼 함수 추가
+ *           - getPanelRules() 헬퍼 함수 추가
+ *           - ⚠️ 호환성: 기존 모든 기능/로직 100% 유지
  * - v1.0.0: 🆕 초기 버전 (2026-01-18)
  *           - NAVIGATION_RULES 정의
  *           - LAYER_CONFIG 정의
@@ -22,11 +29,16 @@
  * - NAVIGATION_RULES
  * - LAYER_CONFIG
  * - NAV_MODE
+ * - PANEL_TYPE (🆕 v1.1.0)
+ * - PANEL_RULES (🆕 v1.1.0)
  * - getModeRules
  * - getSubmodeRules
+ * - getPanelRules (🆕 v1.1.0)
+ * - isPanelAllowedInMode (🆕 v1.1.0)
  * 
  * 📁 위치: frontend/threejs_viewer/src/core/navigation/NavigationRules.js
  * 작성일: 2026-01-18
+ * 수정일: 2026-01-18
  */
 
 import { APP_MODE } from '../config/constants.js';
@@ -49,7 +61,194 @@ export const NAV_MODE = Object.freeze({
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 레이어 설정
+// 🆕 v1.1.0: Panel 타입 정의
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Panel 타입 정의
+ * 
+ * @description
+ * 애플리케이션에서 사용되는 모든 Panel/Modal의 식별자
+ * PanelManager에서 Panel 상태 관리에 사용
+ * 
+ * @example
+ * import { PANEL_TYPE } from './NavigationRules.js';
+ * panelManager.open(PANEL_TYPE.EQUIPMENT_EDIT);
+ */
+export const PANEL_TYPE = Object.freeze({
+    /** Equipment Mapping Editor Modal - 장비 매핑 편집 */
+    EQUIPMENT_EDIT: 'equipment-edit-modal',
+    
+    /** Equipment Info Panel - 장비 상세 정보 (오른쪽 사이드) */
+    EQUIPMENT_INFO: 'equipment-info-panel',
+    
+    /** Debug Panel - 디버그 정보 표시 */
+    DEBUG: 'debug-panel',
+    
+    /** Connection Modal - 연결 설정 */
+    CONNECTION: 'connection-modal',
+    
+    /** Site Selection Panel - 사이트 선택 */
+    SITE_SELECTION: 'site-selection-panel'
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🆕 v1.1.0: Panel 동작 규칙
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * @typedef {Object} PanelRule
+ * @property {string[]} allowedModes - Panel이 열릴 수 있는 모드 목록 ('*' = 모든 모드)
+ * @property {string[]} allowedSubmodes - Panel이 열릴 수 있는 서브모드 목록 ('*' = 모든 서브모드)
+ * @property {boolean} autoCloseOnModeChange - 모드 전환 시 자동 닫힘 여부
+ * @property {'modal'|'side-panel'|'floating'} uiType - UI 표시 타입
+ * @property {'instance'|'dom'} closeMethod - 닫기 방법
+ * @property {string} [instanceName] - closeMethod='instance' 시 window 객체의 인스턴스명
+ * @property {string} [domSelector] - closeMethod='dom' 시 DOM 선택자
+ * @property {string} [closeEvent] - Panel 닫힐 때 발행할 이벤트명
+ */
+
+/**
+ * Panel 동작 규칙 정의
+ * 
+ * @description
+ * 각 Panel/Modal이 어떤 모드에서 열릴 수 있는지,
+ * 모드 전환 시 어떻게 처리되어야 하는지 정의
+ * 
+ * @type {Object.<string, PanelRule>}
+ * 
+ * @example
+ * const rules = PANEL_RULES[PANEL_TYPE.EQUIPMENT_EDIT];
+ * if (rules.autoCloseOnModeChange) {
+ *     // 모드 전환 시 자동 닫기
+ * }
+ */
+export const PANEL_RULES = Object.freeze({
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Equipment Mapping Editor Modal
+    // ─────────────────────────────────────────────────────────────────────────
+    [PANEL_TYPE.EQUIPMENT_EDIT]: {
+        /**
+         * 허용 모드
+         * - MONITORING: 3D View에서 장비 클릭 시 매핑 편집
+         * - LAYOUT: Layout Editor에서 매핑 설정
+         */
+        allowedModes: [NAV_MODE.MONITORING, NAV_MODE.LAYOUT],
+        
+        /**
+         * 허용 서브모드
+         * - 3d-view: 3D 모니터링 뷰에서
+         * - mapping: 매핑 전용 서브모드에서
+         */
+        allowedSubmodes: ['3d-view', 'mapping'],
+        
+        /** 모드 전환 시 자동 닫힘 (⭐ 핵심!) */
+        autoCloseOnModeChange: true,
+        
+        /** UI 타입: 중앙 Modal */
+        uiType: 'modal',
+        
+        /** 닫기 방법: window 객체의 인스턴스 close() 호출 */
+        closeMethod: 'instance',
+        instanceName: 'equipmentEditModal',
+        
+        /** 닫힐 때 발행 이벤트 */
+        closeEvent: 'panel:equipment-edit:closed'
+    },
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Equipment Info Panel (오른쪽 사이드)
+    // ─────────────────────────────────────────────────────────────────────────
+    [PANEL_TYPE.EQUIPMENT_INFO]: {
+        /**
+         * 허용 모드
+         * - MONITORING만: 장비 상세 정보는 모니터링에서만 표시
+         */
+        allowedModes: [NAV_MODE.MONITORING],
+        
+        /**
+         * 허용 서브모드
+         * - 3d-view: 3D 뷰에서 장비 클릭 시
+         * - ranking-view: 랭킹 뷰에서 장비 선택 시
+         */
+        allowedSubmodes: ['3d-view', 'ranking-view'],
+        
+        /** 모드 전환 시 자동 닫힘 */
+        autoCloseOnModeChange: true,
+        
+        /** UI 타입: 오른쪽 사이드 Panel */
+        uiType: 'side-panel',
+        
+        /** 닫기 방법: DOM classList 조작 */
+        closeMethod: 'dom',
+        domSelector: '#equipment-info-panel',
+        
+        closeEvent: 'panel:equipment-info:closed'
+    },
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Debug Panel
+    // ─────────────────────────────────────────────────────────────────────────
+    [PANEL_TYPE.DEBUG]: {
+        /**
+         * 허용 모드: 모든 모드에서 사용 가능
+         * '*' = 와일드카드 (모든 모드 허용)
+         */
+        allowedModes: ['*'],
+        allowedSubmodes: ['*'],
+        
+        /** 모드 전환해도 유지됨 (닫지 않음) */
+        autoCloseOnModeChange: false,
+        
+        /** UI 타입: 자유 위치 Floating Panel */
+        uiType: 'floating',
+        
+        closeMethod: 'dom',
+        domSelector: '#debug-panel',
+        
+        closeEvent: 'panel:debug:closed'
+    },
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Connection Modal
+    // ─────────────────────────────────────────────────────────────────────────
+    [PANEL_TYPE.CONNECTION]: {
+        /** 모든 모드에서 연결 설정 가능 */
+        allowedModes: ['*'],
+        allowedSubmodes: ['*'],
+        
+        /** 모드 전환해도 유지 (사용자가 명시적으로 닫아야 함) */
+        autoCloseOnModeChange: false,
+        
+        uiType: 'modal',
+        
+        closeMethod: 'instance',
+        instanceName: 'connectionModal',
+        
+        closeEvent: 'panel:connection:closed'
+    },
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // Site Selection Panel
+    // ─────────────────────────────────────────────────────────────────────────
+    [PANEL_TYPE.SITE_SELECTION]: {
+        allowedModes: ['*'],
+        allowedSubmodes: ['*'],
+        
+        autoCloseOnModeChange: false,
+        
+        uiType: 'side-panel',
+        
+        closeMethod: 'dom',
+        domSelector: '#site-selection-panel',
+        
+        closeEvent: 'panel:site-selection:closed'
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 레이어 설정 (기존 유지)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -104,7 +303,7 @@ export const LAYER_CONFIG = Object.freeze({
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 네비게이션 규칙 (핵심!)
+// 네비게이션 규칙 (핵심!) - 기존 유지
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -413,7 +612,7 @@ export const NAVIGATION_RULES = Object.freeze({
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 유틸리티 함수
+// 유틸리티 함수 (기존 유지)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -536,6 +735,107 @@ export function findParentMode(submode) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// 🆕 v1.1.0: Panel 관련 유틸리티 함수
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Panel 규칙 가져오기
+ * 
+ * @param {string} panelType - PANEL_TYPE 값
+ * @returns {PanelRule|null} Panel 규칙 또는 null
+ * 
+ * @example
+ * const rules = getPanelRules(PANEL_TYPE.EQUIPMENT_EDIT);
+ * console.log(rules.allowedModes); // ['monitoring', 'layout']
+ */
+export function getPanelRules(panelType) {
+    return PANEL_RULES[panelType] || null;
+}
+
+/**
+ * Panel이 특정 모드에서 허용되는지 확인
+ * 
+ * @param {string} panelType - PANEL_TYPE 값
+ * @param {string} mode - NAV_MODE 값
+ * @param {string|null} submode - 서브모드 (선택)
+ * @returns {boolean} 허용 여부
+ * 
+ * @example
+ * // Equipment Edit Modal이 Monitoring/3d-view에서 허용되는지?
+ * isPanelAllowedInMode(PANEL_TYPE.EQUIPMENT_EDIT, NAV_MODE.MONITORING, '3d-view');
+ * // → true
+ * 
+ * // Equipment Edit Modal이 Analysis에서 허용되는지?
+ * isPanelAllowedInMode(PANEL_TYPE.EQUIPMENT_EDIT, NAV_MODE.ANALYSIS);
+ * // → false
+ */
+export function isPanelAllowedInMode(panelType, mode, submode = null) {
+    const rules = PANEL_RULES[panelType];
+    if (!rules) {
+        console.warn(`[NavigationRules] Unknown panel type: ${panelType}`);
+        return false;
+    }
+    
+    // 모드 확인
+    const modeAllowed = rules.allowedModes.includes('*') || 
+                       rules.allowedModes.includes(mode);
+    if (!modeAllowed) return false;
+    
+    // 서브모드 확인 (서브모드가 없거나 '*'이면 통과)
+    if (!submode) return true;
+    
+    const submodeAllowed = rules.allowedSubmodes.includes('*') || 
+                           rules.allowedSubmodes.includes(submode);
+    
+    return submodeAllowed;
+}
+
+/**
+ * 특정 모드에서 자동으로 닫아야 할 Panel 목록 가져오기
+ * 
+ * @param {string} newMode - 전환할 모드
+ * @param {string|null} newSubmode - 전환할 서브모드
+ * @param {string[]} openPanels - 현재 열린 Panel 목록 (PANEL_TYPE 값 배열)
+ * @returns {string[]} 닫아야 할 Panel 목록
+ * 
+ * @example
+ * const toClose = getPanelsToCloseOnModeChange(
+ *     NAV_MODE.ANALYSIS,
+ *     'dashboard',
+ *     [PANEL_TYPE.EQUIPMENT_EDIT, PANEL_TYPE.EQUIPMENT_INFO]
+ * );
+ * // → [PANEL_TYPE.EQUIPMENT_EDIT, PANEL_TYPE.EQUIPMENT_INFO]
+ * // (둘 다 Analysis에서 허용 안 됨)
+ */
+export function getPanelsToCloseOnModeChange(newMode, newSubmode, openPanels) {
+    const toClose = [];
+    
+    for (const panelType of openPanels) {
+        const rules = PANEL_RULES[panelType];
+        if (!rules) continue;
+        
+        // autoCloseOnModeChange가 false면 스킵
+        if (!rules.autoCloseOnModeChange) continue;
+        
+        // 새 모드에서 허용되지 않으면 닫기 목록에 추가
+        if (!isPanelAllowedInMode(panelType, newMode, newSubmode)) {
+            toClose.push(panelType);
+        }
+    }
+    
+    return toClose;
+}
+
+/**
+ * 모든 Panel 타입 목록 가져오기
+ * 
+ * @returns {string[]} PANEL_TYPE 값 배열
+ */
+export function getAllPanelTypes() {
+    return Object.values(PANEL_TYPE);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // 디버그 유틸리티
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -566,7 +866,29 @@ export function debugNavigationRules() {
     console.groupEnd();
 }
 
+/**
+ * 🆕 v1.1.0: Panel 규칙 디버그 출력
+ */
+export function debugPanelRules() {
+    console.group('📋 PanelRules Debug');
+    
+    for (const [panelType, rules] of Object.entries(PANEL_RULES)) {
+        console.group(`Panel: ${panelType}`);
+        console.log('Allowed Modes:', rules.allowedModes);
+        console.log('Allowed Submodes:', rules.allowedSubmodes);
+        console.log('Auto Close on Mode Change:', rules.autoCloseOnModeChange);
+        console.log('UI Type:', rules.uiType);
+        console.log('Close Method:', rules.closeMethod);
+        if (rules.instanceName) console.log('Instance Name:', rules.instanceName);
+        if (rules.domSelector) console.log('DOM Selector:', rules.domSelector);
+        console.groupEnd();
+    }
+    
+    console.groupEnd();
+}
+
 // 전역 디버그 함수 등록
 if (typeof window !== 'undefined') {
     window.debugNavigationRules = debugNavigationRules;
+    window.debugPanelRules = debugPanelRules;
 }
