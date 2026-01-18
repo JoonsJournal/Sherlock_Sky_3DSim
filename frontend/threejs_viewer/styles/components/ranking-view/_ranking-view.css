@@ -38,8 +38,8 @@
     /* Box Model */
     position: absolute;
     top: 0;
-    left: 0;
-    width: 100%;
+    left: var(--sidebar-width, 72px);    /* ✅ Sidebar 너비만큼 오프셋 */
+    width: calc(100% - var(--sidebar-width, 72px));  /* ✅ 전체 너비에서 제외 */
     height: 100%;
     
     /* Visual */
