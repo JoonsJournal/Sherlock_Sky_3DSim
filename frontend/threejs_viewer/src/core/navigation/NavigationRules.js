@@ -889,6 +889,17 @@ export function debugPanelRules() {
 
 // 전역 디버그 함수 등록
 if (typeof window !== 'undefined') {
+    // 기존 디버그 함수
     window.debugNavigationRules = debugNavigationRules;
     window.debugPanelRules = debugPanelRules;
+    
+    // 🆕 Panel 헬퍼 함수 (Console 테스트용)
+    window.isPanelAllowedInMode = isPanelAllowedInMode;
+    window.getPanelRules = getPanelRules;
+    window.getPanelsToCloseOnModeChange = getPanelsToCloseOnModeChange;
+    window.getAllPanelTypes = getAllPanelTypes;
+    
+    // 🆕 Panel 상수 (Console 참조용)
+    window.PANEL_TYPE = PANEL_TYPE;
+    window.PANEL_RULES = PANEL_RULES;
 }
