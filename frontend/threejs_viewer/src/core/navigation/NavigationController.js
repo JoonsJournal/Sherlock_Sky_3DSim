@@ -3,14 +3,19 @@
  * =======================
  * 애플리케이션 네비게이션 중앙 조율자
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - 모든 화면 전환의 단일 진입점
  * - Mode + Submode + Layer 통합 관리
  * - AppModeManager, ViewManager, DOM Layer 조율
  * - 상태 일관성 보장
+ * - 🆕 PanelManager 연동 (모드 전환 시 Panel 자동 닫기)
  * 
  * @changelog
+ * - v1.1.0: 🆕 PanelManager 연동 추가 (2026-01-18)
+ *           - _executeTransition()에 PanelManager.handleModeChange() 호출
+ *           - 모드 전환 시 Panel 자동 닫기 기능
+ *           - ⚠️ 호환성: 기존 모든 기능/로직 100% 유지
  * - v1.0.0: 🆕 초기 버전 (2026-01-18)
  *           - navigate() 핵심 메서드
  *           - 레이어 전환 로직
@@ -19,6 +24,7 @@
  * 
  * @dependencies
  * - NavigationRules.js
+ * - PanelManager.js (🆕 v1.1.0)
  * - EventBus.js
  * - AppModeManager.js
  * - ViewBootstrap.js (viewManager)
@@ -29,6 +35,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/core/navigation/NavigationController.js
  * 작성일: 2026-01-18
+ * 수정일: 2026-01-18
  */
 
 import {
@@ -41,6 +48,9 @@ import {
     navModeToAppMode,
     findParentMode
 } from './NavigationRules.js';
+
+// 🆕 v1.1.0: PanelManager import
+import { panelManager } from './PanelManager.js';
 
 import { eventBus } from '../managers/EventBus.js';
 import { appModeManager } from '../managers/AppModeManager.js';
@@ -174,15 +184,26 @@ class NavigationController {
             document.addEventListener('DOMContentLoaded', () => {
                 this._cacheLayerElements();
                 this._setupEventListeners();
+                this._syncPanelManager();  // 🆕 v1.1.0
                 this._initialized = true;
                 console.log('[NavigationController] 🚀 초기화 완료 (DOMContentLoaded)');
             });
         } else {
             this._cacheLayerElements();
             this._setupEventListeners();
+            this._syncPanelManager();  // 🆕 v1.1.0
             this._initialized = true;
             console.log('[NavigationController] 🚀 초기화 완료');
         }
+    }
+    
+    /**
+     * 🆕 v1.1.0: PanelManager와 현재 모드 동기화
+     * @private
+     */
+    _syncPanelManager() {
+        panelManager.setCurrentMode(this._state.mode, this._state.submode);
+        console.log('[NavigationController] 📋 PanelManager 동기화 완료');
     }
     
     /**
@@ -610,6 +631,14 @@ class NavigationController {
         console.log(`[NavigationController] 🔄 _executeTransition: ${mode}/${submode || 'none'}`);
         
         const submodeRules = submode ? rules.submodes?.[submode] : null;
+        
+        // ─────────────────────────────────────────────────────────────────────
+        // 🆕 v1.1.0: Step 0: PanelManager에 모드 전환 알림 (Panel 자동 닫기)
+        // ─────────────────────────────────────────────────────────────────────
+        const closedPanels = panelManager.handleModeChange(mode, submode);
+        if (closedPanels.length > 0) {
+            console.log(`[NavigationController]    Step 0: ${closedPanels.length}개 Panel 자동 닫힘`);
+        }
         
         // ─────────────────────────────────────────────────────────────────────
         // Step 1: 이전 상태 정리
