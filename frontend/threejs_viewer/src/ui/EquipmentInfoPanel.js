@@ -3,9 +3,13 @@
  * =====================
  * 설비 상세 정보 패널 (Coordinator)
  * 
- * @version 5.1.0
+ * @version 5.2.0
  * @description
- * - 🆕 v5.1.0: PanelManager 연동 (2026-01-18)
+ * - 🆕 v5.2.0: EventBus 구독 추가 (2026-01-18)
+ *   - 'equipment:detail:show' 이벤트 구독으로 Ranking View 카드 클릭 지원
+ *   - dispose()에서 EventBus 구독 해제
+ *   - ⚠️ 호환성: 기존 모든 기능/로직 100% 유지
+ * - v5.1.0: PanelManager 연동 (2026-01-18)
  *   - constructor에서 PanelManager 인스턴스 등록
  *   - show()에서 panelManager.registerOpen() 호출
  *   - hide()에서 PanelManager 상태 해제
@@ -42,6 +46,9 @@ import { DOM_IDS, TAB_NAMES, getPanelTemplate, getDOMReferences } from './equipm
 
 // 🆕 v5.1.0: PanelManager 연동
 import { panelManager, PANEL_TYPE } from '../core/navigation/index.js';
+
+// 🆕 v5.2.0: EventBus 구독
+import { eventBus } from '../core/managers/EventBus.js';
 
 export class EquipmentInfoPanel {
     // =========================================================================
@@ -155,8 +162,11 @@ export class EquipmentInfoPanel {
         // 🆕 v5.0.0: Drawer 모드 활성화 여부 (CSS 클래스 확인)
         this._isDrawerMode = false;
         
+        // 🆕 v5.2.0: EventBus 구독 저장 (cleanup용)
+        this._eventSubscriptions = [];
+        
         this._init();
-        debugLog('📊 EquipmentInfoPanel initialized (v5.1.0 - PanelManager Integration)');
+        debugLog('📊 EquipmentInfoPanel initialized (v5.2.0 - EventBus Integration)');
     }
     
     // =========================================================================
@@ -190,6 +200,9 @@ export class EquipmentInfoPanel {
         // 이벤트 리스너
         this._setupEventListeners();
         
+        // 🆕 v5.2.0: EventBus 구독 설정
+        this._setupEventBusSubscriptions();
+        
         // 전역 함수
         window.closeEquipmentInfo = () => this.hide();
         
@@ -204,6 +217,54 @@ export class EquipmentInfoPanel {
         this.dom.tabButtons?.forEach(btn => {
             btn.addEventListener('click', (e) => this._switchTab(e.target.dataset.tab));
         });
+    }
+    
+    /**
+     * 🆕 v5.2.0: EventBus 구독 설정
+     * Ranking View 등 외부 컴포넌트에서 Panel 표시 요청을 수신
+     * @private
+     */
+    _setupEventBusSubscriptions() {
+        // equipment:detail:show 이벤트 구독 (Ranking View에서 발행)
+        const detailShowUnsub = eventBus.on('equipment:detail:show', (data) => {
+            debugLog('📊 EventBus: equipment:detail:show 수신', data);
+            this._handleDetailShowEvent(data);
+        });
+        this._eventSubscriptions.push(detailShowUnsub);
+        
+        // equipment:detail:hide 이벤트 구독 (선택적)
+        const detailHideUnsub = eventBus.on('equipment:detail:hide', () => {
+            debugLog('📊 EventBus: equipment:detail:hide 수신');
+            this.hide();
+        });
+        this._eventSubscriptions.push(detailHideUnsub);
+        
+        debugLog('📊 EventBus 구독 설정 완료 (equipment:detail:show, equipment:detail:hide)');
+    }
+    
+    /**
+     * 🆕 v5.2.0: equipment:detail:show 이벤트 핸들러
+     * @private
+     * @param {Object} data - 설비 데이터
+     */
+    _handleDetailShowEvent(data) {
+        if (!data) {
+            console.warn('[EquipmentInfoPanel] ⚠️ detail:show 이벤트에 데이터 없음');
+            return;
+        }
+        
+        // 데이터 포맷 정규화
+        const equipmentData = {
+            id: data.frontendId || data.id || data.equipmentId,
+            frontendId: data.frontendId || data.id,
+            equipmentId: data.equipmentId,
+            ...data
+        };
+        
+        debugLog('📊 Panel 표시 요청:', equipmentData);
+        
+        // show() 호출
+        this.show(equipmentData);
     }
     
     _switchTab(tabName) {
@@ -379,6 +440,7 @@ export class EquipmentInfoPanel {
     /**
      * 정리
      * 🆕 v5.1.0: PanelManager 인스턴스 해제
+     * 🆕 v5.2.0: EventBus 구독 해제
      */
     dispose() {
         this.hide();
@@ -388,6 +450,15 @@ export class EquipmentInfoPanel {
         this.headerStatus?.dispose();
         clearTimeout(this._refreshTimeout);
         clearTimeout(this._animationTimeout);
+        
+        // 🆕 v5.2.0: EventBus 구독 해제
+        this._eventSubscriptions.forEach(unsubscribe => {
+            if (typeof unsubscribe === 'function') {
+                unsubscribe();
+            }
+        });
+        this._eventSubscriptions = [];
+        debugLog('📊 EventBus 구독 해제 완료');
         
         // 🆕 v5.1.0: PanelManager에서 인스턴스 해제
         panelManager.unregisterInstance(PANEL_TYPE.EQUIPMENT_INFO);
