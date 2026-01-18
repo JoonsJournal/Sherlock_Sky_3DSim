@@ -31,6 +31,8 @@ import { logger } from '../core/managers/Logger.js';
 // View 클래스 Import
 import { RankingView } from '../ui/ranking-view/RankingView.js';
 
+import { BaseView, VIEW_STATE } from '../ui/common/BaseView.js';
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 2. VIEW_REGISTRY 상수 정의
 // ═══════════════════════════════════════════════════════════════════════════
@@ -749,4 +751,7 @@ export function initViewManager(services = {}, options = {}) {
 if (typeof window !== 'undefined') {
     window.viewManager = viewManager;
     window.VIEW_REGISTRY = VIEW_REGISTRY;
+    
+    window.BaseView = BaseView;
+    window.VIEW_STATE = VIEW_STATE;
 }
