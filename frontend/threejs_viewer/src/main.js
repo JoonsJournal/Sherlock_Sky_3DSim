@@ -1945,6 +1945,13 @@ function init() {
             storageService,
             viewManager,
             sidebarUI,
+            bootstrapViewManager,  // ← 이 줄 추가
+            VIEW_REGISTRY,         // ← 이 줄 추가
+            getView,               // ← 이 줄 추가
+            showView,              // ← 이 줄 추가
+            hideView,              // ← 이 줄 추가
+            toggleView,            // ← 이 줄 추가
+            destroyView,           // ← 이 줄 추가
             toggleEditMode,
             toggleMonitoringMode,
             toggleConnectionModal,
