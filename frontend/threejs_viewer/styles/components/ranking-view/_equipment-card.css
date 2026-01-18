@@ -1,12 +1,12 @@
 /**
  * _equipment-card.css
  * ===================
- * Ranking View 설비 카드 스타일
+ * 설비 카드 스타일 (긴급도 표시 강화 버전)
  * 
  * Block: .equipment-card
  * 
- * @version 1.0.0
- * @updated 2026-01-17
+ * @version 1.1.0
+ * @updated 2026-01-19
  * 
  * [BEM 구조]
  * .equipment-card                         → Block
@@ -14,19 +14,22 @@
  * .equipment-card__status-indicator       → Element (상태 인디케이터)
  * .equipment-card__equipment-id           → Element (설비 ID)
  * .equipment-card__duration               → Element (지속 시간)
- * .equipment-card__body                   → Element (바디)
+ * .equipment-card__timeline               → Element (미니 타임라인 컨테이너)
  * .equipment-card__alarm-info             → Element (알람 정보)
  * .equipment-card__production-info        → Element (생산 정보)
- * .equipment-card__production-bar         → Element (진행 바)
- * .equipment-card__lot-time               → Element (Lot 시간)
- * .equipment-card--run                    → Modifier (RUN 상태)
- * .equipment-card--stop                   → Modifier (STOP 상태)
- * .equipment-card--sudden-stop            → Modifier (SUDDENSTOP 상태)
- * .equipment-card--remote                 → Modifier (Remote 알람)
+ * .equipment-card--run                    → Modifier (가동)
+ * .equipment-card--sudden-stop            → Modifier (비상정지)
  * .equipment-card--urgency-warning        → Modifier (5분 초과)
  * .equipment-card--urgency-danger         → Modifier (10분 초과)
  * .equipment-card--urgency-critical       → Modifier (15분 초과)
+ * .equipment-card--animating              → Modifier (애니메이션 중)
  * .equipment-card--selected               → Modifier (선택됨)
+ * 
+ * [Interactive States]
+ * Normal → Hover → Active → Selected
+ * 
+ * [Urgency States]
+ * Normal → Warning (5분) → Danger (10분) → Critical (15분)
  * 
  * 📁 위치: frontend/threejs_viewer/styles/components/ranking-view/_equipment-card.css
  */
@@ -42,29 +45,23 @@
     
     /* Box Model */
     padding: var(--spacing-3);
-    min-width: 180px;
-    max-width: 220px;
+    min-width: 140px;
     
     /* Visual */
     background: var(--surface-panel);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
-    border-left: 4px solid var(--border-default);
-    
-    /* Typography */
-    font-family: var(--font-family-base);
-    font-size: var(--font-size-sm);
     
     /* Interaction */
     cursor: pointer;
+    user-select: none;
+    
+    /* Transition */
     transition: 
         border-color var(--transition-fast),
         box-shadow var(--transition-fast),
         transform var(--transition-fast),
         background-color var(--transition-fast);
-    
-    /* Focus */
-    outline: none;
 }
 
 /* =============================================
@@ -73,274 +70,306 @@
 .equipment-card:hover {
     border-color: var(--border-strong);
     box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-}
-
-.equipment-card:focus-visible {
-    box-shadow: 0 0 0 3px var(--border-focus);
 }
 
 .equipment-card:active {
-    transform: translateY(0);
+    transform: scale(0.98);
+}
+
+.equipment-card:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--border-focus);
 }
 
 /* =============================================
-   Status Modifiers (Border Left Color)
+   Block Modifiers - Status
    ============================================= */
 
-/* RUN - 녹색 */
+/* RUN - 가동 중 */
 .equipment-card--run {
-    border-left-color: var(--interactive-success);
+    border-left: 4px solid var(--interactive-success, #22c55e);
 }
 
-.equipment-card--run .equipment-card__status-indicator::before {
-    background-color: var(--interactive-success);
-}
-
-/* STOP - 노란색 */
+/* STOP - 정지 */
 .equipment-card--stop {
-    border-left-color: var(--interactive-warning-normal);
+    border-left: 4px solid var(--interactive-warning, #f97316);
 }
 
-.equipment-card--stop .equipment-card__status-indicator::before {
-    background-color: var(--interactive-warning-normal);
-}
-
-/* IDLE - 회색 */
+/* IDLE - 유휴 */
 .equipment-card--idle {
-    border-left-color: var(--content-muted);
+    border-left: 4px solid var(--status-idle-color, #eab308);
 }
 
-.equipment-card--idle .equipment-card__status-indicator::before {
-    background-color: var(--content-muted);
-}
-
-/* SUDDENSTOP - 빨간색 */
+/* SUDDEN-STOP - 비상 정지 */
 .equipment-card--sudden-stop {
-    border-left-color: var(--interactive-danger-normal);
+    border-left: 4px solid var(--interactive-danger-normal, #ef4444);
+    background: var(--surface-danger-subtle, rgba(239, 68, 68, 0.05));
 }
 
-.equipment-card--sudden-stop .equipment-card__status-indicator::before {
-    background-color: var(--interactive-danger-normal);
-}
-
-/* Remote - 진한 빨간색 + 배경 틴트 */
+/* REMOTE - 원격 */
 .equipment-card--remote {
-    border-left-color: var(--interactive-danger-normal);
-    background: linear-gradient(
-        135deg,
-        rgba(239, 68, 68, 0.08) 0%,
-        var(--surface-panel) 100%
-    );
+    border-left: 4px solid var(--interactive-primary-normal, #8b5cf6);
+    background: var(--surface-primary-subtle, rgba(139, 92, 246, 0.05));
 }
 
-.equipment-card--remote .equipment-card__status-indicator::before {
-    background-color: var(--interactive-danger-normal);
-    box-shadow: 0 0 8px var(--interactive-danger-normal);
-}
-
-/* WAIT - 보라색 */
+/* WAIT - 대기 */
 .equipment-card--wait {
-    border-left-color: #8b5cf6;
-}
-
-.equipment-card--wait .equipment-card__status-indicator::before {
-    background-color: #8b5cf6;
-}
-
-/* DISCONNECTED - 회색 점선 */
-.equipment-card--disconnected {
-    border-left-color: var(--content-muted);
-    border-left-style: dashed;
-    opacity: 0.7;
-}
-
-.equipment-card--disconnected .equipment-card__status-indicator::before {
-    background-color: var(--content-muted);
+    border-left: 4px solid var(--content-muted, #94a3b8);
+    opacity: 0.8;
 }
 
 /* =============================================
-   Urgency Modifiers (Border + Animation)
+   Block Modifiers - Urgency (긴급도) ★신규★
    ============================================= */
 
-/* Warning (5분 초과) - 노란색 테두리 */
+/* 5분 초과 - 노란색 테두리 (Warning) */
 .equipment-card--urgency-warning {
-    border-color: #eab308;
-    border-left-color: #eab308 !important;
+    border-color: var(--interactive-warning, #eab308);
+    border-width: 2px;
+    box-shadow: 
+        0 0 0 1px var(--interactive-warning, #eab308),
+        var(--shadow-sm);
 }
 
-/* Danger (10분 초과) - 주황색 테두리 + Pulse */
+/* 10분 초과 - 주황색 테두리 + Pulse (Danger) */
 .equipment-card--urgency-danger {
-    border-color: #f97316;
-    border-left-color: #f97316 !important;
-    animation: pulse-orange 2s ease-in-out infinite;
+    border-color: var(--interactive-danger-normal, #f97316);
+    border-width: 2px;
+    box-shadow: 
+        0 0 0 2px var(--interactive-danger-normal, #f97316),
+        var(--shadow-md);
+    animation: urgency-pulse-danger 2s ease-in-out infinite;
 }
 
-/* Critical (15분 초과) - 빨간색 테두리 + 강한 Pulse */
+/* 15분 초과 - 빨간색 테두리 + 강한 Pulse (Critical) */
 .equipment-card--urgency-critical {
-    border-color: var(--interactive-danger-normal);
-    border-left-color: var(--interactive-danger-normal) !important;
-    animation: pulse-red 1.5s ease-in-out infinite;
+    border-color: var(--interactive-danger-normal, #ef4444);
+    border-width: 2px;
+    box-shadow: 
+        0 0 0 3px var(--interactive-danger-normal, #ef4444),
+        0 0 20px rgba(239, 68, 68, 0.4),
+        var(--shadow-lg);
+    animation: urgency-pulse-critical 1s ease-in-out infinite;
 }
 
 /* =============================================
-   Selection State
+   Urgency Animations (긴급도 애니메이션) ★신규★
    ============================================= */
-.equipment-card--selected,
-.equipment-card.selected {
+
+/* Danger Pulse - 주황색 펄스 */
+@keyframes urgency-pulse-danger {
+    0%, 100% {
+        box-shadow: 
+            0 0 0 2px var(--interactive-danger-normal, #f97316),
+            0 0 8px rgba(249, 115, 22, 0.3);
+    }
+    50% {
+        box-shadow: 
+            0 0 0 4px var(--interactive-danger-normal, #f97316),
+            0 0 16px rgba(249, 115, 22, 0.5);
+    }
+}
+
+/* Critical Pulse - 빨간색 강한 펄스 */
+@keyframes urgency-pulse-critical {
+    0%, 100% {
+        box-shadow: 
+            0 0 0 3px var(--interactive-danger-normal, #ef4444),
+            0 0 15px rgba(239, 68, 68, 0.4);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 
+            0 0 0 5px var(--interactive-danger-normal, #ef4444),
+            0 0 25px rgba(239, 68, 68, 0.6);
+        transform: scale(1.02);
+    }
+}
+
+/* =============================================
+   Block Modifiers - Animation
+   ============================================= */
+
+/* 애니메이션 중 */
+.equipment-card--animating {
+    pointer-events: none;
+    transition: transform 0.3s ease-out;
+}
+
+/* 진입 애니메이션 */
+.equipment-card--entering {
+    animation: card-enter 0.3s ease-out forwards;
+}
+
+/* 퇴장 애니메이션 */
+.equipment-card--leaving {
+    animation: card-leave 0.3s ease-in forwards;
+}
+
+/* 선택됨 */
+.equipment-card--selected {
     border-color: var(--interactive-primary-normal);
-    border-left-color: var(--interactive-primary-normal) !important;
     box-shadow: 
         0 0 0 2px var(--interactive-primary-normal),
         var(--shadow-lg);
-    transform: translateY(-2px);
+    background: var(--surface-active);
 }
 
 /* =============================================
-   Animation States
+   Card Animations
    ============================================= */
-.equipment-card--animating {
-    pointer-events: none;
+
+@keyframes card-enter {
+    0% {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
-.equipment-card--entering {
-    animation: card-enter 300ms ease-out forwards;
-}
-
-.equipment-card--leaving {
-    animation: card-leave 200ms ease-in forwards;
+@keyframes card-leave {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.95);
+    }
 }
 
 /* =============================================
-   Header Element
+   Elements
    ============================================= */
+
+/* Header */
 .equipment-card__header {
     display: flex;
     align-items: center;
     gap: var(--spacing-2);
 }
 
-/* =============================================
-   Status Indicator Element
-   ============================================= */
+/* 상태 인디케이터 */
 .equipment-card__status-indicator {
-    position: relative;
-    flex-shrink: 0;
-    width: 12px;
-    height: 12px;
-}
-
-.equipment-card__status-indicator::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
     border-radius: var(--radius-full);
-    background-color: var(--content-muted);
-    transition: background-color var(--transition-fast);
+    flex-shrink: 0;
+    
+    /* Glow effect */
+    box-shadow: 0 0 6px currentColor;
 }
 
-/* =============================================
-   Equipment ID Element
-   ============================================= */
+/* 가동 중 인디케이터 점멸 */
+.equipment-card--run .equipment-card__status-indicator {
+    animation: indicator-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes indicator-pulse {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 6px currentColor;
+    }
+    50% {
+        opacity: 0.7;
+        box-shadow: 0 0 12px currentColor;
+    }
+}
+
+/* 설비 ID */
 .equipment-card__equipment-id {
-    flex: 1;
-    font-family: var(--font-family-mono);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-semibold);
+    font-family: var(--font-family-mono);
     color: var(--content-primary);
-    white-space: nowrap;
+    
+    /* Truncate */
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-/* =============================================
-   Duration Element
-   ============================================= */
+/* 지속 시간 */
 .equipment-card__duration {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: var(--spacing-1);
-    flex-shrink: 0;
-}
-
-.equipment-card__duration-icon {
-    font-size: var(--font-size-xs);
 }
 
 .equipment-card__duration-value {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
     font-family: var(--font-family-mono);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-medium);
-    color: var(--content-secondary);
+    color: var(--content-primary);
 }
 
-/* =============================================
-   Body Element
-   ============================================= */
-.equipment-card__body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-2);
-}
-
-/* =============================================
-   Alarm Info Element
-   ============================================= */
-.equipment-card__alarm-info {
-    padding: var(--spacing-2);
-    background: rgba(239, 68, 68, 0.08);
-    border-radius: var(--radius-sm);
-    border-left: 2px solid var(--interactive-danger-normal);
-}
-
-.equipment-card__alarm-code {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-2);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-medium);
-    color: var(--interactive-danger-normal);
-}
-
-.equipment-card__alarm-message {
-    margin-top: var(--spacing-1);
-    font-size: var(--font-size-xs);
-    color: var(--content-secondary);
-    line-height: 1.3;
-}
-
-.equipment-card__alarm-repeat {
-    margin-left: auto;
+.equipment-card__duration-label {
     font-size: var(--font-size-xs);
     color: var(--content-muted);
 }
 
-/* =============================================
-   Production Info Element
-   ============================================= */
-.equipment-card__production-info {
-    padding: var(--spacing-2) 0;
+/* 긴급도에 따른 지속시간 색상 변경 */
+.equipment-card--urgency-warning .equipment-card__duration-value {
+    color: var(--interactive-warning, #eab308);
 }
 
-.equipment-card__production-label {
+.equipment-card--urgency-danger .equipment-card__duration-value {
+    color: var(--interactive-danger-normal, #f97316);
+}
+
+.equipment-card--urgency-critical .equipment-card__duration-value {
+    color: var(--interactive-danger-normal, #ef4444);
+    font-weight: var(--font-weight-bold);
+}
+
+/* 미니 타임라인 컨테이너 */
+.equipment-card__timeline {
+    width: 100%;
+}
+
+/* 알람 정보 */
+.equipment-card__alarm-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-1-5);
+    
     font-size: var(--font-size-xs);
-    color: var(--content-secondary);
 }
 
-.equipment-card__production-value {
+.equipment-card__alarm-code {
     font-family: var(--font-family-mono);
-    font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
-    color: var(--content-primary);
+    color: var(--interactive-danger-normal);
+    background: var(--surface-danger-subtle, rgba(239, 68, 68, 0.1));
+    padding: var(--spacing-0-5) var(--spacing-1);
+    border-radius: var(--radius-sm);
 }
 
-/* =============================================
-   Production Bar Element
-   ============================================= */
+.equipment-card__alarm-name {
+    color: var(--content-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 80px;
+}
+
+.equipment-card__alarm-repeat {
+    font-family: var(--font-family-mono);
+    font-weight: var(--font-weight-semibold);
+    color: var(--interactive-warning);
+}
+
+/* 생산 정보 */
+.equipment-card__production-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+}
+
 .equipment-card__production-bar {
     height: 4px;
     background: var(--surface-secondary);
@@ -350,95 +379,25 @@
 
 .equipment-card__production-bar-fill {
     height: 100%;
-    background: linear-gradient(
-        90deg,
-        var(--interactive-primary-normal) 0%,
-        var(--interactive-success) 100%
-    );
+    background: var(--interactive-success);
     border-radius: var(--radius-full);
     transition: width var(--transition-base);
 }
 
-/* High production (>80%) */
-.equipment-card--run .equipment-card__production-bar-fill {
-    background: var(--interactive-success);
-}
-
-/* =============================================
-   Lot Time Element
-   ============================================= */
-.equipment-card__lot-time {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-1);
-    padding-top: var(--spacing-2);
-    border-top: 1px solid var(--border-subtle);
+.equipment-card__production-count {
     font-size: var(--font-size-xs);
+    font-family: var(--font-family-mono);
     color: var(--content-secondary);
 }
 
-.equipment-card__lot-time-icon {
+.equipment-card__lot-time {
     font-size: var(--font-size-xs);
-}
-
-.equipment-card__lot-time-value {
     font-family: var(--font-family-mono);
-    font-weight: var(--font-weight-medium);
-    color: var(--content-primary);
+    color: var(--content-muted);
 }
 
 /* =============================================
-   Animations
-   ============================================= */
-
-/* Card Enter */
-@keyframes card-enter {
-    from {
-        opacity: 0;
-        transform: translateY(-20px) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-/* Card Leave */
-@keyframes card-leave {
-    from {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-    to {
-        opacity: 0;
-        transform: translateY(-10px) scale(0.95);
-    }
-}
-
-/* Pulse Orange (Danger) */
-@keyframes pulse-orange {
-    0%, 100% {
-        box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4);
-    }
-    50% {
-        box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
-    }
-}
-
-/* Pulse Red (Critical) */
-@keyframes pulse-red {
-    0%, 100% {
-        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
-        transform: scale(1);
-    }
-    50% {
-        box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
-        transform: scale(1.02);
-    }
-}
-
-/* =============================================
-   Dark Theme Adjustments
+   Dark Theme 조정
    ============================================= */
 [data-theme="dark"] .equipment-card {
     background: var(--surface-panel);
@@ -448,36 +407,80 @@
     background: var(--surface-hover);
 }
 
+[data-theme="dark"] .equipment-card--selected {
+    background: var(--surface-active);
+}
+
+[data-theme="dark"] .equipment-card--sudden-stop {
+    background: rgba(239, 68, 68, 0.08);
+}
+
 [data-theme="dark"] .equipment-card--remote {
-    background: linear-gradient(
-        135deg,
-        rgba(239, 68, 68, 0.15) 0%,
-        var(--surface-panel) 100%
-    );
+    background: rgba(139, 92, 246, 0.08);
 }
 
-[data-theme="dark"] .equipment-card__alarm-info {
-    background: rgba(239, 68, 68, 0.15);
-}
-
-[data-theme="dark"] .equipment-card--selected,
-[data-theme="dark"] .equipment-card.selected {
+/* Dark 테마 긴급도 Glow 강화 */
+[data-theme="dark"] .equipment-card--urgency-danger {
     box-shadow: 
-        0 0 0 2px var(--interactive-primary-normal),
-        0 0 20px rgba(56, 189, 248, 0.2);
+        0 0 0 2px var(--interactive-danger-normal, #f97316),
+        0 0 20px rgba(249, 115, 22, 0.4);
+}
+
+[data-theme="dark"] .equipment-card--urgency-critical {
+    box-shadow: 
+        0 0 0 3px var(--interactive-danger-normal, #ef4444),
+        0 0 30px rgba(239, 68, 68, 0.5);
 }
 
 /* =============================================
-   Responsive Adjustments
+   Responsive
    ============================================= */
+
+/* 작은 화면 */
 @media (max-width: 768px) {
     .equipment-card {
-        min-width: 160px;
-        max-width: 180px;
+        min-width: 120px;
         padding: var(--spacing-2);
+    }
+    
+    .equipment-card__duration-value {
+        font-size: var(--font-size-base);
     }
     
     .equipment-card__equipment-id {
         font-size: var(--font-size-xs);
     }
+}
+
+/* =============================================
+   Reduced Motion (접근성)
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+    .equipment-card,
+    .equipment-card--animating,
+    .equipment-card--entering,
+    .equipment-card--leaving,
+    .equipment-card--urgency-danger,
+    .equipment-card--urgency-critical {
+        animation: none;
+        transition: none;
+    }
+    
+    .equipment-card--run .equipment-card__status-indicator {
+        animation: none;
+    }
+}
+
+/* =============================================
+   Legacy Alias (하위 호환)
+   ============================================= */
+.equipment-card.selected {
+    border-color: var(--interactive-primary-normal);
+    box-shadow: 
+        0 0 0 2px var(--interactive-primary-normal),
+        var(--shadow-lg);
+}
+
+.equipment-card.active {
+    border-color: var(--interactive-primary-normal);
 }

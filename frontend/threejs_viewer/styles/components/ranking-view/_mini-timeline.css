@@ -1,0 +1,278 @@
+/**
+ * _mini-timeline.css
+ * ==================
+ * 미니 타임라인 스타일
+ * 최근 1시간 상태 히스토리 시각화 컴포넌트
+ * 
+ * Block: .mini-timeline
+ * 
+ * @version 1.0.0
+ * @updated 2026-01-19
+ * 
+ * [BEM 구조]
+ * .mini-timeline                         → Block
+ * .mini-timeline__canvas                 → Element (캔버스)
+ * .mini-timeline__tooltip                → Element (툴팁)
+ * .mini-timeline__tooltip-time           → Element (툴팁 시간)
+ * .mini-timeline__tooltip-status         → Element (툴팁 상태)
+ * .mini-timeline__tooltip-duration       → Element (툴팁 지속시간)
+ * .mini-timeline__no-data                → Element (데이터 없음)
+ * .mini-timeline--hidden                 → Modifier (숨김)
+ * .mini-timeline--loading                → Modifier (로딩)
+ * .mini-timeline__tooltip--visible       → Modifier (툴팁 표시)
+ * 
+ * [Interactive States]
+ * Normal → Hover (툴팁 표시) → Click (상세)
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/ranking-view/_mini-timeline.css
+ */
+
+/* =============================================
+   Block (Base)
+   ============================================= */
+.mini-timeline {
+    /* Layout */
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    
+    /* Box Model */
+    height: 12px;
+    margin-top: var(--spacing-1);
+    
+    /* Visual */
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+/* =============================================
+   Elements
+   ============================================= */
+
+/* 캔버스 */
+.mini-timeline__canvas {
+    /* Layout */
+    display: block;
+    width: 100%;
+    height: 100%;
+    
+    /* Interaction */
+    cursor: pointer;
+    
+    /* Transition */
+    transition: opacity var(--transition-fast);
+}
+
+.mini-timeline__canvas:hover {
+    opacity: 0.9;
+}
+
+/* 툴팁 */
+.mini-timeline__tooltip {
+    /* Layout */
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-0-5, 2px);
+    z-index: var(--z-tooltip, 700);
+    
+    /* Box Model */
+    padding: var(--spacing-2) var(--spacing-3);
+    
+    /* Visual */
+    background: var(--surface-panel);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    
+    /* Initial State */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    
+    /* Transition */
+    transition: 
+        opacity var(--transition-fast),
+        visibility var(--transition-fast);
+    
+    /* Positioning offset */
+    transform: translateY(-100%);
+    
+    /* Prevent text wrapping */
+    white-space: nowrap;
+}
+
+/* 툴팁 표시 상태 */
+.mini-timeline__tooltip--visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* 툴팁 시간 */
+.mini-timeline__tooltip-time {
+    /* Typography */
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--content-secondary);
+    font-family: var(--font-family-mono);
+}
+
+/* 툴팁 상태 */
+.mini-timeline__tooltip-status {
+    /* Typography */
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--content-primary);
+}
+
+/* 툴팁 지속시간 */
+.mini-timeline__tooltip-duration {
+    /* Typography */
+    font-size: var(--font-size-xs);
+    color: var(--content-muted);
+    font-family: var(--font-family-mono);
+}
+
+/* 데이터 없음 */
+.mini-timeline__no-data {
+    /* Layout */
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    
+    /* Typography */
+    font-size: var(--font-size-xs);
+    color: var(--content-muted);
+    
+    /* Visual */
+    background: var(--surface-secondary);
+    border-radius: var(--radius-sm);
+}
+
+/* =============================================
+   Modifiers
+   ============================================= */
+
+/* 숨김 */
+.mini-timeline--hidden {
+    display: none;
+}
+
+/* 로딩 */
+.mini-timeline--loading {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.mini-timeline--loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--surface-hover) 50%,
+        transparent 100%
+    );
+    animation: mini-timeline-shimmer 1.5s infinite;
+}
+
+/* =============================================
+   Animations
+   ============================================= */
+@keyframes mini-timeline-shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* =============================================
+   Status Colors (for reference in JS)
+   상태별 색상 CSS 변수
+   ============================================= */
+.mini-timeline {
+    --status-run: var(--interactive-success, #22c55e);
+    --status-suddenstop: var(--interactive-danger-normal, #ef4444);
+    --status-stop: var(--interactive-warning, #f97316);
+    --status-idle: var(--status-idle-color, #eab308);
+    --status-wait: var(--content-muted, #94a3b8);
+    --status-remote: var(--interactive-primary-normal, #8b5cf6);
+    --status-unknown: var(--content-disabled, #64748b);
+}
+
+/* =============================================
+   Responsive
+   ============================================= */
+
+/* 작은 화면 */
+@media (max-width: 768px) {
+    .mini-timeline {
+        height: 10px;
+    }
+    
+    .mini-timeline__tooltip {
+        font-size: var(--font-size-xs);
+        padding: var(--spacing-1-5) var(--spacing-2);
+    }
+}
+
+/* 아주 작은 화면 */
+@media (max-width: 480px) {
+    .mini-timeline {
+        height: 8px;
+    }
+    
+    .mini-timeline__tooltip {
+        display: none;
+    }
+}
+
+/* =============================================
+   Dark Theme 조정
+   ============================================= */
+[data-theme="dark"] .mini-timeline__tooltip {
+    background: var(--surface-panel);
+    border-color: var(--border-subtle);
+    box-shadow: 
+        var(--shadow-lg),
+        0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .mini-timeline__canvas:hover {
+    opacity: 0.85;
+}
+
+/* =============================================
+   카드 내부에서 사용 시 스타일
+   ============================================= */
+.equipment-card .mini-timeline {
+    margin-top: var(--spacing-2);
+}
+
+.equipment-card__timeline .mini-timeline {
+    width: 100%;
+}
+
+/* =============================================
+   Legacy Alias (하위 호환)
+   ============================================= */
+.mini-timeline.hidden {
+    display: none;
+}
+
+.mini-timeline.loading {
+    opacity: 0.5;
+    pointer-events: none;
+}

@@ -137,7 +137,7 @@ export const PANEL_RULES = Object.freeze({
          * - MONITORING: 3D View에서 장비 클릭 시 매핑 편집
          * - LAYOUT: Layout Editor에서 매핑 설정
          */
-        allowedModes: [NAV_MODE.MONITORING, NAV_MODE.LAYOUT],
+        allowedModes: [NAV_MODE.MONITORING, NAV_MODE.LAYOUT,'equipment_edit'],
         
         /**
          * 🔧 v1.1.1: 허용 서브모드 확장

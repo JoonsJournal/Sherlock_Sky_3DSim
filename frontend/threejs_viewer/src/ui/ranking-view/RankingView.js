@@ -3,7 +3,7 @@
  * ==============
  * Ranking View 메인 컨트롤러 (Orchestrator)
  * 
- * @version 1.3.1
+ * @version 1.4.0
  * @description
  * - 6개 레인 레이아웃 관리 (Remote, Sudden Stop, Stop, Run, Idle, Wait)
  * - 레인 컴포넌트 생성 및 조율
@@ -12,8 +12,18 @@
  * - Equipment Info Drawer 연동
  * - CameraNavigator 가시성 제어 (3D View 전용)
  * - Dev Mode 자동 테스트 데이터 지원
+ * - Custom 레인 지원 (Phase 6)
+ * - 긴급도 통계 바 (Phase 6)
  * 
  * @changelog
+ * - v1.4.0: 🆕 Phase 6 - Custom 레인 + 긴급도 통계 기능 추가
+ *   - Custom 레인 지원 (최대 3개)
+ *   - 긴급도 통계 바 추가 (Total, Urgent, Warning)
+ *   - 헤더 영역 추가 (타이틀 + Custom 레인 컨트롤)
+ *   - _createHeader(), _createStatsBar(), _createCustomLaneControls() 추가
+ *   - addCustomLane(), removeCustomLane(), setCustomLanesEnabled() 추가
+ *   - _updateStats() 통계 업데이트 메서드 추가
+ *   - ⚠️ 호환성: v1.3.1의 모든 기능 100% 유지
  * - v1.3.1: 🐛 Bug Fix - CameraNavigator 숨김 강화 + Dev Mode 지원
  *   - CameraNavigator 숨김 로직 강화 (다중 경로 시도)
  *   - Dev Mode 감지 및 자동 테스트 데이터 추가
@@ -49,7 +59,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/RankingView.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-17
+ * 수정일: 2026-01-19
  */
 
 import { eventBus } from '../../core/managers/EventBus.js';
@@ -112,6 +122,17 @@ const LANE_CONFIG = [
     }
 ];
 
+/**
+ * 🆕 v1.4.0: Custom 레인 필터 옵션
+ */
+const CUSTOM_FILTER_OPTIONS = [
+    { value: 'alarm-code', label: '알람 코드별', icon: '🔔' },
+    { value: 'line', label: '라인별', icon: '🏭' },
+    { value: 'equipment-type', label: '설비 타입별', icon: '⚙️' },
+    { value: 'urgency', label: '긴급도별', icon: '⚠️' },
+    { value: 'production', label: '생산량별', icon: '📊' }
+];
+
 export class RankingView {
     /**
      * CSS 클래스 상수 정의
@@ -121,7 +142,15 @@ export class RankingView {
         BLOCK: 'ranking-view',
         
         // Elements
+        HEADER: 'ranking-view__header',
+        TITLE: 'ranking-view__title',
+        CONTROLS: 'ranking-view__controls',
+        CUSTOM_LANE_CONTROLS: 'ranking-view__custom-lane-controls',
         LANES_CONTAINER: 'ranking-view__lanes-container',
+        STATS_BAR: 'ranking-view__stats-bar',
+        STAT: 'ranking-view__stat',
+        STAT_LABEL: 'ranking-view__stat-label',
+        STAT_VALUE: 'ranking-view__stat-value',
         LOADING: 'ranking-view__loading',
         LOADING_SPINNER: 'ranking-view__loading-spinner',
         LOADING_TEXT: 'ranking-view__loading-text',
@@ -152,16 +181,27 @@ export class RankingView {
     };
     
     /**
+     * 🆕 v1.4.0: 설정
+     */
+    static CONFIG = {
+        ENABLE_CUSTOM_LANES: true,
+        MAX_CUSTOM_LANES: 3
+    };
+    
+    /**
      * @param {Object} options - 설정 옵션
      * @param {HTMLElement} options.container - 부모 컨테이너
      * @param {Object} options.webSocketClient - WebSocket 클라이언트 (선택)
      */
     constructor(options = {}) {
-        console.log('[RankingView] 🚀 초기화 시작 (v1.3.1 - CameraNavigator 수정 + Dev Mode 지원)...');
+        console.log('[RankingView] 🚀 초기화 시작 (v1.4.0 - Phase 6 Custom 레인 + 긴급도 통계)...');
         
         // Options
         this._container = options.container || document.body;
         this._webSocketClient = options.webSocketClient || null;
+        
+        // 🆕 v1.4.0: Custom 레인 설정
+        this._enableCustomLanes = options.enableCustomLanes ?? RankingView.CONFIG.ENABLE_CUSTOM_LANES;
         
         // State
         this._isVisible = false;
@@ -176,11 +216,18 @@ export class RankingView {
         // 🆕 v1.2.0: CameraNavigator 이전 가시성 상태 저장
         this._cameraNavigatorWasVisible = true;
         
+        // 🆕 v1.4.0: Custom 레인 저장
+        this._customLanes = new Map();
+        
         // DOM References
         this.element = null;
+        this._headerElement = null;
         this._lanesContainer = null;
+        this._statsBar = null;
         this._loadingElement = null;
         this._emptyElement = null;
+        this._customLaneSelect = null;
+        this._customLaneAddBtn = null;
         
         // Components
         this._lanes = new Map(); // Map<laneId, RankingLane>
@@ -213,7 +260,7 @@ export class RankingView {
         this._setupEventListeners();
         
         this._isInitialized = true;
-        console.log('[RankingView] ✅ 초기화 완료 (v1.3.1)');
+        console.log('[RankingView] ✅ 초기화 완료 (v1.4.0)');
     }
     
     /**
@@ -266,9 +313,16 @@ export class RankingView {
         this.element.classList.add(RankingView.CSS.HIDDEN);
         this.element.classList.add(RankingView.CSS.LEGACY_HIDDEN);
         
+        // 🆕 v1.4.0: Header
+        this._headerElement = this._createHeader();
+        this.element.appendChild(this._headerElement);
+        
         // Lanes container
         this._lanesContainer = document.createElement('div');
         this._lanesContainer.classList.add(RankingView.CSS.LANES_CONTAINER);
+        
+        // 🆕 v1.4.0: Stats Bar
+        this._statsBar = this._createStatsBar();
         
         // Loading state
         this._loadingElement = this._createLoadingElement();
@@ -278,11 +332,115 @@ export class RankingView {
         
         // Assemble
         this.element.appendChild(this._lanesContainer);
+        this.element.appendChild(this._statsBar);
         this.element.appendChild(this._loadingElement);
         this.element.appendChild(this._emptyElement);
         
         // Append to container
         this._container.appendChild(this.element);
+    }
+    
+    /**
+     * 🆕 v1.4.0: 헤더 생성
+     * @private
+     * @returns {HTMLElement}
+     */
+    _createHeader() {
+        const header = document.createElement('div');
+        header.classList.add(RankingView.CSS.HEADER);
+        
+        // Title
+        const title = document.createElement('h2');
+        title.classList.add(RankingView.CSS.TITLE);
+        title.textContent = 'Equipment Ranking';
+        header.appendChild(title);
+        
+        // Controls
+        const controls = document.createElement('div');
+        controls.classList.add(RankingView.CSS.CONTROLS);
+        
+        // Custom Lane Controls
+        if (this._enableCustomLanes) {
+            const customControls = this._createCustomLaneControls();
+            controls.appendChild(customControls);
+        }
+        
+        header.appendChild(controls);
+        
+        return header;
+    }
+    
+    /**
+     * 🆕 v1.4.0: Custom 레인 컨트롤 생성
+     * @private
+     * @returns {HTMLElement}
+     */
+    _createCustomLaneControls() {
+        const container = document.createElement('div');
+        container.classList.add(RankingView.CSS.CUSTOM_LANE_CONTROLS);
+        
+        // 콤보박스
+        const select = document.createElement('select');
+        select.innerHTML = `
+            <option value="">Custom 레인 추가...</option>
+            ${CUSTOM_FILTER_OPTIONS.map(opt => 
+                `<option value="${opt.value}">${opt.icon} ${opt.label}</option>`
+            ).join('')}
+        `;
+        container.appendChild(select);
+        
+        // 추가 버튼
+        const addBtn = document.createElement('button');
+        addBtn.classList.add('u-btn', 'u-btn--sm', 'u-btn--primary');
+        addBtn.textContent = '추가';
+        addBtn.disabled = true;
+        container.appendChild(addBtn);
+        
+        // 이벤트
+        select.addEventListener('change', (e) => {
+            const canAdd = e.target.value && this._customLanes.size < RankingView.CONFIG.MAX_CUSTOM_LANES;
+            addBtn.disabled = !canAdd;
+        });
+        
+        addBtn.addEventListener('click', () => {
+            if (select.value) {
+                this.addCustomLane(select.value);
+                select.value = '';
+                addBtn.disabled = true;
+            }
+        });
+        
+        this._customLaneSelect = select;
+        this._customLaneAddBtn = addBtn;
+        
+        return container;
+    }
+    
+    /**
+     * 🆕 v1.4.0: 통계 바 생성
+     * @private
+     * @returns {HTMLElement}
+     */
+    _createStatsBar() {
+        const statsBar = document.createElement('div');
+        statsBar.classList.add(RankingView.CSS.STATS_BAR);
+        
+        statsBar.innerHTML = `
+            <span class="${RankingView.CSS.STAT}">
+                <span class="${RankingView.CSS.STAT_LABEL}">Total:</span>
+                <span class="${RankingView.CSS.STAT_VALUE}" data-stat="total">0</span>
+            </span>
+            <span class="${RankingView.CSS.STAT} ${RankingView.CSS.STAT}--danger">
+                <span class="${RankingView.CSS.STAT_LABEL}">Urgent:</span>
+                <span class="${RankingView.CSS.STAT_VALUE}" data-stat="urgent">0</span>
+            </span>
+            <span class="${RankingView.CSS.STAT} ${RankingView.CSS.STAT}--warning">
+                <span class="${RankingView.CSS.STAT_LABEL}">Warning:</span>
+                <span class="${RankingView.CSS.STAT_VALUE}" data-stat="warning">0</span>
+            </span>
+        `;
+        
+        return statsBar;
     }
     
     /**
@@ -421,6 +579,16 @@ export class RankingView {
             }),
             eventBus.on('ranking:card:detail', () => {
                 if (this._laneManager) this._laneManager.showSelectedCardDetail();
+            }),
+            
+            // 🆕 v1.4.0: Custom 레인 이벤트
+            eventBus.on('customLane:added', () => {
+                this._updateCustomLaneButtonState();
+                this._updateStats();
+            }),
+            eventBus.on('customLane:removed', () => {
+                this._updateCustomLaneButtonState();
+                this._updateStats();
             })
         );
         
@@ -520,6 +688,76 @@ export class RankingView {
     }
     
     // =========================================
+    // 🆕 v1.4.0: 통계 업데이트
+    // =========================================
+    
+    /**
+     * 통계 바 업데이트
+     * @private
+     */
+    _updateStats() {
+        if (!this._statsBar) return;
+        
+        let total = 0;
+        let urgent = 0;  // Critical + Danger
+        let warning = 0;
+        
+        // 모든 레인의 카드를 순회하며 긴급도 집계
+        this._lanes.forEach(lane => {
+            const cards = lane.getAllCards();
+            cards.forEach(card => {
+                total++;
+                
+                // EquipmentCard에 getUrgencyLevel() 메서드가 있으면 사용
+                const urgencyLevel = card.getUrgencyLevel ? card.getUrgencyLevel() : null;
+                
+                if (urgencyLevel === 'critical' || urgencyLevel === 'danger') {
+                    urgent++;
+                } else if (urgencyLevel === 'warning') {
+                    warning++;
+                }
+            });
+        });
+        
+        // Custom 레인도 집계
+        this._customLanes.forEach(customLane => {
+            if (customLane.lane) {
+                const cards = customLane.lane.getAllCards();
+                cards.forEach(card => {
+                    total++;
+                    const urgencyLevel = card.getUrgencyLevel ? card.getUrgencyLevel() : null;
+                    if (urgencyLevel === 'critical' || urgencyLevel === 'danger') {
+                        urgent++;
+                    } else if (urgencyLevel === 'warning') {
+                        warning++;
+                    }
+                });
+            }
+        });
+        
+        // DOM 업데이트
+        const totalEl = this._statsBar.querySelector('[data-stat="total"]');
+        const urgentEl = this._statsBar.querySelector('[data-stat="urgent"]');
+        const warningEl = this._statsBar.querySelector('[data-stat="warning"]');
+        
+        if (totalEl) totalEl.textContent = total;
+        if (urgentEl) urgentEl.textContent = urgent;
+        if (warningEl) warningEl.textContent = warning;
+    }
+    
+    /**
+     * 🆕 v1.4.0: Custom 레인 추가 버튼 상태 업데이트
+     * @private
+     */
+    _updateCustomLaneButtonState() {
+        if (this._customLaneAddBtn && this._customLaneSelect) {
+            const canAdd = this._customLaneSelect.value && 
+                          this._customLanes.size < RankingView.CONFIG.MAX_CUSTOM_LANES;
+            this._customLaneAddBtn.disabled = !canAdd;
+        }
+    }
+    
+    // =========================================
     // Public Methods
     // =========================================
     
@@ -552,6 +790,9 @@ export class RankingView {
         
         // 🆕 v1.3.1: 데이터 확인 및 Dev Mode 처리
         this._checkDataAndLoadTestData();
+        
+        // 🆕 v1.4.0: 통계 업데이트
+        this._updateStats();
         
         // Emit event
         eventBus.emit('ranking:shown');
@@ -721,6 +962,9 @@ export class RankingView {
         const card = lane.addCard(data);
         this.setEmpty(false);
         
+        // 🆕 v1.4.0: 통계 업데이트
+        this._updateStats();
+        
         console.log(`[RankingView] ➕ 설비 추가: ${data.frontendId} → ${laneId}`);
         return card;
     }
@@ -738,6 +982,9 @@ export class RankingView {
             
             // 전체 빈 상태 확인
             this._checkEmpty();
+            
+            // 🆕 v1.4.0: 통계 업데이트
+            this._updateStats();
         }
     }
     
@@ -751,6 +998,107 @@ export class RankingView {
         const lane = this._lanes.get(laneId);
         if (lane) {
             lane.updateCard(equipmentId, newData);
+            
+            // 🆕 v1.4.0: 통계 업데이트
+            this._updateStats();
+        }
+    }
+    
+    /**
+     * 🆕 v1.4.0: Custom 레인 추가
+     * @param {string} filterType - 필터 타입
+     * @param {Object} [filterConfig] - 필터 설정
+     * @returns {RankingLane|null}
+     */
+    addCustomLane(filterType, filterConfig = {}) {
+        if (this._customLanes.size >= RankingView.CONFIG.MAX_CUSTOM_LANES) {
+            console.warn(`[RankingView] ⚠️ Custom 레인 최대 개수(${RankingView.CONFIG.MAX_CUSTOM_LANES}) 초과`);
+            return null;
+        }
+        
+        const filterOption = CUSTOM_FILTER_OPTIONS.find(opt => opt.value === filterType);
+        if (!filterOption) {
+            console.warn(`[RankingView] ⚠️ 알 수 없는 필터 타입: ${filterType}`);
+            return null;
+        }
+        
+        // Custom 레인 ID 생성
+        const customId = `custom-${filterType}-${Date.now()}`;
+        
+        // 레인 설정
+        const laneConfig = {
+            id: customId,
+            name: filterConfig.name || filterOption.label,
+            icon: filterOption.icon,
+            description: `Custom: ${filterOption.label}`,
+            sortKey: filterConfig.sortKey || 'duration',
+            sortOrder: filterConfig.sortOrder || 'desc',
+            isCustom: true,
+            filterType: filterType,
+            filterConfig: filterConfig
+        };
+        
+        // RankingLane 생성
+        const lane = new RankingLane(laneConfig);
+        
+        // DOM에 추가
+        this._lanesContainer.appendChild(lane.element);
+        
+        // Custom 레인 정보 저장
+        this._customLanes.set(customId, {
+            ...laneConfig,
+            lane: lane
+        });
+        
+        // 이벤트 발행
+        eventBus.emit('customLane:added', {
+            laneId: customId,
+            filterType: filterType,
+            config: laneConfig
+        });
+        
+        console.log(`[RankingView] ✅ Custom 레인 추가: ${customId}`);
+        
+        return lane;
+    }
+    
+    /**
+     * 🆕 v1.4.0: Custom 레인 삭제
+     * @param {string} laneId - 레인 ID
+     */
+    removeCustomLane(laneId) {
+        if (!this._customLanes.has(laneId)) {
+            console.warn(`[RankingView] ⚠️ Custom 레인을 찾을 수 없음: ${laneId}`);
+            return;
+        }
+        
+        const customLane = this._customLanes.get(laneId);
+        
+        // 레인 dispose
+        if (customLane.lane) {
+            customLane.lane.dispose();
+        }
+        
+        // 저장소에서 제거
+        this._customLanes.delete(laneId);
+        
+        // 이벤트 발행
+        eventBus.emit('customLane:removed', { laneId });
+        
+        console.log(`[RankingView] 🗑️ Custom 레인 삭제: ${laneId}`);
+    }
+    
+    /**
+     * 🆕 v1.4.0: Custom 레인 활성화 설정
+     * @param {boolean} enabled - 활성화 여부
+     */
+    setCustomLanesEnabled(enabled) {
+        this._enableCustomLanes = enabled;
+        
+        // UI 업데이트
+        const customControls = this.element?.querySelector(`.${RankingView.CSS.CUSTOM_LANE_CONTROLS}`);
+        if (customControls) {
+            customControls.style.display = enabled ? 'flex' : 'none';
         }
     }
     
@@ -825,19 +1173,31 @@ export class RankingView {
         });
         this._lanes.clear();
         
-        // 5. 🆕 v1.2.0: CameraNavigator 가시성 복원
+        // 5. 🆕 v1.4.0: Custom 레인 정리
+        this._customLanes.forEach((customLane, id) => {
+            if (customLane.lane) {
+                customLane.lane.dispose();
+            }
+        });
+        this._customLanes.clear();
+        
+        // 6. 🆕 v1.2.0: CameraNavigator 가시성 복원
         if (this._cameraNavigatorWasVisible) {
             this._setCameraNavigatorVisible(true);
         }
         
-        // 6. DOM 요소 제거
+        // 7. DOM 요소 제거
         this.element?.remove();
         
-        // 7. 참조 해제
+        // 8. 참조 해제
         this.element = null;
+        this._headerElement = null;
         this._lanesContainer = null;
+        this._statsBar = null;
         this._loadingElement = null;
         this._emptyElement = null;
+        this._customLaneSelect = null;
+        this._customLaneAddBtn = null;
         this._boundHandlers = {};
         this._isInitialized = false;
         
@@ -1025,6 +1385,9 @@ export class RankingView {
     _handleStatusChange(data) {
         // Phase 3에서 구현 예정
         // 레인 간 이동 로직
+        
+        // 🆕 v1.4.0: 통계 업데이트
+        this._updateStats();
     }
     
     /**
@@ -1056,19 +1419,25 @@ export class RankingView {
      * 디버그 정보 출력
      */
     debug() {
-        console.group('[RankingView] Debug Info (v1.3.1)');
+        console.group('[RankingView] Debug Info (v1.4.0)');
         console.log('isVisible:', this._isVisible);
         console.log('isInitialized:', this._isInitialized);
         console.log('isLoading:', this._isLoading);
         console.log('isDevMode:', this._isDevMode);
+        console.log('enableCustomLanes:', this._enableCustomLanes);
         console.log('selectedEquipmentId:', this._selectedEquipmentId);
         console.log('focusedLaneIndex:', this._focusedLaneIndex);
         console.log('cameraNavigatorWasVisible:', this._cameraNavigatorWasVisible);
         console.log('laneManager:', this._laneManager ? 'connected' : 'null');
         console.log('레인 수:', this._lanes.size);
+        console.log('Custom 레인 수:', this._customLanes.size);
         console.log('레인 목록:');
         this._lanes.forEach((lane, id) => {
             console.log(`  ${id}: ${lane.count} cards`);
+        });
+        console.log('Custom 레인 목록:');
+        this._customLanes.forEach((customLane, id) => {
+            console.log(`  ${id}: ${customLane.lane?.count || 0} cards`);
         });
         if (this._laneManager) {
             console.log('--- LaneManager Debug ---');
@@ -1232,6 +1601,9 @@ export class RankingView {
             targetCount: 0
         });
         
+        // 🆕 v1.4.0: 통계 업데이트
+        this._updateStats();
+        
         console.log('[RankingView] ✅ 테스트 데이터 추가 완료 (총 13개 설비)');
     }
     
@@ -1246,6 +1618,10 @@ export class RankingView {
         });
         
         this._checkEmpty();
+        
+        // 🆕 v1.4.0: 통계 업데이트
+        this._updateStats();
+        
         console.log('[RankingView] ✅ 데이터 초기화 완료');
     }
 }
