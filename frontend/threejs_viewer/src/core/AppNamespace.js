@@ -7,7 +7,7 @@
  * 모든 모듈은 이 네임스페이스를 통해 등록/조회
  * 이름 충돌 방지 및 의존성 관리 중앙화
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @module AppNamespace
  * 
  * @description
@@ -17,6 +17,11 @@
  * - 의존성 파악 용이
  * 
  * @changelog
+ * - v1.2.0: 🆕 Phase 3 - Deprecation 경고 시스템 (2026-01-18)
+ *   - createDeprecatedAlias() 함수 추가
+ *   - Proxy 기반 레거시 접근 경고
+ *   - 경고 횟수 제한 (기본 3회)
+ *   - resetDeprecationWarnings() 추가
  * - v1.1.0: Phase 2 전역 함수 마이그레이션 (2026-01-18)
  *   - fn 네임스페이스 추가 (ui, mode, camera, mapping, layout)
  *   - debugFn 네임스페이스 추가
@@ -35,6 +40,8 @@
  * - has
  * - unregister
  * - debug
+ * - createDeprecatedAlias (v1.2.0)
+ * - resetDeprecationWarnings (v1.2.0)
  * 
  * 📁 위치: frontend/threejs_viewer/src/core/AppNamespace.js
  * 작성일: 2026-01-18
@@ -51,7 +58,7 @@ const APP_NAMESPACE = {
     // ═══════════════════════════════════════════════════════════════════════
     _meta: {
         name: 'SherlockSky3DSim',
-        version: '6.1.0',  // ← Phase 2
+        version: '6.2.0',  // ← Phase 3
         initialized: false,
         initTimestamp: null
     },
@@ -386,6 +393,193 @@ function registerDebugFn(name, fn, windowAlias = null) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 🆕 v1.2.0: Deprecation 경고 시스템 (Phase 3)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Deprecation 경고 카운터 (동일 경고 반복 방지)
+ * @private
+ */
+const _deprecationWarnings = new Map();
+
+/**
+ * Deprecation 경고 설정
+ */
+const DEPRECATION_CONFIG = {
+    /** 동일 경고 최대 표시 횟수 */
+    warnLimit: 3,
+    /** 경고 활성화 여부 (전역 스위치) */
+    enabled: true,
+    /** 콘솔 스타일 */
+    style: 'color: #f39c12; font-weight: bold;'
+};
+
+/**
+ * Deprecation 경고를 출력하는 Proxy 래퍼 생성
+ * 레거시 window.* 접근 시 경고 메시지 출력 후 실제 동작 수행
+ * 
+ * @param {*} target - 실제 인스턴스/함수
+ * @param {string} legacyName - 레거시 이름 (예: 'sceneManager')
+ * @param {string} newPath - 새로운 접근 경로 (예: 'APP.services.scene.sceneManager')
+ * @returns {Proxy|Function} Proxy로 래핑된 객체 또는 래핑된 함수
+ * 
+ * @example
+ * // 객체용
+ * window.sceneManager = createDeprecatedAlias(
+ *     sceneManager, 
+ *     'sceneManager', 
+ *     'APP.services.scene.sceneManager'
+ * );
+ * 
+ * // 함수용
+ * window.showToast = createDeprecatedAlias(
+ *     _showToast,
+ *     'showToast',
+ *     'APP.fn.ui.showToast'
+ * );
+ */
+function createDeprecatedAlias(target, legacyName, newPath) {
+    // null/undefined 체크
+    if (target === null || target === undefined) {
+        return target;
+    }
+    
+    // 함수인 경우 특별 처리
+    if (typeof target === 'function') {
+        const wrappedFn = function(...args) {
+            _warnDeprecation(legacyName, newPath);
+            return target.apply(this, args);
+        };
+        // 원본 함수 속성 복사
+        Object.assign(wrappedFn, target);
+        wrappedFn._isDeprecatedAlias = true;
+        wrappedFn._originalTarget = target;
+        return wrappedFn;
+    }
+    
+    // 원시값(primitive)은 Proxy 불가
+    if (typeof target !== 'object') {
+        return target;
+    }
+    
+    // 객체인 경우 Proxy 사용
+    return new Proxy(target, {
+        get(obj, prop) {
+            // 내부 속성은 경고 없이 통과
+            if (
+                prop === Symbol.toPrimitive || 
+                prop === Symbol.toStringTag ||
+                prop === 'toString' || 
+                prop === 'valueOf' ||
+                prop === 'constructor' ||
+                prop === '_isDeprecatedAlias' ||
+                prop === '_originalTarget'
+            ) {
+                return obj[prop];
+            }
+            
+            // 첫 접근 시에만 경고
+            _warnDeprecation(legacyName, newPath);
+            
+            const value = obj[prop];
+            // 메서드 바인딩
+            if (typeof value === 'function') {
+                return value.bind(obj);
+            }
+            return value;
+        },
+        set(obj, prop, value) {
+            _warnDeprecation(legacyName, newPath);
+            obj[prop] = value;
+            return true;
+        },
+        apply(target, thisArg, args) {
+            _warnDeprecation(legacyName, newPath);
+            return target.apply(thisArg, args);
+        }
+    });
+}
+
+/**
+ * Deprecation 경고 출력 (반복 제한)
+ * @private
+ * @param {string} legacyName - 레거시 이름
+ * @param {string} newPath - 새 경로
+ */
+function _warnDeprecation(legacyName, newPath) {
+    // 전역 비활성화 체크
+    if (!DEPRECATION_CONFIG.enabled) {
+        return;
+    }
+    
+    const key = legacyName;
+    const count = _deprecationWarnings.get(key) || 0;
+    
+    if (count < DEPRECATION_CONFIG.warnLimit) {
+        const remaining = DEPRECATION_CONFIG.warnLimit - count - 1;
+        
+        console.warn(
+            `%c⚠️ [DEPRECATED] window.${legacyName}`,
+            DEPRECATION_CONFIG.style,
+            `\n   이 접근 방식은 더 이상 권장되지 않습니다.` +
+            `\n   → 대신 ${newPath} 를 사용하세요.` +
+            (remaining > 0 ? `\n   (이 경고는 ${remaining}회 더 표시됩니다)` : `\n   (마지막 경고)`)
+        );
+        
+        _deprecationWarnings.set(key, count + 1);
+    }
+}
+
+/**
+ * Deprecation 경고 카운터 리셋 (테스트/디버깅용)
+ * 
+ * @example
+ * // 브라우저 콘솔에서
+ * APP.resetDeprecationWarnings();
+ */
+function resetDeprecationWarnings() {
+    _deprecationWarnings.clear();
+    console.log('[APP] ✅ Deprecation 경고 카운터 리셋됨');
+}
+
+/**
+ * Deprecation 경고 설정 변경
+ * 
+ * @param {Object} config - 설정 객체
+ * @param {number} [config.warnLimit] - 최대 경고 횟수
+ * @param {boolean} [config.enabled] - 경고 활성화 여부
+ * 
+ * @example
+ * // 경고 비활성화
+ * APP.setDeprecationConfig({ enabled: false });
+ * 
+ * // 경고 횟수 변경
+ * APP.setDeprecationConfig({ warnLimit: 5 });
+ */
+function setDeprecationConfig(config) {
+    if (typeof config.warnLimit === 'number') {
+        DEPRECATION_CONFIG.warnLimit = config.warnLimit;
+    }
+    if (typeof config.enabled === 'boolean') {
+        DEPRECATION_CONFIG.enabled = config.enabled;
+    }
+    console.log('[APP] Deprecation 설정 변경:', DEPRECATION_CONFIG);
+}
+
+/**
+ * 현재 Deprecation 경고 상태 조회
+ * 
+ * @returns {Object} 경고 상태 정보
+ */
+function getDeprecationStatus() {
+    return {
+        config: { ...DEPRECATION_CONFIG },
+        warnings: Object.fromEntries(_deprecationWarnings),
+        totalWarnings: _deprecationWarnings.size
+    };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 3. 초기화 함수
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -427,9 +621,16 @@ function initNamespace() {
         window.APP.has = has;
         window.APP.unregister = unregister;
         window.APP.debug = debug;
+        
         // 🆕 v1.1.0: Phase 2 함수
         window.APP.registerFn = registerFn;
         window.APP.registerDebugFn = registerDebugFn;
+        
+        // 🆕 v1.2.0: Phase 3 함수
+        window.APP.createDeprecatedAlias = createDeprecatedAlias;
+        window.APP.resetDeprecationWarnings = resetDeprecationWarnings;
+        window.APP.setDeprecationConfig = setDeprecationConfig;
+        window.APP.getDeprecationStatus = getDeprecationStatus;
     }
     
     console.log(`[APP] 🚀 네임스페이스 초기화 완료 (v${APP_NAMESPACE._meta.version})`);
@@ -482,6 +683,16 @@ function debug() {
     
     console.log('\n--- Debug Functions (debugFn) ---');
     _debugObject(APP_NAMESPACE.debugFn, 'debugFn');
+    
+    // 🆕 v1.2.0: Phase 3 - Deprecation 상태
+    console.log('\n--- Deprecation Status ---');
+    const depStatus = getDeprecationStatus();
+    console.log(`   Enabled: ${depStatus.config.enabled}`);
+    console.log(`   Warn Limit: ${depStatus.config.warnLimit}`);
+    console.log(`   Tracked Warnings: ${depStatus.totalWarnings}`);
+    if (depStatus.totalWarnings > 0) {
+        console.log('   Warning Counts:', depStatus.warnings);
+    }
     
     console.groupEnd();
 }
@@ -598,7 +809,12 @@ export {
     getUI,
     // 🆕 v1.1.0: Phase 2 함수
     registerFn,
-    registerDebugFn
+    registerDebugFn,
+    // 🆕 v1.2.0: Phase 3 함수
+    createDeprecatedAlias,
+    resetDeprecationWarnings,
+    setDeprecationConfig,
+    getDeprecationStatus
 };
 
 export default APP_NAMESPACE;

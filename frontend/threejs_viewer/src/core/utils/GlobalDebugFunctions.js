@@ -5,10 +5,14 @@
  * 전역 디버그 함수 모음 (v2.0.0 리팩토링)
  * APP.fn 및 APP.debugFn 네임스페이스로 조직화
  * 
- * @version 2.1.1
+ * @version 2.2.0
  * @module GlobalDebugFunctions
  * 
  * @changelog
+ * - v2.2.0: 🆕 Phase 3 - Deprecation 경고 시스템 (2026-01-18)
+ *           - exposeGlobalObjects() 리팩토링
+ *           - LEGACY_TO_NEW_PATH 매핑 테이블 추가
+ *           - useDeprecation 옵션 지원
  * - v2.1.1: 🔧 CameraNavigator API 수정 (2026-01-18)
  *           - moveTo() → animateCameraTo(targetPos, lookAtPos)
  *           - focusOn() → animateCameraTo() + 설비 위치 계산
@@ -377,16 +381,183 @@ export function setupGlobalDebugFunctions(services) {
     console.log('✅ 전역 디버그 함수 등록 완료 (v2.1.0 - Placeholder 교체)');
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 🆕 v2.2.0: 레거시 → 새 경로 매핑 테이블 (Phase 3)
+// ═══════════════════════════════════════════════════════════════════════════
+
 /**
- * 전역 객체 노출 (기존 유지)
- * @param {Object} objects - 노출할 객체들
+ * 레거시 전역 변수 → APP 네임스페이스 경로 매핑
+ * 
+ * exposeGlobalObjects()에서 useDeprecation: true 시 사용
+ * Deprecation 경고 메시지에 새 경로 안내
+ * 
+ * @example
+ * // 사용
+ * exposeGlobalObjects(objects, { 
+ *     useDeprecation: true, 
+ *     pathMapping: LEGACY_TO_NEW_PATH 
+ * });
  */
-export function exposeGlobalObjects(objects) {
+export const LEGACY_TO_NEW_PATH = {
+    // ═══════════════════════════════════════════════════════════════
+    // Scene 서비스
+    // ═══════════════════════════════════════════════════════════════
+    sceneManager: 'APP.services.scene.sceneManager',
+    equipmentLoader: 'APP.services.scene.equipmentLoader',
+    cameraControls: 'APP.services.scene.cameraControls',
+    cameraNavigator: 'APP.services.scene.cameraNavigator',
+    interactionHandler: 'APP.services.scene.interactionHandler',
+    dataOverlay: 'APP.services.scene.dataOverlay',
+    statusVisualizer: 'APP.services.scene.statusVisualizer',
+    performanceMonitor: 'APP.services.scene.performanceMonitor',
+    adaptivePerformance: 'APP.services.scene.adaptivePerformance',
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Monitoring 서비스
+    // ═══════════════════════════════════════════════════════════════
+    monitoringService: 'APP.services.monitoring.monitoringService',
+    signalTowerManager: 'APP.services.monitoring.signalTowerManager',
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Mapping 서비스
+    // ═══════════════════════════════════════════════════════════════
+    equipmentMappingService: 'APP.services.mapping.equipmentMappingService',
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Connection 서비스
+    // ═══════════════════════════════════════════════════════════════
+    connectionStatusService: 'APP.services.connection.connectionStatusService',
+    apiClient: 'APP.services.connection.apiClient',
+    
+    // ═══════════════════════════════════════════════════════════════
+    // 매니저
+    // ═══════════════════════════════════════════════════════════════
+    appModeManager: 'APP.managers.mode',
+    keyboardManager: 'APP.managers.keyboard',
+    debugManager: 'APP.managers.debug',
+    viewManager: 'APP.managers.view',
+    screenManager: 'APP.managers.screen',
+    bootstrapViewManager: 'APP.managers.view',
+    
+    // ═══════════════════════════════════════════════════════════════
+    // UI 컴포넌트
+    // ═══════════════════════════════════════════════════════════════
+    connectionModal: 'APP.ui.connectionModal',
+    toast: 'APP.ui.toast',
+    equipmentInfoPanel: 'APP.ui.equipmentInfoPanel',
+    equipmentEditState: 'APP.ui.equipmentEditState',
+    equipmentEditModal: 'APP.ui.equipmentEditModal',
+    equipmentEditButton: 'APP.ui.equipmentEditButton',
+    sidebarUI: 'APP.ui.sidebar',
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Utils
+    // ═══════════════════════════════════════════════════════════════
+    eventBus: 'APP.utils.eventBus',
+    logger: 'APP.utils.logger',
+    storageService: 'APP.services.storage.storageService',
+    
+    // ═══════════════════════════════════════════════════════════════
+    // 함수 (APP.fn으로 이동됨)
+    // ═══════════════════════════════════════════════════════════════
+    showToast: 'APP.fn.ui.showToast',
+    toggleTheme: 'APP.fn.ui.toggleTheme',
+    closeConnectionModal: 'APP.fn.ui.closeConnectionModal',
+    canAccessFeatures: 'APP.fn.ui.canAccessFeatures',
+    toggleConnectionModal: 'APP.fn.ui.toggleConnectionModal',
+    toggleDebugPanel: 'APP.fn.ui.toggleDebugPanel',
+    toggleDevMode: 'APP.fn.ui.toggleDevMode',
+    toggleEditMode: 'APP.fn.mode.toggleEditMode',
+    toggleMonitoringMode: 'APP.fn.mode.toggleMonitoringMode',
+    toggleFullscreen: 'APP.fn.mode.toggleFullscreen',
+    toggleAdaptivePerformance: 'APP.fn.mode.toggleAdaptivePerformance',
+    moveCameraTo: 'APP.fn.camera.moveTo',
+    focusEquipment: 'APP.fn.camera.focusEquipment',
+    resetCamera: 'APP.fn.camera.reset',
+    
+    // ═══════════════════════════════════════════════════════════════
+    // 디버그 함수
+    // ═══════════════════════════════════════════════════════════════
+    debugHelp: 'APP.debugFn.help',
+    debugScene: 'APP.debugFn.scene',
+    listEquipments: 'APP.debugFn.listEquipments',
+    debugStatus: 'APP.debugFn.status',
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Registry
+    // ═══════════════════════════════════════════════════════════════
+    VIEW_REGISTRY: 'APP.registry.VIEW_REGISTRY',
+    
+    // ═══════════════════════════════════════════════════════════════
+    // Facade 함수 (ViewManager)
+    // ═══════════════════════════════════════════════════════════════
+    getView: 'APP.managers.view.get',
+    showView: 'APP.managers.view.show',
+    hideView: 'APP.managers.view.hide',
+    toggleView: 'APP.managers.view.toggle',
+    destroyView: 'APP.managers.view.destroy'
+};
+
+/**
+ * 전역 객체 노출 (Deprecation 래퍼 적용 가능)
+ * 
+ * 🔧 v2.2.0: Phase 3 - Deprecation 경고 시스템
+ * - useDeprecation: true → Proxy 래퍼로 경고 출력
+ * - useDeprecation: false → 기존 방식 (직접 노출)
+ * 
+ * @param {Object} objects - { key: instance } 형태
+ * @param {Object} [options] - 옵션
+ * @param {boolean} [options.useDeprecation=false] - Deprecation 경고 사용
+ * @param {Object} [options.pathMapping] - 새 경로 매핑 { legacyName: newPath }
+ * 
+ * @example
+ * // 기존 방식 (경고 없음)
+ * exposeGlobalObjects({ sceneManager, equipmentLoader });
+ * 
+ * // Deprecation 경고 활성화
+ * exposeGlobalObjects(
+ *     { sceneManager, equipmentLoader },
+ *     { useDeprecation: true, pathMapping: LEGACY_TO_NEW_PATH }
+ * );
+ */
+export function exposeGlobalObjects(objects, options = {}) {
+    const { 
+        useDeprecation = false, 
+        pathMapping = LEGACY_TO_NEW_PATH 
+    } = options;
+    
+    // Deprecation 래퍼 가져오기 시도
+    let createDeprecatedAlias = null;
+    if (useDeprecation) {
+        createDeprecatedAlias = window.APP?.createDeprecatedAlias;
+        if (!createDeprecatedAlias) {
+            console.warn('[GlobalDebug] ⚠️ useDeprecation=true 이지만 APP.createDeprecatedAlias가 없습니다');
+        }
+    }
+    
+    let exposedCount = 0;
+    let deprecatedCount = 0;
+    
     Object.entries(objects).forEach(([key, value]) => {
-        window[key] = value;
+        if (value === undefined || value === null) {
+            return;
+        }
+        
+        // Deprecation 래퍼 적용 여부
+        if (createDeprecatedAlias && pathMapping[key]) {
+            window[key] = createDeprecatedAlias(value, key, pathMapping[key]);
+            deprecatedCount++;
+            // 개별 로그는 너무 많으므로 생략
+        } else {
+            window[key] = value;
+            exposedCount++;
+        }
     });
     
-    console.log('🌐 전역 객체 노출 완료');
-    console.log('  💡 Tip: APP.debug()로 전체 네임스페이스 확인');
-    console.log('  💡 Tip: APP.debugFn.help()로 명령어 도움말');
+    // 요약 로그
+    if (useDeprecation && deprecatedCount > 0) {
+        console.log(`[GlobalDebug] ✅ ${exposedCount}개 직접 노출, ⚠️ ${deprecatedCount}개 Deprecation 래퍼 적용`);
+    } else {
+        console.log(`[GlobalDebug] ✅ ${exposedCount + deprecatedCount}개 전역 노출 완료`);
+    }
 }
