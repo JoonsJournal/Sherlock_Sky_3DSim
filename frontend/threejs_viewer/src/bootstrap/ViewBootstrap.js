@@ -8,10 +8,14 @@
  * - 생명주기 관리 (show/hide/destroy)
  * - 모드별 View 그룹화
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @module ViewBootstrap
  * 
  * @changelog
+ * - v1.1.0: 🆕 AppNamespace 통합 (2026-01-18)
+ *   - APP 네임스페이스 등록 지원
+ *   - initViewManager()에서 네임스페이스 등록
+ *   - 전역 노출 시 APP 우선 확인
  * - v1.0.0: 초기 구현
  *   - VIEW_REGISTRY 정의 (Monitoring/Analysis 모드 View 설정)
  *   - ViewManager 클래스 (싱글톤, Lazy 초기화, DI)
@@ -19,6 +23,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/bootstrap/ViewBootstrap.js
  * 작성일: 2026-01-18
+ * 수정일: 2026-01-18
  */
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -27,6 +32,15 @@
 
 import { eventBus } from '../core/managers/EventBus.js';
 import { logger } from '../core/managers/Logger.js';
+
+// 🆕 v1.1.0: AppNamespace import (선택적 - 있으면 사용, 없으면 무시)
+let register = null;
+try {
+    const namespace = await import('../core/AppNamespace.js');
+    register = namespace.register;
+} catch (e) {
+    console.warn('[ViewBootstrap] AppNamespace not available, using window fallback');
+}
 
 // View 클래스 Import
 import { RankingView } from '../ui/ranking-view/RankingView.js';
@@ -714,9 +728,11 @@ export function destroyView(viewId) {
 
 /**
  * ViewManager 초기화 (main.js에서 호출)
+ * 
  * @param {Object} services - 주입할 서비스 객체
  * @param {Object} options - 초기화 옵션
  * @param {boolean} options.initEager - Eager View 즉시 초기화 여부
+ * @param {boolean} options.registerToNamespace - APP 네임스페이스에 등록 여부 (기본: true)
  */
 export function initViewManager(services = {}, options = {}) {
     console.log('[ViewBootstrap] 🚀 ViewManager 초기화...');
@@ -734,9 +750,23 @@ export function initViewManager(services = {}, options = {}) {
         viewManager.initEagerViews();
     }
     
-    // 전역 노출 (디버깅용)
+    // ═══════════════════════════════════════════════════════════════════
+    // 🆕 v1.1.0: 네임스페이스 등록 (main.js에서 처리하는 것이 권장됨)
+    // ═══════════════════════════════════════════════════════════════════
+    const registerToNamespace = options.registerToNamespace !== false;
+    
     if (typeof window !== 'undefined') {
-        window.viewManager = viewManager;
+        // APP 네임스페이스가 있고, 등록 옵션이 true면 등록
+        if (window.APP?.register && registerToNamespace) {
+            window.APP.register('managers.view', viewManager);
+            window.APP.register('registry.VIEW_REGISTRY', VIEW_REGISTRY);
+            console.log('[ViewBootstrap]    ↳ APP 네임스페이스에 등록됨');
+        }
+        
+        // 전역 노출 (디버깅용 + 하위 호환)
+        // 주의: main.js에서 screenManager를 window.viewManager에 할당하면 덮어씌워짐
+        // 따라서 여기서는 window.bootstrapViewManager로 노출
+        window.bootstrapViewManager = viewManager;  // 명확한 이름
         window.VIEW_REGISTRY = VIEW_REGISTRY;
     }
     
@@ -749,9 +779,19 @@ export function initViewManager(services = {}, options = {}) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 if (typeof window !== 'undefined') {
-    window.viewManager = viewManager;
+    // 🆕 v1.1.0: 명확한 이름으로 노출 (main.js의 screenManager와 구분)
+    // - window.viewManager는 main.js에서 screenManager의 별칭으로 사용될 수 있음
+    // - 따라서 여기서는 bootstrapViewManager로 노출
+    window.bootstrapViewManager = viewManager;
     window.VIEW_REGISTRY = VIEW_REGISTRY;
     
     window.BaseView = BaseView;
     window.VIEW_STATE = VIEW_STATE;
+    
+    // 🆕 v1.1.0: APP 네임스페이스가 이미 있으면 등록
+    // (initViewManager 전에 initNamespace가 호출된 경우)
+    if (window.APP?.register) {
+        // main.js에서 등록하므로 여기서는 생략 가능
+        // window.APP.register('managers.view', viewManager);
+    }
 }

@@ -4,8 +4,13 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 5.7.0
+ * @version 6.0.0
  * @changelog
+ * - v6.0.0: 🆕 AppNamespace 통합 (2026-01-18)
+ *           - 전역 네임스페이스 통합 (window.APP)
+ *           - viewManager → screenManager 이름 변경 (충돌 방지)
+ *           - 모든 서비스 네임스페이스 등록
+ *           - 계층적 서비스 관리 도입
  * - v5.7.0: 🆕 ViewManager 패턴 도입 (2026-01-18)
  *           - ViewBootstrap.js 통합 (VIEW_REGISTRY, ViewManager 클래스)
  *           - initViewManager() 호출 추가 (서비스 주입)
@@ -102,6 +107,16 @@ import {
     VIEW_REGISTRY
 
 } from './bootstrap/index.js';
+
+// ============================================
+// 🆕 v6.0.0: AppNamespace import
+// ============================================
+import { 
+    initNamespace, 
+    register,
+    get as getFromNamespace,
+    has as hasInNamespace
+} from './core/AppNamespace.js';
 
 // Utils
 import { CONFIG } from './core/utils/Config.js';
@@ -320,9 +335,10 @@ window.canAccessFeatures = function() {
 };
 
 // ============================================
-// View Manager (Cover/3D 전환)
+// 🆕 v6.0.0: Screen Manager (Cover/3D 전환)
+// 기존 viewManager에서 이름 변경 - ViewManager (View 생명주기)와 구분
 // ============================================
-const viewManager = {
+const screenManager = {
     threejsInitialized: false,
     animationRunning: false,
     
@@ -601,8 +617,8 @@ function toggleEditMode() {
     
     const currentMode = appModeManager.getCurrentMode();
     if (currentMode === APP_MODE.EQUIPMENT_EDIT) {
-        if (!viewManager.threejsInitialized) {
-            viewManager.show3DView();
+        if (!screenManager.threejsInitialized) {
+            screenManager.show3DView();
         }
         updateModeIndicator('Edit', 'Equipment');
     } else {
@@ -629,7 +645,7 @@ function toggleMonitoringMode(submode = '3d-view') {
             hideView('ranking-view');
         }
 
-        viewManager.showCoverScreen();
+        screenManager.showCoverScreen();
         updateModeIndicator(null, null);
         return;
     }
@@ -637,12 +653,12 @@ function toggleMonitoringMode(submode = '3d-view') {
     appModeManager.switchMode(APP_MODE.MONITORING);
     
     if (submode === '3d-view') {
-        viewManager.show3DView();
+        screenManager.show3DView();
     } else if (submode === 'ranking-view') {
         // 🆕 v5.7.0: ViewManager를 통해 RankingView 표시
         showView('ranking-view');
     } else {
-        viewManager.showCoverScreen();
+        screenManager.showCoverScreen();
     }
     
     updateModeIndicator('Monitoring', submode);
@@ -855,14 +871,14 @@ function initSidebarUI() {
     if (sidebarUI?.sidebar) {
         // Three.js 표시 요청 이벤트
         eventBus.on('threejs:show-requested', () => {
-            if (!viewManager.threejsInitialized) {
-                viewManager.show3DView();
+            if (!screenManager.threejsInitialized) {
+                screenManager.show3DView();
             }
         });
         
         // Three.js 정지 요청 이벤트
         eventBus.on('threejs:stop-requested', () => {
-            viewManager.stopAnimation();
+            screenManager.stopAnimation();
         });
     }
     
@@ -1786,6 +1802,37 @@ function _exposeGlobalObjectsAfterSceneInit() {
     // 🆕 v5.7.0: Views 서비스 추가
     const { viewManager: servicesViewManager } = services.views || {};
     
+        // 🆕 v6.0.0: 네임스페이스에도 등록
+    register('services.scene.sceneManager', sceneManager);
+    register('services.scene.equipmentLoader', equipmentLoader);
+    register('services.scene.cameraControls', cameraControls);
+    register('services.scene.cameraNavigator', cameraNavigator);
+    register('services.scene.interactionHandler', interactionHandler);
+    register('services.scene.dataOverlay', dataOverlay);
+    register('services.scene.statusVisualizer', statusVisualizer);
+    register('services.scene.performanceMonitor', performanceMonitor);
+    register('services.scene.adaptivePerformance', adaptivePerformance);
+    
+    register('services.monitoring.monitoringService', monitoringService);
+    register('services.monitoring.signalTowerManager', signalTowerManager);
+    
+    register('services.mapping.equipmentMappingService', equipmentMappingService);
+    
+    register('services.connection.connectionStatusService', connectionStatusService);
+    register('services.connection.apiClient', apiClient);
+    
+    register('ui.connectionModal', connectionModal);
+    register('ui.equipmentEditState', equipmentEditState);
+    register('ui.equipmentEditModal', equipmentEditModal);
+    register('ui.equipmentEditButton', equipmentEditButton);
+    register('ui.equipmentInfoPanel', equipmentInfoPanel);
+    register('ui.toast', toast);
+    register('ui.sidebar', sidebarUI?.sidebar);
+    register('ui.statusBar', sidebarUI?.statusBar);
+    register('ui.coverScreen', sidebarUI?.coverScreen);
+    
+    register('utils.storageService', storageService);
+
     exposeGlobalObjects({
         // Scene
         sceneManager,
@@ -1863,12 +1910,28 @@ function _exposeGlobalObjectsAfterSceneInit() {
 // ============================================
 
 function init() {
-    console.log('🚀 Sherlock Sky 3DSim 초기화 (v5.7.0 - ViewManager 패턴)...');
+    console.log('🚀 Sherlock Sky 3DSim 초기화 (v6.0.0 - AppNamespace 통합)...');
     console.log(`📍 Site ID: ${SITE_ID}`);
     
     try {
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 v6.0.0: 네임스페이스 먼저 초기화 (가장 먼저!)
+        // ═══════════════════════════════════════════════════════════════
+        initNamespace();
+        console.log('  ✅ AppNamespace 초기화 완료');
+        
         // 1. Core 매니저 초기화
         initCoreManagers({ registerHandlers: true });
+        console.log('  ✅ Core Managers 초기화 완료');
+        
+        // 🆕 v6.0.0: Core 매니저 네임스페이스에 등록
+        register('managers.mode', appModeManager, { alias: 'appModeManager' });
+        register('managers.keyboard', keyboardManager, { alias: 'keyboardManager' });
+        register('managers.debug', debugManager, { alias: 'debugManager' });
+        register('utils.eventBus', eventBus, { alias: 'eventBus' });
+        register('utils.logger', logger, { alias: 'logger' });
+        register('registry.APP_MODE', APP_MODE);
+        register('registry.EVENT_NAME', EVENT_NAME);
         console.log('  ✅ Core Managers 초기화 완료');
         
         // 2. UI 컴포넌트 초기화 (기존)
@@ -1885,13 +1948,20 @@ function init() {
         
         // 4. 🆕 v5.7.0: ViewManager 초기화
         services.views.viewManager = initViewManager({
-            // 서비스 주입 (eventBus는 기본 포함)
-            webSocketClient: null,  // Scene 초기화 후 설정
+            webSocketClient: null,
             apiClient: services.ui?.apiClient
         }, {
-            initEager: false  // Scene 초기화 후 Eager View 생성
+            initEager: false,
+            registerToNamespace: false  // main.js에서 직접 등록
         });
         console.log('  ✅ ViewManager 초기화 완료');
+        
+        // 🆕 v6.0.0: ViewManager 네임스페이스에 등록
+        register('managers.view', bootstrapViewManager);
+        register('registry.VIEW_REGISTRY', VIEW_REGISTRY);
+        
+        // 🆕 v6.0.0: ScreenManager 네임스페이스에 등록
+        register('managers.screen', screenManager);
         
         // 5. EquipmentEditButton 연동 (기존 4번)
         if (services.ui?.equipmentEditButton) {
@@ -2173,7 +2243,7 @@ function handleCleanup() {
     }
     
     // 애니메이션 중지
-    viewManager.stopAnimation();
+    screenManager.stopAnimation();
     
     // 🆕 v5.1.0: Sidebar UI 정리
     if (sidebarUI) {
