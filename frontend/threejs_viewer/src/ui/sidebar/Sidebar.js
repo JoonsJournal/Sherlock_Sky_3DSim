@@ -3,11 +3,16 @@
  * ==========
  * Cleanroom Sidebar UI 컴포넌트
  * 
- * @version 1.10.0
+ * @version 1.12.0
  * @created 2026-01-11
- * @updated 2026-01-13
+ * @updated 2026-01-18
  * 
  * @changelog
+ * - v1.12.0: 🆕 ViewManager 연동 (2026-01-18)
+ *           - viewManager import 추가
+ *           - _setSubMode()에서 ViewManager 사용
+ *           - _prepareViewSwitch(), _handleLegacySubmode() 메서드 추가
+ *           - View별 하드코딩 제거 → ViewManager 위임
  * - v1.10.0: 🆕 Analysis 모드 활성화 (2026-01-13)
  *           - _handleButtonClick()에 analysis 케이스 추가
  *           - _getParentModeForSubmode()에 analysis 서브모드 매핑 추가
@@ -33,6 +38,9 @@ import { ConnectionModalManager } from './ConnectionModalManager.js';
 
 // ModeIndicatorPanel import
 import { ModeIndicatorPanel } from '../overlay/ModeIndicatorPanel.js';
+
+// 🆕 v1.12.0: ViewManager import
+import { viewManager } from '../../bootstrap/ViewBootstrap.js';
 
 import {
     createButton,
@@ -437,49 +445,148 @@ export class Sidebar {
     
     /**
      * 서브모드 설정
+     * @version 1.12.0 - ViewManager 연동
      */
     _setSubMode(submode) {
+        // ═══════════════════════════════════════════════════════════════
+        // 1. 이전 submode View 숨김 (ViewManager 사용)
+        // ═══════════════════════════════════════════════════════════════
+        if (this.currentSubMode && this.currentSubMode !== submode) {
+            if (viewManager.has(this.currentSubMode)) {
+                viewManager.hide(this.currentSubMode);
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // 2. 현재 submode 저장
+        // ═══════════════════════════════════════════════════════════════
         this.currentSubMode = submode;
         
+        // ═══════════════════════════════════════════════════════════════
+        // 3. 부모 모드 확인 및 전환
+        // ═══════════════════════════════════════════════════════════════
         const parentMode = this._getParentModeForSubmode(submode);
         if (parentMode && this.appModeManager) {
             const appMode = this.APP_MODE[MODE_MAP[parentMode]];
             const currentAppMode = this.appModeManager.getCurrentMode();
-            
             if (appMode && currentAppMode !== appMode) {
-                console.log(`[Sidebar] 🔄 서브메뉴 직접 클릭 감지 - AppModeManager 모드 전환: ${currentAppMode} → ${appMode}`);
+                console.log(`[Sidebar] 🔄 서브메뉴 직접 클릭 → AppModeManager 전환: ${currentAppMode} → ${appMode}`);
                 this.appModeManager.switchMode(appMode);
             }
         }
         
+        // ═══════════════════════════════════════════════════════════════
+        // 4. AppModeManager에 서브모드 알림
+        // ═══════════════════════════════════════════════════════════════
         if (this.appModeManager) {
             this.appModeManager.setSubMode(submode);
         }
         
+        // ═══════════════════════════════════════════════════════════════
+        // 5. 서브메뉴 활성 상태 업데이트
+        // ═══════════════════════════════════════════════════════════════
         updateSubmenuActiveState(this.currentSubMode);
         
-        // 🔧 v1.10.0: 모드별 View 관리
-        if (this.currentMode === 'monitoring' && submode === '3d-view') {
-            this._show3DView();
-        } else if (this.currentMode === 'analysis') {
-            this._showAnalysisView();
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 v1.12.0: ViewManager를 통한 View 전환
+        // ═══════════════════════════════════════════════════════════════
+        if (viewManager.has(submode)) {
+            // ViewManager가 관리하는 View
+            this._prepareViewSwitch(submode);    // 3D/Analysis 등 숨김
+            viewManager.show(submode);
         } else {
-            this._hideAllViews();
+            // ViewManager가 관리하지 않는 기존 View (3d-view 등)
+            this._handleLegacySubmode(submode);
         }
         
+        // ═══════════════════════════════════════════════════════════════
+        // 6. ModeIndicator 업데이트
+        // ═══════════════════════════════════════════════════════════════
         this._updateModeIndicator();
         
+        // ═══════════════════════════════════════════════════════════════
+        // 7. 이벤트 발행
+        // ═══════════════════════════════════════════════════════════════
         if (this.eventBus) {
             this.eventBus.emit('submode:change', {
                 submode: submode,
                 mode: this.currentMode,
                 parentMode: parentMode
             });
-            console.log(`[Sidebar] 📡 submode:change 이벤트 발행: ${submode}`);
+            console.log(`[Sidebar] 📡 submode:change 발행: ${submode}`);
         }
         
+        // ═══════════════════════════════════════════════════════════════
+        // 8. Toast 알림
+        // ═══════════════════════════════════════════════════════════════
         if (this.toast) {
             this.toast.info('Mode Changed', `${this.currentMode} → ${submode}`);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // 🆕 v1.12.0: ViewManager 연동 메서드
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * 🆕 v1.12.0: View 전환 준비 (다른 View/컨테이너 숨김)
+     * ViewManager로 관리되는 View를 show하기 전에 호출
+     * @param {string} targetSubmode - 전환할 submode ID
+     */
+    _prepareViewSwitch(targetSubmode) {
+        console.log(`[Sidebar] 🔄 View 전환 준비: ${targetSubmode}`);
+        
+        // Three.js 컨테이너 숨김
+        const threejsContainer = document.getElementById('threejs-container');
+        if (threejsContainer) {
+            threejsContainer.classList.remove('active');
+            threejsContainer.style.display = 'none';
+        }
+        
+        // CameraNavigator 숨김
+        const cameraNav = document.getElementById('camera-navigator');
+        if (cameraNav) {
+            cameraNav.style.display = 'none';
+        }
+        
+        // Analysis 컨테이너 숨김
+        const analysisContainer = document.getElementById('analysis-container');
+        if (analysisContainer) {
+            analysisContainer.classList.add('hidden');
+        }
+        
+        // Cover Screen 숨김
+        const coverScreen = document.getElementById('cover-screen');
+        if (coverScreen) {
+            coverScreen.classList.add('hidden');
+        }
+        
+        // 3D Rendering 일시 정지 이벤트
+        if (this.eventBus) {
+            this.eventBus.emit('threejs:pause-requested');
+        }
+    }
+
+    /**
+     * 🆕 v1.12.0: 기존 submode 처리 (ViewManager가 관리하지 않는 View)
+     * @param {string} submode - submode ID
+     */
+    _handleLegacySubmode(submode) {
+        console.log(`[Sidebar] 📦 Legacy submode 처리: ${submode}`);
+        
+        switch (submode) {
+            case '3d-view':
+                this._show3DView();
+                break;
+                
+            case 'layout-editor':
+            case 'mapping':
+                // Layout 모드 처리 (기존 로직 유지)
+                // 별도 처리 필요 시 여기에 추가
+                break;
+                
+            default:
+                console.warn(`[Sidebar] ⚠️ Unknown legacy submode: ${submode}`);
         }
     }
     
