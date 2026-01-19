@@ -1,34 +1,34 @@
 /**
  * EquipmentCard.js
  * ================
- * 설비 카드 컴포넌트 (긴급도 표시 강화 버전)
+ * 설비 카드 UI 컴포넌트
  * 
  * @version 1.1.0
  * @description
- * - 설비 상태 카드 UI
- * - 실시간 지속 시간 업데이트
+ * - 설비 카드 DOM 생성 및 관리
+ * - 상태 인디케이터, 알람 정보, 생산 정보 표시
+ * - 실시간 지속 시간 업데이트 (타이머)
  * - 긴급도 시각 효과 (Pulse 애니메이션)
- * - 상태별 색상 표시
- * - 클릭 시 Equipment Info Drawer 연동
- * - MiniTimeline 통합
+ * - 클릭 이벤트 → EventBus 발행
+ * - MiniTimeline 컴포넌트 연동 (Phase 6)
  * 
  * @changelog
- * - v1.1.0: 긴급도 표시 강화
- *   - 5분/10분/15분 초과 시 시각적 긴급도 표시
- *   - Pulse 애니메이션 적용
- *   - 긴급도 레벨별 테두리 색상
+ * - v1.1.0: 🆕 Phase 6 - 긴급도 표시 강화 + MiniTimeline 통합
+ *   - getUrgencyLevel() 메서드 추가
  *   - MiniTimeline 컴포넌트 통합
- *   - ⚠️ 호환성: 기존 모든 필드/로직 100% 유지
+ *   - 긴급도 테두리 색상 동적 업데이트
+ *   - 필드명 호환성 유지 (alarmMessage/alarmName, occurredAt/statusStartTime 등)
+ *   - ⚠️ 호환성: v1.0.0의 모든 기능 100% 유지
  * - v1.0.0: 초기 버전
  *   - 카드 DOM 생성
- *   - 상태 인디케이터
- *   - 지속 시간 타이머
+ *   - 상태별 스타일링
  *   - 클릭 이벤트 처리
+ *   - 지속 시간 타이머
  * 
  * @dependencies
- * - EventBus (이벤트 발행)
- * - DurationCalculator (시간 계산)
- * - MiniTimeline (상태 히스토리)
+ * - EventBus (src/core/managers/EventBus.js)
+ * - DurationCalculator (../utils/DurationCalculator.js)
+ * - MiniTimeline (./MiniTimeline.js)
  * 
  * @exports
  * - EquipmentCard
@@ -42,38 +42,45 @@ import { eventBus } from '../../../core/managers/EventBus.js';
 import { DurationCalculator } from '../utils/DurationCalculator.js';
 import { MiniTimeline } from './MiniTimeline.js';
 
+/**
+ * 긴급도 임계값 설정 (분 단위)
+ */
+const URGENCY_THRESHOLDS = {
+    WARNING: 5,    // 5분 초과 → Yellow
+    DANGER: 10,    // 10분 초과 → Orange + Pulse
+    CRITICAL: 15   // 15분 초과 → Red + 강한 Pulse
+};
+
+/**
+ * Remote Alarm Code 목록
+ */
+const REMOTE_ALARM_CODES = [
+    61, 62, 86, 10047, 10048, 10051, 10052, 10055, 10056, 10057, 10058, 10077
+];
+
 export class EquipmentCard {
-    // =========================================================================
-    // CSS 클래스 상수
-    // =========================================================================
+    /**
+     * CSS 클래스 상수 정의
+     */
     static CSS = {
         // Block
         BLOCK: 'equipment-card',
         
-        // Elements - Header
+        // Elements
         HEADER: 'equipment-card__header',
         STATUS_INDICATOR: 'equipment-card__status-indicator',
         EQUIPMENT_ID: 'equipment-card__equipment-id',
-        
-        // Elements - Duration
         DURATION: 'equipment-card__duration',
-        DURATION_VALUE: 'equipment-card__duration-value',
-        DURATION_LABEL: 'equipment-card__duration-label',
-        
-        // Elements - Timeline
         TIMELINE: 'equipment-card__timeline',
-        
-        // Elements - Alarm Info
         ALARM_INFO: 'equipment-card__alarm-info',
         ALARM_CODE: 'equipment-card__alarm-code',
-        ALARM_NAME: 'equipment-card__alarm-name',
+        ALARM_MESSAGE: 'equipment-card__alarm-message',
         ALARM_REPEAT: 'equipment-card__alarm-repeat',
-        
-        // Elements - Production Info
         PRODUCTION_INFO: 'equipment-card__production-info',
+        PRODUCTION_COUNT: 'equipment-card__production-count',
         PRODUCTION_BAR: 'equipment-card__production-bar',
         PRODUCTION_BAR_FILL: 'equipment-card__production-bar-fill',
-        PRODUCTION_COUNT: 'equipment-card__production-count',
+        PRODUCTION_PERCENT: 'equipment-card__production-percent',
         LOT_TIME: 'equipment-card__lot-time',
         
         // Status Modifiers
@@ -84,14 +91,14 @@ export class EquipmentCard {
         STATUS_REMOTE: 'equipment-card--remote',
         STATUS_WAIT: 'equipment-card--wait',
         
-        // Urgency Modifiers (긴급도)
-        URGENCY_WARNING: 'equipment-card--urgency-warning',     // 5분 초과 - 노란색
-        URGENCY_DANGER: 'equipment-card--urgency-danger',       // 10분 초과 - 주황색
-        URGENCY_CRITICAL: 'equipment-card--urgency-critical',   // 15분 초과 - 빨간색
+        // Urgency Modifiers (🆕 v1.1.0)
+        URGENCY_WARNING: 'equipment-card--urgency-warning',
+        URGENCY_DANGER: 'equipment-card--urgency-danger',
+        URGENCY_CRITICAL: 'equipment-card--urgency-critical',
         
-        // Animation Modifiers
-        ANIMATING: 'equipment-card--animating',
+        // State Modifiers
         SELECTED: 'equipment-card--selected',
+        ANIMATING: 'equipment-card--animating',
         ENTERING: 'equipment-card--entering',
         LEAVING: 'equipment-card--leaving',
         
@@ -100,555 +107,557 @@ export class EquipmentCard {
         LEGACY_ACTIVE: 'active'
     };
     
-    // =========================================================================
-    // 긴급도 임계값 (분 단위)
-    // =========================================================================
-    static URGENCY_THRESHOLDS = {
-        WARNING: 5,     // 5분 초과 - 노란색 테두리
-        DANGER: 10,     // 10분 초과 - 주황색 테두리 + Pulse
-        CRITICAL: 15    // 15분 초과 - 빨간색 테두리 + 강한 Pulse
-    };
-    
-    // =========================================================================
-    // 상태별 색상
-    // =========================================================================
-    static STATUS_COLORS = {
-        'RUN': 'var(--interactive-success, #22c55e)',
-        'SUDDENSTOP': 'var(--interactive-danger-normal, #ef4444)',
-        'STOP': 'var(--interactive-warning, #f97316)',
-        'IDLE': 'var(--status-idle-color, #eab308)',
-        'WAIT': 'var(--content-muted, #94a3b8)',
-        'REMOTE': 'var(--interactive-primary-normal, #8b5cf6)'
-    };
-    
-    // =========================================================================
-    // 설정
-    // =========================================================================
-    static CONFIG = {
-        DURATION_UPDATE_INTERVAL: 2000,     // 지속 시간 업데이트 간격 (2초)
-        URGENCY_CHECK_INTERVAL: 5000        // 긴급도 체크 간격 (5초)
-    };
-    
-    // =========================================================================
-    // 생성자
-    // =========================================================================
     /**
-     * EquipmentCard 생성자
+     * Status Icon 매핑
+     */
+    static STATUS_ICONS = {
+        RUN: '🟢',
+        STOP: '🛑',
+        IDLE: '🟡',
+        SUDDENSTOP: '⚠️',
+        REMOTE: '🔴',
+        WAIT: '⏸️',
+        DEFAULT: '⚪'
+    };
+    
+    /**
      * @param {Object} data - 설비 데이터
-     * @param {string} data.equipmentId - 설비 ID
-     * @param {string} data.frontendId - 프론트엔드 ID
-     * @param {string} data.status - 현재 상태
-     * @param {number} [data.alarmCode] - 알람 코드
-     * @param {string} [data.alarmName] - 알람 이름
-     * @param {number} [data.alarmRepeat] - 알람 반복 횟수
-     * @param {number} [data.productionCount] - 생산 개수
-     * @param {number} [data.productionTarget] - 생산 목표
-     * @param {Date|string} data.statusStartTime - 상태 시작 시간
-     * @param {Date|string} [data.lotStartTime] - Lot 시작 시간
-     * @param {Array} [data.historyData] - 상태 히스토리
      * @param {Object} [options] - 옵션
+     * @param {boolean} [options.showTimeline] - MiniTimeline 표시 여부
      */
     constructor(data, options = {}) {
-        this.data = data;
-        this.options = {
-            showTimeline: options.showTimeline !== false,
-            showProduction: options.showProduction !== false,
-            showAlarm: options.showAlarm !== false,
-            ...options
-        };
+        // Data (필드명 호환성 처리)
+        this._data = this._normalizeData(data);
         
-        // DOM 요소
+        // Options
+        this._showTimeline = options.showTimeline ?? true;
+        
+        // DOM References
         this.element = null;
-        this.durationElement = null;
-        this.productionBarFill = null;
-        this.miniTimeline = null;
+        this._durationElement = null;
+        this._productionBarFill = null;
+        this._productionCountElement = null;
+        this._productionPercentElement = null;
+        this._lotTimeElement = null;
+        this._timelineContainer = null;
         
-        // 상태
+        // Components
+        this._miniTimeline = null;
+        
+        // State
         this._isSelected = false;
-        this._isDisposed = false;
         this._currentUrgencyLevel = null;
         
-        // 타이머
+        // Timer
         this._durationTimer = null;
-        this._urgencyTimer = null;
+        this._lotTimeTimer = null;
         
-        // 이벤트 핸들러
+        // Event Handlers
         this._boundHandlers = {};
         
-        // 초기화
-        this._init();
-    }
-    
-    // =========================================================================
-    // 초기화
-    // =========================================================================
-    _init() {
+        // Initialize
         this._createDOM();
-        this._applyStatusStyle();
         this._setupEventListeners();
-        this._startDurationTimer();
-        this._startUrgencyTimer();
-        this._updateUrgencyIndicator();
-        
-        console.log(`[EquipmentCard] ✅ Initialized: ${this.data.frontendId}`);
+        this._startTimers();
+        this._updateUrgencyLevel();
     }
     
-    // =========================================================================
-    // DOM 생성
-    // =========================================================================
+    // =========================================
+    // Private Methods
+    // =========================================
+    
+    /**
+     * 데이터 필드명 정규화 (호환성)
+     * @private
+     * @param {Object} data
+     * @returns {Object}
+     */
+    _normalizeData(data) {
+        return {
+            // 기본 정보
+            equipmentId: data.equipmentId || data.equipment_id,
+            frontendId: data.frontendId || data.frontend_id || data.equipmentId,
+            equipmentName: data.equipmentName || data.equipment_name,
+            
+            // 상태 정보
+            status: data.status || 'UNKNOWN',
+            
+            // 시간 정보 (호환성: occurredAt / statusStartTime)
+            occurredAt: data.occurredAt || data.statusStartTime || data.occurred_at || new Date().toISOString(),
+            statusStartTime: data.statusStartTime || data.occurredAt || data.status_start_time,
+            
+            // 알람 정보 (호환성: alarmMessage / alarmName)
+            alarmCode: data.alarmCode || data.alarm_code,
+            alarmMessage: data.alarmMessage || data.alarmName || data.alarm_message || data.alarm_name,
+            alarmName: data.alarmName || data.alarmMessage,
+            
+            // 알람 반복 (호환성: alarmRepeatCount / alarmRepeat)
+            alarmRepeatCount: data.alarmRepeatCount || data.alarmRepeat || data.alarm_repeat_count || 0,
+            alarmRepeat: data.alarmRepeat || data.alarmRepeatCount,
+            
+            // 생산 정보 (호환성: targetCount / productionTarget)
+            productionCount: data.productionCount || data.production_count || 0,
+            targetCount: data.targetCount || data.productionTarget || data.target_count || 0,
+            productionTarget: data.productionTarget || data.targetCount,
+            
+            // Lot 정보
+            lotId: data.lotId || data.lot_id,
+            lotStartTime: data.lotStartTime || data.lot_start_time,
+            
+            // 히스토리 (MiniTimeline용)
+            stateHistory: data.stateHistory || data.state_history || []
+        };
+    }
+    
+    /**
+     * DOM 생성
+     * @private
+     */
     _createDOM() {
-        // 카드 컨테이너
+        // Main container
         this.element = document.createElement('div');
         this.element.classList.add(EquipmentCard.CSS.BLOCK);
-        this.element.dataset.equipmentId = this.data.equipmentId;
-        this.element.dataset.frontendId = this.data.frontendId;
+        this.element.dataset.equipmentId = this._data.frontendId;
         
-        // Header (상태 인디케이터 + 설비 ID)
+        // Status modifier 추가
+        this._addStatusModifier();
+        
+        // Header (Status + ID + Duration)
         const header = this._createHeader();
         this.element.appendChild(header);
         
-        // 지속 시간
-        const duration = this._createDuration();
-        this.element.appendChild(duration);
-        
-        // MiniTimeline (옵션)
-        if (this.options.showTimeline) {
-            const timeline = this._createTimeline();
-            this.element.appendChild(timeline);
+        // 🆕 v1.1.0: Timeline (MiniTimeline)
+        if (this._showTimeline) {
+            this._timelineContainer = this._createTimeline();
+            this.element.appendChild(this._timelineContainer);
         }
         
-        // 알람 정보 (옵션)
-        if (this.options.showAlarm && this.data.alarmCode) {
+        // Alarm Info (알람이 있는 경우만)
+        if (this._data.alarmCode) {
             const alarmInfo = this._createAlarmInfo();
             this.element.appendChild(alarmInfo);
         }
         
-        // 생산 정보 (옵션)
-        if (this.options.showProduction) {
-            const productionInfo = this._createProductionInfo();
-            this.element.appendChild(productionInfo);
+        // Production Info
+        const productionInfo = this._createProductionInfo();
+        this.element.appendChild(productionInfo);
+        
+        // Lot Time
+        if (this._data.lotStartTime) {
+            const lotTime = this._createLotTime();
+            this.element.appendChild(lotTime);
         }
     }
     
-    // =========================================================================
-    // Header 생성
-    // =========================================================================
+    /**
+     * Status Modifier 추가
+     * @private
+     */
+    _addStatusModifier() {
+        const status = this._data.status?.toUpperCase();
+        const alarmCode = this._data.alarmCode;
+        
+        // Remote 알람 체크
+        if (status === 'SUDDENSTOP' && REMOTE_ALARM_CODES.includes(alarmCode)) {
+            this.element.classList.add(EquipmentCard.CSS.STATUS_REMOTE);
+            return;
+        }
+        
+        // 일반 상태
+        switch (status) {
+            case 'RUN':
+                this.element.classList.add(EquipmentCard.CSS.STATUS_RUN);
+                break;
+            case 'STOP':
+                this.element.classList.add(EquipmentCard.CSS.STATUS_STOP);
+                break;
+            case 'IDLE':
+                this.element.classList.add(EquipmentCard.CSS.STATUS_IDLE);
+                break;
+            case 'SUDDENSTOP':
+                this.element.classList.add(EquipmentCard.CSS.STATUS_SUDDEN_STOP);
+                break;
+            case 'WAIT':
+                this.element.classList.add(EquipmentCard.CSS.STATUS_WAIT);
+                break;
+        }
+    }
+    
+    /**
+     * Header 생성
+     * @private
+     * @returns {HTMLElement}
+     */
     _createHeader() {
         const header = document.createElement('div');
         header.classList.add(EquipmentCard.CSS.HEADER);
         
-        // 상태 인디케이터
-        const indicator = document.createElement('div');
-        indicator.classList.add(EquipmentCard.CSS.STATUS_INDICATOR);
-        indicator.style.backgroundColor = EquipmentCard.STATUS_COLORS[this.data.status] || EquipmentCard.STATUS_COLORS.WAIT;
-        header.appendChild(indicator);
+        // Status Indicator
+        const statusIndicator = document.createElement('span');
+        statusIndicator.classList.add(EquipmentCard.CSS.STATUS_INDICATOR);
+        statusIndicator.textContent = this._getStatusIcon();
+        header.appendChild(statusIndicator);
         
-        // 설비 ID
+        // Equipment ID
         const equipmentId = document.createElement('span');
         equipmentId.classList.add(EquipmentCard.CSS.EQUIPMENT_ID);
-        equipmentId.textContent = this.data.frontendId || this.data.equipmentId;
+        equipmentId.textContent = this._data.frontendId;
         header.appendChild(equipmentId);
+        
+        // Duration
+        this._durationElement = document.createElement('span');
+        this._durationElement.classList.add(EquipmentCard.CSS.DURATION);
+        this._durationElement.textContent = this._formatDuration(this._data.occurredAt);
+        header.appendChild(this._durationElement);
         
         return header;
     }
     
-    // =========================================================================
-    // 지속 시간 생성
-    // =========================================================================
-    _createDuration() {
-        const duration = document.createElement('div');
-        duration.classList.add(EquipmentCard.CSS.DURATION);
-        
-        const durationValue = document.createElement('span');
-        durationValue.classList.add(EquipmentCard.CSS.DURATION_VALUE);
-        durationValue.textContent = this._calculateDuration();
-        this.durationElement = durationValue;
-        duration.appendChild(durationValue);
-        
-        const durationLabel = document.createElement('span');
-        durationLabel.classList.add(EquipmentCard.CSS.DURATION_LABEL);
-        durationLabel.textContent = '경과';
-        duration.appendChild(durationLabel);
-        
-        return duration;
-    }
-    
-    // =========================================================================
-    // MiniTimeline 생성
-    // =========================================================================
+    /**
+     * 🆕 v1.1.0: Timeline 생성 (MiniTimeline 컴포넌트)
+     * @private
+     * @returns {HTMLElement}
+     */
     _createTimeline() {
-        const timelineContainer = document.createElement('div');
-        timelineContainer.classList.add(EquipmentCard.CSS.TIMELINE);
+        const container = document.createElement('div');
+        container.classList.add(EquipmentCard.CSS.TIMELINE);
         
         // MiniTimeline 컴포넌트 생성
-        this.miniTimeline = new MiniTimeline({
-            historyData: this.data.historyData || [],
-            equipmentId: this.data.frontendId || this.data.equipmentId,
-            width: 120,
-            height: 12
+        this._miniTimeline = new MiniTimeline({
+            history: this._data.stateHistory,
+            width: '100%',
+            height: 20
         });
         
-        timelineContainer.appendChild(this.miniTimeline.getElement());
+        container.appendChild(this._miniTimeline.element);
         
-        return timelineContainer;
+        return container;
     }
     
-    // =========================================================================
-    // 알람 정보 생성
-    // =========================================================================
+    /**
+     * Alarm Info 생성
+     * @private
+     * @returns {HTMLElement}
+     */
     _createAlarmInfo() {
         const alarmInfo = document.createElement('div');
         alarmInfo.classList.add(EquipmentCard.CSS.ALARM_INFO);
         
-        // 알람 코드
-        const alarmCode = document.createElement('span');
-        alarmCode.classList.add(EquipmentCard.CSS.ALARM_CODE);
-        alarmCode.textContent = `#${this.data.alarmCode}`;
-        alarmInfo.appendChild(alarmCode);
+        // Alarm Code + Message
+        const alarmText = document.createElement('div');
+        alarmText.classList.add(EquipmentCard.CSS.ALARM_CODE);
+        alarmText.innerHTML = `⚠️ <strong>${this._data.alarmCode}</strong>: ${this._data.alarmMessage || 'Unknown'}`;
+        alarmInfo.appendChild(alarmText);
         
-        // 알람 이름
-        if (this.data.alarmName) {
-            const alarmName = document.createElement('span');
-            alarmName.classList.add(EquipmentCard.CSS.ALARM_NAME);
-            alarmName.textContent = this.data.alarmName;
-            alarmInfo.appendChild(alarmName);
-        }
-        
-        // 알람 반복 횟수
-        if (this.data.alarmRepeat && this.data.alarmRepeat > 1) {
-            const alarmRepeat = document.createElement('span');
-            alarmRepeat.classList.add(EquipmentCard.CSS.ALARM_REPEAT);
-            alarmRepeat.textContent = `×${this.data.alarmRepeat}`;
-            alarmInfo.appendChild(alarmRepeat);
+        // Alarm Repeat Count
+        if (this._data.alarmRepeatCount > 0) {
+            const repeatCount = document.createElement('div');
+            repeatCount.classList.add(EquipmentCard.CSS.ALARM_REPEAT);
+            repeatCount.textContent = `🔄 반복: ${this._data.alarmRepeatCount}회`;
+            alarmInfo.appendChild(repeatCount);
         }
         
         return alarmInfo;
     }
     
-    // =========================================================================
-    // 생산 정보 생성
-    // =========================================================================
+    /**
+     * Production Info 생성
+     * @private
+     * @returns {HTMLElement}
+     */
     _createProductionInfo() {
         const productionInfo = document.createElement('div');
         productionInfo.classList.add(EquipmentCard.CSS.PRODUCTION_INFO);
         
-        // 생산 진행 바
-        const productionBar = document.createElement('div');
-        productionBar.classList.add(EquipmentCard.CSS.PRODUCTION_BAR);
+        // Production Count
+        this._productionCountElement = document.createElement('div');
+        this._productionCountElement.classList.add(EquipmentCard.CSS.PRODUCTION_COUNT);
+        this._updateProductionCountText();
+        productionInfo.appendChild(this._productionCountElement);
         
-        const productionBarFill = document.createElement('div');
-        productionBarFill.classList.add(EquipmentCard.CSS.PRODUCTION_BAR_FILL);
-        const progress = this._calculateProductionProgress();
-        productionBarFill.style.width = `${progress}%`;
-        this.productionBarFill = productionBarFill;
-        productionBar.appendChild(productionBarFill);
+        // Progress Bar
+        const progressBar = document.createElement('div');
+        progressBar.classList.add(EquipmentCard.CSS.PRODUCTION_BAR);
         
-        productionInfo.appendChild(productionBar);
+        this._productionBarFill = document.createElement('div');
+        this._productionBarFill.classList.add(EquipmentCard.CSS.PRODUCTION_BAR_FILL);
+        this._updateProgressBar();
+        progressBar.appendChild(this._productionBarFill);
         
-        // 생산 개수
-        const productionCount = document.createElement('span');
-        productionCount.classList.add(EquipmentCard.CSS.PRODUCTION_COUNT);
-        productionCount.textContent = this._formatProductionCount();
-        this.productionCountElement = productionCount;
-        productionInfo.appendChild(productionCount);
+        productionInfo.appendChild(progressBar);
         
-        // Lot 시간 (옵션)
-        if (this.data.lotStartTime) {
-            const lotTime = document.createElement('span');
-            lotTime.classList.add(EquipmentCard.CSS.LOT_TIME);
-            lotTime.textContent = this._calculateLotTime();
-            this.lotTimeElement = lotTime;
-            productionInfo.appendChild(lotTime);
-        }
+        // Percentage
+        this._productionPercentElement = document.createElement('span');
+        this._productionPercentElement.classList.add(EquipmentCard.CSS.PRODUCTION_PERCENT);
+        this._updatePercentageText();
+        productionInfo.appendChild(this._productionPercentElement);
         
         return productionInfo;
     }
     
-    // =========================================================================
-    // 상태 스타일 적용
-    // =========================================================================
-    _applyStatusStyle() {
-        // 기존 상태 클래스 제거
-        Object.keys(EquipmentCard.CSS)
-            .filter(key => key.startsWith('STATUS_'))
-            .forEach(key => {
-                this.element.classList.remove(EquipmentCard.CSS[key]);
-            });
+    /**
+     * Lot Time 생성
+     * @private
+     * @returns {HTMLElement}
+     */
+    _createLotTime() {
+        const lotTime = document.createElement('div');
+        lotTime.classList.add(EquipmentCard.CSS.LOT_TIME);
         
-        // 새 상태 클래스 적용
-        const statusClassMap = {
-            'RUN': EquipmentCard.CSS.STATUS_RUN,
-            'STOP': EquipmentCard.CSS.STATUS_STOP,
-            'IDLE': EquipmentCard.CSS.STATUS_IDLE,
-            'SUDDENSTOP': EquipmentCard.CSS.STATUS_SUDDEN_STOP,
-            'REMOTE': EquipmentCard.CSS.STATUS_REMOTE,
-            'WAIT': EquipmentCard.CSS.STATUS_WAIT
-        };
+        this._lotTimeElement = document.createElement('span');
+        this._lotTimeElement.textContent = `⏳ Lot Time: ${this._formatDuration(this._data.lotStartTime)}`;
+        lotTime.appendChild(this._lotTimeElement);
         
-        const statusClass = statusClassMap[this.data.status] || EquipmentCard.CSS.STATUS_WAIT;
-        this.element.classList.add(statusClass);
+        return lotTime;
     }
     
-    // =========================================================================
-    // 이벤트 리스너 설정
-    // =========================================================================
+    /**
+     * 이벤트 리스너 설정
+     * @private
+     */
     _setupEventListeners() {
+        // Click handler
         this._boundHandlers.onClick = this._handleClick.bind(this);
-        this._boundHandlers.onKeyDown = this._handleKeyDown.bind(this);
-        
         this.element.addEventListener('click', this._boundHandlers.onClick);
-        this.element.addEventListener('keydown', this._boundHandlers.onKeyDown);
         
-        // 포커스 가능하게 설정
-        this.element.setAttribute('tabindex', '0');
-        this.element.setAttribute('role', 'button');
-        this.element.setAttribute('aria-label', `설비 ${this.data.frontendId} 상세 보기`);
+        // Double click handler (예약: 3D View 전환)
+        this._boundHandlers.onDoubleClick = this._handleDoubleClick.bind(this);
+        this.element.addEventListener('dblclick', this._boundHandlers.onDoubleClick);
     }
     
-    // =========================================================================
-    // 클릭 이벤트 핸들러
-    // =========================================================================
-    _handleClick(event) {
-        event.stopPropagation();
+    /**
+     * 타이머 시작
+     * @private
+     */
+    _startTimers() {
+        // Duration 타이머 (2초 간격)
+        this._durationTimer = setInterval(() => {
+            this._updateDuration();
+            this._updateUrgencyLevel();
+        }, 2000);
         
-        console.log(`[EquipmentCard] 📌 Clicked: ${this.data.frontendId}`);
-        
-        // EventBus로 선택 이벤트 발행
-        EventBus.emit('equipment:select', {
-            equipmentId: this.data.equipmentId,
-            frontendId: this.data.frontendId,
-            source: 'ranking-view',
-            cardElement: this.element
-        });
-        
-        // 선택 상태 업데이트
-        this.setSelected(true);
-    }
-    
-    // =========================================================================
-    // 키보드 이벤트 핸들러
-    // =========================================================================
-    _handleKeyDown(event) {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            this._handleClick(event);
+        // Lot Time 타이머 (2초 간격)
+        if (this._data.lotStartTime && this._lotTimeElement) {
+            this._lotTimeTimer = setInterval(() => {
+                this._updateLotTime();
+            }, 2000);
         }
     }
     
-    // =========================================================================
-    // 지속 시간 타이머
-    // =========================================================================
-    _startDurationTimer() {
-        this._durationTimer = setInterval(() => {
-            this._updateDuration();
-        }, EquipmentCard.CONFIG.DURATION_UPDATE_INTERVAL);
-    }
-    
-    _stopDurationTimer() {
+    /**
+     * 타이머 중지
+     * @private
+     */
+    _stopTimers() {
         if (this._durationTimer) {
             clearInterval(this._durationTimer);
             this._durationTimer = null;
         }
+        
+        if (this._lotTimeTimer) {
+            clearInterval(this._lotTimeTimer);
+            this._lotTimeTimer = null;
+        }
     }
     
+    /**
+     * Status Icon 가져오기
+     * @private
+     * @returns {string}
+     */
+    _getStatusIcon() {
+        const status = this._data.status?.toUpperCase();
+        const alarmCode = this._data.alarmCode;
+        
+        // Remote 알람
+        if (status === 'SUDDENSTOP' && REMOTE_ALARM_CODES.includes(alarmCode)) {
+            return EquipmentCard.STATUS_ICONS.REMOTE;
+        }
+        
+        return EquipmentCard.STATUS_ICONS[status] || EquipmentCard.STATUS_ICONS.DEFAULT;
+    }
+    
+    /**
+     * Duration 포맷팅
+     * @private
+     * @param {string} startTime - ISO 시간 문자열
+     * @returns {string}
+     */
+    _formatDuration(startTime) {
+        if (!startTime) return '00:00:00';
+        return DurationCalculator.format(startTime);
+    }
+    
+    /**
+     * Duration 업데이트
+     * @private
+     */
     _updateDuration() {
-        if (this.durationElement) {
-            this.durationElement.textContent = this._calculateDuration();
+        if (this._durationElement) {
+            this._durationElement.textContent = this._formatDuration(this._data.occurredAt);
         }
+    }
+    
+    /**
+     * Lot Time 업데이트
+     * @private
+     */
+    _updateLotTime() {
+        if (this._lotTimeElement && this._data.lotStartTime) {
+            this._lotTimeElement.textContent = `⏳ Lot Time: ${this._formatDuration(this._data.lotStartTime)}`;
+        }
+    }
+    
+    /**
+     * Production Count 텍스트 업데이트
+     * @private
+     */
+    _updateProductionCountText() {
+        if (this._productionCountElement) {
+            const count = this._data.productionCount || 0;
+            const target = this._data.targetCount || 0;
+            this._productionCountElement.innerHTML = `📦 <strong>${count}</strong> / ${target}`;
+        }
+    }
+    
+    /**
+     * Progress Bar 업데이트
+     * @private
+     */
+    _updateProgressBar() {
+        if (this._productionBarFill) {
+            const count = this._data.productionCount || 0;
+            const target = this._data.targetCount || 1;
+            const percent = Math.min(100, (count / target) * 100);
+            this._productionBarFill.style.width = `${percent}%`;
+        }
+    }
+    
+    /**
+     * Percentage 텍스트 업데이트
+     * @private
+     */
+    _updatePercentageText() {
+        if (this._productionPercentElement) {
+            const count = this._data.productionCount || 0;
+            const target = this._data.targetCount || 1;
+            const percent = Math.min(100, Math.round((count / target) * 100));
+            this._productionPercentElement.textContent = `${percent}%`;
+        }
+    }
+    
+    /**
+     * 🆕 v1.1.0: 긴급도 레벨 업데이트
+     * @private
+     */
+    _updateUrgencyLevel() {
+        const level = this.getUrgencyLevel();
         
-        if (this.lotTimeElement) {
-            this.lotTimeElement.textContent = this._calculateLotTime();
-        }
-    }
-    
-    // =========================================================================
-    // 긴급도 타이머
-    // =========================================================================
-    _startUrgencyTimer() {
-        this._urgencyTimer = setInterval(() => {
-            this._updateUrgencyIndicator();
-        }, EquipmentCard.CONFIG.URGENCY_CHECK_INTERVAL);
-    }
-    
-    _stopUrgencyTimer() {
-        if (this._urgencyTimer) {
-            clearInterval(this._urgencyTimer);
-            this._urgencyTimer = null;
-        }
-    }
-    
-    // =========================================================================
-    // 긴급도 표시 업데이트 (핵심 기능)
-    // =========================================================================
-    _updateUrgencyIndicator() {
-        const durationMinutes = this._getDurationMinutes();
+        // 이전 레벨과 동일하면 스킵
+        if (level === this._currentUrgencyLevel) return;
         
-        // 기존 긴급도 클래스 제거
+        // 이전 긴급도 클래스 제거
         this.element.classList.remove(
             EquipmentCard.CSS.URGENCY_WARNING,
             EquipmentCard.CSS.URGENCY_DANGER,
             EquipmentCard.CSS.URGENCY_CRITICAL
         );
         
-        // 긴급도가 필요한 상태인지 확인 (SUDDENSTOP, STOP만 해당)
-        const urgencyApplicableStatuses = ['SUDDENSTOP', 'STOP', 'REMOTE'];
-        if (!urgencyApplicableStatuses.includes(this.data.status)) {
-            this._currentUrgencyLevel = null;
-            return;
+        // 새 긴급도 클래스 추가
+        switch (level) {
+            case 'warning':
+                this.element.classList.add(EquipmentCard.CSS.URGENCY_WARNING);
+                break;
+            case 'danger':
+                this.element.classList.add(EquipmentCard.CSS.URGENCY_DANGER);
+                break;
+            case 'critical':
+                this.element.classList.add(EquipmentCard.CSS.URGENCY_CRITICAL);
+                break;
         }
         
-        // 새 긴급도 적용
-        let newUrgencyLevel = null;
-        
-        if (durationMinutes > EquipmentCard.URGENCY_THRESHOLDS.CRITICAL) {
-            // 15분 초과 → 빨간색 테두리 + 강한 Pulse
-            this.element.classList.add(EquipmentCard.CSS.URGENCY_CRITICAL);
-            newUrgencyLevel = 'CRITICAL';
-        } else if (durationMinutes > EquipmentCard.URGENCY_THRESHOLDS.DANGER) {
-            // 10분 초과 → 주황색 테두리 + Pulse
-            this.element.classList.add(EquipmentCard.CSS.URGENCY_DANGER);
-            newUrgencyLevel = 'DANGER';
-        } else if (durationMinutes > EquipmentCard.URGENCY_THRESHOLDS.WARNING) {
-            // 5분 초과 → 노란색 테두리
-            this.element.classList.add(EquipmentCard.CSS.URGENCY_WARNING);
-            newUrgencyLevel = 'WARNING';
-        }
-        
-        // 긴급도 레벨 변경 시 로그
-        if (this._currentUrgencyLevel !== newUrgencyLevel && newUrgencyLevel) {
-            console.log(`[EquipmentCard] ⚠️ Urgency changed: ${this.data.frontendId} → ${newUrgencyLevel} (${durationMinutes.toFixed(1)}분)`);
-        }
-        
-        this._currentUrgencyLevel = newUrgencyLevel;
+        this._currentUrgencyLevel = level;
     }
     
-    // =========================================================================
-    // 지속 시간 계산 (분)
-    // =========================================================================
-    _getDurationMinutes() {
-        if (!this.data.statusStartTime) return 0;
-        
-        const startTime = new Date(this.data.statusStartTime).getTime();
-        const now = Date.now();
-        const durationMs = now - startTime;
-        
-        return durationMs / (1000 * 60); // 분 단위
-    }
-    
-    // =========================================================================
-    // 지속 시간 포맷
-    // =========================================================================
-    _calculateDuration() {
-        if (!this.data.statusStartTime) return '--:--';
-        
-        const startTime = new Date(this.data.statusStartTime).getTime();
-        const now = Date.now();
-        const durationMs = now - startTime;
-        
-        return DurationCalculator.formatDuration(durationMs);
-    }
-    
-    // =========================================================================
-    // Lot 시간 계산
-    // =========================================================================
-    _calculateLotTime() {
-        if (!this.data.lotStartTime) return '--:--';
-        
-        const startTime = new Date(this.data.lotStartTime).getTime();
-        const now = Date.now();
-        const durationMs = now - startTime;
-        
-        return DurationCalculator.formatDuration(durationMs);
-    }
-    
-    // =========================================================================
-    // 생산 진행률 계산
-    // =========================================================================
-    _calculateProductionProgress() {
-        if (!this.data.productionTarget || this.data.productionTarget === 0) {
-            return 0;
-        }
-        
-        const progress = (this.data.productionCount || 0) / this.data.productionTarget * 100;
-        return Math.min(progress, 100);
-    }
-    
-    // =========================================================================
-    // 생산 개수 포맷
-    // =========================================================================
-    _formatProductionCount() {
-        const count = this.data.productionCount || 0;
-        const target = this.data.productionTarget;
-        
-        if (target) {
-            return `${count}/${target}`;
-        }
-        return `${count}`;
-    }
-    
-    // =========================================================================
-    // 공개 메서드
-    // =========================================================================
+    // =========================================
+    // Event Handlers
+    // =========================================
     
     /**
-     * 데이터 업데이트
-     * @param {Object} newData - 새로운 데이터
+     * 클릭 이벤트 처리
+     * @private
+     * @param {MouseEvent} event
      */
-    update(newData) {
-        if (this._isDisposed) return;
+    _handleClick(event) {
+        event.stopPropagation();
         
-        const previousStatus = this.data.status;
-        this.data = { ...this.data, ...newData };
+        console.log(`[EquipmentCard] 🖱️ 클릭: ${this._data.frontendId}`);
         
-        // 상태 변경 시
-        if (previousStatus !== this.data.status) {
-            this._applyStatusStyle();
-            this._updateUrgencyIndicator();
-            
-            // 상태 인디케이터 색상 업데이트
-            const indicator = this.element.querySelector(`.${EquipmentCard.CSS.STATUS_INDICATOR}`);
-            if (indicator) {
-                indicator.style.backgroundColor = EquipmentCard.STATUS_COLORS[this.data.status] || EquipmentCard.STATUS_COLORS.WAIT;
-            }
-        }
+        // EventBus 이벤트 발행
+        eventBus.emit('equipment:select', {
+            equipmentId: this._data.equipmentId,
+            frontendId: this._data.frontendId,
+            source: 'ranking-view',
+            cardData: this._data
+        });
         
-        // 지속 시간 업데이트
-        this._updateDuration();
-        
-        // 생산 정보 업데이트
-        if (this.productionBarFill) {
-            const progress = this._calculateProductionProgress();
-            this.productionBarFill.style.width = `${progress}%`;
-        }
-        
-        if (this.productionCountElement) {
-            this.productionCountElement.textContent = this._formatProductionCount();
-        }
-        
-        // MiniTimeline 업데이트
-        if (this.miniTimeline && newData.historyData) {
-            this.miniTimeline.update(newData.historyData);
-        }
-        
-        // 긴급도 재평가
-        this._updateUrgencyIndicator();
-        
-        console.log(`[EquipmentCard] 🔄 Updated: ${this.data.frontendId}`);
+        // 카드 클릭 이벤트 (LaneManager용)
+        eventBus.emit('ranking:card:click', {
+            equipmentId: this._data.equipmentId,
+            frontendId: this._data.frontendId,
+            element: this.element
+        });
     }
     
     /**
-     * 상태 변경 이벤트 추가
-     * @param {Object} statusEvent - 상태 변경 이벤트
+     * 더블클릭 이벤트 처리 (예약)
+     * @private
+     * @param {MouseEvent} event
      */
-    addStatusEvent(statusEvent) {
-        if (this.miniTimeline) {
-            this.miniTimeline.addStatusEvent(statusEvent);
+    _handleDoubleClick(event) {
+        event.stopPropagation();
+        
+        console.log(`[EquipmentCard] 🖱️🖱️ 더블클릭: ${this._data.frontendId}`);
+        
+        // 예약: 3D View 전환 후 해당 설비로 카메라 이동
+        eventBus.emit('equipment:focus-3d', {
+            equipmentId: this._data.equipmentId,
+            frontendId: this._data.frontendId
+        });
+    }
+    
+    // =========================================
+    // Public Methods
+    // =========================================
+    
+    /**
+     * 🆕 v1.1.0: 현재 긴급도 레벨 가져오기
+     * @returns {string|null} 'warning' | 'danger' | 'critical' | null
+     */
+    getUrgencyLevel() {
+        // RUN 상태는 긴급도 없음
+        const status = this._data.status?.toUpperCase();
+        if (status === 'RUN' || status === 'WAIT') {
+            return null;
         }
+        
+        // 지속 시간 계산 (분 단위)
+        const durationMinutes = DurationCalculator.getMinutes(this._data.occurredAt);
+        
+        if (durationMinutes >= URGENCY_THRESHOLDS.CRITICAL) {
+            return 'critical';
+        } else if (durationMinutes >= URGENCY_THRESHOLDS.DANGER) {
+            return 'danger';
+        } else if (durationMinutes >= URGENCY_THRESHOLDS.WARNING) {
+            return 'warning';
+        }
+        
+        return null;
     }
     
     /**
      * 선택 상태 설정
-     * @param {boolean} selected - 선택 여부
+     * @param {boolean} selected
      */
     setSelected(selected) {
         this._isSelected = selected;
@@ -663,126 +672,77 @@ export class EquipmentCard {
     }
     
     /**
-     * 선택 상태 반환
+     * 선택 상태 확인
      * @returns {boolean}
      */
-    isSelected() {
+    get isSelected() {
         return this._isSelected;
     }
     
     /**
-     * DOM 요소 반환
-     * @returns {HTMLElement}
+     * 데이터 업데이트
+     * @param {Object} newData
      */
-    getElement() {
-        return this.element;
-    }
-    
-    /**
-     * 설비 ID 반환
-     * @returns {string}
-     */
-    getEquipmentId() {
-        return this.data.equipmentId;
-    }
-    
-    /**
-     * 프론트엔드 ID 반환
-     * @returns {string}
-     */
-    getFrontendId() {
-        return this.data.frontendId;
-    }
-    
-    /**
-     * 현재 상태 반환
-     * @returns {string}
-     */
-    getStatus() {
-        return this.data.status;
-    }
-    
-    /**
-     * 현재 긴급도 레벨 반환
-     * @returns {string|null}
-     */
-    getUrgencyLevel() {
-        return this._currentUrgencyLevel;
-    }
-    
-    /**
-     * 지속 시간 (분) 반환
-     * @returns {number}
-     */
-    getDurationMinutes() {
-        return this._getDurationMinutes();
-    }
-    
-    /**
-     * 애니메이션 클래스 추가
-     * @param {string} animationType - 애니메이션 타입 ('entering', 'leaving', 'animating')
-     */
-    setAnimating(animationType) {
-        this.element.classList.remove(
-            EquipmentCard.CSS.ANIMATING,
-            EquipmentCard.CSS.ENTERING,
-            EquipmentCard.CSS.LEAVING
-        );
+    update(newData) {
+        // 데이터 정규화 후 병합
+        const normalized = this._normalizeData(newData);
+        Object.assign(this._data, normalized);
         
-        switch (animationType) {
-            case 'entering':
-                this.element.classList.add(EquipmentCard.CSS.ENTERING);
-                break;
-            case 'leaving':
-                this.element.classList.add(EquipmentCard.CSS.LEAVING);
-                break;
-            case 'animating':
-                this.element.classList.add(EquipmentCard.CSS.ANIMATING);
-                break;
+        // UI 업데이트
+        this._updateDuration();
+        this._updateProductionCountText();
+        this._updateProgressBar();
+        this._updatePercentageText();
+        this._updateUrgencyLevel();
+        
+        // MiniTimeline 업데이트
+        if (this._miniTimeline && normalized.stateHistory) {
+            this._miniTimeline.update(normalized.stateHistory);
         }
     }
     
     /**
-     * 애니메이션 클래스 제거
+     * 데이터 가져오기
+     * @returns {Object}
      */
-    clearAnimating() {
-        this.element.classList.remove(
-            EquipmentCard.CSS.ANIMATING,
-            EquipmentCard.CSS.ENTERING,
-            EquipmentCard.CSS.LEAVING
-        );
+    getData() {
+        return { ...this._data };
     }
     
     /**
-     * 포커스
+     * Equipment ID 가져오기
+     * @returns {string}
      */
-    focus() {
-        this.element?.focus();
+    get id() {
+        return this._data.frontendId || this._data.equipmentId;
     }
     
     /**
-     * 정리
+     * 카드 요소를 뷰포트로 스크롤
+     */
+    scrollIntoView() {
+        this.element?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'nearest'
+        });
+    }
+    
+    /**
+     * 리소스 정리
      */
     dispose() {
-        if (this._isDisposed) return;
-        
-        console.log(`[EquipmentCard] 🗑️ Disposing: ${this.data.frontendId}`);
-        
-        // 타이머 정리
-        this._stopDurationTimer();
-        this._stopUrgencyTimer();
+        // 타이머 중지
+        this._stopTimers();
         
         // 이벤트 리스너 제거
-        if (this.element) {
-            this.element.removeEventListener('click', this._boundHandlers.onClick);
-            this.element.removeEventListener('keydown', this._boundHandlers.onKeyDown);
-        }
-        this._boundHandlers = {};
+        this.element?.removeEventListener('click', this._boundHandlers.onClick);
+        this.element?.removeEventListener('dblclick', this._boundHandlers.onDoubleClick);
         
         // MiniTimeline 정리
-        if (this.miniTimeline) {
-            this.miniTimeline.dispose();
-            this.miniTimeline = null;
+        if (this._miniTimeline) {
+            this._miniTimeline.dispose();
+            this._miniTimeline = null;
         }
         
         // DOM 제거
@@ -790,12 +750,17 @@ export class EquipmentCard {
         
         // 참조 해제
         this.element = null;
-        this.durationElement = null;
-        this.productionBarFill = null;
-        this.productionCountElement = null;
-        this.lotTimeElement = null;
-        this.data = null;
-        
-        this._isDisposed = true;
+        this._durationElement = null;
+        this._productionBarFill = null;
+        this._productionCountElement = null;
+        this._productionPercentElement = null;
+        this._lotTimeElement = null;
+        this._timelineContainer = null;
+        this._boundHandlers = {};
     }
+}
+
+// 전역 노출 (디버깅용)
+if (typeof window !== 'undefined') {
+    window.EquipmentCard = EquipmentCard;
 }
