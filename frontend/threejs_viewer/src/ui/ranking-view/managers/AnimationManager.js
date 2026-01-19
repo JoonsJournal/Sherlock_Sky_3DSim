@@ -33,7 +33,7 @@
  * 수정일: 2026-01-17
  */
 
-import { EventBus } from '../../../core/managers/EventBus.js';
+import { eventBus } from '../../../core/managers/EventBus.js';
 import { PositionCalculator } from '../utils/PositionCalculator.js';
 import { BatchAnimator } from '../utils/BatchAnimator.js';
 

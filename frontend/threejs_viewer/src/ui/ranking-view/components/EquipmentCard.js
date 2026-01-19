@@ -38,7 +38,7 @@
  * 수정일: 2026-01-19
  */
 
-import { EventBus } from '../../../core/managers/EventBus.js';
+import { eventBus } from '../../../core/managers/EventBus.js';
 import { DurationCalculator } from '../utils/DurationCalculator.js';
 import { MiniTimeline } from './MiniTimeline.js';
 

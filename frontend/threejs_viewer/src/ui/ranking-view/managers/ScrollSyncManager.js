@@ -28,7 +28,7 @@
  * 수정일: 2026-01-17
  */
 
-import { EventBus } from '../../../core/managers/EventBus.js';
+import { eventBus } from '../../../core/managers/EventBus.js';
 
 /**
  * ScrollSyncManager - 레인 스크롤 동기화 관리자
