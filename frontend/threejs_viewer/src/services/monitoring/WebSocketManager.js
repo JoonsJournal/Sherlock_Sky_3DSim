@@ -68,7 +68,7 @@ export const ActionType = {
  */
 export class WebSocketManager {
     /**
-     * @param {string} wsUrl - WebSocket URL (예: 'ws://localhost:8000/api/monitoring/stream')
+     * @param {string} wsUrl - WebSocket URL (예: 'ws://localhost:8008/api/monitoring/stream')
      * @param {Object} options - 옵션
      * @param {number} options.maxReconnectAttempts - 최대 재연결 시도 횟수 (기본: 5)
      * @param {number} options.reconnectDelay - 재연결 딜레이 ms (기본: 3000)
@@ -703,7 +703,7 @@ export class WebSocketManager {
 // ⭐ 동적 WebSocket URL 생성
 function getDefaultWsUrl() {
     const host = window.location.hostname;
-    const port = 8000;
+    const port = 8008;
     return `ws://${host}:${port}/api/monitoring/stream`;
 }
 

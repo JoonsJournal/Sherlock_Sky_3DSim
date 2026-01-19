@@ -83,7 +83,7 @@ export class MonitoringService {
         
         // ⭐ 동적 URL 생성
         const host = window.location.hostname;
-        const port = 8000;
+        const port = 8008;
         
         // ⭐ v4.1.0: StatusAPIClient 인스턴스 생성
         this.apiBaseUrl = `http://${host}:${port}/api/monitoring`;

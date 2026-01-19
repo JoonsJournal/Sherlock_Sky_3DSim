@@ -339,7 +339,7 @@ export function initUIComponents(options = {}) {
     
 	// 🆕 v1.2.0: EquipmentInfoPanel 초기화 (여기로 이동!)
 	// ⭐ 동적 API URL
-	const equipmentDetailApiUrl = `http://${window.location.hostname}:8000/api/equipment/detail`;
+	const equipmentDetailApiUrl = `http://${window.location.hostname}:8008/api/equipment/detail`;
 	const equipmentInfoPanel = new EquipmentInfoPanel({
 	    apiBaseUrl: equipmentDetailApiUrl
 	});

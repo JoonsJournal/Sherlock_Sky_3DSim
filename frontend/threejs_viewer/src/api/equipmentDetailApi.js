@@ -25,7 +25,7 @@ import { debugLog } from '../core/utils/Config.js';
 // ⭐ 동적 URL 생성 함수
 function getDefaultDetailApiUrl() {
     const host = window.location.hostname;
-    const port = 8000;
+    const port = 8008;
     return `http://${host}:${port}/api/equipment/detail`;
 }
 

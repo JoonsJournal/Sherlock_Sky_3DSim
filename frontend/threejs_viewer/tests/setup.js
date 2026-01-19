@@ -18,8 +18,8 @@ global.console = {
 global.window = {
   ...global.window,
   ENV: {
-    API_BASE_URL: 'http://localhost:8000/api',
-    WS_URL: 'ws://localhost:8000/ws',
+    API_BASE_URL: 'http://localhost:8008/api',
+    WS_URL: 'ws://localhost:8008/ws',
     DEBUG_MODE: false,
     ENVIRONMENT: 'test'
   }

@@ -1041,10 +1041,10 @@
                 this.equipmentLoader = equipmentLoader;
                 this.equipmentEditState = equipmentEditState;
                 
-                this.apiBaseUrl = 'http://localhost:8000/api/monitoring';
+                this.apiBaseUrl = 'http://localhost:8008/api/monitoring';
                 this.apiClient = new StatusAPIClient(this.apiBaseUrl);
                 
-                this.wsUrl = 'ws://localhost:8000/api/monitoring/stream';
+                this.wsUrl = 'ws://localhost:8008/api/monitoring/stream';
                 this.wsManager = new WebSocketManager(this.wsUrl, {
                     maxReconnectAttempts: 5,
                     reconnectDelay: 3000,

@@ -53,13 +53,13 @@ import { debugLog } from '../../core/utils/Config.js';
  * 
  * // 인스턴스 생성
  * import { StatusAPIClient } from './monitoring/StatusAPIClient.js';
- * const client = new StatusAPIClient('http://localhost:8000/api/monitoring');
+ * const client = new StatusAPIClient('http://localhost:8008/api/monitoring');
  * const status = await client.fetchEquipmentLiveStatus('EQ-01-01');
  */
 // ⭐ 동적 URL 생성 함수
 function getDefaultMonitoringApiUrl() {
     const host = window.location.hostname;
-    const port = 8000;
+    const port = 8008;
     return `http://${host}:${port}/api/monitoring`;
 }
 
@@ -476,6 +476,6 @@ export class StatusAPIClient {
  * const data = await statusApiClient.fetchInitialStatus(24);
  * 
  * // Base URL 변경
- * statusApiClient.setBaseUrl('http://production-server:8000/api/monitoring');
+ * statusApiClient.setBaseUrl('http://production-server:8008/api/monitoring');
  */
 export const statusApiClient = new StatusAPIClient();

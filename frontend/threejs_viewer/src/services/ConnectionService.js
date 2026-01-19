@@ -6,7 +6,7 @@
 // ⭐ 동적 API URL 생성 함수
 function getDefaultApiBaseUrl() {
     const host = window.location.hostname;
-    const port = 8000;
+    const port = 8008;
     return `http://${host}:${port}`;
 }
 

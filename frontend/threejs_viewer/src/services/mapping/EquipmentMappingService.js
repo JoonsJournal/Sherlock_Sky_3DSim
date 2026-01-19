@@ -129,7 +129,7 @@ export class EquipmentMappingService {
      */
     _detectApiBaseUrl() {
         const hostname = window.location.hostname;
-        const port = 8000;
+        const port = 8008;
         
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
             return `http://localhost:${port}`;

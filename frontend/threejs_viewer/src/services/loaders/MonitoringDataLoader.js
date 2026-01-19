@@ -91,7 +91,7 @@ export class MonitoringDataLoader extends IDataLoader {
         
         // ===== URL 설정 =====
         const host = window.location.hostname;
-        const port = 8000;
+        const port = 8008;
         
         /** @private @type {string} */
         this._apiBaseUrl = options.apiBaseUrl ?? `http://${host}:${port}/api/monitoring`;

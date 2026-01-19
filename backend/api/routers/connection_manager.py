@@ -298,7 +298,7 @@ async def health_check():
     
     return HealthCheckResponse(
         status=status,
-        api_url="http://localhost:8000",
+        api_url="http://localhost:8008",
         response_time_ms=response_time,
         last_check=datetime.now(timezone.utc).isoformat(),
         version="1.0.0"

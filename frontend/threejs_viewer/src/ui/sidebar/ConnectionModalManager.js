@@ -32,7 +32,7 @@
  *     toast: toastInstance,
  *     eventBus: eventBusInstance,
  *     connectionStatusService: connectionStatusService,
- *     apiBaseUrl: 'http://localhost:8000',
+ *     apiBaseUrl: 'http://localhost:8008',
  *     onConnect: (siteId, siteName) => { ... },
  *     onDisconnect: () => { ... }
  * });
@@ -59,7 +59,7 @@ import { ConnectionService } from '../../services/ConnectionService.js';
  */
 const MOCK_HEALTH_RESPONSE = {
     status: 'healthy',
-    api_url: 'http://localhost:8000 (Mock)',
+    api_url: 'http://localhost:8008 (Mock)',
     response_time_ms: 25,
     version: '1.0.0-mock',
     server: 'mock-server',
@@ -127,7 +127,7 @@ export class ConnectionModalManager {
      * @param {Object} options.toast - Toast 인스턴스
      * @param {Object} options.eventBus - EventBus 인스턴스
      * @param {Object} options.connectionStatusService - ConnectionStatusService 인스턴스
-     * @param {string} options.apiBaseUrl - API 기본 URL (기본: http://localhost:8000)
+     * @param {string} options.apiBaseUrl - API 기본 URL (기본: http://localhost:8008)
      * @param {Array} options.siteList - 사이트 목록 (기본: SITE_LIST)
      * @param {Function} options.onConnect - 연결 성공 콜백 (siteId, siteName)
      * @param {Function} options.onDisconnect - 연결 해제 콜백
@@ -141,7 +141,7 @@ export class ConnectionModalManager {
 		        
 		// 🆕 v2.0.0: ConnectionService 생성 (실제 API 호출용)
 		// ⭐ 동적 API URL: 접속한 호스트 기준
-		const defaultApiUrl = `http://${window.location.hostname}:8000`;
+		const defaultApiUrl = `http://${window.location.hostname}:8008`;
 		this.apiBaseUrl = options.apiBaseUrl || defaultApiUrl;
 		this.connectionService = new ConnectionService(this.apiBaseUrl);
         

@@ -11,7 +11,7 @@
  *           - 서버 이전 시 상단 포트 설정만 수정하면 전체 적용
  *           - 기존 기능 100% 유지 (모든 export 함수 동일)
  * - v1.1.0: 🔧 동적 URL fallback 적용 (2026-01-14)
- *           - 기존: localhost:8000 하드코딩 → IP 접속 시 CORS 에러 발생
+ *           - 기존: localhost:8008 하드코딩 → IP 접속 시 CORS 에러 발생
  *           - 변경: window.location.hostname 기반 동적 URL 생성
  *           - getDefaultApiUrl(), getDefaultWsUrl() 헬퍼 함수 추가
  * - v1.0.0: 초기 버전

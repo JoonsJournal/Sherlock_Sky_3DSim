@@ -130,7 +130,7 @@ class MultiSiteSettings(BaseSettings):
     
     # 기본 설정
     ENVIRONMENT: str = Field(default='development')
-    APP_PORT: int = Field(default=8000)
+    APP_PORT: int = Field(default=8008)
     LOG_LEVEL: str = Field(default='INFO')
     
     # 기본 사이트/DB

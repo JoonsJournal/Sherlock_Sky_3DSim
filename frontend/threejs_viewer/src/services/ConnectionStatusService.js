@@ -364,7 +364,7 @@ class ConnectionStatusService {
      * 
      * // Dashboard 모드로 커스텀 설정과 함께 시작
      * connectionStatusService.startForMode('dashboard', {
-     *     configOverrides: { checkInterval: 8000 }
+     *     configOverrides: { checkInterval: 8008 }
      * });
      */
     startForMode(modeName, options = {}) {
@@ -778,7 +778,7 @@ class ConnectionStatusService {
         // ⚠️ 수정: ENV 사용 (environment → ENV)
         const baseUrl = (typeof ENV !== 'undefined' && ENV?.API_BASE_URL) 
             ? ENV.API_BASE_URL 
-            : 'http://localhost:8000/api';
+            : 'http://localhost:8008/api';
         const url = `${baseUrl}${this._config.healthEndpoint}`;
 
         try {

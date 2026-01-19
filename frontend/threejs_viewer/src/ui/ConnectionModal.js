@@ -114,7 +114,7 @@ export class ConnectionModal extends BaseModal {
         });
         
         // 서비스
-        this.connectionService = new ConnectionService('http://localhost:8000');
+        this.connectionService = new ConnectionService('http://localhost:8008');
         
         // 패널 참조
         this.statusPanel = null;
