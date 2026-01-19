@@ -1,24 +1,33 @@
 /**
  * MiniTimeline.js
- * ================
+ * ===============
  * 최근 1시간 상태 히스토리 미니 타임라인 컴포넌트
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - Canvas 기반 미니 차트로 설비 상태 변화 시각화
  * - 상태별 색상 표시 (RUN=녹색, STOP=빨간색, IDLE=노란색 등)
  * - 호버 시 상세 시간 정보 툴팁 표시
  * - 실시간 데이터 업데이트 지원
+ * - HiDPI (Retina) 디스플레이 지원
+ * - 반응형 너비 지원 (ResizeObserver)
  * 
  * @changelog
+ * - v1.1.0: 🆕 반응형 + 편의 기능 추가
+ *   - ResizeObserver 기반 반응형 너비 지원
+ *   - refresh() 강제 리렌더링 메서드 추가
+ *   - durationHours 파라미터 추가 (시간 범위 설정)
+ *   - setDurationHours() 동적 변경 메서드 추가
+ *   - ⚠️ 호환성: v1.0.0의 모든 기능/메서드/필드 100% 유지
  * - v1.0.0: 초기 버전
  *   - Canvas 기반 타임라인 렌더링
  *   - 상태별 색상 매핑
  *   - 툴팁 지원
- *   - 실시간 업데이트
+ *   - 자동 업데이트 (30초 간격)
+ *   - HiDPI 지원
  * 
  * @dependencies
- * - DurationCalculator (시간 계산)
+ * - DurationCalculator (../utils/DurationCalculator.js)
  * 
  * @exports
  * - MiniTimeline
@@ -32,7 +41,7 @@ import { DurationCalculator } from '../utils/DurationCalculator.js';
 
 export class MiniTimeline {
     // =========================================================================
-    // CSS 클래스 상수
+    // CSS 클래스 상수 (BEM)
     // =========================================================================
     static CSS = {
         // Block
@@ -49,7 +58,20 @@ export class MiniTimeline {
         // Modifiers
         HIDDEN: 'mini-timeline--hidden',
         LOADING: 'mini-timeline--loading',
-        TOOLTIP_VISIBLE: 'mini-timeline__tooltip--visible'
+        RESPONSIVE: 'mini-timeline--responsive',
+        TOOLTIP_VISIBLE: 'mini-timeline__tooltip--visible',
+        
+        // Legacy alias (하위 호환)
+        LEGACY_HIDDEN: 'hidden',
+        LEGACY_LOADING: 'loading'
+    };
+    
+    // =========================================================================
+    // Utility 클래스 상수
+    // =========================================================================
+    static UTIL = {
+        FLEX: 'u-flex',
+        HIDDEN: 'u-hidden'
     };
     
     // =========================================================================
@@ -87,25 +109,42 @@ export class MiniTimeline {
      * @param {Object} options - 옵션
      * @param {Array} options.historyData - 상태 변경 히스토리 배열
      * @param {string} options.equipmentId - 설비 ID
-     * @param {number} [options.width] - 캔버스 너비
+     * @param {number|string} [options.width] - 캔버스 너비 (숫자 또는 '100%')
      * @param {number} [options.height] - 캔버스 높이
+     * @param {number} [options.durationHours] - 표시할 시간 범위 (시간, 기본값: 1)
      */
     constructor(options = {}) {
+        // 데이터
         this.historyData = options.historyData || [];
         this.equipmentId = options.equipmentId || 'unknown';
-        this.width = options.width || MiniTimeline.CONFIG.CANVAS_WIDTH;
+        
+        // 🆕 v1.1.0: 반응형 너비 지원
+        this._isResponsive = options.width === '100%';
+        this.width = this._isResponsive 
+            ? MiniTimeline.CONFIG.CANVAS_WIDTH 
+            : (options.width || MiniTimeline.CONFIG.CANVAS_WIDTH);
         this.height = options.height || MiniTimeline.CONFIG.CANVAS_HEIGHT;
+        
+        // 🆕 v1.1.0: 시간 범위 설정
+        this._durationHours = options.durationHours || MiniTimeline.CONFIG.TIMELINE_HOURS;
         
         // DOM 요소
         this.element = null;
         this.canvas = null;
         this.ctx = null;
         this.tooltip = null;
+        this.noDataElement = null;
         
         // 상태
         this._isDisposed = false;
         this._updateTimer = null;
+        this._segments = null;
+        
+        // 이벤트 핸들러 (바인딩 저장)
         this._boundHandlers = {};
+        
+        // 🆕 v1.1.0: ResizeObserver
+        this._resizeObserver = null;
         
         // 초기화
         this._init();
@@ -114,6 +153,10 @@ export class MiniTimeline {
     // =========================================================================
     // 초기화
     // =========================================================================
+    /**
+     * 컴포넌트 초기화
+     * @private
+     */
     _init() {
         this._createDOM();
         this._setupCanvas();
@@ -127,16 +170,31 @@ export class MiniTimeline {
     // =========================================================================
     // DOM 생성
     // =========================================================================
+    /**
+     * DOM 요소 생성
+     * @private
+     */
     _createDOM() {
         // 컨테이너
         this.element = document.createElement('div');
         this.element.classList.add(MiniTimeline.CSS.BLOCK);
+        
+        // 🆕 v1.1.0: 반응형 modifier
+        if (this._isResponsive) {
+            this.element.classList.add(MiniTimeline.CSS.RESPONSIVE);
+        }
         
         // 캔버스
         this.canvas = document.createElement('canvas');
         this.canvas.classList.add(MiniTimeline.CSS.CANVAS);
         this.canvas.width = this.width;
         this.canvas.height = this.height;
+        
+        // 🆕 v1.1.0: 반응형 너비
+        if (this._isResponsive) {
+            this.canvas.style.width = '100%';
+        }
+        
         this.element.appendChild(this.canvas);
         
         // 툴팁
@@ -159,10 +217,14 @@ export class MiniTimeline {
     // =========================================================================
     // 캔버스 설정
     // =========================================================================
+    /**
+     * 캔버스 초기 설정 (HiDPI 지원)
+     * @private
+     */
     _setupCanvas() {
         this.ctx = this.canvas.getContext('2d');
         
-        // HiDPI 지원
+        // HiDPI (Retina) 지원
         const dpr = window.devicePixelRatio || 1;
         this.canvas.width = this.width * dpr;
         this.canvas.height = this.height * dpr;
@@ -174,8 +236,12 @@ export class MiniTimeline {
     // =========================================================================
     // 이벤트 리스너 설정
     // =========================================================================
+    /**
+     * 이벤트 리스너 설정
+     * @private
+     */
     _setupEventListeners() {
-        // 마우스 이벤트 바인딩
+        // 마우스 이벤트 바인딩 저장 (나중에 제거 가능)
         this._boundHandlers.onMouseMove = this._handleMouseMove.bind(this);
         this._boundHandlers.onMouseLeave = this._handleMouseLeave.bind(this);
         this._boundHandlers.onClick = this._handleClick.bind(this);
@@ -183,11 +249,30 @@ export class MiniTimeline {
         this.canvas.addEventListener('mousemove', this._boundHandlers.onMouseMove);
         this.canvas.addEventListener('mouseleave', this._boundHandlers.onMouseLeave);
         this.canvas.addEventListener('click', this._boundHandlers.onClick);
+        
+        // 🆕 v1.1.0: ResizeObserver for responsive width
+        if (this._isResponsive && typeof ResizeObserver !== 'undefined') {
+            this._resizeObserver = new ResizeObserver(entries => {
+                for (const entry of entries) {
+                    const newWidth = Math.floor(entry.contentRect.width);
+                    if (newWidth !== this.width && newWidth > 0) {
+                        this.width = newWidth;
+                        this._setupCanvas();
+                        this._render();
+                    }
+                }
+            });
+            this._resizeObserver.observe(this.element);
+        }
     }
     
     // =========================================================================
     // 렌더링
     // =========================================================================
+    /**
+     * 타임라인 렌더링
+     * @private
+     */
     _render() {
         if (this._isDisposed) return;
         
@@ -210,10 +295,17 @@ export class MiniTimeline {
     // =========================================================================
     // 세그먼트 계산
     // =========================================================================
+    /**
+     * 타임라인 세그먼트 계산
+     * @private
+     * @returns {Array} 세그먼트 배열
+     */
     _calculateSegments() {
         const now = Date.now();
-        const oneHourAgo = now - (MiniTimeline.CONFIG.TIMELINE_HOURS * 60 * 60 * 1000);
-        const totalDuration = now - oneHourAgo;
+        // 🆕 v1.1.0: 설정 가능한 시간 범위
+        const timeRangeMs = this._durationHours * 60 * 60 * 1000;
+        const rangeStart = now - timeRangeMs;
+        const totalDuration = now - rangeStart;
         
         const segments = [];
         
@@ -224,10 +316,10 @@ export class MiniTimeline {
             return timeA - timeB;
         });
         
-        // 1시간 범위 내 데이터만 필터링
+        // 시간 범위 내 데이터만 필터링
         const relevantHistory = sortedHistory.filter(item => {
             const itemTime = new Date(item.startTime || item.occurredAt).getTime();
-            return itemTime >= oneHourAgo;
+            return itemTime >= rangeStart;
         });
         
         // 세그먼트 생성
@@ -238,13 +330,13 @@ export class MiniTimeline {
                 ? new Date(relevantHistory[i + 1].startTime || relevantHistory[i + 1].occurredAt).getTime()
                 : now;
             
-            const segmentStart = Math.max(startTime, oneHourAgo);
+            const segmentStart = Math.max(startTime, rangeStart);
             const segmentEnd = Math.min(endTime, now);
             const duration = segmentEnd - segmentStart;
             
             // 비율 계산
-            const startRatio = (segmentStart - oneHourAgo) / totalDuration;
-            const endRatio = (segmentEnd - oneHourAgo) / totalDuration;
+            const startRatio = (segmentStart - rangeStart) / totalDuration;
+            const endRatio = (segmentEnd - rangeStart) / totalDuration;
             
             segments.push({
                 status: item.status || item.currentStatus || 'UNKNOWN',
@@ -257,14 +349,14 @@ export class MiniTimeline {
             });
         }
         
-        // 데이터가 1시간 전부터 시작하지 않는 경우 첫 번째 세그먼트 앞에 빈 영역 추가
+        // 데이터가 시간 범위 전부터 시작하지 않는 경우 첫 번째 세그먼트 앞에 빈 영역 추가
         if (segments.length > 0 && segments[0].x > 0) {
             const firstStatus = sortedHistory.length > 0 ? (sortedHistory[0].previousStatus || 'UNKNOWN') : 'UNKNOWN';
             segments.unshift({
                 status: firstStatus,
-                startTime: oneHourAgo,
+                startTime: rangeStart,
                 endTime: segments[0].startTime,
-                duration: segments[0].startTime - oneHourAgo,
+                duration: segments[0].startTime - rangeStart,
                 x: 0,
                 width: segments[0].x,
                 originalData: null
@@ -277,6 +369,11 @@ export class MiniTimeline {
     // =========================================================================
     // 세그먼트 렌더링
     // =========================================================================
+    /**
+     * 세그먼트 렌더링
+     * @private
+     * @param {Array} segments - 세그먼트 배열
+     */
     _renderSegments(segments) {
         const ctx = this.ctx;
         const radius = MiniTimeline.CONFIG.BORDER_RADIUS;
@@ -314,6 +411,10 @@ export class MiniTimeline {
     // =========================================================================
     // 둥근 모서리 사각형 헬퍼
     // =========================================================================
+    /**
+     * 둥근 모서리 사각형 그리기
+     * @private
+     */
     _roundedRect(x, y, width, height, radius) {
         const ctx = this.ctx;
         ctx.beginPath();
@@ -329,6 +430,10 @@ export class MiniTimeline {
         ctx.closePath();
     }
     
+    /**
+     * 왼쪽만 둥근 사각형 그리기
+     * @private
+     */
     _roundedRectLeft(x, y, width, height, radius) {
         const ctx = this.ctx;
         ctx.beginPath();
@@ -342,6 +447,10 @@ export class MiniTimeline {
         ctx.closePath();
     }
     
+    /**
+     * 오른쪽만 둥근 사각형 그리기
+     * @private
+     */
     _roundedRectRight(x, y, width, height, radius) {
         const ctx = this.ctx;
         ctx.beginPath();
@@ -357,6 +466,11 @@ export class MiniTimeline {
     // =========================================================================
     // 마우스 이벤트 핸들러
     // =========================================================================
+    /**
+     * 마우스 이동 이벤트 핸들러
+     * @private
+     * @param {MouseEvent} event
+     */
     _handleMouseMove(event) {
         if (!this._segments || this._segments.length === 0) return;
         
@@ -373,12 +487,20 @@ export class MiniTimeline {
         }
     }
     
+    /**
+     * 마우스 떠남 이벤트 핸들러
+     * @private
+     */
     _handleMouseLeave() {
         this._hideTooltip();
     }
     
+    /**
+     * 클릭 이벤트 핸들러
+     * @private
+     * @param {MouseEvent} event
+     */
     _handleClick(event) {
-        // 클릭 시 상세 정보 표시 (필요 시 EventBus emit)
         const rect = this.canvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
         
@@ -392,6 +514,12 @@ export class MiniTimeline {
     // =========================================================================
     // 툴팁 표시/숨김
     // =========================================================================
+    /**
+     * 툴팁 표시
+     * @private
+     * @param {MouseEvent} event
+     * @param {Object} segment
+     */
     _showTooltip(event, segment) {
         const timeElement = this.tooltip.querySelector(`.${MiniTimeline.CSS.TOOLTIP_TIME}`);
         const statusElement = this.tooltip.querySelector(`.${MiniTimeline.CSS.TOOLTIP_STATUS}`);
@@ -428,6 +556,10 @@ export class MiniTimeline {
         this.tooltip.classList.add(MiniTimeline.CSS.TOOLTIP_VISIBLE);
     }
     
+    /**
+     * 툴팁 숨김
+     * @private
+     */
     _hideTooltip() {
         this.tooltip.classList.remove(MiniTimeline.CSS.TOOLTIP_VISIBLE);
     }
@@ -435,6 +567,12 @@ export class MiniTimeline {
     // =========================================================================
     // 상태 텍스트 변환
     // =========================================================================
+    /**
+     * 상태 코드를 한글 텍스트로 변환
+     * @private
+     * @param {string} status - 상태 코드
+     * @returns {string} 한글 상태 텍스트
+     */
     _getStatusText(status) {
         const statusTexts = {
             'RUN': '가동',
@@ -451,11 +589,19 @@ export class MiniTimeline {
     // =========================================================================
     // 데이터 없음 표시
     // =========================================================================
+    /**
+     * 데이터 없음 상태 표시
+     * @private
+     */
     _showNoData() {
         this.noDataElement.style.display = 'flex';
         this.canvas.style.opacity = '0.3';
     }
     
+    /**
+     * 데이터 없음 상태 숨김
+     * @private
+     */
     _hideNoData() {
         this.noDataElement.style.display = 'none';
         this.canvas.style.opacity = '1';
@@ -464,12 +610,20 @@ export class MiniTimeline {
     // =========================================================================
     // 자동 업데이트
     // =========================================================================
+    /**
+     * 자동 업데이트 시작
+     * @private
+     */
     _startAutoUpdate() {
         this._updateTimer = setInterval(() => {
             this._render();
         }, MiniTimeline.CONFIG.UPDATE_INTERVAL);
     }
     
+    /**
+     * 자동 업데이트 중지
+     * @private
+     */
     _stopAutoUpdate() {
         if (this._updateTimer) {
             clearInterval(this._updateTimer);
@@ -503,11 +657,12 @@ export class MiniTimeline {
         
         this.historyData.push(statusEvent);
         
-        // 1시간 이전 데이터 제거
-        const oneHourAgo = Date.now() - (MiniTimeline.CONFIG.TIMELINE_HOURS * 60 * 60 * 1000);
+        // 시간 범위 이전 데이터 제거
+        const timeRangeMs = this._durationHours * 60 * 60 * 1000;
+        const rangeStart = Date.now() - timeRangeMs;
         this.historyData = this.historyData.filter(item => {
             const itemTime = new Date(item.startTime || item.occurredAt).getTime();
-            return itemTime >= oneHourAgo;
+            return itemTime >= rangeStart;
         });
         
         this._render();
@@ -529,6 +684,25 @@ export class MiniTimeline {
     }
     
     /**
+     * 🆕 v1.1.0: 강제 리렌더링
+     */
+    refresh() {
+        if (this._isDisposed) return;
+        this._render();
+    }
+    
+    /**
+     * 🆕 v1.1.0: 시간 범위 변경
+     * @param {number} hours - 표시할 시간 범위 (시간)
+     */
+    setDurationHours(hours) {
+        if (this._isDisposed) return;
+        
+        this._durationHours = hours;
+        this._render();
+    }
+    
+    /**
      * DOM 요소 반환
      * @returns {HTMLElement}
      */
@@ -542,6 +716,7 @@ export class MiniTimeline {
     show() {
         if (this.element) {
             this.element.classList.remove(MiniTimeline.CSS.HIDDEN);
+            this.element.classList.remove(MiniTimeline.CSS.LEGACY_HIDDEN);
         }
     }
     
@@ -551,11 +726,12 @@ export class MiniTimeline {
     hide() {
         if (this.element) {
             this.element.classList.add(MiniTimeline.CSS.HIDDEN);
+            this.element.classList.add(MiniTimeline.CSS.LEGACY_HIDDEN);
         }
     }
     
     /**
-     * 정리
+     * 리소스 정리
      */
     dispose() {
         if (this._isDisposed) return;
@@ -564,6 +740,12 @@ export class MiniTimeline {
         
         // 타이머 정리
         this._stopAutoUpdate();
+        
+        // 🆕 v1.1.0: ResizeObserver 해제
+        if (this._resizeObserver) {
+            this._resizeObserver.disconnect();
+            this._resizeObserver = null;
+        }
         
         // 이벤트 리스너 제거
         if (this.canvas) {
@@ -587,4 +769,9 @@ export class MiniTimeline {
         
         this._isDisposed = true;
     }
+}
+
+// 전역 노출 (디버깅용)
+if (typeof window !== 'undefined') {
+    window.MiniTimeline = MiniTimeline;
 }
