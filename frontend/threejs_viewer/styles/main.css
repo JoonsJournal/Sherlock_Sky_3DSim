@@ -100,8 +100,8 @@
 /* @import './components/ranking-view/_equipment-card.css'; */
 
 /* Phase 6에서 추가 예정 */
-/* @import './components/ranking-view/_mini-timeline.css'; */
-/* @import './components/ranking-view/_animations.css'; */
+@import './components/ranking-view/_mini-timeline.css'; 
+@import './components/ranking-view/_animations.css';
 
 /* =============================================
    Layer 4: Components - Legacy (점진적 마이그레이션)
