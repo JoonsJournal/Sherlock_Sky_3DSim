@@ -3,7 +3,7 @@
  * ===================
  * Ranking View 애니메이션 관리자
  * 
- * @version 1.1.0
+ * @version 1.1.1
  * @description
  * - 레인 간 이동 애니메이션 (4-Phase 시퀀스)
  * - 밀림 효과 (Push Down) 처리
@@ -11,6 +11,10 @@
  * - 상태 변경 감지 및 처리
  * 
  * @changelog
+ * - v1.1.1 (2026-01-19): 가이드라인 준수 보완
+ *   - static UTIL 추가
+ *   - CSS Legacy alias 추가
+ *   - ⚠️ 호환성: v1.1.0의 모든 기능/메서드/필드 100% 유지
  * - v1.1.0 (2026-01-17): 4-Phase 애니메이션 시퀀스 구현
  *   - Phase 1: 카드 떠오름 (Lift)
  *   - Phase 2: 목표 레인 카드 밀림 (Push Down)
@@ -21,16 +25,16 @@
  * - v1.0.0: 초기 구현
  * 
  * @dependencies
- * - PositionCalculator.js
- * - BatchAnimator.js
- * - EventBus.js
+ * - EventBus.js (../../../core/managers/EventBus.js)
+ * - PositionCalculator.js (../utils/PositionCalculator.js)
+ * - BatchAnimator.js (../utils/BatchAnimator.js)
  * 
  * @exports
  * - AnimationManager
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/managers/AnimationManager.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-17
+ * 수정일: 2026-01-19
  */
 
 import { eventBus } from '../../../core/managers/EventBus.js';
@@ -101,10 +105,11 @@ export class AnimationManager {
     };
     
     /**
-     * CSS 클래스 상수
-     * @version 1.1.0 - GHOST, LIFTING, LANE_TARGET 추가
+     * CSS 클래스 상수 (BEM)
+     * @version 1.1.1 - Legacy alias 추가
      */
     static CSS = {
+        // Equipment Card Modifiers
         ANIMATING: 'equipment-card--animating',
         ENTERING: 'equipment-card--entering',
         LEAVING: 'equipment-card--leaving',
@@ -112,7 +117,23 @@ export class AnimationManager {
         GHOST: 'equipment-card--ghost',
         LIFTING: 'equipment-card--lifting',
         STATUS_CHANGED: 'equipment-card--status-changed',
-        LANE_TARGET: 'ranking-lane--target'
+        
+        // Lane Modifiers
+        LANE_TARGET: 'ranking-lane--target',
+        
+        // Legacy alias (하위 호환)
+        LEGACY_ANIMATING: 'animating',
+        LEGACY_ENTERING: 'entering',
+        LEGACY_LEAVING: 'leaving',
+        LEGACY_GHOST: 'ghost'
+    };
+    
+    /**
+     * 🆕 v1.1.1: Utility 클래스 상수
+     */
+    static UTIL = {
+        HIDDEN: 'u-hidden',
+        FLEX: 'u-flex'
     };
     
     // ─────────────────────────────────────────────────────────────
@@ -149,7 +170,7 @@ export class AnimationManager {
             onAnimationComplete: this._handleAnimationComplete.bind(this)
         });
         
-        // Bound handlers
+        // Bound handlers (이벤트 제거용)
         this._boundHandlers = {};
         
         this._init();
@@ -164,7 +185,7 @@ export class AnimationManager {
      * @private
      */
     _init() {
-        console.log('[AnimationManager] 🎬 Initializing v1.1.0...');
+        console.log('[AnimationManager] 🎬 Initializing v1.1.1...');
         this._setupEventListeners();
     }
     
@@ -176,8 +197,8 @@ export class AnimationManager {
         this._boundHandlers.onStatusChange = this._handleStatusChange.bind(this);
         this._boundHandlers.onLaneUpdate = this._handleLaneUpdate.bind(this);
         
-        EventBus.on('ranking:status:change', this._boundHandlers.onStatusChange);
-        EventBus.on('ranking:lane:update', this._boundHandlers.onLaneUpdate);
+        eventBus.on('ranking:status:change', this._boundHandlers.onStatusChange);
+        eventBus.on('ranking:lane:update', this._boundHandlers.onLaneUpdate);
     }
     
     // ─────────────────────────────────────────────────────────────
@@ -258,13 +279,16 @@ export class AnimationManager {
             console.log('[AnimationManager] 📍 Phase 1: Preparing lift-off');
             
             element.classList.add(AnimationManager.CSS.GHOST);
+            element.classList.add(AnimationManager.CSS.LEGACY_GHOST);
             
             const clone = element.cloneNode(true);
             clone.classList.remove(
                 AnimationManager.CSS.GHOST,
+                AnimationManager.CSS.LEGACY_GHOST,
                 'equipment-card--selected'
             );
             clone.classList.add(AnimationManager.CSS.ANIMATING);
+            clone.classList.add(AnimationManager.CSS.LEGACY_ANIMATING);
             clone.style.cssText = `
                 position: fixed;
                 left: ${fromRect.left}px;
@@ -315,6 +339,7 @@ export class AnimationManager {
             
             // 원본 카드 표시 및 목표 레인으로 이동
             element.classList.remove(AnimationManager.CSS.GHOST);
+            element.classList.remove(AnimationManager.CSS.LEGACY_GHOST);
             this._insertCardAtIndex(element, toContainer, targetIndex);
             
             // 안착 효과
@@ -326,7 +351,7 @@ export class AnimationManager {
             console.log(`[AnimationManager] ✅ Lane change complete: ${fromLaneId} → ${toLaneId}`);
             
             // 완료 이벤트 발행
-            EventBus.emit('ranking:animation:lane-change:complete', {
+            eventBus.emit('ranking:animation:lane-change:complete', {
                 equipmentId,
                 fromLaneId,
                 toLaneId
@@ -337,6 +362,7 @@ export class AnimationManager {
             
             // 에러 시 복구
             element.classList.remove(AnimationManager.CSS.GHOST);
+            element.classList.remove(AnimationManager.CSS.LEGACY_GHOST);
             toLane.element.classList.remove(AnimationManager.CSS.LANE_TARGET);
             
             // 혹시 clone이 남아있다면 제거
@@ -399,6 +425,7 @@ export class AnimationManager {
         
         const element = card.element;
         element.classList.add(AnimationManager.CSS.ENTERING);
+        element.classList.add(AnimationManager.CSS.LEGACY_ENTERING);
         
         return this._batchAnimator.animate(element, {
             keyframes: [
@@ -409,6 +436,7 @@ export class AnimationManager {
             easing: AnimationManager.EASING.ENTER
         }).then(() => {
             element.classList.remove(AnimationManager.CSS.ENTERING);
+            element.classList.remove(AnimationManager.CSS.LEGACY_ENTERING);
         });
     }
     
@@ -421,6 +449,7 @@ export class AnimationManager {
         
         const element = card.element;
         element.classList.add(AnimationManager.CSS.LEAVING);
+        element.classList.add(AnimationManager.CSS.LEGACY_LEAVING);
         
         return this._batchAnimator.animate(element, {
             keyframes: [
@@ -431,6 +460,7 @@ export class AnimationManager {
             easing: AnimationManager.EASING.LEAVE
         }).then(() => {
             element.classList.remove(AnimationManager.CSS.LEAVING);
+            element.classList.remove(AnimationManager.CSS.LEGACY_LEAVING);
         });
     }
     
@@ -474,6 +504,7 @@ export class AnimationManager {
         // 남아있는 ghost/animating 클래스 정리
         document.querySelectorAll(`.${AnimationManager.CSS.GHOST}`).forEach(el => {
             el.classList.remove(AnimationManager.CSS.GHOST);
+            el.classList.remove(AnimationManager.CSS.LEGACY_GHOST);
         });
         document.querySelectorAll(`.${AnimationManager.CSS.ANIMATING}`).forEach(el => {
             el.remove();
@@ -964,7 +995,7 @@ export class AnimationManager {
         this._isAnimating = false;
         
         console.log('[AnimationManager] ✅ Batch animation complete');
-        EventBus.emit('ranking:animation:complete', { changes });
+        eventBus.emit('ranking:animation:complete', { changes });
     }
     
     /**
@@ -1011,6 +1042,7 @@ export class AnimationManager {
         const easing = this._getEasingForType(type);
         
         element.classList.add(AnimationManager.CSS.ANIMATING);
+        element.classList.add(AnimationManager.CSS.LEGACY_ANIMATING);
         
         const keyframes = this._generateKeyframes(deltaX, deltaY, type);
         
@@ -1024,6 +1056,7 @@ export class AnimationManager {
             
         } finally {
             element.classList.remove(AnimationManager.CSS.ANIMATING);
+            element.classList.remove(AnimationManager.CSS.LEGACY_ANIMATING);
             element.style.transform = '';
         }
     }
@@ -1206,8 +1239,8 @@ export class AnimationManager {
         
         this.cancelAll();
         
-        EventBus.off('ranking:status:change', this._boundHandlers.onStatusChange);
-        EventBus.off('ranking:lane:update', this._boundHandlers.onLaneUpdate);
+        eventBus.off('ranking:status:change', this._boundHandlers.onStatusChange);
+        eventBus.off('ranking:lane:update', this._boundHandlers.onLaneUpdate);
         
         this._boundHandlers = {};
         this._animationQueue = [];
@@ -1224,4 +1257,9 @@ export class AnimationManager {
         
         console.log('[AnimationManager] ✅ Disposed');
     }
+}
+
+// 전역 노출 (디버깅용)
+if (typeof window !== 'undefined') {
+    window.AnimationManager = AnimationManager;
 }

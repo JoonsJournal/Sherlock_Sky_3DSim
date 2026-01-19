@@ -3,14 +3,21 @@
  * ====================
  * 레인 스크롤 동기화 관리자
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - 레인별 독립 스크롤 관리
  * - 스크롤 중 애니메이션 목표 위치 재계산
  * - 스크롤 이벤트 최적화 (throttle/debounce)
  * - 가상 스크롤 지원 준비
+ * - 스크롤 상태 저장/복원
  * 
  * @changelog
+ * - v1.1.0 (2026-01-19): 가이드라인 준수 + 가상 스크롤 준비 통합
+ *   - 🆕 static UTIL 추가 (가이드라인 준수)
+ *   - 🆕 가상 스크롤 준비 기능 (VIRTUAL_SCROLL, _virtualScrollStates)
+ *   - 🆕 addLane(), scrollToTop(), saveAllPositions(), restoreAllPositions()
+ *   - 🆕 setEnabled() - 스크롤 관리자 활성화/비활성화
+ *   - ⚠️ 호환성: v1.0.0의 모든 기능/메서드/필드 100% 유지
  * - v1.0.0: 초기 구현
  *   - 스크롤 이벤트 관리
  *   - 애니메이션 연동
@@ -25,7 +32,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/managers/ScrollSyncManager.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-17
+ * 수정일: 2026-01-19
  */
 
 import { eventBus } from '../../../core/managers/EventBus.js';
@@ -38,6 +45,7 @@ import { eventBus } from '../../../core/managers/EventBus.js';
  * 2. 스크롤 중 애니메이션 목표 위치 재계산
  * 3. 부드러운 스크롤 투 기능
  * 4. 스크롤 상태 추적 및 이벤트 발행
+ * 5. 🆕 v1.1.0: 가상 스크롤 준비
  */
 export class ScrollSyncManager {
     // ─────────────────────────────────────────────────────────────
@@ -61,6 +69,23 @@ export class ScrollSyncManager {
         UP: 'up',
         DOWN: 'down',
         NONE: 'none'
+    };
+    
+    /**
+     * 🆕 v1.1.0: 가상 스크롤 설정
+     */
+    static VIRTUAL_SCROLL = {
+        THRESHOLD: 10,           // 가상 스크롤 활성화 임계값
+        ITEM_HEIGHT: 120,        // 카드 높이 (px)
+        BUFFER_SIZE: 3           // 버퍼 아이템 수
+    };
+    
+    /**
+     * 🆕 v1.1.0: Utility 클래스 상수 (가이드라인 준수)
+     */
+    static UTIL = {
+        HIDDEN: 'u-hidden',
+        FLEX: 'u-flex'
     };
     
     // ─────────────────────────────────────────────────────────────
@@ -90,6 +115,12 @@ export class ScrollSyncManager {
         this._scrollEndTimers = new Map();
         this._lastScrollTimes = new Map();
         
+        // 🆕 v1.1.0: 가상 스크롤 상태
+        this._virtualScrollStates = new Map(); // laneId → { startIndex, endIndex, scrollTop }
+        
+        // 🆕 v1.1.0: 활성화 상태
+        this._isEnabled = true;
+        
         // Bound handlers
         this._boundHandlers = {};
         
@@ -105,7 +136,7 @@ export class ScrollSyncManager {
      * @private
      */
     _init() {
-        console.log('[ScrollSyncManager] 📜 Initializing...');
+        console.log('[ScrollSyncManager] 📜 Initializing v1.1.0...');
     }
     
     /**
@@ -124,6 +155,7 @@ export class ScrollSyncManager {
             scrollTop: scrollContainer.scrollTop,
             direction: ScrollSyncManager.DIRECTION.NONE,
             isScrolling: false,
+            isLocked: false,
             element: scrollContainer
         });
         
@@ -149,6 +181,7 @@ export class ScrollSyncManager {
         }
         
         this._scrollStates.delete(laneId);
+        this._virtualScrollStates.delete(laneId); // 🆕 v1.1.0
         delete this._boundHandlers[laneId];
         
         // 타이머 정리
@@ -159,6 +192,29 @@ export class ScrollSyncManager {
         }
         
         console.log(`[ScrollSyncManager] 🗑️ Unregistered lane: ${laneId}`);
+    }
+    
+    /**
+     * 🆕 v1.1.0: 레인 추가 (lanesMap 기반)
+     * @param {string} laneId - 레인 ID
+     * @param {Object} lane - RankingLane 인스턴스
+     */
+    addLane(laneId, lane) {
+        this.lanesMap.set(laneId, lane);
+        
+        const scrollContainer = lane.element?.querySelector('.ranking-lane__scroll-container');
+        if (scrollContainer) {
+            this.registerLane(laneId, scrollContainer);
+        }
+    }
+    
+    /**
+     * 🆕 v1.1.0: 레인 제거
+     * @param {string} laneId - 레인 ID
+     */
+    removeLane(laneId) {
+        this.unregisterLane(laneId);
+        this.lanesMap.delete(laneId);
     }
     
     // ─────────────────────────────────────────────────────────────
@@ -299,6 +355,21 @@ export class ScrollSyncManager {
     }
     
     /**
+     * 🆕 v1.1.0: 레인 맨 위로 스크롤
+     * @param {string} laneId - 레인 ID
+     * @param {boolean} [smooth=true] - 부드러운 스크롤 여부
+     * @returns {Promise}
+     */
+    scrollToTop(laneId, smooth = true) {
+        if (smooth) {
+            return this.smoothScrollTo(laneId, 0);
+        } else {
+            this.setScrollTop(laneId, 0);
+            return Promise.resolve();
+        }
+    }
+    
+    /**
      * 스크롤 위치 즉시 설정
      * @param {string} laneId - 레인 ID
      * @param {number} scrollTop - 스크롤 위치
@@ -323,6 +394,30 @@ export class ScrollSyncManager {
             }
         }
         console.log('[ScrollSyncManager] 🔄 All scroll positions reset');
+    }
+    
+    /**
+     * 🆕 v1.1.0: 모든 레인 스크롤 위치 저장
+     * @returns {Object} laneId → scrollTop
+     */
+    saveAllPositions() {
+        const positions = {};
+        for (const [laneId, state] of this._scrollStates) {
+            positions[laneId] = state.scrollTop;
+        }
+        return positions;
+    }
+    
+    /**
+     * 🆕 v1.1.0: 모든 레인 스크롤 위치 복원
+     * @param {Object} positions - laneId → scrollTop
+     */
+    restoreAllPositions(positions) {
+        if (!positions) return;
+        
+        for (const [laneId, scrollTop] of Object.entries(positions)) {
+            this.setScrollTop(laneId, scrollTop);
+        }
     }
     
     /**
@@ -377,6 +472,9 @@ export class ScrollSyncManager {
      */
     _createScrollHandler(laneId) {
         return (event) => {
+            // 🆕 v1.1.0: 비활성화 상태 체크
+            if (!this._isEnabled) return;
+            
             const now = Date.now();
             const lastTime = this._lastScrollTimes.get(laneId) || 0;
             
@@ -414,6 +512,9 @@ export class ScrollSyncManager {
         state.direction = direction;
         state.isScrolling = true;
         
+        // 🆕 v1.1.0: 가상 스크롤 업데이트
+        this._updateVirtualScroll(laneId, newScrollTop);
+        
         // 콜백 호출
         this._onScrollUpdate?.({
             laneId,
@@ -423,7 +524,7 @@ export class ScrollSyncManager {
         });
         
         // 이벤트 발행
-        EventBus.emit('ranking:scroll:update', {
+        eventBus.emit('ranking:scroll:update', {
             laneId,
             scrollTop: newScrollTop,
             direction
@@ -431,6 +532,52 @@ export class ScrollSyncManager {
         
         // 스크롤 종료 감지 (debounce)
         this._scheduleScrollEnd(laneId);
+    }
+    
+    /**
+     * 🆕 v1.1.0: 가상 스크롤 상태 업데이트
+     * @private
+     */
+    _updateVirtualScroll(laneId, scrollTop) {
+        const lane = this.lanesMap.get(laneId);
+        if (!lane) return;
+        
+        const itemCount = lane.count || lane.getCardCount?.() || 0;
+        
+        // 임계값 미만이면 건너뛰기
+        if (itemCount < ScrollSyncManager.VIRTUAL_SCROLL.THRESHOLD) {
+            return;
+        }
+        
+        const itemHeight = ScrollSyncManager.VIRTUAL_SCROLL.ITEM_HEIGHT;
+        const buffer = ScrollSyncManager.VIRTUAL_SCROLL.BUFFER_SIZE;
+        
+        const firstVisibleIndex = Math.floor(scrollTop / itemHeight);
+        const startIndex = Math.max(0, firstVisibleIndex - buffer);
+        
+        const state = this._scrollStates.get(laneId);
+        const viewportHeight = state?.element?.clientHeight || 0;
+        const visibleCount = Math.ceil(viewportHeight / itemHeight);
+        const endIndex = Math.min(itemCount, firstVisibleIndex + visibleCount + buffer);
+        
+        // 상태 저장
+        this._virtualScrollStates.set(laneId, {
+            startIndex,
+            endIndex,
+            scrollTop,
+            totalItems: itemCount
+        });
+        
+        // TODO: 가상 스크롤 렌더링 (Phase 4+)
+    }
+    
+    /**
+     * 🆕 v1.1.0: 가상 스크롤 상태 조회
+     * @param {string} laneId - 레인 ID
+     * @returns {Object|null} { startIndex, endIndex, scrollTop, totalItems }
+     */
+    getVirtualScrollState(laneId) {
+        return this._virtualScrollStates.get(laneId) || null;
     }
     
     /**
@@ -470,7 +617,7 @@ export class ScrollSyncManager {
         });
         
         // 이벤트 발행
-        EventBus.emit('ranking:scroll:end', {
+        eventBus.emit('ranking:scroll:end', {
             laneId,
             scrollTop: state.scrollTop
         });
@@ -523,6 +670,23 @@ export class ScrollSyncManager {
         };
     }
     
+    /**
+     * 🆕 v1.1.0: 활성화/비활성화
+     * @param {boolean} enabled
+     */
+    setEnabled(enabled) {
+        this._isEnabled = enabled;
+        console.log(`[ScrollSyncManager] ${enabled ? '✅ Enabled' : '⏸️ Disabled'}`);
+    }
+    
+    /**
+     * 🆕 v1.1.0: 활성화 상태 조회
+     * @returns {boolean}
+     */
+    isEnabled() {
+        return this._isEnabled;
+    }
+    
     // ─────────────────────────────────────────────────────────────
     // Cleanup
     // ─────────────────────────────────────────────────────────────
@@ -546,6 +710,7 @@ export class ScrollSyncManager {
         
         // 상태 초기화
         this._scrollStates.clear();
+        this._virtualScrollStates.clear(); // 🆕 v1.1.0
         this._lastScrollTimes.clear();
         this._boundHandlers = {};
         
@@ -557,4 +722,9 @@ export class ScrollSyncManager {
         
         console.log('[ScrollSyncManager] ✅ Disposed');
     }
+}
+
+// 전역 노출 (디버깅용)
+if (typeof window !== 'undefined') {
+    window.ScrollSyncManager = ScrollSyncManager;
 }

@@ -3,7 +3,7 @@
  * =====================
  * Ranking View 데이터 가공 및 레인 할당 매니저
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - WebSocket 데이터 수신 및 가공
  * - 설비 상태에 따른 레인 결정
@@ -11,8 +11,13 @@
  * - 생산중 여부 판단
  * - 레인별 설비 목록 관리
  * - 상태 변경 감지 및 이벤트 발행
+ * - Custom Filter 지원 (Phase 6)
  * 
  * @changelog
+ * - v1.1.0 (2026-01-19): 가이드라인 준수 + Custom Filter 통합
+ *   - 🆕 Custom Filter 기능 추가 (addCustomFilter, removeCustomFilter, getFilteredData)
+ *   - static UTIL 추가 (가이드라인 준수)
+ *   - ⚠️ 호환성: v1.0.0의 모든 기능/메서드/필드 100% 유지
  * - v1.0.0: 초기 구현
  *   - REMOTE_ALARM_CODES: Remote 알람 코드 목록 정의
  *   - determineLane(): 레인 결정 로직
@@ -22,16 +27,16 @@
  *   - getLaneEquipments(): 레인별 설비 목록 조회
  * 
  * @dependencies
- * - LaneSorter (./utils/LaneSorter.js)
- * - DurationCalculator (./utils/DurationCalculator.js)
- * - EventBus (../../core/managers/EventBus.js)
+ * - LaneSorter (../utils/LaneSorter.js)
+ * - DurationCalculator (../utils/DurationCalculator.js)
+ * - EventBus (../../../core/managers/EventBus.js)
  * 
  * @exports
  * - RankingDataManager
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/managers/RankingDataManager.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-17
+ * 수정일: 2026-01-19
  */
 
 import { LaneSorter } from '../utils/LaneSorter.js';
@@ -98,7 +103,8 @@ export class RankingDataManager {
         LANE_UPDATED: 'ranking:lane:updated',
         EQUIPMENT_MOVED: 'ranking:equipment:moved',
         DATA_REFRESHED: 'ranking:data:refreshed',
-        STATS_UPDATED: 'ranking:stats:updated'
+        STATS_UPDATED: 'ranking:stats:updated',
+        CUSTOM_FILTER_UPDATED: 'ranking:custom-filter:updated'  // 🆕 v1.1.0
     };
     
     /**
@@ -108,6 +114,14 @@ export class RankingDataManager {
         DEBOUNCE_MS: 100,           // 상태 변경 디바운스 시간
         UPDATE_INTERVAL_MS: 2000,   // 지속 시간 업데이트 주기
         MAX_BATCH_SIZE: 50          // 최대 일괄 처리 개수
+    };
+    
+    /**
+     * 🆕 v1.1.0: Utility 클래스 상수 (가이드라인 준수)
+     */
+    static UTIL = {
+        HIDDEN: 'u-hidden',
+        FLEX: 'u-flex'
     };
     
     // =========================================================================
@@ -144,6 +158,9 @@ export class RankingDataManager {
         // 통계 캐시
         this._statsCache = new Map();
         
+        // 🆕 v1.1.0: Custom Filter (Phase 6)
+        this._customFilters = new Map();     // filterId → { filterFn, name, description }
+        
         // 초기화
         this._init();
     }
@@ -157,7 +174,7 @@ export class RankingDataManager {
      * @private
      */
     _init() {
-        console.log('[RankingDataManager] 🚀 Initializing...');
+        console.log('[RankingDataManager] 🚀 Initializing v1.1.0...');
         
         // 레인 Map 초기화
         this._initializeLanes();
@@ -949,6 +966,127 @@ export class RankingDataManager {
     }
     
     // =========================================================================
+    // 🆕 v1.1.0: Custom Filter (Phase 6)
+    // =========================================================================
+    
+    /**
+     * 🆕 Custom 필터 추가
+     * 사용자 정의 필터 함수를 등록하여 특정 조건의 설비 필터링
+     * 
+     * @param {string} filterId - 필터 식별자
+     * @param {Function} filterFn - 필터 함수 (equipment => boolean)
+     * @param {Object} [options] - 추가 옵션
+     * @param {string} [options.name] - 필터 표시명
+     * @param {string} [options.description] - 필터 설명
+     */
+    addCustomFilter(filterId, filterFn, options = {}) {
+        if (typeof filterFn !== 'function') {
+            console.warn(`[RankingDataManager] ⚠️ Invalid filter function for: ${filterId}`);
+            return;
+        }
+        
+        this._customFilters.set(filterId, {
+            filterFn,
+            name: options.name || filterId,
+            description: options.description || '',
+            createdAt: Date.now()
+        });
+        
+        console.log(`[RankingDataManager] ✅ Added custom filter: ${filterId}`);
+        
+        // 이벤트 발행
+        this._emitEvent(RankingDataManager.EVENTS.CUSTOM_FILTER_UPDATED, {
+            action: 'add',
+            filterId,
+            filterCount: this._customFilters.size
+        });
+    }
+    
+    /**
+     * 🆕 Custom 필터 제거
+     * 
+     * @param {string} filterId - 필터 식별자
+     * @returns {boolean} 제거 성공 여부
+     */
+    removeCustomFilter(filterId) {
+        const removed = this._customFilters.delete(filterId);
+        
+        if (removed) {
+            console.log(`[RankingDataManager] 🗑️ Removed custom filter: ${filterId}`);
+            
+            // 이벤트 발행
+            this._emitEvent(RankingDataManager.EVENTS.CUSTOM_FILTER_UPDATED, {
+                action: 'remove',
+                filterId,
+                filterCount: this._customFilters.size
+            });
+        }
+        
+        return removed;
+    }
+    
+    /**
+     * 🆕 Custom 필터 적용 데이터 조회
+     * 
+     * @param {string} filterId - 필터 식별자
+     * @returns {Array<Object>} 필터링된 설비 목록
+     */
+    getFilteredData(filterId) {
+        const filter = this._customFilters.get(filterId);
+        
+        if (!filter) {
+            console.warn(`[RankingDataManager] ⚠️ Filter not found: ${filterId}`);
+            return [];
+        }
+        
+        return Array.from(this._equipments.values())
+            .filter(filter.filterFn);
+    }
+    
+    /**
+     * 🆕 모든 Custom 필터 목록 조회
+     * 
+     * @returns {Map<string, Object>} 필터 목록 (filterId → filter info)
+     */
+    getAllCustomFilters() {
+        const result = new Map();
+        
+        for (const [filterId, filter] of this._customFilters) {
+            result.set(filterId, {
+                name: filter.name,
+                description: filter.description,
+                createdAt: filter.createdAt
+            });
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 🆕 Custom 필터 존재 여부 확인
+     * 
+     * @param {string} filterId - 필터 식별자
+     * @returns {boolean} 존재 여부
+     */
+    hasCustomFilter(filterId) {
+        return this._customFilters.has(filterId);
+    }
+    
+    /**
+     * 🆕 모든 Custom 필터 초기화
+     */
+    clearAllCustomFilters() {
+        this._customFilters.clear();
+        
+        console.log('[RankingDataManager] 🗑️ Cleared all custom filters');
+        
+        this._emitEvent(RankingDataManager.EVENTS.CUSTOM_FILTER_UPDATED, {
+            action: 'clear',
+            filterCount: 0
+        });
+    }
+    
+    // =========================================================================
     // Utility Methods
     // =========================================================================
     
@@ -1009,6 +1147,19 @@ export class RankingDataManager {
         console.log(`[RankingDataManager] ✅ Removed remote alarm code: ${code}`);
     }
     
+    /**
+     * 데이터 수동 새로고침
+     */
+    refresh() {
+        this._sortAllLanes();
+        this._updateAllStats();
+        
+        this._emitEvent(RankingDataManager.EVENTS.DATA_REFRESHED, {
+            totalCount: this._equipments.size,
+            laneStats: this.getAllStats()
+        });
+    }
+    
     // =========================================================================
     // Dispose
     // =========================================================================
@@ -1044,6 +1195,9 @@ export class RankingDataManager {
         // 데이터 정리
         this._clearAllData();
         
+        // 🆕 v1.1.0: Custom 필터 정리
+        this._customFilters.clear();
+        
         // 참조 해제
         this._eventBus = null;
         this._webSocketClient = null;
@@ -1056,3 +1210,8 @@ export class RankingDataManager {
 // Default Export
 // =========================================================================
 export default RankingDataManager;
+
+// 전역 노출 (디버깅용)
+if (typeof window !== 'undefined') {
+    window.RankingDataManager = RankingDataManager;
+}
