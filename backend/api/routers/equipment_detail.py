@@ -15,7 +15,7 @@ API Endpoints:
           - is_lot_active=True일 때만 Production 표시 (Lot 시작 시점 기준)
           - ⚠️ 호환성: 기존 모든 필드/로직 100% 유지
 - v2.0.0: PC Info Tab 확장 - Memory, Disk 필드 추가
-          - SQL 쿼리에 MemoryTotalMb, MemoryUsedMb, DiskTotalGb, DiskUsedGb, DiskTotalGb2, DiskUsedGb2 추가
+          - SQL 쿼리에 MemoryTotalMb, MemoryUsedMb, DisksTotalGb, DisksUsedGb, DisksTotalGb2, DisksUsedGb2 추가
           - Memory MB → GB 변환 (/ 1024)
           - Multi Selection: avg_memory_usage_percent, avg_disk_c/d_usage_percent 추가
           - Disk D: NULL인 설비는 평균 계산에서 제외
@@ -273,8 +273,8 @@ def fetch_equipment_detail_raw(conn, equipment_id: int) -> Optional[Dict]:
     
     🆕 v2.0.0: Memory, Disk 필드 추가
     - MemoryTotalMb, MemoryUsedMb → memory_total_gb, memory_used_gb (MB→GB 변환)
-    - DiskTotalGb, DiskUsedGb → disk_c_total_gb, disk_c_used_gb
-    - DiskTotalGb2, DiskUsedGb2 → disk_d_total_gb, disk_d_used_gb (NULL 가능)
+    - DisksTotalGb, DisksUsedGb → disk_c_total_gb, disk_c_used_gb
+    - DisksTotalGb2, DisksUsedGb2 → disk_d_total_gb, disk_d_used_gb (NULL 가능)
     
     🆕 v1.5.0: Lot Active/Inactive 분기 지원
     - WHERE IsStart=1 조건 제거
@@ -300,10 +300,10 @@ def fetch_equipment_detail_raw(conn, equipment_id: int) -> Optional[Dict]:
     - 16: CPUUsagePercent
     - 17: MemoryTotalMb (🆕)
     - 18: MemoryUsedMb (🆕)
-    - 19: DiskTotalGb - Disk C (🆕)
-    - 20: DiskUsedGb - Disk C (🆕)
-    - 21: DiskTotalGb2 - Disk D (🆕)
-    - 22: DiskUsedGb2 - Disk D (🆕)
+    - 19: DisksTotalGb - Disk C (🆕)
+    - 20: DisksUsedGb - Disk C (🆕)
+    - 21: DisksTotalGb2 - Disk D (🆕)
+    - 22: DisksUsedGb2 - Disk D (🆕)
     
     Args:
         conn: DB Connection
@@ -347,10 +347,10 @@ def fetch_equipment_detail_raw(conn, equipment_id: int) -> Optional[Dict]:
                 pcLog.CPUUsagePercent,
                 pcLog.MemoryTotalMb,
                 pcLog.MemoryUsedMb,
-                pcLog.DiskTotalGb,
-                pcLog.DiskUsedGb,
-                pcLog.DiskTotalGb2,
-                pcLog.DiskUsedGb2
+                pcLog.DisksTotalGb,
+                pcLog.DisksUsedGb,
+                pcLog.DisksTotalGb2,
+                pcLog.DisksUsedGb2
                 
             FROM core.Equipment e
             
@@ -394,10 +394,10 @@ def fetch_equipment_detail_raw(conn, equipment_id: int) -> Optional[Dict]:
                     CPUUsagePercent,
                     MemoryTotalMb,
                     MemoryUsedMb,
-                    DiskTotalGb,
-                    DiskUsedGb,
-                    DiskTotalGb2,
-                    DiskUsedGb2,
+                    DisksTotalGb,
+                    DisksUsedGb,
+                    DisksTotalGb2,
+                    DisksUsedGb2,
                     ROW_NUMBER() OVER (
                         PARTITION BY EquipmentId 
                         ORDER BY OccurredAtUtc DESC
@@ -529,10 +529,10 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
     - 15: CPUUsagePercent
     - 16: MemoryTotalMb (🆕)
     - 17: MemoryUsedMb (🆕)
-    - 18: DiskTotalGb - Disk C (🆕)
-    - 19: DiskUsedGb - Disk C (🆕)
-    - 20: DiskTotalGb2 - Disk D (🆕)
-    - 21: DiskUsedGb2 - Disk D (🆕)
+    - 18: DisksTotalGb - Disk C (🆕)
+    - 19: DisksUsedGb - Disk C (🆕)
+    - 20: DisksTotalGb2 - Disk D (🆕)
+    - 21: DisksUsedGb2 - Disk D (🆕)
     
     Args:
         conn: DB Connection
@@ -583,10 +583,10 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
                 pcLog.CPUUsagePercent,
                 pcLog.MemoryTotalMb,
                 pcLog.MemoryUsedMb,
-                pcLog.DiskTotalGb,
-                pcLog.DiskUsedGb,
-                pcLog.DiskTotalGb2,
-                pcLog.DiskUsedGb2
+                pcLog.DisksTotalGb,
+                pcLog.DisksUsedGb,
+                pcLog.DisksTotalGb2,
+                pcLog.DisksUsedGb2
                 
             FROM core.Equipment e
             
@@ -629,10 +629,10 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
                     CPUUsagePercent,
                     MemoryTotalMb,
                     MemoryUsedMb,
-                    DiskTotalGb,
-                    DiskUsedGb,
-                    DiskTotalGb2,
-                    DiskUsedGb2,
+                    DisksTotalGb,
+                    DisksUsedGb,
+                    DisksTotalGb2,
+                    DisksUsedGb2,
                     ROW_NUMBER() OVER (
                         PARTITION BY EquipmentId 
                         ORDER BY OccurredAtUtc DESC

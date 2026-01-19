@@ -8,7 +8,7 @@ Phase 1: 신규 추가
 @version 3.0.0
 @changelog
 - v3.0.0: PC Info Tab 확장 - Memory, Disk 필드 추가
-          - SQL 쿼리에 MemoryTotalMb, MemoryUsedMb, DiskTotalGb, DiskUsedGb, DiskTotalGb2, DiskUsedGb2 추가
+          - SQL 쿼리에 MemoryTotalMb, MemoryUsedMb, DisksTotalGb, DisksUsedGb, DisksTotalGb2, DisksUsedGb2 추가
           - Memory MB → GB 변환 (/ 1024)
           - 메시지에 memory_total_gb, memory_used_gb, disk_c_*, disk_d_* 추가
           - Memory/Disk 변경 감지 (임계값 5% 이상)
@@ -416,8 +416,8 @@ class StatusStreamManager:
         
         🆕 v3.0.0: Memory, Disk 필드 추가
         - MemoryTotalMb, MemoryUsedMb → memory_total_gb, memory_used_gb (MB→GB)
-        - DiskTotalGb, DiskUsedGb → disk_c_total_gb, disk_c_used_gb
-        - DiskTotalGb2, DiskUsedGb2 → disk_d_total_gb, disk_d_used_gb (NULL 가능)
+        - DisksTotalGb, DisksUsedGb → disk_c_total_gb, disk_c_used_gb
+        - DisksTotalGb2, DisksUsedGb2 → disk_d_total_gb, disk_d_used_gb (NULL 가능)
         
         🆕 v2.1.0: Lot Active/Inactive 분기 지원
         - IsStart 값 포함
@@ -435,10 +435,10 @@ class StatusStreamManager:
         - 8: CPUUsagePercent
         - 9: MemoryTotalMb (🆕)
         - 10: MemoryUsedMb (🆕)
-        - 11: DiskTotalGb - Disk C (🆕)
-        - 12: DiskUsedGb - Disk C (🆕)
-        - 13: DiskTotalGb2 - Disk D (🆕)
-        - 14: DiskUsedGb2 - Disk D (🆕)
+        - 11: DisksTotalGb - Disk C (🆕)
+        - 12: DisksUsedGb - Disk C (🆕)
+        - 13: DisksTotalGb2 - Disk D (🆕)
+        - 14: DisksUsedGb2 - Disk D (🆕)
         
         Returns:
             dict: {equipment_id: {status, equipment_name, line_name, is_lot_active, memory_*, disk_*, ...}}
@@ -485,10 +485,10 @@ class StatusStreamManager:
                     pcLog.CPUUsagePercent,
                     pcLog.MemoryTotalMb,
                     pcLog.MemoryUsedMb,
-                    pcLog.DiskTotalGb,
-                    pcLog.DiskUsedGb,
-                    pcLog.DiskTotalGb2,
-                    pcLog.DiskUsedGb2
+                    pcLog.DisksTotalGb,
+                    pcLog.DisksUsedGb,
+                    pcLog.DisksTotalGb2,
+                    pcLog.DisksUsedGb2
                     
                 FROM core.Equipment e
                 
@@ -527,10 +527,10 @@ class StatusStreamManager:
                         CPUUsagePercent,
                         MemoryTotalMb,
                         MemoryUsedMb,
-                        DiskTotalGb,
-                        DiskUsedGb,
-                        DiskTotalGb2,
-                        DiskUsedGb2,
+                        DisksTotalGb,
+                        DisksUsedGb,
+                        DisksTotalGb2,
+                        DisksUsedGb2,
                         ROW_NUMBER() OVER (
                             PARTITION BY EquipmentId 
                             ORDER BY OccurredAtUtc DESC

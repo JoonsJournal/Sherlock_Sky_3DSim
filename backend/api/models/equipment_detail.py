@@ -82,7 +82,7 @@ class EquipmentDetailResponse(BaseModel):
     - log.Lotinfo: LotId, ProductModel, IsStart, OccurredAtUtc
     - log.CycleTime: Time (Tact Time 계산용)
     - core.EquipmentPCInfo: OS, Architecture, LastBootTime, CPUName, CPULogicalCount, GPUName, UpdateAtUtc
-    - log.EquipmentPCInfo: CPUUsagePercent, MemoryTotalMb, MemoryUsedMb, DiskTotalGb, DiskUsedGb, DiskTotalGb2, DiskUsedGb2
+    - log.EquipmentPCInfo: CPUUsagePercent, MemoryTotalMb, MemoryUsedMb, DisksTotalGb, DisksUsedGb, DisksTotalGb2, DisksUsedGb2
     
     Lot Active/Inactive 분기:
     - is_lot_active=True (IsStart=1): Product, Lot No, Lot Start, Lot Duration, Production, Tact Time 표시
@@ -187,21 +187,21 @@ class EquipmentDetailResponse(BaseModel):
     # 🆕 v2.0.0: Disk C
     disk_c_total_gb: Optional[float] = Field(
         None,
-        description="Disk C 전체 용량 GB (log.EquipmentPCInfo.DiskTotalGb)"
+        description="Disk C 전체 용량 GB (log.EquipmentPCInfo.DisksTotalGb)"
     )
     disk_c_used_gb: Optional[float] = Field(
         None,
-        description="Disk C 사용량 GB (log.EquipmentPCInfo.DiskUsedGb)"
+        description="Disk C 사용량 GB (log.EquipmentPCInfo.DisksUsedGb)"
     )
     
     # 🆕 v2.0.0: Disk D (NULL 가능 - 없는 설비는 Frontend에서 행 숨김 처리)
     disk_d_total_gb: Optional[float] = Field(
         None,
-        description="Disk D 전체 용량 GB (log.EquipmentPCInfo.DiskTotalGb2, NULL 가능)"
+        description="Disk D 전체 용량 GB (log.EquipmentPCInfo.DisksTotalGb2, NULL 가능)"
     )
     disk_d_used_gb: Optional[float] = Field(
         None,
-        description="Disk D 사용량 GB (log.EquipmentPCInfo.DiskUsedGb2, NULL 가능)"
+        description="Disk D 사용량 GB (log.EquipmentPCInfo.DisksUsedGb2, NULL 가능)"
     )
     
     class Config:
