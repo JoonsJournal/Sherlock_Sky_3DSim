@@ -5,32 +5,64 @@
  * 
  * Block: .ranking-lane
  * 
- * @version 1.0.0
- * @updated 2026-01-17
+ * @version 1.1.0
+ * @updated 2026-01-19
+ * 
+ * @changelog
+ * - v1.1.0 (2026-01-19): 가이드라인 준수 + Custom Lane 통합
+ *   - 🆕 CSS Variables 정의 (--lane-bg, --lane-border 등)
+ *   - 🆕 .ranking-lane--custom 스타일 (파란색 Custom Lane)
+ *   - 🆕 .ranking-lane__delete-btn 스타일 (Custom Lane 삭제 버튼)
+ *   - 🆕 .ranking-lane--empty ::after (빈 상태 텍스트)
+ *   - ⚠️ 호환성: v1.0.0의 모든 스타일 100% 유지
+ * - v1.0.0: 초기 버전
+ *   - 레인 기본 레이아웃
+ *   - 6개 레인 타입 (Remote, Sudden Stop, Stop, Run, Idle, Wait)
+ *   - Count Badge 스타일
+ *   - Dark Theme 조정
  * 
  * [BEM 구조]
  * .ranking-lane                           → Block
  * .ranking-lane__scroll-container         → Element (스크롤 영역)
  * .ranking-lane__cards-container          → Element (카드 컨테이너)
  * .ranking-lane__empty-message            → Element (빈 상태 메시지)
+ * .ranking-lane__empty-icon               → Element (빈 상태 아이콘)
+ * .ranking-lane__empty-text               → Element (빈 상태 텍스트)
+ * .ranking-lane__count-badge              → Element (설비 수 배지)
+ * .ranking-lane__delete-btn               → Element (삭제 버튼) 🆕 v1.1.0
  * .ranking-lane--remote                   → Modifier (Remote 레인)
  * .ranking-lane--sudden-stop              → Modifier (Sudden Stop 레인)
  * .ranking-lane--stop                     → Modifier (Stop 레인)
  * .ranking-lane--run                      → Modifier (Run 레인)
  * .ranking-lane--idle                     → Modifier (Idle 레인)
  * .ranking-lane--wait                     → Modifier (Wait 레인)
+ * .ranking-lane--custom                   → Modifier (Custom 레인) 🆕 v1.1.0
  * .ranking-lane--focused                  → Modifier (키보드 포커스)
+ * .ranking-lane--empty                    → Modifier (빈 상태) 🆕 v1.1.0
  * 
- * [Lane Types - 6개 레인]
+ * [Lane Types - 6+1개 레인]
  * 1. Remote     - SUDDENSTOP + Remote Alarm Code
  * 2. Sudden Stop - SUDDENSTOP + Non-Remote Alarm
  * 3. Stop       - STOP 상태
  * 4. Run        - RUN 상태
  * 5. Idle       - IDLE 상태
  * 6. Wait       - 비생산 대기
+ * 7. Custom     - 사용자 정의 레인 🆕 v1.1.0
  * 
  * 📁 위치: frontend/threejs_viewer/styles/components/ranking-view/_ranking-lane.css
  */
+
+/* =============================================
+   🆕 v1.1.0: CSS Variables (Local)
+   ============================================= */
+.ranking-lane {
+    --lane-bg: var(--surface-panel, rgba(255, 255, 255, 0.03));
+    --lane-border: var(--border-default, rgba(255, 255, 255, 0.1));
+    --lane-header-border: var(--border-subtle, rgba(255, 255, 255, 0.06));
+    --lane-radius: var(--radius-md, 8px);
+    --lane-gap: var(--spacing-2, 8px);
+    --lane-transition: var(--transition-fast, 0.15s ease);
+}
 
 /* =============================================
    Block (Base)
@@ -44,14 +76,14 @@
     max-width: 280px;
     
     /* Visual */
-    background: var(--surface-panel);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
+    background: var(--lane-bg);
+    border: 1px solid var(--lane-border);
+    border-radius: var(--lane-radius);
     
     /* Interaction */
     overflow: hidden;
-    transition: border-color var(--transition-fast), 
-                box-shadow var(--transition-fast);
+    transition: border-color var(--lane-transition), 
+                box-shadow var(--lane-transition);
 }
 
 /* Hover State */
@@ -104,7 +136,7 @@
     flex-direction: column;
     
     /* Box Model */
-    gap: var(--spacing-2);
+    gap: var(--lane-gap);
     padding: var(--spacing-2);
     
     /* Visual */
@@ -139,6 +171,52 @@
     font-size: var(--font-size-sm);
     color: var(--content-muted);
     text-align: center;
+}
+
+/* 🆕 v1.1.0: Empty Modifier (::after 대체 텍스트) */
+.ranking-lane--empty .ranking-lane__cards-container::after {
+    content: '설비 없음';
+    display: block;
+    padding: var(--spacing-4, 16px);
+    text-align: center;
+    color: var(--content-tertiary, rgba(255, 255, 255, 0.3));
+    font-size: var(--font-size-sm, 14px);
+}
+
+/* =============================================
+   🆕 v1.1.0: Delete Button (Custom Lane)
+   ============================================= */
+.ranking-lane__delete-btn {
+    /* Position */
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    
+    /* Box Model */
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    
+    /* Visual */
+    background: rgba(239, 68, 68, 0.2);
+    border: none;
+    border-radius: var(--radius-sm, 4px);
+    
+    /* Typography */
+    font-size: 14px;
+    color: var(--status-danger, #ef4444);
+    line-height: 1;
+    
+    /* Cursor */
+    cursor: pointer;
+    
+    /* Transition */
+    transition: var(--transition-fast, 0.15s ease);
+}
+
+.ranking-lane__delete-btn:hover {
+    background: rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
 }
 
 /* =============================================
@@ -197,6 +275,16 @@
 
 .ranking-lane--wait:hover {
     box-shadow: 0 0 12px rgba(148, 163, 184, 0.2);
+}
+
+/* 🆕 v1.1.0: Custom Lane - 파랑 */
+.ranking-lane--custom {
+    border-top: 3px solid var(--interactive-primary-normal, #3b82f6);
+    position: relative;
+}
+
+.ranking-lane--custom:hover {
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
 }
 
 /* =============================================
@@ -264,9 +352,23 @@
     color: var(--content-muted);
 }
 
+/* 🆕 v1.1.0: Custom 배지 색상 */
+.ranking-lane--custom .ranking-lane__count-badge {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--interactive-primary-normal, #3b82f6);
+}
+
 /* =============================================
    Responsive Design
    ============================================= */
+
+/* 대형 태블릿 (1200px 이하) */
+@media (max-width: 1200px) {
+    .ranking-lane {
+        min-width: 190px;
+        max-width: 260px;
+    }
+}
 
 /* 태블릿 이하 */
 @media (max-width: 1024px) {
@@ -290,6 +392,10 @@
     
     .ranking-lane__empty-message {
         padding: var(--spacing-4) var(--spacing-2);
+    }
+    
+    .ranking-lane__scroll-container {
+        padding: var(--spacing-1, 4px);
     }
 }
 
@@ -318,6 +424,11 @@
 
 [data-theme="dark"] .ranking-lane--wait:hover {
     box-shadow: 0 0 16px rgba(148, 163, 184, 0.3);
+}
+
+/* 🆕 v1.1.0: Custom Dark Theme */
+[data-theme="dark"] .ranking-lane--custom:hover {
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.3);
 }
 
 /* =============================================

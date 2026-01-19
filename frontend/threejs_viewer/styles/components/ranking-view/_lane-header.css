@@ -5,8 +5,22 @@
  * 
  * Block: .lane-header
  * 
- * @version 1.0.0
- * @updated 2026-01-17
+ * @version 1.1.0
+ * @updated 2026-01-19
+ * 
+ * @changelog
+ * - v1.1.0 (2026-01-19): 가이드라인 준수 + Custom Lane 통합
+ *   - 🆕 CSS Variables 정의 (--lh-bg, --lh-padding 등)
+ *   - 🆕 .lane-header--custom 스타일 (Custom Lane)
+ *   - 🆕 .lane-header--custom 그라데이션 배경
+ *   - 🆕 Dark Theme Custom Lane 추가
+ *   - ⚠️ 호환성: v1.0.0의 모든 스타일 100% 유지
+ * - v1.0.0: 초기 버전
+ *   - 레인 헤더 기본 레이아웃 (세로 배치)
+ *   - 6개 레인 타입 스타일 (그라데이션 배경)
+ *   - 통계 항목 (Avg, Max)
+ *   - Collapsed modifier
+ *   - Dark Theme 조정
  * 
  * [BEM 구조]
  * .lane-header                    → Block
@@ -19,6 +33,13 @@
  * .lane-header__stat-icon         → Element (통계 아이콘)
  * .lane-header__stat-label        → Element (통계 라벨)
  * .lane-header__stat-value        → Element (통계 값)
+ * .lane-header--remote            → Modifier (Remote 레인)
+ * .lane-header--sudden-stop       → Modifier (Sudden Stop 레인)
+ * .lane-header--stop              → Modifier (Stop 레인)
+ * .lane-header--run               → Modifier (Run 레인)
+ * .lane-header--idle              → Modifier (Idle 레인)
+ * .lane-header--wait              → Modifier (Wait 레인)
+ * .lane-header--custom            → Modifier (Custom 레인) 🆕 v1.1.0
  * .lane-header--collapsed         → Modifier (접힌 상태)
  * 
  * [Layout - 세로 배치]
@@ -34,6 +55,17 @@
  */
 
 /* =============================================
+   🆕 v1.1.0: CSS Variables (Local)
+   ============================================= */
+.lane-header {
+    --lh-bg: var(--surface-secondary, rgba(255, 255, 255, 0.05));
+    --lh-padding: var(--spacing-3, 12px);
+    --lh-gap: var(--spacing-2, 8px);
+    --lh-border: var(--border-subtle, rgba(255, 255, 255, 0.06));
+    --lh-transition: var(--transition-fast, 0.15s ease);
+}
+
+/* =============================================
    Block (Base)
    ============================================= */
 .lane-header {
@@ -43,12 +75,12 @@
     flex-shrink: 0;
     
     /* Box Model */
-    padding: var(--spacing-3);
-    gap: var(--spacing-2);
+    padding: var(--lh-padding);
+    gap: var(--lh-gap);
     
     /* Visual */
-    background: var(--surface-secondary);
-    border-bottom: 1px solid var(--border-subtle);
+    background: var(--lh-bg);
+    border-bottom: 1px solid var(--lh-border);
 }
 
 /* =============================================
@@ -104,6 +136,11 @@
 
 .lane-header--wait .lane-header__icon {
     color: var(--content-muted);
+}
+
+/* 🆕 v1.1.0: Custom 아이콘 색상 */
+.lane-header--custom .lane-header__icon {
+    color: var(--interactive-primary-normal, #3b82f6);
 }
 
 /* =============================================
@@ -285,6 +322,16 @@
     );
 }
 
+/* 🆕 v1.1.0: Custom Lane */
+.lane-header--custom {
+    position: relative;
+    background: linear-gradient(
+        135deg,
+        rgba(59, 130, 246, 0.08) 0%,
+        var(--surface-secondary) 100%
+    );
+}
+
 /* =============================================
    Collapsed Modifier
    ============================================= */
@@ -318,6 +365,10 @@
 
 /* 모바일 */
 @media (max-width: 768px) {
+    .lane-header {
+        --lh-padding: var(--spacing-2, 8px);
+    }
+    
     .lane-header__icon {
         width: 20px;
         height: 20px;
@@ -328,6 +379,10 @@
         min-width: 22px;
         height: 18px;
         font-size: 10px;
+    }
+    
+    .lane-header__stat-value {
+        font-size: var(--font-size-xs, 12px);
     }
 }
 
@@ -346,6 +401,15 @@
     background: linear-gradient(
         135deg,
         rgba(34, 197, 94, 0.12) 0%,
+        var(--surface-secondary) 100%
+    );
+}
+
+/* 🆕 v1.1.0: Dark Theme Custom */
+[data-theme="dark"] .lane-header--custom {
+    background: linear-gradient(
+        135deg,
+        rgba(59, 130, 246, 0.12) 0%,
         var(--surface-secondary) 100%
     );
 }

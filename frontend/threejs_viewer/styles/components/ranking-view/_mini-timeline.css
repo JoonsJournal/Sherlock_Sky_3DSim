@@ -6,8 +6,20 @@
  * 
  * Block: .mini-timeline
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @updated 2026-01-19
+ * 
+ * @changelog
+ * - v1.1.0 (2026-01-19): 가이드라인 준수 + 접근성 강화
+ *   - 🆕 Tooltip Arrow (::after) 추가
+ *   - 🆕 Reduced Motion 접근성 추가
+ *   - 🆕 CSS Variables 로컬 정의 추가
+ *   - ⚠️ 호환성: v1.0.0의 모든 스타일 100% 유지
+ * - v1.0.0: 초기 버전
+ *   - Canvas 기반 타임라인 시각화
+ *   - Tooltip 구조 (time, status, duration)
+ *   - Loading shimmer 애니메이션
+ *   - Dark Theme, Card integration
  * 
  * [BEM 구조]
  * .mini-timeline                         → Block
@@ -28,6 +40,15 @@
  */
 
 /* =============================================
+   🆕 v1.1.0: CSS Variables (Local)
+   ============================================= */
+.mini-timeline {
+    --mt-height: 12px;
+    --mt-radius: var(--radius-sm, 4px);
+    --mt-transition: var(--transition-fast, 0.15s ease);
+}
+
+/* =============================================
    Block (Base)
    ============================================= */
 .mini-timeline {
@@ -38,19 +59,31 @@
     width: 100%;
     
     /* Box Model */
-    height: 12px;
+    height: var(--mt-height);
     margin-top: var(--spacing-1);
     
     /* Visual */
-    border-radius: var(--radius-sm);
+    border-radius: var(--mt-radius);
     overflow: hidden;
 }
 
 /* =============================================
-   Elements
+   Status Colors (for reference in JS)
+   상태별 색상 CSS 변수
    ============================================= */
+.mini-timeline {
+    --status-run: var(--interactive-success, #22c55e);
+    --status-suddenstop: var(--interactive-danger-normal, #ef4444);
+    --status-stop: var(--interactive-warning, #f97316);
+    --status-idle: var(--status-idle-color, #eab308);
+    --status-wait: var(--content-muted, #94a3b8);
+    --status-remote: var(--interactive-primary-normal, #8b5cf6);
+    --status-unknown: var(--content-disabled, #64748b);
+}
 
-/* 캔버스 */
+/* =============================================
+   Element: Canvas
+   ============================================= */
 .mini-timeline__canvas {
     /* Layout */
     display: block;
@@ -61,14 +94,16 @@
     cursor: pointer;
     
     /* Transition */
-    transition: opacity var(--transition-fast);
+    transition: opacity var(--mt-transition);
 }
 
 .mini-timeline__canvas:hover {
     opacity: 0.9;
 }
 
-/* 툴팁 */
+/* =============================================
+   Element: Tooltip
+   ============================================= */
 .mini-timeline__tooltip {
     /* Layout */
     position: absolute;
@@ -93,14 +128,27 @@
     
     /* Transition */
     transition: 
-        opacity var(--transition-fast),
-        visibility var(--transition-fast);
+        opacity var(--mt-transition),
+        visibility var(--mt-transition);
     
     /* Positioning offset */
-    transform: translateY(-100%);
+    transform: translateY(-100%) translateX(-50%);
     
     /* Prevent text wrapping */
     white-space: nowrap;
+}
+
+/* 🆕 v1.1.0: Tooltip Arrow */
+.mini-timeline__tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    
+    /* Arrow */
+    border: 5px solid transparent;
+    border-top-color: var(--surface-panel);
 }
 
 /* 툴팁 표시 상태 */
@@ -108,6 +156,10 @@
     opacity: 1;
     visibility: visible;
 }
+
+/* =============================================
+   Element: Tooltip Sub-elements
+   ============================================= */
 
 /* 툴팁 시간 */
 .mini-timeline__tooltip-time {
@@ -134,7 +186,9 @@
     font-family: var(--font-family-mono);
 }
 
-/* 데이터 없음 */
+/* =============================================
+   Element: No Data
+   ============================================= */
 .mini-timeline__no-data {
     /* Layout */
     position: absolute;
@@ -152,7 +206,7 @@
     
     /* Visual */
     background: var(--surface-secondary);
-    border-radius: var(--radius-sm);
+    border-radius: var(--mt-radius);
 }
 
 /* =============================================
@@ -199,27 +253,13 @@
 }
 
 /* =============================================
-   Status Colors (for reference in JS)
-   상태별 색상 CSS 변수
-   ============================================= */
-.mini-timeline {
-    --status-run: var(--interactive-success, #22c55e);
-    --status-suddenstop: var(--interactive-danger-normal, #ef4444);
-    --status-stop: var(--interactive-warning, #f97316);
-    --status-idle: var(--status-idle-color, #eab308);
-    --status-wait: var(--content-muted, #94a3b8);
-    --status-remote: var(--interactive-primary-normal, #8b5cf6);
-    --status-unknown: var(--content-disabled, #64748b);
-}
-
-/* =============================================
    Responsive
    ============================================= */
 
 /* 작은 화면 */
 @media (max-width: 768px) {
     .mini-timeline {
-        height: 10px;
+        --mt-height: 10px;
     }
     
     .mini-timeline__tooltip {
@@ -231,11 +271,28 @@
 /* 아주 작은 화면 */
 @media (max-width: 480px) {
     .mini-timeline {
-        height: 8px;
+        --mt-height: 8px;
     }
     
     .mini-timeline__tooltip {
         display: none;
+    }
+}
+
+/* =============================================
+   🆕 v1.1.0: Reduced Motion (접근성)
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+    .mini-timeline__tooltip {
+        transition: none;
+    }
+    
+    .mini-timeline__canvas {
+        transition: none;
+    }
+    
+    .mini-timeline--loading::after {
+        animation: none;
     }
 }
 
@@ -248,6 +305,11 @@
     box-shadow: 
         var(--shadow-lg),
         0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+/* 🆕 v1.1.0: Dark Theme Arrow 색상 */
+[data-theme="dark"] .mini-timeline__tooltip::after {
+    border-top-color: var(--surface-panel);
 }
 
 [data-theme="dark"] .mini-timeline__canvas:hover {

@@ -5,8 +5,24 @@
  * 
  * Block: .equipment-card
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @updated 2026-01-19
+ * 
+ * @changelog
+ * - v1.2.0 (2026-01-19): 가이드라인 준수 + 추가 기능 통합
+ *   - 🆕 CSS Variables 정의 (--card-bg, --card-border 등)
+ *   - 🆕 __production-percent 요소 추가
+ *   - 🆕 __alarm-code strong 스타일
+ *   - 🆕 상태별 __duration 배경색 변경
+ *   - ⚠️ 호환성: v1.1.0의 모든 스타일 100% 유지
+ * - v1.1.0: 긴급도 표시 강화
+ *   - URGENCY_WARNING, URGENCY_DANGER, URGENCY_CRITICAL 스타일 추가
+ *   - Pulse 애니메이션 추가
+ *   - Dark Theme 조정
+ *   - Reduced Motion 접근성
+ * - v1.0.0: 초기 버전
+ *   - 카드 기본 레이아웃
+ *   - 상태별 색상 (RUN, STOP, IDLE 등)
  * 
  * [BEM 구조]
  * .equipment-card                         → Block
@@ -14,16 +30,32 @@
  * .equipment-card__status-indicator       → Element (상태 인디케이터)
  * .equipment-card__equipment-id           → Element (설비 ID)
  * .equipment-card__duration               → Element (지속 시간)
+ * .equipment-card__duration-value         → Element (지속 시간 값)
+ * .equipment-card__duration-label         → Element (지속 시간 라벨)
  * .equipment-card__timeline               → Element (미니 타임라인 컨테이너)
  * .equipment-card__alarm-info             → Element (알람 정보)
+ * .equipment-card__alarm-code             → Element (알람 코드)
+ * .equipment-card__alarm-name             → Element (알람 이름)
+ * .equipment-card__alarm-repeat           → Element (알람 반복 횟수)
  * .equipment-card__production-info        → Element (생산 정보)
+ * .equipment-card__production-bar         → Element (진행률 바 배경)
+ * .equipment-card__production-bar-fill    → Element (진행률 바 채움)
+ * .equipment-card__production-count       → Element (생산 개수)
+ * .equipment-card__production-percent     → Element (진행률 퍼센트) 🆕 v1.2.0
+ * .equipment-card__lot-time               → Element (Lot 시간)
  * .equipment-card--run                    → Modifier (가동)
+ * .equipment-card--stop                   → Modifier (정지)
+ * .equipment-card--idle                   → Modifier (유휴)
  * .equipment-card--sudden-stop            → Modifier (비상정지)
+ * .equipment-card--remote                 → Modifier (원격)
+ * .equipment-card--wait                   → Modifier (대기)
  * .equipment-card--urgency-warning        → Modifier (5분 초과)
  * .equipment-card--urgency-danger         → Modifier (10분 초과)
  * .equipment-card--urgency-critical       → Modifier (15분 초과)
  * .equipment-card--animating              → Modifier (애니메이션 중)
  * .equipment-card--selected               → Modifier (선택됨)
+ * .equipment-card--entering               → Modifier (진입 중)
+ * .equipment-card--leaving                → Modifier (퇴장 중)
  * 
  * [Interactive States]
  * Normal → Hover → Active → Selected
@@ -35,22 +67,35 @@
  */
 
 /* =============================================
+   🆕 v1.2.0: CSS Variables (Local)
+   ============================================= */
+.equipment-card {
+    --card-bg: var(--surface-panel, rgba(255, 255, 255, 0.03));
+    --card-border: var(--border-default, rgba(255, 255, 255, 0.1));
+    --card-border-width: 1px;
+    --card-radius: var(--radius-md, 8px);
+    --card-padding: var(--spacing-3, 12px);
+    --card-gap: var(--spacing-2, 8px);
+    --card-transition: var(--transition-fast, 0.15s ease);
+}
+
+/* =============================================
    Block (Base)
    ============================================= */
 .equipment-card {
     /* Layout */
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-2);
+    gap: var(--card-gap);
     
     /* Box Model */
-    padding: var(--spacing-3);
+    padding: var(--card-padding);
     min-width: 140px;
     
     /* Visual */
-    background: var(--surface-panel);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-md);
+    background: var(--card-bg);
+    border: var(--card-border-width) solid var(--card-border);
+    border-radius: var(--card-radius);
     
     /* Interaction */
     cursor: pointer;
@@ -58,10 +103,10 @@
     
     /* Transition */
     transition: 
-        border-color var(--transition-fast),
-        box-shadow var(--transition-fast),
-        transform var(--transition-fast),
-        background-color var(--transition-fast);
+        border-color var(--card-transition),
+        box-shadow var(--card-transition),
+        transform var(--card-transition),
+        background-color var(--card-transition);
 }
 
 /* =============================================
@@ -90,14 +135,32 @@
     border-left: 4px solid var(--interactive-success, #22c55e);
 }
 
+/* 🆕 v1.2.0: RUN Duration 배경색 */
+.equipment-card--run .equipment-card__duration {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--status-success, #22c55e);
+}
+
 /* STOP - 정지 */
 .equipment-card--stop {
     border-left: 4px solid var(--interactive-warning, #f97316);
 }
 
+/* 🆕 v1.2.0: STOP Duration 배경색 */
+.equipment-card--stop .equipment-card__duration {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--status-danger, #ef4444);
+}
+
 /* IDLE - 유휴 */
 .equipment-card--idle {
     border-left: 4px solid var(--status-idle-color, #eab308);
+}
+
+/* 🆕 v1.2.0: IDLE Duration 배경색 */
+.equipment-card--idle .equipment-card__duration {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--status-warning, #f59e0b);
 }
 
 /* SUDDEN-STOP - 비상 정지 */
@@ -106,10 +169,22 @@
     background: var(--surface-danger-subtle, rgba(239, 68, 68, 0.05));
 }
 
+/* 🆕 v1.2.0: SUDDEN-STOP Duration 배경색 */
+.equipment-card--sudden-stop .equipment-card__duration {
+    background: rgba(220, 38, 38, 0.2);
+    color: #fca5a5;
+}
+
 /* REMOTE - 원격 */
 .equipment-card--remote {
     border-left: 4px solid var(--interactive-primary-normal, #8b5cf6);
     background: var(--surface-primary-subtle, rgba(139, 92, 246, 0.05));
+}
+
+/* 🆕 v1.2.0: REMOTE Duration 배경색 */
+.equipment-card--remote .equipment-card__duration {
+    background: rgba(185, 28, 28, 0.25);
+    color: #fecaca;
 }
 
 /* WAIT - 대기 */
@@ -118,8 +193,14 @@
     opacity: 0.8;
 }
 
+/* 🆕 v1.2.0: WAIT Duration 배경색 */
+.equipment-card--wait .equipment-card__duration {
+    background: rgba(107, 114, 128, 0.15);
+    color: var(--content-tertiary, rgba(255, 255, 255, 0.5));
+}
+
 /* =============================================
-   Block Modifiers - Urgency (긴급도) ★신규★
+   Block Modifiers - Urgency (긴급도)
    ============================================= */
 
 /* 5분 초과 - 노란색 테두리 (Warning) */
@@ -153,7 +234,7 @@
 }
 
 /* =============================================
-   Urgency Animations (긴급도 애니메이션) ★신규★
+   Urgency Animations (긴급도 애니메이션)
    ============================================= */
 
 /* Danger Pulse - 주황색 펄스 */
@@ -292,11 +373,16 @@
     white-space: nowrap;
 }
 
-/* 지속 시간 */
+/* 지속 시간 컨테이너 */
 .equipment-card__duration {
     display: flex;
     align-items: baseline;
     gap: var(--spacing-1);
+    
+    /* 🆕 v1.2.0: 기본 배경 */
+    padding: var(--spacing-1, 4px) var(--spacing-2, 8px);
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-sm, 4px);
 }
 
 .equipment-card__duration-value {
@@ -328,6 +414,10 @@
 /* 미니 타임라인 컨테이너 */
 .equipment-card__timeline {
     width: 100%;
+    /* 🆕 v1.2.0: 높이 추가 */
+    height: 24px;
+    border-radius: var(--radius-sm, 4px);
+    overflow: hidden;
 }
 
 /* 알람 정보 */
@@ -338,6 +428,12 @@
     gap: var(--spacing-1-5);
     
     font-size: var(--font-size-xs);
+    
+    /* 🆕 v1.2.0: 배경 및 테두리 */
+    padding: var(--spacing-2, 8px);
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: var(--radius-sm, 4px);
+    border-left: 3px solid var(--status-danger, #ef4444);
 }
 
 .equipment-card__alarm-code {
@@ -347,6 +443,11 @@
     background: var(--surface-danger-subtle, rgba(239, 68, 68, 0.1));
     padding: var(--spacing-0-5) var(--spacing-1);
     border-radius: var(--radius-sm);
+}
+
+/* 🆕 v1.2.0: alarm-code strong 스타일 */
+.equipment-card__alarm-code strong {
+    color: var(--status-danger, #ef4444);
 }
 
 .equipment-card__alarm-name {
@@ -390,10 +491,27 @@
     color: var(--content-secondary);
 }
 
+/* 🆕 v1.2.0: production-count strong 스타일 */
+.equipment-card__production-count strong {
+    color: var(--content-primary, #ffffff);
+    font-weight: var(--font-weight-semibold, 600);
+}
+
+/* 🆕 v1.2.0: 생산 퍼센트 */
+.equipment-card__production-percent {
+    font-size: var(--font-size-xs, 12px);
+    color: var(--content-tertiary, rgba(255, 255, 255, 0.5));
+    text-align: right;
+}
+
 .equipment-card__lot-time {
     font-size: var(--font-size-xs);
     font-family: var(--font-family-mono);
     color: var(--content-muted);
+    
+    /* 🆕 v1.2.0: 상단 테두리 */
+    padding-top: var(--spacing-1, 4px);
+    border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
 }
 
 /* =============================================
@@ -441,6 +559,8 @@
     .equipment-card {
         min-width: 120px;
         padding: var(--spacing-2);
+        --card-padding: var(--spacing-2, 8px);
+        --card-gap: var(--spacing-1, 4px);
     }
     
     .equipment-card__duration-value {

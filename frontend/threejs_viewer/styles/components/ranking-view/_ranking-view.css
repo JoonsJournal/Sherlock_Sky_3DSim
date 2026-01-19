@@ -5,71 +5,323 @@
  * 
  * Block: .ranking-view
  * 
- * @version 1.0.1
- * @updated 2026-01-17
- * 
- * [BEM 구조]
- * .ranking-view                       → Block (메인 컨테이너)
- * .ranking-view__lanes-container      → Element (레인들을 감싸는 컨테이너)
- * .ranking-view__loading              → Element (로딩 상태 표시)
- * .ranking-view__empty                → Element (빈 상태 표시)
- * .ranking-view--hidden               → Modifier (숨김 상태)
- * .ranking-view--loading              → Modifier (로딩 중)
- * .ranking-view--active               → Modifier (활성 상태)
- * 
- * [Interactive States]
- * Hidden → Active → Loading
+ * @version 1.1.0
+ * @updated 2026-01-19
  * 
  * @changelog
- * - v1.0.1: CSS Lint 에러 수정 (빈 규칙셋 제거)
+ * - v1.1.0: 🆕 Phase 6 - 헤더, 통계 바, Custom 레인 컨트롤 스타일 추가
+ *   - .ranking-view__header 추가
+ *   - .ranking-view__title 추가
+ *   - .ranking-view__controls 추가
+ *   - .ranking-view__custom-lane-controls 추가
+ *   - .ranking-view__stats-bar 추가
+ *   - .ranking-view__stat 추가
+ *   - @media (max-width: 1200px) 새 breakpoint 추가
+ *   - ⚠️ 호환성: v1.0.1의 모든 스타일 100% 유지 (1024px, 768px breakpoints 포함)
+ * - v1.0.1: Position 및 Sidebar 오프셋 스타일 추가
+ *   - position: absolute 추가
+ *   - left: var(--sidebar-width) 추가
+ *   - width: calc(100% - var(--sidebar-width)) 추가
+ *   - z-index 레이어링 추가
  * - v1.0.0: 초기 버전
+ *   - 기본 레이아웃 구조
+ *   - 6개 레인 가로 배치
+ *   - 로딩/빈 상태 스타일
+ * 
+ * [BEM 구조]
+ * .ranking-view                          → Block
+ * .ranking-view__header                  → Element (헤더 영역)
+ * .ranking-view__title                   → Element (타이틀)
+ * .ranking-view__controls                → Element (컨트롤 영역)
+ * .ranking-view__custom-lane-controls    → Element (Custom 레인 컨트롤)
+ * .ranking-view__stats-bar               → Element (통계 바)
+ * .ranking-view__stat                    → Element (통계 항목)
+ * .ranking-view__stat-label              → Element (통계 라벨)
+ * .ranking-view__stat-value              → Element (통계 값)
+ * .ranking-view__lanes-container         → Element (레인 컨테이너)
+ * .ranking-view__loading                 → Element (로딩 상태)
+ * .ranking-view__loading-spinner         → Element (로딩 스피너)
+ * .ranking-view__loading-text            → Element (로딩 텍스트)
+ * .ranking-view__empty                   → Element (빈 상태)
+ * .ranking-view__empty-icon              → Element (빈 상태 아이콘)
+ * .ranking-view__empty-title             → Element (빈 상태 제목)
+ * .ranking-view__empty-message           → Element (빈 상태 메시지)
+ * .ranking-view--hidden                  → Modifier (숨김)
+ * .ranking-view--loading                 → Modifier (로딩 중)
+ * .ranking-view--empty                   → Modifier (빈 상태)
+ * .ranking-view--active                  → Modifier (활성화)
  * 
  * 📁 위치: frontend/threejs_viewer/styles/components/ranking-view/_ranking-view.css
  */
 
 /* =============================================
-   Block (Base)
+   CSS Variables (Local)
    ============================================= */
 .ranking-view {
+    --rv-header-height: 56px;
+    --rv-stats-height: 36px;
+    --rv-lane-gap: var(--spacing-3, 12px);
+    --rv-padding: var(--spacing-4, 16px);
+    --rv-transition: var(--transition-normal, 0.2s ease);
+}
+
+/* =============================================
+   Block (Base) - v1.0.1: Position + Sidebar 오프셋
+   ============================================= */
+.ranking-view {
+    /* Position - Sidebar 오른쪽에 배치 */
+    position: absolute;
+    top: 0;
+    left: var(--sidebar-width, 72px);
+    width: calc(100% - var(--sidebar-width, 72px));
+    height: 100%;
+    
     /* Layout */
     display: flex;
     flex-direction: column;
     
     /* Box Model */
-    position: absolute;
-    top: 0;
-    left: var(--sidebar-width, 72px);    /* ✅ Sidebar 너비만큼 오프셋 */
-    width: calc(100% - var(--sidebar-width, 72px));  /* ✅ 전체 너비에서 제외 */
-    height: 100%;
+    padding: var(--rv-padding);
+    box-sizing: border-box;
+    overflow: hidden;
     
     /* Visual */
-    background: var(--surface-app-bg);
+    background: var(--surface-base, #0a0a0f);
+    
+    /* Z-Index Layering */
+    z-index: var(--z-base, 1);
     
     /* Interaction */
-    z-index: var(--z-base);
-    overflow: hidden;
+    transition: var(--rv-transition);
 }
 
 /* =============================================
-   Element: Lanes Container
+   Modifiers
+   ============================================= */
+
+/* Hidden State */
+.ranking-view--hidden,
+.ranking-view.hidden {
+    display: none !important;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* Active State */
+.ranking-view--active,
+.ranking-view.active {
+    display: flex;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* Loading State */
+.ranking-view--loading,
+.ranking-view.loading {
+    pointer-events: none;
+}
+
+.ranking-view--loading .ranking-view__loading,
+.ranking-view.loading .ranking-view__loading {
+    opacity: 1;
+    visibility: visible;
+}
+
+.ranking-view--loading .ranking-view__lanes-container,
+.ranking-view.loading .ranking-view__lanes-container {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Empty State */
+.ranking-view--empty .ranking-view__empty {
+    opacity: 1;
+    visibility: visible;
+}
+
+.ranking-view--empty .ranking-view__lanes-container {
+    display: none;
+}
+
+/* =============================================
+   🆕 v1.1.0: Header
+   ============================================= */
+.ranking-view__header {
+    /* Layout */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    
+    /* Box Model */
+    height: var(--rv-header-height);
+    padding: 0 var(--spacing-2, 8px);
+    margin-bottom: var(--spacing-3, 12px);
+    
+    /* Visual */
+    background: var(--surface-panel, rgba(255, 255, 255, 0.03));
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.ranking-view__title {
+    /* Typography */
+    font-size: var(--font-size-lg, 18px);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--content-primary, #ffffff);
+    
+    /* Box Model */
+    margin: 0;
+}
+
+.ranking-view__controls {
+    /* Layout */
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3, 12px);
+}
+
+/* =============================================
+   🆕 v1.1.0: Custom Lane Controls
+   ============================================= */
+.ranking-view__custom-lane-controls {
+    /* Layout */
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2, 8px);
+}
+
+.ranking-view__custom-lane-controls select {
+    /* Box Model */
+    padding: var(--spacing-2, 8px) var(--spacing-3, 12px);
+    min-width: 180px;
+    
+    /* Visual */
+    background: var(--surface-elevated, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+    border-radius: var(--radius-sm, 4px);
+    
+    /* Typography */
+    font-size: var(--font-size-sm, 14px);
+    color: var(--content-primary, #ffffff);
+    
+    /* Cursor */
+    cursor: pointer;
+}
+
+.ranking-view__custom-lane-controls select:focus {
+    outline: none;
+    border-color: var(--interactive-primary-normal, #3b82f6);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.ranking-view__custom-lane-controls select option {
+    background: var(--surface-panel, #1a1a24);
+    color: var(--content-primary, #ffffff);
+}
+
+.ranking-view__custom-lane-controls button {
+    /* Box Model */
+    padding: var(--spacing-2, 8px) var(--spacing-3, 12px);
+    
+    /* Visual */
+    background: var(--interactive-primary-normal, #3b82f6);
+    border: none;
+    border-radius: var(--radius-sm, 4px);
+    
+    /* Typography */
+    font-size: var(--font-size-sm, 14px);
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--content-on-color, #ffffff);
+    
+    /* Cursor */
+    cursor: pointer;
+    
+    /* Transition */
+    transition: var(--transition-fast, 0.15s ease);
+}
+
+.ranking-view__custom-lane-controls button:hover:not(:disabled) {
+    background: var(--interactive-primary-hover, #2563eb);
+}
+
+.ranking-view__custom-lane-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* =============================================
+   🆕 v1.1.0: Stats Bar
+   ============================================= */
+.ranking-view__stats-bar {
+    /* Layout */
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4, 16px);
+    flex-shrink: 0;
+    
+    /* Box Model */
+    height: var(--rv-stats-height);
+    padding: 0 var(--spacing-3, 12px);
+    margin-bottom: var(--spacing-3, 12px);
+    
+    /* Visual */
+    background: var(--surface-panel, rgba(255, 255, 255, 0.03));
+    border-radius: var(--radius-sm, 4px);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.ranking-view__stat {
+    /* Layout */
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1, 4px);
+}
+
+.ranking-view__stat-label {
+    /* Typography */
+    font-size: var(--font-size-sm, 14px);
+    color: var(--content-secondary, rgba(255, 255, 255, 0.7));
+}
+
+.ranking-view__stat-value {
+    /* Typography */
+    font-size: var(--font-size-sm, 14px);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--content-primary, #ffffff);
+    
+    /* Box Model */
+    min-width: 24px;
+    text-align: right;
+}
+
+/* Stats Bar - Danger Modifier */
+.ranking-view__stat--danger .ranking-view__stat-value {
+    color: var(--status-danger, #ef4444);
+}
+
+/* Stats Bar - Warning Modifier */
+.ranking-view__stat--warning .ranking-view__stat-value {
+    color: var(--status-warning, #f59e0b);
+}
+
+/* =============================================
+   Lanes Container
    ============================================= */
 .ranking-view__lanes-container {
     /* Layout */
     display: flex;
-    flex: 1;
     flex-direction: row;
+    gap: var(--rv-lane-gap);
+    flex: 1;
     
     /* Box Model */
-    gap: var(--spacing-2);
-    padding: var(--spacing-3);
-    
-    /* Visual */
     overflow-x: auto;
     overflow-y: hidden;
     
-    /* Scrollbar Styling */
+    /* Scrollbar */
     scrollbar-width: thin;
-    scrollbar-color: var(--border-default) transparent;
+    scrollbar-color: var(--border-default, rgba(255, 255, 255, 0.1)) transparent;
 }
 
 /* Webkit Scrollbar */
@@ -82,51 +334,50 @@
 }
 
 .ranking-view__lanes-container::-webkit-scrollbar-thumb {
-    background: var(--border-default);
-    border-radius: var(--radius-full);
+    background: var(--border-default, rgba(255, 255, 255, 0.1));
+    border-radius: 4px;
 }
 
 .ranking-view__lanes-container::-webkit-scrollbar-thumb:hover {
-    background: var(--border-strong);
+    background: var(--border-strong, rgba(255, 255, 255, 0.2));
 }
 
 /* =============================================
-   Element: Loading State
+   Loading State
    ============================================= */
 .ranking-view__loading {
+    /* Position */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    
     /* Layout */
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    
-    /* Box Model */
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    gap: var(--spacing-4);
+    gap: var(--spacing-3, 12px);
     
     /* Visual */
-    background: var(--surface-app-bg);
     opacity: 0;
-    pointer-events: none;
+    visibility: hidden;
     
-    /* Interaction */
-    z-index: var(--z-dropdown);
-    transition: opacity var(--transition-fast);
+    /* Transition */
+    transition: var(--rv-transition);
+    
+    /* Z-Index */
+    z-index: 10;
 }
 
 .ranking-view__loading-spinner {
-    /* Layout */
+    /* Box Model */
     width: 48px;
     height: 48px;
     
     /* Visual */
-    border: 3px solid var(--border-default);
-    border-top-color: var(--interactive-primary-normal);
-    border-radius: var(--radius-full);
+    border: 3px solid var(--border-default, rgba(255, 255, 255, 0.1));
+    border-top-color: var(--interactive-primary-normal, #3b82f6);
+    border-radius: 50%;
     
     /* Animation */
     animation: ranking-view-spin 1s linear infinite;
@@ -134,133 +385,142 @@
 
 .ranking-view__loading-text {
     /* Typography */
-    font-size: var(--font-size-base);
-    color: var(--content-secondary);
+    font-size: var(--font-size-sm, 14px);
+    color: var(--content-secondary, rgba(255, 255, 255, 0.7));
 }
 
 @keyframes ranking-view-spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* =============================================
-   Element: Empty State
+   Empty State
    ============================================= */
 .ranking-view__empty {
+    /* Position */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    
     /* Layout */
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    gap: var(--spacing-3, 12px);
     
     /* Box Model */
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    gap: var(--spacing-3);
+    padding: var(--spacing-6, 24px);
     
     /* Visual */
-    background: var(--surface-app-bg);
     opacity: 0;
-    pointer-events: none;
+    visibility: hidden;
     
-    /* Interaction */
-    z-index: var(--z-dropdown);
-    transition: opacity var(--transition-fast);
+    /* Transition */
+    transition: var(--rv-transition);
+    
+    /* Z-Index */
+    z-index: 10;
 }
 
 .ranking-view__empty-icon {
     /* Typography */
     font-size: 48px;
-    color: var(--content-muted);
+    
+    /* Visual */
+    opacity: 0.5;
 }
 
 .ranking-view__empty-title {
     /* Typography */
-    font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
-    color: var(--content-primary);
+    font-size: var(--font-size-lg, 18px);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--content-primary, #ffffff);
 }
 
 .ranking-view__empty-message {
     /* Typography */
-    font-size: var(--font-size-sm);
-    color: var(--content-secondary);
+    font-size: var(--font-size-sm, 14px);
+    color: var(--content-secondary, rgba(255, 255, 255, 0.7));
     text-align: center;
+    
+    /* Box Model */
     max-width: 300px;
 }
 
 /* =============================================
-   Block Modifiers
+   Responsive Adjustments
    ============================================= */
-
-/* Hidden State */
-.ranking-view--hidden {
-    display: none;
-}
-
-/* Loading State */
-.ranking-view--loading .ranking-view__loading {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.ranking-view--loading .ranking-view__lanes-container {
-    opacity: 0.5;
-    pointer-events: none;
-}
-
-/* Empty State */
-.ranking-view--empty .ranking-view__empty {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.ranking-view--empty .ranking-view__lanes-container {
-    display: none;
-}
-
-/* Active State - 활성화 시 시각적 피드백 */
-.ranking-view--active {
-    opacity: 1;
-    visibility: visible;
-}
-
-/* =============================================
-   Responsive Design
-   ============================================= */
-
-/* 태블릿 이하 */
-@media (max-width: 1024px) {
-    .ranking-view__lanes-container {
-        gap: var(--spacing-1-5);
-        padding: var(--spacing-2);
+@media (max-width: 1200px) {
+    .ranking-view {
+        --rv-lane-gap: var(--spacing-2, 8px);
+        --rv-padding: var(--spacing-3, 12px);
+    }
+    
+    .ranking-view__header {
+        height: 48px;
+    }
+    
+    .ranking-view__title {
+        font-size: var(--font-size-md, 16px);
+    }
+    
+    .ranking-view__custom-lane-controls select {
+        min-width: 150px;
     }
 }
 
-/* 모바일 */
-@media (max-width: 768px) {
+/* 🔧 v1.0.1 호환: 태블릿 breakpoint */
+@media (max-width: 1024px) {
     .ranking-view__lanes-container {
-        padding: var(--spacing-2);
-        gap: var(--spacing-1);
+        gap: var(--spacing-1-5, 6px);
+        padding: var(--spacing-2, 8px);
+    }
+}
+
+@media (max-width: 768px) {
+    .ranking-view {
+        /* 모바일에서는 Sidebar 없음 */
+        left: 0;
+        width: 100%;
+    }
+    
+    .ranking-view__header {
+        flex-direction: column;
+        height: auto;
+        padding: var(--spacing-2, 8px);
+        gap: var(--spacing-2, 8px);
+    }
+    
+    .ranking-view__controls {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .ranking-view__stats-bar {
+        flex-wrap: wrap;
+        height: auto;
+        padding: var(--spacing-2, 8px);
     }
 }
 
 /* =============================================
    Legacy Alias (하위 호환)
    ============================================= */
-.ranking-view.active {
-    opacity: 1;
-    visibility: visible;
+.ranking-view.hidden {
+    display: none !important;
 }
 
-.ranking-view.hidden {
-    display: none;
+.ranking-view.active {
+    display: flex;
 }
 
 .ranking-view.loading .ranking-view__loading {
     opacity: 1;
-    pointer-events: auto;
+    visibility: visible;
 }

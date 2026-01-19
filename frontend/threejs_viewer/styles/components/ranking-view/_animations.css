@@ -5,10 +5,17 @@
  * 
  * Block: .equipment-card (animation modifiers)
  * 
- * @version 1.1.0
- * @updated 2026-01-17
+ * @version 1.2.0
+ * @updated 2026-01-19
  * 
  * @changelog
+ * - v1.2.0 (2026-01-19): 가이드라인 준수 + 추가 애니메이션 통합
+ *   - 🆕 `ranking-fade-in/out` 애니메이션 추가
+ *   - 🆕 `ranking-slide-in-left/right` 애니메이션 추가
+ *   - 🆕 `ranking-stat-flash` 애니메이션 추가
+ *   - 🆕 `.ranking-fade-in/out`, `.ranking-slide-in-*` 클래스 추가
+ *   - 🆕 `.ranking-stat-updated` 클래스 추가
+ *   - ⚠️ 호환성: v1.1.0의 모든 스타일 100% 유지
  * - v1.1.0 (2026-01-17)
  *   - [FIX] `.equipment-card--animating` z-index 100으로 변경 (레인 앞으로)
  *   - [FIX] position: fixed 추가로 레인 밖에서 애니메이션
@@ -19,20 +26,23 @@
  * [Animations]
  * - ranking-card-enter: 카드 진입 애니메이션
  * - ranking-card-leave: 카드 퇴장 애니메이션
- * - ranking-card-lift: 카드 떠오름 애니메이션 (NEW)
+ * - ranking-card-lift: 카드 떠오름 애니메이션
  * - ranking-pulse-warning: 경고 펄스 (5분 초과)
  * - ranking-pulse-danger: 위험 펄스 (10분 초과)
  * - ranking-pulse-critical: 긴급 펄스 (15분 초과)
  * - ranking-shimmer: 로딩 시머 효과
  * - ranking-glow: 선택 시 글로우 효과
+ * - ranking-fade-in/out: 페이드 효과 🆕 v1.2.0
+ * - ranking-slide-in-left/right: 슬라이드 효과 🆕 v1.2.0
+ * - ranking-stat-flash: 통계 값 업데이트 효과 🆕 v1.2.0
  * 
  * [Animation Modifiers]
  * .equipment-card--animating     → 애니메이션 중 (레인 위로 띄움)
  * .equipment-card--entering      → 진입 중
  * .equipment-card--leaving       → 퇴장 중
  * .equipment-card--pushed        → 밀림 중
- * .equipment-card--lifting       → 떠오름 중 (NEW)
- * .equipment-card--ghost         → 원본 위치 유지 (NEW)
+ * .equipment-card--lifting       → 떠오름 중
+ * .equipment-card--ghost         → 원본 위치 유지
  * .equipment-card--urgency-*     → 긴급도 표시
  * 
  * 📁 위치: frontend/threejs_viewer/styles/components/ranking-view/_animations.css
@@ -111,7 +121,7 @@
     }
 }
 
-/* [NEW] 카드 떠오름 (레인 이동 시작 시) */
+/* 카드 떠오름 (레인 이동 시작 시) */
 @keyframes ranking-card-lift {
     0% {
         transform: scale(1);
@@ -242,7 +252,7 @@
     }
 }
 
-/* [NEW] 목표 레인 펄스 */
+/* 목표 레인 펄스 */
 @keyframes ranking-lane-target-pulse {
     0%, 100% {
         box-shadow: 
@@ -257,11 +267,80 @@
 }
 
 /* =============================================
+   🆕 v1.2.0: Fade Animations
+   ============================================= */
+
+/* 페이드 인 */
+@keyframes ranking-fade-in {
+    0% {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+/* 페이드 아웃 */
+@keyframes ranking-fade-out {
+    0% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+/* =============================================
+   🆕 v1.2.0: Slide Animations
+   ============================================= */
+
+/* 슬라이드 인 (왼쪽에서) */
+@keyframes ranking-slide-in-left {
+    0% {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* 슬라이드 인 (오른쪽에서) */
+@keyframes ranking-slide-in-right {
+    0% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* =============================================
+   🆕 v1.2.0: Stat Flash Animation
+   ============================================= */
+
+/* 통계 값 업데이트 깜빡임 */
+@keyframes ranking-stat-flash {
+    0% {
+        color: var(--content-primary, #ffffff);
+    }
+    50% {
+        color: var(--interactive-primary-normal, #3b82f6);
+    }
+    100% {
+        color: var(--content-primary, #ffffff);
+    }
+}
+
+/* =============================================
    Animation Modifier Classes
    ============================================= */
 
 /**
- * [MODIFIED v1.1.0] 애니메이션 중 기본 스타일
+ * 애니메이션 중 기본 스타일
  * - position: fixed로 레인 밖에서 애니메이션
  * - z-index: 100으로 레인(z-index: 1) 위에 표시
  * - 강화된 그림자로 입체감 표현
@@ -293,7 +372,7 @@
 }
 
 /**
- * [NEW v1.1.0] 카드 떠오름 애니메이션
+ * 카드 떠오름 애니메이션
  * 레인 이동 Phase 1에서 사용
  */
 .equipment-card--lifting {
@@ -301,7 +380,7 @@
 }
 
 /**
- * [NEW v1.1.0] Ghost placeholder
+ * Ghost placeholder
  * 원본 카드 위치를 유지하면서 숨김
  * 애니메이션용 복제본이 이동하는 동안 사용
  */
@@ -401,7 +480,7 @@
 }
 
 /**
- * [NEW v1.1.0] 목표 레인 하이라이트
+ * 목표 레인 하이라이트
  * 레인 이동 시 목표 레인을 강조 표시
  */
 .ranking-lane--target {
@@ -495,6 +574,35 @@
 }
 
 /* =============================================
+   🆕 v1.2.0: Fade/Slide Utility Classes
+   ============================================= */
+
+/* 페이드 인 */
+.ranking-fade-in {
+    animation: ranking-fade-in var(--ranking-duration-normal) var(--ranking-ease-out) forwards;
+}
+
+/* 페이드 아웃 */
+.ranking-fade-out {
+    animation: ranking-fade-out var(--ranking-duration-fast) var(--ranking-ease-in) forwards;
+}
+
+/* 슬라이드 인 (왼쪽에서) */
+.ranking-slide-in-left {
+    animation: ranking-slide-in-left var(--ranking-duration-normal) var(--ranking-ease-out) forwards;
+}
+
+/* 슬라이드 인 (오른쪽에서) */
+.ranking-slide-in-right {
+    animation: ranking-slide-in-right var(--ranking-duration-normal) var(--ranking-ease-out) forwards;
+}
+
+/* 통계 값 업데이트 */
+.ranking-stat-updated {
+    animation: ranking-stat-flash 0.5s var(--ranking-ease-out);
+}
+
+/* =============================================
    Dark Theme Adjustments
    ============================================= */
 
@@ -518,14 +626,14 @@
         0 0 15px rgba(56, 189, 248, 0.4);
 }
 
-/* [NEW] Dark theme - animating card shadow */
+/* Dark theme - animating card shadow */
 [data-theme="dark"] .equipment-card--animating {
     box-shadow: 
         0 10px 15px rgba(0, 0, 0, 0.3),
         0 0 30px rgba(0, 0, 0, 0.4);
 }
 
-/* [NEW] Dark theme - target lane */
+/* Dark theme - target lane */
 [data-theme="dark"] .ranking-lane--target {
     box-shadow: 
         0 0 0 2px var(--interactive-primary-normal),
@@ -553,7 +661,12 @@
     .ranking-lane--updated,
     .lane-header__count--changed,
     .equipment-card__duration--ticking,
-    .equipment-card__production-bar-fill--animating {
+    .equipment-card__production-bar-fill--animating,
+    .ranking-fade-in,
+    .ranking-fade-out,
+    .ranking-slide-in-left,
+    .ranking-slide-in-right,
+    .ranking-stat-updated {
         animation: none !important;
         transition: none !important;
     }
