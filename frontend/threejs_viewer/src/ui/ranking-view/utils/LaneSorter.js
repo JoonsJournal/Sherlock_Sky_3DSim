@@ -3,15 +3,23 @@
  * =============
  * 레인별 설비 정렬 유틸리티
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - 레인별 정렬 규칙 정의 및 적용
  * - 지속 시간 기반 정렬 (오래된 순)
  * - 생산 개수 기반 정렬 (많은 순)
  * - 다중 정렬 조건 지원
  * - 안정 정렬 보장 (같은 값일 때 순서 유지)
+ * - 🆕 v1.1.0: 중첩 키 지원, Custom Sort 기능
  * 
  * @changelog
+ * - v1.1.0 (2026-01-19): 가이드라인 준수 + Custom Sort 통합
+ *   - 🆕 static UTIL 추가 (가이드라인 준수)
+ *   - 🆕 customSort() - 커스텀 정렬 키/순서 지원
+ *   - 🆕 sortByDuration(), sortByProduction() - 간편 메서드
+ *   - 🆕 _getValueWithNestedKey() - 중첩 키 지원 (예: 'lotInfo.qty')
+ *   - 🆕 getSortConfig() - 정렬 설정 조회
+ *   - ⚠️ 호환성: v1.0.0의 모든 기능/메서드/필드 100% 유지
  * - v1.0.0: 초기 구현
  *   - SORT_RULES: 레인별 정렬 규칙 정의
  *   - sort(): 레인별 정렬 실행
@@ -27,7 +35,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/utils/LaneSorter.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-17
+ * 수정일: 2026-01-19
  */
 
 /**
@@ -105,6 +113,14 @@ export class LaneSorter {
             fallback: 'statusDuration',
             direction: 'asc'
         }
+    };
+    
+    /**
+     * 🆕 v1.1.0: Utility 클래스 상수 (가이드라인 준수)
+     */
+    static UTIL = {
+        HIDDEN: 'u-hidden',
+        FLEX: 'u-flex'
     };
     
     // =========================================================================
@@ -189,6 +205,72 @@ export class LaneSorter {
         }
         
         return sortedLanes;
+    }
+    
+    /**
+     * 🆕 v1.1.0: 커스텀 정렬 (임의의 키와 순서)
+     * 
+     * @param {Array<Object>} equipments - 설비 목록
+     * @param {string} sortKey - 정렬 키 (중첩 키 지원: 'lotInfo.qty')
+     * @param {string} [sortOrder='desc'] - 정렬 순서 ('asc' | 'desc')
+     * @param {boolean} [stable=true] - 안정 정렬 여부
+     * @returns {Array<Object>} 정렬된 목록
+     */
+    static customSort(equipments, sortKey, sortOrder = 'desc', stable = true) {
+        if (!Array.isArray(equipments) || equipments.length === 0) {
+            return [];
+        }
+        
+        const compareFn = (a, b) => {
+            const valueA = this._getValueWithNestedKey(a, sortKey);
+            const valueB = this._getValueWithNestedKey(b, sortKey);
+            
+            // 숫자 비교
+            if (typeof valueA === 'number' && typeof valueB === 'number') {
+                return sortOrder === 'asc' ? valueA - valueB : valueB - valueA;
+            }
+            
+            // 날짜/시간 비교
+            if (sortKey.includes('Time') || sortKey.includes('At') || sortKey.includes('Date')) {
+                const timeA = this._parseTime(valueA);
+                const timeB = this._parseTime(valueB);
+                return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+            }
+            
+            // 문자열 비교
+            const strA = String(valueA || '');
+            const strB = String(valueB || '');
+            return sortOrder === 'asc'
+                ? strA.localeCompare(strB, undefined, { numeric: true })
+                : strB.localeCompare(strA, undefined, { numeric: true });
+        };
+        
+        return stable
+            ? this.stableSort(equipments, compareFn)
+            : [...equipments].sort(compareFn);
+    }
+    
+    /**
+     * 🆕 v1.1.0: 지속 시간 기준 정렬 (간편 메서드)
+     * 
+     * @param {Array<Object>} equipments - 설비 목록
+     * @param {string} [timeKey='occurredAt'] - 시간 필드 키
+     * @param {boolean} [stable=true] - 안정 정렬 여부
+     * @returns {Array<Object>} 정렬된 목록 (오래된 순)
+     */
+    static sortByDuration(equipments, timeKey = 'occurredAt', stable = true) {
+        return this.customSort(equipments, timeKey, 'asc', stable);
+    }
+    
+    /**
+     * 🆕 v1.1.0: 생산 개수 기준 정렬 (간편 메서드)
+     * 
+     * @param {Array<Object>} equipments - 설비 목록
+     * @param {boolean} [stable=true] - 안정 정렬 여부
+     * @returns {Array<Object>} 정렬된 목록 (많은 순)
+     */
+    static sortByProduction(equipments, stable = true) {
+        return this.customSort(equipments, 'productionCount', 'desc', stable);
     }
     
     // =========================================================================
@@ -437,6 +519,23 @@ export class LaneSorter {
         return this.SORT_RULES[laneId] || 'duration-desc';
     }
     
+    /**
+     * 🆕 v1.1.0: 정렬 설정 조회
+     * 
+     * @param {string} laneId - 레인 ID
+     * @returns {Object|null} 정렬 설정 { rule, field }
+     */
+    static getSortConfig(laneId) {
+        const rule = this.SORT_RULES[laneId];
+        if (!rule) return null;
+        
+        const field = this.SORT_FIELDS[rule];
+        return {
+            rule,
+            field: field || null
+        };
+    }
+    
     // =========================================================================
     // Private Helper Methods
     // =========================================================================
@@ -459,7 +558,9 @@ export class LaneSorter {
         const occurredAt = equipment.occurredAt || 
                           equipment.occurredAtUtc || 
                           equipment.OccurredAt || 
-                          equipment.OccurredAtUtc;
+                          equipment.OccurredAtUtc ||
+                          equipment.statusStartTime ||
+                          equipment.status_start_time;
         
         if (occurredAt) {
             try {
@@ -497,9 +598,80 @@ export class LaneSorter {
         
         return typeof count === 'number' ? count : parseInt(count, 10) || 0;
     }
+    
+    /**
+     * 🆕 v1.1.0: 중첩 키 지원 값 추출
+     * 예: 'lotInfo.qty' → equipment.lotInfo.qty
+     * 
+     * @private
+     * @param {Object} item - 객체
+     * @param {string} key - 키 (점으로 구분된 중첩 키 지원)
+     * @returns {*} 값
+     */
+    static _getValueWithNestedKey(item, key) {
+        if (!item || !key) return null;
+        
+        // 중첩 키 지원 (예: 'lotInfo.qty')
+        const keys = key.split('.');
+        let value = item;
+        
+        for (const k of keys) {
+            if (value === null || value === undefined) return null;
+            value = value[k];
+        }
+        
+        // 필드명 호환성 처리
+        if (value === undefined || value === null) {
+            // occurredAt / statusStartTime
+            if (key === 'occurredAt') {
+                value = item.statusStartTime || item.occurred_at || item.status_start_time;
+            }
+            // waitStartTime
+            if (key === 'waitStartTime') {
+                value = item.waitStartTime || item.lastLotEndTime || item.wait_start_time;
+            }
+            // productionCount
+            if (key === 'productionCount') {
+                value = item.productionCount || item.production_count || item.count || 0;
+            }
+        }
+        
+        return value;
+    }
+    
+    /**
+     * 🆕 v1.1.0: 시간 값 파싱
+     * 
+     * @private
+     * @param {*} value - 시간 값
+     * @returns {number} 타임스탬프 (밀리초)
+     */
+    static _parseTime(value) {
+        if (!value) return 0;
+        
+        if (typeof value === 'number') {
+            return value;
+        }
+        
+        if (value instanceof Date) {
+            return value.getTime();
+        }
+        
+        if (typeof value === 'string') {
+            const parsed = new Date(value);
+            return isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+        }
+        
+        return 0;
+    }
 }
 
 // =========================================================================
 // Default Export
 // =========================================================================
 export default LaneSorter;
+
+// 전역 노출 (디버깅용)
+if (typeof window !== 'undefined') {
+    window.LaneSorter = LaneSorter;
+}

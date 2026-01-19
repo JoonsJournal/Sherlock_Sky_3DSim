@@ -3,15 +3,23 @@
  * =====================
  * 상태 지속 시간 및 대기 시간 계산 유틸리티
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - 상태 지속 시간 계산 (현재 시간 - 상태 변경 시점)
  * - Wait 대기 시간 계산 (현재 시간 - Lot 완료 시점)
  * - Lot 진행 시간 계산
  * - 시간 포맷팅 (HH:MM:SS)
  * - 긴급도 레벨 판단
+ * - 🆕 v1.1.0: 임계값 초과 확인, 상대 시간 문자열
  * 
  * @changelog
+ * - v1.1.0 (2026-01-19): 가이드라인 준수 + 추가 기능 통합
+ *   - 🆕 static UTIL 추가 (가이드라인 준수)
+ *   - 🆕 exceedsThreshold() - 임계값 초과 확인
+ *   - 🆕 getRelativeTime() - 상대 시간 문자열 ("방금 전", "5분 전" 등)
+ *   - 🆕 formatDurationShort() - 간략 형식 (1h 23m, 5m 30s)
+ *   - 🆕 getDuration() - 시작/종료 시간에서 밀리초 계산
+ *   - ⚠️ 호환성: v1.0.0의 모든 기능/메서드/필드 100% 유지
  * - v1.0.0: 초기 구현
  *   - calculateStatusDuration(): 상태 지속 시간 계산
  *   - calculateWaitDuration(): 대기 시간 계산
@@ -28,7 +36,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/utils/DurationCalculator.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-17
+ * 수정일: 2026-01-19
  */
 
 /**
@@ -67,6 +75,14 @@ export class DurationCalculator {
         MINUTE: 60 * 1000,
         HOUR: 60 * 60 * 1000,
         DAY: 24 * 60 * 60 * 1000
+    };
+    
+    /**
+     * 🆕 v1.1.0: Utility 클래스 상수 (가이드라인 준수)
+     */
+    static UTIL = {
+        HIDDEN: 'u-hidden',
+        FLEX: 'u-flex'
     };
     
     // =========================================================================
@@ -174,6 +190,24 @@ export class DurationCalculator {
         }
         
         return this.calculateStatusDuration(startedAt, now);
+    }
+    
+    /**
+     * 🆕 v1.1.0: 시작/종료 시간에서 지속 시간 계산
+     * 
+     * @param {string|Date} startTime - 시작 시간
+     * @param {string|Date} [endTime=new Date()] - 종료 시간
+     * @returns {number} 지속 시간 (밀리초)
+     */
+    static getDuration(startTime, endTime = new Date()) {
+        const start = this._parseDateTime(startTime);
+        const end = this._parseDateTime(endTime);
+        
+        if (!start || !end) {
+            return 0;
+        }
+        
+        return Math.max(0, end.getTime() - start.getTime());
     }
     
     // =========================================================================
@@ -293,6 +327,30 @@ export class DurationCalculator {
         return `${seconds}초`;
     }
     
+    /**
+     * 🆕 v1.1.0: 간략 형식으로 포맷팅 (1h 23m, 5m 30s 등)
+     * 
+     * @param {number} durationMs - 지속 시간 (밀리초)
+     * @returns {string} 간략 형식
+     */
+    static formatDurationShort(durationMs) {
+        if (durationMs < 0 || !isFinite(durationMs)) {
+            return '0s';
+        }
+        
+        const hours = Math.floor(durationMs / this.MS.HOUR);
+        const minutes = Math.floor((durationMs % this.MS.HOUR) / this.MS.MINUTE);
+        const seconds = Math.floor((durationMs % this.MS.MINUTE) / this.MS.SECOND);
+        
+        if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${seconds}s`;
+        } else {
+            return `${seconds}s`;
+        }
+    }
+    
     // =========================================================================
     // Conversion Methods
     // =========================================================================
@@ -396,6 +454,20 @@ export class DurationCalculator {
         return currentIndex >= thresholdIndex;
     }
     
+    /**
+     * 🆕 v1.1.0: 특정 시간이 임계값을 초과했는지 확인
+     * 
+     * @param {string|Date} startTime - 시작 시간
+     * @param {number} thresholdMinutes - 임계값 (분)
+     * @param {Date} [now=new Date()] - 현재 시간
+     * @returns {boolean} 임계값 초과 여부
+     */
+    static exceedsThreshold(startTime, thresholdMinutes, now = new Date()) {
+        const durationMs = this.calculateStatusDuration(startTime, now);
+        const minutes = this.getDurationMinutes(durationMs);
+        return minutes >= thresholdMinutes;
+    }
+    
     // =========================================================================
     // Statistics Methods
     // =========================================================================
@@ -462,6 +534,70 @@ export class DurationCalculator {
     }
     
     // =========================================================================
+    // Relative Time Methods (🆕 v1.1.0)
+    // =========================================================================
+    
+    /**
+     * 🆕 v1.1.0: 현재 시간 기준 상대 시간 문자열 반환
+     * 
+     * @param {string|Date} time - 대상 시간
+     * @param {Date} [now=new Date()] - 현재 시간
+     * @returns {string} "방금 전", "5분 전", "1시간 전" 등
+     */
+    static getRelativeTime(time, now = new Date()) {
+        const target = this._parseDateTime(time);
+        
+        if (!target) return '알 수 없음';
+        
+        const currentTime = now instanceof Date ? now : new Date(now);
+        const diffMs = currentTime.getTime() - target.getTime();
+        const diffSeconds = Math.floor(diffMs / this.MS.SECOND);
+        const diffMinutes = Math.floor(diffSeconds / 60);
+        const diffHours = Math.floor(diffMinutes / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        
+        if (diffSeconds < 60) {
+            return '방금 전';
+        } else if (diffMinutes < 60) {
+            return `${diffMinutes}분 전`;
+        } else if (diffHours < 24) {
+            return `${diffHours}시간 전`;
+        } else {
+            return `${diffDays}일 전`;
+        }
+    }
+    
+    /**
+     * 🆕 v1.1.0: 영문 상대 시간 문자열 반환
+     * 
+     * @param {string|Date} time - 대상 시간
+     * @param {Date} [now=new Date()] - 현재 시간
+     * @returns {string} "just now", "5 min ago", "1 hour ago" 등
+     */
+    static getRelativeTimeEn(time, now = new Date()) {
+        const target = this._parseDateTime(time);
+        
+        if (!target) return 'unknown';
+        
+        const currentTime = now instanceof Date ? now : new Date(now);
+        const diffMs = currentTime.getTime() - target.getTime();
+        const diffSeconds = Math.floor(diffMs / this.MS.SECOND);
+        const diffMinutes = Math.floor(diffSeconds / 60);
+        const diffHours = Math.floor(diffMinutes / 60);
+        const diffDays = Math.floor(diffHours / 24);
+        
+        if (diffSeconds < 60) {
+            return 'just now';
+        } else if (diffMinutes < 60) {
+            return `${diffMinutes} min ago`;
+        } else if (diffHours < 24) {
+            return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+        } else {
+            return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
+        }
+    }
+    
+    // =========================================================================
     // Private Helper Methods
     // =========================================================================
     
@@ -473,6 +609,10 @@ export class DurationCalculator {
      * @returns {Date} Date 객체
      */
     static _parseDateTime(input) {
+        if (!input) {
+            return null;
+        }
+        
         if (input instanceof Date) {
             return input;
         }
@@ -486,13 +626,15 @@ export class DurationCalculator {
             const parsed = new Date(input);
             
             if (isNaN(parsed.getTime())) {
-                throw new Error(`Invalid date string: ${input}`);
+                console.warn(`[DurationCalculator] ⚠️ Invalid date string: ${input}`);
+                return null;
             }
             
             return parsed;
         }
         
-        throw new Error(`Unsupported date format: ${typeof input}`);
+        console.warn(`[DurationCalculator] ⚠️ Unsupported date format: ${typeof input}`);
+        return null;
     }
 }
 
@@ -500,3 +642,8 @@ export class DurationCalculator {
 // Default Export
 // =========================================================================
 export default DurationCalculator;
+
+// 전역 노출 (디버깅용)
+if (typeof window !== 'undefined') {
+    window.DurationCalculator = DurationCalculator;
+}

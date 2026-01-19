@@ -3,14 +3,25 @@
  * ================
  * 일괄 애니메이션 실행 유틸리티
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - Web Animations API 기반 애니메이션
  * - 다중 요소 동시 애니메이션
  * - 애니메이션 큐 관리
  * - 일시정지/재개/취소 기능
+ * - 🆕 v1.1.0: 스태거/순차 애니메이션 확장
  * 
  * @changelog
+ * - v1.1.0 (2026-01-19): 가이드라인 준수 + 추가 기능 통합
+ *   - 🆕 static UTIL 추가 (가이드라인 준수)
+ *   - 🆕 runStaggered() - setTimeout 기반 스태거 애니메이션
+ *   - 🆕 runSequential() - 완전 순차 애니메이션
+ *   - 🆕 runBatch() - animateBatch 별칭 (호환성)
+ *   - 🆕 _delay() - 딜레이 유틸리티
+ *   - 🆕 get isRunning - getter 형식 속성
+ *   - 🆕 get activeCount - getter 형식 속성
+ *   - 🆕 default export 추가
+ *   - ⚠️ 호환성: v1.0.0의 모든 기능/메서드/필드 100% 유지
  * - v1.0.0: 초기 구현
  *   - Web Animations API 래퍼
  *   - 배치 애니메이션 실행
@@ -25,7 +36,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/utils/BatchAnimator.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-17
+ * 수정일: 2026-01-19
  */
 
 /**
@@ -36,6 +47,7 @@
  * 2. 다중 요소 동시 애니메이션
  * 3. 애니메이션 큐 관리
  * 4. 일시정지/재개/취소 지원
+ * 5. 🆕 v1.1.0: 스태거/순차 애니메이션 확장
  */
 export class BatchAnimator {
     // ─────────────────────────────────────────────────────────────
@@ -62,6 +74,14 @@ export class BatchAnimator {
         CANCELLED: 'cancelled'
     };
     
+    /**
+     * 🆕 v1.1.0: Utility 클래스 상수 (가이드라인 준수)
+     */
+    static UTIL = {
+        HIDDEN: 'u-hidden',
+        FLEX: 'u-flex'
+    };
+    
     // ─────────────────────────────────────────────────────────────
     // Constructor
     // ─────────────────────────────────────────────────────────────
@@ -83,6 +103,9 @@ export class BatchAnimator {
         this._activeAnimations = new Map(); // id → Animation
         this._animationCounter = 0;
         
+        // 🆕 v1.1.0: 실행 상태 추적
+        this._isRunning = false;
+        
         this._init();
     }
     
@@ -95,7 +118,7 @@ export class BatchAnimator {
      * @private
      */
     _init() {
-        console.log('[BatchAnimator] 🎬 Initializing...');
+        console.log('[BatchAnimator] 🎬 Initializing v1.1.0...');
         
         // Web Animations API 지원 확인
         if (!this._isWebAnimationsSupported()) {
@@ -205,15 +228,34 @@ export class BatchAnimator {
         
         console.log(`[BatchAnimator] 🎬 Starting batch animation (${animations.length} items)`);
         
+        this._isRunning = true;
+        
         const promises = animations.map(({ element, options }) => 
             this.animate(element, options)
         );
         
-        return Promise.all(promises);
+        return Promise.all(promises).finally(() => {
+            this._isRunning = false;
+        });
     }
     
     /**
-     * 순차 애니메이션 실행
+     * 🆕 v1.1.0: animateBatch 별칭 (호환성)
+     * @param {Array} animations - 애니메이션 배열
+     * @returns {Promise}
+     */
+    runBatch(animations) {
+        // 내부 형식 변환 (keyframes 분리 형식 → options 포함 형식)
+        const converted = animations.map(({ element, keyframes, options = {} }) => ({
+            element,
+            options: { ...options, keyframes }
+        }));
+        
+        return this.animateBatch(converted);
+    }
+    
+    /**
+     * 순차 애니메이션 실행 (stagger delay 기반)
      * @param {Array} animations - 애니메이션 배열
      * @param {number} staggerDelay - 순차 딜레이 (ms)
      * @returns {Promise}
@@ -223,12 +265,79 @@ export class BatchAnimator {
             return Promise.resolve();
         }
         
+        this._isRunning = true;
+        
         const promises = animations.map(({ element, options }, index) => {
             const delay = (options.delay || 0) + (index * staggerDelay);
             return this.animate(element, { ...options, delay });
         });
         
-        return Promise.all(promises);
+        return Promise.all(promises).finally(() => {
+            this._isRunning = false;
+        });
+    }
+    
+    /**
+     * 🆕 v1.1.0: 완전 순차 애니메이션 (하나씩 순서대로)
+     * @param {Array} animations - 애니메이션 배열
+     * @param {number} [delay=0] - 각 애니메이션 사이 딜레이 (ms)
+     * @returns {Promise<void>}
+     */
+    async runSequential(animations, delay = 0) {
+        if (!Array.isArray(animations) || animations.length === 0) {
+            return;
+        }
+        
+        this._isRunning = true;
+        
+        for (const { element, keyframes, options = {} } of animations) {
+            if (!element) continue;
+            
+            await this.animate(element, { ...options, keyframes });
+            
+            if (delay > 0) {
+                await this._delay(delay);
+            }
+        }
+        
+        this._isRunning = false;
+    }
+    
+    /**
+     * 🆕 v1.1.0: 스태거 애니메이션 (setTimeout 기반 시간차 실행)
+     * @param {Array} animations - 애니메이션 배열
+     * @param {number} [staggerDelay=50] - 각 애니메이션 시작 간격 (ms)
+     * @returns {Promise<void>}
+     */
+    async runStaggered(animations, staggerDelay = 50) {
+        if (!Array.isArray(animations) || animations.length === 0) {
+            return;
+        }
+        
+        this._isRunning = true;
+        
+        const promises = animations.map(({ element, keyframes, options = {} }, index) => {
+            return new Promise((resolve) => {
+                setTimeout(async () => {
+                    if (!element) {
+                        resolve();
+                        return;
+                    }
+                    
+                    try {
+                        await this.animate(element, { ...options, keyframes });
+                    } catch (error) {
+                        console.warn('[BatchAnimator] 스태거 애니메이션 오류:', error);
+                    }
+                    
+                    resolve();
+                }, index * staggerDelay);
+            });
+        });
+        
+        await Promise.all(promises);
+        
+        this._isRunning = false;
     }
     
     /**
@@ -305,6 +414,7 @@ export class BatchAnimator {
             }
         }
         this._activeAnimations.clear();
+        this._isRunning = false;
         console.log('[BatchAnimator] ❌ All animations cancelled');
     }
     
@@ -313,6 +423,14 @@ export class BatchAnimator {
      * @returns {number}
      */
     getActiveCount() {
+        return this._activeAnimations.size;
+    }
+    
+    /**
+     * 🆕 v1.1.0: Getter 형식 활성 애니메이션 수
+     * @returns {number}
+     */
+    get activeCount() {
         return this._activeAnimations.size;
     }
     
@@ -336,6 +454,14 @@ export class BatchAnimator {
      */
     isAnimating() {
         return this._activeAnimations.size > 0;
+    }
+    
+    /**
+     * 🆕 v1.1.0: Getter 형식 실행 상태
+     * @returns {boolean}
+     */
+    get isRunning() {
+        return this._isRunning || this._activeAnimations.size > 0;
     }
     
     // ─────────────────────────────────────────────────────────────
@@ -435,6 +561,16 @@ export class BatchAnimator {
     }
     
     /**
+     * 🆕 v1.1.0: 딜레이 유틸리티
+     * @private
+     * @param {number} ms - 밀리초
+     * @returns {Promise<void>}
+     */
+    _delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    
+    /**
      * CSS Transition Fallback
      * @private
      */
@@ -498,4 +634,14 @@ export class BatchAnimator {
         
         console.log('[BatchAnimator] ✅ Disposed');
     }
+}
+
+// =========================================================================
+// Default Export
+// =========================================================================
+export default BatchAnimator;
+
+// 전역 노출 (디버깅용)
+if (typeof window !== 'undefined') {
+    window.BatchAnimator = BatchAnimator;
 }

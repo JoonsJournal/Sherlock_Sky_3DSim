@@ -3,14 +3,24 @@
  * =====================
  * 카드 위치 계산 유틸리티
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - 레인 내 카드 목표 위치 계산
  * - 스크롤 오프셋 고려
  * - 뷰포트 기준 좌표 변환
  * - 위치 캐싱 및 무효화
+ * - 🆕 v1.1.0: 이동 벡터 계산, 밀림 위치 계산, 가시 범위 계산
  * 
  * @changelog
+ * - v1.1.0 (2026-01-19): 가이드라인 준수 + 추가 기능 통합
+ *   - 🆕 static UTIL 추가 (가이드라인 준수)
+ *   - 🆕 calculateMoveVector() - 이동 벡터 계산 (startX, startY 포함)
+ *   - 🆕 calculatePushPositions() - 밀림 대상 카드들 배열
+ *   - 🆕 calculateLaneX() - 레인 인덱스로 X 위치 계산
+ *   - 🆕 calculateCardY() - 카드 인덱스로 Y 위치 계산
+ *   - 🆕 calculateVisibleRange() - 뷰포트 내 보이는 카드 범위
+ *   - 🆕 getConfig() - 설정 조회
+ *   - ⚠️ 호환성: v1.0.0의 모든 기능/메서드/필드 100% 유지
  * - v1.0.0: 초기 구현
  *   - 위치 계산 로직
  *   - 스크롤 처리
@@ -25,7 +35,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/utils/PositionCalculator.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-17
+ * 수정일: 2026-01-19
  */
 
 /**
@@ -36,6 +46,7 @@
  * 2. 스크롤 오프셋 보정
  * 3. 뷰포트 좌표 ↔ 문서 좌표 변환
  * 4. 레인/카드 경계 계산
+ * 5. 🆕 v1.1.0: 이동 벡터, 밀림 위치, 가시 범위 계산
  */
 export class PositionCalculator {
     // ─────────────────────────────────────────────────────────────
@@ -46,10 +57,21 @@ export class PositionCalculator {
      * 기본 설정
      */
     static DEFAULTS = {
+        CARD_HEIGHT: 120,      // 카드 높이 (px)
         CARD_GAP: 8,           // 카드 간 간격 (px)
         LANE_PADDING: 12,      // 레인 패딩 (px)
+        LANE_WIDTH: 220,       // 레인 너비 (px)
+        LANE_GAP: 12,          // 레인 간격 (px)
         HEADER_HEIGHT: 80,     // 레인 헤더 높이 (px)
         CACHE_TTL: 1000        // 캐시 유효 시간 (ms)
+    };
+    
+    /**
+     * 🆕 v1.1.0: Utility 클래스 상수 (가이드라인 준수)
+     */
+    static UTIL = {
+        HIDDEN: 'u-hidden',
+        FLEX: 'u-flex'
     };
     
     // ─────────────────────────────────────────────────────────────
@@ -89,7 +111,7 @@ export class PositionCalculator {
      * @private
      */
     _init() {
-        console.log('[PositionCalculator] 📐 Initializing...');
+        console.log('[PositionCalculator] 📐 Initializing v1.1.0...');
     }
     
     // ─────────────────────────────────────────────────────────────
@@ -153,6 +175,34 @@ export class PositionCalculator {
     }
     
     /**
+     * 🆕 v1.1.0: 레인 요소 기반 카드 위치 계산
+     * @param {HTMLElement} laneElement - 레인 DOM 요소
+     * @param {number} cardIndex - 카드 인덱스
+     * @returns {Object} { x, y }
+     */
+    calculateCardPosition(laneElement, cardIndex) {
+        if (!laneElement) {
+            return { x: 0, y: 0 };
+        }
+        
+        const laneRect = laneElement.getBoundingClientRect();
+        const scrollContainer = laneElement.querySelector('.ranking-lane__scroll-container') ||
+                               laneElement.querySelector('.ranking-lane__cards-container');
+        const scrollTop = scrollContainer?.scrollTop || 0;
+        
+        const { CARD_HEIGHT, CARD_GAP, HEADER_HEIGHT, LANE_PADDING } = this._config;
+        
+        // X 위치: 레인의 왼쪽 + padding
+        const x = laneRect.left + LANE_PADDING;
+        
+        // Y 위치: 헤더 + (카드 높이 + 간격) * 인덱스 - 스크롤
+        const y = laneRect.top + HEADER_HEIGHT + 
+                  (CARD_HEIGHT + CARD_GAP) * cardIndex - scrollTop;
+        
+        return { x, y };
+    }
+    
+    /**
      * 카드 현재 위치 가져오기
      * @param {HTMLElement} cardElement - 카드 엘리먼트
      * @returns {Object} { x, y, width, height }
@@ -189,6 +239,35 @@ export class PositionCalculator {
             deltaY,
             distance,
             angle
+        };
+    }
+    
+    /**
+     * 🆕 v1.1.0: 레인 간 이동 벡터 계산 (확장)
+     * @param {HTMLElement} fromLaneElement - 출발 레인
+     * @param {HTMLElement} toLaneElement - 도착 레인
+     * @param {number} fromIndex - 출발 인덱스
+     * @param {number} toIndex - 도착 인덱스
+     * @returns {Object} { deltaX, deltaY, distance, angle, startX, startY, endX, endY }
+     */
+    calculateMoveVector(fromLaneElement, toLaneElement, fromIndex, toIndex) {
+        const fromPos = this.calculateCardPosition(fromLaneElement, fromIndex);
+        const toPos = this.calculateCardPosition(toLaneElement, toIndex);
+        
+        const deltaX = toPos.x - fromPos.x;
+        const deltaY = toPos.y - fromPos.y;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+        
+        return {
+            deltaX,
+            deltaY,
+            distance,
+            angle,
+            startX: fromPos.x,
+            startY: fromPos.y,
+            endX: toPos.x,
+            endY: toPos.y
         };
     }
     
@@ -314,6 +393,83 @@ export class PositionCalculator {
         return this._estimateCardHeight(lane) + this._config.CARD_GAP;
     }
     
+    /**
+     * 🆕 v1.1.0: 밀림 효과 대상 카드들의 위치 계산
+     * @param {HTMLElement} laneElement - 레인
+     * @param {number} insertIndex - 삽입 위치
+     * @param {number} totalCards - 전체 카드 수
+     * @returns {Array<Object>} 영향받는 카드들의 이동 정보
+     */
+    calculatePushPositions(laneElement, insertIndex, totalCards) {
+        const positions = [];
+        const { CARD_HEIGHT, CARD_GAP } = this._config;
+        const pushDistance = CARD_HEIGHT + CARD_GAP;
+        
+        // insertIndex 이후의 모든 카드가 아래로 밀림
+        for (let i = insertIndex; i < totalCards; i++) {
+            positions.push({
+                cardIndex: i,
+                fromY: this.calculateCardPosition(laneElement, i).y,
+                toY: this.calculateCardPosition(laneElement, i + 1).y,
+                pushDistance
+            });
+        }
+        
+        return positions;
+    }
+    
+    /**
+     * 🆕 v1.1.0: 레인 인덱스로부터 X 위치 계산
+     * @param {number} laneIndex - 레인 인덱스
+     * @param {HTMLElement} [container] - 컨테이너 요소
+     * @returns {number}
+     */
+    calculateLaneX(laneIndex, container) {
+        const { LANE_WIDTH, LANE_GAP } = this._config;
+        
+        let offsetX = 0;
+        if (container) {
+            offsetX = container.getBoundingClientRect().left;
+        } else if (this.container) {
+            offsetX = this.container.getBoundingClientRect().left;
+        }
+        
+        return offsetX + (LANE_WIDTH + LANE_GAP) * laneIndex;
+    }
+    
+    /**
+     * 🆕 v1.1.0: 카드 인덱스로부터 Y 위치 계산
+     * @param {number} cardIndex - 카드 인덱스
+     * @param {number} [scrollTop=0] - 스크롤 오프셋
+     * @returns {number}
+     */
+    calculateCardY(cardIndex, scrollTop = 0) {
+        const { CARD_HEIGHT, CARD_GAP, HEADER_HEIGHT } = this._config;
+        
+        return HEADER_HEIGHT + (CARD_HEIGHT + CARD_GAP) * cardIndex - scrollTop;
+    }
+    
+    /**
+     * 🆕 v1.1.0: 뷰포트 내 보이는 카드 범위 계산
+     * @param {number} viewportHeight - 뷰포트 높이
+     * @param {number} scrollTop - 스크롤 위치
+     * @param {number} totalCards - 전체 카드 수
+     * @returns {Object} { startIndex, endIndex }
+     */
+    calculateVisibleRange(viewportHeight, scrollTop, totalCards) {
+        const { CARD_HEIGHT, CARD_GAP, HEADER_HEIGHT } = this._config;
+        const cardTotalHeight = CARD_HEIGHT + CARD_GAP;
+        
+        const startIndex = Math.max(0, 
+            Math.floor((scrollTop - HEADER_HEIGHT) / cardTotalHeight)
+        );
+        
+        const visibleCount = Math.ceil(viewportHeight / cardTotalHeight);
+        const endIndex = Math.min(totalCards, startIndex + visibleCount + 2); // 버퍼 추가
+        
+        return { startIndex, endIndex };
+    }
+    
     // ─────────────────────────────────────────────────────────────
     // Private Methods
     // ─────────────────────────────────────────────────────────────
@@ -354,7 +510,8 @@ export class PositionCalculator {
      */
     _getCardsContainer(lane) {
         if (!lane || !lane.element) return null;
-        return lane.element.querySelector('.ranking-lane__cards-container');
+        return lane.element.querySelector('.ranking-lane__cards-container') ||
+               lane.element.querySelector('.ranking-lane__scroll-container');
     }
     
     /**
@@ -372,7 +529,7 @@ export class PositionCalculator {
         }
         
         // 기본값 (카드 높이 추정)
-        return 100;
+        return this._config.CARD_HEIGHT || 100;
     }
     
     /**
@@ -435,7 +592,7 @@ export class PositionCalculator {
     }
     
     // ─────────────────────────────────────────────────────────────
-    // Setters
+    // Setters / Getters
     // ─────────────────────────────────────────────────────────────
     
     /**
@@ -468,6 +625,14 @@ export class PositionCalculator {
         this.invalidateCache();
     }
     
+    /**
+     * 🆕 v1.1.0: 현재 설정 가져오기
+     * @returns {Object}
+     */
+    getConfig() {
+        return { ...this._config };
+    }
+    
     // ─────────────────────────────────────────────────────────────
     // Cleanup
     // ─────────────────────────────────────────────────────────────
@@ -484,4 +649,14 @@ export class PositionCalculator {
         
         console.log('[PositionCalculator] ✅ Disposed');
     }
+}
+
+// =========================================================================
+// Default Export
+// =========================================================================
+export default PositionCalculator;
+
+// 전역 노출 (디버깅용)
+if (typeof window !== 'undefined') {
+    window.PositionCalculator = PositionCalculator;
 }
