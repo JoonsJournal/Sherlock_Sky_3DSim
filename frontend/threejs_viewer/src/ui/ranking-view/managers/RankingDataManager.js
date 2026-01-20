@@ -3,8 +3,9 @@
  * =====================
  * Ranking View 데이터 가공 및 레인 할당 매니저
  * 
- * @version 1.1.0
+ * @version 2.0.0
  * @description
+ * - 🆕 UDS (Unified Data Store) 연동 지원
  * - WebSocket 데이터 수신 및 가공
  * - 설비 상태에 따른 레인 결정
  * - Remote Alarm Code 필터링
@@ -12,35 +13,42 @@
  * - 레인별 설비 목록 관리
  * - 상태 변경 감지 및 이벤트 발행
  * - Custom Filter 지원 (Phase 6)
+ * - 🆕 Production Ranking 지원 (Top 10)
+ * - 🆕 Lane별 그룹화 및 정렬
  * 
  * @changelog
+ * - v2.0.0 (2026-01-21): UDS 통합 연동
+ *   - 🆕 initializeFromUDS(): UDS 데이터로 초기화
+ *   - 🆕 _subscribeToUDSEvents(): UDS 이벤트 구독
+ *   - 🆕 getProductionRankings(): 생산량 기준 Top 10 순위
+ *   - 🆕 getEquipmentsByLane(): Lane별 설비 그룹화
+ *   - 🆕 getTopByLane(): Lane별 Top N 설비
+ *   - 🆕 _recalculateRankings(): 순위 재계산
+ *   - 🆕 UDS Feature Flag 지원 (UDS_ENABLED)
+ *   - ⚠️ 호환성: v1.1.0의 모든 기능/메서드/필드 100% 유지
  * - v1.1.0 (2026-01-19): 가이드라인 준수 + Custom Filter 통합
- *   - 🆕 Custom Filter 기능 추가 (addCustomFilter, removeCustomFilter, getFilteredData)
- *   - static UTIL 추가 (가이드라인 준수)
- *   - ⚠️ 호환성: v1.0.0의 모든 기능/메서드/필드 100% 유지
+ *   - Custom Filter 기능 추가
+ *   - static UTIL 추가
  * - v1.0.0: 초기 구현
- *   - REMOTE_ALARM_CODES: Remote 알람 코드 목록 정의
- *   - determineLane(): 레인 결정 로직
- *   - isProducing(): 생산중 판단 로직
- *   - processEquipmentData(): 설비 데이터 가공
- *   - handleStatusChange(): WebSocket 상태 변경 처리
- *   - getLaneEquipments(): 레인별 설비 목록 조회
  * 
  * @dependencies
  * - LaneSorter (../utils/LaneSorter.js)
  * - DurationCalculator (../utils/DurationCalculator.js)
  * - EventBus (../../../core/managers/EventBus.js)
+ * - 🆕 UnifiedDataStore (../../../services/uds/UnifiedDataStore.js)
  * 
  * @exports
  * - RankingDataManager
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/managers/RankingDataManager.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-19
+ * 수정일: 2026-01-21
  */
 
 import { LaneSorter } from '../utils/LaneSorter.js';
 import { DurationCalculator } from '../utils/DurationCalculator.js';
+// 🆕 v2.0.0: UDS 연동
+import { unifiedDataStore, UnifiedDataStore } from '../../../services/uds/UnifiedDataStore.js';
 
 /**
  * Ranking View 데이터 매니저 클래스
@@ -104,7 +112,10 @@ export class RankingDataManager {
         EQUIPMENT_MOVED: 'ranking:equipment:moved',
         DATA_REFRESHED: 'ranking:data:refreshed',
         STATS_UPDATED: 'ranking:stats:updated',
-        CUSTOM_FILTER_UPDATED: 'ranking:custom-filter:updated'  // 🆕 v1.1.0
+        CUSTOM_FILTER_UPDATED: 'ranking:custom-filter:updated',
+        // 🆕 v2.0.0: UDS 관련 이벤트
+        UDS_INITIALIZED: 'ranking:uds:initialized',
+        RANKINGS_UPDATED: 'ranking:rankings:updated'
     };
     
     /**
@@ -113,11 +124,14 @@ export class RankingDataManager {
     static CONFIG = {
         DEBOUNCE_MS: 100,           // 상태 변경 디바운스 시간
         UPDATE_INTERVAL_MS: 2000,   // 지속 시간 업데이트 주기
-        MAX_BATCH_SIZE: 50          // 최대 일괄 처리 개수
+        MAX_BATCH_SIZE: 50,         // 최대 일괄 처리 개수
+        // 🆕 v2.0.0: UDS 설정
+        UDS_RANKING_TOP_N: 10,      // Top N 순위 개수
+        UDS_LANE_TOP_N: 5           // Lane별 Top N 개수
     };
     
     /**
-     * 🆕 v1.1.0: Utility 클래스 상수 (가이드라인 준수)
+     * Utility 클래스 상수 (가이드라인 준수)
      */
     static UTIL = {
         HIDDEN: 'u-hidden',
@@ -134,16 +148,25 @@ export class RankingDataManager {
      * @param {Object} options - 옵션
      * @param {Object} [options.eventBus] - EventBus 인스턴스
      * @param {Object} [options.webSocketClient] - WebSocket 클라이언트
+     * @param {boolean} [options.useUDS=true] - 🆕 UDS 사용 여부
      */
     constructor(options = {}) {
         this._options = options;
         this._eventBus = options.eventBus || null;
         this._webSocketClient = options.webSocketClient || null;
         
+        // 🆕 v2.0.0: UDS 설정
+        this._useUDS = options.useUDS ?? (window.ENV_CONFIG?.UDS_ENABLED ?? true);
+        this._udsInitialized = false;
+        
         // 내부 데이터 저장소
         this._equipments = new Map();        // equipmentId → equipment data
         this._laneEquipments = new Map();    // laneId → Set<equipmentId>
         this._previousLanes = new Map();     // 이전 레인 할당 (변경 감지용)
+        
+        // 🆕 v2.0.0: 순위 캐시
+        this._rankings = [];                 // Top N 순위 배열
+        this._laneGroups = new Map();        // lineName → [equipments]
         
         // 변경 대기열 (디바운스용)
         this._pendingChanges = [];
@@ -158,7 +181,7 @@ export class RankingDataManager {
         // 통계 캐시
         this._statsCache = new Map();
         
-        // 🆕 v1.1.0: Custom Filter (Phase 6)
+        // Custom Filter (Phase 6)
         this._customFilters = new Map();     // filterId → { filterFn, name, description }
         
         // 초기화
@@ -174,13 +197,19 @@ export class RankingDataManager {
      * @private
      */
     _init() {
-        console.log('[RankingDataManager] 🚀 Initializing v1.1.0...');
+        console.log('[RankingDataManager] 🚀 Initializing v2.0.0...');
+        console.log(`   └─ UDS Mode: ${this._useUDS ? 'Enabled' : 'Disabled'}`);
         
         // 레인 Map 초기화
         this._initializeLanes();
         
         // 이벤트 구독 설정
         this._setupEventListeners();
+        
+        // 🆕 v2.0.0: UDS 이벤트 구독 (UDS 모드일 때)
+        if (this._useUDS) {
+            this._subscribeToUDSEvents();
+        }
         
         // 지속 시간 업데이트 타이머 시작
         this._startDurationTimer();
@@ -212,32 +241,492 @@ export class RankingDataManager {
             return;
         }
         
-        // WebSocket 이벤트 구독
-        const unsubStatus = this._eventBus.on(
-            'websocket:equipment:status',
-            this._handleStatusChange.bind(this)
-        );
-        
-        const unsubProduction = this._eventBus.on(
-            'websocket:equipment:production',
-            this._handleProductionChange.bind(this)
-        );
-        
-        const unsubLot = this._eventBus.on(
-            'websocket:equipment:lot',
-            this._handleLotChange.bind(this)
-        );
-        
-        const unsubAlarm = this._eventBus.on(
-            'websocket:equipment:alarm',
-            this._handleAlarmChange.bind(this)
-        );
-        
-        this._eventSubscriptions.push(unsubStatus, unsubProduction, unsubLot, unsubAlarm);
+        // WebSocket 이벤트 구독 (Legacy 방식 - UDS 미사용 시)
+        if (!this._useUDS) {
+            const unsubStatus = this._eventBus.on(
+                'websocket:equipment:status',
+                this._handleStatusChange.bind(this)
+            );
+            
+            const unsubProduction = this._eventBus.on(
+                'websocket:equipment:production',
+                this._handleProductionChange.bind(this)
+            );
+            
+            const unsubLot = this._eventBus.on(
+                'websocket:equipment:lot',
+                this._handleLotChange.bind(this)
+            );
+            
+            const unsubAlarm = this._eventBus.on(
+                'websocket:equipment:alarm',
+                this._handleAlarmChange.bind(this)
+            );
+            
+            this._eventSubscriptions.push(unsubStatus, unsubProduction, unsubLot, unsubAlarm);
+        }
     }
     
     // =========================================================================
-    // Data Loading
+    // 🆕 v2.0.0: UDS 연동
+    // =========================================================================
+    
+    /**
+     * 🆕 UDS 이벤트 구독
+     * @private
+     */
+    _subscribeToUDSEvents() {
+        console.log('[RankingDataManager] 📡 Subscribing to UDS events...');
+        
+        // UDS 초기화 완료 이벤트 (자동 초기화)
+        const unsubInitialized = this._eventBus?.on?.(
+            UnifiedDataStore.EVENTS.INITIALIZED,
+            (event) => {
+                console.log('[RankingDataManager] 📥 UDS INITIALIZED event received');
+                this.initializeFromUDS(event.equipments);
+            }
+        );
+        
+        // 단일 설비 업데이트 이벤트
+        const unsubEquipmentUpdated = this._eventBus?.on?.(
+            UnifiedDataStore.EVENTS.EQUIPMENT_UPDATED,
+            (event) => {
+                this._handleUDSEquipmentUpdate(event);
+            }
+        );
+        
+        // 배치 업데이트 완료 이벤트
+        const unsubBatchUpdated = this._eventBus?.on?.(
+            UnifiedDataStore.EVENTS.BATCH_UPDATED,
+            (event) => {
+                this._handleUDSBatchUpdate(event);
+            }
+        );
+        
+        // 통계 변경 이벤트
+        const unsubStatsUpdated = this._eventBus?.on?.(
+            UnifiedDataStore.EVENTS.STATS_UPDATED,
+            (event) => {
+                this._handleUDSStatsUpdate(event);
+            }
+        );
+        
+        // 구독 해제 함수 저장
+        if (unsubInitialized) this._eventSubscriptions.push(unsubInitialized);
+        if (unsubEquipmentUpdated) this._eventSubscriptions.push(unsubEquipmentUpdated);
+        if (unsubBatchUpdated) this._eventSubscriptions.push(unsubBatchUpdated);
+        if (unsubStatsUpdated) this._eventSubscriptions.push(unsubStatsUpdated);
+        
+        console.log('[RankingDataManager] ✅ UDS events subscribed');
+    }
+    
+    /**
+     * 🆕 UDS 데이터로 초기화
+     * UDS 초기 로드 데이터를 받아 RankingDataManager 초기화
+     * 
+     * @param {Object[]} equipmentsFromUDS - UDS에서 받은 설비 데이터 배열
+     * @returns {Map<string, Array<Object>>} 레인별 정렬된 설비 목록
+     */
+    initializeFromUDS(equipmentsFromUDS) {
+        console.log(`[RankingDataManager] 📊 Initializing from UDS with ${equipmentsFromUDS?.length || 0} equipments...`);
+        
+        if (!Array.isArray(equipmentsFromUDS) || equipmentsFromUDS.length === 0) {
+            console.warn('[RankingDataManager] ⚠️ Empty or invalid UDS data');
+            return this.getAllLanes();
+        }
+        
+        // 기존 데이터 초기화
+        this._clearAllData();
+        
+        // UDS 데이터를 RankingDataManager 형식으로 변환 및 로드
+        for (const udsEquipment of equipmentsFromUDS) {
+            const equipment = this._convertFromUDSFormat(udsEquipment);
+            
+            if (equipment) {
+                this._equipments.set(equipment.equipmentId, equipment);
+                
+                // 레인 결정 및 할당
+                const laneId = this.determineLane(equipment);
+                equipment.laneId = laneId;
+                
+                this._laneEquipments.get(laneId).add(equipment.equipmentId);
+            }
+        }
+        
+        // 각 레인 정렬
+        const sortedLanes = this._sortAllLanes();
+        
+        // 🆕 순위 계산
+        this._rankings = this._calculateRankings(Array.from(this._equipments.values()));
+        
+        // 🆕 Lane 그룹 계산
+        this._buildLaneGroups();
+        
+        // 통계 계산
+        this._updateAllStats();
+        
+        this._udsInitialized = true;
+        
+        // 이벤트 발행
+        this._emitEvent(RankingDataManager.EVENTS.UDS_INITIALIZED, {
+            totalCount: this._equipments.size,
+            laneStats: this.getAllStats(),
+            rankings: this._rankings
+        });
+        
+        this._emitEvent(RankingDataManager.EVENTS.DATA_REFRESHED, {
+            totalCount: this._equipments.size,
+            laneStats: this.getAllStats()
+        });
+        
+        console.log(`[RankingDataManager] ✅ UDS initialization complete`);
+        console.log(`   └─ Equipments: ${this._equipments.size}`);
+        console.log(`   └─ Rankings (Top ${RankingDataManager.CONFIG.UDS_RANKING_TOP_N}): ${this._rankings.length}`);
+        
+        return sortedLanes;
+    }
+    
+    /**
+     * 🆕 UDS 형식 → RankingDataManager 형식 변환
+     * @private
+     * @param {Object} udsEquipment - UDS 설비 데이터
+     * @returns {Object|null} 변환된 설비 데이터
+     */
+    _convertFromUDSFormat(udsEquipment) {
+        if (!udsEquipment) {
+            return null;
+        }
+        
+        try {
+            const frontendId = udsEquipment.frontend_id;
+            const equipmentId = String(udsEquipment.equipment_id || frontendId);
+            
+            if (!frontendId && !equipmentId) {
+                console.warn('[RankingDataManager] ⚠️ No ID found in UDS equipment:', udsEquipment);
+                return null;
+            }
+            
+            // UDS 상태값 변환
+            const status = (udsEquipment.status || 'UNKNOWN').toUpperCase();
+            
+            // Lot 정보 구성
+            const lotInfo = {
+                lotId: udsEquipment.lot_id,
+                lotQty: udsEquipment.production_count || 0,
+                isStart: udsEquipment.lot_id ? 1 : 0,
+                isEnd: 0,
+                startedAtUtc: udsEquipment.lot_start_time
+            };
+            
+            // 생산중 여부
+            const isProducing = Boolean(udsEquipment.lot_id);
+            
+            // 지속 시간 계산
+            const statusDuration = udsEquipment.status_changed_at
+                ? DurationCalculator.calculateStatusDuration(udsEquipment.status_changed_at)
+                : 0;
+            
+            return {
+                // 식별자
+                equipmentId: equipmentId,
+                frontendId: frontendId,
+                
+                // 기본 정보
+                equipmentName: udsEquipment.equipment_name || '',
+                lineName: udsEquipment.line_name || '',
+                
+                // 상태 정보
+                status,
+                previousStatus: null,
+                alarmCode: null,
+                alarmMessage: '',
+                alarmRepeatCount: 0,
+                
+                // 시간 정보
+                occurredAt: udsEquipment.status_changed_at,
+                statusDuration,
+                waitDuration: 0,
+                
+                // Lot 정보
+                lotInfo,
+                isProducing,
+                
+                // 🆕 생산 정보 (UDS 직접 매핑)
+                productionCount: udsEquipment.production_count || 0,
+                tactTime: udsEquipment.tact_time_seconds || 0,
+                targetCount: 0,
+                lotProgress: 0,
+                
+                // PC 정보 (UDS 제공)
+                cpuUsage: udsEquipment.cpu_usage_percent,
+                memoryUsage: udsEquipment.memory_usage_percent,
+                diskUsage: udsEquipment.disk_usage_percent,
+                
+                // Grid 정보
+                gridRow: udsEquipment.grid_row,
+                gridCol: udsEquipment.grid_col,
+                
+                // 레인 정보 (나중에 할당)
+                laneId: null,
+                
+                // 메타 정보
+                lastUpdated: new Date().toISOString(),
+                
+                // 원본 데이터 참조
+                _raw: udsEquipment
+            };
+            
+        } catch (error) {
+            console.error('[RankingDataManager] ❌ Error converting UDS data:', error, udsEquipment);
+            return null;
+        }
+    }
+    
+    /**
+     * 🆕 UDS 설비 업데이트 처리
+     * @private
+     * @param {Object} event - { frontendId, changes, equipment, prevStatus }
+     */
+    _handleUDSEquipmentUpdate(event) {
+        const { frontendId, changes, equipment: udsEquipment } = event;
+        
+        if (!frontendId) return;
+        
+        // 기존 설비 찾기
+        let equipment = null;
+        for (const eq of this._equipments.values()) {
+            if (eq.frontendId === frontendId) {
+                equipment = eq;
+                break;
+            }
+        }
+        
+        if (!equipment) {
+            console.warn(`[RankingDataManager] ⚠️ UDS Update - Equipment not found: ${frontendId}`);
+            return;
+        }
+        
+        const previousLaneId = equipment.laneId;
+        const prevStatus = equipment.status;
+        
+        // 변경사항 적용
+        if (changes.status) {
+            equipment.previousStatus = equipment.status;
+            equipment.status = changes.status.toUpperCase();
+            equipment.statusDuration = 0;
+        }
+        
+        if (changes.production_count !== undefined) {
+            equipment.productionCount = changes.production_count;
+        }
+        
+        if (changes.tact_time_seconds !== undefined) {
+            equipment.tactTime = changes.tact_time_seconds;
+        }
+        
+        if (changes.lot_id !== undefined) {
+            equipment.lotInfo = {
+                ...equipment.lotInfo,
+                lotId: changes.lot_id
+            };
+            equipment.isProducing = Boolean(changes.lot_id);
+        }
+        
+        if (changes.status_changed_at) {
+            equipment.occurredAt = changes.status_changed_at;
+        }
+        
+        equipment.lastUpdated = new Date().toISOString();
+        
+        // 레인 재결정
+        const newLaneId = this.determineLane(equipment);
+        
+        // 레인 이동 처리
+        if (previousLaneId !== newLaneId) {
+            equipment.laneId = newLaneId;
+            
+            if (previousLaneId) {
+                this._laneEquipments.get(previousLaneId)?.delete(equipment.equipmentId);
+            }
+            this._laneEquipments.get(newLaneId).add(equipment.equipmentId);
+            
+            // 영향받는 레인 정렬
+            if (previousLaneId) this._sortLane(previousLaneId);
+            this._sortLane(newLaneId);
+            
+            // 이동 이벤트 발행
+            this._emitEvent(RankingDataManager.EVENTS.EQUIPMENT_MOVED, {
+                moved: [{
+                    equipmentId: equipment.equipmentId,
+                    fromLane: previousLaneId,
+                    toLane: newLaneId,
+                    equipment
+                }],
+                timestamp: Date.now()
+            });
+        }
+        
+        // 🆕 생산량 변경 시 순위 재계산
+        if (changes.production_count !== undefined) {
+            this._recalculateRankings();
+        }
+        
+        // 레인 그룹 재구성
+        this._buildLaneGroups();
+    }
+    
+    /**
+     * 🆕 UDS 배치 업데이트 처리
+     * @private
+     * @param {Object} event - { count, timestamp }
+     */
+    _handleUDSBatchUpdate(event) {
+        console.log(`[RankingDataManager] 📦 UDS Batch Update: ${event.count} changes`);
+        
+        // 배치 업데이트 후 순위 재계산
+        this._recalculateRankings();
+        
+        // 레인 그룹 재구성
+        this._buildLaneGroups();
+        
+        // 통계 업데이트
+        this._updateAllStats();
+    }
+    
+    /**
+     * 🆕 UDS 통계 업데이트 처리
+     * @private
+     * @param {Object} event - { stats, changed }
+     */
+    _handleUDSStatsUpdate(event) {
+        // 통계 이벤트 전파
+        this._emitEvent(RankingDataManager.EVENTS.STATS_UPDATED, {
+            stats: this.getAllStats(),
+            udsStats: event.stats
+        });
+    }
+    
+    /**
+     * 🆕 순위 계산 (Top N - 생산량 기준)
+     * @private
+     * @param {Object[]} equipments - 설비 배열
+     * @returns {Object[]} 순위 배열
+     */
+    _calculateRankings(equipments) {
+        return [...equipments]
+            .filter(eq => eq.status === RankingDataManager.STATUS.RUN)  // RUN 상태만
+            .sort((a, b) => (b.productionCount || 0) - (a.productionCount || 0))  // 생산량 내림차순
+            .slice(0, RankingDataManager.CONFIG.UDS_RANKING_TOP_N)
+            .map((eq, index) => ({
+                rank: index + 1,
+                frontendId: eq.frontendId,
+                equipmentId: eq.equipmentId,
+                equipmentName: eq.equipmentName,
+                lineName: eq.lineName,
+                productionCount: eq.productionCount || 0,
+                tactTime: eq.tactTime || 0,
+                status: eq.status
+            }));
+    }
+    
+    /**
+     * 🆕 순위 재계산
+     * @private
+     */
+    _recalculateRankings() {
+        const equipments = Array.from(this._equipments.values());
+        this._rankings = this._calculateRankings(equipments);
+        
+        // 순위 변경 이벤트 발행
+        this._emitEvent(RankingDataManager.EVENTS.RANKINGS_UPDATED, {
+            rankings: this._rankings,
+            timestamp: Date.now()
+        });
+    }
+    
+    /**
+     * 🆕 Lane 그룹 구성
+     * @private
+     */
+    _buildLaneGroups() {
+        this._laneGroups.clear();
+        
+        for (const equipment of this._equipments.values()) {
+            const lineName = equipment.lineName || 'Unknown';
+            
+            if (!this._laneGroups.has(lineName)) {
+                this._laneGroups.set(lineName, []);
+            }
+            
+            this._laneGroups.get(lineName).push(equipment);
+        }
+        
+        // 각 그룹 내에서 생산량 순 정렬
+        for (const [lineName, equipments] of this._laneGroups) {
+            equipments.sort((a, b) => (b.productionCount || 0) - (a.productionCount || 0));
+        }
+    }
+    
+    /**
+     * 🆕 생산량 기준 Top N 순위 조회
+     * 
+     * @returns {Object[]} 순위 배열
+     */
+    getProductionRankings() {
+        return [...this._rankings];
+    }
+    
+    /**
+     * 🆕 Line별 설비 그룹화
+     * 
+     * @returns {Object} { lineName: [equipments], ... }
+     */
+    getEquipmentsByLane() {
+        const result = {};
+        
+        for (const [lineName, equipments] of this._laneGroups) {
+            result[lineName] = [...equipments];
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 🆕 Line별 Top N 설비
+     * 
+     * @param {number} [n=5] - 각 Line에서 가져올 설비 수
+     * @returns {Object} { lineName: [top N], ... }
+     */
+    getTopByLane(n = RankingDataManager.CONFIG.UDS_LANE_TOP_N) {
+        const result = {};
+        
+        for (const [lineName, equipments] of this._laneGroups) {
+            result[lineName] = equipments.slice(0, n);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 🆕 UDS 초기화 상태 확인
+     * 
+     * @returns {boolean}
+     */
+    isUDSInitialized() {
+        return this._udsInitialized;
+    }
+    
+    /**
+     * 🆕 UDS 모드 확인
+     * 
+     * @returns {boolean}
+     */
+    isUDSMode() {
+        return this._useUDS;
+    }
+    
+    // =========================================================================
+    // Data Loading (Legacy - 기존 방식 유지)
     // =========================================================================
     
     /**
@@ -274,6 +763,12 @@ export class RankingDataManager {
         
         // 각 레인 정렬
         const sortedLanes = this._sortAllLanes();
+        
+        // 🆕 순위 계산
+        this._rankings = this._calculateRankings(Array.from(this._equipments.values()));
+        
+        // 🆕 Lane 그룹 계산
+        this._buildLaneGroups();
         
         // 통계 계산
         this._updateAllStats();
@@ -351,6 +846,10 @@ export class RankingDataManager {
                 equipmentId: String(equipmentId),
                 frontendId: frontendId || `EQ-${equipmentId}`,
                 
+                // 기본 정보
+                equipmentName: rawData.equipmentName || rawData.equipment_name || '',
+                lineName: rawData.lineName || rawData.line_name || '',
+                
                 // 상태 정보
                 status,
                 previousStatus: rawData.previousStatus || null,
@@ -369,6 +868,7 @@ export class RankingDataManager {
                 
                 // 생산 정보
                 productionCount: parseInt(productionCount, 10) || 0,
+                tactTime: rawData.tactTime || rawData.tact_time_seconds || 0,
                 targetCount: parseInt(targetCount, 10) || 0,
                 lotProgress: targetCount > 0 
                     ? Math.round((productionCount / targetCount) * 100) 
@@ -516,7 +1016,7 @@ export class RankingDataManager {
     }
     
     // =========================================================================
-    // Status Change Handling
+    // Status Change Handling (Legacy)
     // =========================================================================
     
     /**
@@ -636,12 +1136,17 @@ export class RankingDataManager {
         
         // 변경사항 적용
         const movedEquipments = [];
+        let productionChanged = false;
         
         for (const change of changes) {
             const result = this._applyChange(change);
             
             if (result && result.moved) {
                 movedEquipments.push(result);
+            }
+            
+            if (change.type === 'production') {
+                productionChanged = true;
             }
         }
         
@@ -656,6 +1161,11 @@ export class RankingDataManager {
         
         // 통계 업데이트
         this._updateAllStats();
+        
+        // 🆕 생산량 변경 시 순위 재계산
+        if (productionChanged) {
+            this._recalculateRankings();
+        }
         
         // 이벤트 발행
         if (movedEquipments.length > 0) {
@@ -938,6 +1448,21 @@ export class RankingDataManager {
     }
     
     /**
+     * 🆕 frontendId로 설비 조회
+     * 
+     * @param {string} frontendId - Frontend ID
+     * @returns {Object|null} 설비 데이터
+     */
+    getEquipmentByFrontendId(frontendId) {
+        for (const equipment of this._equipments.values()) {
+            if (equipment.frontendId === frontendId) {
+                return equipment;
+            }
+        }
+        return null;
+    }
+    
+    /**
      * 특정 레인의 통계 조회
      * 
      * @param {string} laneId - 레인 ID
@@ -966,11 +1491,11 @@ export class RankingDataManager {
     }
     
     // =========================================================================
-    // 🆕 v1.1.0: Custom Filter (Phase 6)
+    // Custom Filter (Phase 6) - 기존 기능 유지
     // =========================================================================
     
     /**
-     * 🆕 Custom 필터 추가
+     * Custom 필터 추가
      * 사용자 정의 필터 함수를 등록하여 특정 조건의 설비 필터링
      * 
      * @param {string} filterId - 필터 식별자
@@ -1003,7 +1528,7 @@ export class RankingDataManager {
     }
     
     /**
-     * 🆕 Custom 필터 제거
+     * Custom 필터 제거
      * 
      * @param {string} filterId - 필터 식별자
      * @returns {boolean} 제거 성공 여부
@@ -1026,7 +1551,7 @@ export class RankingDataManager {
     }
     
     /**
-     * 🆕 Custom 필터 적용 데이터 조회
+     * Custom 필터 적용 데이터 조회
      * 
      * @param {string} filterId - 필터 식별자
      * @returns {Array<Object>} 필터링된 설비 목록
@@ -1044,7 +1569,7 @@ export class RankingDataManager {
     }
     
     /**
-     * 🆕 모든 Custom 필터 목록 조회
+     * 모든 Custom 필터 목록 조회
      * 
      * @returns {Map<string, Object>} 필터 목록 (filterId → filter info)
      */
@@ -1063,7 +1588,7 @@ export class RankingDataManager {
     }
     
     /**
-     * 🆕 Custom 필터 존재 여부 확인
+     * Custom 필터 존재 여부 확인
      * 
      * @param {string} filterId - 필터 식별자
      * @returns {boolean} 존재 여부
@@ -1073,7 +1598,7 @@ export class RankingDataManager {
     }
     
     /**
-     * 🆕 모든 Custom 필터 초기화
+     * 모든 Custom 필터 초기화
      */
     clearAllCustomFilters() {
         this._customFilters.clear();
@@ -1106,6 +1631,8 @@ export class RankingDataManager {
      */
     _clearAllData() {
         this._equipments.clear();
+        this._rankings = [];
+        this._laneGroups.clear();
         
         for (const laneId of this._laneEquipments.keys()) {
             this._laneEquipments.set(laneId, new Set());
@@ -1153,6 +1680,8 @@ export class RankingDataManager {
     refresh() {
         this._sortAllLanes();
         this._updateAllStats();
+        this._recalculateRankings();
+        this._buildLaneGroups();
         
         this._emitEvent(RankingDataManager.EVENTS.DATA_REFRESHED, {
             totalCount: this._equipments.size,
@@ -1195,12 +1724,14 @@ export class RankingDataManager {
         // 데이터 정리
         this._clearAllData();
         
-        // 🆕 v1.1.0: Custom 필터 정리
+        // Custom 필터 정리
         this._customFilters.clear();
         
         // 참조 해제
         this._eventBus = null;
         this._webSocketClient = null;
+        
+        this._udsInitialized = false;
         
         console.log('[RankingDataManager] ✅ Disposed');
     }
