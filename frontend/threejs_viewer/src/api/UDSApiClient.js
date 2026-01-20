@@ -3,14 +3,22 @@
  * ================
  * UDS (Unified Data Store) API 통신 클라이언트
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - 초기 데이터 로드 (/api/uds/initial)
  * - 단일 설비 조회 (/api/uds/equipment/{id})
  * - WebSocket 연결 관리 (Delta Update 수신)
  * - Ping/Pong 지원 (Latency 측정)
+ * - 🆕 NetworkStatsMonitor 연동 (v1.1.0)
  * 
  * @changelog
+ * - v1.1.0: NetworkStatsMonitor 연동 (Phase 4 작업 4-3)
+ *   - recordWsMessage(): 메시지 수신 시 크기/카운트 기록
+ *   - recordWsSend(): 메시지 발신 시 카운트 기록
+ *   - recordDeltaUpdate(): Delta Update 수신 시 카운트 기록
+ *   - recordLatency(): Pong 응답 시 Latency 기록 (기존 EventBus + 직접 호출)
+ *   - updateConnectionStatus(): 연결 상태 변경 알림
+ *   - ⚠️ 호환성: 기존 모든 메서드/이벤트 100% 유지
  * - v1.0.0: 초기 버전 (2026-01-20)
  *   - REST API: fetchInitialData, fetchEquipment
  *   - WebSocket: connectWebSocket, disconnectWebSocket, sendPing
@@ -18,6 +26,7 @@
  * 
  * @dependencies
  * - config/environment.js (ENV, buildApiUrl)
+ * - services/performance/NetworkStatsMonitor.js (🆕 v1.1.0)
  * 
  * @exports
  * - UDSApiClient (class)
@@ -25,10 +34,11 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/api/UDSApiClient.js
  * 작성일: 2026-01-20
- * 수정일: 2026-01-20
+ * 수정일: 2026-01-21
  */
 
 import { ENV, buildApiUrl } from '../config/environment.js';
+import { networkStatsMonitor } from '../services/performance/NetworkStatsMonitor.js';
 
 export class UDSApiClient {
     // =========================================================================
@@ -286,6 +296,9 @@ export class UDSApiClient {
             
             this._ws = null;
             console.log('🔌 [UDSApiClient] WebSocket 연결 해제');
+            
+            // 🆕 v1.1.0: NetworkStatsMonitor 연결 상태 업데이트
+            networkStatsMonitor.updateConnectionStatus(false);
         }
         
         this._reconnectParams = null;
@@ -299,7 +312,11 @@ export class UDSApiClient {
     sendPing() {
         if (this._ws && this._ws.readyState === UDSApiClient.WS_STATE.OPEN) {
             this._pingTimestamp = Date.now();
-            this._ws.send(JSON.stringify({ type: 'ping' }));
+            const pingMessage = JSON.stringify({ type: 'ping' });
+            this._ws.send(pingMessage);
+            
+            // 🆕 v1.1.0: 발신 메시지 기록
+            networkStatsMonitor.recordWsSend(pingMessage.length);
         }
     }
     
@@ -332,6 +349,9 @@ export class UDSApiClient {
         this._wsReconnectAttempts = 0;
         this._startPingInterval();
         
+        // 🆕 v1.1.0: NetworkStatsMonitor 연결 상태 업데이트
+        networkStatsMonitor.updateConnectionStatus(true);
+        
         // 연결 성공 이벤트 발행 (EventBus 사용 시)
         if (window.eventBus) {
             window.eventBus.emit('uds:connected');
@@ -344,6 +364,10 @@ export class UDSApiClient {
      * @param {MessageEvent} event
      */
     _handleWebSocketMessage(event) {
+        // 🆕 v1.1.0: 메시지 수신 기록
+        const messageSize = event.data ? event.data.length : 0;
+        networkStatsMonitor.recordWsMessage(messageSize);
+        
         try {
             const data = JSON.parse(event.data);
             
@@ -351,6 +375,11 @@ export class UDSApiClient {
             if (data.type === 'pong') {
                 this._handlePong(data);
                 return;
+            }
+            
+            // 🆕 v1.1.0: Delta Update 메시지 카운트
+            if (data.type === 'delta' || data.type === 'batch_delta') {
+                networkStatsMonitor.recordDeltaUpdate();
             }
             
             // 메시지 콜백 호출
@@ -389,6 +418,9 @@ export class UDSApiClient {
         console.log('🔌 [UDSApiClient] WebSocket 연결 종료');
         this._stopPingInterval();
         
+        // 🆕 v1.1.0: NetworkStatsMonitor 연결 상태 업데이트
+        networkStatsMonitor.updateConnectionStatus(false);
+        
         // 연결 종료 이벤트 발행 (EventBus 사용 시)
         if (window.eventBus) {
             window.eventBus.emit('uds:disconnected');
@@ -408,7 +440,10 @@ export class UDSApiClient {
             this._lastLatency = Date.now() - this._pingTimestamp;
             this._pingTimestamp = null;
             
-            // Latency 이벤트 발행 (EventBus 사용 시)
+            // 🆕 v1.1.0: NetworkStatsMonitor에 Latency 직접 기록
+            networkStatsMonitor.recordLatency(this._lastLatency);
+            
+            // Latency 이벤트 발행 (EventBus 사용 시) - 기존 호환성 유지
             if (window.eventBus) {
                 window.eventBus.emit('uds:latency', { 
                     latency: this._lastLatency 
