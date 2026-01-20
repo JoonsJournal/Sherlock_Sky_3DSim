@@ -3,7 +3,7 @@
  * ==============
  * Ranking View 메인 컨트롤러 (Orchestrator)
  * 
- * @version 1.4.0
+ * @version 1.5.0
  * @description
  * - 6개 레인 레이아웃 관리 (Remote, Sudden Stop, Stop, Run, Idle, Wait)
  * - 레인 컴포넌트 생성 및 조율
@@ -14,52 +14,43 @@
  * - Dev Mode 자동 테스트 데이터 지원
  * - Custom 레인 지원 (Phase 6)
  * - 긴급도 통계 바 (Phase 6)
+ * - 🆕 UDS (Unified Data Store) 연동 (Phase 3)
+ * - 🆕 3D View 선택 동기화 강화
  * 
  * @changelog
+ * - v1.5.0: 🆕 Phase 3 Day 2 - UDS 연동 및 3D View 동기화
+ *   - _subscribeToUDSEvents(): UDS 이벤트 구독
+ *   - _initializeFromUDS(): UDS 데이터로 초기화
+ *   - _handleUDSInitialized(): UDS 초기화 완료 처리
+ *   - _handleUDSEquipmentUpdate(): UDS 설비 업데이트 처리
+ *   - _handleRankingsUpdate(): 순위 업데이트 처리
+ *   - _sync3DViewSelection(): 3D View 선택 동기화
+ *   - _renderLaneData(): Lane 데이터 렌더링
+ *   - _updateLaneCards(): Lane 카드 업데이트
+ *   - RankingDataManager 연동 강화
+ *   - 3D View ↔ Ranking View 양방향 선택 동기화
+ *   - ⚠️ 호환성: v1.4.0의 모든 기능 100% 유지
  * - v1.4.0: 🆕 Phase 6 - Custom 레인 + 긴급도 통계 기능 추가
- *   - Custom 레인 지원 (최대 3개)
- *   - 긴급도 통계 바 추가 (Total, Urgent, Warning)
- *   - 헤더 영역 추가 (타이틀 + Custom 레인 컨트롤)
- *   - _createHeader(), _createStatsBar(), _createCustomLaneControls() 추가
- *   - addCustomLane(), removeCustomLane(), setCustomLanesEnabled() 추가
- *   - _updateStats() 통계 업데이트 메서드 추가
- *   - ⚠️ 호환성: v1.3.1의 모든 기능 100% 유지
  * - v1.3.1: 🐛 Bug Fix - CameraNavigator 숨김 강화 + Dev Mode 지원
- *   - CameraNavigator 숨김 로직 강화 (다중 경로 시도)
- *   - Dev Mode 감지 및 자동 테스트 데이터 추가
- *   - show() 시 데이터 확인 후 빈 상태 처리
  * - v1.3.0: 🆕 Phase 5 - LaneManager 통합
- *   - LaneManager 인스턴스 생성 및 관리
- *   - 키보드 네비게이션 개선 (1-6, 방향키)
- *   - EventBus 이벤트 핸들러 확장
- *   - show()/hide()에서 LaneManager activate/deactivate
- *   - ⚠️ 호환성: 기존 모든 기능 100% 유지
  * - v1.2.0: CameraNavigator 가시성 제어 추가
- *   - show() 시 CameraNavigator 숨김
- *   - hide() 시 CameraNavigator 표시 (3D View 활성 시에만)
- *   - _setCameraNavigatorVisible() 헬퍼 메서드 추가
  * - v1.1.0: Phase 2 업데이트
- *   - RankingLane 컴포넌트 사용
- *   - EquipmentCard 연동
- *   - EventBus 'equipment:select' 이벤트 연결
- *   - Equipment Info Drawer 연동
  * - v1.0.0: Phase 1 초기 버전
- *   - 기본 레이아웃 및 6개 레인 구조 구현
- *   - CSS 기반 스타일링
- *   - show()/hide() 라이프사이클 관리
  * 
  * @dependencies
  * - EventBus (src/core/managers/EventBus.js)
  * - RankingLane (./components/RankingLane.js)
  * - EquipmentCard (./components/EquipmentCard.js)
  * - LaneManager (./managers/LaneManager.js)
+ * - 🆕 RankingDataManager (./managers/RankingDataManager.js)
+ * - 🆕 UnifiedDataStore (../../services/uds/UnifiedDataStore.js)
  * 
  * @exports
  * - RankingView
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/RankingView.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-19
+ * 수정일: 2026-01-21
  */
 
 import { eventBus } from '../../core/managers/EventBus.js';
@@ -67,6 +58,9 @@ import { RankingLane } from './components/RankingLane.js';
 import { EquipmentCard } from './components/EquipmentCard.js';
 // 🆕 v1.3.0: LaneManager import
 import { LaneManager } from './managers/LaneManager.js';
+// 🆕 v1.5.0: UDS 및 RankingDataManager import
+import { RankingDataManager } from './managers/RankingDataManager.js';
+import { unifiedDataStore, UnifiedDataStore } from '../../services/uds/UnifiedDataStore.js';
 
 /**
  * 레인 설정 정의
@@ -185,7 +179,9 @@ export class RankingView {
      */
     static CONFIG = {
         ENABLE_CUSTOM_LANES: true,
-        MAX_CUSTOM_LANES: 3
+        MAX_CUSTOM_LANES: 3,
+        // 🆕 v1.5.0: UDS 설정
+        USE_UDS: true
     };
     
     /**
@@ -194,7 +190,7 @@ export class RankingView {
      * @param {Object} options.webSocketClient - WebSocket 클라이언트 (선택)
      */
     constructor(options = {}) {
-        console.log('[RankingView] 🚀 초기화 시작 (v1.4.0 - Phase 6 Custom 레인 + 긴급도 통계)...');
+        console.log('[RankingView] 🚀 초기화 시작 (v1.5.0 - Phase 3 UDS 연동)...');
         
         // Options
         this._container = options.container || document.body;
@@ -202,6 +198,10 @@ export class RankingView {
         
         // 🆕 v1.4.0: Custom 레인 설정
         this._enableCustomLanes = options.enableCustomLanes ?? RankingView.CONFIG.ENABLE_CUSTOM_LANES;
+        
+        // 🆕 v1.5.0: UDS 설정
+        this._useUDS = options.useUDS ?? (window.ENV_CONFIG?.UDS_ENABLED ?? RankingView.CONFIG.USE_UDS);
+        this._udsInitialized = false;
         
         // State
         this._isVisible = false;
@@ -235,6 +235,9 @@ export class RankingView {
         // 🆕 v1.3.0: LaneManager 인스턴스
         this._laneManager = null;
         
+        // 🆕 v1.5.0: RankingDataManager 인스턴스
+        this._rankingDataManager = null;
+        
         // Event Handlers (for cleanup)
         this._boundHandlers = {};
         this._eventSubscriptions = [];
@@ -257,10 +260,384 @@ export class RankingView {
         this._createDOM();
         this._createLanes();
         this._createLaneManager();  // 🆕 v1.3.0
+        this._createRankingDataManager();  // 🆕 v1.5.0
         this._setupEventListeners();
         
+        // 🆕 v1.5.0: UDS 이벤트 구독
+        if (this._useUDS) {
+            this._subscribeToUDSEvents();
+        }
+        
         this._isInitialized = true;
-        console.log('[RankingView] ✅ 초기화 완료 (v1.4.0)');
+        console.log('[RankingView] ✅ 초기화 완료 (v1.5.0)');
+    }
+    
+    /**
+     * 🆕 v1.5.0: RankingDataManager 생성
+     * @private
+     */
+    _createRankingDataManager() {
+        console.log('[RankingView] 📊 _createRankingDataManager()');
+        
+        this._rankingDataManager = new RankingDataManager({
+            eventBus: eventBus,
+            webSocketClient: this._webSocketClient,
+            useUDS: this._useUDS
+        });
+        
+        // RankingDataManager 이벤트 구독
+        this._eventSubscriptions.push(
+            // 데이터 새로고침 시
+            eventBus.on(RankingDataManager.EVENTS.DATA_REFRESHED, (event) => {
+                this._handleDataRefreshed(event);
+            }),
+            
+            // 설비 레인 이동 시
+            eventBus.on(RankingDataManager.EVENTS.EQUIPMENT_MOVED, (event) => {
+                this._handleEquipmentMoved(event);
+            }),
+            
+            // 순위 업데이트 시
+            eventBus.on(RankingDataManager.EVENTS.RANKINGS_UPDATED, (event) => {
+                this._handleRankingsUpdate(event);
+            }),
+            
+            // 통계 업데이트 시
+            eventBus.on(RankingDataManager.EVENTS.STATS_UPDATED, (event) => {
+                this._updateStatsFromEvent(event);
+            }),
+            
+            // 🆕 v1.5.0: 3D View 선택 동기화
+            eventBus.on(RankingDataManager.EVENTS.SELECTION_SYNC, (event) => {
+                this._sync3DViewSelection(event);
+            }),
+            
+            // 설비 하이라이트
+            eventBus.on(RankingDataManager.EVENTS.EQUIPMENT_HIGHLIGHT, (event) => {
+                this._handleEquipmentHighlight(event);
+            })
+        );
+        
+        console.log('[RankingView] ✅ RankingDataManager 생성 완료');
+    }
+    
+    /**
+     * 🆕 v1.5.0: UDS 이벤트 구독
+     * @private
+     */
+    _subscribeToUDSEvents() {
+        console.log('[RankingView] 📡 _subscribeToUDSEvents()');
+        
+        // UDS 초기화 완료 이벤트
+        this._eventSubscriptions.push(
+            eventBus.on(UnifiedDataStore.EVENTS.INITIALIZED, (event) => {
+                console.log('[RankingView] 📥 UDS INITIALIZED event received');
+                this._handleUDSInitialized(event);
+            }),
+            
+            // 개별 설비 업데이트
+            eventBus.on(UnifiedDataStore.EVENTS.EQUIPMENT_UPDATED, (event) => {
+                this._handleUDSEquipmentUpdate(event);
+            }),
+            
+            // 배치 업데이트 완료
+            eventBus.on(UnifiedDataStore.EVENTS.BATCH_UPDATED, (event) => {
+                this._handleUDSBatchUpdate(event);
+            }),
+            
+            // UDS 통계 변경
+            eventBus.on(UnifiedDataStore.EVENTS.STATS_UPDATED, (event) => {
+                this._handleUDSStatsUpdate(event);
+            })
+        );
+        
+        console.log('[RankingView] ✅ UDS 이벤트 구독 완료');
+    }
+    
+    /**
+     * 🆕 v1.5.0: UDS 초기화 완료 처리
+     * @private
+     * @param {Object} event - { equipments, stats, loadTime, totalCount }
+     */
+    _handleUDSInitialized(event) {
+        console.log(`[RankingView] 📊 UDS 초기화 완료 - ${event.totalCount}개 설비`);
+        
+        this._udsInitialized = true;
+        
+        // RankingDataManager가 이미 initializeFromUDS를 호출했으므로
+        // 여기서는 UI 렌더링만 처리
+        this._renderLaneData();
+        
+        // 통계 업데이트
+        this._updateStats();
+        
+        // 빈 상태 해제
+        this.setEmpty(false);
+        this.setLoading(false);
+        
+        console.log('[RankingView] ✅ UDS 데이터 렌더링 완료');
+    }
+    
+    /**
+     * 🆕 v1.5.0: UDS 설비 업데이트 처리
+     * @private
+     * @param {Object} event - { frontendId, changes, equipment, prevStatus }
+     */
+    _handleUDSEquipmentUpdate(event) {
+        const { frontendId, changes, equipment } = event;
+        
+        if (!this._isVisible) return;
+        
+        // RankingDataManager가 레인 할당을 처리하므로
+        // 여기서는 카드 업데이트만 수행
+        this._updateCardFromUDS(frontendId, equipment);
+    }
+    
+    /**
+     * 🆕 v1.5.0: UDS 배치 업데이트 처리
+     * @private
+     * @param {Object} event - { count, timestamp }
+     */
+    _handleUDSBatchUpdate(event) {
+        console.log(`[RankingView] 📦 배치 업데이트: ${event.count}개 변경`);
+        
+        // 전체 레인 데이터 다시 렌더링
+        if (this._isVisible) {
+            this._renderLaneData();
+            this._updateStats();
+        }
+    }
+    
+    /**
+     * 🆕 v1.5.0: UDS 통계 업데이트 처리
+     * @private
+     * @param {Object} event - { stats, changed }
+     */
+    _handleUDSStatsUpdate(event) {
+        // 통계 바 업데이트는 _updateStats()에서 처리
+        this._updateStats();
+    }
+    
+    /**
+     * 🆕 v1.5.0: 레인 데이터 렌더링
+     * RankingDataManager의 데이터를 레인 컴포넌트에 반영
+     * @private
+     */
+    _renderLaneData() {
+        if (!this._rankingDataManager) return;
+        
+        console.log('[RankingView] 🔄 _renderLaneData()');
+        
+        // 기존 레인 클리어
+        this._lanes.forEach(lane => {
+            lane.clearCards();
+        });
+        
+        // RankingDataManager에서 레인별 데이터 가져오기
+        const allLanes = this._rankingDataManager.getAllLanes();
+        
+        for (const [laneId, equipments] of allLanes) {
+            const lane = this._lanes.get(laneId);
+            if (!lane) continue;
+            
+            // 설비 카드 추가
+            for (const equipment of equipments) {
+                this._addCardToLane(lane, equipment);
+            }
+        }
+        
+        // 통계 업데이트
+        this._updateStats();
+        
+        console.log('[RankingView] ✅ 레인 데이터 렌더링 완료');
+    }
+    
+    /**
+     * 🆕 v1.5.0: 레인에 카드 추가
+     * @private
+     * @param {RankingLane} lane - 레인 컴포넌트
+     * @param {Object} equipment - 설비 데이터
+     */
+    _addCardToLane(lane, equipment) {
+        // RankingDataManager 형식 → EquipmentCard 형식 변환
+        const cardData = {
+            equipmentId: equipment.equipmentId,
+            frontendId: equipment.frontendId,
+            equipmentName: equipment.equipmentName || equipment.frontendId,
+            status: equipment.status,
+            occurredAt: equipment.occurredAt,
+            alarmCode: equipment.alarmCode,
+            alarmMessage: equipment.alarmMessage,
+            alarmRepeatCount: equipment.alarmRepeatCount,
+            productionCount: equipment.productionCount,
+            targetCount: equipment.targetCount,
+            tactTime: equipment.tactTime,
+            lineName: equipment.lineName,
+            lotStartTime: equipment.lotInfo?.startedAtUtc
+        };
+        
+        lane.addCard(cardData);
+    }
+    
+    /**
+     * 🆕 v1.5.0: UDS 데이터로 카드 업데이트
+     * @private
+     * @param {string} frontendId - Frontend ID
+     * @param {Object} equipment - 설비 데이터
+     */
+    _updateCardFromUDS(frontendId, equipment) {
+        if (!equipment) return;
+        
+        const laneId = equipment.laneId;
+        if (!laneId) return;
+        
+        const lane = this._lanes.get(laneId);
+        if (!lane) return;
+        
+        // 카드 데이터 변환
+        const cardData = {
+            equipmentId: equipment.equipmentId,
+            frontendId: equipment.frontendId,
+            equipmentName: equipment.equipmentName || equipment.frontendId,
+            status: equipment.status,
+            occurredAt: equipment.occurredAt,
+            alarmCode: equipment.alarmCode,
+            alarmMessage: equipment.alarmMessage,
+            productionCount: equipment.productionCount,
+            targetCount: equipment.targetCount,
+            tactTime: equipment.tactTime
+        };
+        
+        // 기존 카드 업데이트
+        lane.updateCard(frontendId, cardData);
+    }
+    
+    /**
+     * 🆕 v1.5.0: 3D View 선택 동기화
+     * @private
+     * @param {Object} event - { frontendId, source, equipment }
+     */
+    _sync3DViewSelection(event) {
+        const { frontendId, source, equipment } = event;
+        
+        if (!frontendId || source === 'ranking-view') return;
+        
+        console.log(`[RankingView] 🔗 3D View 선택 동기화: ${frontendId}`);
+        
+        // 이전 선택 해제
+        this._clearSelection();
+        
+        // 새 선택 설정
+        this._selectedEquipmentId = frontendId;
+        
+        // 해당 카드 찾아서 선택 상태로 변경
+        this._lanes.forEach(lane => {
+            const card = lane.getCard(frontendId);
+            if (card) {
+                card.setSelected(true);
+                
+                // 해당 레인으로 스크롤
+                lane.scrollToTop();
+            }
+        });
+    }
+    
+    /**
+     * 🆕 v1.5.0: 설비 하이라이트 처리
+     * @private
+     * @param {Object} event - { frontendId, isHighlighted }
+     */
+    _handleEquipmentHighlight(event) {
+        const { frontendId, isHighlighted } = event;
+        
+        if (!frontendId) return;
+        
+        // 해당 카드 찾아서 하이라이트
+        this._lanes.forEach(lane => {
+            const card = lane.getCard(frontendId);
+            if (card && typeof card.setHighlighted === 'function') {
+                card.setHighlighted(isHighlighted);
+            }
+        });
+    }
+    
+    /**
+     * 🆕 v1.5.0: 데이터 새로고침 처리
+     * @private
+     * @param {Object} event - { totalCount, laneStats }
+     */
+    _handleDataRefreshed(event) {
+        console.log(`[RankingView] 🔄 데이터 새로고침: ${event.totalCount}개 설비`);
+        
+        if (this._isVisible) {
+            this._renderLaneData();
+        }
+    }
+    
+    /**
+     * 🆕 v1.5.0: 설비 레인 이동 처리
+     * @private
+     * @param {Object} event - { moved: [{ equipmentId, fromLane, toLane, equipment }], timestamp }
+     */
+    _handleEquipmentMoved(event) {
+        const { moved } = event;
+        
+        if (!this._isVisible || !moved || moved.length === 0) return;
+        
+        console.log(`[RankingView] 🚀 설비 레인 이동: ${moved.length}개`);
+        
+        for (const move of moved) {
+            const { equipmentId, fromLane, toLane, equipment } = move;
+            
+            // 이전 레인에서 제거
+            if (fromLane) {
+                const fromLaneComponent = this._lanes.get(fromLane);
+                if (fromLaneComponent) {
+                    fromLaneComponent.removeCard(equipmentId);
+                }
+            }
+            
+            // 새 레인에 추가
+            if (toLane && equipment) {
+                const toLaneComponent = this._lanes.get(toLane);
+                if (toLaneComponent) {
+                    this._addCardToLane(toLaneComponent, equipment);
+                }
+            }
+        }
+        
+        // 통계 업데이트
+        this._updateStats();
+    }
+    
+    /**
+     * 🆕 v1.5.0: 순위 업데이트 처리
+     * @private
+     * @param {Object} event - { rankings, timestamp }
+     */
+    _handleRankingsUpdate(event) {
+        // 순위가 변경되면 Run 레인 다시 렌더링
+        if (!this._isVisible) return;
+        
+        const runLane = this._lanes.get('run');
+        if (runLane) {
+            // Run 레인만 재정렬
+            const runEquipments = this._rankingDataManager?.getLaneEquipments('run') || [];
+            
+            runLane.clearCards();
+            for (const equipment of runEquipments) {
+                this._addCardToLane(runLane, equipment);
+            }
+        }
+    }
+    
+    /**
+     * 🆕 v1.5.0: 통계 이벤트로 업데이트
+     * @private
+     * @param {Object} event - { stats }
+     */
+    _updateStatsFromEvent(event) {
+        this._updateStats();
     }
     
     /**
@@ -699,24 +1076,20 @@ export class RankingView {
         if (!this._statsBar) return;
         
         let total = 0;
-        let urgent = 0;  // Critical + Danger
-        let warning = 0;
+        let urgent = 0;  // Critical + Danger (Remote, SuddenStop)
+        let warning = 0; // Stop, Idle
         
         // 모든 레인의 카드를 순회하며 긴급도 집계
-        this._lanes.forEach(lane => {
-            const cards = lane.getAllCards();
-            cards.forEach(card => {
-                total++;
-                
-                // EquipmentCard에 getUrgencyLevel() 메서드가 있으면 사용
-                const urgencyLevel = card.getUrgencyLevel ? card.getUrgencyLevel() : null;
-                
-                if (urgencyLevel === 'critical' || urgencyLevel === 'danger') {
-                    urgent++;
-                } else if (urgencyLevel === 'warning') {
-                    warning++;
-                }
-            });
+        this._lanes.forEach((lane, laneId) => {
+            const count = lane.count;
+            total += count;
+            
+            // 레인 타입에 따른 긴급도 분류
+            if (laneId === 'remote' || laneId === 'sudden-stop') {
+                urgent += count;
+            } else if (laneId === 'stop' || laneId === 'idle') {
+                warning += count;
+            }
         });
         
         // Custom 레인도 집계
@@ -788,8 +1161,13 @@ export class RankingView {
             this._laneManager.activate();
         }
         
-        // 🆕 v1.3.1: 데이터 확인 및 Dev Mode 처리
-        this._checkDataAndLoadTestData();
+        // 🆕 v1.5.0: UDS 모드인 경우 데이터 렌더링
+        if (this._useUDS && this._udsInitialized) {
+            this._renderLaneData();
+        } else {
+            // 🆕 v1.3.1: 데이터 확인 및 Dev Mode 처리
+            this._checkDataAndLoadTestData();
+        }
         
         // 🆕 v1.4.0: 통계 업데이트
         this._updateStats();
@@ -838,6 +1216,11 @@ export class RankingView {
      * @returns {boolean}
      */
     _checkBackendConnection() {
+        // 🆕 v1.5.0: UDS 연결 상태 확인
+        if (this._useUDS && unifiedDataStore.isInitialized()) {
+            return true;
+        }
+        
         // WebSocket 연결 상태 확인
         if (this._webSocketClient?.isConnected) {
             return this._webSocketClient.isConnected();
@@ -1128,6 +1511,14 @@ export class RankingView {
     }
     
     /**
+     * 🆕 v1.5.0: RankingDataManager 인스턴스 가져오기
+     * @returns {RankingDataManager|null}
+     */
+    getRankingDataManager() {
+        return this._rankingDataManager;
+    }
+    
+    /**
      * 가시성 상태
      * @returns {boolean}
      */
@@ -1167,13 +1558,19 @@ export class RankingView {
             this._laneManager = null;
         }
         
-        // 4. 레인 컴포넌트 정리
+        // 4. 🆕 v1.5.0: RankingDataManager 정리
+        if (this._rankingDataManager) {
+            this._rankingDataManager.dispose();
+            this._rankingDataManager = null;
+        }
+        
+        // 5. 레인 컴포넌트 정리
         this._lanes.forEach((lane, id) => {
             lane.dispose();
         });
         this._lanes.clear();
         
-        // 5. 🆕 v1.4.0: Custom 레인 정리
+        // 6. 🆕 v1.4.0: Custom 레인 정리
         this._customLanes.forEach((customLane, id) => {
             if (customLane.lane) {
                 customLane.lane.dispose();
@@ -1181,15 +1578,15 @@ export class RankingView {
         });
         this._customLanes.clear();
         
-        // 6. 🆕 v1.2.0: CameraNavigator 가시성 복원
+        // 7. 🆕 v1.2.0: CameraNavigator 가시성 복원
         if (this._cameraNavigatorWasVisible) {
             this._setCameraNavigatorVisible(true);
         }
         
-        // 7. DOM 요소 제거
+        // 8. DOM 요소 제거
         this.element?.remove();
         
-        // 8. 참조 해제
+        // 9. 참조 해제
         this.element = null;
         this._headerElement = null;
         this._lanesContainer = null;
@@ -1246,6 +1643,11 @@ export class RankingView {
             // Drawer 표시를 위한 이벤트 발행
             eventBus.emit('equipment:detail:show', panelData);
         }
+        
+        // 🆕 v1.5.0: 3D View 동기화 (source가 ranking-view일 때만)
+        if (source === 'ranking-view' && this._rankingDataManager) {
+            this._rankingDataManager.syncWith3DView(frontendId || equipmentId);
+        }
     }
     
     /**
@@ -1259,6 +1661,11 @@ export class RankingView {
         
         // 선택 상태 업데이트
         this._selectedEquipmentId = equipmentId || frontendId;
+        
+        // 🆕 v1.5.0: 3D View 동기화
+        if (this._rankingDataManager) {
+            this._rankingDataManager.syncWith3DView(frontendId || equipmentId);
+        }
     }
     
     /**
@@ -1419,16 +1826,19 @@ export class RankingView {
      * 디버그 정보 출력
      */
     debug() {
-        console.group('[RankingView] Debug Info (v1.4.0)');
+        console.group('[RankingView] Debug Info (v1.5.0)');
         console.log('isVisible:', this._isVisible);
         console.log('isInitialized:', this._isInitialized);
         console.log('isLoading:', this._isLoading);
         console.log('isDevMode:', this._isDevMode);
+        console.log('useUDS:', this._useUDS);
+        console.log('udsInitialized:', this._udsInitialized);
         console.log('enableCustomLanes:', this._enableCustomLanes);
         console.log('selectedEquipmentId:', this._selectedEquipmentId);
         console.log('focusedLaneIndex:', this._focusedLaneIndex);
         console.log('cameraNavigatorWasVisible:', this._cameraNavigatorWasVisible);
         console.log('laneManager:', this._laneManager ? 'connected' : 'null');
+        console.log('rankingDataManager:', this._rankingDataManager ? 'connected' : 'null');
         console.log('레인 수:', this._lanes.size);
         console.log('Custom 레인 수:', this._customLanes.size);
         console.log('레인 목록:');
@@ -1442,6 +1852,12 @@ export class RankingView {
         if (this._laneManager) {
             console.log('--- LaneManager Debug ---');
             this._laneManager.debug();
+        }
+        if (this._rankingDataManager) {
+            console.log('--- RankingDataManager Debug ---');
+            console.log('UDS Mode:', this._rankingDataManager.isUDSMode());
+            console.log('UDS Initialized:', this._rankingDataManager.isUDSInitialized());
+            console.log('Total Equipments:', this._rankingDataManager.getTotalCount());
         }
         console.groupEnd();
     }
