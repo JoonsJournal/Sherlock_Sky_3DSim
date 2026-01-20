@@ -3,12 +3,18 @@ uds_service.py
 UDS 비즈니스 로직 서비스
 MSSQL 직접 연결 + JSON 매핑 로드 + In-Memory 상태 캐시 (Diff용)
 
-@version 2.0.0
+@version 2.1.0
 @description
 - fetch_all_equipments: 배치 쿼리로 전체 설비 조회 (117개)
 - fetch_equipment_by_frontend_id: 단일 설비 조회
 - compute_diff: 이전 상태와 현재 상태 비교하여 Delta 생성
 - calculate_stats: 상태별 통계 계산
+
+🆕 v2.1.0: 실시간 생산량/Tact Time Delta 업데이트
+- compute_diff(): PRODUCTION_SNAPSHOT_QUERY, BATCH_TACT_TIME_QUERY 추가
+- EquipmentSnapshot에 production_count, tact_time_seconds 포함
+- Delta에 생산량/Tact Time 변경사항 실시간 반영
+- ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
 
 🆕 v2.0.0: JSON 매핑 통합
 - _load_mapping_config(): Site별 JSON 매핑 파일 로드
@@ -17,6 +23,12 @@ MSSQL 직접 연결 + JSON 매핑 로드 + In-Memory 상태 캐시 (Diff용)
 - equipment_id ↔ frontend_id 역매핑 테이블 관리
 
 @changelog
+- v2.1.0: 🆕 실시간 생산량/Tact Time Delta 업데이트 (2026-01-21)
+          - compute_diff()에서 PRODUCTION_SNAPSHOT_QUERY 실행
+          - compute_diff()에서 BATCH_TACT_TIME_QUERY 실행
+          - EquipmentSnapshot에 production_count, tact_time_seconds 필드 사용
+          - Delta에 생산량/Tact Time 변경 시 포함
+          - ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
 - v2.0.0: 🔧 JSON 매핑 통합 (2026-01-21)
           - core.EquipmentMapping 테이블 제거 (DB에 없음)
           - JSON 파일에서 매핑 정보 로드
@@ -63,10 +75,12 @@ from ...models.uds.uds_models import (
 )
 
 # UDS 쿼리 Import
+# 🆕 v2.1.0: PRODUCTION_SNAPSHOT_QUERY 추가
 from .uds_queries import (
     BATCH_EQUIPMENT_QUERY,
     SINGLE_EQUIPMENT_QUERY,
     PRODUCTION_COUNT_QUERY,
+    PRODUCTION_SNAPSHOT_QUERY,  # 🆕 v2.1.0
     BATCH_TACT_TIME_QUERY,
     STATUS_SNAPSHOT_QUERY,
     calculate_memory_usage_percent,
@@ -98,6 +112,20 @@ class UDSService:
     2. 단일 설비 조회 (캐시 미스 시)
     3. Diff 감지 및 Delta 생성 (10초 주기)
     4. 상태별 통계 계산
+    
+    🆕 v2.1.0: 실시간 생산량/Tact Time Delta
+    ┌──────────────────────────────────────────────────────────────┐
+    │ compute_diff()에서 3개 쿼리 실행:                             │
+    │   1. STATUS_SNAPSHOT_QUERY - 상태/CPU/Memory                 │
+    │   2. PRODUCTION_SNAPSHOT_QUERY - 생산량 (오늘 기준)          │
+    │   3. BATCH_TACT_TIME_QUERY - Tact Time (최근 사이클)         │
+    │                                                              │
+    │ Delta에 포함되는 필드:                                        │
+    │   - status, status_changed_at                                │
+    │   - cpu_usage_percent, memory_usage_percent                  │
+    │   - production_count (🆕 v2.1.0)                             │
+    │   - tact_time_seconds (🆕 v2.1.0)                            │
+    └──────────────────────────────────────────────────────────────┘
     
     🆕 v2.0.0: JSON 매핑 통합
     5. Site별 JSON 매핑 파일 로드
@@ -141,7 +169,7 @@ class UDSService:
         # 매핑 로드 시간
         self._mapping_loaded_at: Optional[datetime] = None
         
-        logger.info("🚀 UDSService initialized (v2.0.0 - JSON Mapping)")
+        logger.info("🚀 UDSService initialized (v2.1.0 - Realtime Production/TactTime Delta)")
     
     # ========================================================================
     # Context Manager: DB Session
@@ -383,6 +411,7 @@ class UDSService:
                 # =============================================================
                 # Step 2: 생산량 배치 조회
                 # 🔧 v2.0.0: EquipmentId만 반환 (FrontendId 제거)
+                # 🐛 v2.1.0: COUNT(ct.Time) 사용 (CycleTimeId 없음)
                 # =============================================================
                 prod_result = session.execute(
                     text(PRODUCTION_COUNT_QUERY),
@@ -399,6 +428,7 @@ class UDSService:
                 # =============================================================
                 # Step 3: Tact Time 배치 조회
                 # 🔧 v2.0.0: EquipmentId만 반환 (FrontendId 제거)
+                # 🐛 v2.1.0: ct.Time 사용 (StartTime 없음)
                 # =============================================================
                 tact_result = session.execute(
                     text(BATCH_TACT_TIME_QUERY),
@@ -562,7 +592,7 @@ class UDSService:
                 raise
     
     # ========================================================================
-    # Diff 계산: 변경 감지
+    # 🆕 v2.1.0: Diff 계산 - 생산량/Tact Time 실시간 비교 추가
     # ========================================================================
     
     def compute_diff(
@@ -578,10 +608,29 @@ class UDSService:
         Status Watcher가 10초마다 호출.
         변경된 설비만 Delta로 추출하여 WebSocket 전송.
         
+        🆕 v2.1.0 변경사항:
+          - PRODUCTION_SNAPSHOT_QUERY 실행하여 생산량 조회
+          - BATCH_TACT_TIME_QUERY 실행하여 Tact Time 조회
+          - EquipmentSnapshot에 production_count, tact_time_seconds 포함
+          - Delta에 생산량/Tact Time 변경사항 포함
+        
         🔧 v2.0.0 변경사항:
           - STATUS_SNAPSHOT_QUERY가 EquipmentId 반환
           - equipment_id → frontend_id 변환 (JSON 매핑)
           - Delta에 frontend_id 포함
+        
+        [v2.1.0 쿼리 실행 순서]
+        ┌──────────────────────────────────────────────────────────────┐
+        │ 1. STATUS_SNAPSHOT_QUERY                                     │
+        │    → EquipmentId, Status, StatusChangedAt,                   │
+        │      CpuUsagePercent, MemoryUsedMb, MemoryTotalMb            │
+        │                                                              │
+        │ 2. PRODUCTION_SNAPSHOT_QUERY (🆕 v2.1.0)                     │
+        │    → EquipmentId, ProductionCount (오늘 00:00 이후)          │
+        │                                                              │
+        │ 3. BATCH_TACT_TIME_QUERY (🆕 v2.1.0)                         │
+        │    → EquipmentId, TactTimeSeconds (최근 사이클)              │
+        └──────────────────────────────────────────────────────────────┘
         
         Args:
             site_id: Factory Site ID
@@ -604,51 +653,101 @@ class UDSService:
         
         with self._get_session(db_site, db_name) as session:
             try:
-                # 현재 스냅샷 조회 (경량 쿼리)
-                result = session.execute(
+                # =============================================================
+                # Step 1: 상태 스냅샷 조회 (경량 쿼리)
+                # =============================================================
+                status_result = session.execute(
                     text(STATUS_SNAPSHOT_QUERY),
                     {"site_id": site_id, "line_id": line_id}
                 )
+                status_rows = status_result.fetchall()
                 
+                # equipment_id → status 정보 맵
+                # Column Index: [0] EquipmentId, [1] Status, [2] StatusChangedAt,
+                #               [3] CpuUsagePercent, [4] MemoryUsedMb, [5] MemoryTotalMb
+                status_map = {}
+                for row in status_rows:
+                    equipment_id = row[0]
+                    if equipment_id:
+                        status_map[equipment_id] = {
+                            'status': row[1],
+                            'status_changed_at': row[2],
+                            'cpu_usage_percent': row[3],
+                            'memory_used_mb': row[4],
+                            'memory_total_mb': row[5]
+                        }
+                
+                # =============================================================
+                # 🆕 v2.1.0 Step 2: 생산량 스냅샷 조회
+                # =============================================================
+                prod_result = session.execute(
+                    text(PRODUCTION_SNAPSHOT_QUERY),
+                    {"site_id": site_id, "line_id": line_id}
+                )
+                prod_rows = prod_result.fetchall()
+                
+                # equipment_id → production_count 맵
+                # Column Index: [0] EquipmentId, [1] ProductionCount
+                prod_map = {row[0]: row[1] for row in prod_rows}
+                
+                logger.debug(f"  → 생산량 Snapshot: {len(prod_map)}건 조회")
+                
+                # =============================================================
+                # 🆕 v2.1.0 Step 3: Tact Time 조회
+                # =============================================================
+                tact_result = session.execute(
+                    text(BATCH_TACT_TIME_QUERY),
+                    {"site_id": site_id, "line_id": line_id}
+                )
+                tact_rows = tact_result.fetchall()
+                
+                # equipment_id → tact_time_seconds 맵
+                # Column Index: [0] EquipmentId, [1] TactTimeSeconds
+                tact_map = {row[0]: row[1] for row in tact_rows}
+                
+                logger.debug(f"  → Tact Time Snapshot: {len(tact_map)}건 조회")
+                
+                # =============================================================
+                # Step 4: Diff 계산
+                # =============================================================
                 deltas = []
                 timestamp = datetime.utcnow()
                 
-                # =============================================================
-                # 🔧 v2.0.0: STATUS_SNAPSHOT_QUERY Column Index 변경:
-                #  [0] EquipmentId      (기존: FrontendId)
-                #  [1] Status
-                #  [2] StatusChangedAt
-                #  [3] CpuUsagePercent
-                #  [4] MemoryUsedMb
-                #  [5] MemoryTotalMb
-                # =============================================================
-                for row in result.fetchall():
-                    equipment_id = row[0]
-                    if equipment_id is None:
-                        continue
-                    
+                for equipment_id, status_info in status_map.items():
                     # 🆕 v2.0.0: equipment_id → frontend_id 변환
                     frontend_id = self._get_frontend_id(equipment_id)
                     if not frontend_id:
-                        # 매핑 없으면 스킵 또는 생성
+                        # 매핑 없으면 스킵
                         continue
                     
-                    # 현재 스냅샷 생성
+                    # 🆕 v2.1.0: 생산량, Tact Time 조회
+                    production_count = prod_map.get(equipment_id, 0)
+                    tact_time_seconds = tact_map.get(equipment_id)
+                    
+                    # Memory 사용율 계산
+                    memory_usage_percent = None
+                    if status_info['memory_used_mb'] and status_info['memory_total_mb']:
+                        memory_usage_percent = calculate_memory_usage_percent(
+                            status_info['memory_used_mb'],
+                            status_info['memory_total_mb']
+                        )
+                    
+                    # 🆕 v2.1.0: 현재 스냅샷 생성 (생산량, Tact Time 포함)
                     current = EquipmentSnapshot(
                         frontend_id=frontend_id,
-                        status=row[1],
-                        status_changed_at=row[2],
-                        cpu_usage_percent=row[3],
-                        memory_usage_percent=calculate_memory_usage_percent(
-                            row[4], row[5]  # MemoryUsedMb, MemoryTotalMb
-                        ) if row[4] and row[5] else None
+                        status=status_info['status'],
+                        status_changed_at=status_info['status_changed_at'],
+                        cpu_usage_percent=status_info['cpu_usage_percent'],
+                        memory_usage_percent=memory_usage_percent,
+                        production_count=production_count,           # 🆕 v2.1.0
+                        tact_time_seconds=tact_time_seconds          # 🆕 v2.1.0
                     )
                     
                     # 이전 스냅샷 조회
                     previous = self._previous_state.get(frontend_id)
                     
                     if previous:
-                        # Diff 계산
+                        # Diff 계산 (production_count, tact_time_seconds 포함됨)
                         changes = compute_delta(previous, current)
                         
                         if changes:
@@ -662,12 +761,12 @@ class UDSService:
                     self._previous_state[frontend_id] = current
                 
                 if deltas:
-                    logger.info(f"🔄 Detected {len(deltas)} changes")
+                    logger.info(f"🔄 Detected {len(deltas)} changes (including production/tact_time)")
                 
                 return deltas
                 
             except Exception as e:
-                logger.error(f"❌ Failed to compute diff: {e}")
+                logger.error(f"❌ Failed to compute diff: {e}", exc_info=True)
                 return []
     
     # ========================================================================
@@ -858,15 +957,19 @@ class UDSService:
         )
     
     def _update_previous_state(self, equipment: EquipmentData):
-        """Diff 비교용 이전 상태 업데이트"""
+        """
+        Diff 비교용 이전 상태 업데이트
+        
+        🆕 v2.1.0: production_count, tact_time_seconds 포함
+        """
         self._previous_state[equipment.frontend_id] = EquipmentSnapshot(
             frontend_id=equipment.frontend_id,
             status=equipment.status.value if hasattr(equipment.status, 'value') else equipment.status,
             status_changed_at=equipment.status_changed_at,
             cpu_usage_percent=equipment.cpu_usage_percent,
             memory_usage_percent=equipment.memory_usage_percent,
-            production_count=equipment.production_count,
-            tact_time_seconds=equipment.tact_time_seconds
+            production_count=equipment.production_count,          # 🆕 v2.1.0
+            tact_time_seconds=equipment.tact_time_seconds         # 🆕 v2.1.0
         )
 
 
