@@ -50,7 +50,7 @@
  * 파일 위치: frontend/threejs_viewer/src/ui/sidebar/StatusBar.js
  */
 
-import { StatusBarPerformanceCompact } from './statusbar/StatusBarPerformanceCompact.js';
+import { StatusBarPerformanceCompact } from '../statusbar/StatusBarPerformanceCompact.js';
 
 // ============================================
 // Constants
@@ -154,6 +154,7 @@ export class StatusBar {
         this._setupEventListeners();
         this._startUpdateLoop();
         this._updateInitialState();
+        this._initPerformanceSection();
         
         console.log('[StatusBar] 초기화 완료 (v2.3.1 - 5 Equipment States)');
     }
