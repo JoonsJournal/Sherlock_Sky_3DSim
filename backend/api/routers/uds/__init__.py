@@ -1,40 +1,35 @@
 """
-UDS Routers Package
-UDS API 라우터 모듈 패키지
+backend/api/routers/uds/__init__.py
+UDS 라우터 패키지 초기화
 
-@version 1.0.0
-@description
-- UDS Router: REST API + WebSocket 엔드포인트
+@version 1.1.0
+@changelog
+- v1.1.0: Day 3 - broadcast_delta, get_connected_clients_count export 추가
+          - Status Watcher에서 브로드캐스트 함수 사용
+          - ⚠️ 호환성: 기존 router, connected_clients export 100% 유지
+- v1.0.0: 초기 버전 (router, connected_clients export)
 
-API Endpoints:
-- GET  /api/uds/health      : 서비스 상태 확인
-- GET  /api/uds/initial     : 전체 설비 초기 데이터
-- GET  /api/uds/equipment/{frontend_id} : 단일 설비 상세
-- GET  /api/uds/stats       : 캐시 통계
-- WS   /api/uds/stream      : Delta Update 스트림
-- POST /api/uds/refresh     : 강제 갱신
-
-@exports
-- router (FastAPI APIRouter)
-- broadcast_delta (WebSocket 브로드캐스트)
-- get_connected_clients_count (연결 수)
-- connected_clients (연결된 클라이언트 Set)
-
-📁 위치: backend/api/routers/uds/__init__.py
 작성일: 2026-01-20
 수정일: 2026-01-20
 """
 
 from .uds import (
     router,
+    connected_clients,
     broadcast_delta,
     get_connected_clients_count,
-    connected_clients
+    ws_manager,
 )
 
 __all__ = [
+    # Router
     'router',
+    
+    # WebSocket 관련
+    'connected_clients',
+    'ws_manager',
+    
+    # Broadcast 함수 (Status Watcher에서 사용)
     'broadcast_delta',
     'get_connected_clients_count',
-    'connected_clients'
 ]

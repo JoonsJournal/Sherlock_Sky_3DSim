@@ -1,6 +1,20 @@
 """
 FastAPI 메인 애플리케이션
-Multi-Site Equipment Mapping V2 API 추가
+Multi-Site Equipment Mapping V2 API + UDS 통합
+
+@version 1.3.0
+@changelog
+- v1.3.0: UDS (Unified Data Store) 통합
+          - UDS 라우터 등록 (/api/uds/*)
+          - Status Watcher 백그라운드 서비스 시작/종료
+          - ⚠️ 호환성: 기존 모든 API 응답 구조 100% 유지
+- v1.2.0: Multi-Site Equipment Mapping V2 추가
+- v1.1.0: Monitoring 모듈 추가
+- v1.0.0: 초기 버전
+
+📁 위치: backend/api/main.py
+작성일: 2026-01-20
+수정일: 2026-01-20
 """
 
 from fastapi import FastAPI
@@ -23,7 +37,7 @@ setup_logging(
 logger = logging.getLogger(__name__)
 
 # ============================================
-# Router Import
+# Router Import (기존 100% 유지)
 # ============================================
 from .routers.connection_manager import router as connection_router
 from .routers import equipment_mapping
@@ -55,25 +69,76 @@ except ImportError as e:
     EQUIPMENT_DETAIL_ENABLED = False
     logger.warning(f"⚠️ Equipment Detail 모듈 로드 실패: {e}")
 
+# ============================================
+# 🆕 UDS (Unified Data Store) Import
+# ============================================
+UDS_ENABLED = os.getenv('UDS_ENABLED', 'true').lower() == 'true'
+UDS_LOADED = False
+status_watcher = None
 
+if UDS_ENABLED:
+    try:
+        from .routers.uds.uds import router as uds_router
+        from .routers.uds.uds import broadcast_delta
+        from .services.uds.status_watcher import status_watcher as _status_watcher
+        
+        status_watcher = _status_watcher
+        
+        # Status Watcher에 broadcast 함수 주입 (순환 import 방지)
+        status_watcher.set_broadcast_func(broadcast_delta)
+        
+        UDS_LOADED = True
+        logger.info("✅ UDS 모듈 로드 성공")
+    except ImportError as e:
+        UDS_LOADED = False
+        logger.warning(f"⚠️ UDS 모듈 로드 실패: {e}")
+
+
+# ============================================
+# Application Lifespan (기존 로직 100% 유지)
+# ============================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # === STARTUP (기존과 동일) ===
     logger.info("🚀 애플리케이션 시작")
     print("="*60)
     print("🚀 SHERLOCK_SKY_3DSIM API 시작")
     print("="*60)
+    
+    # 🆕 UDS Status Watcher 시작 (추가)
+    if UDS_ENABLED and UDS_LOADED and status_watcher:
+        try:
+            await status_watcher.start()
+            logger.info("✅ Status Watcher 시작됨")
+        except Exception as e:
+            logger.error(f"❌ Status Watcher 시작 실패: {e}")
+    
     yield
+    
+    # === SHUTDOWN ===
+    # 🆕 UDS Status Watcher 정지 (추가)
+    if UDS_ENABLED and UDS_LOADED and status_watcher:
+        try:
+            await status_watcher.stop()
+            logger.info("✅ Status Watcher 정지됨")
+        except Exception as e:
+            logger.error(f"❌ Status Watcher 정지 실패: {e}")
+    
+    # 기존 종료 로그 (동일하게 유지)
     logger.info("🛑 애플리케이션 종료")
 
 
+# ============================================
+# FastAPI App (기존 설정 유지)
+# ============================================
 app = FastAPI(
     title="SHERLOCK_SKY_3DSIM API",
-    description="Multi-Site Equipment Monitoring & Mapping API",
-    version="1.2.0",
+    description="Multi-Site Equipment Monitoring & Mapping API",  # 기존과 동일
+    version="1.2.0",  # 기존 버전 유지 (호환성)
     lifespan=lifespan
 )
 
-# CORS
+# CORS (기존과 100% 동일)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -83,7 +148,7 @@ app.add_middleware(
 )
 
 # ============================================
-# Router 등록
+# Router 등록 (기존 100% 유지)
 # ============================================
 
 # Connection Manager
@@ -122,7 +187,20 @@ if EQUIPMENT_DETAIL_ENABLED:
     app.include_router(equipment_detail_router, tags=["Equipment Detail"])
     logger.info("✅ Equipment Detail Router 등록")
 
+# ============================================
+# 🆕 UDS Router 등록 (추가)
+# ============================================
+if UDS_ENABLED and UDS_LOADED:
+    app.include_router(
+        uds_router,
+        tags=["UDS - Unified Data Store"]
+    )
+    logger.info("✅ UDS Router 등록")
 
+
+# ============================================
+# Root Endpoint (기존 응답 구조 유지 + UDS 확장)
+# ============================================
 @app.get("/")
 async def root():
     """API 루트"""
@@ -158,9 +236,21 @@ async def root():
             "equipment_detail": "/api/equipment/detail/{frontend_id}"
         })
     
-    return {
+    # 🆕 UDS endpoints (추가)
+    if UDS_ENABLED and UDS_LOADED:
+        endpoints.update({
+            "uds_health": "/api/uds/health",
+            "uds_initial": "/api/uds/initial",
+            "uds_equipment": "/api/uds/equipment/{frontend_id}",
+            "uds_stats": "/api/uds/stats",
+            "uds_stream": "/api/uds/stream (WebSocket)",
+            "uds_refresh": "/api/uds/refresh (POST)"
+        })
+    
+    # 기존 응답 구조 100% 유지
+    response = {
         "name": "SHERLOCK_SKY_3DSIM API",
-        "version": "1.2.0",
+        "version": "1.2.0",  # 기존 버전 유지
         "docs": "/docs",
         "features": {
             "mapping_v2": MAPPING_V2_ENABLED,
@@ -169,19 +259,107 @@ async def root():
         },
         "endpoints": endpoints
     }
+    
+    # 🆕 UDS 정보 추가 (기존 구조 유지하면서 확장)
+    if UDS_ENABLED:
+        response["features"]["uds"] = UDS_LOADED
+    
+    return response
 
 
+# ============================================
+# Health Check (⚠️ 기존 응답 구조 100% 유지)
+# ============================================
 @app.get("/api/health")
 async def health():
     """헬스 체크"""
-    return {
+    # ⚠️ 기존 응답 구조 100% 유지 (Breaking Change 방지)
+    response = {
         "status": "ok",
         "timestamp": datetime.now().isoformat(),
         "mapping_v2_enabled": MAPPING_V2_ENABLED,
         "monitoring_enabled": MONITORING_ENABLED,
         "equipment_detail_enabled": EQUIPMENT_DETAIL_ENABLED
     }
+    
+    # 🆕 UDS 정보 추가 (기존 필드 유지하면서 새 필드 추가)
+    if UDS_ENABLED:
+        response["uds_enabled"] = UDS_ENABLED
+        response["uds_loaded"] = UDS_LOADED
+        
+        if UDS_LOADED and status_watcher:
+            response["uds_watcher_running"] = status_watcher.is_running
+    
+    return response
 
+
+# ============================================
+# 🆕 UDS 관리자 엔드포인트 (추가)
+# ============================================
+
+@app.get("/api/admin/watcher/status")
+async def get_watcher_status():
+    """
+    Status Watcher 상태 조회 (관리자용)
+    """
+    if not UDS_ENABLED:
+        return {
+            "status": "disabled",
+            "message": "UDS is disabled (UDS_ENABLED=false)",
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    if not UDS_LOADED or not status_watcher:
+        return {
+            "status": "error",
+            "message": "UDS module failed to load",
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    return {
+        "status": "ok",
+        "watcher": status_watcher.get_stats(),
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.post("/api/admin/watcher/trigger")
+async def trigger_watcher():
+    """
+    Status Watcher 수동 트리거 (관리자용)
+    """
+    if not UDS_ENABLED:
+        return {
+            "status": "disabled",
+            "message": "UDS is disabled",
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    if not UDS_LOADED or not status_watcher:
+        return {
+            "status": "error",
+            "message": "UDS module not loaded",
+            "timestamp": datetime.now().isoformat()
+        }
+    
+    try:
+        await status_watcher.trigger_check()
+        return {
+            "status": "ok",
+            "message": "Manual check triggered",
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+# ============================================
+# Main Entry Point (기존 100% 동일)
+# ============================================
 
 if __name__ == "__main__":
     import uvicorn
