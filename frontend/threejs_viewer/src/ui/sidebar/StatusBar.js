@@ -279,26 +279,26 @@ export class StatusBar {
                 </div>
             </div>
             
-            <!-- 오른쪽 그룹: 성능 지표 -->
-            <div class="status-group status-group-right">
-                <!-- FPS -->
-                <div class="status-item" id="status-fps-item">
-                    <span class="status-label">FPS</span>
-                    <span class="status-label status-perf-value" id="fps-value">60</span>
-                    <div class="perf-bar">
-                        <div class="perf-bar-fill good" id="fps-bar" style="width: 100%;"></div>
-                    </div>
-                </div>
+            // <!-- 오른쪽 그룹: 성능 지표 -->
+            // <div class="status-group status-group-right">
+            //     <!-- FPS -->
+            //     <div class="status-item" id="status-fps-item">
+            //         <span class="status-label">FPS</span>
+            //         <span class="status-label status-perf-value" id="fps-value">60</span>
+            //         <div class="perf-bar">
+            //             <div class="perf-bar-fill good" id="fps-bar" style="width: 100%;"></div>
+            //         </div>
+            //     </div>
                 
-                <!-- Memory -->
-                <div class="status-item" id="status-mem-item">
-                    <span class="status-label">MEM</span>
-                    <span class="status-label status-perf-value"><span id="memory-value">128</span>MB</span>
-                    <div class="perf-bar">
-                        <div class="perf-bar-fill good" id="memory-bar" style="width: 30%;"></div>
-                    </div>
-                </div>
-            </div>
+            //     <!-- Memory -->
+            //     <div class="status-item" id="status-mem-item">
+            //         <span class="status-label">MEM</span>
+            //         <span class="status-label status-perf-value"><span id="memory-value">128</span>MB</span>
+            //         <div class="perf-bar">
+            //             <div class="perf-bar-fill good" id="memory-bar" style="width: 30%;"></div>
+            //         </div>
+            //     </div>
+            // </div>
         `;
         
         this.container.appendChild(this.element);
@@ -320,11 +320,11 @@ export class StatusBar {
             // Database
             dbDot: document.getElementById('db-dot'),
             dbValue: document.getElementById('db-value'),
-            // Performance
-            fpsValue: document.getElementById('fps-value'),
-            fpsBar: document.getElementById('fps-bar'),
-            memValue: document.getElementById('memory-value'),
-            memBar: document.getElementById('memory-bar'),
+            // // Performance
+            // fpsValue: document.getElementById('fps-value'),
+            // fpsBar: document.getElementById('fps-bar'),
+            // memValue: document.getElementById('memory-value'),
+            // memBar: document.getElementById('memory-bar'),
             
             // 🆕 v2.2.0: Monitoring Stats
             monitoringStatsGroup: document.getElementById('monitoring-stats-group'),
@@ -522,9 +522,9 @@ export class StatusBar {
         this._updateMemoryDisplay();
     }
     
-    // ========================================
-    // Status Updates (Private)
-    // ========================================
+    ========================================
+    Status Updates (Private)
+    ========================================
     
     /**
      * 네트워크 상태 업데이트
@@ -580,60 +580,60 @@ export class StatusBar {
         }
     }
     
-    /**
-     * FPS 디스플레이 업데이트
-     * @private
-     */
-    _updateFpsDisplay() {
-        const { fpsValue, fpsBar } = this.elements;
-        const fps = this.state.fps;
+    // /**
+    //  * FPS 디스플레이 업데이트
+    //  * @private
+    //  */
+    // _updateFpsDisplay() {
+    //     const { fpsValue, fpsBar } = this.elements;
+    //     const fps = this.state.fps;
         
-        if (fpsValue) {
-            fpsValue.textContent = fps;
-        }
+    //     if (fpsValue) {
+    //         fpsValue.textContent = fps;
+    //     }
         
-        if (fpsBar) {
-            const percent = Math.min((fps / 60) * 100, 100);
-            fpsBar.style.width = `${percent}%`;
+    //     if (fpsBar) {
+    //         const percent = Math.min((fps / 60) * 100, 100);
+    //         fpsBar.style.width = `${percent}%`;
             
-            fpsBar.className = 'perf-bar-fill';
-            if (fps >= PERFORMANCE_THRESHOLDS.fps.good) {
-                fpsBar.classList.add('good');
-            } else if (fps >= PERFORMANCE_THRESHOLDS.fps.warning) {
-                fpsBar.classList.add('warning');
-            } else {
-                fpsBar.classList.add('critical');
-            }
-        }
-    }
+    //         fpsBar.className = 'perf-bar-fill';
+    //         if (fps >= PERFORMANCE_THRESHOLDS.fps.good) {
+    //             fpsBar.classList.add('good');
+    //         } else if (fps >= PERFORMANCE_THRESHOLDS.fps.warning) {
+    //             fpsBar.classList.add('warning');
+    //         } else {
+    //             fpsBar.classList.add('critical');
+    //         }
+    //     }
+    // }
     
-    /**
-     * Memory 디스플레이 업데이트
-     * @private
-     */
-    _updateMemoryDisplay() {
-        const { memValue, memBar } = this.elements;
-        const memory = this.state.memoryUsage;
-        const maxMemory = this.state.maxMemory;
+    // /**
+    //  * Memory 디스플레이 업데이트
+    //  * @private
+    //  */
+    // _updateMemoryDisplay() {
+    //     const { memValue, memBar } = this.elements;
+    //     const memory = this.state.memoryUsage;
+    //     const maxMemory = this.state.maxMemory;
         
-        if (memValue) {
-            memValue.textContent = memory;
-        }
+    //     if (memValue) {
+    //         memValue.textContent = memory;
+    //     }
         
-        if (memBar) {
-            const percent = Math.min((memory / maxMemory) * 100, 100);
-            memBar.style.width = `${percent}%`;
+    //     if (memBar) {
+    //         const percent = Math.min((memory / maxMemory) * 100, 100);
+    //         memBar.style.width = `${percent}%`;
             
-            memBar.className = 'perf-bar-fill';
-            if (memory < PERFORMANCE_THRESHOLDS.memory.good) {
-                memBar.classList.add('good');
-            } else if (memory < PERFORMANCE_THRESHOLDS.memory.warning) {
-                memBar.classList.add('warning');
-            } else {
-                memBar.classList.add('critical');
-            }
-        }
-    }
+    //         memBar.className = 'perf-bar-fill';
+    //         if (memory < PERFORMANCE_THRESHOLDS.memory.good) {
+    //             memBar.classList.add('good');
+    //         } else if (memory < PERFORMANCE_THRESHOLDS.memory.warning) {
+    //             memBar.classList.add('warning');
+    //         } else {
+    //             memBar.classList.add('critical');
+    //         }
+    //     }
+    // }
     
     // ========================================
     // 🆕 v2.2.0: Monitoring Stats Updates
