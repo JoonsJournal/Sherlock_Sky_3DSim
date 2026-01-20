@@ -50,7 +50,13 @@
         
         // 추가 설정 (기존 호환)
         MAX_RECONNECT_ATTEMPTS: 10,
-        RECONNECT_INTERVAL: 5000
+        RECONNECT_INTERVAL: 5000,
+
+                // ✨ UDS Feature Flag (추가 필요)
+        UDS_ENABLED: true,
+        UDS_INITIAL_ENDPOINT: '/api/uds/initial',
+        UDS_STREAM_ENDPOINT: '/api/uds/stream',
+        UDS_POLL_INTERVAL: 10000  // ms
     };
     
     // ============================================
