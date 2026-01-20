@@ -1,22 +1,45 @@
 /**
  * SignalTowerManager.js
+ * =====================
  * Signal Tower (경광등) 제어 관리자
  * 
- * ⭐ v2.1.2 - 상태값 대소문자 정규화 (2026-01-14)
- * - 🔧 updateStatus(): _normalizeStatus() 추가
- * - SignalTowerIntegration에서 'running' → 'RUN'으로 정규화
- * - 초기 상태 로드 + WebSocket 업데이트 모두 정상 동작
+ * @version 2.2.0
+ * @description
+ * - 설비 상태에 따른 경광등 색상 제어
+ * - RUN/IDLE/STOP/SUDDENSTOP/DISCONNECTED 상태 지원
+ * - SUDDENSTOP 빠른 점멸 애니메이션
+ * - UDS (Unified Data Store) 통합 연동 지원
  * 
- * ⭐ v2.1.1 - turnOffAllLights 메서드 추가
- * - 🆕 turnOffAllLights(): Monitoring 모드 종료 시 모든 램프 OFF
+ * @changelog
+ * ⭐ v2.2.0: UDS (Unified Data Store) 통합 연동 (2026-01-20)
+ *   - initializeFromUDS(equipments) 메서드 추가
+ *   - updateFromUDSDelta(frontendId, changes) 메서드 추가
+ *   - batchUpdateFromUDS(updates) 배치 업데이트 지원
+ *   - getStatusForUDS(frontendId) UDS 호환 상태 반환
+ *   - 기존 모든 기능 100% 호환성 유지
  * 
- * ⭐ v2.1.0 - SUDDENSTOP 점멸 + DISCONNECTED 상태 추가
- * - STOP: red → yellow로 변경 (요구사항 반영)
- * - SUDDENSTOP: red 빠른 점멸 (가시적으로 보임)
- * - DISCONNECTED: 모든 램프 OFF (24시간 데이터 없음)
- * - 기존 ON/OFF/DISABLED 상태 유지
+ * ⭐ v2.1.2: 상태값 대소문자 정규화 (2026-01-14)
+ *   - updateStatus(): _normalizeStatus() 추가
+ *   - SignalTowerIntegration에서 'running' → 'RUN'으로 정규화
+ * 
+ * ⭐ v2.1.1: turnOffAllLights 메서드 추가
+ *   - Monitoring 모드 종료 시 모든 램프 OFF
+ * 
+ * ⭐ v2.1.0: SUDDENSTOP 점멸 + DISCONNECTED 상태 추가
+ *   - STOP: red → yellow로 변경
+ *   - SUDDENSTOP: red 빠른 점멸
+ *   - DISCONNECTED: 모든 램프 OFF
+ * 
+ * @dependencies
+ * - three (THREE.js)
+ * - core/utils/Config.js (debugLog)
+ * 
+ * @exports
+ * - SignalTowerManager (class)
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/SignalTowerManager.js
+ * 작성일: 2026-01-08
+ * 수정일: 2026-01-20
  */
 
 import * as THREE from 'three';
@@ -70,11 +93,211 @@ export class SignalTowerManager {
         this.suddenStopBlinkSpeed = 8.0;    // ⭐ v2.1.0: SUDDENSTOP 빠른 점멸 속도
         this.blinkEnabled = true;           // 깜빡임 활성화 여부
         
-        debugLog('SignalTowerManager initialized (v2.1.2)');
+        // 🆕 v2.2.0: UDS 연동 상태
+        this._udsInitialized = false;
+        this._lastUDSUpdate = null;
+        
+        debugLog('SignalTowerManager initialized (v2.2.0 - UDS Integration)');
+    }
+    
+    // ============================================
+    // 🆕 v2.2.0: UDS 통합 연동 메서드
+    // ============================================
+    
+    /**
+     * UDS 데이터로 초기화
+     * @param {Object[]} equipments - UDS 초기 로드 데이터
+     * @returns {Object} - { success, updated, failed }
+     * 
+     * @description
+     * UDS에서 로드된 전체 설비 데이터로 SignalTower 상태 일괄 초기화
+     * 
+     * @example
+     * const result = signalTowerManager.initializeFromUDS(equipments);
+     * console.log(`Updated: ${result.updated}, Failed: ${result.failed}`);
+     */
+    initializeFromUDS(equipments) {
+        debugLog(`🚀 [UDS] Initializing SignalTowers from ${equipments.length} equipments...`);
+        
+        const startTime = performance.now();
+        let updated = 0;
+        let failed = 0;
+        const errors = [];
+        
+        for (const equipment of equipments) {
+            try {
+                const frontendId = equipment.frontend_id;
+                const status = equipment.status || 'DISCONNECTED';
+                
+                if (!frontendId) {
+                    failed++;
+                    continue;
+                }
+                
+                // 상태 업데이트
+                this.updateStatus(frontendId, status);
+                updated++;
+                
+            } catch (error) {
+                failed++;
+                errors.push({
+                    equipment: equipment.frontend_id,
+                    error: error.message
+                });
+            }
+        }
+        
+        const elapsed = performance.now() - startTime;
+        this._udsInitialized = true;
+        this._lastUDSUpdate = new Date().toISOString();
+        
+        debugLog(`✅ [UDS] SignalTower initialization complete: ${updated} updated, ${failed} failed (${elapsed.toFixed(2)}ms)`);
+        
+        if (errors.length > 0) {
+            console.warn('⚠️ [UDS] Some equipment failed to update:', errors.slice(0, 5));
+        }
+        
+        return {
+            success: true,
+            updated,
+            failed,
+            elapsed,
+            errors: errors.slice(0, 10)  // 최대 10개만 반환
+        };
     }
     
     /**
-     * ⭐ 모든 설비의 경광등 램프 초기화
+     * UDS Delta Update 처리
+     * @param {string} frontendId - Frontend ID
+     * @param {Object} changes - 변경된 필드들
+     * @returns {boolean} - 업데이트 성공 여부
+     * 
+     * @description
+     * UDS WebSocket에서 수신한 Delta Update 적용
+     * 상태(status) 필드가 변경된 경우에만 SignalTower 업데이트
+     * 
+     * @example
+     * signalTowerManager.updateFromUDSDelta('EQ-01-01', { status: 'RUN' });
+     */
+    updateFromUDSDelta(frontendId, changes) {
+        if (!frontendId) {
+            console.warn('⚠️ [UDS] updateFromUDSDelta: Missing frontendId');
+            return false;
+        }
+        
+        // 상태 변경이 있는 경우에만 업데이트
+        if (changes.status !== undefined) {
+            const newStatus = changes.status || 'DISCONNECTED';
+            const oldStatus = this.statusMap.get(frontendId);
+            
+            if (oldStatus !== newStatus) {
+                debugLog(`📊 [UDS] Delta update: ${frontendId} ${oldStatus} → ${newStatus}`);
+                this.updateStatus(frontendId, newStatus);
+                this._lastUDSUpdate = new Date().toISOString();
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * UDS 배치 Delta Update 처리
+     * @param {Object[]} updates - Delta Update 배열 [{ frontend_id, changes }]
+     * @returns {Object} - { updated, skipped }
+     * 
+     * @description
+     * 여러 설비의 Delta Update를 일괄 처리
+     * 
+     * @example
+     * const result = signalTowerManager.batchUpdateFromUDS([
+     *     { frontend_id: 'EQ-01-01', changes: { status: 'RUN' } },
+     *     { frontend_id: 'EQ-01-02', changes: { status: 'IDLE' } }
+     * ]);
+     */
+    batchUpdateFromUDS(updates) {
+        if (!Array.isArray(updates) || updates.length === 0) {
+            return { updated: 0, skipped: 0 };
+        }
+        
+        debugLog(`📦 [UDS] Batch update: ${updates.length} equipments`);
+        
+        let updated = 0;
+        let skipped = 0;
+        
+        for (const update of updates) {
+            const frontendId = update.frontend_id;
+            const changes = update.changes || {};
+            
+            if (this.updateFromUDSDelta(frontendId, changes)) {
+                updated++;
+            } else {
+                skipped++;
+            }
+        }
+        
+        debugLog(`✅ [UDS] Batch update complete: ${updated} updated, ${skipped} skipped`);
+        
+        return { updated, skipped };
+    }
+    
+    /**
+     * UDS 호환 상태 반환
+     * @param {string} frontendId - Frontend ID
+     * @returns {Object|null} - UDS 호환 상태 객체
+     * 
+     * @description
+     * UDS 데이터 형식에 맞게 설비 상태 반환
+     * 
+     * @example
+     * const status = signalTowerManager.getStatusForUDS('EQ-01-01');
+     * // { frontend_id: 'EQ-01-01', status: 'RUN', lamp_state: 'green' }
+     */
+    getStatusForUDS(frontendId) {
+        const status = this.statusMap.get(frontendId);
+        
+        if (!status) {
+            return null;
+        }
+        
+        return {
+            frontend_id: frontendId,
+            status: status,
+            lamp_state: this.statusToLightType[status] || null,
+            is_disabled: status === 'DISABLED',
+            is_disconnected: status === 'DISCONNECTED',
+            last_update: this._lastUDSUpdate
+        };
+    }
+    
+    /**
+     * UDS 초기화 여부 확인
+     * @returns {boolean}
+     */
+    isUDSInitialized() {
+        return this._udsInitialized;
+    }
+    
+    /**
+     * 전체 상태를 UDS 형식으로 반환
+     * @returns {Object[]} - UDS 호환 상태 배열
+     */
+    getAllStatusesForUDS() {
+        const statuses = [];
+        
+        this.statusMap.forEach((status, frontendId) => {
+            statuses.push(this.getStatusForUDS(frontendId));
+        });
+        
+        return statuses;
+    }
+    
+    // ============================================
+    // ⭐ 모든 설비의 경광등 램프 초기화
+    // ============================================
+    
+    /**
+     * 모든 설비의 경광등 램프 초기화
      * equipment1.js에 이미 존재하는 램프들을 찾아서 맵에 저장
      */
     initializeAllLights() {
@@ -281,6 +504,7 @@ export class SignalTowerManager {
      * Frontend ID로 상태 업데이트
      * ⭐ v2.1.2: 상태값 대소문자 정규화 추가
      * ⭐ v2.1.0: SUDDENSTOP, DISCONNECTED 지원 추가
+     * 🆕 v2.2.0: UDS 연동 최적화
      * 
      * @param {string} frontendId - 설비 Frontend ID (예: 'EQ-01-01')
      * @param {string} status - 상태 ('RUN', 'IDLE', 'STOP', 'SUDDENSTOP', 'DISCONNECTED', 'OFF')
@@ -303,6 +527,11 @@ export class SignalTowerManager {
         
         // ⭐ v2.1.2: 상태값 정규화 (대소문자 통일)
         const normalizedStatus = this._normalizeStatus(status);
+        
+        // 🆕 v2.2.0: 동일 상태 스킵 (성능 최적화)
+        if (currentStatus === normalizedStatus) {
+            return;
+        }
         
         // ⭐ v2.1.0: DISCONNECTED 상태 처리
         if (normalizedStatus === 'DISCONNECTED' || normalizedStatus === null) {
@@ -564,6 +793,23 @@ export class SignalTowerManager {
     }
     
     /**
+     * 🆕 v2.2.0: UDS 호환 통계 반환
+     * @returns {Object} { RUN, IDLE, STOP, SUDDENSTOP, DISCONNECTED, TOTAL }
+     */
+    getStatusStatisticsForUDS() {
+        const stats = this.getStatusStatistics();
+        
+        return {
+            RUN: stats.RUN,
+            IDLE: stats.IDLE,
+            STOP: stats.STOP,
+            SUDDENSTOP: stats.SUDDENSTOP,
+            DISCONNECTED: stats.DISCONNECTED,
+            TOTAL: stats.RUN + stats.IDLE + stats.STOP + stats.SUDDENSTOP + stats.DISCONNECTED
+        };
+    }
+    
+    /**
      * 모든 경광등 표시/숨김
      * @param {boolean} visible - 표시 여부
      */
@@ -624,14 +870,17 @@ export class SignalTowerManager {
      */
     debugPrintStatus() {
         console.group('🔧 SignalTowerManager Debug Info');
-        console.log('Version: 2.1.2');
+        console.log('Version: 2.2.0 (UDS Integration)');
         console.log('Total equipment with lamps:', this.lampMap.size);
         console.log('Statistics:', this.getStatusStatistics());
+        console.log('UDS Statistics:', this.getStatusStatisticsForUDS());
         console.log('Blink enabled:', this.blinkEnabled);
         console.log('Blink speeds:', {
             normal: this.blinkSpeed,
             suddenStop: this.suddenStopBlinkSpeed
         });
+        console.log('UDS Initialized:', this._udsInitialized);
+        console.log('Last UDS Update:', this._lastUDSUpdate);
         
         // 상태별 설비 목록 (처음 5개씩만)
         const byStatus = { RUN: [], IDLE: [], STOP: [], SUDDENSTOP: [], DISCONNECTED: [], OFF: [], DISABLED: [] };
@@ -655,6 +904,30 @@ export class SignalTowerManager {
         this.lampMap.clear();
         this.statusMap.clear();
         
+        // 🆕 v2.2.0: UDS 상태 초기화
+        this._udsInitialized = false;
+        this._lastUDSUpdate = null;
+        
         debugLog('✓ SignalTowerManager 메모리 정리 완료');
     }
+    
+    // ============================================
+    // 🆕 v2.2.0: Static 메서드
+    // ============================================
+    
+    /**
+     * 버전 정보
+     */
+    static get VERSION() {
+        return '2.2.0';
+    }
+    
+    /**
+     * 지원 상태 목록
+     */
+    static get SUPPORTED_STATUSES() {
+        return ['RUN', 'IDLE', 'STOP', 'SUDDENSTOP', 'DISCONNECTED', 'OFF', 'DISABLED'];
+    }
 }
+
+export default SignalTowerManager;
