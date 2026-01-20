@@ -5,11 +5,15 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 2.3.1
+ * @version 2.4.0
  * @created 2026-01-11
- * @updated 2026-01-14
+ * @updated 2026-01-21
  * 
  * @changelog
+ * - v2.4.0: 🆕 StatusBarPerformanceCompact 통합 (2026-01-21)
+ *           - 기존 FPS/MEM 표시 제거
+ *           - StatusBarPerformanceCompact 컴포넌트로 대체
+ *           - 실시간 Network, Cache 통계 표시
  * - v2.3.1: 🔧 장비 상태 수정 (2026-01-14)
  *           - UNKNOWN → DISCONNECTED로 변경
  *           - SUDDENSTOP 상태 추가 (깜빡임)
@@ -27,22 +31,25 @@
  * - 🆕 Monitoring Stats 패널 (조건부 표시)
  *   - 총 장비, 매핑 상태, 매핑률
  *   - 상태별 카운트: RUN, IDLE, STOP, SUDDENSTOP, DISCONNECTED
- * - FPS, Memory 성능 표시
+ * - 🆕 v2.4.0: StatusBarPerformanceCompact 통합
+ *   - FPS, Memory, Draw Calls, Frame Time
+ *   - Network Latency, Messages In/Out
+ *   - Cache Hit Rate, Delta Updates
  * - Site/Country 정보 표시
  * 
  * 의존성:
  * - ConnectionStatusService (services)
- * - PerformanceMonitor (core/utils)
  * - EventBus (core/managers)
  * - MonitoringService (선택, stats 연동용)
  * - EquipmentEditState (선택, 매핑 상태용)
  * - _status-bar.css (필수, 외부 CSS)
+ * - 🆕 StatusBarPerformanceCompact (ui/statusbar)
+ * - 🆕 _statusbar-performance.css (필수)
  * 
  * 사용법:
  *   import { StatusBar } from './StatusBar.js';
  *   const statusBar = new StatusBar({
  *       connectionStatusService: connectionService,
- *       performanceMonitor: perfMonitor,
  *       eventBus: eventBus,
  *       countryCode: 'KR'
  *   });
@@ -58,20 +65,6 @@ import { StatusBarPerformanceCompact } from '../statusbar/StatusBarPerformanceCo
 
 const STATUS_UPDATE_INTERVAL = 2000; // 2초마다 업데이트
 
-/** 성능 임계값 */
-const PERFORMANCE_THRESHOLDS = {
-    fps: {
-        good: 50,      // 50+ fps = green
-        warning: 30,   // 30-49 fps = yellow
-        critical: 15   // <30 fps = red
-    },
-    memory: {
-        good: 256,     // <256MB = green
-        warning: 512,  // 256-512MB = yellow
-        critical: 1024 // >512MB = red
-    }
-};
-
 /** 🆕 v2.2.0: Monitoring Stats 표시 조건 */
 const MONITORING_STATS_VISIBLE_SUBMODES = ['3d-view', 'ranking-view'];
 
@@ -83,7 +76,6 @@ export class StatusBar {
     /**
      * @param {Object} options
      * @param {Object} options.connectionStatusService - ConnectionStatusService 인스턴스
-     * @param {Object} options.performanceMonitor - PerformanceMonitor 인스턴스
      * @param {Object} options.eventBus - EventBus 인스턴스
      * @param {string} options.siteId - 현재 사이트 ID
      * @param {string} options.countryCode - 국가 코드 (기본: KR)
@@ -92,7 +84,6 @@ export class StatusBar {
      */
     constructor(options = {}) {
         this.connectionStatusService = options.connectionStatusService || null;
-        this.performanceMonitor = options.performanceMonitor || null;
         this.eventBus = options.eventBus || null;
         this.siteId = options.siteId || null;
         this.siteName = options.siteName || null;
@@ -107,10 +98,7 @@ export class StatusBar {
         this.state = {
             isNetOnline: navigator.onLine,
             isApiConnected: false,
-            isDbConnected: false,
-            fps: 60,
-            memoryUsage: 128, // MB
-            maxMemory: 512    // 가정: 최대 512MB
+            isDbConnected: false
         };
         
         // 🔧 v2.3.1: Monitoring Stats 상태 (5개 상태)
@@ -136,6 +124,9 @@ export class StatusBar {
         this.element = null;
         this.elements = {}; // DOM 요소 캐시
         
+        // 🆕 v2.4.0: Performance 컴포넌트 참조
+        this._perfCompact = null;
+        
         // 타이머
         this._updateInterval = null;
         this._eventUnsubscribers = [];
@@ -154,24 +145,32 @@ export class StatusBar {
         this._setupEventListeners();
         this._startUpdateLoop();
         this._updateInitialState();
-        this._initPerformanceSection();
+        this._initPerformanceSection();  // 🆕 v2.4.0
         
-        console.log('[StatusBar] 초기화 완료 (v2.3.1 - 5 Equipment States)');
+        console.log('[StatusBar] 초기화 완료 (v2.4.0 - Performance Compact 통합)');
     }
 
+    /**
+     * 🆕 v2.4.0: Performance 섹션 초기화
+     * StatusBarPerformanceCompact 컴포넌트 추가
+     * @private
+     */
     _initPerformanceSection() {
-        // 기존 성능 표시 영역 찾기 (또는 새 컨테이너 생성)
+        // 오른쪽 그룹 컨테이너 찾기
         const rightGroup = this.element.querySelector('.status-group-right');
         
         if (rightGroup) {
-            // 기존 FPS, Memory 표시 제거 (선택사항)
-            // rightGroup.innerHTML = '';
-            
-            // Performance 컴포넌트 추가
-            this._perfCompact = new StatusBarPerformanceCompact(rightGroup, {
-                showAlerts: true,
-                compact: false
-            });
+            try {
+                // Performance 컴포넌트 추가
+                this._perfCompact = new StatusBarPerformanceCompact(rightGroup, {
+                    showAlerts: true,
+                    compact: false
+                });
+                
+                console.log('[StatusBar] ✅ StatusBarPerformanceCompact 초기화 완료');
+            } catch (e) {
+                console.warn('[StatusBar] ⚠️ StatusBarPerformanceCompact 초기화 실패:', e.message);
+            }
         }
     }
     
@@ -180,9 +179,9 @@ export class StatusBar {
     // ========================================
     
     /**
+     * 🔧 v2.4.0: 기존 FPS/MEM HTML 제거
      * 🔧 v2.3.1: SUDDENSTOP, DISCONNECTED 추가
      * 🔧 v2.2.0: Monitoring Stats 섹션 추가
-     * 🔧 "개" 제거 - 숫자만 표시
      */
     _createDOM() {
         // 기존 상태바가 있으면 제거
@@ -279,26 +278,10 @@ export class StatusBar {
                 </div>
             </div>
             
-            // <!-- 오른쪽 그룹: 성능 지표 -->
-            // <div class="status-group status-group-right">
-            //     <!-- FPS -->
-            //     <div class="status-item" id="status-fps-item">
-            //         <span class="status-label">FPS</span>
-            //         <span class="status-label status-perf-value" id="fps-value">60</span>
-            //         <div class="perf-bar">
-            //             <div class="perf-bar-fill good" id="fps-bar" style="width: 100%;"></div>
-            //         </div>
-            //     </div>
-                
-            //     <!-- Memory -->
-            //     <div class="status-item" id="status-mem-item">
-            //         <span class="status-label">MEM</span>
-            //         <span class="status-label status-perf-value"><span id="memory-value">128</span>MB</span>
-            //         <div class="perf-bar">
-            //             <div class="perf-bar-fill good" id="memory-bar" style="width: 30%;"></div>
-            //         </div>
-            //     </div>
-            // </div>
+            <!-- 🔧 v2.4.0: 오른쪽 그룹 - Performance 컴포넌트가 여기에 추가됨 -->
+            <div class="status-group status-group-right">
+                <!-- StatusBarPerformanceCompact가 _initPerformanceSection()에서 동적으로 추가됨 -->
+            </div>
         `;
         
         this.container.appendChild(this.element);
@@ -306,6 +289,7 @@ export class StatusBar {
     
     /**
      * DOM 요소 캐싱 (성능 최적화)
+     * 🔧 v2.4.0: FPS/Memory 관련 캐싱 제거
      * 🔧 v2.3.1: SUDDENSTOP, DISCONNECTED 요소 추가
      * @private
      */
@@ -320,11 +304,6 @@ export class StatusBar {
             // Database
             dbDot: document.getElementById('db-dot'),
             dbValue: document.getElementById('db-value'),
-            // // Performance
-            // fpsValue: document.getElementById('fps-value'),
-            // fpsBar: document.getElementById('fps-bar'),
-            // memValue: document.getElementById('memory-value'),
-            // memBar: document.getElementById('memory-bar'),
             
             // 🆕 v2.2.0: Monitoring Stats
             monitoringStatsGroup: document.getElementById('monitoring-stats-group'),
@@ -487,44 +466,20 @@ export class StatusBar {
     // Update Loop
     // ========================================
     
+    /**
+     * 🔧 v2.4.0: 업데이트 루프 간소화
+     * Performance 업데이트는 StatusBarPerformanceCompact가 EventBus로 처리
+     */
     _startUpdateLoop() {
         this._updateInterval = setInterval(() => {
-            this._updatePerformanceStats();
+            // 🔧 v2.4.0: Monitoring Stats만 주기적으로 체크
+            // Performance는 StatusBarPerformanceCompact가 자체 처리
         }, STATUS_UPDATE_INTERVAL);
-        
-        // 즉시 첫 번째 업데이트
-        this._updatePerformanceStats();
     }
     
-    _updatePerformanceStats() {
-        // FPS 업데이트
-        if (this.performanceMonitor) {
-            if (typeof this.performanceMonitor.getFPS === 'function') {
-                this.state.fps = this.performanceMonitor.getFPS();
-            } else if (this.performanceMonitor.metrics?.fps !== undefined) {
-                this.state.fps = this.performanceMonitor.metrics.fps;
-            }
-        } else {
-            // 시뮬레이션 (PerformanceMonitor 없을 때)
-            this.state.fps = 58 + Math.floor(Math.random() * 5);
-        }
-        
-        // Memory 업데이트
-        if (performance.memory) {
-            this.state.memoryUsage = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
-        } else {
-            // 시뮬레이션 (memory API 지원 안 할 때)
-            this.state.memoryUsage = 128 + Math.floor((Math.random() - 0.5) * 20);
-        }
-        
-        // DOM 업데이트
-        this._updateFpsDisplay();
-        this._updateMemoryDisplay();
-    }
-    
-    ========================================
-    Status Updates (Private)
-    ========================================
+    // ========================================
+    // Status Updates (Private)
+    // ========================================
     
     /**
      * 네트워크 상태 업데이트
@@ -579,61 +534,6 @@ export class StatusBar {
             }
         }
     }
-    
-    // /**
-    //  * FPS 디스플레이 업데이트
-    //  * @private
-    //  */
-    // _updateFpsDisplay() {
-    //     const { fpsValue, fpsBar } = this.elements;
-    //     const fps = this.state.fps;
-        
-    //     if (fpsValue) {
-    //         fpsValue.textContent = fps;
-    //     }
-        
-    //     if (fpsBar) {
-    //         const percent = Math.min((fps / 60) * 100, 100);
-    //         fpsBar.style.width = `${percent}%`;
-            
-    //         fpsBar.className = 'perf-bar-fill';
-    //         if (fps >= PERFORMANCE_THRESHOLDS.fps.good) {
-    //             fpsBar.classList.add('good');
-    //         } else if (fps >= PERFORMANCE_THRESHOLDS.fps.warning) {
-    //             fpsBar.classList.add('warning');
-    //         } else {
-    //             fpsBar.classList.add('critical');
-    //         }
-    //     }
-    // }
-    
-    // /**
-    //  * Memory 디스플레이 업데이트
-    //  * @private
-    //  */
-    // _updateMemoryDisplay() {
-    //     const { memValue, memBar } = this.elements;
-    //     const memory = this.state.memoryUsage;
-    //     const maxMemory = this.state.maxMemory;
-        
-    //     if (memValue) {
-    //         memValue.textContent = memory;
-    //     }
-        
-    //     if (memBar) {
-    //         const percent = Math.min((memory / maxMemory) * 100, 100);
-    //         memBar.style.width = `${percent}%`;
-            
-    //         memBar.className = 'perf-bar-fill';
-    //         if (memory < PERFORMANCE_THRESHOLDS.memory.good) {
-    //             memBar.classList.add('good');
-    //         } else if (memory < PERFORMANCE_THRESHOLDS.memory.warning) {
-    //             memBar.classList.add('warning');
-    //         } else {
-    //             memBar.classList.add('critical');
-    //         }
-    //     }
-    // }
     
     // ========================================
     // 🆕 v2.2.0: Monitoring Stats Updates
@@ -722,14 +622,6 @@ export class StatusBar {
      */
     setDbConnected(connected, siteId = null, siteName = null) {
         this._updateDbStatus(connected, siteId, siteName);
-    }
-    
-    /**
-     * PerformanceMonitor 설정/교체
-     * @param {Object} monitor - PerformanceMonitor 인스턴스
-     */
-    setPerformanceMonitor(monitor) {
-        this.performanceMonitor = monitor;
     }
     
     /**
@@ -862,6 +754,14 @@ export class StatusBar {
     }
     
     /**
+     * 🆕 v2.4.0: Performance 컴포넌트 참조 반환
+     * @returns {StatusBarPerformanceCompact|null}
+     */
+    getPerformanceCompact() {
+        return this._perfCompact;
+    }
+    
+    /**
      * 현재 상태 가져오기
      * @returns {Object} 현재 상태 객체
      */
@@ -892,6 +792,11 @@ export class StatusBar {
         if (this.element) {
             this.element.classList.toggle('compact', compact);
         }
+        
+        // 🆕 v2.4.0: Performance 컴포넌트도 컴팩트 모드 적용
+        if (this._perfCompact) {
+            this._perfCompact.setCompact(compact);
+        }
     }
     
     /**
@@ -908,27 +813,15 @@ export class StatusBar {
     }
     
     /**
-     * 성능 지표 수동 업데이트
-     * @param {number} fps - FPS 값
-     * @param {number} memory - 메모리 사용량 (MB)
-     */
-    updatePerformance(fps, memory) {
-        if (fps !== undefined) {
-            this.state.fps = fps;
-            this._updateFpsDisplay();
-        }
-        if (memory !== undefined) {
-            this.state.memoryUsage = memory;
-            this._updateMemoryDisplay();
-        }
-    }
-    
-    /**
      * 즉시 상태 새로고침
      */
     refresh() {
-        this._updatePerformanceStats();
         this._updateMonitoringStatsDisplay();
+        
+        // 🆕 v2.4.0: Performance 컴포넌트 새로고침
+        if (this._perfCompact && typeof this._perfCompact.refresh === 'function') {
+            this._perfCompact.refresh();
+        }
     }
     
     // ========================================
@@ -957,6 +850,12 @@ export class StatusBar {
         });
         this._eventUnsubscribers = [];
         
+        // 🆕 v2.4.0: Performance 컴포넌트 정리
+        if (this._perfCompact) {
+            this._perfCompact.dispose();
+            this._perfCompact = null;
+        }
+        
         // DOM 제거
         if (this.element) {
             this.element.remove();
@@ -965,11 +864,6 @@ export class StatusBar {
         
         // 참조 정리
         this.elements = {};
-
-                if (this._perfCompact) {
-            this._perfCompact.dispose();
-            this._perfCompact = null;
-        }
         
         console.log('[StatusBar] 정리 완료');
     }
@@ -989,7 +883,6 @@ export class StatusBar {
  * import { createStatusBar } from './StatusBar.js';
  * const statusBar = createStatusBar({
  *     connectionStatusService: myService,
- *     performanceMonitor: myMonitor,
  *     eventBus: myEventBus
  * });
  */
