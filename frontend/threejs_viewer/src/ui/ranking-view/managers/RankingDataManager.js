@@ -3,7 +3,7 @@
  * =====================
  * Ranking View 데이터 가공 및 레인 할당 매니저
  * 
- * @version 2.0.0
+ * @version 2.1.0
  * @description
  * - 🆕 UDS (Unified Data Store) 연동 지원
  * - WebSocket 데이터 수신 및 가공
@@ -15,8 +15,18 @@
  * - Custom Filter 지원 (Phase 6)
  * - 🆕 Production Ranking 지원 (Top 10)
  * - 🆕 Lane별 그룹화 및 정렬
+ * - 🆕 v2.1.0: 3D View 동기화 강화
  * 
  * @changelog
+ * - v2.1.0 (2026-01-21): Phase 3 Day 2 - Lane 정렬 및 UI 연동 강화
+ *   - 🆕 getEquipmentsByLineName(): 실제 Line 이름 기준 그룹화
+ *   - 🆕 getSortedByProductionCount(): 생산량 내림차순 정렬
+ *   - 🆕 getSortedByDuration(): 지속시간 내림차순 정렬
+ *   - 🆕 getTopProducers(): Top N 생산 설비 (전체 + Lane별)
+ *   - 🆕 syncWith3DView(): 3D View 선택 동기화 메서드
+ *   - 🆕 highlightEquipment(): 설비 하이라이트 이벤트 발행
+ *   - 🆕 EVENTS.SELECTION_SYNC: 3D View 동기화 이벤트 추가
+ *   - ⚠️ 호환성: v2.0.0의 모든 기능/메서드/필드 100% 유지
  * - v2.0.0 (2026-01-21): UDS 통합 연동
  *   - 🆕 initializeFromUDS(): UDS 데이터로 초기화
  *   - 🆕 _subscribeToUDSEvents(): UDS 이벤트 구독
@@ -27,8 +37,6 @@
  *   - 🆕 UDS Feature Flag 지원 (UDS_ENABLED)
  *   - ⚠️ 호환성: v1.1.0의 모든 기능/메서드/필드 100% 유지
  * - v1.1.0 (2026-01-19): 가이드라인 준수 + Custom Filter 통합
- *   - Custom Filter 기능 추가
- *   - static UTIL 추가
  * - v1.0.0: 초기 구현
  * 
  * @dependencies
@@ -115,7 +123,10 @@ export class RankingDataManager {
         CUSTOM_FILTER_UPDATED: 'ranking:custom-filter:updated',
         // 🆕 v2.0.0: UDS 관련 이벤트
         UDS_INITIALIZED: 'ranking:uds:initialized',
-        RANKINGS_UPDATED: 'ranking:rankings:updated'
+        RANKINGS_UPDATED: 'ranking:rankings:updated',
+        // 🆕 v2.1.0: 3D View 동기화 이벤트
+        SELECTION_SYNC: 'ranking:selection:sync',
+        EQUIPMENT_HIGHLIGHT: 'ranking:equipment:highlight'
     };
     
     /**
@@ -168,6 +179,10 @@ export class RankingDataManager {
         this._rankings = [];                 // Top N 순위 배열
         this._laneGroups = new Map();        // lineName → [equipments]
         
+        // 🆕 v2.1.0: 선택 상태
+        this._selectedEquipmentId = null;
+        this._highlightedEquipmentIds = new Set();
+        
         // 변경 대기열 (디바운스용)
         this._pendingChanges = [];
         this._debounceTimer = null;
@@ -197,7 +212,7 @@ export class RankingDataManager {
      * @private
      */
     _init() {
-        console.log('[RankingDataManager] 🚀 Initializing v2.0.0...');
+        console.log('[RankingDataManager] 🚀 Initializing v2.1.0...');
         console.log(`   └─ UDS Mode: ${this._useUDS ? 'Enabled' : 'Disabled'}`);
         
         // 레인 Map 초기화
@@ -210,6 +225,9 @@ export class RankingDataManager {
         if (this._useUDS) {
             this._subscribeToUDSEvents();
         }
+        
+        // 🆕 v2.1.0: 3D View 동기화 이벤트 구독
+        this._subscribe3DViewEvents();
         
         // 지속 시간 업데이트 타이머 시작
         this._startDurationTimer();
@@ -268,7 +286,262 @@ export class RankingDataManager {
     }
     
     // =========================================================================
-    // 🆕 v2.0.0: UDS 연동
+    // 🆕 v2.1.0: 3D View 동기화
+    // =========================================================================
+    
+    /**
+     * 🆕 v2.1.0: 3D View 이벤트 구독
+     * @private
+     */
+    _subscribe3DViewEvents() {
+        if (!this._eventBus) return;
+        
+        // 3D View에서 설비 선택 시
+        const unsubSelect = this._eventBus.on('equipment:select', (data) => {
+            this._handle3DViewSelection(data);
+        });
+        
+        // 3D View에서 설비 호버 시
+        const unsubHover = this._eventBus.on('equipment:hover', (data) => {
+            this._handle3DViewHover(data);
+        });
+        
+        // Ranking View에서 설비 선택 시 → 3D View로 전파
+        const unsubRankingSelect = this._eventBus.on('ranking:equipment:selected', (data) => {
+            this._syncTo3DView(data);
+        });
+        
+        this._eventSubscriptions.push(unsubSelect, unsubHover, unsubRankingSelect);
+        
+        console.log('[RankingDataManager] 🔗 3D View 이벤트 구독 완료');
+    }
+    
+    /**
+     * 🆕 v2.1.0: 3D View 선택 처리
+     * @private
+     * @param {Object} data - { equipmentId, frontendId, source }
+     */
+    _handle3DViewSelection(data) {
+        const { equipmentId, frontendId, source } = data;
+        
+        // 3D View에서 온 이벤트만 처리
+        if (source === 'ranking-view') return;
+        
+        const id = frontendId || equipmentId;
+        if (!id) return;
+        
+        this._selectedEquipmentId = id;
+        
+        // Ranking View에 선택 동기화 이벤트 발행
+        this._emitEvent(RankingDataManager.EVENTS.SELECTION_SYNC, {
+            frontendId: id,
+            source: '3d-view',
+            equipment: this.getEquipmentByFrontendId(id)
+        });
+    }
+    
+    /**
+     * 🆕 v2.1.0: 3D View 호버 처리
+     * @private
+     * @param {Object} data - { frontendId }
+     */
+    _handle3DViewHover(data) {
+        const { frontendId } = data;
+        
+        if (frontendId) {
+            this._highlightedEquipmentIds.add(frontendId);
+        }
+        
+        this._emitEvent(RankingDataManager.EVENTS.EQUIPMENT_HIGHLIGHT, {
+            frontendId,
+            isHighlighted: Boolean(frontendId)
+        });
+    }
+    
+    /**
+     * 🆕 v2.1.0: 3D View로 선택 동기화
+     * @private
+     * @param {Object} data - { frontendId }
+     */
+    _syncTo3DView(data) {
+        const { frontendId } = data;
+        
+        if (!frontendId) return;
+        
+        // 3D View 카메라 이동 이벤트 발행
+        this._emitEvent('camera:focus:equipment', {
+            frontendId,
+            source: 'ranking-view'
+        });
+        
+        // 설비 선택 이벤트 발행 (3D View용)
+        this._emitEvent('equipment:select', {
+            frontendId,
+            equipmentId: frontendId,
+            source: 'ranking-view'
+        });
+    }
+    
+    /**
+     * 🆕 v2.1.0: 3D View와 동기화 (외부 호출용)
+     * @param {string} frontendId - Frontend ID
+     */
+    syncWith3DView(frontendId) {
+        if (!frontendId) return;
+        
+        this._selectedEquipmentId = frontendId;
+        this._syncTo3DView({ frontendId });
+    }
+    
+    /**
+     * 🆕 v2.1.0: 설비 하이라이트
+     * @param {string} frontendId - Frontend ID
+     * @param {boolean} [highlight=true] - 하이라이트 여부
+     */
+    highlightEquipment(frontendId, highlight = true) {
+        if (highlight) {
+            this._highlightedEquipmentIds.add(frontendId);
+        } else {
+            this._highlightedEquipmentIds.delete(frontendId);
+        }
+        
+        this._emitEvent(RankingDataManager.EVENTS.EQUIPMENT_HIGHLIGHT, {
+            frontendId,
+            isHighlighted: highlight
+        });
+    }
+    
+    /**
+     * 🆕 v2.1.0: 현재 선택된 설비 ID 반환
+     * @returns {string|null}
+     */
+    getSelectedEquipmentId() {
+        return this._selectedEquipmentId;
+    }
+    
+    // =========================================================================
+    // 🆕 v2.1.0: Lane별 정렬 강화
+    // =========================================================================
+    
+    /**
+     * 🆕 v2.1.0: 실제 Line 이름 기준 설비 그룹화
+     * (기존 getEquipmentsByLane과 구분 - 실제 공장 라인명 기준)
+     * 
+     * @returns {Object} { lineName: [equipments], ... }
+     */
+    getEquipmentsByLineName() {
+        const result = {};
+        
+        for (const equipment of this._equipments.values()) {
+            const lineName = equipment.lineName || 'Unknown';
+            
+            if (!result[lineName]) {
+                result[lineName] = [];
+            }
+            
+            result[lineName].push(equipment);
+        }
+        
+        // 각 라인 내에서 생산량 순 정렬
+        for (const lineName of Object.keys(result)) {
+            result[lineName].sort((a, b) => (b.productionCount || 0) - (a.productionCount || 0));
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 🆕 v2.1.0: 생산량 내림차순 정렬된 설비 목록
+     * 
+     * @param {string} [laneId] - 특정 레인만 (선택사항)
+     * @returns {Object[]} 정렬된 설비 배열
+     */
+    getSortedByProductionCount(laneId = null) {
+        let equipments;
+        
+        if (laneId) {
+            equipments = this.getLaneEquipments(laneId);
+        } else {
+            equipments = Array.from(this._equipments.values());
+        }
+        
+        return [...equipments].sort((a, b) => (b.productionCount || 0) - (a.productionCount || 0));
+    }
+    
+    /**
+     * 🆕 v2.1.0: 지속시간 내림차순 정렬된 설비 목록
+     * 
+     * @param {string} [laneId] - 특정 레인만 (선택사항)
+     * @returns {Object[]} 정렬된 설비 배열
+     */
+    getSortedByDuration(laneId = null) {
+        let equipments;
+        
+        if (laneId) {
+            equipments = this.getLaneEquipments(laneId);
+        } else {
+            equipments = Array.from(this._equipments.values());
+        }
+        
+        return [...equipments].sort((a, b) => (b.statusDuration || 0) - (a.statusDuration || 0));
+    }
+    
+    /**
+     * 🆕 v2.1.0: Top N 생산 설비 (전체 또는 Line별)
+     * 
+     * @param {number} [n=10] - Top N 개수
+     * @param {Object} [options] - 옵션
+     * @param {string} [options.lineName] - 특정 라인만
+     * @param {string} [options.status] - 특정 상태만 (RUN, IDLE 등)
+     * @returns {Object[]} Top N 설비 배열
+     */
+    getTopProducers(n = 10, options = {}) {
+        let equipments = Array.from(this._equipments.values());
+        
+        // 라인 필터
+        if (options.lineName) {
+            equipments = equipments.filter(eq => eq.lineName === options.lineName);
+        }
+        
+        // 상태 필터
+        if (options.status) {
+            equipments = equipments.filter(eq => eq.status === options.status);
+        }
+        
+        // 생산량 순 정렬 후 Top N
+        return equipments
+            .sort((a, b) => (b.productionCount || 0) - (a.productionCount || 0))
+            .slice(0, n)
+            .map((eq, index) => ({
+                rank: index + 1,
+                ...eq
+            }));
+    }
+    
+    /**
+     * 🆕 v2.1.0: 모든 라인별 Top N 설비
+     * 
+     * @param {number} [n=5] - 각 라인에서 가져올 개수
+     * @returns {Object} { lineName: [top N with rank], ... }
+     */
+    getTopByLineName(n = 5) {
+        const lineGroups = this.getEquipmentsByLineName();
+        const result = {};
+        
+        for (const [lineName, equipments] of Object.entries(lineGroups)) {
+            result[lineName] = equipments
+                .slice(0, n)
+                .map((eq, index) => ({
+                    rank: index + 1,
+                    ...eq
+                }));
+        }
+        
+        return result;
+    }
+    
+    // =========================================================================
+    // 🆕 v2.0.0: UDS 연동 (기존 코드 유지)
     // =========================================================================
     
     /**
@@ -677,7 +950,7 @@ export class RankingDataManager {
     }
     
     /**
-     * 🆕 Line별 설비 그룹화
+     * 🆕 Line별 설비 그룹화 (레인 타입 기준)
      * 
      * @returns {Object} { lineName: [equipments], ... }
      */
@@ -1633,6 +1906,8 @@ export class RankingDataManager {
         this._equipments.clear();
         this._rankings = [];
         this._laneGroups.clear();
+        this._selectedEquipmentId = null;
+        this._highlightedEquipmentIds.clear();
         
         for (const laneId of this._laneEquipments.keys()) {
             this._laneEquipments.set(laneId, new Set());
