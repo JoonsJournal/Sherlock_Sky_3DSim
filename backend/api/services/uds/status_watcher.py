@@ -2,13 +2,23 @@
 status_watcher.py
 설비 상태 변경 감지 백그라운드 서비스
 
-@version 1.0.0
+@version 2.0.0
 @description
 - 10초 주기로 MSSQL 쿼리 실행
 - 이전 상태와 비교하여 변경 감지
 - 변경 시 WebSocket으로 Delta 브로드캐스트
 
+🆕 v2.0.0: JSON 매핑 통합 호환
+- UDSService가 내부적으로 매핑 처리
+- Delta에 frontend_id 포함 (기존과 동일)
+- 매핑 갱신 트리거 지원
+
 @changelog
+- v2.0.0: 🔧 JSON 매핑 통합 호환 (2026-01-21)
+          - UDSService v2.0.0 연동
+          - compute_diff()가 equipment_id → frontend_id 변환
+          - 매핑 갱신 트리거 메서드 추가
+          - ⚠️ API 응답 형식 100% 유지 (하위 호환)
 - v1.0.0: 초기 버전
           - asyncio 기반 백그라운드 Task
           - UDSService.compute_diff() 활용
@@ -23,7 +33,7 @@ status_watcher.py
 
 📁 위치: backend/api/services/uds/status_watcher.py
 작성일: 2026-01-20
-수정일: 2026-01-20
+수정일: 2026-01-21
 """
 
 import asyncio
@@ -54,6 +64,13 @@ class StatusWatcher:
     │ 1. 10초마다 MSSQL 쿼리 실행 (UDSService.compute_diff)        │
     │ 2. 이전 상태와 비교 (In-Memory 캐시)                          │
     │ 3. 변경 감지 시 WebSocket 브로드캐스트                        │
+    └──────────────────────────────────────────────────────────────┘
+    
+    🆕 v2.0.0: JSON 매핑 통합
+    ┌──────────────────────────────────────────────────────────────┐
+    │ - UDSService 내부에서 equipment_id → frontend_id 변환        │
+    │ - Delta 응답에 frontend_id 포함 (기존과 동일)                 │
+    │ - Site 변경 시 매핑 자동 갱신 (UDSService 담당)               │
     └──────────────────────────────────────────────────────────────┘
     
     [사용법]
@@ -94,6 +111,10 @@ class StatusWatcher:
         self._task: Optional[asyncio.Task] = None
         self._broadcast_func: Optional[Callable[[list], Awaitable[None]]] = None
         
+        # 🆕 v2.0.0: DB Site 연결 정보
+        self._db_site: Optional[str] = None
+        self._db_name: Optional[str] = None
+        
         # 통계
         self._check_count = 0
         self._broadcast_count = 0
@@ -102,7 +123,7 @@ class StatusWatcher:
         self._last_broadcast_time: Optional[datetime] = None
         
         logger.info(
-            f"🚀 StatusWatcher initialized "
+            f"🚀 StatusWatcher initialized (v2.0.0) "
             f"(interval={self.poll_interval}s, site={site_id}, line={line_id})"
         )
     
@@ -167,6 +188,40 @@ class StatusWatcher:
         logger.info("✅ Broadcast function registered")
     
     # =========================================================================
+    # 🆕 v2.0.0: 연결 설정
+    # =========================================================================
+    
+    def set_connection(self, db_site: str, db_name: str):
+        """
+        🆕 v2.0.0: DB 연결 정보 설정
+        
+        Site 연결 시 호출하여 매핑 로드에 필요한 정보 전달
+        
+        Args:
+            db_site: Site 키 (예: "korea_site1")
+            db_name: DB 이름 (예: "line1")
+        """
+        self._db_site = db_site
+        self._db_name = db_name
+        
+        logger.info(f"⚙️ Connection set: {db_site}_{db_name}")
+        
+        # UDSService 매핑 갱신 트리거
+        site_id = f"{db_site}_{db_name}"
+        uds_service.reload_mapping(site_id)
+    
+    def refresh_mapping(self):
+        """
+        🆕 v2.0.0: 매핑 강제 갱신
+        
+        외부에서 매핑 변경 시 호출
+        """
+        if self._db_site and self._db_name:
+            site_id = f"{self._db_site}_{self._db_name}"
+            uds_service.reload_mapping(site_id)
+            logger.info(f"🔄 Mapping refreshed for {site_id}")
+    
+    # =========================================================================
     # Main Watch Loop
     # =========================================================================
     
@@ -202,15 +257,22 @@ class StatusWatcher:
         
         1. UDSService.compute_diff() 호출
         2. 변경 있으면 broadcast_delta() 호출
+        
+        🔧 v2.0.0 변경사항:
+          - UDSService가 내부적으로 equipment_id → frontend_id 변환
+          - Delta 응답 형식 동일 (하위 호환)
         """
         self._check_count += 1
         self._last_check_time = datetime.utcnow()
         
         try:
+            # 🔧 v2.0.0: compute_diff() 내부에서 매핑 처리
             # Diff 계산 (UDSService에서 수행)
             deltas = uds_service.compute_diff(
                 self.site_id, 
-                self.line_id
+                self.line_id,
+                self._db_site,  # 🆕 v2.0.0
+                self._db_name   # 🆕 v2.0.0
             )
             
             if not deltas:
@@ -242,9 +304,14 @@ class StatusWatcher:
         """
         Watcher 통계 정보
         
+        🆕 v2.0.0: 매핑 정보 추가
+        
         Returns:
             통계 딕셔너리
         """
+        # 🆕 v2.0.0: UDSService 매핑 정보 포함
+        mapping_info = uds_service.get_mapping_info()
+        
         return {
             "running": self._running,
             "poll_interval_seconds": self.poll_interval,
@@ -255,7 +322,12 @@ class StatusWatcher:
             "error_count": self._error_count,
             "last_check_time": self._last_check_time.isoformat() if self._last_check_time else None,
             "last_broadcast_time": self._last_broadcast_time.isoformat() if self._last_broadcast_time else None,
-            "uds_enabled": UDS_ENABLED
+            "uds_enabled": UDS_ENABLED,
+            # 🆕 v2.0.0: 연결 정보
+            "db_site": self._db_site,
+            "db_name": self._db_name,
+            # 🆕 v2.0.0: 매핑 정보
+            "mapping": mapping_info
         }
     
     # =========================================================================
@@ -275,15 +347,21 @@ class StatusWatcher:
         self, 
         site_id: Optional[int] = None,
         line_id: Optional[int] = None,
-        poll_interval: Optional[int] = None
+        poll_interval: Optional[int] = None,
+        db_site: Optional[str] = None,  # 🆕 v2.0.0
+        db_name: Optional[str] = None   # 🆕 v2.0.0
     ):
         """
         런타임 설정 변경
+        
+        🆕 v2.0.0: db_site, db_name 파라미터 추가
         
         Args:
             site_id: 새 Site ID
             line_id: 새 Line ID
             poll_interval: 새 감시 주기
+            db_site: 새 DB Site 키 (v2.0.0)
+            db_name: 새 DB 이름 (v2.0.0)
         """
         if site_id is not None:
             self.site_id = site_id
@@ -292,9 +370,21 @@ class StatusWatcher:
         if poll_interval is not None:
             self.poll_interval = poll_interval
         
+        # 🆕 v2.0.0: 연결 정보 변경 시 매핑 갱신
+        connection_changed = False
+        if db_site is not None and db_site != self._db_site:
+            self._db_site = db_site
+            connection_changed = True
+        if db_name is not None and db_name != self._db_name:
+            self._db_name = db_name
+            connection_changed = True
+        
+        if connection_changed:
+            self.refresh_mapping()
+        
         logger.info(
             f"⚙️ Config updated: site={self.site_id}, line={self.line_id}, "
-            f"interval={self.poll_interval}s"
+            f"interval={self.poll_interval}s, db={self._db_site}_{self._db_name}"
         )
 
 
@@ -316,3 +406,15 @@ def get_watcher_stats() -> dict:
 def is_watcher_running() -> bool:
     """Watcher 실행 상태 확인"""
     return status_watcher.is_running
+
+
+def refresh_watcher_mapping():
+    """
+    🆕 v2.0.0: 외부에서 매핑 갱신 트리거
+    
+    사용 예:
+        # 매핑 수정 후
+        from services.uds.status_watcher import refresh_watcher_mapping
+        refresh_watcher_mapping()
+    """
+    status_watcher.refresh_mapping()

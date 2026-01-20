@@ -1,16 +1,29 @@
 """
 uds_service.py
 UDS 비즈니스 로직 서비스
-MSSQL 직접 연결 + In-Memory 상태 캐시 (Diff용)
+MSSQL 직접 연결 + JSON 매핑 로드 + In-Memory 상태 캐시 (Diff용)
 
-@version 1.0.0
+@version 2.0.0
 @description
 - fetch_all_equipments: 배치 쿼리로 전체 설비 조회 (117개)
 - fetch_equipment_by_frontend_id: 단일 설비 조회
 - compute_diff: 이전 상태와 현재 상태 비교하여 Delta 생성
 - calculate_stats: 상태별 통계 계산
 
+🆕 v2.0.0: JSON 매핑 통합
+- _load_mapping_config(): Site별 JSON 매핑 파일 로드
+- _merge_with_mapping(): SQL 결과 + JSON 매핑 병합
+- _parse_frontend_id(): FrontendId → (GridRow, GridCol) 파싱
+- equipment_id ↔ frontend_id 역매핑 테이블 관리
+
 @changelog
+- v2.0.0: 🔧 JSON 매핑 통합 (2026-01-21)
+          - core.EquipmentMapping 테이블 제거 (DB에 없음)
+          - JSON 파일에서 매핑 정보 로드
+          - SQL 결과와 매핑 병합 로직 추가
+          - equipment_id ↔ frontend_id 양방향 매핑
+          - Site 변경 시 매핑 캐시 자동 갱신
+          - ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
 - v1.0.0: 초기 버전
           - MSSQL 직접 연결 (SQLAlchemy sync session)
           - In-Memory 캐시로 Diff 비교
@@ -25,11 +38,13 @@ MSSQL 직접 연결 + In-Memory 상태 캐시 (Diff용)
 
 📁 위치: backend/api/services/uds/uds_service.py
 작성일: 2026-01-20
-수정일: 2026-01-20
+수정일: 2026-01-21
 """
 
 from typing import List, Optional, Dict, Any, Tuple
 import logging
+import json
+import os
 from datetime import datetime
 from contextlib import contextmanager
 
@@ -55,13 +70,23 @@ from .uds_queries import (
     BATCH_TACT_TIME_QUERY,
     STATUS_SNAPSHOT_QUERY,
     calculate_memory_usage_percent,
-    calculate_disk_usage_percent
+    calculate_disk_usage_percent,
+    parse_frontend_id,  # 🆕 v2.0.0
+    generate_frontend_id  # 🆕 v2.0.0
 )
 
 # DB 연결 Import
 from ...database.multi_connection_manager import connection_manager
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# 🆕 v2.0.0: 매핑 관련 상수
+# =============================================================================
+MAPPING_CONFIG_DIR = "config/site_mappings"
+DEFAULT_GRID_ROWS = 26
+DEFAULT_GRID_COLS = 6
 
 
 class UDSService:
@@ -74,9 +99,19 @@ class UDSService:
     3. Diff 감지 및 Delta 생성 (10초 주기)
     4. 상태별 통계 계산
     
+    🆕 v2.0.0: JSON 매핑 통합
+    5. Site별 JSON 매핑 파일 로드
+    6. SQL 결과 + 매핑 병합
+    7. equipment_id ↔ frontend_id 양방향 조회
+    
     [In-Memory 캐시]
     - _previous_state: Dict[frontend_id, EquipmentSnapshot]
     - Diff 비교용으로만 사용 (Frontend가 메인 캐시)
+    
+    🆕 v2.0.0: 매핑 캐시
+    - _mapping_cache: Dict[equipment_id, MappingItem]
+    - _reverse_mapping: Dict[frontend_id, equipment_id]
+    - _current_site_id: 현재 로드된 Site ID
     
     [DB 연결]
     - MultiConnectionManager 사용 (Site DB 동적 연결)
@@ -91,7 +126,22 @@ class UDSService:
         # 마지막 조회 시간 (디버깅용)
         self._last_fetch_time: Optional[datetime] = None
         
-        logger.info("🚀 UDSService initialized")
+        # ===================================================================
+        # 🆕 v2.0.0: 매핑 캐시
+        # ===================================================================
+        # equipment_id → {frontend_id, equipment_name, grid_row, grid_col, ...}
+        self._mapping_cache: Dict[int, Dict[str, Any]] = {}
+        
+        # frontend_id → equipment_id (역매핑)
+        self._reverse_mapping: Dict[str, int] = {}
+        
+        # 현재 로드된 Site ID
+        self._current_site_id: Optional[str] = None
+        
+        # 매핑 로드 시간
+        self._mapping_loaded_at: Optional[datetime] = None
+        
+        logger.info("🚀 UDSService initialized (v2.0.0 - JSON Mapping)")
     
     # ========================================================================
     # Context Manager: DB Session
@@ -116,6 +166,163 @@ class UDSService:
             session.close()
     
     # ========================================================================
+    # 🆕 v2.0.0: JSON 매핑 로드
+    # ========================================================================
+    
+    def _get_mapping_file_path(self, site_id: str) -> str:
+        """
+        Site별 매핑 파일 경로
+        
+        Args:
+            site_id: "korea_site1_line1" 형식
+            
+        Returns:
+            "config/site_mappings/equipment_mapping_korea_site1_line1.json"
+        """
+        return os.path.join(MAPPING_CONFIG_DIR, f"equipment_mapping_{site_id}.json")
+    
+    def _load_mapping_config(self, site_id: str, force_reload: bool = False) -> bool:
+        """
+        Site별 JSON 매핑 파일 로드
+        
+        🆕 v2.0.0: core.EquipmentMapping 테이블 대신 JSON 파일 사용
+        
+        Args:
+            site_id: Site ID (예: "korea_site1_line1")
+            force_reload: 강제 재로드 여부
+            
+        Returns:
+            bool: 로드 성공 여부
+            
+        Note:
+            - 캐시된 Site ID와 동일하면 재로드 안 함 (force_reload=False)
+            - 파일 없으면 빈 매핑으로 초기화
+        """
+        # 이미 로드된 경우 스킵
+        if not force_reload and self._current_site_id == site_id:
+            return True
+        
+        file_path = self._get_mapping_file_path(site_id)
+        
+        logger.info(f"📂 Loading mapping config: {file_path}")
+        
+        # 캐시 초기화
+        self._mapping_cache.clear()
+        self._reverse_mapping.clear()
+        
+        if not os.path.exists(file_path):
+            logger.warning(f"⚠️ Mapping file not found: {file_path}")
+            self._current_site_id = site_id
+            self._mapping_loaded_at = datetime.utcnow()
+            return False
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            mappings = data.get("mappings", {})
+            
+            for frontend_id, item in mappings.items():
+                equipment_id = item.get("equipment_id")
+                if equipment_id is None:
+                    continue
+                
+                # equipment_id → mapping info
+                self._mapping_cache[equipment_id] = {
+                    "frontend_id": frontend_id,
+                    "equipment_name": item.get("equipment_name", ""),
+                    "equipment_code": item.get("equipment_code"),
+                    "line_name": item.get("line_name"),
+                    "grid_row": None,  # 파싱으로 계산
+                    "grid_col": None
+                }
+                
+                # GridRow, GridCol 파싱
+                grid_row, grid_col = parse_frontend_id(frontend_id)
+                self._mapping_cache[equipment_id]["grid_row"] = grid_row
+                self._mapping_cache[equipment_id]["grid_col"] = grid_col
+                
+                # 역매핑: frontend_id → equipment_id
+                self._reverse_mapping[frontend_id] = equipment_id
+            
+            self._current_site_id = site_id
+            self._mapping_loaded_at = datetime.utcnow()
+            
+            logger.info(f"✅ Loaded {len(self._mapping_cache)} mappings for {site_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to load mapping config: {e}", exc_info=True)
+            self._current_site_id = site_id
+            self._mapping_loaded_at = datetime.utcnow()
+            return False
+    
+    def _get_frontend_id(self, equipment_id: int) -> Optional[str]:
+        """
+        equipment_id → frontend_id 변환
+        
+        Args:
+            equipment_id: DB Equipment ID
+            
+        Returns:
+            frontend_id 또는 None (매핑 없음)
+        """
+        mapping = self._mapping_cache.get(equipment_id)
+        if mapping:
+            return mapping.get("frontend_id")
+        return None
+    
+    def _get_equipment_id(self, frontend_id: str) -> Optional[int]:
+        """
+        frontend_id → equipment_id 변환
+        
+        Args:
+            frontend_id: Frontend ID (예: "EQ-17-03")
+            
+        Returns:
+            equipment_id 또는 None (매핑 없음)
+        """
+        return self._reverse_mapping.get(frontend_id)
+    
+    def _get_mapping_info(self, equipment_id: int) -> Optional[Dict[str, Any]]:
+        """
+        equipment_id로 전체 매핑 정보 조회
+        
+        Args:
+            equipment_id: DB Equipment ID
+            
+        Returns:
+            매핑 정보 딕셔너리 또는 None
+            {
+                "frontend_id": "EQ-17-03",
+                "equipment_name": "CVDF-001",
+                "grid_row": 17,
+                "grid_col": 3,
+                ...
+            }
+        """
+        return self._mapping_cache.get(equipment_id)
+    
+    def _derive_site_id_from_connection(self, db_site: str = None, db_name: str = None) -> str:
+        """
+        연결 정보에서 Site ID 유도
+        
+        Args:
+            db_site: Site 키 (예: "korea_site1")
+            db_name: DB 이름 (예: "line1")
+            
+        Returns:
+            Site ID (예: "korea_site1_line1")
+        """
+        # 기본값 사용
+        if not db_site:
+            db_site = "korea_site1"  # TODO: connection_manager에서 가져오기
+        if not db_name:
+            db_name = "line1"  # TODO: connection_manager에서 가져오기
+        
+        return f"{db_site}_{db_name}"
+    
+    # ========================================================================
     # 배치 조회: 전체 설비 초기 로드
     # ========================================================================
     
@@ -132,6 +339,11 @@ class UDSService:
         GET /api/uds/initial 엔드포인트에서 호출.
         117개 설비 데이터를 한 번의 배치 쿼리로 조회.
         
+        🔧 v2.0.0 변경사항:
+          - SQL 쿼리에서 core.EquipmentMapping JOIN 제거
+          - JSON 매핑 파일 로드 후 SQL 결과와 병합
+          - ⚠️ API 응답 형식 100% 유지 (하위 호환)
+        
         Args:
             site_id: Factory Site ID (WHERE 조건)
             line_id: Factory Line ID (WHERE 조건)
@@ -147,12 +359,17 @@ class UDSService:
         logger.info(f"📡 Fetching all equipments (site_id={site_id}, line_id={line_id})")
         start_time = datetime.utcnow()
         
+        # ===================================================================
+        # 🆕 v2.0.0: 매핑 파일 로드 (Site 변경 시 자동 갱신)
+        # ===================================================================
+        mapping_site_id = self._derive_site_id_from_connection(db_site, db_name)
+        self._load_mapping_config(mapping_site_id)
+        
         with self._get_session(db_site, db_name) as session:
             try:
                 # =============================================================
                 # Step 1: 기본 설비 정보 배치 조회
-                # BATCH_EQUIPMENT_QUERY: 4-table JOIN (Equipment, EquipmentState, 
-                #                        EquipmentPCInfo, EquipmentMapping)
+                # 🔧 v2.0.0: core.EquipmentMapping JOIN 제거됨
                 # =============================================================
                 result = session.execute(
                     text(BATCH_EQUIPMENT_QUERY),
@@ -165,7 +382,7 @@ class UDSService:
                 
                 # =============================================================
                 # Step 2: 생산량 배치 조회
-                # PRODUCTION_COUNT_QUERY: CycleTime COUNT since Lot start
+                # 🔧 v2.0.0: EquipmentId만 반환 (FrontendId 제거)
                 # =============================================================
                 prod_result = session.execute(
                     text(PRODUCTION_COUNT_QUERY),
@@ -173,14 +390,15 @@ class UDSService:
                 )
                 prod_rows = prod_result.fetchall()
                 
-                # Column Index: [0] EquipmentId, [1] FrontendId, [2] ProductionCount
-                prod_map = {row[1]: row[2] for row in prod_rows if row[1]}
+                # 🔧 v2.0.0: equipment_id 기반 맵 (기존: frontend_id)
+                # Column Index: [0] EquipmentId, [1] ProductionCount
+                prod_map = {row[0]: row[1] for row in prod_rows}
                 
                 logger.info(f"  → 생산량 쿼리: {len(prod_map)}건 조회")
                 
                 # =============================================================
                 # Step 3: Tact Time 배치 조회
-                # BATCH_TACT_TIME_QUERY: DATEDIFF between recent 2 CycleTimes
+                # 🔧 v2.0.0: EquipmentId만 반환 (FrontendId 제거)
                 # =============================================================
                 tact_result = session.execute(
                     text(BATCH_TACT_TIME_QUERY),
@@ -188,13 +406,15 @@ class UDSService:
                 )
                 tact_rows = tact_result.fetchall()
                 
-                # Column Index: [0] EquipmentId, [1] FrontendId, [2] TactTimeSeconds
-                tact_map = {row[1]: row[2] for row in tact_rows if row[1]}
+                # 🔧 v2.0.0: equipment_id 기반 맵 (기존: frontend_id)
+                # Column Index: [0] EquipmentId, [1] TactTimeSeconds
+                tact_map = {row[0]: row[1] for row in tact_rows}
                 
                 logger.info(f"  → Tact Time 쿼리: {len(tact_map)}건 조회")
                 
                 # =============================================================
-                # Step 4: EquipmentData 변환
+                # Step 4: EquipmentData 변환 + 매핑 병합
+                # 🆕 v2.0.0: SQL 결과 + JSON 매핑 병합
                 # =============================================================
                 equipments = []
                 for row in rows:
@@ -236,6 +456,11 @@ class UDSService:
         GET /api/uds/equipment/{frontend_id} 엔드포인트에서 호출.
         ⚠️ Frontend는 UDS 캐시를 먼저 확인하고, 캐시 미스 시에만 호출해야 함.
         
+        🔧 v2.0.0 변경사항:
+          - frontend_id → equipment_id 변환 (JSON 매핑 사용)
+          - equipment_id 기반 SQL 쿼리 실행
+          - 결과에 매핑 정보 병합
+        
         Args:
             frontend_id: Frontend ID (예: EQ-17-03)
             db_site: MultiConnectionManager Site 키
@@ -246,16 +471,29 @@ class UDSService:
         """
         logger.info(f"📡 Fetching equipment: {frontend_id}")
         
+        # ===================================================================
+        # 🆕 v2.0.0: frontend_id → equipment_id 변환
+        # ===================================================================
+        mapping_site_id = self._derive_site_id_from_connection(db_site, db_name)
+        self._load_mapping_config(mapping_site_id)
+        
+        equipment_id = self._get_equipment_id(frontend_id)
+        
+        if equipment_id is None:
+            logger.warning(f"⚠️ No mapping found for frontend_id: {frontend_id}")
+            return None
+        
         with self._get_session(db_site, db_name) as session:
             try:
+                # 🔧 v2.0.0: equipment_id 기반 조회
                 result = session.execute(
                     text(SINGLE_EQUIPMENT_QUERY),
-                    {"frontend_id": frontend_id}
+                    {"equipment_id": equipment_id}
                 )
                 row = result.fetchone()
                 
                 if not row:
-                    logger.warning(f"⚠️ Equipment not found: {frontend_id}")
+                    logger.warning(f"⚠️ Equipment not found: {frontend_id} (equipment_id={equipment_id})")
                     return None
                 
                 columns = result.keys()
@@ -269,6 +507,58 @@ class UDSService:
                 
             except Exception as e:
                 logger.error(f"❌ Failed to fetch equipment {frontend_id}: {e}")
+                raise
+    
+    # ========================================================================
+    # 🆕 v2.0.0: Equipment ID로 설비 조회 (신규)
+    # ========================================================================
+    
+    def fetch_equipment_by_id(
+        self,
+        equipment_id: int,
+        db_site: str = None,
+        db_name: str = None
+    ) -> Optional[EquipmentData]:
+        """
+        Equipment ID로 단일 설비 조회
+        
+        🆕 v2.0.0 신규: equipment_id 기반 직접 조회
+        
+        Args:
+            equipment_id: DB Equipment ID
+            db_site: MultiConnectionManager Site 키
+            db_name: DB 이름
+            
+        Returns:
+            EquipmentData or None
+        """
+        logger.info(f"📡 Fetching equipment by ID: {equipment_id}")
+        
+        mapping_site_id = self._derive_site_id_from_connection(db_site, db_name)
+        self._load_mapping_config(mapping_site_id)
+        
+        with self._get_session(db_site, db_name) as session:
+            try:
+                result = session.execute(
+                    text(SINGLE_EQUIPMENT_QUERY),
+                    {"equipment_id": equipment_id}
+                )
+                row = result.fetchone()
+                
+                if not row:
+                    logger.warning(f"⚠️ Equipment not found: equipment_id={equipment_id}")
+                    return None
+                
+                columns = result.keys()
+                row_dict = dict(zip(columns, row))
+                
+                equipment = self._row_to_equipment_data(row_dict, {}, {})
+                
+                logger.info(f"✅ Equipment fetched: {equipment.frontend_id} -> {equipment.status}")
+                return equipment
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to fetch equipment {equipment_id}: {e}")
                 raise
     
     # ========================================================================
@@ -288,6 +578,11 @@ class UDSService:
         Status Watcher가 10초마다 호출.
         변경된 설비만 Delta로 추출하여 WebSocket 전송.
         
+        🔧 v2.0.0 변경사항:
+          - STATUS_SNAPSHOT_QUERY가 EquipmentId 반환
+          - equipment_id → frontend_id 변환 (JSON 매핑)
+          - Delta에 frontend_id 포함
+        
         Args:
             site_id: Factory Site ID
             line_id: Factory Line ID
@@ -301,6 +596,12 @@ class UDSService:
             logger.warning("⚠️ No previous state for diff (run fetch_all first)")
             return []
         
+        # ===================================================================
+        # 🆕 v2.0.0: 매핑 로드 확인
+        # ===================================================================
+        mapping_site_id = self._derive_site_id_from_connection(db_site, db_name)
+        self._load_mapping_config(mapping_site_id)
+        
         with self._get_session(db_site, db_name) as session:
             try:
                 # 현재 스냅샷 조회 (경량 쿼리)
@@ -313,8 +614,8 @@ class UDSService:
                 timestamp = datetime.utcnow()
                 
                 # =============================================================
-                # STATUS_SNAPSHOT_QUERY Column Index:
-                #  [0] FrontendId
+                # 🔧 v2.0.0: STATUS_SNAPSHOT_QUERY Column Index 변경:
+                #  [0] EquipmentId      (기존: FrontendId)
                 #  [1] Status
                 #  [2] StatusChangedAt
                 #  [3] CpuUsagePercent
@@ -322,8 +623,14 @@ class UDSService:
                 #  [5] MemoryTotalMb
                 # =============================================================
                 for row in result.fetchall():
-                    frontend_id = row[0]
+                    equipment_id = row[0]
+                    if equipment_id is None:
+                        continue
+                    
+                    # 🆕 v2.0.0: equipment_id → frontend_id 변환
+                    frontend_id = self._get_frontend_id(equipment_id)
                     if not frontend_id:
+                        # 매핑 없으면 스킵 또는 생성
                         continue
                     
                     # 현재 스냅샷 생성
@@ -387,14 +694,60 @@ class UDSService:
         """In-Memory 캐시 초기화 (테스트/리셋용)"""
         self._previous_state.clear()
         self._last_fetch_time = None
-        logger.info("🗑️ UDS cache cleared")
+        logger.info("🗑️ UDS state cache cleared")
+    
+    def clear_mapping_cache(self):
+        """
+        🆕 v2.0.0: 매핑 캐시 초기화
+        Site 변경 시 또는 매핑 갱신 시 호출
+        """
+        self._mapping_cache.clear()
+        self._reverse_mapping.clear()
+        self._current_site_id = None
+        self._mapping_loaded_at = None
+        logger.info("🗑️ UDS mapping cache cleared")
+    
+    def clear_all_caches(self):
+        """
+        🆕 v2.0.0: 모든 캐시 초기화
+        """
+        self.clear_cache()
+        self.clear_mapping_cache()
+        logger.info("🗑️ All UDS caches cleared")
+    
+    def reload_mapping(self, site_id: str = None):
+        """
+        🆕 v2.0.0: 매핑 강제 재로드
+        
+        Args:
+            site_id: Site ID (None이면 현재 Site)
+        """
+        target_site = site_id or self._current_site_id
+        if target_site:
+            self._load_mapping_config(target_site, force_reload=True)
     
     def get_cache_info(self) -> Dict[str, Any]:
         """캐시 상태 정보"""
         return {
             "cached_count": len(self._previous_state),
             "last_fetch_time": self._last_fetch_time.isoformat() if self._last_fetch_time else None,
-            "frontend_ids_sample": list(self._previous_state.keys())[:10]  # 샘플 10개
+            "frontend_ids_sample": list(self._previous_state.keys())[:10],
+            # 🆕 v2.0.0: 매핑 캐시 정보
+            "mapping_cache_count": len(self._mapping_cache),
+            "current_site_id": self._current_site_id,
+            "mapping_loaded_at": self._mapping_loaded_at.isoformat() if self._mapping_loaded_at else None
+        }
+    
+    def get_mapping_info(self) -> Dict[str, Any]:
+        """
+        🆕 v2.0.0: 매핑 상태 정보
+        """
+        return {
+            "site_id": self._current_site_id,
+            "total_mappings": len(self._mapping_cache),
+            "loaded_at": self._mapping_loaded_at.isoformat() if self._mapping_loaded_at else None,
+            "equipment_ids_sample": list(self._mapping_cache.keys())[:10],
+            "frontend_ids_sample": list(self._reverse_mapping.keys())[:10]
         }
     
     # ========================================================================
@@ -404,13 +757,18 @@ class UDSService:
     def _row_to_equipment_data(
         self,
         row: Dict[str, Any],
-        prod_map: Dict[str, int],
-        tact_map: Dict[str, float]
+        prod_map: Dict[int, int],  # 🔧 v2.0.0: equipment_id 기반
+        tact_map: Dict[int, float]  # 🔧 v2.0.0: equipment_id 기반
     ) -> EquipmentData:
         """
         DB Row → EquipmentData 변환
         
-        BATCH_EQUIPMENT_QUERY 컬럼 인덱스:
+        🔧 v2.0.0 변경사항:
+          - SQL 결과에 FrontendId, GridRow, GridCol 없음
+          - JSON 매핑에서 가져와서 병합
+          - 매핑 없는 경우 기본값 사용
+        
+        BATCH_EQUIPMENT_QUERY 컬럼 인덱스 (v2.0.0):
         ─────────────────────────────────────
          0: EquipmentId      (core.Equipment)
          1: EquipmentName    (core.Equipment)
@@ -425,16 +783,34 @@ class UDSService:
         10: MemoryUsedMb     (log.EquipmentPCInfo)
         11: DisksTotalGb     (log.EquipmentPCInfo)
         12: DisksUsedGb      (log.EquipmentPCInfo)
-        13: GridRow          (core.EquipmentMapping)
-        14: GridCol          (core.EquipmentMapping)
-        15: FrontendId       (core.EquipmentMapping)
+        
+        ❌ 제거됨 (v2.0.0):
+        13: GridRow          → JSON 매핑에서 가져옴
+        14: GridCol          → JSON 매핑에서 가져옴
+        15: FrontendId       → JSON 매핑에서 가져옴
         """
-        # FrontendId 결정 (없으면 Grid 기반 생성)
-        frontend_id = row.get('FrontendId')
+        equipment_id = row['EquipmentId']
+        
+        # ===================================================================
+        # 🆕 v2.0.0: JSON 매핑에서 FrontendId, GridRow, GridCol 가져오기
+        # ===================================================================
+        mapping_info = self._get_mapping_info(equipment_id)
+        
+        if mapping_info:
+            frontend_id = mapping_info.get('frontend_id')
+            grid_row = mapping_info.get('grid_row', 0)
+            grid_col = mapping_info.get('grid_col', 0)
+        else:
+            # 매핑 없는 경우: 기본값 또는 equipment_id 기반 생성
+            frontend_id = None
+            grid_row = 0
+            grid_col = 0
+            logger.debug(f"⚠️ No mapping for equipment_id={equipment_id}")
+        
+        # FrontendId 없으면 equipment_id 기반 임시 ID 생성
         if not frontend_id:
-            grid_row = row.get('GridRow', 0) or 0
-            grid_col = row.get('GridCol', 0) or 0
-            frontend_id = f"EQ-{grid_row:02d}-{grid_col:02d}"
+            # 임시 ID: EQ-00-{equipment_id} 형식
+            frontend_id = f"EQ-00-{equipment_id:02d}"
         
         # Status Enum 변환
         status_str = row.get('Status') or 'DISCONNECTED'
@@ -458,8 +834,12 @@ class UDSService:
                 row['DisksTotalGb']
             )
         
+        # 🔧 v2.0.0: 생산량/Tact Time은 equipment_id로 조회
+        production_count = prod_map.get(equipment_id, 0)
+        tact_time = tact_map.get(equipment_id)
+        
         return EquipmentData(
-            equipment_id=row['EquipmentId'],
+            equipment_id=equipment_id,
             frontend_id=frontend_id,
             equipment_name=row.get('EquipmentName', ''),
             line_name=row.get('LineName', ''),
@@ -468,13 +848,13 @@ class UDSService:
             product_model=row.get('ProductModel'),
             lot_id=row.get('LotId'),
             lot_start_time=row.get('LotStartTime'),
-            production_count=prod_map.get(frontend_id, 0),
-            tact_time_seconds=tact_map.get(frontend_id),
+            production_count=production_count,
+            tact_time_seconds=tact_time,
             cpu_usage_percent=row.get('CpuUsagePercent'),
             memory_usage_percent=memory_usage,
             disk_usage_percent=disk_usage,
-            grid_row=row.get('GridRow', 0) or 0,
-            grid_col=row.get('GridCol', 0) or 0
+            grid_row=grid_row,
+            grid_col=grid_col
         )
     
     def _update_previous_state(self, equipment: EquipmentData):
