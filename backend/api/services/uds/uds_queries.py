@@ -2,7 +2,7 @@
 uds_queries.py
 UDS SQL 쿼리 모음 (MSSQL WITH NOLOCK 필수 적용)
 
-@version 2.0.0
+@version 2.1.0
 @description
 - 배치 쿼리: 전체 설비 초기 로드 (117개)
 - 단일 쿼리: 개별 설비 조회
@@ -16,6 +16,13 @@ UDS SQL 쿼리 모음 (MSSQL WITH NOLOCK 필수 적용)
    - Dirty Read 허용 (모니터링 용도 적합)
 
 @changelog
+- v2.1.0: 🐛 log.CycleTime 스키마 버그 수정 (2026-01-21)
+          - ⚠️ CycleTimeId, StartTime 컬럼은 존재하지 않음!
+          - 실제 스키마: EquipmentId (PK, FK), Time (PK, datetime2(3))
+          - PRODUCTION_COUNT_QUERY: CycleTimeId → Time, StartTime → Time
+          - TACT_TIME_QUERY: StartTime → Time
+          - BATCH_TACT_TIME_QUERY: StartTime → Time
+          - PRODUCTION_SNAPSHOT_QUERY: CycleTimeId → Time, StartTime → Time
 - v2.0.0: 🔧 core.EquipmentMapping 테이블 제거 (2026-01-21)
           - ⚠️ 해당 테이블은 DB에 존재하지 않음!
           - 매핑 정보는 JSON 파일에서 관리
@@ -32,6 +39,27 @@ UDS SQL 쿼리 모음 (MSSQL WITH NOLOCK 필수 적용)
 
 @dependencies
 - sqlalchemy.text (파라미터 바인딩)
+
+@db_schema log.CycleTime (실제 스키마)
+┌─────────────────────────────────────────────────────────────────┐
+│ log.CycleTime                                                   │
+├─────────────────────────────────────────────────────────────────┤
+│ - EquipmentId (PK, FK, int, NOT NULL)                           │
+│ - Time (PK, datetime2(3), NOT NULL) ← Cycle 완료 시점 = 생산 1개│
+│ - PickUp (decimal(9,3), NULL)                                   │
+│ - ThicknessMeasure (decimal(9,3), NULL)                         │
+│ - PreAlign (decimal(9,3), NULL)                                 │
+│ - Loading (decimal(9,3), NULL)                                  │
+│ - Align_Pos_Move (decimal(9,3), NULL)                           │
+│ - Align_XCh (decimal(9,3), NULL)                                │
+│ - Cutting_XCh (decimal(9,3), NULL)                              │
+│ - Cut_CT_XCh (decimal(9,3), NULL)                               │
+│ - Align_Ych (decimal(9,3), NULL)                                │
+│ - Cutting_Ych (decimal(9,3), NULL)                              │
+│ - Cut_CT_Uch (decimal(9,3), NULL)                               │
+│ - Unloading_Pick (decimal(9,3), NULL)                           │
+│ - Unloading_Place (decimal(9,3), NULL)                          │
+└─────────────────────────────────────────────────────────────────┘
 
 📁 위치: backend/api/services/uds/uds_queries.py
 작성일: 2026-01-20
@@ -57,6 +85,13 @@ UDS SQL 쿼리 모음 (MSSQL WITH NOLOCK 필수 적용)
 #    - FrontendId, GridRow, GridCol은 SQL에서 조회하지 않음
 #    - UDSService에서 JSON 매핑 파일 로드 후 병합
 #    - 매핑 파일: config/site_mappings/equipment_mapping_{site_id}.json
+#
+# 5. 🐛 v2.1.0 버그 수정:
+#    - log.CycleTime 테이블에는 CycleTimeId, StartTime 컬럼이 없음!
+#    - 실제 PK: (EquipmentId, Time)
+#    - Time 컬럼 = Cycle 완료 시점 (생산 1개 완료)
+#    - 생산량 = Lot 시작 이후 Time 레코드 COUNT
+#    - Tact Time = 최근 두 Time 간의 시간 간격 (초)
 #
 # =============================================================================
 
@@ -264,9 +299,14 @@ WHERE e.EquipmentId = :equipment_id
 
 
 # =============================================================================
-# 🔹 PRODUCTION_COUNT_QUERY (v2.0.0 수정)
+# 🔹 PRODUCTION_COUNT_QUERY (v2.1.0 버그 수정)
 # =============================================================================
 # 생산량 조회 (CycleTime 카운트)
+#
+# 🐛 v2.1.0 버그 수정:
+#   - ❌ CycleTimeId → ✅ Time (실제 PK 컬럼)
+#   - ❌ StartTime → ✅ Time (StartTime 컬럼 없음)
+#   - log.CycleTime 실제 스키마: (EquipmentId PK, Time PK)
 #
 # 🔧 v2.0.0 변경사항:
 #   - core.EquipmentMapping JOIN 제거
@@ -285,18 +325,18 @@ WHERE e.EquipmentId = :equipment_id
 #
 # 로직:
 #  1. 각 설비의 최신 LotStartTime 조회 (IsStart=1)
-#  2. LotStartTime 이후의 CycleTime 레코드 COUNT
+#  2. LotStartTime 이후의 CycleTime.Time 레코드 COUNT
 #  3. GROUP BY로 설비별 집계
 #
 # =============================================================================
 PRODUCTION_COUNT_QUERY = """
 SELECT 
     e.EquipmentId,
-    COUNT(ct.CycleTimeId) AS ProductionCount
+    COUNT(ct.Time) AS ProductionCount
 FROM core.Equipment e WITH (NOLOCK)
 LEFT JOIN log.CycleTime ct WITH (NOLOCK)
     ON e.EquipmentId = ct.EquipmentId
-    AND ct.StartTime >= (
+    AND ct.Time >= (
         SELECT TOP 1 OccurredAtUtc 
         FROM log.Lotinfo WITH (NOLOCK)
         WHERE EquipmentId = e.EquipmentId
@@ -311,12 +351,16 @@ GROUP BY e.EquipmentId
 
 
 # =============================================================================
-# 🔹 TACT_TIME_QUERY
+# 🔹 TACT_TIME_QUERY (v2.1.0 버그 수정)
 # =============================================================================
 # Tact Time 조회 (최근 2개 CycleTime 간격)
 #
+# 🐛 v2.1.0 버그 수정:
+#   - ❌ StartTime → ✅ Time (StartTime 컬럼 없음)
+#   - log.CycleTime.Time = Cycle 완료 시점
+#
 # 용도: 단일 설비 Tact Time 계산
-# 계산: 최근 1번째 CycleTime과 2번째 CycleTime의 StartTime 차이 (초)
+# 계산: 최근 1번째 CycleTime.Time과 2번째 CycleTime.Time의 차이 (초)
 #
 # 컬럼 인덱스:
 #  0: TactTimeSeconds (int) - DATEDIFF 결과 (초)
@@ -333,16 +377,16 @@ TACT_TIME_QUERY = """
 WITH RecentCycles AS (
     SELECT 
         ct.EquipmentId,
-        ct.StartTime,
+        ct.Time,
         ROW_NUMBER() OVER (
             PARTITION BY ct.EquipmentId 
-            ORDER BY ct.StartTime DESC
+            ORDER BY ct.Time DESC
         ) AS rn
     FROM log.CycleTime ct WITH (NOLOCK)
     WHERE ct.EquipmentId = :equipment_id
 )
 SELECT 
-    DATEDIFF(SECOND, rc2.StartTime, rc1.StartTime) AS TactTimeSeconds
+    DATEDIFF(SECOND, rc2.Time, rc1.Time) AS TactTimeSeconds
 FROM RecentCycles rc1
 JOIN RecentCycles rc2 ON rc1.EquipmentId = rc2.EquipmentId
 WHERE rc1.rn = 1 AND rc2.rn = 2
@@ -350,9 +394,13 @@ WHERE rc1.rn = 1 AND rc2.rn = 2
 
 
 # =============================================================================
-# 🔹 BATCH_TACT_TIME_QUERY (v2.0.0 수정)
+# 🔹 BATCH_TACT_TIME_QUERY (v2.1.0 버그 수정)
 # =============================================================================
 # 배치 Tact Time 조회 (모든 설비)
+#
+# 🐛 v2.1.0 버그 수정:
+#   - ❌ StartTime → ✅ Time (StartTime 컬럼 없음)
+#   - log.CycleTime.Time = Cycle 완료 시점
 #
 # 🔧 v2.0.0 변경사항:
 #   - core.EquipmentMapping JOIN 제거
@@ -374,10 +422,10 @@ BATCH_TACT_TIME_QUERY = """
 WITH RecentCycles AS (
     SELECT 
         ct.EquipmentId,
-        ct.StartTime,
+        ct.Time,
         ROW_NUMBER() OVER (
             PARTITION BY ct.EquipmentId 
-            ORDER BY ct.StartTime DESC
+            ORDER BY ct.Time DESC
         ) AS rn
     FROM log.CycleTime ct WITH (NOLOCK)
     JOIN core.Equipment e WITH (NOLOCK) ON ct.EquipmentId = e.EquipmentId
@@ -387,7 +435,7 @@ WITH RecentCycles AS (
 )
 SELECT 
     rc1.EquipmentId,
-    DATEDIFF(SECOND, rc2.StartTime, rc1.StartTime) AS TactTimeSeconds
+    DATEDIFF(SECOND, rc2.Time, rc1.Time) AS TactTimeSeconds
 FROM RecentCycles rc1
 JOIN RecentCycles rc2 
     ON rc1.EquipmentId = rc2.EquipmentId 
@@ -466,9 +514,13 @@ WHERE e.SiteId = :site_id
 
 
 # =============================================================================
-# 🔹 PRODUCTION_SNAPSHOT_QUERY (v2.0.0 수정)
+# 🔹 PRODUCTION_SNAPSHOT_QUERY (v2.1.0 버그 수정)
 # =============================================================================
 # 생산량 변경 감지용 스냅샷
+#
+# 🐛 v2.1.0 버그 수정:
+#   - ❌ CycleTimeId → ✅ Time (실제 PK 컬럼)
+#   - ❌ StartTime → ✅ Time (StartTime 컬럼 없음)
 #
 # 🔧 v2.0.0 변경사항:
 #   - core.EquipmentMapping JOIN 제거
@@ -489,11 +541,11 @@ WHERE e.SiteId = :site_id
 PRODUCTION_SNAPSHOT_QUERY = """
 SELECT 
     e.EquipmentId,
-    COUNT(ct.CycleTimeId) AS ProductionCount
+    COUNT(ct.Time) AS ProductionCount
 FROM core.Equipment e WITH (NOLOCK)
 LEFT JOIN log.CycleTime ct WITH (NOLOCK)
     ON e.EquipmentId = ct.EquipmentId
-    AND ct.StartTime >= (
+    AND ct.Time >= (
         SELECT TOP 1 OccurredAtUtc 
         FROM log.Lotinfo WITH (NOLOCK)
         WHERE EquipmentId = e.EquipmentId
