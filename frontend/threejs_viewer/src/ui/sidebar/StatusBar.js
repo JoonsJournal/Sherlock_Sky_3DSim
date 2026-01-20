@@ -50,6 +50,8 @@
  * 파일 위치: frontend/threejs_viewer/src/ui/sidebar/StatusBar.js
  */
 
+import { StatusBarPerformanceCompact } from './statusbar/StatusBarPerformanceCompact.js';
+
 // ============================================
 // Constants
 // ============================================
@@ -154,6 +156,22 @@ export class StatusBar {
         this._updateInitialState();
         
         console.log('[StatusBar] 초기화 완료 (v2.3.1 - 5 Equipment States)');
+    }
+
+    _initPerformanceSection() {
+        // 기존 성능 표시 영역 찾기 (또는 새 컨테이너 생성)
+        const rightGroup = this.element.querySelector('.status-group-right');
+        
+        if (rightGroup) {
+            // 기존 FPS, Memory 표시 제거 (선택사항)
+            // rightGroup.innerHTML = '';
+            
+            // Performance 컴포넌트 추가
+            this._perfCompact = new StatusBarPerformanceCompact(rightGroup, {
+                showAlerts: true,
+                compact: false
+            });
+        }
     }
     
     // ========================================
@@ -946,6 +964,11 @@ export class StatusBar {
         
         // 참조 정리
         this.elements = {};
+
+                if (this._perfCompact) {
+            this._perfCompact.dispose();
+            this._perfCompact = null;
+        }
         
         console.log('[StatusBar] 정리 완료');
     }

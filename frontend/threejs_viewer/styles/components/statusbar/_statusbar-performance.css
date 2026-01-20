@@ -1,0 +1,382 @@
+/**
+ * _statusbar-performance.css
+ * ==========================
+ * StatusBar Performance 섹션 스타일
+ * 
+ * Block: .statusbar-perf
+ * 
+ * @version 1.0.0
+ * @created 2026-01-21
+ * @updated 2026-01-21
+ * 
+ * @description
+ * StatusBarPerformanceCompact 컴포넌트 스타일
+ * - 컴팩트 아이콘 + 값 레이아웃
+ * - 임계값 기반 색상 변경 (good/warning/critical)
+ * - Hover 시 Tooltip (native title 속성)
+ * - Dark/Light 테마 지원
+ * 
+ * [BEM 구조]
+ * .statusbar-perf                    → Block
+ * .statusbar-perf--compact           → Modifier (컴팩트 모드)
+ * .statusbar-perf__section           → Section 그룹
+ * .statusbar-perf__item              → 개별 항목 (Icon + Value)
+ * .statusbar-perf__icon              → SVG 아이콘
+ * .statusbar-perf__value             → 숫자 값
+ * .statusbar-perf__value--warning    → Warning 상태 (노란색)
+ * .statusbar-perf__value--critical   → Critical 상태 (빨간색)
+ * .statusbar-perf__divider           → 섹션 구분선
+ * 
+ * [Design Tokens 사용]
+ * - --spacing-1, --spacing-2         → 간격
+ * - --font-family-mono               → 모노스페이스 폰트
+ * - --font-size-xs                   → 작은 텍스트
+ * - --content-primary, --content-secondary → 텍스트 색상
+ * - --color-warning, --color-error   → 상태 색상
+ * - --border-subtle                  → 구분선 색상
+ * 
+ * [COMPATIBILITY NOTE]
+ * - 기존 _status-bar.css와 충돌 없음 (별도 BEM 블록)
+ * - StatusBar.js v2.3.1+와 호환
+ * - Light/Dark 테마 모두 지원
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/statusbar/_statusbar-performance.css
+ */
+
+/* =============================================
+   Block - 전체 컨테이너
+   ============================================= */
+.statusbar-perf {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2, 8px);
+    padding: var(--spacing-1, 4px) var(--spacing-2, 8px);
+    font-family: var(--font-family-mono, 'Consolas', 'Monaco', 'Menlo', monospace);
+    font-size: var(--font-size-xs, 11px);
+}
+
+/* Compact 모드 */
+.statusbar-perf--compact {
+    gap: var(--spacing-1, 4px);
+    padding: var(--spacing-1, 4px);
+}
+
+/* =============================================
+   Section - 그룹 컨테이너
+   ============================================= */
+.statusbar-perf__section {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2, 8px);
+}
+
+/* Compact 모드 섹션 */
+.statusbar-perf--compact .statusbar-perf__section {
+    gap: var(--spacing-1, 4px);
+}
+
+/* 섹션별 스타일 (선택적) */
+.statusbar-perf__section[data-section="alerts"] .statusbar-perf__item {
+    min-width: 32px;
+}
+
+/* =============================================
+   Item - 개별 항목 (Icon + Value)
+   ============================================= */
+.statusbar-perf__item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1, 4px);
+    cursor: default;
+    transition: opacity 0.15s ease;
+}
+
+/* Hover 효과 */
+.statusbar-perf__item:hover {
+    opacity: 0.8;
+}
+
+/* Tooltip (native title) - 스타일은 브라우저 기본 */
+.statusbar-perf__item[title] {
+    position: relative;
+}
+
+/* =============================================
+   Icon - SVG 아이콘
+   ============================================= */
+.statusbar-perf__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--content-secondary, #9ca3af);
+    opacity: 0.8;
+    flex-shrink: 0;
+}
+
+.statusbar-perf__icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Compact 모드 아이콘 */
+.statusbar-perf--compact .statusbar-perf__icon svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* 아이콘 색상 - 상태별 */
+.statusbar-perf__item:has(.statusbar-perf__value--warning) .statusbar-perf__icon {
+    color: var(--color-warning, #fbbf24);
+    opacity: 1;
+}
+
+.statusbar-perf__item:has(.statusbar-perf__value--critical) .statusbar-perf__icon {
+    color: var(--color-error, #f87171);
+    opacity: 1;
+}
+
+/* :has() 미지원 브라우저용 fallback */
+@supports not selector(:has(*)) {
+    .statusbar-perf__icon {
+        color: var(--content-secondary, #9ca3af);
+    }
+}
+
+/* =============================================
+   Value - 숫자 값
+   ============================================= */
+.statusbar-perf__value {
+    color: var(--content-primary, #e5e7eb);
+    font-weight: var(--font-weight-medium, 500);
+    min-width: 28px;
+    text-align: right;
+    transition: color 0.2s ease;
+}
+
+/* Compact 모드 값 */
+.statusbar-perf--compact .statusbar-perf__value {
+    min-width: 24px;
+    font-size: var(--font-size-2xs, 10px);
+}
+
+/* Warning 상태 (노란색) */
+.statusbar-perf__value--warning {
+    color: var(--color-warning, #fbbf24);
+}
+
+/* Critical 상태 (빨간색) */
+.statusbar-perf__value--critical {
+    color: var(--color-error, #f87171);
+    animation: statusbar-perf-pulse 1s ease-in-out infinite;
+}
+
+/* =============================================
+   Divider - 섹션 구분선
+   ============================================= */
+.statusbar-perf__divider {
+    width: 1px;
+    height: 16px;
+    background: var(--border-subtle, rgba(75, 85, 99, 0.5));
+    margin: 0 var(--spacing-1, 4px);
+    flex-shrink: 0;
+}
+
+/* Compact 모드 구분선 */
+.statusbar-perf--compact .statusbar-perf__divider {
+    height: 12px;
+    margin: 0 2px;
+}
+
+/* =============================================
+   Animations
+   ============================================= */
+@keyframes statusbar-perf-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* Critical 상태 깜빡임 (강조) */
+@keyframes statusbar-perf-blink {
+    0%, 49% {
+        opacity: 1;
+    }
+    50%, 100% {
+        opacity: 0.3;
+    }
+}
+
+/* =============================================
+   Light Theme Adjustments
+   ============================================= */
+[data-theme="light"] .statusbar-perf__icon {
+    color: var(--content-secondary, #6b7280);
+}
+
+[data-theme="light"] .statusbar-perf__value {
+    color: var(--content-primary, #1f2937);
+}
+
+[data-theme="light"] .statusbar-perf__value--warning {
+    color: var(--color-warning, #d97706);
+}
+
+[data-theme="light"] .statusbar-perf__value--critical {
+    color: var(--color-error, #dc2626);
+}
+
+[data-theme="light"] .statusbar-perf__divider {
+    background: var(--border-subtle, rgba(209, 213, 219, 0.8));
+}
+
+/* =============================================
+   Responsive - 태블릿 (1024px 이하)
+   ============================================= */
+@media (max-width: 1024px) {
+    .statusbar-perf {
+        gap: var(--spacing-1, 4px);
+        padding: var(--spacing-1, 4px);
+    }
+    
+    .statusbar-perf__section {
+        gap: var(--spacing-1, 4px);
+    }
+    
+    .statusbar-perf__value {
+        min-width: 24px;
+        font-size: var(--font-size-2xs, 10px);
+    }
+    
+    .statusbar-perf__divider {
+        margin: 0 2px;
+    }
+    
+    /* Frame Time, Draw Calls 숨김 */
+    .statusbar-perf__item[data-key="frameTime"],
+    .statusbar-perf__item[data-key="drawCalls"] {
+        display: none;
+    }
+}
+
+/* =============================================
+   Responsive - 모바일 (768px 이하)
+   ============================================= */
+@media (max-width: 768px) {
+    .statusbar-perf {
+        gap: 2px;
+        padding: 2px;
+        font-size: var(--font-size-2xs, 10px);
+    }
+    
+    .statusbar-perf__section {
+        gap: 2px;
+    }
+    
+    .statusbar-perf__icon svg {
+        width: 12px;
+        height: 12px;
+    }
+    
+    .statusbar-perf__value {
+        min-width: 20px;
+    }
+    
+    .statusbar-perf__divider {
+        height: 10px;
+        margin: 0 1px;
+    }
+    
+    /* 모바일에서 Cache, Alerts 섹션 숨김 */
+    .statusbar-perf__section[data-section="cache"],
+    .statusbar-perf__section[data-section="alerts"] {
+        display: none;
+    }
+    
+    /* Cache, Alerts 앞 구분선도 숨김 */
+    .statusbar-perf__section[data-section="network"] + .statusbar-perf__divider,
+    .statusbar-perf__section[data-section="cache"] + .statusbar-perf__divider {
+        display: none;
+    }
+    
+    /* 네트워크 섹션에서 Messages Out 숨김 */
+    .statusbar-perf__item[data-key="messagesOut"] {
+        display: none;
+    }
+}
+
+/* =============================================
+   Print - 숨김
+   ============================================= */
+@media print {
+    .statusbar-perf {
+        display: none;
+    }
+}
+
+/* =============================================
+   High Contrast Mode
+   ============================================= */
+@media (prefers-contrast: high) {
+    .statusbar-perf__value--warning {
+        color: #ffd700;
+        font-weight: bold;
+    }
+    
+    .statusbar-perf__value--critical {
+        color: #ff0000;
+        font-weight: bold;
+    }
+    
+    .statusbar-perf__divider {
+        background: var(--content-secondary);
+    }
+}
+
+/* =============================================
+   Reduced Motion
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+    .statusbar-perf__value--critical {
+        animation: none;
+    }
+    
+    .statusbar-perf__item {
+        transition: none;
+    }
+    
+    .statusbar-perf__value {
+        transition: none;
+    }
+}
+
+/* =============================================
+   Accessibility - Focus States
+   ============================================= */
+.statusbar-perf__item:focus-visible {
+    outline: 2px solid var(--color-primary, #3b82f6);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* =============================================
+   Utility Classes (선택적)
+   ============================================= */
+
+/* 숨김 */
+.statusbar-perf--hidden {
+    display: none !important;
+}
+
+/* 로딩 상태 */
+.statusbar-perf--loading .statusbar-perf__value {
+    opacity: 0.5;
+}
+
+/* 비활성화 상태 */
+.statusbar-perf--disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}

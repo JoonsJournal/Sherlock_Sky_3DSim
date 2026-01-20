@@ -129,6 +129,12 @@
 
 /* Status Bar & Cover Screen */
 @import './components/_status-bar.css';
+/* =============================================
+   Layer 4: Components - StatusBar (Phase 5)
+   =============================================
+   StatusBar Performance 섹션 (UDS 통합)
+   ============================================= */
+@import './components/statusbar/_statusbar-performance.css';
 @import './components/_cover-screen.css';
 
 /* Mode Indicator Panel */
