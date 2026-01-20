@@ -39,7 +39,7 @@ import asyncio
 import os
 
 # UDS 모델 Import
-from ..models.uds.uds_models import (
+from ...models.uds.uds_models import (
     UDSInitialResponse,
     EquipmentData,
     StatusStats,
@@ -48,7 +48,7 @@ from ..models.uds.uds_models import (
 )
 
 # UDS 서비스 Import
-from ..services.uds.uds_service import uds_service
+from ...services.uds.uds_service import uds_service
 
 logger = logging.getLogger(__name__)
 
