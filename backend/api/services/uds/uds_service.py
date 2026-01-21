@@ -3,12 +3,30 @@ uds_service.py
 UDS 비즈니스 로직 서비스
 MSSQL 직접 연결 + JSON 매핑 로드 + In-Memory 상태 캐시 (Diff용)
 
-@version 2.1.0
+@version 2.2.0
 @description
 - fetch_all_equipments: 배치 쿼리로 전체 설비 조회 (117개)
 - fetch_equipment_by_frontend_id: 단일 설비 조회
 - compute_diff: 이전 상태와 현재 상태 비교하여 Delta 생성
 - calculate_stats: 상태별 통계 계산
+
+🔧 v2.2.0: core.Equipment 스키마 호환 수정
+- ❌ SiteId, LineId, IsActive 컬럼은 DB에 존재하지 않음!
+- ✅ JSON 매핑 파일의 equipment_id 목록으로 IN 절 필터링
+- _get_equipment_ids_str(): 매핑에서 equipment_id 목록 추출
+- 모든 쿼리: WHERE e.EquipmentId IN ({equipment_ids})
+- ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
+
+🔧 v2.1.2: connection_test.py 통합 (기존 시스템 사용)
+- multi_connection_manager.py 제거 → connection_test.py 사용
+- connection_test.py 연결 정보로 SQLAlchemy engine 직접 생성
+- 기존 쿼리 파일 (uds_queries.py) 100% 호환 유지
+- ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
+
+🔧 v2.1.1: compute_diff 자동 초기화
+- _previous_state가 비어있으면 자동으로 fetch_all_equipments() 호출
+- Status Watcher 시작 시 Frontend 연결 없이도 정상 동작
+- ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
 
 🆕 v2.1.0: 실시간 생산량/Tact Time Delta 업데이트
 - compute_diff(): PRODUCTION_SNAPSHOT_QUERY, BATCH_TACT_TIME_QUERY 추가
@@ -23,6 +41,24 @@ MSSQL 직접 연결 + JSON 매핑 로드 + In-Memory 상태 캐시 (Diff용)
 - equipment_id ↔ frontend_id 역매핑 테이블 관리
 
 @changelog
+- v2.2.0: 🔧 core.Equipment 스키마 호환 수정 (2026-01-21)
+          - ❌ SiteId, LineId, IsActive 컬럼은 DB에 존재하지 않음!
+          - ✅ JSON 매핑의 equipment_id 목록으로 IN 절 필터링
+          - _get_equipment_ids_str() 헬퍼 메서드 추가
+          - fetch_all_equipments(): 쿼리에 equipment_ids 주입
+          - compute_diff(): 쿼리에 equipment_ids 주입
+          - ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
+- v2.1.2: 🔧 connection_test.py 통합 (2026-01-21)
+          - multi_connection_manager.py 의존성 제거
+          - connection_test.py 연결 정보 + SQLAlchemy engine 직접 생성
+          - 기존 쿼리 (:param 형식) 100% 호환
+          - _engines 캐시로 연결 재사용
+          - ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
+- v2.1.1: 🔧 compute_diff 자동 초기화 (2026-01-21)
+          - _previous_state 비어있으면 자동으로 fetch_all_equipments() 호출
+          - Status Watcher 시작 시 "No previous state" 경고 해결
+          - Frontend 연결 전에도 Watcher 정상 동작
+          - ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
 - v2.1.0: 🆕 실시간 생산량/Tact Time Delta 업데이트 (2026-01-21)
           - compute_diff()에서 PRODUCTION_SNAPSHOT_QUERY 실행
           - compute_diff()에서 BATCH_TACT_TIME_QUERY 실행
@@ -44,9 +80,10 @@ MSSQL 직접 연결 + JSON 매핑 로드 + In-Memory 상태 캐시 (Diff용)
 
 @dependencies
 - sqlalchemy
+- pyodbc (via connection_test.py)
 - models/uds/uds_models.py
 - services/uds/uds_queries.py
-- database/multi_connection_manager.py
+- database/connection_test.py
 
 📁 위치: backend/api/services/uds/uds_service.py
 작성일: 2026-01-20
@@ -59,9 +96,11 @@ import json
 import os
 from datetime import datetime
 from contextlib import contextmanager
+from urllib.parse import quote_plus
 
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import QueuePool
 
 # UDS 모델 Import
 from ...models.uds.uds_models import (
@@ -89,8 +128,8 @@ from .uds_queries import (
     generate_frontend_id  # 🆕 v2.0.0
 )
 
-# DB 연결 Import
-from ...database.multi_connection_manager import connection_manager
+# 🔧 v2.1.2: 기존 connection_test.py 사용 (multi_connection_manager 제거)
+from ...database.connection_test import get_connection_manager
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +194,13 @@ class UDSService:
         self._last_fetch_time: Optional[datetime] = None
         
         # ===================================================================
+        # 🆕 v2.1.2: SQLAlchemy 엔진 캐시
+        # ===================================================================
+        # {site_name}_{db_name} → SQLAlchemy Engine
+        self._engines: Dict[str, Any] = {}
+        self._session_factories: Dict[str, sessionmaker] = {}
+        
+        # ===================================================================
         # 🆕 v2.0.0: 매핑 캐시
         # ===================================================================
         # equipment_id → {frontend_id, equipment_name, grid_row, grid_col, ...}
@@ -169,25 +215,161 @@ class UDSService:
         # 매핑 로드 시간
         self._mapping_loaded_at: Optional[datetime] = None
         
-        logger.info("🚀 UDSService initialized (v2.1.0 - Realtime Production/TactTime Delta)")
+        logger.info("🚀 UDSService initialized (v2.1.2 - connection_test.py 통합)")
     
     # ========================================================================
-    # Context Manager: DB Session
+    # Context Manager: DB Session (🔧 v2.1.2 connection_test.py 통합)
     # ========================================================================
+    
+    def _get_or_create_engine(self, site_name: str, db_name: str):
+        """
+        SQLAlchemy 엔진 가져오기 또는 생성
+        
+        🆕 v2.1.2: connection_test.py 연결 정보로 SQLAlchemy engine 생성
+        
+        Args:
+            site_name: 사이트 이름 (예: korea_site1)
+            db_name: DB 이름 (예: SherlockSky)
+            
+        Returns:
+            SQLAlchemy Engine
+        """
+        cache_key = f"{site_name}_{db_name}"
+        
+        # 캐시에 있으면 반환
+        if cache_key in self._engines:
+            return self._engines[cache_key]
+        
+        # connection_test.py에서 연결 정보 가져오기
+        manager = get_connection_manager()
+        
+        if site_name not in manager.databases_config:
+            raise ConnectionError(f"Site not found in config: {site_name}")
+        
+        site_config = manager.databases_config[site_name]
+        databases = site_config.get('databases', {})
+        
+        if db_name not in databases:
+            raise ConnectionError(f"Database not found: {site_name}/{db_name}")
+        
+        # 연결 URL 생성
+        db_type = site_config.get('type', 'mssql').lower()
+        host = site_config.get('host')
+        port = site_config.get('port', 1433)
+        user = site_config.get('user')
+        password = site_config.get('password')
+        database = databases[db_name]
+        
+        if db_type == 'mssql':
+            # ODBC 드라이버 감지
+            driver = self._get_mssql_driver()
+            driver_encoded = quote_plus(driver)
+            
+            connection_url = (
+                f"mssql+pyodbc://{user}:{password}@"
+                f"{host}:{port}/{database}"
+                f"?driver={driver_encoded}"
+                f"&TrustServerCertificate=yes"
+                f"&Encrypt=yes"
+            )
+        elif db_type == 'postgresql':
+            connection_url = (
+                f"postgresql://{user}:{password}@"
+                f"{host}:{port}/{database}"
+            )
+        else:
+            raise ValueError(f"Unsupported database type: {db_type}")
+        
+        # 엔진 생성
+        engine = create_engine(
+            connection_url,
+            poolclass=QueuePool,
+            pool_size=5,
+            max_overflow=10,
+            pool_timeout=30,
+            pool_recycle=3600,
+            pool_pre_ping=True
+        )
+        
+        # 캐시에 저장
+        self._engines[cache_key] = engine
+        
+        # 세션 팩토리도 생성
+        self._session_factories[cache_key] = sessionmaker(
+            bind=engine,
+            autocommit=False,
+            autoflush=False
+        )
+        
+        logger.info(f"✅ Created SQLAlchemy engine: {site_name}/{db_name}")
+        
+        return engine
+    
+    def _get_mssql_driver(self) -> str:
+        """설치된 MSSQL ODBC 드라이버 감지"""
+        try:
+            import pyodbc
+            drivers = pyodbc.drivers()
+            
+            preferred_drivers = [
+                'ODBC Driver 18 for SQL Server',
+                'ODBC Driver 17 for SQL Server',
+                'ODBC Driver 13 for SQL Server',
+                'SQL Server Native Client 11.0',
+                'SQL Server'
+            ]
+            
+            for driver in preferred_drivers:
+                if driver in drivers:
+                    return driver
+            
+            for driver in drivers:
+                if 'SQL Server' in driver:
+                    return driver
+            
+            return 'ODBC Driver 17 for SQL Server'
+            
+        except ImportError:
+            return 'ODBC Driver 17 for SQL Server'
     
     @contextmanager
     def _get_session(self, site_id: str = None, db_name: str = None):
         """
         DB Session Context Manager
         
+        🔧 v2.1.2: connection_test.py 연결 정보로 SQLAlchemy session 생성
+        
         Args:
-            site_id: Site ID (None이면 기본값)
-            db_name: DB 이름 (None이면 기본값)
+            site_id: Site ID (None이면 연결된 사이트에서 가져옴)
+            db_name: DB 이름 (None이면 연결된 사이트에서 가져옴)
             
         Yields:
             Session: SQLAlchemy 세션
         """
-        session = connection_manager.get_session(site_id, db_name)
+        # 🔧 v2.1.1: 파라미터가 None이면 연결된 사이트에서 가져오기
+        if site_id is None or db_name is None:
+            connected_sites = self._get_connected_sites()
+            if connected_sites:
+                first_site_id = list(connected_sites.keys())[0]
+                site_info = connected_sites[first_site_id]
+                if site_id is None:
+                    site_id = site_info.get('site_name')
+                if db_name is None:
+                    db_name = site_info.get('db_name')
+                logger.debug(f"Using connected site for session: {site_id}/{db_name}")
+        
+        if site_id is None or db_name is None:
+            raise ConnectionError("No site connected. Please connect via /api/connections/connect")
+        
+        # 엔진 및 세션 팩토리 가져오기
+        cache_key = f"{site_id}_{db_name}"
+        
+        if cache_key not in self._session_factories:
+            self._get_or_create_engine(site_id, db_name)
+        
+        factory = self._session_factories[cache_key]
+        session = factory()
+        
         try:
             yield session
         finally:
@@ -331,24 +513,76 @@ class UDSService:
         """
         return self._mapping_cache.get(equipment_id)
     
-    def _derive_site_id_from_connection(self, db_site: str = None, db_name: str = None) -> str:
+    def _get_equipment_ids_str(self) -> str:
+        """
+        🆕 v2.2.0: 매핑 캐시에서 equipment_id 목록 추출
+        
+        IN 절에 사용할 문자열 형태로 반환
+        
+        Returns:
+            "1, 2, 3, ..., 117" 형식의 문자열
+            
+        Raises:
+            ValueError: 매핑이 비어있는 경우
+            
+        Example:
+            >>> ids_str = self._get_equipment_ids_str()
+            >>> query = BATCH_EQUIPMENT_QUERY.format(equipment_ids=ids_str)
+        """
+        if not self._mapping_cache:
+            raise ValueError("Mapping cache is empty. Load mapping first.")
+        
+        equipment_ids = sorted(self._mapping_cache.keys())
+        return ", ".join(str(eq_id) for eq_id in equipment_ids)
+    
+    def _get_connected_sites(self) -> Dict[str, Any]:
+        """
+        🆕 v2.1.1: 현재 연결된 사이트 목록 가져오기
+        (equipment_mapping_v2.py의 get_connected_sites()와 동일)
+        """
+        try:
+            from ...routers.connection_manager import _connected_sites
+            return _connected_sites
+        except ImportError as e:
+            logger.warning(f"⚠️ Could not import _connected_sites: {e}")
+            return {}
+        except Exception as e:
+            logger.error(f"❌ Error getting connected sites: {e}")
+            return {}
+    
+    def _derive_site_id_from_connection(self, db_site: str = None, db_name: str = None) -> Optional[str]:
         """
         연결 정보에서 Site ID 유도
+        
+        🔧 v2.1.1: 기존 equipment_mapping_v2.py 로직과 동일하게 수정
+                   1순위: 현재 연결된 사이트에서 가져오기 (_connected_sites)
+                   2순위: 파라미터로 전달된 값 사용
+                   ❌ 3순위 제거: 연결 없으면 None 반환 (default fallback 안 함)
         
         Args:
             db_site: Site 키 (예: "korea_site1")
             db_name: DB 이름 (예: "line1")
             
         Returns:
-            Site ID (예: "korea_site1_line1")
+            Site ID (예: "korea_site1_line1") 또는 None (연결 없음)
         """
-        # 기본값 사용
-        if not db_site:
-            db_site = "korea_site1"  # TODO: connection_manager에서 가져오기
-        if not db_name:
-            db_name = "line1"  # TODO: connection_manager에서 가져오기
+        # 1순위: 현재 연결된 사이트에서 가져오기 (equipment_mapping_v2.py 방식)
+        connected_sites = self._get_connected_sites()
         
-        return f"{db_site}_{db_name}"
+        if connected_sites:
+            site_id = list(connected_sites.keys())[0]
+            logger.debug(f"✅ Using connected site: {site_id}")
+            return site_id
+        
+        # 2순위: 파라미터로 전달된 값 사용
+        if db_site and db_name:
+            site_id = f"{db_site}_{db_name}"
+            logger.debug(f"📌 Using parameter site: {site_id}")
+            return site_id
+        
+        # 🔧 v2.1.1: 연결된 사이트 없으면 None 반환 (default fallback 안 함!)
+        logger.debug("⏳ No connected site yet, waiting...")
+        return None
     
     # ========================================================================
     # 배치 조회: 전체 설비 초기 로드
@@ -388,21 +622,37 @@ class UDSService:
         start_time = datetime.utcnow()
         
         # ===================================================================
-        # 🆕 v2.0.0: 매핑 파일 로드 (Site 변경 시 자동 갱신)
+        # 🔧 v2.1.1: 연결된 사이트 확인 (사이트 연결 전이면 에러)
         # ===================================================================
         mapping_site_id = self._derive_site_id_from_connection(db_site, db_name)
+        
+        if mapping_site_id is None:
+            logger.warning("⚠️ No site connected yet, cannot fetch equipments")
+            raise ConnectionError("No site connected. Please connect to a site first via /api/connections/connect")
+        
+        # ===================================================================
+        # 🆕 v2.0.0: 매핑 파일 로드 (Site 변경 시 자동 갱신)
+        # ===================================================================
         self._load_mapping_config(mapping_site_id)
+        
+        # ===================================================================
+        # 🆕 v2.2.0: 매핑에서 equipment_id 목록 추출
+        # ===================================================================
+        try:
+            equipment_ids_str = self._get_equipment_ids_str()
+            logger.info(f"  → 매핑 기준 equipment_ids: {len(self._mapping_cache)}개")
+        except ValueError as e:
+            logger.error(f"❌ Failed to get equipment IDs: {e}")
+            raise
         
         with self._get_session(db_site, db_name) as session:
             try:
                 # =============================================================
                 # Step 1: 기본 설비 정보 배치 조회
-                # 🔧 v2.0.0: core.EquipmentMapping JOIN 제거됨
+                # 🔧 v2.2.0: IN 절로 매핑된 설비만 조회
                 # =============================================================
-                result = session.execute(
-                    text(BATCH_EQUIPMENT_QUERY),
-                    {"site_id": site_id, "line_id": line_id}
-                )
+                query = BATCH_EQUIPMENT_QUERY.format(equipment_ids=equipment_ids_str)
+                result = session.execute(text(query))
                 rows = result.fetchall()
                 columns = result.keys()
                 
@@ -410,13 +660,10 @@ class UDSService:
                 
                 # =============================================================
                 # Step 2: 생산량 배치 조회
-                # 🔧 v2.0.0: EquipmentId만 반환 (FrontendId 제거)
-                # 🐛 v2.1.0: COUNT(ct.Time) 사용 (CycleTimeId 없음)
+                # 🔧 v2.2.0: IN 절로 매핑된 설비만 조회
                 # =============================================================
-                prod_result = session.execute(
-                    text(PRODUCTION_COUNT_QUERY),
-                    {"site_id": site_id, "line_id": line_id}
-                )
+                prod_query = PRODUCTION_COUNT_QUERY.format(equipment_ids=equipment_ids_str)
+                prod_result = session.execute(text(prod_query))
                 prod_rows = prod_result.fetchall()
                 
                 # 🔧 v2.0.0: equipment_id 기반 맵 (기존: frontend_id)
@@ -427,13 +674,10 @@ class UDSService:
                 
                 # =============================================================
                 # Step 3: Tact Time 배치 조회
-                # 🔧 v2.0.0: EquipmentId만 반환 (FrontendId 제거)
-                # 🐛 v2.1.0: ct.Time 사용 (StartTime 없음)
+                # 🔧 v2.2.0: IN 절로 매핑된 설비만 조회
                 # =============================================================
-                tact_result = session.execute(
-                    text(BATCH_TACT_TIME_QUERY),
-                    {"site_id": site_id, "line_id": line_id}
-                )
+                tact_query = BATCH_TACT_TIME_QUERY.format(equipment_ids=equipment_ids_str)
+                tact_result = session.execute(text(tact_query))
                 tact_rows = tact_result.fetchall()
                 
                 # 🔧 v2.0.0: equipment_id 기반 맵 (기존: frontend_id)
@@ -502,9 +746,17 @@ class UDSService:
         logger.info(f"📡 Fetching equipment: {frontend_id}")
         
         # ===================================================================
-        # 🆕 v2.0.0: frontend_id → equipment_id 변환
+        # 🔧 v2.1.1: 연결된 사이트 확인
         # ===================================================================
         mapping_site_id = self._derive_site_id_from_connection(db_site, db_name)
+        
+        if mapping_site_id is None:
+            logger.warning("⚠️ No site connected yet, cannot fetch equipment")
+            return None
+        
+        # ===================================================================
+        # 🆕 v2.0.0: frontend_id → equipment_id 변환
+        # ===================================================================
         self._load_mapping_config(mapping_site_id)
         
         equipment_id = self._get_equipment_id(frontend_id)
@@ -564,7 +816,13 @@ class UDSService:
         """
         logger.info(f"📡 Fetching equipment by ID: {equipment_id}")
         
+        # 🔧 v2.1.1: 연결된 사이트 확인
         mapping_site_id = self._derive_site_id_from_connection(db_site, db_name)
+        
+        if mapping_site_id is None:
+            logger.warning("⚠️ No site connected yet, cannot fetch equipment")
+            return None
+        
         self._load_mapping_config(mapping_site_id)
         
         with self._get_session(db_site, db_name) as session:
@@ -641,25 +899,51 @@ class UDSService:
         Returns:
             List[DeltaUpdate]: 변경된 설비 Delta 목록 (변경 없으면 빈 리스트)
         """
+        # ===================================================================
+        # 🔧 v2.1.1: 연결된 사이트 확인 (사이트 연결 전이면 스킵)
+        # ===================================================================
+        mapping_site_id = self._derive_site_id_from_connection(db_site, db_name)
+        
+        if mapping_site_id is None:
+            # 아직 사이트가 연결되지 않음 - 조용히 스킵
+            logger.debug("⏳ No site connected yet, skipping diff...")
+            return []
+        
+        # ===================================================================
+        # 🔧 v2.1.1: 자동 초기화 - _previous_state가 비어있으면 자동 로드
+        # ===================================================================
         if not self._previous_state:
-            logger.warning("⚠️ No previous state for diff (run fetch_all first)")
+            logger.info(f"🔄 Auto-initializing previous state for {mapping_site_id}...")
+            try:
+                self.fetch_all_equipments(site_id, line_id, db_site, db_name)
+                logger.info("✅ Previous state initialized, will compute diff on next cycle")
+            except Exception as e:
+                logger.error(f"❌ Failed to auto-initialize previous state: {e}")
+            # 첫 번째 호출은 초기화만 수행, 다음 호출부터 실제 diff 계산
             return []
         
         # ===================================================================
         # 🆕 v2.0.0: 매핑 로드 확인
         # ===================================================================
-        mapping_site_id = self._derive_site_id_from_connection(db_site, db_name)
         self._load_mapping_config(mapping_site_id)
+        
+        # ===================================================================
+        # 🆕 v2.2.0: 매핑에서 equipment_id 목록 추출
+        # ===================================================================
+        try:
+            equipment_ids_str = self._get_equipment_ids_str()
+        except ValueError as e:
+            logger.warning(f"⚠️ No equipment IDs available: {e}")
+            return []
         
         with self._get_session(db_site, db_name) as session:
             try:
                 # =============================================================
                 # Step 1: 상태 스냅샷 조회 (경량 쿼리)
+                # 🔧 v2.2.0: IN 절로 매핑된 설비만 조회
                 # =============================================================
-                status_result = session.execute(
-                    text(STATUS_SNAPSHOT_QUERY),
-                    {"site_id": site_id, "line_id": line_id}
-                )
+                status_query = STATUS_SNAPSHOT_QUERY.format(equipment_ids=equipment_ids_str)
+                status_result = session.execute(text(status_query))
                 status_rows = status_result.fetchall()
                 
                 # equipment_id → status 정보 맵
@@ -679,11 +963,10 @@ class UDSService:
                 
                 # =============================================================
                 # 🆕 v2.1.0 Step 2: 생산량 스냅샷 조회
+                # 🔧 v2.2.0: IN 절로 매핑된 설비만 조회
                 # =============================================================
-                prod_result = session.execute(
-                    text(PRODUCTION_SNAPSHOT_QUERY),
-                    {"site_id": site_id, "line_id": line_id}
-                )
+                prod_query = PRODUCTION_SNAPSHOT_QUERY.format(equipment_ids=equipment_ids_str)
+                prod_result = session.execute(text(prod_query))
                 prod_rows = prod_result.fetchall()
                 
                 # equipment_id → production_count 맵
@@ -694,11 +977,10 @@ class UDSService:
                 
                 # =============================================================
                 # 🆕 v2.1.0 Step 3: Tact Time 조회
+                # 🔧 v2.2.0: IN 절로 매핑된 설비만 조회
                 # =============================================================
-                tact_result = session.execute(
-                    text(BATCH_TACT_TIME_QUERY),
-                    {"site_id": site_id, "line_id": line_id}
-                )
+                tact_query = BATCH_TACT_TIME_QUERY.format(equipment_ids=equipment_ids_str)
+                tact_result = session.execute(text(tact_query))
                 tact_rows = tact_result.fetchall()
                 
                 # equipment_id → tact_time_seconds 맵

@@ -11,26 +11,27 @@ API Endpoints:
 - WS   /api/uds/stream                    : Delta Update 스트림
 - POST /api/uds/refresh                   : 강제 갱신 (관리자)
 
-@version 1.0.0
+@version 1.2.0
 @changelog
+- v1.2.0: 🔧 WebSocket 중복 로직 제거 (2026-01-21)
+          - WebSocket 엔드포인트의 자체 Diff 루프 제거
+          - Status Watcher 브로드캐스트만 사용
+          - Ping/Pong은 클라이언트 메시지 수신 시에만 처리
+          - ✅ 중복 쿼리 제거: N개 클라이언트 연결해도 1번만 쿼리
+- v1.1.0: 🔧 site_id, line_id 파라미터 제거
 - v1.0.0: 초기 버전
-          - MSSQL 직접 연결 방식 (TimescaleDB/Redis 미사용)
-          - 배치 쿼리로 117개 설비 초기 로드
-          - WebSocket Delta Update 스트림
-          - 10초 주기 Diff 감지
-          - ⚠️ 호환성: 기존 monitoring.py와 병렬 운영 가능
 
 @dependencies
 - FastAPI (APIRouter, WebSocket)
 - services/uds/uds_service.py
 - models/uds/uds_models.py
 
-📁 위치: backend/api/routers/uds.py
+📁 위치: backend/api/routers/uds/uds.py
 작성일: 2026-01-20
-수정일: 2026-01-20
+수정일: 2026-01-21
 """
 
-from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from typing import Optional, Set
 from datetime import datetime
@@ -78,8 +79,12 @@ class ConnectionManager:
     
     [기능]
     - 클라이언트 연결/해제 관리
-    - 브로드캐스트 메시지 전송
+    - 브로드캐스트 메시지 전송 (Status Watcher에서 호출)
     - 연결 수 추적
+    
+    🔧 v1.2.0: 자체 Diff 루프 제거
+    - WebSocket 엔드포인트는 클라이언트 메시지만 처리
+    - Delta 업데이트는 Status Watcher가 broadcast_delta() 호출
     """
     
     def __init__(self):
@@ -97,15 +102,22 @@ class ConnectionManager:
         logger.info(f"🔌 WebSocket disconnected (total: {len(self.active_connections)})")
     
     async def broadcast(self, message: dict):
-        """모든 연결된 클라이언트에 메시지 전송"""
+        """
+        모든 연결된 클라이언트에 메시지 전송
+        
+        Status Watcher의 broadcast_delta()에서 호출됨
+        """
         if not self.active_connections:
+            logger.debug("No active WebSocket connections to broadcast")
             return
         
         disconnected = set()
+        sent_count = 0
         
         for connection in self.active_connections:
             try:
                 await connection.send_json(message)
+                sent_count += 1
             except Exception as e:
                 logger.warning(f"⚠️ Failed to send to client: {e}")
                 disconnected.add(connection)
@@ -113,6 +125,9 @@ class ConnectionManager:
         # 실패한 연결 제거
         for conn in disconnected:
             self.active_connections.discard(conn)
+        
+        if sent_count > 0:
+            logger.debug(f"📤 Broadcasted to {sent_count} clients")
     
     @property
     def count(self) -> int:
@@ -143,7 +158,7 @@ async def health_check():
     return {
         "status": "ok",
         "service": "uds",
-        "version": "1.0.0",
+        "version": "1.2.0",
         "enabled": UDS_ENABLED,
         "architecture": "direct_mssql",
         "poll_interval_seconds": UDS_POLL_INTERVAL,
@@ -159,18 +174,14 @@ async def health_check():
 
 
 @router.get("/initial", response_model=UDSInitialResponse)
-async def get_initial_data(
-    site_id: int = Query(1, description="Factory Site ID", ge=1),
-    line_id: int = Query(1, description="Factory Line ID", ge=1)
-):
+async def get_initial_data():
     """
     전체 설비 초기 데이터 조회 (배치 쿼리)
     
     Frontend 앱 시작 시 1회 호출.
     3D View, Ranking View 공통으로 사용.
     
-    - **site_id**: Factory Site ID (기본값: 1)
-    - **line_id**: Factory Line ID (기본값: 1)
+    ⚠️ 사전 조건: /api/connections/connect로 사이트 연결 필요
     
     Returns:
         - equipments: 117개 설비 데이터
@@ -195,7 +206,10 @@ async def get_initial_data(
     }
     ```
     """
-    logger.info(f"📡 GET /api/uds/initial (site_id={site_id}, line_id={line_id})")
+    site_id = 1
+    line_id = 1
+    
+    logger.info(f"📡 GET /api/uds/initial")
     
     if not UDS_ENABLED:
         raise HTTPException(
@@ -302,20 +316,22 @@ async def get_cache_stats():
 
 
 @router.post("/refresh")
-async def refresh_cache(
-    site_id: int = Query(1, description="Factory Site ID", ge=1),
-    line_id: int = Query(1, description="Factory Line ID", ge=1)
-):
+async def refresh_cache():
     """
     캐시 강제 갱신 (관리자용)
     
     전체 설비 데이터를 다시 로드하고 In-Memory 캐시 갱신.
     일반적으로 사용할 필요 없음 (자동 동기화).
     
+    ⚠️ 사전 조건: /api/connections/connect로 사이트 연결 필요
+    
     Returns:
         갱신 결과
     """
-    logger.info(f"🔄 POST /api/uds/refresh (site_id={site_id}, line_id={line_id})")
+    site_id = 1
+    line_id = 1
+    
+    logger.info(f"🔄 POST /api/uds/refresh")
     
     if not UDS_ENABLED:
         raise HTTPException(
@@ -345,37 +361,41 @@ async def refresh_cache(
 
 
 # =============================================================================
-# WebSocket Endpoint
+# WebSocket Endpoint (🔧 v1.2.0: 자체 루프 제거)
 # =============================================================================
 
 @router.websocket("/stream")
-async def websocket_stream(
-    websocket: WebSocket,
-    site_id: int = Query(1),
-    line_id: int = Query(1)
-):
+async def websocket_stream(websocket: WebSocket):
     """
     WebSocket Delta Update 스트림
     
+    🔧 v1.2.0 변경사항:
+    - 자체 Diff 루프 제거 (중복 쿼리 방지)
+    - Status Watcher의 broadcast_delta()만 사용
+    - 클라이언트 메시지 수신 대기만 수행 (Ping/Pong, Manual Refresh)
+    
+    ⚠️ 사전 조건: /api/connections/connect로 사이트 연결 필요
+    
     [연결 프로토콜]
-    1. 클라이언트 연결 → accept
-    2. 10초마다 Diff 감지 → 변경분 전송
-    3. 클라이언트 Ping → Pong 응답
+    1. 클라이언트 연결 → accept → Welcome 메시지 전송
+    2. Status Watcher가 10초마다 Diff 감지 → broadcast_delta() → 모든 클라이언트에 전송
+    3. 클라이언트 Ping → Pong 응답 (Keep-alive)
     
     [메시지 타입]
     - Client → Server:
       - {"type": "ping"} : Keep-alive
-      - {"type": "refresh"} : 수동 갱신 요청
+      - {"type": "refresh"} : 수동 갱신 요청 (현재 캐시 상태 즉시 전송)
       
     - Server → Client:
+      - {"type": "welcome", ...} : 연결 성공
       - {"type": "pong", "timestamp": "..."} : Ping 응답
-      - {"type": "batch_delta", "updates": [...], "timestamp": "..."} : 변경 데이터
+      - {"type": "batch_delta", "updates": [...]} : 변경 데이터 (Status Watcher가 전송)
+      - {"type": "current_state", "count": N} : 수동 갱신 응답
       - {"type": "error", "message": "..."} : 에러 메시지
-    
-    Query Parameters:
-        - site_id: Factory Site ID
-        - line_id: Factory Line ID
     """
+    site_id = 1
+    line_id = 1
+    
     if not UDS_ENABLED:
         await websocket.close(code=1008, reason="UDS feature is disabled")
         return
@@ -383,68 +403,62 @@ async def websocket_stream(
     await ws_manager.connect(websocket)
     
     try:
+        # 연결 환영 메시지
+        await websocket.send_json({
+            "type": "welcome",
+            "message": "Connected to UDS Stream",
+            "poll_interval_seconds": UDS_POLL_INTERVAL,
+            "architecture": "status_watcher_broadcast",
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+        # 🔧 v1.2.0: 클라이언트 메시지만 대기 (자체 Diff 루프 제거)
         while True:
-            try:
-                # =============================================================
-                # 클라이언트 메시지 대기 (timeout으로 주기적 Diff 실행)
-                # =============================================================
-                data = await asyncio.wait_for(
-                    websocket.receive_json(),
-                    timeout=float(UDS_POLL_INTERVAL)  # 10초 Diff 주기
-                )
-                
-                # Ping 처리
-                if data.get('type') == 'ping':
-                    await websocket.send_json({
-                        'type': 'pong',
-                        'timestamp': datetime.utcnow().isoformat()
-                    })
-                
-                # 수동 refresh 요청 처리
-                elif data.get('type') == 'refresh':
-                    logger.info("🔄 Manual refresh requested via WebSocket")
-                    try:
-                        deltas = uds_service.compute_diff(site_id, line_id)
-                        if deltas:
-                            batch_update = BatchDeltaUpdate(
-                                updates=deltas,
-                                timestamp=datetime.utcnow()
-                            )
-                            await websocket.send_json({
-                                "type": "batch_delta",
-                                **batch_update.model_dump()
-                            })
-                        else:
-                            await websocket.send_json({
-                                "type": "no_changes",
-                                "timestamp": datetime.utcnow().isoformat()
-                            })
-                    except Exception as e:
-                        await websocket.send_json({
-                            "type": "error",
-                            "message": str(e),
-                            "timestamp": datetime.utcnow().isoformat()
-                        })
-                
-            except asyncio.TimeoutError:
-                # =============================================================
-                # 10초마다 Diff 실행
-                # =============================================================
+            # 클라이언트 메시지 수신 대기 (무한 대기)
+            data = await websocket.receive_json()
+            
+            # ============================================================
+            # Ping 처리
+            # ============================================================
+            if data.get('type') == 'ping':
+                await websocket.send_json({
+                    'type': 'pong',
+                    'timestamp': datetime.utcnow().isoformat()
+                })
+                logger.debug("🏓 Pong sent")
+            
+            # ============================================================
+            # 수동 Refresh 요청 처리
+            # ============================================================
+            elif data.get('type') == 'refresh':
+                logger.info("🔄 Manual refresh requested via WebSocket")
                 try:
-                    deltas = uds_service.compute_diff(site_id, line_id)
+                    # 현재 캐시 정보만 전송 (Diff는 Status Watcher가 담당)
+                    cache_info = uds_service.get_cache_info()
                     
-                    if deltas:
-                        batch_update = BatchDeltaUpdate(
-                            updates=deltas,
-                            timestamp=datetime.utcnow()
-                        )
-                        await websocket.send_json({
-                            "type": "batch_delta",
-                            **batch_update.model_dump()
-                        })
+                    await websocket.send_json({
+                        "type": "current_state",
+                        "cached_count": cache_info["cached_count"],
+                        "last_fetch": cache_info["last_fetch_time"],
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
                 except Exception as e:
-                    logger.error(f"❌ Diff computation error: {e}")
-                    # 에러 발생해도 연결 유지
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": f"Refresh failed: {str(e)}",
+                        "timestamp": datetime.utcnow().isoformat()
+                    })
+            
+            # ============================================================
+            # 알 수 없는 메시지 타입
+            # ============================================================
+            else:
+                logger.warning(f"⚠️ Unknown message type: {data.get('type')}")
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"Unknown message type: {data.get('type')}",
+                    "timestamp": datetime.utcnow().isoformat()
+                })
                     
     except WebSocketDisconnect:
         logger.info("🔌 WebSocket client disconnected normally")
@@ -462,10 +476,16 @@ async def broadcast_delta(deltas: list):
     """
     Delta Update 브로드캐스트 (Status Watcher에서 호출)
     
+    🔧 v1.2.0: 이 함수가 유일한 Delta 전송 경로
+    - Status Watcher가 10초마다 Diff 감지
+    - 변경 발생 시 이 함수 호출
+    - 모든 연결된 WebSocket 클라이언트에 브로드캐스트
+    
     Args:
         deltas: DeltaUpdate 목록
     """
     if not deltas:
+        logger.debug("No delta updates to broadcast")
         return
     
     batch_update = BatchDeltaUpdate(
@@ -473,10 +493,14 @@ async def broadcast_delta(deltas: list):
         timestamp=datetime.utcnow()
     )
     
-    await ws_manager.broadcast({
+    message = {
         "type": "batch_delta",
         **batch_update.model_dump()
-    })
+    }
+    
+    await ws_manager.broadcast(message)
+    
+    logger.info(f"📤 Broadcasted {len(deltas)} delta updates to {ws_manager.count} clients")
 
 
 def get_connected_clients_count() -> int:

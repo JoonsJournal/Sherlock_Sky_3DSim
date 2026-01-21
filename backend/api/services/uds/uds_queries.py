@@ -2,7 +2,7 @@
 uds_queries.py
 UDS SQL 쿼리 모음 (MSSQL WITH NOLOCK 필수 적용)
 
-@version 2.1.0
+@version 2.2.0
 @description
 - 배치 쿼리: 전체 설비 초기 로드 (117개)
 - 단일 쿼리: 개별 설비 조회
@@ -16,6 +16,11 @@ UDS SQL 쿼리 모음 (MSSQL WITH NOLOCK 필수 적용)
    - Dirty Read 허용 (모니터링 용도 적합)
 
 @changelog
+- v2.2.0: 🔧 core.Equipment 스키마 호환 수정 (2026-01-21)
+          - ❌ SiteId, LineId, IsActive 컬럼은 DB에 존재하지 않음!
+          - ✅ JSON 매핑 파일의 equipment_id 목록으로 IN 절 필터링
+          - 모든 배치 쿼리: WHERE e.EquipmentId IN ({equipment_ids})
+          - ⚠️ WITH (NOLOCK) 100% 유지
 - v2.1.0: 🐛 log.CycleTime 스키마 버그 수정 (2026-01-21)
           - ⚠️ CycleTimeId, StartTime 컬럼은 존재하지 않음!
           - 실제 스키마: EquipmentId (PK, FK), Time (PK, datetime2(3))
@@ -199,9 +204,7 @@ LEFT JOIN (
         ) AS rn
     FROM log.EquipmentPCInfo WITH (NOLOCK)
 ) pc ON e.EquipmentId = pc.EquipmentId AND pc.rn = 1
-WHERE e.SiteId = :site_id 
-  AND e.LineId = :line_id
-  AND e.IsActive = 1
+WHERE e.EquipmentId IN ({equipment_ids})
 ORDER BY e.EquipmentId
 """
 
@@ -343,9 +346,7 @@ LEFT JOIN log.CycleTime ct WITH (NOLOCK)
           AND IsStart = 1
         ORDER BY OccurredAtUtc DESC
     )
-WHERE e.SiteId = :site_id 
-  AND e.LineId = :line_id
-  AND e.IsActive = 1
+WHERE e.EquipmentId IN ({equipment_ids})
 GROUP BY e.EquipmentId
 """
 
@@ -428,10 +429,7 @@ WITH RecentCycles AS (
             ORDER BY ct.Time DESC
         ) AS rn
     FROM log.CycleTime ct WITH (NOLOCK)
-    JOIN core.Equipment e WITH (NOLOCK) ON ct.EquipmentId = e.EquipmentId
-    WHERE e.SiteId = :site_id 
-      AND e.LineId = :line_id
-      AND e.IsActive = 1
+    WHERE ct.EquipmentId IN ({equipment_ids})
 )
 SELECT 
     rc1.EquipmentId,
@@ -507,9 +505,7 @@ LEFT JOIN (
         ) AS rn
     FROM log.EquipmentPCInfo WITH (NOLOCK)
 ) pc ON e.EquipmentId = pc.EquipmentId AND pc.rn = 1
-WHERE e.SiteId = :site_id 
-  AND e.LineId = :line_id
-  AND e.IsActive = 1
+WHERE e.EquipmentId IN ({equipment_ids})
 """
 
 
@@ -552,9 +548,7 @@ LEFT JOIN log.CycleTime ct WITH (NOLOCK)
           AND IsStart = 1
         ORDER BY OccurredAtUtc DESC
     )
-WHERE e.SiteId = :site_id 
-  AND e.LineId = :line_id
-  AND e.IsActive = 1
+WHERE e.EquipmentId IN ({equipment_ids})
 GROUP BY e.EquipmentId
 """
 
