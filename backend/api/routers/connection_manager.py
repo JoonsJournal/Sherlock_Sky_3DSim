@@ -153,8 +153,8 @@ async def get_table_list(request: GetTablesRequest):
     except Exception as e:
         logger.error(f"테이블 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-	
-	
+    
+    
 
 @router.get("/sites")
 async def get_all_sites():
@@ -272,7 +272,7 @@ async def get_status():
     except Exception as e:
         logger.error(f"상태 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-		
+        
 # ========================================
 # 새로운 엔드포인트 (Frontend UI용)
 # 명확히 구분되는 이름 사용!
@@ -478,6 +478,16 @@ async def connect_to_site(request: SingleConnectionRequest):
             
             logger.info(f"✅ 연결 성공: {request.site_id}")
             
+            # ✅ 추가: Status Watcher에 연결 정보 전달
+            try:
+                from ..services.uds.status_watcher import status_watcher
+                status_watcher.set_connection(site_name, db_name)
+                logger.info(f"✅ Status Watcher 연결 설정: {site_name}_{db_name}")
+            except ImportError:
+                logger.debug("UDS 모듈이 비활성화되어 있습니다")
+            except Exception as e:
+                logger.warning(f"⚠️ Status Watcher 연결 설정 실패: {e}")
+            
             return ConnectionResponse(
                 success=True,
                 message=f"Connected to {site_name} - {db_name}",
@@ -623,4 +633,4 @@ async def get_database_info(site_id: str):
     except Exception as e:
         logger.error(f"데이터베이스 정보 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-		
+        

@@ -2,8 +2,12 @@
 FastAPI 메인 애플리케이션
 Multi-Site Equipment Mapping V2 API + UDS 통합
 
-@version 1.3.0
+@version 1.3.1
 @changelog
+- v1.3.1: UDS Status Watcher DB 연결 정보 자동 설정 (Phase 1 긴급 수정)
+          - DatabaseConnectionManager에서 활성 연결 자동 감지
+          - set_connection() 자동 호출로 WebSocket Delta 브로드캐스트 복구
+          - ⚠️ 호환성: 기존 v1.3.0 모든 기능 100% 유지
 - v1.3.0: UDS (Unified Data Store) 통합
           - UDS 라우터 등록 (/api/uds/*)
           - Status Watcher 백그라운드 서비스 시작/종료
@@ -14,7 +18,7 @@ Multi-Site Equipment Mapping V2 API + UDS 통합
 
 📁 위치: backend/api/main.py
 작성일: 2026-01-20
-수정일: 2026-01-20
+수정일: 2026-01-22
 """
 
 from fastapi import FastAPI
@@ -105,9 +109,29 @@ async def lifespan(app: FastAPI):
     print("🚀 SHERLOCK_SKY_3DSIM API 시작")
     print("="*60)
     
-    # 🆕 UDS Status Watcher 시작 (추가)
+    # 🆕 UDS Status Watcher 시작 (v1.3.1: DB 연결 정보 자동 설정 추가)
     if UDS_ENABLED and UDS_LOADED and status_watcher:
         try:
+            # ✅ v1.3.1 추가: DatabaseConnectionManager에서 연결 정보 가져오기
+            from .database.connection_test import get_connection_manager
+            
+            manager = get_connection_manager()
+            active_sites = manager.get_active_connections()
+            
+            if active_sites:
+                site_name = active_sites[0]
+                site_info = manager.get_active_connection_info(site_name)
+                
+                if site_info and 'db_name' in site_info:
+                    # Status Watcher에 연결 정보 전달
+                    status_watcher.set_connection(site_name, site_info['db_name'])
+                    logger.info(f"✅ Status Watcher 연결 설정: {site_name}_{site_info['db_name']}")
+                else:
+                    logger.warning("⚠️ Site 정보를 가져올 수 없습니다")
+            else:
+                logger.warning("⚠️ 활성 연결이 없습니다. Status Watcher는 연결 대기 상태로 시작됩니다.")
+            
+            # 기존 start() 호출
             await status_watcher.start()
             logger.info("✅ Status Watcher 시작됨")
         except Exception as e:

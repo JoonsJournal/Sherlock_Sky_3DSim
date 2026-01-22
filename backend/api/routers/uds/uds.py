@@ -495,7 +495,7 @@ async def broadcast_delta(deltas: list):
     
     message = {
         "type": "batch_delta",
-        **batch_update.model_dump()
+        **batch_update.model_dump(mode='json')  # ← mode='json' 추가!
     }
     
     await ws_manager.broadcast(message)

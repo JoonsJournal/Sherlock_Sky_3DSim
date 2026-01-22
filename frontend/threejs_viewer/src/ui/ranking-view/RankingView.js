@@ -3,7 +3,7 @@
  * ==============
  * Ranking View 메인 컨트롤러 (Orchestrator)
  * 
- * @version 1.5.0
+ * @version 1.6.0
  * @description
  * - 6개 레인 레이아웃 관리 (Remote, Sudden Stop, Stop, Run, Idle, Wait)
  * - 레인 컴포넌트 생성 및 조율
@@ -18,6 +18,12 @@
  * - 🆕 3D View 선택 동기화 강화
  * 
  * @changelog
+ * - v1.6.0: 🆕 AnimationManager 연동
+ *   - _cardsMap 추가 (전체 카드 인스턴스 관리)
+ *   - _createAnimationManager() 메서드 추가
+ *   - _handleEquipmentMoved() 애니메이션 적용
+ *   - 레인 이동 시 4-Phase 애니메이션 실행
+ *   - ⚠️ 호환성: v1.5.0의 모든 기능 100% 유지
  * - v1.5.0: 🆕 Phase 3 Day 2 - UDS 연동 및 3D View 동기화
  *   - _subscribeToUDSEvents(): UDS 이벤트 구독
  *   - _initializeFromUDS(): UDS 데이터로 초기화
@@ -60,6 +66,8 @@ import { EquipmentCard } from './components/EquipmentCard.js';
 import { LaneManager } from './managers/LaneManager.js';
 // 🆕 v1.5.0: UDS 및 RankingDataManager import
 import { RankingDataManager } from './managers/RankingDataManager.js';
+// 🆕 v1.6.0: AnimationManager import
+import { AnimationManager } from './managers/AnimationManager.js';
 import { unifiedDataStore, UnifiedDataStore } from '../../services/uds/UnifiedDataStore.js';
 
 /**
@@ -231,9 +239,15 @@ export class RankingView {
         
         // Components
         this._lanes = new Map(); // Map<laneId, RankingLane>
+
+        // 🆕 v1.6.0: 전체 카드 인스턴스 관리
+        this._cardsMap = new Map(); // Map<frontendId, EquipmentCard>
         
         // 🆕 v1.3.0: LaneManager 인스턴스
         this._laneManager = null;
+
+        // 🆕 v1.6.0: AnimationManager 인스턴스
+        this._animationManager = null;
         
         // 🆕 v1.5.0: RankingDataManager 인스턴스
         this._rankingDataManager = null;
@@ -260,6 +274,7 @@ export class RankingView {
         this._createDOM();
         this._createLanes();
         this._createLaneManager();  // 🆕 v1.3.0
+        this._createAnimationManager();  // 🆕 v1.6.0
         this._createRankingDataManager();  // 🆕 v1.5.0
         this._setupEventListeners();
         
@@ -321,6 +336,22 @@ export class RankingView {
         console.log('[RankingView] ✅ RankingDataManager 생성 완료');
     }
     
+    /**
+     * 🆕 v1.6.0: AnimationManager 생성
+     * @private
+     */
+    _createAnimationManager() {
+        console.log('[RankingView] 🎬 _createAnimationManager()');
+        
+        this._animationManager = new AnimationManager({
+            container: this._lanesContainer,
+            lanesMap: this._lanes,
+            cardsMap: this._cardsMap
+        });
+        
+        console.log('[RankingView] ✅ AnimationManager 생성 완료');
+    }
+
     /**
      * 🆕 v1.5.0: UDS 이벤트 구독
      * @private
@@ -454,6 +485,7 @@ export class RankingView {
     
     /**
      * 🆕 v1.5.0: 레인에 카드 추가
+     * 🔄 v1.6.0: cardsMap 등록 추가
      * @private
      * @param {RankingLane} lane - 레인 컴포넌트
      * @param {Object} equipment - 설비 데이터
@@ -476,7 +508,14 @@ export class RankingView {
             lotStartTime: equipment.lotInfo?.startedAtUtc
         };
         
-        lane.addCard(cardData);
+        const card = lane.addCard(cardData);
+        
+        // 🆕 v1.6.0: 카드 인스턴스를 cardsMap에 등록
+        if (card && equipment.frontendId) {
+            this._cardsMap.set(equipment.frontendId, card);
+        }
+        
+        return card;
     }
     
     /**
@@ -576,10 +615,11 @@ export class RankingView {
     
     /**
      * 🆕 v1.5.0: 설비 레인 이동 처리
+     * 🔄 v1.6.0: AnimationManager 연동
      * @private
      * @param {Object} event - { moved: [{ equipmentId, fromLane, toLane, equipment }], timestamp }
      */
-    _handleEquipmentMoved(event) {
+    async _handleEquipmentMoved(event) {
         const { moved } = event;
         
         if (!this._isVisible || !moved || moved.length === 0) return;
@@ -588,26 +628,73 @@ export class RankingView {
         
         for (const move of moved) {
             const { equipmentId, fromLane, toLane, equipment } = move;
+            const frontendId = equipment?.frontendId || equipmentId;
             
-            // 이전 레인에서 제거
-            if (fromLane) {
-                const fromLaneComponent = this._lanes.get(fromLane);
-                if (fromLaneComponent) {
-                    fromLaneComponent.removeCard(equipmentId);
+            // 🆕 v1.6.0: AnimationManager가 있으면 애니메이션 실행
+            if (this._animationManager && fromLane && toLane && fromLane !== toLane) {
+                try {
+                    await this._animationManager.animateLaneChange(
+                        frontendId,
+                        fromLane,
+                        toLane,
+                        { targetIndex: 0 }
+                    );
+                    
+                    // 애니메이션 완료 후 데이터 동기화
+                    this._syncCardAfterAnimation(frontendId, toLane, equipment);
+                    
+                } catch (error) {
+                    console.warn(`[RankingView] ⚠️ 애니메이션 실패, fallback 처리:`, error);
+                    // Fallback: 기존 방식으로 처리
+                    this._moveCardWithoutAnimation(fromLane, toLane, equipmentId, equipment);
                 }
-            }
-            
-            // 새 레인에 추가
-            if (toLane && equipment) {
-                const toLaneComponent = this._lanes.get(toLane);
-                if (toLaneComponent) {
-                    this._addCardToLane(toLaneComponent, equipment);
-                }
+            } else {
+                // AnimationManager 없거나 같은 레인 내 이동
+                this._moveCardWithoutAnimation(fromLane, toLane, equipmentId, equipment);
             }
         }
         
         // 통계 업데이트
         this._updateStats();
+    }
+    
+    /**
+     * 🆕 v1.6.0: 애니메이션 완료 후 카드 데이터 동기화
+     * @private
+     */
+    _syncCardAfterAnimation(frontendId, toLane, equipment) {
+        const toLaneComponent = this._lanes.get(toLane);
+        if (!toLaneComponent || !equipment) return;
+        
+        // 카드가 이미 이동했으므로 데이터만 업데이트
+        const card = this._cardsMap.get(frontendId);
+        if (card && card.update) {
+            card.update(equipment);
+        }
+    }
+    
+    /**
+     * 🆕 v1.6.0: 애니메이션 없이 카드 이동 (Fallback)
+     * @private
+     */
+    _moveCardWithoutAnimation(fromLane, toLane, equipmentId, equipment) {
+        // 이전 레인에서 제거
+        if (fromLane) {
+            const fromLaneComponent = this._lanes.get(fromLane);
+            if (fromLaneComponent) {
+                fromLaneComponent.removeCard(equipmentId);
+            }
+            // cardsMap에서도 제거
+            this._cardsMap.delete(equipmentId);
+        }
+        
+        // 새 레인에 추가
+        if (toLane && equipment) {
+            const toLaneComponent = this._lanes.get(toLane);
+            if (toLaneComponent) {
+                this._addCardToLane(toLaneComponent, equipment);
+            }
+        }
     }
     
     /**
@@ -1558,6 +1645,15 @@ export class RankingView {
             this._laneManager = null;
         }
         
+        // 🆕 v1.6.0: AnimationManager 정리
+        if (this._animationManager) {
+            this._animationManager.dispose();
+            this._animationManager = null;
+        }
+        
+        // 🆕 v1.6.0: cardsMap 정리
+        this._cardsMap.clear();
+
         // 4. 🆕 v1.5.0: RankingDataManager 정리
         if (this._rankingDataManager) {
             this._rankingDataManager.dispose();

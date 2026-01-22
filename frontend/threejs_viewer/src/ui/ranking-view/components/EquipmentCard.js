@@ -483,10 +483,15 @@ export class EquipmentCard {
      * @param {string} startTime - ISO 시간 문자열
      * @returns {string}
      */
-    _formatDuration(startTime) {
-        if (!startTime) return '00:00:00';
-        return DurationCalculator.format(startTime);
-    }
+	_formatDuration(startTime) {
+	    if (!startTime) return '00:00:00';
+	    
+	    // 1단계: 시작 시간 → 현재까지 경과 시간 (밀리초)
+	    const durationMs = DurationCalculator.calculateStatusDuration(startTime);
+	    
+	    // 2단계: 밀리초 → "HH:MM:SS" 문자열
+	    return DurationCalculator.formatDuration(durationMs);
+	}
     
     /**
      * Duration 업데이트
@@ -634,26 +639,28 @@ export class EquipmentCard {
      * 🆕 v1.1.0: 현재 긴급도 레벨 가져오기
      * @returns {string|null} 'warning' | 'danger' | 'critical' | null
      */
-    getUrgencyLevel() {
-        // RUN 상태는 긴급도 없음
-        const status = this._data.status?.toUpperCase();
-        if (status === 'RUN' || status === 'WAIT') {
-            return null;
-        }
-        
-        // 지속 시간 계산 (분 단위)
-        const durationMinutes = DurationCalculator.getMinutes(this._data.occurredAt);
-        
-        if (durationMinutes >= URGENCY_THRESHOLDS.CRITICAL) {
-            return 'critical';
-        } else if (durationMinutes >= URGENCY_THRESHOLDS.DANGER) {
-            return 'danger';
-        } else if (durationMinutes >= URGENCY_THRESHOLDS.WARNING) {
-            return 'warning';
-        }
-        
-        return null;
-    }
+	getUrgencyLevel() {
+	    const status = this._data.status?.toUpperCase();
+	    if (status === 'RUN' || status === 'WAIT') {
+	        return null;
+	    }
+	    
+	    // 1단계: 시작 시간 → 현재까지 경과 시간 (밀리초)
+	    const durationMs = DurationCalculator.calculateStatusDuration(this._data.occurredAt);
+	    
+	    // 2단계: 밀리초 → 분 단위로 변환
+	    const durationMinutes = DurationCalculator.getDurationMinutes(durationMs);
+	    
+	    if (durationMinutes >= URGENCY_THRESHOLDS.CRITICAL) {
+	        return 'critical';
+	    } else if (durationMinutes >= URGENCY_THRESHOLDS.DANGER) {
+	        return 'danger';
+	    } else if (durationMinutes >= URGENCY_THRESHOLDS.WARNING) {
+	        return 'warning';
+	    }
+	    
+	    return null;
+	}
     
     /**
      * 선택 상태 설정
