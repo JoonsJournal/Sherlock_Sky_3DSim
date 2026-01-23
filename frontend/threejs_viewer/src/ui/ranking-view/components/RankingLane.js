@@ -3,7 +3,7 @@
  * ==============
  * 개별 레인 컨테이너 컴포넌트
  * 
- * @version 1.1.0
+ * @version 1.1.1                             // ← 변경
  * @description
  * - 레인 DOM 생성 (헤더 + 스크롤 영역)
  * - EquipmentCard 인스턴스 관리
@@ -12,6 +12,11 @@
  * - Custom 레인 지원 (Phase 6)
  * 
  * @changelog
+ * - v1.1.1: 🐛 BugFix - _findInsertIndex() DOM 순서 기반 정렬  // ← 추가
+ *   - Map 순서가 아닌 DOM children 순서로 정렬 위치 계산
+ *   - _getCardsInDOMOrder() 헬퍼 메서드 추가
+ *   - 카드 이동 후 정렬 불일치 문제 해결
+ *   - ⚠️ 호환성: 기존 모든 기능 100% 유지
  * - v1.1.0: 🆕 Phase 6 - Custom 레인 지원
  *   - isCustom 플래그 추가
  *   - 삭제 버튼 (Custom 레인 전용)
@@ -32,7 +37,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/components/RankingLane.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-19
+ * 수정일: 2026-01-23
  */
 
 import { eventBus } from '../../../core/managers/EventBus.js';
@@ -324,6 +329,32 @@ export class RankingLane {
         }
     }
     
+    /**
+     * 🆕 v1.1.1: DOM 순서대로 카드 배열 반환
+     * Map 순서가 아닌 실제 DOM children 순서 기준
+     * @private
+     * @returns {EquipmentCard[]}
+     */
+    _getCardsInDOMOrder() {
+        if (!this._cardsContainer) return [];
+        
+        const result = [];
+        const children = this._cardsContainer.children;
+        
+        for (let i = 0; i < children.length; i++) {
+            const element = children[i];
+            // Map에서 해당 element를 가진 카드 찾기
+            for (const [id, card] of this._cards) {
+                if (card.element === element) {
+                    result.push(card);
+                    break;
+                }
+            }
+        }
+        
+        return result;
+    }
+
     // =========================================
     // Public Methods
     // =========================================
@@ -430,7 +461,8 @@ export class RankingLane {
      * @returns {number}
      */
     _findInsertIndex(data) {
-        const cards = Array.from(this._cards.values());
+        // 🐛 v1.1.1 Fix: DOM 순서 기준으로 비교 (Map 순서 아님)
+        const cards = this._getCardsInDOMOrder();
         
         if (cards.length === 0) return 0;
         
