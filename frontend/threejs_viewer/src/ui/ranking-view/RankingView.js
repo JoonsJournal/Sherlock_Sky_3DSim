@@ -1508,23 +1508,27 @@ export class RankingView {
      * @param {Object} data - 설비 데이터
      * @returns {EquipmentCard|null}
      */
-    addEquipment(laneId, data) {
-        const lane = this._lanes.get(laneId);
-        if (!lane) {
-            console.warn(`[RankingView] ⚠️ 레인을 찾을 수 없음: ${laneId}`);
-            return null;
-        }
-        
-        const card = lane.addCard(data);
-        this._cardsMap.set(equipmentKey, card);  // ← 이 줄 추가!
-        this.setEmpty(false);
-        
-        // 🆕 v1.4.0: 통계 업데이트
-        this._updateStats();
-        
-        console.log(`[RankingView] ➕ 설비 추가: ${data.frontendId} → ${laneId}`);
-        return card;
+addEquipment(laneId, data) {
+    const lane = this._lanes.get(laneId);
+    if (!lane) {
+        console.warn(`[RankingView] ⚠️ 레인을 찾을 수 없음: ${laneId}`);
+        return null;
     }
+    
+    const card = lane.addCard(data);
+    
+    // ✅ 수정: equipmentKey 변수 정의 추가
+    const equipmentKey = data.frontendId || data.equipmentId;
+    this._cardsMap.set(equipmentKey, card);
+    
+    this.setEmpty(false);
+    
+    // 🆕 v1.4.0: 통계 업데이트
+    this._updateStats();
+    
+    console.log(`[RankingView] ➕ 설비 추가: ${equipmentKey} → ${laneId}`);
+    return card;
+}
     
     /**
      * 설비 카드 제거
