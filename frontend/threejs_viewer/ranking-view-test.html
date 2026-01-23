@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<!--
+ * ranking-view-test.html
+ * ======================
+ * EquipmentCard 레인 이동 테스트 페이지 (Backend 없이 독립 실행)
+ * 
+ * 📁 사용법: 
+ *    1. 이 파일을 frontend/threejs_viewer/ 폴더에 복사
+ *    2. 브라우저에서 직접 열기 (http-server 필요)
+ *    3. 콘솔에서 테스트 함수 실행
+ * 
+ * 작성일: 2026-01-23
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Ranking View - Lane Move Test</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            display: flex; 
+            flex-direction: column;
+            height: 100vh; 
+            overflow: hidden; 
+            font-family: 'Inter', 'Segoe UI', sans-serif; 
+            background: var(--bg-main, #0a0a0f);
+            color: #fff;
+        }
+        
+        /* Test Header */
+        .test-header {
+            background: #1a1a2e;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .test-header h1 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .test-controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .test-controls button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-success {
+            background: #22c55e;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #16a34a;
+        }
+        
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: #d97706;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        /* Test Content */
+        .test-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        /* Ranking View Container */
+        .ranking-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Test Log Panel */
+        .test-log {
+            width: 400px;
+            background: #111;
+            border-left: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .test-log-header {
+            padding: 12px 16px;
+            background: #1a1a2e;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .test-log-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .log-entry.success { color: #22c55e; }
+        .log-entry.error { color: #ef4444; }
+        .log-entry.warning { color: #f59e0b; }
+        .log-entry.info { color: #60a5fa; }
+        
+        /* Override ranking-view position for test */
+        .ranking-view {
+            position: relative !important;
+            left: 0 !important;
+            width: 100% !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Test Header -->
+    <header class="test-header">
+        <h1>🧪 EquipmentCard Lane Move Test (No Backend)</h1>
+        <div class="test-controls">
+            <button class="btn-primary" onclick="loadTestData()">📦 테스트 데이터 로드</button>
+            <button class="btn-success" onclick="testMoveToRun()">🟢 RUN으로 이동</button>
+            <button class="btn-warning" onclick="testMoveToIdle()">🟡 IDLE로 이동</button>
+            <button class="btn-danger" onclick="testMoveToStop()">🛑 STOP으로 이동</button>
+            <button class="btn-primary" onclick="debugSnapshot()">📊 상태 스냅샷</button>
+        </div>
+    </header>
+    
+    <!-- Test Content -->
+    <div class="test-content">
+        <!-- Ranking View Container -->
+        <div class="ranking-container" id="ranking-container"></div>
+        
+        <!-- Test Log Panel -->
+        <div class="test-log">
+            <div class="test-log-header">📋 Test Log</div>
+            <div class="test-log-content" id="test-log"></div>
+        </div>
+    </div>
+
+    <!-- Import Map -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./node_modules/three/build/three.module.js",
+            "three/addons/": "./node_modules/three/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        // ========================================
+        // Minimal imports for testing
+        // ========================================
+        import { eventBus } from './src/core/managers/EventBus.js';
+        import { RankingView } from './src/ui/ranking-view/RankingView.js';
+        import { EquipmentCard } from './src/ui/ranking-view/components/EquipmentCard.js';
+        
+        // ========================================
+        // Globals
+        // ========================================
+        let rankingView = null;
+        let testEquipments = [];
+        
+        // ========================================
+        // Logger
+        // ========================================
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('test-log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            
+            // Also console
+            console.log(`[TEST] ${message}`);
+        }
+        
+        window.log = log;
+        
+        // ========================================
+        // Initialize RankingView (Minimal)
+        // ========================================
+        function initRankingView() {
+            log('🚀 RankingView 초기화 시작...', 'info');
+            
+            const container = document.getElementById('ranking-container');
+            
+            rankingView = new RankingView({
+                container: container,
+                webSocketClient: null,  // No WebSocket!
+                useUDS: false           // No UDS!
+            });
+            
+            // Show it
+            rankingView.show();
+            
+            window.rankingView = rankingView;
+            window.eventBus = eventBus;
+            
+            log('✅ RankingView 초기화 완료', 'success');
+            log(`   - _lanes: ${rankingView._lanes.size}개`, 'info');
+            log(`   - _cardsMap: ${rankingView._cardsMap.size}개`, 'info');
+        }
+        
+        // ========================================
+        // Load Test Data
+        // ========================================
+        window.loadTestData = function() {
+            log('📦 테스트 데이터 로드 중...', 'info');
+            
+            // Clear existing
+            rankingView.clearAllData();
+            rankingView._cardsMap.clear();
+            
+            testEquipments = [
+                // RUN Lane (3개)
+                {
+                    equipmentId: '1001',
+                    frontendId: 'EQ-17-01',
+                    equipmentName: '설비 17-01',
+                    status: 'RUN',
+                    occurredAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+                    productionCount: 85,
+                    targetCount: 100
+                },
+                {
+                    equipmentId: '1002',
+                    frontendId: 'EQ-17-02',
+                    equipmentName: '설비 17-02',
+                    status: 'RUN',
+                    occurredAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+                    productionCount: 67,
+                    targetCount: 100
+                },
+                {
+                    equipmentId: '1003',
+                    frontendId: 'EQ-17-03',
+                    equipmentName: '설비 17-03',
+                    status: 'RUN',
+                    occurredAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+                    productionCount: 92,
+                    targetCount: 100
+                },
+                
+                // IDLE Lane (2개)
+                {
+                    equipmentId: '1004',
+                    frontendId: 'EQ-18-01',
+                    equipmentName: '설비 18-01',
+                    status: 'IDLE',
+                    occurredAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+                    productionCount: 50,
+                    targetCount: 100
+                },
+                {
+                    equipmentId: '1005',
+                    frontendId: 'EQ-18-02',
+                    equipmentName: '설비 18-02',
+                    status: 'IDLE',
+                    occurredAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
+                    productionCount: 45,
+                    targetCount: 100
+                },
+                
+                // STOP Lane (2개)
+                {
+                    equipmentId: '1006',
+                    frontendId: 'EQ-19-01',
+                    equipmentName: '설비 19-01',
+                    status: 'STOP',
+                    occurredAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+                    productionCount: 33,
+                    targetCount: 100
+                },
+                {
+                    equipmentId: '1007',
+                    frontendId: 'EQ-19-02',
+                    equipmentName: '설비 19-02',
+                    status: 'STOP',
+                    occurredAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+                    productionCount: 28,
+                    targetCount: 100
+                },
+                
+                // SUDDEN-STOP Lane (1개)
+                {
+                    equipmentId: '1008',
+                    frontendId: 'EQ-20-01',
+                    equipmentName: '설비 20-01',
+                    status: 'SUDDENSTOP',
+                    occurredAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
+                    alarmCode: 1234,
+                    alarmMessage: 'SENSOR ERROR',
+                    alarmRepeatCount: 2,
+                    productionCount: 72,
+                    targetCount: 100
+                }
+            ];
+            
+            // Add to lanes
+            testEquipments.forEach(eq => {
+                const laneId = getLaneIdFromStatus(eq.status);
+                const card = rankingView.addEquipment(laneId, eq);
+                
+                // 명시적으로 _cardsMap에도 등록
+                if (card) {
+                    rankingView._cardsMap.set(eq.frontendId, card);
+                }
+                
+                log(`   ➕ ${eq.frontendId} → ${laneId}`, 'info');
+            });
+            
+            log(`✅ 테스트 데이터 로드 완료 (${testEquipments.length}개)`, 'success');
+            debugSnapshot();
+        };
+        
+        function getLaneIdFromStatus(status) {
+            const map = {
+                'RUN': 'run',
+                'IDLE': 'idle',
+                'STOP': 'stop',
+                'SUDDENSTOP': 'sudden-stop',
+                'REMOTE': 'remote',
+                'WAIT': 'wait'
+            };
+            return map[status] || 'idle';
+        }
+        
+        // ========================================
+        // Test Move Functions
+        // ========================================
+        window.testMoveToRun = function() {
+            testLaneMove('EQ-18-01', 'idle', 'run', 'RUN');
+        };
+        
+        window.testMoveToIdle = function() {
+            testLaneMove('EQ-17-01', 'run', 'idle', 'IDLE');
+        };
+        
+        window.testMoveToStop = function() {
+            testLaneMove('EQ-17-02', 'run', 'stop', 'STOP');
+        };
+        
+        function testLaneMove(frontendId, fromLane, toLane, newStatus) {
+            log(`\n${'='.repeat(50)}`, 'info');
+            log(`🧪 레인 이동 테스트: ${frontendId}`, 'info');
+            log(`   ${fromLane} → ${toLane} (${newStatus})`, 'info');
+            log('='.repeat(50), 'info');
+            
+            // 1. 카드 찾기
+            const card = rankingView._cardsMap.get(frontendId);
+            log(`1️⃣ _cardsMap.get("${frontendId}"):`, card ? 'success' : 'error');
+            
+            if (!card) {
+                log(`   ❌ 카드를 찾을 수 없음!`, 'error');
+                log(`   사용 가능한 키: ${Array.from(rankingView._cardsMap.keys()).join(', ')}`, 'warning');
+                return;
+            }
+            
+            // 2. 현재 상태
+            const currentData = card.getData();
+            log(`2️⃣ 현재 데이터:`, 'info');
+            log(`   - status: ${currentData.status}`, 'info');
+            log(`   - alarmCode: ${currentData.alarmCode || 'null'}`, 'info');
+            
+            // 3. _statusIndicatorElement 확인
+            log(`3️⃣ _statusIndicatorElement:`, card._statusIndicatorElement ? 'success' : 'error');
+            if (card._statusIndicatorElement) {
+                log(`   현재 아이콘: "${card._statusIndicatorElement.textContent}"`, 'info');
+            } else {
+                log(`   ❌ _statusIndicatorElement가 null!`, 'error');
+            }
+            
+            // 4. 현재 CSS 클래스
+            log(`4️⃣ 현재 CSS 클래스:`, 'info');
+            const statusClasses = Array.from(card.element.classList)
+                .filter(c => c.includes('--'));
+            log(`   ${statusClasses.join(', ')}`, 'info');
+            
+            // 5. updateStatus 호출
+            log(`5️⃣ updateStatus() 호출...`, 'info');
+            
+            const newData = {
+                ...currentData,
+                status: newStatus,
+                occurredAt: new Date().toISOString(),
+                alarmCode: (toLane === 'run' || toLane === 'idle') ? null : currentData.alarmCode,
+                alarmMessage: (toLane === 'run' || toLane === 'idle') ? null : currentData.alarmMessage
+            };
+            
+            log(`   새 status: ${newData.status}`, 'info');
+            
+            try {
+                card.updateStatus(newData, { resetDuration: true });
+                log(`   ✅ updateStatus 호출 성공`, 'success');
+            } catch (err) {
+                log(`   ❌ updateStatus 에러: ${err.message}`, 'error');
+                return;
+            }
+            
+            // 6. 결과 확인
+            log(`6️⃣ 업데이트 후 결과:`, 'info');
+            
+            if (card._statusIndicatorElement) {
+                log(`   새 아이콘: "${card._statusIndicatorElement.textContent}"`, 'success');
+            }
+            
+            const newStatusClasses = Array.from(card.element.classList)
+                .filter(c => c.includes('--'));
+            log(`   새 CSS 클래스: ${newStatusClasses.join(', ')}`, 'success');
+            
+            // 7. 실제 DOM 이동 (선택적)
+            log(`7️⃣ DOM 이동 (${fromLane} → ${toLane})...`, 'info');
+            
+            const fromLaneComponent = rankingView._lanes.get(fromLane);
+            const toLaneComponent = rankingView._lanes.get(toLane);
+            
+            if (fromLaneComponent && toLaneComponent) {
+                // 이전 레인에서 제거
+                fromLaneComponent._cards.delete(frontendId);
+                
+                // 새 레인에 추가
+                toLaneComponent._cards.set(frontendId, card);
+                toLaneComponent._cardsContainer.appendChild(card.element);
+                
+                // 상태 업데이트
+                fromLaneComponent._updateEmptyState();
+                fromLaneComponent._updateStats();
+                toLaneComponent._updateEmptyState();
+                toLaneComponent._updateStats();
+                
+                log(`   ✅ DOM 이동 완료`, 'success');
+            }
+            
+            log(`\n✅ 테스트 완료!`, 'success');
+            log(`${'='.repeat(50)}\n`, 'info');
+        }
+        
+        // ========================================
+        // Debug Snapshot
+        // ========================================
+        window.debugSnapshot = function() {
+            log(`\n📊 상태 스냅샷`, 'info');
+            log('-'.repeat(40), 'info');
+            
+            // _cardsMap
+            const cardsMapKeys = Array.from(rankingView._cardsMap.keys());
+            log(`_cardsMap 크기: ${cardsMapKeys.length}`, 'info');
+            log(`_cardsMap 키: ${cardsMapKeys.slice(0, 5).join(', ')}${cardsMapKeys.length > 5 ? '...' : ''}`, 'info');
+            
+            // Lanes
+            rankingView._lanes.forEach((lane, laneId) => {
+                const laneKeys = Array.from(lane._cards.keys());
+                log(`Lane[${laneId}]: ${laneKeys.length}개 - ${laneKeys.join(', ') || '(비어있음)'}`, 'info');
+            });
+            
+            // 불일치 체크
+            let mismatchCount = 0;
+            rankingView._lanes.forEach((lane, laneId) => {
+                lane._cards.forEach((card, cardKey) => {
+                    if (!rankingView._cardsMap.has(cardKey)) {
+                        log(`⚠️ 불일치: Lane[${laneId}]의 "${cardKey}"가 _cardsMap에 없음`, 'warning');
+                        mismatchCount++;
+                    }
+                });
+            });
+            
+            if (mismatchCount === 0) {
+                log(`✅ 키 불일치 없음`, 'success');
+            }
+            
+            log('-'.repeat(40), 'info');
+        };
+        
+        // ========================================
+        // Initialize
+        // ========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🏁 테스트 페이지 로드됨', 'info');
+            
+            // EventBus 가짜 설정 (이벤트 에러 방지)
+            if (!window.eventBus) {
+                window.eventBus = {
+                    emit: () => {},
+                    on: () => () => {},
+                    off: () => {}
+                };
+            }
+            
+            initRankingView();
+            
+            log('', 'info');
+            log('📋 사용 방법:', 'info');
+            log('   1. "테스트 데이터 로드" 클릭', 'info');
+            log('   2. 이동 버튼 클릭 (RUN/IDLE/STOP)', 'info');
+            log('   3. 로그에서 결과 확인', 'info');
+            log('', 'info');
+        });
+    </script>
+</body>
+</html>

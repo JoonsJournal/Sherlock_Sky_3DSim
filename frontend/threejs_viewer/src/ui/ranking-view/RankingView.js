@@ -3,7 +3,7 @@
  * ==============
  * Ranking View 메인 컨트롤러 (Orchestrator)
  * 
- * @version 1.6.0
+ * @version 1.7.0
  * @description
  * - 6개 레인 레이아웃 관리 (Remote, Sudden Stop, Stop, Run, Idle, Wait)
  * - 레인 컴포넌트 생성 및 조율
@@ -18,6 +18,15 @@
  * - 🆕 3D View 선택 동기화 강화
  * 
  * @changelog
+ * - v1.7.0: 🆕 레인 이동 개선 (Phase 4)
+ *   - _handleEquipmentMoved() 로직 개선
+ *   - 정렬 기준 기반 삽입 위치 계산 (calculateBatchInsertIndices 사용)
+ *   - 복수 설비 동시 이동 지원
+ *   - 카드 UI 전체 업데이트 연동 (onComplete 콜백)
+ *   - _groupMovesByTargetLane() 메서드 추가
+ *   - _prepareUpdatedData() 메서드 추가
+ *   - _updateCardUI() 메서드 추가
+ *   - ⚠️ 호환성: v1.6.0의 모든 기능 100% 유지
  * - v1.6.0: 🆕 AnimationManager 연동
  *   - _cardsMap 추가 (전체 카드 인스턴스 관리)
  *   - _createAnimationManager() 메서드 추가
@@ -614,10 +623,9 @@ export class RankingView {
     }
     
     /**
-     * 🆕 v1.5.0: 설비 레인 이동 처리
-     * 🔄 v1.6.0: AnimationManager 연동
+     * 🆕 v1.7.0: 설비 레인 이동 처리 (개선)
      * @private
-     * @param {Object} event - { moved: [{ equipmentId, fromLane, toLane, equipment }], timestamp }
+     * @param {Object} event
      */
     async _handleEquipmentMoved(event) {
         const { moved } = event;
@@ -626,50 +634,128 @@ export class RankingView {
         
         console.log(`[RankingView] 🚀 설비 레인 이동: ${moved.length}개`);
         
-        for (const move of moved) {
-            const { equipmentId, fromLane, toLane, equipment } = move;
-            const frontendId = equipment?.frontendId || equipmentId;
+        // 1. 같은 레인으로 이동하는 설비들 그룹화
+        const movesByLane = this._groupMovesByTargetLane(moved);
+        
+        // 2. 레인별로 처리
+        for (const [toLaneId, moves] of Object.entries(movesByLane)) {
+            // 2-1. 복수 설비 삽입 위치 일괄 계산
+            const equipments = moves.map(m => m.equipment);
             
-            // 🆕 v1.6.0: AnimationManager가 있으면 애니메이션 실행
-            if (this._animationManager && fromLane && toLane && fromLane !== toLane) {
-                try {
-                    await this._animationManager.animateLaneChange(
-                        frontendId,
-                        fromLane,
-                        toLane,
-                        { targetIndex: 0 }
-                    );
-                    
-                    // 애니메이션 완료 후 데이터 동기화
-                    this._syncCardAfterAnimation(frontendId, toLane, equipment);
-                    
-                } catch (error) {
-                    console.warn(`[RankingView] ⚠️ 애니메이션 실패, fallback 처리:`, error);
-                    // Fallback: 기존 방식으로 처리
-                    this._moveCardWithoutAnimation(fromLane, toLane, equipmentId, equipment);
-                }
+            let insertInfos;
+            if (this._rankingDataManager && this._rankingDataManager.calculateBatchInsertIndices) {
+                insertInfos = this._rankingDataManager.calculateBatchInsertIndices(toLaneId, equipments);
             } else {
-                // AnimationManager 없거나 같은 레인 내 이동
-                this._moveCardWithoutAnimation(fromLane, toLane, equipmentId, equipment);
+                // Fallback: 모두 0번 인덱스
+                insertInfos = equipments.map(eq => ({ equipment: eq, targetIndex: 0 }));
+            }
+            
+            // 2-2. 각 설비 애니메이션 및 업데이트
+            for (const { equipment, targetIndex } of insertInfos) {
+                const move = moves.find(m => 
+                    (m.equipment?.frontendId || m.equipmentId) === (equipment.frontendId || equipment.equipmentId)
+                );
+                if (!move) continue;
+                
+                const { equipmentId, fromLane } = move;
+                const frontendId = equipment.frontendId || equipmentId;
+                
+                // 새 데이터 준비 (상태 변경 반영)
+                const newData = this._prepareUpdatedData(equipment, toLaneId);
+                
+                // 애니메이션 + UI 업데이트
+                if (this._animationManager && fromLane && fromLane !== toLaneId) {
+                    try {
+                        await this._animationManager.animateLaneChange(
+                            frontendId,
+                            fromLane,
+                            toLaneId,
+                            {
+                                targetIndex,
+                                newData,
+                                onComplete: (element, data) => {
+                                    this._updateCardUI(frontendId, data);
+                                }
+                            }
+                        );
+                    } catch (error) {
+                        console.warn(`[RankingView] ⚠️ 애니메이션 실패, fallback 처리:`, error);
+                        this._moveCardWithoutAnimation(fromLane, toLaneId, equipmentId, equipment);
+                    }
+                } else {
+                    // AnimationManager 없거나 같은 레인 내 이동
+                    this._moveCardWithoutAnimation(fromLane, toLaneId, equipmentId, equipment);
+                }
             }
         }
         
-        // 통계 업데이트
+        // 3. 레인 통계 업데이트
         this._updateStats();
     }
     
     /**
-     * 🆕 v1.6.0: 애니메이션 완료 후 카드 데이터 동기화
+     * 🆕 v1.7.0: 이동 설비를 목표 레인별로 그룹화
      * @private
+     * @param {Array} moves - 이동 정보 배열
+     * @returns {Object} { [toLaneId]: [moves] }
      */
-    _syncCardAfterAnimation(frontendId, toLane, equipment) {
-        const toLaneComponent = this._lanes.get(toLane);
-        if (!toLaneComponent || !equipment) return;
+    _groupMovesByTargetLane(moves) {
+        return moves.reduce((groups, move) => {
+            const lane = move.toLane;
+            if (!lane) return groups;
+            if (!groups[lane]) groups[lane] = [];
+            groups[lane].push(move);
+            return groups;
+        }, {});
+    }
+    
+    /**
+     * 🆕 v1.7.0: 레인 이동에 따른 데이터 준비
+     * @private
+     * @param {Object} equipment - 설비 데이터
+     * @param {string} toLaneId - 목표 레인 ID
+     * @returns {Object} 업데이트된 설비 데이터
+     */
+    _prepareUpdatedData(equipment, toLaneId) {
+        // 레인별 상태 매핑
+        const laneStatusMap = {
+            'remote': 'REMOTE',
+            'sudden-stop': 'SUDDENSTOP',
+            'stop': 'STOP',
+            'run': 'RUN',
+            'idle': 'IDLE',
+            'wait': 'WAIT'
+        };
         
-        // 카드가 이미 이동했으므로 데이터만 업데이트
+        const newStatus = laneStatusMap[toLaneId] || equipment.status;
+        
+        return {
+            ...equipment,
+            status: newStatus,
+            occurredAt: new Date().toISOString(),  // Duration 리셋
+            // alarmCode는 레인에 따라 처리
+            alarmCode: (toLaneId === 'run' || toLaneId === 'idle' || toLaneId === 'wait') 
+                ? null 
+                : equipment.alarmCode,
+            alarmMessage: (toLaneId === 'run' || toLaneId === 'idle' || toLaneId === 'wait')
+                ? null
+                : equipment.alarmMessage
+        };
+    }
+    
+    /**
+     * 🆕 v1.7.0: 카드 UI 업데이트
+     * @private
+     * @param {string} frontendId - 설비 Frontend ID
+     * @param {Object} newData - 새 설비 데이터
+     */
+    _updateCardUI(frontendId, newData) {
+        if (!newData) return;
+        
         const card = this._cardsMap.get(frontendId);
-        if (card && card.update) {
-            card.update(equipment);
+        if (card && card.updateStatus) {
+            card.updateStatus(newData, { resetDuration: true });
+            console.log(`[RankingView] 🔄 카드 UI 업데이트 완료: ${frontendId}`);
         }
     }
     

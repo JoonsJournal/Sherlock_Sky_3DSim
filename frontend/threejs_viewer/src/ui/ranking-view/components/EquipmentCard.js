@@ -3,7 +3,7 @@
  * ================
  * 설비 카드 UI 컴포넌트
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @description
  * - 설비 카드 DOM 생성 및 관리
  * - 상태 인디케이터, 알람 정보, 생산 정보 표시
@@ -13,6 +13,13 @@
  * - MiniTimeline 컴포넌트 연동 (Phase 6)
  * 
  * @changelog
+ * - v1.2.0 (2026-01-23): 🆕 Phase 2 - 레인 이동 시 UI 업데이트
+ *   - updateStatus(): 상태 변경 시 전체 UI 업데이트
+ *   - updateProductionCount(): 생산 개수 실시간 업데이트
+ *   - _updateStatusIcon(): Status Indicator 아이콘 변경
+ *   - _updateStatusCSSClass(): CSS 클래스 교체
+ *   - _updateAlarmInfo(): 알람 정보 동적 표시/숨김
+ *   - ⚠️ 호환성: v1.1.0의 모든 기능 100% 유지
  * - v1.1.0: 🆕 Phase 6 - 긴급도 표시 강화 + MiniTimeline 통합
  *   - getUrgencyLevel() 메서드 추가
  *   - MiniTimeline 컴포넌트 통합
@@ -35,7 +42,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/components/EquipmentCard.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-19
+ * 수정일: 2026-01-23
  */
 
 import { eventBus } from '../../../core/managers/EventBus.js';
@@ -135,6 +142,8 @@ export class EquipmentCard {
         // DOM References
         this.element = null;
         this._durationElement = null;
+		this._statusIndicatorElement = null;
+		this._alarmInfoElement = null;
         this._productionBarFill = null;
         this._productionCountElement = null;
         this._productionPercentElement = null;
@@ -232,10 +241,10 @@ export class EquipmentCard {
             this.element.appendChild(this._timelineContainer);
         }
         
-        // Alarm Info (알람이 있는 경우만)
+        // Alarm Info (알람이 있는 경우만) - 🆕 v1.2.0: 동적 표시/숨김 지원
         if (this._data.alarmCode) {
-            const alarmInfo = this._createAlarmInfo();
-            this.element.appendChild(alarmInfo);
+            this._createAlarmInfo();
+            this.element.appendChild(this._alarmInfoElement);
         }
         
         // Production Info
@@ -292,11 +301,11 @@ export class EquipmentCard {
         const header = document.createElement('div');
         header.classList.add(EquipmentCard.CSS.HEADER);
         
-        // Status Indicator
-        const statusIndicator = document.createElement('span');
-        statusIndicator.classList.add(EquipmentCard.CSS.STATUS_INDICATOR);
-        statusIndicator.textContent = this._getStatusIcon();
-        header.appendChild(statusIndicator);
+        // Status Indicator (🆕 v1.2.0: 참조 저장)
+        this._statusIndicatorElement = document.createElement('span');
+        this._statusIndicatorElement.classList.add(EquipmentCard.CSS.STATUS_INDICATOR);
+        this._statusIndicatorElement.textContent = this._getStatusIcon();
+        header.appendChild(this._statusIndicatorElement);
         
         // Equipment ID
         const equipmentId = document.createElement('span');
@@ -340,24 +349,25 @@ export class EquipmentCard {
      * @returns {HTMLElement}
      */
     _createAlarmInfo() {
-        const alarmInfo = document.createElement('div');
-        alarmInfo.classList.add(EquipmentCard.CSS.ALARM_INFO);
+        // 🆕 v1.2.0: 참조 저장 (동적 표시/숨김용)
+        this._alarmInfoElement = document.createElement('div');
+        this._alarmInfoElement.classList.add(EquipmentCard.CSS.ALARM_INFO);
         
         // Alarm Code + Message
         const alarmText = document.createElement('div');
         alarmText.classList.add(EquipmentCard.CSS.ALARM_CODE);
         alarmText.innerHTML = `⚠️ <strong>${this._data.alarmCode}</strong>: ${this._data.alarmMessage || 'Unknown'}`;
-        alarmInfo.appendChild(alarmText);
+        this._alarmInfoElement.appendChild(alarmText);
         
         // Alarm Repeat Count
         if (this._data.alarmRepeatCount > 0) {
             const repeatCount = document.createElement('div');
             repeatCount.classList.add(EquipmentCard.CSS.ALARM_REPEAT);
             repeatCount.textContent = `🔄 반복: ${this._data.alarmRepeatCount}회`;
-            alarmInfo.appendChild(repeatCount);
+            this._alarmInfoElement.appendChild(repeatCount);
         }
         
-        return alarmInfo;
+        return this._alarmInfoElement;
     }
     
     /**
@@ -584,6 +594,114 @@ export class EquipmentCard {
         this._currentUrgencyLevel = level;
     }
     
+	 /**
+     * 🆕 v1.2.0: Status Icon 업데이트
+     * @private
+     */
+    _updateStatusIcon() {
+        if (this._statusIndicatorElement) {
+            this._statusIndicatorElement.textContent = this._getStatusIcon();
+        }
+    }
+    
+    /**
+     * 🆕 v1.2.0: Status CSS 클래스 교체
+     * @private
+     * @param {string} oldStatus - 이전 상태
+     * @param {string} newStatus - 새 상태
+     */
+    _updateStatusCSSClass(oldStatus, newStatus) {
+        if (!this.element) return;
+        
+        // 모든 상태 클래스 제거
+        this.element.classList.remove(
+            EquipmentCard.CSS.STATUS_RUN,
+            EquipmentCard.CSS.STATUS_STOP,
+            EquipmentCard.CSS.STATUS_IDLE,
+            EquipmentCard.CSS.STATUS_SUDDEN_STOP,
+            EquipmentCard.CSS.STATUS_REMOTE,
+            EquipmentCard.CSS.STATUS_WAIT
+        );
+        
+        // 새 상태 클래스 추가
+        const status = newStatus?.toUpperCase();
+        const alarmCode = this._data.alarmCode;
+        
+        // Remote 알람 체크
+        if (status === 'SUDDENSTOP' && REMOTE_ALARM_CODES.includes(alarmCode)) {
+            this.element.classList.add(EquipmentCard.CSS.STATUS_REMOTE);
+            return;
+        }
+        
+        // 일반 상태
+        switch (status) {
+            case 'RUN':
+                this.element.classList.add(EquipmentCard.CSS.STATUS_RUN);
+                break;
+            case 'STOP':
+                this.element.classList.add(EquipmentCard.CSS.STATUS_STOP);
+                break;
+            case 'IDLE':
+                this.element.classList.add(EquipmentCard.CSS.STATUS_IDLE);
+                break;
+            case 'SUDDENSTOP':
+                this.element.classList.add(EquipmentCard.CSS.STATUS_SUDDEN_STOP);
+                break;
+            case 'WAIT':
+                this.element.classList.add(EquipmentCard.CSS.STATUS_WAIT);
+                break;
+        }
+    }
+    
+    /**
+     * 🆕 v1.2.0: Alarm Info 동적 표시/숨김
+     * @private
+     */
+    _updateAlarmInfo() {
+        const hasAlarm = !!this._data.alarmCode;
+        
+        if (hasAlarm) {
+            // 알람이 있는 경우
+            if (!this._alarmInfoElement) {
+                // Alarm Info 요소가 없으면 생성
+                this._createAlarmInfo();
+                
+                // Timeline과 Production Info 사이에 삽입
+                const productionInfo = this.element.querySelector(`.${EquipmentCard.CSS.PRODUCTION_INFO}`);
+                if (productionInfo) {
+                    this.element.insertBefore(this._alarmInfoElement, productionInfo);
+                } else {
+                    this.element.appendChild(this._alarmInfoElement);
+                }
+            } else {
+                // 기존 Alarm Info 내용 업데이트
+                const alarmCodeEl = this._alarmInfoElement.querySelector(`.${EquipmentCard.CSS.ALARM_CODE}`);
+                if (alarmCodeEl) {
+                    alarmCodeEl.innerHTML = `⚠️ <strong>${this._data.alarmCode}</strong>: ${this._data.alarmMessage || 'Unknown'}`;
+                }
+                
+                // 반복 횟수 업데이트
+                let repeatEl = this._alarmInfoElement.querySelector(`.${EquipmentCard.CSS.ALARM_REPEAT}`);
+                if (this._data.alarmRepeatCount > 0) {
+                    if (!repeatEl) {
+                        repeatEl = document.createElement('div');
+                        repeatEl.classList.add(EquipmentCard.CSS.ALARM_REPEAT);
+                        this._alarmInfoElement.appendChild(repeatEl);
+                    }
+                    repeatEl.textContent = `🔄 반복: ${this._data.alarmRepeatCount}회`;
+                } else if (repeatEl) {
+                    repeatEl.remove();
+                }
+            }
+        } else {
+            // 알람이 없는 경우 - 요소 제거
+            if (this._alarmInfoElement) {
+                this._alarmInfoElement.remove();
+                this._alarmInfoElement = null;
+            }
+        }
+    }
+	
     // =========================================
     // Event Handlers
     // =========================================
@@ -686,6 +804,83 @@ export class EquipmentCard {
         return this._isSelected;
     }
     
+	 /**
+     * 🆕 v1.2.0: 상태 변경 시 전체 UI 업데이트
+     * 레인 이동 시 호출되어 Status Icon, CSS Class, Duration, Alarm 등을 업데이트
+     * 
+     * @param {Object} newData - 새 설비 데이터
+     * @param {Object} [options={}] - 업데이트 옵션
+     * @param {boolean} [options.resetDuration=true] - Duration 리셋 여부
+     */
+    updateStatus(newData, options = {}) {
+        const { resetDuration = true } = options;
+        
+        // 1. 데이터 정규화 및 병합
+        const normalized = this._normalizeData(newData);
+        const oldStatus = this._data.status;
+        const newStatus = normalized.status;
+        
+        console.log(`[EquipmentCard] 🔄 Status Update: ${this._data.frontendId} (${oldStatus} → ${newStatus})`);
+        
+        // 2. Duration 리셋 (상태 변경 시)
+        if (resetDuration && oldStatus !== newStatus) {
+            normalized.occurredAt = new Date().toISOString();
+            normalized.statusStartTime = normalized.occurredAt;
+        }
+        
+        // 3. 데이터 업데이트
+        Object.assign(this._data, normalized);
+        
+        // 4. UI 업데이트
+        this._updateStatusIcon();
+        this._updateStatusCSSClass(oldStatus, newStatus);
+        this._updateDuration();
+        this._updateAlarmInfo();
+        this._updateUrgencyLevel();
+        
+        // 5. Production 정보 업데이트
+        this._updateProductionCountText();
+        this._updateProgressBar();
+        this._updatePercentageText();
+        
+        // 6. MiniTimeline 업데이트 (히스토리 추가)
+        if (this._miniTimeline && newStatus !== oldStatus) {
+            const historyEntry = {
+                status: newStatus,
+                timestamp: new Date().toISOString()
+            };
+            
+            if (!this._data.stateHistory) {
+                this._data.stateHistory = [];
+            }
+            this._data.stateHistory.push(historyEntry);
+            
+            this._miniTimeline.update(this._data.stateHistory);
+        }
+    }
+    
+    /**
+     * 🆕 v1.2.0: 생산 개수 실시간 업데이트
+     * WebSocket에서 생산 개수 변경 시 호출
+     * 
+     * @param {number} count - 새 생산 개수
+     * @param {number} [target] - 새 목표 개수 (선택)
+     */
+    updateProductionCount(count, target) {
+        this._data.productionCount = count;
+        if (target !== undefined) {
+            this._data.targetCount = target;
+            this._data.productionTarget = target;
+        }
+        
+        this._updateProductionCountText();
+        this._updateProgressBar();
+        this._updatePercentageText();
+        
+        console.log(`[EquipmentCard] 📦 Production Update: ${this._data.frontendId} = ${count}/${this._data.targetCount}`);
+    }
+	
+	
     /**
      * 데이터 업데이트
      * @param {Object} newData
@@ -758,12 +953,13 @@ export class EquipmentCard {
         // 참조 해제
         this.element = null;
         this._durationElement = null;
+        this._statusIndicatorElement = null;   // 🆕 v1.2.0
+        this._alarmInfoElement = null;          // 🆕 v1.2.0
         this._productionBarFill = null;
         this._productionCountElement = null;
         this._productionPercentElement = null;
         this._lotTimeElement = null;
         this._timelineContainer = null;
-        this._boundHandlers = {};
     }
 }
 

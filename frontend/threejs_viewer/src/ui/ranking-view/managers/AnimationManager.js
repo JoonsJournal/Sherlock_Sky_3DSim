@@ -3,7 +3,7 @@
  * ===================
  * Ranking View 애니메이션 관리자
  * 
- * @version 1.1.1
+ * @version 1.2.0
  * @description
  * - 레인 간 이동 애니메이션 (4-Phase 시퀀스)
  * - 밀림 효과 (Push Down) 처리
@@ -11,6 +11,11 @@
  * - 상태 변경 감지 및 처리
  * 
  * @changelog
+ * - v1.2.0 (2026-01-23): 🆕 Phase 3 - 레인 이동 UI 업데이트 연동
+ *   - animateLaneChange() 파라미터 확장: newData, onComplete 추가
+ *   - onComplete 콜백 실행 로직 추가 (Phase 4 완료 후)
+ *   - 이벤트 발행 시 newData 포함
+ *   - ⚠️ 호환성: v1.1.1의 모든 기능/메서드/필드 100% 유지
  * - v1.1.1 (2026-01-19): 가이드라인 준수 보완
  *   - static UTIL 추가
  *   - CSS Legacy alias 추가
@@ -185,7 +190,7 @@ export class AnimationManager {
      * @private
      */
     _init() {
-        console.log('[AnimationManager] 🎬 Initializing v1.1.1...');
+        console.log('[AnimationManager] 🎬 Initializing v1.2.0...');
         this._setupEventListeners();
     }
     
@@ -228,18 +233,20 @@ export class AnimationManager {
     }
     
     /**
-     * [v1.1.0] 레인 간 이동 애니메이션 (4-Phase 시퀀스)
+     * [v1.2.0] 레인 간 이동 애니메이션 (4-Phase 시퀀스)
      * 
      * Phase 1: 카드 떠오름 (Lift)
      * Phase 2: 목표 레인 카드 밀림 (Push Down for Space)
      * Phase 3: 대각선 이동 (Move)
-     * Phase 4: 안착 (Settle)
+     * Phase 4: 안착 (Settle) + UI 업데이트
      * 
      * @param {string} equipmentId - 설비 ID
      * @param {string} fromLaneId - 출발 레인 ID
      * @param {string} toLaneId - 도착 레인 ID
      * @param {Object} options - 추가 옵션
-     * @param {number} options.targetIndex - 목표 인덱스 (기본: 0)
+     * @param {number} [options.targetIndex=0] - 목표 인덱스
+     * @param {Object} [options.newData=null] - 🆕 v1.2.0: 업데이트할 설비 데이터
+     * @param {Function} [options.onComplete=null] - 🆕 v1.2.0: 완료 콜백 (element, newData) => void
      */
     async animateLaneChange(equipmentId, fromLaneId, toLaneId, options = {}) {
         const card = this.cardsMap.get(equipmentId);
@@ -274,6 +281,8 @@ export class AnimationManager {
             const cardWidth = fromRect.width;
             const cardHeight = fromRect.height;
             const targetIndex = options.targetIndex || 0;
+            const newData = options.newData || null;           // 🆕 v1.2.0
+            const onComplete = options.onComplete || null;     // 🆕 v1.2.0
             
             // ─── Phase 1: Ghost + Clone 생성 ───
             console.log('[AnimationManager] 📍 Phase 1: Preparing lift-off');
@@ -348,13 +357,24 @@ export class AnimationManager {
                 element.classList.remove(AnimationManager.CSS.STATUS_CHANGED);
             }, 400);
             
+            // 🆕 v1.2.0: UI 업데이트 콜백 실행
+            if (onComplete && typeof onComplete === 'function') {
+                try {
+                    onComplete(element, newData);
+                    console.log(`[AnimationManager] 🔄 onComplete callback executed`);
+                } catch (callbackError) {
+                    console.error('[AnimationManager] ❌ onComplete callback error:', callbackError);
+                }
+            }
+            
             console.log(`[AnimationManager] ✅ Lane change complete: ${fromLaneId} → ${toLaneId}`);
             
-            // 완료 이벤트 발행
+            // 완료 이벤트 발행 (🆕 v1.2.0: newData 포함)
             eventBus.emit('ranking:animation:lane-change:complete', {
                 equipmentId,
                 fromLaneId,
-                toLaneId
+                toLaneId,
+                newData    // 🆕 v1.2.0
             });
             
         } catch (error) {

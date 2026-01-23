@@ -3,7 +3,7 @@
  * =====================
  * 카드 위치 계산 유틸리티
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @description
  * - 레인 내 카드 목표 위치 계산
  * - 스크롤 오프셋 고려
@@ -12,6 +12,10 @@
  * - 🆕 v1.1.0: 이동 벡터 계산, 밀림 위치 계산, 가시 범위 계산
  * 
  * @changelog
+ * - v1.2.0 (2026-01-23): Phase 1 - 레인 이동 개선
+ *   - 🆕 calculateSortedInsertIndex(): 정렬 기준 삽입 위치 계산
+ *   - 🆕 calculateBatchInsertIndices(): 복수 카드 일괄 계산
+ *   - ⚠️ 호환성: v1.1.0의 모든 기능/메서드/필드 100% 유지
  * - v1.1.0 (2026-01-19): 가이드라인 준수 + 추가 기능 통합
  *   - 🆕 static UTIL 추가 (가이드라인 준수)
  *   - 🆕 calculateMoveVector() - 이동 벡터 계산 (startX, startY 포함)
@@ -35,7 +39,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/utils/PositionCalculator.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-19
+ * 수정일: 2026-01-23
  */
 
 /**
@@ -418,6 +422,84 @@ export class PositionCalculator {
         return positions;
     }
     
+	 /**
+     * 🆕 v1.2.0: 정렬 기준값 비교를 통한 삽입 인덱스 계산
+     * 
+     * @param {Array<Object>} existingCards - 기존 카드 목록 (sortValue 포함)
+     * @param {number} newValue - 새 카드의 정렬 기준값
+     * @param {string} [sortOrder='desc'] - 정렬 방향 ('asc' | 'desc')
+     * @returns {number} insertIndex (0-based)
+     */
+    calculateSortedInsertIndex(existingCards, newValue, sortOrder = 'desc') {
+        if (!existingCards || existingCards.length === 0) {
+            return 0;
+        }
+        
+        let left = 0;
+        let right = existingCards.length;
+        
+        while (left < right) {
+            const mid = Math.floor((left + right) / 2);
+            const midValue = existingCards[mid].sortValue ?? 0;
+            
+            if (sortOrder === 'desc') {
+                if (midValue > newValue) {
+                    left = mid + 1;
+                } else {
+                    right = mid;
+                }
+            } else {
+                if (midValue < newValue) {
+                    left = mid + 1;
+                } else {
+                    right = mid;
+                }
+            }
+        }
+        
+        return left;
+    }
+    
+    /**
+     * 🆕 v1.2.0: 복수 카드 삽입 위치 일괄 계산
+     * 
+     * @param {Array<Object>} existingCards - 기존 카드 목록
+     * @param {Array<Object>} newCards - 삽입할 카드들 (sortValue 포함)
+     * @param {string} [sortOrder='desc'] - 정렬 방향
+     * @returns {Array<{card: Object, insertIndex: number}>}
+     */
+    calculateBatchInsertIndices(existingCards, newCards, sortOrder = 'desc') {
+        if (!newCards || newCards.length === 0) {
+            return [];
+        }
+        
+        const sortedNewCards = [...newCards].sort((a, b) => {
+            const valueA = a.sortValue ?? 0;
+            const valueB = b.sortValue ?? 0;
+            return sortOrder === 'desc' ? valueB - valueA : valueA - valueB;
+        });
+        
+        const results = [];
+        let offset = 0;
+        
+        for (const card of sortedNewCards) {
+            const baseIndex = this.calculateSortedInsertIndex(
+                existingCards, 
+                card.sortValue ?? 0, 
+                sortOrder
+            );
+            
+            results.push({
+                card,
+                insertIndex: baseIndex + offset
+            });
+            
+            offset++;
+        }
+        
+        return results;
+    }
+	
     /**
      * 🆕 v1.1.0: 레인 인덱스로부터 X 위치 계산
      * @param {number} laneIndex - 레인 인덱스

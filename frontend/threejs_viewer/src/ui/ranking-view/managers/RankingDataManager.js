@@ -3,7 +3,7 @@
  * =====================
  * Ranking View 데이터 가공 및 레인 할당 매니저
  * 
- * @version 2.1.0
+ * @version 2.2.0
  * @description
  * - 🆕 UDS (Unified Data Store) 연동 지원
  * - WebSocket 데이터 수신 및 가공
@@ -18,6 +18,12 @@
  * - 🆕 v2.1.0: 3D View 동기화 강화
  * 
  * @changelog
+ * - v2.2.0 (2026-01-23): Phase 1 - 레인 이동 개선 (삽입 위치 계산)
+ *   - 🆕 LANE_CONFIG 상수 추가 (sortBy, sortOrder 포함)
+ *   - 🆕 calculateInsertIndex(): 단일 설비 삽입 위치 계산
+ *   - 🆕 calculateBatchInsertIndices(): 복수 설비 일괄 계산
+ *   - 🆕 _getLaneConfig(), _getSortValue(), _binarySearchInsertIndex()
+ *   - ⚠️ 호환성: v2.1.0의 모든 기능/메서드/필드 100% 유지
  * - v2.1.0 (2026-01-21): Phase 3 Day 2 - Lane 정렬 및 UI 연동 강화
  *   - 🆕 getEquipmentsByLineName(): 실제 Line 이름 기준 그룹화
  *   - 🆕 getSortedByProductionCount(): 생산량 내림차순 정렬
@@ -50,7 +56,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/managers/RankingDataManager.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-21
+ * 수정일: 2026-01-23
  */
 
 import { LaneSorter } from '../utils/LaneSorter.js';
@@ -100,6 +106,64 @@ export class RankingDataManager {
         CUSTOM: 'custom'
     };
     
+	 /**
+     * 🆕 v2.2.0: 레인별 설정 (정렬 기준 포함)
+     * - sortBy: 정렬 기준 필드 ('duration' | 'production')
+     * - sortOrder: 정렬 방향 ('asc' | 'desc')
+     * - status: 매핑되는 설비 상태
+     */
+    static LANE_CONFIG = {
+        'remote': {
+            status: 'REMOTE',
+            sortBy: 'duration',
+            sortOrder: 'desc',
+            icon: '🔴',
+            label: 'Remote'
+        },
+        'sudden-stop': {
+            status: 'SUDDENSTOP',
+            sortBy: 'duration',
+            sortOrder: 'desc',
+            icon: '⚠️',
+            label: 'Sudden Stop'
+        },
+        'stop': {
+            status: 'STOP',
+            sortBy: 'duration',
+            sortOrder: 'desc',
+            icon: '🛑',
+            label: 'Stop'
+        },
+        'run': {
+            status: 'RUN',
+            sortBy: 'production',
+            sortOrder: 'desc',
+            icon: '🟢',
+            label: 'Run'
+        },
+        'idle': {
+            status: 'IDLE',
+            sortBy: 'duration',
+            sortOrder: 'desc',
+            icon: '🟡',
+            label: 'Idle'
+        },
+        'wait': {
+            status: 'WAIT',
+            sortBy: 'duration',
+            sortOrder: 'desc',
+            icon: '⏸️',
+            label: 'Wait'
+        },
+        'custom': {
+            status: 'CUSTOM',
+            sortBy: 'duration',
+            sortOrder: 'desc',
+            icon: '📊',
+            label: 'Custom'
+        }
+    };
+	
     /**
      * 설비 상태 상수
      */
@@ -378,7 +442,7 @@ export class RankingDataManager {
         this._emitEvent('equipment:select', {
             frontendId,
             equipmentId: frontendId,
-            source: 'ranking-view'
+            source: 'ranking-view-3d-sync'
         });
     }
     
@@ -1671,6 +1735,197 @@ export class RankingDataManager {
         this._emitEvent(RankingDataManager.EVENTS.STATS_UPDATED, {
             stats: this.getAllStats()
         });
+    }
+	
+	// =========================================================================
+    // 🆕 v2.2.0: 삽입 위치 계산 (Lane 이동 개선)
+    // =========================================================================
+    
+    /**
+     * 🆕 v2.2.0: 레인 삽입 위치 계산
+     * 정렬 기준에 맞는 올바른 위치를 이진 탐색으로 결정
+     * 
+     * @param {string} laneId - 목표 레인 ID
+     * @param {Object} equipment - 삽입할 설비 데이터
+     * @returns {number} targetIndex (0-based)
+     */
+    calculateInsertIndex(laneId, equipment) {
+        const laneConfig = this._getLaneConfig(laneId);
+        const { sortBy, sortOrder } = laneConfig;
+        
+        const existingEquipments = this.getLaneEquipments(laneId);
+        
+        if (existingEquipments.length === 0) {
+            return 0;
+        }
+        
+        const newValue = this._getSortValue(equipment, sortBy);
+        
+        return this._binarySearchInsertIndex(existingEquipments, newValue, sortBy, sortOrder);
+    }
+    
+    /**
+     * 🆕 v2.2.0: 복수 설비 삽입 위치 일괄 계산
+     * 
+     * @param {string} laneId - 목표 레인 ID
+     * @param {Array<Object>} equipments - 삽입할 설비들
+     * @returns {Array<{equipment: Object, targetIndex: number}>}
+     */
+    calculateBatchInsertIndices(laneId, equipments) {
+        if (!equipments || equipments.length === 0) {
+            return [];
+        }
+        
+        const sortedEquipments = this._sortEquipmentsByLaneCriteria(laneId, equipments);
+        const existingEquipments = this.getLaneEquipments(laneId);
+        
+        const results = [];
+        let insertedCount = 0;
+        
+        for (const equipment of sortedEquipments) {
+            const baseIndex = this._calculateInsertIndexWithOffset(
+                laneId, 
+                equipment, 
+                existingEquipments,
+                insertedCount
+            );
+            
+            results.push({
+                equipment,
+                targetIndex: baseIndex
+            });
+            
+            insertedCount++;
+        }
+        
+        return results;
+    }
+    
+    /**
+     * 🆕 v2.2.0: 레인 설정 가져오기
+     * @private
+     * @param {string} laneId - 레인 ID
+     * @returns {Object} 레인 설정
+     */
+    _getLaneConfig(laneId) {
+        const config = RankingDataManager.LANE_CONFIG[laneId];
+        
+        if (!config) {
+            console.warn(`[RankingDataManager] ⚠️ Unknown lane: ${laneId}, using default config`);
+            return {
+                status: 'UNKNOWN',
+                sortBy: 'duration',
+                sortOrder: 'desc',
+                icon: '❓',
+                label: laneId
+            };
+        }
+        
+        return config;
+    }
+    
+    /**
+     * 🆕 v2.2.0: 정렬 기준값 추출
+     * @private
+     * @param {Object} equipment - 설비 데이터
+     * @param {string} sortBy - 정렬 기준 ('duration' | 'production')
+     * @returns {number} 정렬 기준값
+     */
+    _getSortValue(equipment, sortBy) {
+        if (sortBy === 'production') {
+            return equipment.productionCount ?? 
+                   equipment.production_count ?? 
+                   equipment.currentCount ?? 0;
+        }
+        
+        if (typeof equipment.statusDuration === 'number') {
+            return equipment.statusDuration;
+        }
+        
+        const occurredAt = equipment.occurredAt || 
+                           equipment.occurredAtUtc || 
+                           equipment.statusStartTime;
+        
+        if (occurredAt) {
+            try {
+                const startTime = new Date(occurredAt).getTime();
+                const now = Date.now();
+                return Math.max(0, now - startTime);
+            } catch (e) {
+                console.warn('[RankingDataManager] ⚠️ Failed to parse occurredAt:', occurredAt);
+            }
+        }
+        
+        if (typeof equipment.waitDuration === 'number') {
+            return equipment.waitDuration;
+        }
+        
+        return 0;
+    }
+    
+    /**
+     * 🆕 v2.2.0: 이진 탐색으로 삽입 위치 결정
+     * @private
+     */
+    _binarySearchInsertIndex(existingEquipments, newValue, sortBy, sortOrder) {
+        let left = 0;
+        let right = existingEquipments.length;
+        
+        while (left < right) {
+            const mid = Math.floor((left + right) / 2);
+            const midValue = this._getSortValue(existingEquipments[mid], sortBy);
+            
+            if (sortOrder === 'desc') {
+                if (midValue > newValue) {
+                    left = mid + 1;
+                } else {
+                    right = mid;
+                }
+            } else {
+                if (midValue < newValue) {
+                    left = mid + 1;
+                } else {
+                    right = mid;
+                }
+            }
+        }
+        
+        return left;
+    }
+    
+    /**
+     * 🆕 v2.2.0: 설비 목록을 레인 기준에 맞게 정렬
+     * @private
+     */
+    _sortEquipmentsByLaneCriteria(laneId, equipments) {
+        const { sortBy, sortOrder } = this._getLaneConfig(laneId);
+        
+        return [...equipments].sort((a, b) => {
+            const valueA = this._getSortValue(a, sortBy);
+            const valueB = this._getSortValue(b, sortBy);
+            
+            return sortOrder === 'desc' 
+                ? valueB - valueA 
+                : valueA - valueB;
+        });
+    }
+    
+    /**
+     * 🆕 v2.2.0: 오프셋을 고려한 삽입 위치 계산
+     * @private
+     */
+    _calculateInsertIndexWithOffset(laneId, equipment, existingEquipments, offset) {
+        const { sortBy, sortOrder } = this._getLaneConfig(laneId);
+        const newValue = this._getSortValue(equipment, sortBy);
+        
+        const baseIndex = this._binarySearchInsertIndex(
+            existingEquipments, 
+            newValue, 
+            sortBy, 
+            sortOrder
+        );
+        
+        return baseIndex + offset;
     }
     
     // =========================================================================
