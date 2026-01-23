@@ -1516,6 +1516,7 @@ export class RankingView {
         }
         
         const card = lane.addCard(data);
+        this._cardsMap.set(equipmentKey, card);  // ← 이 줄 추가!
         this.setEmpty(false);
         
         // 🆕 v1.4.0: 통계 업데이트
