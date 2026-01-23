@@ -10,7 +10,14 @@
  *    2. 브라우저에서 직접 열기 (http-server 필요)
  *    3. 콘솔에서 테스트 함수 실행
  * 
+ * 🔧 v2.0 개선사항:
+ *    - 레이아웃 개선 (테스트 버튼 오른쪽 배치)
+ *    - 자동 랜덤 이동 기능 추가
+ *    - 키보드 단축키 지원
+ *    - 더 많은 테스트 설비
+ * 
  * 작성일: 2026-01-23
+ * 수정일: 2026-01-23 (v2.0)
 -->
 <head>
     <meta charset="UTF-8">
@@ -30,140 +37,339 @@
             color: #fff;
         }
         
-        /* Test Header */
+        /* ===== Test Header ===== */
         .test-header {
-            background: #1a1a2e;
-            padding: 12px 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 10px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
         }
         
         .test-header h1 {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 600;
-        }
-        
-        .test-controls {
             display: flex;
+            align-items: center;
             gap: 8px;
         }
         
-        .test-controls button {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        
-        .btn-primary {
+        .test-header h1 .version {
+            font-size: 11px;
             background: #3b82f6;
-            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
         }
         
-        .btn-primary:hover {
-            background: #2563eb;
-        }
-        
-        .btn-success {
-            background: #22c55e;
-            color: white;
-        }
-        
-        .btn-success:hover {
-            background: #16a34a;
-        }
-        
-        .btn-warning {
-            background: #f59e0b;
-            color: white;
-        }
-        
-        .btn-warning:hover {
-            background: #d97706;
-        }
-        
-        .btn-danger {
-            background: #ef4444;
-            color: white;
-        }
-        
-        .btn-danger:hover {
-            background: #dc2626;
-        }
-        
-        /* Test Content */
+        /* ===== Test Content ===== */
         .test-content {
             flex: 1;
             display: flex;
             overflow: hidden;
         }
         
-        /* Ranking View Container */
+        /* ===== Ranking View Container ===== */
         .ranking-container {
             flex: 1;
             position: relative;
             overflow: hidden;
         }
         
-        /* Test Log Panel */
-        .test-log {
-            width: 400px;
+        /* ===== Test Control Panel (Right Side) ===== */
+        .test-panel {
+            width: 280px;
             background: #111;
             border-left: 1px solid rgba(255,255,255,0.1);
             display: flex;
             flex-direction: column;
+            flex-shrink: 0;
+        }
+        
+        .panel-section {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .panel-section-header {
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.03);
+            font-weight: 600;
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .panel-section-content {
+            padding: 10px 12px;
+        }
+        
+        /* ===== Control Buttons ===== */
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        
+        .control-btn {
+            padding: 10px 8px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .control-btn .icon {
+            font-size: 18px;
+        }
+        
+        .control-btn .label {
+            font-size: 10px;
+            opacity: 0.9;
+        }
+        
+        .control-btn .key {
+            font-size: 9px;
+            opacity: 0.6;
+            background: rgba(0,0,0,0.2);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+        
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Button Colors */
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        
+        .btn-success { background: #22c55e; color: white; }
+        .btn-success:hover { background: #16a34a; }
+        
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover { background: #d97706; }
+        
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        
+        .btn-purple { background: #8b5cf6; color: white; }
+        .btn-purple:hover { background: #7c3aed; }
+        
+        .btn-cyan { background: #06b6d4; color: white; }
+        .btn-cyan:hover { background: #0891b2; }
+        
+        .btn-gray { background: #4b5563; color: white; }
+        .btn-gray:hover { background: #374151; }
+        
+        .btn-wide { grid-column: span 2; }
+        
+        /* ===== Auto Move Controls ===== */
+        .auto-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .auto-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        
+        .auto-row label {
+            font-size: 11px;
+            color: #aaa;
+            min-width: 50px;
+        }
+        
+        .auto-row input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #333;
+            appearance: none;
+        }
+        
+        .auto-row input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+        }
+        
+        .auto-row .value {
+            font-size: 11px;
+            font-weight: 600;
+            min-width: 40px;
+            text-align: right;
+            color: #3b82f6;
+        }
+        
+        .auto-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            font-size: 11px;
+        }
+        
+        .auto-status .indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+        
+        .auto-status.running .indicator {
+            background: #22c55e;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* ===== Keyboard Shortcuts ===== */
+        .shortcuts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            padding: 4px 0;
+        }
+        
+        .shortcut-item .keys {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            color: #ffd700;
+        }
+        
+        .shortcut-item .desc {
+            color: #888;
+        }
+        
+        /* ===== Test Log ===== */
+        .test-log {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
         
         .test-log-header {
-            padding: 12px 16px;
-            background: #1a1a2e;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.03);
             font-weight: 600;
-            font-size: 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .test-log-header button {
+            font-size: 10px;
+            padding: 3px 8px;
+            background: #333;
+            border: none;
+            border-radius: 3px;
+            color: #aaa;
+            cursor: pointer;
+        }
+        
+        .test-log-header button:hover {
+            background: #444;
+            color: #fff;
         }
         
         .test-log-content {
             flex: 1;
             overflow-y: auto;
-            padding: 12px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
-            line-height: 1.6;
+            padding: 8px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 10px;
+            line-height: 1.5;
+            background: #0a0a0a;
         }
         
         .log-entry {
-            padding: 4px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 2px 0;
         }
         
         .log-entry.success { color: #22c55e; }
         .log-entry.error { color: #ef4444; }
         .log-entry.warning { color: #f59e0b; }
         .log-entry.info { color: #60a5fa; }
+        .log-entry.move { color: #c084fc; }
+        .log-entry.divider { color: #444; }
         
-        /* Override ranking-view position for test */
+        /* ===== Override ranking-view ===== */
         .ranking-view {
             position: relative !important;
             left: 0 !important;
             width: 100% !important;
         }
+        
+        /* ===== Stats Display ===== */
+        .stats-display {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+        }
+        
+        .stat-item {
+            background: rgba(255,255,255,0.03);
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .stat-item .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+        }
+        
+        .stat-item .stat-label {
+            font-size: 9px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        
+        .stat-item.run .stat-value { color: #22c55e; }
+        .stat-item.idle .stat-value { color: #f59e0b; }
+        .stat-item.stop .stat-value { color: #ef4444; }
     </style>
 </head>
 <body>
     <!-- Test Header -->
     <header class="test-header">
-        <h1>🧪 EquipmentCard Lane Move Test (No Backend)</h1>
-        <div class="test-controls">
-            <button class="btn-primary" onclick="loadTestData()">📦 테스트 데이터 로드</button>
-            <button class="btn-success" onclick="testMoveToRun()">🟢 RUN으로 이동</button>
-            <button class="btn-warning" onclick="testMoveToIdle()">🟡 IDLE로 이동</button>
-            <button class="btn-danger" onclick="testMoveToStop()">🛑 STOP으로 이동</button>
-            <button class="btn-primary" onclick="debugSnapshot()">📊 상태 스냅샷</button>
+        <h1>
+            🧪 EquipmentCard Lane Move Test
+            <span class="version">v2.0</span>
+        </h1>
+        <div style="font-size: 11px; color: #888;">
+            Press <kbd style="background:#333;padding:2px 6px;border-radius:3px;">H</kbd> for help
         </div>
     </header>
     
@@ -172,10 +378,154 @@
         <!-- Ranking View Container -->
         <div class="ranking-container" id="ranking-container"></div>
         
-        <!-- Test Log Panel -->
-        <div class="test-log">
-            <div class="test-log-header">📋 Test Log</div>
-            <div class="test-log-content" id="test-log"></div>
+        <!-- Test Control Panel -->
+        <div class="test-panel">
+            <!-- Data Controls -->
+            <div class="panel-section">
+                <div class="panel-section-header">📦 Data Controls</div>
+                <div class="panel-section-content">
+                    <div class="control-grid">
+                        <button class="control-btn btn-primary btn-wide" onclick="loadTestData()">
+                            <span class="icon">📦</span>
+                            <span class="label">테스트 데이터 로드</span>
+                            <span class="key">D</span>
+                        </button>
+                        <button class="control-btn btn-gray" onclick="clearAllData()">
+                            <span class="icon">🗑️</span>
+                            <span class="label">초기화</span>
+                            <span class="key">C</span>
+                        </button>
+                        <button class="control-btn btn-cyan" onclick="debugSnapshot()">
+                            <span class="icon">📊</span>
+                            <span class="label">스냅샷</span>
+                            <span class="key">S</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Manual Move Controls -->
+            <div class="panel-section">
+                <div class="panel-section-header">🎯 Manual Move</div>
+                <div class="panel-section-content">
+                    <div class="control-grid">
+                        <button class="control-btn btn-success" onclick="testMoveToRun()">
+                            <span class="icon">🟢</span>
+                            <span class="label">RUN으로</span>
+                            <span class="key">1</span>
+                        </button>
+                        <button class="control-btn btn-warning" onclick="testMoveToIdle()">
+                            <span class="icon">🟡</span>
+                            <span class="label">IDLE로</span>
+                            <span class="key">2</span>
+                        </button>
+                        <button class="control-btn btn-danger" onclick="testMoveToStop()">
+                            <span class="icon">🛑</span>
+                            <span class="label">STOP으로</span>
+                            <span class="key">3</span>
+                        </button>
+                        <button class="control-btn btn-purple" onclick="testMoveToSuddenStop()">
+                            <span class="icon">⚠️</span>
+                            <span class="label">SUDDEN</span>
+                            <span class="key">4</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Auto Move Controls -->
+            <div class="panel-section">
+                <div class="panel-section-header">🔄 Auto Random Move</div>
+                <div class="panel-section-content">
+                    <div class="auto-controls">
+                        <div class="auto-row">
+                            <label>간격</label>
+                            <input type="range" id="auto-interval" min="500" max="5000" value="2000" step="100">
+                            <span class="value" id="interval-value">2.0s</span>
+                        </div>
+                        <div class="control-grid">
+                            <button class="control-btn btn-success" onclick="startAutoMove()" id="btn-start-auto">
+                                <span class="icon">▶️</span>
+                                <span class="label">시작</span>
+                                <span class="key">Space</span>
+                            </button>
+                            <button class="control-btn btn-danger" onclick="stopAutoMove()" id="btn-stop-auto" disabled>
+                                <span class="icon">⏹️</span>
+                                <span class="label">중지</span>
+                                <span class="key">Space</span>
+                            </button>
+                        </div>
+                        <div class="auto-status" id="auto-status">
+                            <span class="indicator"></span>
+                            <span>자동 이동: <strong id="auto-status-text">중지됨</strong></span>
+                            <span id="auto-count" style="margin-left:auto; color:#888;">0회</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stats -->
+            <div class="panel-section">
+                <div class="panel-section-header">📈 Current Stats</div>
+                <div class="panel-section-content">
+                    <div class="stats-display">
+                        <div class="stat-item run">
+                            <div class="stat-value" id="stat-run">0</div>
+                            <div class="stat-label">RUN</div>
+                        </div>
+                        <div class="stat-item idle">
+                            <div class="stat-value" id="stat-idle">0</div>
+                            <div class="stat-label">IDLE</div>
+                        </div>
+                        <div class="stat-item stop">
+                            <div class="stat-value" id="stat-stop">0</div>
+                            <div class="stat-label">STOP</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Keyboard Shortcuts -->
+            <div class="panel-section">
+                <div class="panel-section-header">⌨️ Shortcuts</div>
+                <div class="panel-section-content">
+                    <div class="shortcuts-list">
+                        <div class="shortcut-item">
+                            <span class="keys">D</span>
+                            <span class="desc">데이터 로드</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="keys">1-4</span>
+                            <span class="desc">레인 이동</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="keys">Space</span>
+                            <span class="desc">자동 시작/중지</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="keys">R</span>
+                            <span class="desc">랜덤 1회 이동</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="keys">S</span>
+                            <span class="desc">스냅샷</span>
+                        </div>
+                        <div class="shortcut-item">
+                            <span class="keys">C</span>
+                            <span class="desc">초기화</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Test Log -->
+            <div class="panel-section test-log">
+                <div class="test-log-header">
+                    <span>📋 Log</span>
+                    <button onclick="clearLog()">Clear</button>
+                </div>
+                <div class="test-log-content" id="test-log"></div>
+            </div>
         </div>
     </div>
 
@@ -191,7 +541,7 @@
 
     <script type="module">
         // ========================================
-        // Minimal imports for testing
+        // Imports
         // ========================================
         import { eventBus } from './src/core/managers/EventBus.js';
         import { RankingView } from './src/ui/ranking-view/RankingView.js';
@@ -202,6 +552,8 @@
         // ========================================
         let rankingView = null;
         let testEquipments = [];
+        let autoMoveInterval = null;
+        let autoMoveCount = 0;
         
         // ========================================
         // Logger
@@ -210,151 +562,109 @@
             const logEl = document.getElementById('test-log');
             const entry = document.createElement('div');
             entry.className = `log-entry ${type}`;
-            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            
+            const time = new Date().toLocaleTimeString('ko-KR', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            });
+            
+            entry.textContent = `[${time}] ${message}`;
             logEl.appendChild(entry);
             logEl.scrollTop = logEl.scrollHeight;
             
-            // Also console
-            console.log(`[TEST] ${message}`);
+            // Keep only last 100 entries
+            while (logEl.children.length > 100) {
+                logEl.removeChild(logEl.firstChild);
+            }
         }
         
         window.log = log;
         
+        window.clearLog = function() {
+            document.getElementById('test-log').innerHTML = '';
+            log('📋 로그 초기화됨', 'info');
+        };
+        
         // ========================================
-        // Initialize RankingView (Minimal)
+        // Initialize RankingView
         // ========================================
         function initRankingView() {
-            log('🚀 RankingView 초기화 시작...', 'info');
+            log('🚀 RankingView 초기화...', 'info');
             
             const container = document.getElementById('ranking-container');
             
             rankingView = new RankingView({
                 container: container,
-                webSocketClient: null,  // No WebSocket!
-                useUDS: false           // No UDS!
+                webSocketClient: null,
+                useUDS: false
             });
             
-            // Show it
             rankingView.show();
             
             window.rankingView = rankingView;
             window.eventBus = eventBus;
             
-            log('✅ RankingView 초기화 완료', 'success');
-            log(`   - _lanes: ${rankingView._lanes.size}개`, 'info');
-            log(`   - _cardsMap: ${rankingView._cardsMap.size}개`, 'info');
+            log('✅ RankingView 준비 완료', 'success');
         }
         
         // ========================================
-        // Load Test Data
+        // Test Data
         // ========================================
         window.loadTestData = function() {
-            log('📦 테스트 데이터 로드 중...', 'info');
+            log('📦 테스트 데이터 로드...', 'info');
             
             // Clear existing
             rankingView.clearAllData();
             rankingView._cardsMap.clear();
             
             testEquipments = [
-                // RUN Lane (3개)
-                {
-                    equipmentId: '1001',
-                    frontendId: 'EQ-17-01',
-                    equipmentName: '설비 17-01',
-                    status: 'RUN',
-                    occurredAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-                    productionCount: 85,
-                    targetCount: 100
-                },
-                {
-                    equipmentId: '1002',
-                    frontendId: 'EQ-17-02',
-                    equipmentName: '설비 17-02',
-                    status: 'RUN',
-                    occurredAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-                    productionCount: 67,
-                    targetCount: 100
-                },
-                {
-                    equipmentId: '1003',
-                    frontendId: 'EQ-17-03',
-                    equipmentName: '설비 17-03',
-                    status: 'RUN',
-                    occurredAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-                    productionCount: 92,
-                    targetCount: 100
-                },
+                // RUN (4개)
+                { equipmentId: '1001', frontendId: 'EQ-17-01', equipmentName: '설비 17-01', status: 'RUN', productionCount: 85, targetCount: 100 },
+                { equipmentId: '1002', frontendId: 'EQ-17-02', equipmentName: '설비 17-02', status: 'RUN', productionCount: 67, targetCount: 100 },
+                { equipmentId: '1003', frontendId: 'EQ-17-03', equipmentName: '설비 17-03', status: 'RUN', productionCount: 92, targetCount: 100 },
+                { equipmentId: '1004', frontendId: 'EQ-17-04', equipmentName: '설비 17-04', status: 'RUN', productionCount: 78, targetCount: 100 },
                 
-                // IDLE Lane (2개)
-                {
-                    equipmentId: '1004',
-                    frontendId: 'EQ-18-01',
-                    equipmentName: '설비 18-01',
-                    status: 'IDLE',
-                    occurredAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-                    productionCount: 50,
-                    targetCount: 100
-                },
-                {
-                    equipmentId: '1005',
-                    frontendId: 'EQ-18-02',
-                    equipmentName: '설비 18-02',
-                    status: 'IDLE',
-                    occurredAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-                    productionCount: 45,
-                    targetCount: 100
-                },
+                // IDLE (3개)
+                { equipmentId: '1005', frontendId: 'EQ-18-01', equipmentName: '설비 18-01', status: 'IDLE', productionCount: 50, targetCount: 100 },
+                { equipmentId: '1006', frontendId: 'EQ-18-02', equipmentName: '설비 18-02', status: 'IDLE', productionCount: 45, targetCount: 100 },
+                { equipmentId: '1007', frontendId: 'EQ-18-03', equipmentName: '설비 18-03', status: 'IDLE', productionCount: 62, targetCount: 100 },
                 
-                // STOP Lane (2개)
-                {
-                    equipmentId: '1006',
-                    frontendId: 'EQ-19-01',
-                    equipmentName: '설비 19-01',
-                    status: 'STOP',
-                    occurredAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-                    productionCount: 33,
-                    targetCount: 100
-                },
-                {
-                    equipmentId: '1007',
-                    frontendId: 'EQ-19-02',
-                    equipmentName: '설비 19-02',
-                    status: 'STOP',
-                    occurredAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-                    productionCount: 28,
-                    targetCount: 100
-                },
+                // STOP (3개)
+                { equipmentId: '1008', frontendId: 'EQ-19-01', equipmentName: '설비 19-01', status: 'STOP', productionCount: 33, targetCount: 100 },
+                { equipmentId: '1009', frontendId: 'EQ-19-02', equipmentName: '설비 19-02', status: 'STOP', productionCount: 28, targetCount: 100 },
+                { equipmentId: '1010', frontendId: 'EQ-17-05', equipmentName: '설비 17-05', status: 'STOP', productionCount: 41, targetCount: 100 },
                 
-                // SUDDEN-STOP Lane (1개)
-                {
-                    equipmentId: '1008',
-                    frontendId: 'EQ-20-01',
-                    equipmentName: '설비 20-01',
-                    status: 'SUDDENSTOP',
-                    occurredAt: new Date(Date.now() - 8 * 60 * 1000).toISOString(),
-                    alarmCode: 1234,
-                    alarmMessage: 'SENSOR ERROR',
-                    alarmRepeatCount: 2,
-                    productionCount: 72,
-                    targetCount: 100
-                }
+                // SUDDEN-STOP (2개)
+                { equipmentId: '1011', frontendId: 'EQ-20-01', equipmentName: '설비 20-01', status: 'SUDDENSTOP', alarmCode: 1234, alarmMessage: 'SENSOR ERROR', alarmRepeatCount: 2, productionCount: 72, targetCount: 100 },
+                { equipmentId: '1012', frontendId: 'EQ-20-02', equipmentName: '설비 20-02', status: 'SUDDENSTOP', alarmCode: 5678, alarmMessage: 'MOTOR OVERHEAT', alarmRepeatCount: 1, productionCount: 55, targetCount: 100 }
             ];
+            
+            // Add timestamp
+            testEquipments.forEach(eq => {
+                eq.occurredAt = new Date(Date.now() - Math.random() * 60 * 60 * 1000).toISOString();
+            });
             
             // Add to lanes
             testEquipments.forEach(eq => {
                 const laneId = getLaneIdFromStatus(eq.status);
                 const card = rankingView.addEquipment(laneId, eq);
-                
-                // 명시적으로 _cardsMap에도 등록
                 if (card) {
                     rankingView._cardsMap.set(eq.frontendId, card);
                 }
-                
-                log(`   ➕ ${eq.frontendId} → ${laneId}`, 'info');
             });
             
-            log(`✅ 테스트 데이터 로드 완료 (${testEquipments.length}개)`, 'success');
-            debugSnapshot();
+            log(`✅ ${testEquipments.length}개 설비 로드 완료`, 'success');
+            updateStats();
+        };
+        
+        window.clearAllData = function() {
+            stopAutoMove();
+            rankingView.clearAllData();
+            rankingView._cardsMap.clear();
+            testEquipments = [];
+            log('🗑️ 모든 데이터 초기화됨', 'warning');
+            updateStats();
         };
         
         function getLaneIdFromStatus(status) {
@@ -369,174 +679,316 @@
             return map[status] || 'idle';
         }
         
+        function getStatusFromLaneId(laneId) {
+            const map = {
+                'run': 'RUN',
+                'idle': 'IDLE',
+                'stop': 'STOP',
+                'sudden-stop': 'SUDDENSTOP',
+                'remote': 'REMOTE',
+                'wait': 'WAIT'
+            };
+            return map[laneId] || 'IDLE';
+        }
+        
         // ========================================
-        // Test Move Functions
+        // Move Functions
         // ========================================
         window.testMoveToRun = function() {
-            testLaneMove('EQ-18-01', 'idle', 'run', 'RUN');
+            moveRandomEquipmentToLane('run');
         };
         
         window.testMoveToIdle = function() {
-            testLaneMove('EQ-17-01', 'run', 'idle', 'IDLE');
+            moveRandomEquipmentToLane('idle');
         };
         
         window.testMoveToStop = function() {
-            testLaneMove('EQ-17-02', 'run', 'stop', 'STOP');
+            moveRandomEquipmentToLane('stop');
         };
         
-        function testLaneMove(frontendId, fromLane, toLane, newStatus) {
-            log(`\n${'='.repeat(50)}`, 'info');
-            log(`🧪 레인 이동 테스트: ${frontendId}`, 'info');
-            log(`   ${fromLane} → ${toLane} (${newStatus})`, 'info');
-            log('='.repeat(50), 'info');
+        window.testMoveToSuddenStop = function() {
+            moveRandomEquipmentToLane('sudden-stop');
+        };
+        
+        function moveRandomEquipmentToLane(targetLane) {
+            // Find equipment NOT in target lane
+            const candidates = [];
             
-            // 1. 카드 찾기
-            const card = rankingView._cardsMap.get(frontendId);
-            log(`1️⃣ _cardsMap.get("${frontendId}"):`, card ? 'success' : 'error');
+            rankingView._lanes.forEach((lane, laneId) => {
+                if (laneId !== targetLane) {
+                    lane._cards.forEach((card, frontendId) => {
+                        candidates.push({ frontendId, fromLane: laneId, card });
+                    });
+                }
+            });
             
-            if (!card) {
-                log(`   ❌ 카드를 찾을 수 없음!`, 'error');
-                log(`   사용 가능한 키: ${Array.from(rankingView._cardsMap.keys()).join(', ')}`, 'warning');
+            if (candidates.length === 0) {
+                log(`⚠️ 이동할 설비 없음 (모두 ${targetLane}에 있음)`, 'warning');
                 return;
             }
             
-            // 2. 현재 상태
-            const currentData = card.getData();
-            log(`2️⃣ 현재 데이터:`, 'info');
-            log(`   - status: ${currentData.status}`, 'info');
-            log(`   - alarmCode: ${currentData.alarmCode || 'null'}`, 'info');
+            // Pick random
+            const selected = candidates[Math.floor(Math.random() * candidates.length)];
+            performMove(selected.frontendId, selected.fromLane, targetLane);
+        }
+        
+        window.performRandomMove = function() {
+            const lanes = ['run', 'idle', 'stop', 'sudden-stop'];
+            const allCards = [];
             
-            // 3. _statusIndicatorElement 확인
-            log(`3️⃣ _statusIndicatorElement:`, card._statusIndicatorElement ? 'success' : 'error');
-            if (card._statusIndicatorElement) {
-                log(`   현재 아이콘: "${card._statusIndicatorElement.textContent}"`, 'info');
-            } else {
-                log(`   ❌ _statusIndicatorElement가 null!`, 'error');
+            rankingView._lanes.forEach((lane, laneId) => {
+                if (lanes.includes(laneId)) {
+                    lane._cards.forEach((card, frontendId) => {
+                        allCards.push({ frontendId, fromLane: laneId, card });
+                    });
+                }
+            });
+            
+            if (allCards.length === 0) {
+                log('⚠️ 이동할 설비 없음', 'warning');
+                return;
             }
             
-            // 4. 현재 CSS 클래스
-            log(`4️⃣ 현재 CSS 클래스:`, 'info');
-            const statusClasses = Array.from(card.element.classList)
-                .filter(c => c.includes('--'));
-            log(`   ${statusClasses.join(', ')}`, 'info');
+            // Pick random card
+            const selected = allCards[Math.floor(Math.random() * allCards.length)];
             
-            // 5. updateStatus 호출
-            log(`5️⃣ updateStatus() 호출...`, 'info');
+            // Pick random target (different from current)
+            const otherLanes = lanes.filter(l => l !== selected.fromLane);
+            const targetLane = otherLanes[Math.floor(Math.random() * otherLanes.length)];
             
+            performMove(selected.frontendId, selected.fromLane, targetLane);
+        };
+        
+        function performMove(frontendId, fromLane, toLane) {
+            const newStatus = getStatusFromLaneId(toLane);
+            
+            log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'divider');
+            log(`🚀 ${frontendId}: ${fromLane} → ${toLane}`, 'move');
+            
+            // 1. Get card
+            const card = rankingView._cardsMap.get(frontendId);
+            if (!card) {
+                log(`❌ 카드 없음: ${frontendId}`, 'error');
+                return;
+            }
+            
+            // 2. Get current data
+            const currentData = card.getData();
+            
+            // 3. Prepare new data
             const newData = {
                 ...currentData,
                 status: newStatus,
                 occurredAt: new Date().toISOString(),
-                alarmCode: (toLane === 'run' || toLane === 'idle') ? null : currentData.alarmCode,
-                alarmMessage: (toLane === 'run' || toLane === 'idle') ? null : currentData.alarmMessage
+                alarmCode: (toLane === 'run' || toLane === 'idle') ? null : (currentData.alarmCode || Math.floor(Math.random() * 9000) + 1000),
+                alarmMessage: (toLane === 'run' || toLane === 'idle') ? null : (currentData.alarmMessage || 'AUTO TEST ALARM')
             };
             
-            log(`   새 status: ${newData.status}`, 'info');
-            
+            // 4. Update status (icon change)
             try {
                 card.updateStatus(newData, { resetDuration: true });
-                log(`   ✅ updateStatus 호출 성공`, 'success');
+                
+                const iconEl = card._statusIndicatorElement;
+                const newIcon = iconEl ? iconEl.textContent : '?';
+                log(`   아이콘: ${newIcon} / 상태: ${newStatus}`, 'info');
             } catch (err) {
-                log(`   ❌ updateStatus 에러: ${err.message}`, 'error');
+                log(`❌ updateStatus 에러: ${err.message}`, 'error');
                 return;
             }
             
-            // 6. 결과 확인
-            log(`6️⃣ 업데이트 후 결과:`, 'info');
-            
-            if (card._statusIndicatorElement) {
-                log(`   새 아이콘: "${card._statusIndicatorElement.textContent}"`, 'success');
-            }
-            
-            const newStatusClasses = Array.from(card.element.classList)
-                .filter(c => c.includes('--'));
-            log(`   새 CSS 클래스: ${newStatusClasses.join(', ')}`, 'success');
-            
-            // 7. 실제 DOM 이동 (선택적)
-            log(`7️⃣ DOM 이동 (${fromLane} → ${toLane})...`, 'info');
-            
+            // 5. DOM Move
             const fromLaneComponent = rankingView._lanes.get(fromLane);
             const toLaneComponent = rankingView._lanes.get(toLane);
             
             if (fromLaneComponent && toLaneComponent) {
-                // 이전 레인에서 제거
                 fromLaneComponent._cards.delete(frontendId);
-                
-                // 새 레인에 추가
                 toLaneComponent._cards.set(frontendId, card);
                 toLaneComponent._cardsContainer.appendChild(card.element);
                 
-                // 상태 업데이트
                 fromLaneComponent._updateEmptyState();
                 fromLaneComponent._updateStats();
                 toLaneComponent._updateEmptyState();
                 toLaneComponent._updateStats();
-                
-                log(`   ✅ DOM 이동 완료`, 'success');
             }
             
-            log(`\n✅ 테스트 완료!`, 'success');
-            log(`${'='.repeat(50)}\n`, 'info');
+            log(`✅ 이동 완료`, 'success');
+            updateStats();
+        }
+        
+        // ========================================
+        // Auto Move
+        // ========================================
+        window.startAutoMove = function() {
+            if (autoMoveInterval) return;
+            
+            const interval = parseInt(document.getElementById('auto-interval').value);
+            
+            autoMoveInterval = setInterval(() => {
+                performRandomMove();
+                autoMoveCount++;
+                document.getElementById('auto-count').textContent = `${autoMoveCount}회`;
+            }, interval);
+            
+            document.getElementById('btn-start-auto').disabled = true;
+            document.getElementById('btn-stop-auto').disabled = false;
+            document.getElementById('auto-status').classList.add('running');
+            document.getElementById('auto-status-text').textContent = '실행 중';
+            
+            log(`▶️ 자동 이동 시작 (간격: ${interval}ms)`, 'success');
+        };
+        
+        window.stopAutoMove = function() {
+            if (autoMoveInterval) {
+                clearInterval(autoMoveInterval);
+                autoMoveInterval = null;
+            }
+            
+            document.getElementById('btn-start-auto').disabled = false;
+            document.getElementById('btn-stop-auto').disabled = true;
+            document.getElementById('auto-status').classList.remove('running');
+            document.getElementById('auto-status-text').textContent = '중지됨';
+            
+            log(`⏹️ 자동 이동 중지 (총 ${autoMoveCount}회)`, 'warning');
+        };
+        
+        window.toggleAutoMove = function() {
+            if (autoMoveInterval) {
+                stopAutoMove();
+            } else {
+                startAutoMove();
+            }
+        };
+        
+        // ========================================
+        // Stats Update
+        // ========================================
+        function updateStats() {
+            const stats = { run: 0, idle: 0, stop: 0 };
+            
+            rankingView._lanes.forEach((lane, laneId) => {
+                const count = lane._cards.size;
+                if (laneId === 'run') stats.run = count;
+                else if (laneId === 'idle') stats.idle = count;
+                else if (laneId === 'stop' || laneId === 'sudden-stop') stats.stop += count;
+            });
+            
+            document.getElementById('stat-run').textContent = stats.run;
+            document.getElementById('stat-idle').textContent = stats.idle;
+            document.getElementById('stat-stop').textContent = stats.stop;
         }
         
         // ========================================
         // Debug Snapshot
         // ========================================
         window.debugSnapshot = function() {
-            log(`\n📊 상태 스냅샷`, 'info');
-            log('-'.repeat(40), 'info');
+            log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'divider');
+            log(`📊 상태 스냅샷`, 'info');
             
-            // _cardsMap
             const cardsMapKeys = Array.from(rankingView._cardsMap.keys());
-            log(`_cardsMap 크기: ${cardsMapKeys.length}`, 'info');
-            log(`_cardsMap 키: ${cardsMapKeys.slice(0, 5).join(', ')}${cardsMapKeys.length > 5 ? '...' : ''}`, 'info');
+            log(`_cardsMap: ${cardsMapKeys.length}개`, 'info');
             
-            // Lanes
             rankingView._lanes.forEach((lane, laneId) => {
-                const laneKeys = Array.from(lane._cards.keys());
-                log(`Lane[${laneId}]: ${laneKeys.length}개 - ${laneKeys.join(', ') || '(비어있음)'}`, 'info');
+                const count = lane._cards.size;
+                if (count > 0) {
+                    const keys = Array.from(lane._cards.keys()).join(', ');
+                    log(`  ${laneId}: ${count}개 [${keys}]`, 'info');
+                }
             });
             
-            // 불일치 체크
-            let mismatchCount = 0;
-            rankingView._lanes.forEach((lane, laneId) => {
-                lane._cards.forEach((card, cardKey) => {
-                    if (!rankingView._cardsMap.has(cardKey)) {
-                        log(`⚠️ 불일치: Lane[${laneId}]의 "${cardKey}"가 _cardsMap에 없음`, 'warning');
-                        mismatchCount++;
-                    }
-                });
-            });
-            
-            if (mismatchCount === 0) {
-                log(`✅ 키 불일치 없음`, 'success');
-            }
-            
-            log('-'.repeat(40), 'info');
+            log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'divider');
         };
+        
+        // ========================================
+        // Keyboard Shortcuts
+        // ========================================
+        document.addEventListener('keydown', (e) => {
+            // Ignore if typing in input
+            if (e.target.tagName === 'INPUT') return;
+            
+            switch (e.key.toLowerCase()) {
+                case 'd':
+                    e.preventDefault();
+                    loadTestData();
+                    break;
+                case 'c':
+                    e.preventDefault();
+                    clearAllData();
+                    break;
+                case 's':
+                    e.preventDefault();
+                    debugSnapshot();
+                    break;
+                case '1':
+                    e.preventDefault();
+                    testMoveToRun();
+                    break;
+                case '2':
+                    e.preventDefault();
+                    testMoveToIdle();
+                    break;
+                case '3':
+                    e.preventDefault();
+                    testMoveToStop();
+                    break;
+                case '4':
+                    e.preventDefault();
+                    testMoveToSuddenStop();
+                    break;
+                case 'r':
+                    e.preventDefault();
+                    performRandomMove();
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    toggleAutoMove();
+                    break;
+                case 'h':
+                    e.preventDefault();
+                    showHelp();
+                    break;
+            }
+        });
+        
+        function showHelp() {
+            log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'divider');
+            log(`⌨️ 키보드 단축키`, 'info');
+            log(`  D: 테스트 데이터 로드`, 'info');
+            log(`  C: 데이터 초기화`, 'info');
+            log(`  S: 상태 스냅샷`, 'info');
+            log(`  1: RUN으로 이동`, 'info');
+            log(`  2: IDLE로 이동`, 'info');
+            log(`  3: STOP으로 이동`, 'info');
+            log(`  4: SUDDEN STOP으로 이동`, 'info');
+            log(`  R: 랜덤 1회 이동`, 'info');
+            log(`  Space: 자동 이동 시작/중지`, 'info');
+            log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, 'divider');
+        }
+        
+        // ========================================
+        // Interval Slider
+        // ========================================
+        document.getElementById('auto-interval').addEventListener('input', (e) => {
+            const value = e.target.value;
+            document.getElementById('interval-value').textContent = (value / 1000).toFixed(1) + 's';
+            
+            // If running, restart with new interval
+            if (autoMoveInterval) {
+                stopAutoMove();
+                startAutoMove();
+            }
+        });
         
         // ========================================
         // Initialize
         // ========================================
         document.addEventListener('DOMContentLoaded', () => {
-            log('🏁 테스트 페이지 로드됨', 'info');
-            
-            // EventBus 가짜 설정 (이벤트 에러 방지)
-            if (!window.eventBus) {
-                window.eventBus = {
-                    emit: () => {},
-                    on: () => () => {},
-                    off: () => {}
-                };
-            }
+            log('🏁 테스트 페이지 로드됨 (v2.0)', 'info');
+            log('', 'info');
             
             initRankingView();
             
             log('', 'info');
-            log('📋 사용 방법:', 'info');
-            log('   1. "테스트 데이터 로드" 클릭', 'info');
-            log('   2. 이동 버튼 클릭 (RUN/IDLE/STOP)', 'info');
-            log('   3. 로그에서 결과 확인', 'info');
+            log('💡 D키로 데이터 로드, Space로 자동 이동!', 'success');
             log('', 'info');
         });
     </script>
