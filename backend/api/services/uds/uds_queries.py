@@ -134,12 +134,13 @@ UDS SQL 쿼리 모음 (MSSQL WITH NOLOCK 필수 적용)
 #  4: StatusChangedAt     (datetime)
 #  5: ProductModel        (str or NULL)
 #  6: LotId               (str or NULL)
-#  7: LotStartTime        (datetime or NULL)
-#  8: CpuUsagePercent     (float or NULL)
-#  9: MemoryTotalMb       (float or NULL)
-# 10: MemoryUsedMb        (float or NULL)
-# 11: DisksTotalGb        (float or NULL) - C 드라이브
-# 12: DisksUsedGb         (float or NULL) - C 드라이브
+#  7: TargetCount         (int or NULL)    -- ✅ 새로 추가!
+#  8: LotStartTime        (datetime or NULL)
+#  9: CpuUsagePercent     (float or NULL)
+# 10: MemoryTotalMb       (float or NULL)
+# 11: MemoryUsedMb        (float or NULL)
+# 12: DisksTotalGb        (float or NULL)
+# 13: DisksUsedGb         (float or NULL)
 #
 # ❌ 제거됨 (v2.0.0):
 # 13: GridRow             → JSON 매핑에서 가져옴
@@ -156,6 +157,7 @@ SELECT
     es.OccurredAtUtc AS StatusChangedAt,
     li.ProductModel,
     li.LotId,
+    li.LotQty AS TargetCount,                -- ✅ 추가!
     li.OccurredAtUtc AS LotStartTime,
     pc.CPUUsagePercent AS CpuUsagePercent,
     pc.MemoryTotalMb,
@@ -181,6 +183,7 @@ LEFT JOIN (
         EquipmentId, 
         ProductModel, 
         LotId,
+        LotQty,   
         OccurredAtUtc,
         ROW_NUMBER() OVER (
             PARTITION BY EquipmentId 
