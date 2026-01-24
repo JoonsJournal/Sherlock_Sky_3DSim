@@ -195,20 +195,6 @@ LEFT JOIN (
     FROM log.AlarmEvent WITH (NOLOCK)
     WHERE IsSet = 1
 ) alarm ON e.EquipmentId = alarm.EquipmentId AND alarm.rn = 1
--- 현재 활성 알람 (IsSet=1인 것 중 최신)
-LEFT JOIN (
-    SELECT 
-        EquipmentId,
-        AlarmCode,
-        AlarmMessage,
-        OccurredAtUtc,
-        ROW_NUMBER() OVER (
-            PARTITION BY EquipmentId 
-            ORDER BY OccurredAtUtc DESC
-        ) AS rn
-    FROM log.AlarmEvent WITH (NOLOCK)
-    WHERE IsSet = 1
-) alarm ON e.EquipmentId = alarm.EquipmentId AND alarm.rn = 1
 -- 최신 Lot 정보 (IsStart=1인 것 중 최신)
 LEFT JOIN (
     SELECT 
@@ -290,10 +276,25 @@ LEFT JOIN (
         ) AS rn
     FROM log.EquipmentState WITH (NOLOCK)
 ) es ON e.EquipmentId = es.EquipmentId AND es.rn = 1
+-- 현재 활성 알람 (IsSet=1인 것 중 최신)
+LEFT JOIN (
+    SELECT 
+        EquipmentId,
+        AlarmCode,
+        AlarmMessage,
+        OccurredAtUtc,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.AlarmEvent WITH (NOLOCK)
+    WHERE IsSet = 1
+) alarm ON e.EquipmentId = alarm.EquipmentId AND alarm.rn = 1
+-- 최신 Lot 정보 (IsStart=1인 것 중 최신)
 LEFT JOIN (
     SELECT 
         EquipmentId, 
-        ProductModel, 
+        ProductModel,
         LotId,
         LotQty,   
         OccurredAtUtc,
