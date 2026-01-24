@@ -237,6 +237,7 @@ SELECT
     es.OccurredAtUtc AS StatusChangedAt,
     li.ProductModel,
     li.LotId,
+    li.LotQty AS TargetCount, 
     li.OccurredAtUtc AS LotStartTime,
     pc.CPUUsagePercent AS CpuUsagePercent,
     pc.MemoryTotalMb,
@@ -260,6 +261,7 @@ LEFT JOIN (
         EquipmentId, 
         ProductModel, 
         LotId,
+        LotQty,   
         OccurredAtUtc,
         ROW_NUMBER() OVER (
             PARTITION BY EquipmentId 

@@ -137,6 +137,10 @@ class EquipmentData(BaseModel):
         None, 
         description="Lot 시작 시간 (log.Lotinfo.OccurredAtUtc, IsStart=1)"
     )
+    target_count: int = Field(
+        default=0, 
+        description="목표 생산량 (log.Lotinfo.LotQty)"
+    )
     production_count: int = Field(
         default=0, 
         description="현재 Lot 시작 이후 CycleTime 레코드 수 (생산 개수)"
