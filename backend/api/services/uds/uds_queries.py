@@ -646,6 +646,36 @@ GROUP BY active_alarm.EquipmentId, active_alarm.AlarmCode
 """
 
 # =============================================================================
+# 🔹 STATE_HISTORY_QUERY (v2.4.0 신규)
+# =============================================================================
+# 상태 변경 히스토리 조회 (MiniTimeline용)
+#
+# 용도: EquipmentCard의 MiniTimeline에 최근 상태 변경 이력 표시
+# 조회 범위: 최근 8시간
+#
+# 컬럼 인덱스:
+#  0: EquipmentId    (int)
+#  1: Status         (str) - RUN/IDLE/STOP/SUDDENSTOP
+#  2: OccurredAtUtc  (datetime) - 상태 변경 시간
+#
+# 로직:
+#  1. 최근 1시간 내 상태 변경 레코드 조회
+#  2. EquipmentId, OccurredAtUtc 순으로 정렬
+#  3. UDSService에서 equipment_id별로 그룹화
+#
+# =============================================================================
+STATE_HISTORY_QUERY = """
+SELECT 
+    EquipmentId,
+    Status,
+    OccurredAtUtc
+FROM log.EquipmentState WITH (NOLOCK)
+WHERE EquipmentId IN ({equipment_ids})
+    AND OccurredAtUtc >= DATEADD(HOUR, -1, GETUTCDATE())
+ORDER BY EquipmentId, OccurredAtUtc
+"""
+
+# =============================================================================
 # 🔹 EQUIPMENT_MAPPING_QUERY (v2.0.0 제거됨)
 # =============================================================================
 # ❌ v2.0.0에서 제거됨

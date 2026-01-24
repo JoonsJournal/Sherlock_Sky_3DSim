@@ -194,6 +194,14 @@ class EquipmentData(BaseModel):
         default=0, 
         description="3D Grid 열 번호 (core.EquipmentMapping.GridCol)"
     )
+
+    # ========================================
+    # 📈 상태 히스토리 (log.EquipmentState)
+    # ========================================
+    state_history: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="최근 8시간 상태 변경 이력 (MiniTimeline용). [{status, timestamp}, ...]"
+    )
     
     class Config:
         """Pydantic 설정"""

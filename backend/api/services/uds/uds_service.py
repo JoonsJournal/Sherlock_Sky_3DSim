@@ -123,6 +123,7 @@ from .uds_queries import (
     BATCH_TACT_TIME_QUERY,
     STATUS_SNAPSHOT_QUERY,
     ALARM_REPEAT_COUNT_QUERY,    # ✅ 추가!
+    STATE_HISTORY_QUERY,         # 🆕 v2.4.0 추가!
     calculate_memory_usage_percent,
     calculate_disk_usage_percent,
     parse_frontend_id,  # 🆕 v2.0.0
@@ -699,6 +700,27 @@ class UDSService:
                 alarm_repeat_map = {row[0]: row[2] for row in alarm_repeat_rows}
                 
                 logger.info(f"  → 알람 반복 횟수 쿼리: {len(alarm_repeat_map)}건 조회")
+
+                # =============================================================
+                # Step 3.6: 상태 히스토리 배치 조회 (🆕 v2.4.0)
+                # =============================================================
+                history_query = STATE_HISTORY_QUERY.format(equipment_ids=equipment_ids_str)
+                history_result = session.execute(text(history_query))
+                history_rows = history_result.fetchall()
+                
+                # equipment_id → [상태 히스토리 리스트] 맵
+                # Column Index: [0] EquipmentId, [1] Status, [2] OccurredAtUtc
+                state_history_map = {}
+                for row in history_rows:
+                    eq_id = row[0]
+                    if eq_id not in state_history_map:
+                        state_history_map[eq_id] = []
+                    state_history_map[eq_id].append({
+                        'status': row[1],
+                        'timestamp': row[2].isoformat() if row[2] else None
+                    })
+                
+                logger.info(f"  → 상태 히스토리 쿼리: {len(state_history_map)}건 조회")
                 
                 # =============================================================
                 # Step 4: EquipmentData 변환 + 매핑 병합
@@ -711,7 +733,8 @@ class UDSService:
                         row_dict, 
                         prod_map, 
                         tact_map,
-                        alarm_repeat_map    # ✅ 추가!
+                        alarm_repeat_map,    # ✅ 추가!
+                        state_history_map    # 🆕 v2.4.0 추가!
                     )
                     equipments.append(equipment)
                     
@@ -1155,7 +1178,8 @@ class UDSService:
         row: Dict[str, Any],
         prod_map: Dict[int, int],  # 🔧 v2.0.0: equipment_id 기반
         tact_map: Dict[int, float],  # 🔧 v2.0.0: equipment_id 기반
-        alarm_repeat_map: Dict[int, int] = None    # ✅ 추가!
+        alarm_repeat_map: Dict[int, int] = None,    # ✅ 추가!
+        state_history_map: Dict[int, List[Dict[str, Any]]] = None    # 🆕 v2.4.0 추가!
     ) -> EquipmentData:
         """
         DB Row → EquipmentData 변환
@@ -1240,6 +1264,11 @@ class UDSService:
         alarm_repeat_count = 0
         if alarm_repeat_map:
             alarm_repeat_count = alarm_repeat_map.get(equipment_id, 0)
+
+        # 🆕 v2.4.0: 상태 히스토리 (MiniTimeline용)
+        state_history = []
+        if state_history_map:
+            state_history = state_history_map.get(equipment_id, [])
         
         return EquipmentData(
             equipment_id=equipment_id,
@@ -1261,7 +1290,8 @@ class UDSService:
             memory_usage_percent=memory_usage,
             disk_usage_percent=disk_usage,
             grid_row=grid_row,
-            grid_col=grid_col
+            grid_col=grid_col,
+            state_history=state_history    # 🆕 v2.4.0 추가!
         )
     
     def _update_previous_state(self, equipment: EquipmentData):
