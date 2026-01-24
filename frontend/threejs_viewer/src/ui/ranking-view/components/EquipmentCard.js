@@ -307,11 +307,10 @@ export class EquipmentCard {
         this._statusIndicatorElement.textContent = this._getStatusIcon();
         header.appendChild(this._statusIndicatorElement);
         
-        // Equipment ID
-        const equipmentId = document.createElement('span');
-        equipmentId.classList.add(EquipmentCard.CSS.EQUIPMENT_ID);
-        equipmentId.textContent = this._data.frontendId;
-        header.appendChild(equipmentId);
+        const equipmentName = document.createElement('span');
+        equipmentName.classList.add(EquipmentCard.CSS.EQUIPMENT_ID);  // CSS는 유지
+        equipmentName.textContent = this._data.equipmentName || this._data.frontendId;  // ✅ "DRY-001"
+        header.appendChild(equipmentName);
         
         // Duration
         this._durationElement = document.createElement('span');

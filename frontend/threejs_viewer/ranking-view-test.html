@@ -1,15 +1,19 @@
 <!DOCTYPE html>
 <html lang="ko" data-theme="dark">
 <!--
- * ranking-view-test.html v3.1
+ * ranking-view-test.html v3.2
  * ===========================
  * 기존 모듈들을 모두 Import하여 검증하는 테스트 페이지
  * 
- * 🔧 v3.1 핵심 수정:
+ * 🔧 v3.2 수정사항:
+ *    - 테스트 데이터 완전한 필드 추가 (alarmRepeatCount, lotId, lotStartTime, stateHistory)
+ *    - performMove() newData 생성 로직 개선
+ *    - 상태별 알람 정보 처리 (RUN/IDLE: 제거, STOP: 유지보수, SUDDENSTOP: 긴급)
+ * 
+ * 🔧 v3.1 수정사항:
  *    - RankingLane._findInsertIndex() 메서드 사용으로 정렬 문제 해결
  *    - AnimationManager, PositionCalculator, BatchAnimator 전체 활용
  *    - 기존 CSS 클래스 상수 (AnimationManager.CSS) 활용
- *    - 기존 TIMING/EASING 상수 활용
  * 
  * 📦 Import 모듈 목록:
  *    - EventBus
@@ -17,11 +21,12 @@
  *    - AnimationManager, PositionCalculator, BatchAnimator
  * 
  * 작성일: 2026-01-23
+ * 수정일: 2026-01-23 (v3.2)
 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧪 Ranking View Test v3.1 - Full Module Integration</title>
+    <title>🧪 Ranking View Test v3.2 - Full Module Integration</title>
     <link rel="stylesheet" href="styles/main.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -96,7 +101,7 @@
 </head>
 <body>
     <header class="test-header">
-        <h1>🧪 Ranking View Module Test <span class="version">v3.1</span> <span class="badge">🔌 Full Import</span></h1>
+        <h1>🧪 Ranking View Module Test <span class="version">v3.2</span> <span class="badge">🔌 Full Import</span></h1>
         <div style="font-size: 11px; color: #888;">Press <kbd style="background:#333;padding:2px 6px;border-radius:3px;">H</kbd> for help</div>
     </header>
     <div class="test-content">
@@ -228,30 +233,90 @@
             log(`   AnimationManager.CSS 클래스: ${Object.keys(AnimationManager.CSS).join(', ')}`, 'info');
         }
         
-        // Test Data
+        // Test Data - 🆕 v3.2: 완전한 데이터 필드 추가
         window.loadTestData = function() {
-            log('📦 테스트 데이터 로드...', 'info');
+            log('📦 테스트 데이터 로드 (v3.2 Full Fields)...', 'info');
             rankingView.clearAllData();
             rankingView._cardsMap.clear();
             
+            // 알람 메시지 목록 (랜덤용)
+            const ALARM_MESSAGES = [
+                'SENSOR ERROR', 'MOTOR OVERHEAT', 'PRESSURE LOW', 'TEMP HIGH',
+                'CONVEYOR JAM', 'DOOR OPEN', 'EMERGENCY STOP', 'POWER FAILURE'
+            ];
+            
+            // 상태 히스토리 생성 함수
+            function generateStateHistory(currentStatus, count = 5) {
+                const statuses = ['RUN', 'IDLE', 'STOP', 'RUN', 'IDLE'];
+                const history = [];
+                let time = Date.now() - (count * 600000); // 10분 간격
+                
+                for (let i = 0; i < count; i++) {
+                    history.push({
+                        status: statuses[i % statuses.length],
+                        timestamp: new Date(time).toISOString()
+                    });
+                    time += 600000 + Math.random() * 300000;
+                }
+                // 현재 상태 추가
+                history.push({
+                    status: currentStatus,
+                    timestamp: new Date().toISOString()
+                });
+                return history;
+            }
+            
             testEquipments = [
+                // RUN 상태 (4개)
                 { equipmentId: '1001', frontendId: 'EQ-17-01', status: 'RUN', productionCount: 85, targetCount: 100 },
                 { equipmentId: '1002', frontendId: 'EQ-17-02', status: 'RUN', productionCount: 67, targetCount: 100 },
                 { equipmentId: '1003', frontendId: 'EQ-17-03', status: 'RUN', productionCount: 92, targetCount: 100 },
                 { equipmentId: '1004', frontendId: 'EQ-17-04', status: 'RUN', productionCount: 78, targetCount: 100 },
+                
+                // IDLE 상태 (3개)
                 { equipmentId: '1005', frontendId: 'EQ-18-01', status: 'IDLE', productionCount: 50, targetCount: 100 },
                 { equipmentId: '1006', frontendId: 'EQ-18-02', status: 'IDLE', productionCount: 45, targetCount: 100 },
                 { equipmentId: '1007', frontendId: 'EQ-18-03', status: 'IDLE', productionCount: 62, targetCount: 100 },
-                { equipmentId: '1008', frontendId: 'EQ-19-01', status: 'STOP', productionCount: 33, targetCount: 100 },
-                { equipmentId: '1009', frontendId: 'EQ-19-02', status: 'STOP', productionCount: 28, targetCount: 100 },
+                
+                // STOP 상태 (3개) - 알람 정보 포함
+                { equipmentId: '1008', frontendId: 'EQ-19-01', status: 'STOP', productionCount: 33, targetCount: 100,
+                  alarmCode: 3001, alarmMessage: 'MAINTENANCE REQUIRED', alarmRepeatCount: 0 },
+                { equipmentId: '1009', frontendId: 'EQ-19-02', status: 'STOP', productionCount: 28, targetCount: 100,
+                  alarmCode: 3002, alarmMessage: 'SCHEDULED STOP', alarmRepeatCount: 0 },
                 { equipmentId: '1010', frontendId: 'EQ-17-05', status: 'STOP', productionCount: 41, targetCount: 100 },
-                { equipmentId: '1011', frontendId: 'EQ-20-01', status: 'SUDDENSTOP', alarmCode: 1234, alarmMessage: 'SENSOR ERROR', productionCount: 72, targetCount: 100 },
-                { equipmentId: '1012', frontendId: 'EQ-20-02', status: 'SUDDENSTOP', alarmCode: 5678, alarmMessage: 'MOTOR OVERHEAT', productionCount: 55, targetCount: 100 }
+                
+                // SUDDENSTOP 상태 (2개) - 완전한 알람 정보
+                { equipmentId: '1011', frontendId: 'EQ-20-01', status: 'SUDDENSTOP', productionCount: 72, targetCount: 100,
+                  alarmCode: 1234, alarmMessage: 'SENSOR ERROR', alarmRepeatCount: 3 },
+                { equipmentId: '1012', frontendId: 'EQ-20-02', status: 'SUDDENSTOP', productionCount: 55, targetCount: 100,
+                  alarmCode: 5678, alarmMessage: 'MOTOR OVERHEAT', alarmRepeatCount: 1 }
             ];
             
-            testEquipments.forEach(eq => {
-                eq.occurredAt = new Date(Date.now() - Math.random() * 3600000).toISOString();
+            // 각 설비에 추가 필드 설정
+            testEquipments.forEach((eq, index) => {
+                // 시간 정보
+                const randomMinutes = Math.floor(Math.random() * 60) + 1; // 1~60분 전
+                eq.occurredAt = new Date(Date.now() - randomMinutes * 60000).toISOString();
+                eq.statusStartTime = eq.occurredAt;
+                
+                // 설비 이름
                 eq.equipmentName = `설비 ${eq.frontendId.split('-').slice(1).join('-')}`;
+                
+                // Lot 정보 (RUN 상태만)
+                if (eq.status === 'RUN') {
+                    eq.lotId = `LOT-2026-${String(index + 1).padStart(4, '0')}`;
+                    eq.lotStartTime = new Date(Date.now() - (Math.random() * 7200000 + 3600000)).toISOString(); // 1~3시간 전
+                }
+                
+                // 상태 히스토리 (MiniTimeline용)
+                eq.stateHistory = generateStateHistory(eq.status, 3 + Math.floor(Math.random() * 3));
+                
+                // SUDDENSTOP이 아닌데 알람이 없으면 제거 (정상화)
+                if (eq.status === 'RUN' || eq.status === 'IDLE') {
+                    delete eq.alarmCode;
+                    delete eq.alarmMessage;
+                    delete eq.alarmRepeatCount;
+                }
             });
             
             testEquipments.forEach(eq => {
@@ -316,11 +381,42 @@
             if (!card) { log(`❌ 카드 없음`, 'error'); return; }
             
             const currentData = card.getData();
+            
+            // 🆕 v3.2: 완전한 newData 생성
             const newData = {
-                ...currentData, status: newStatus, occurredAt: new Date().toISOString(),
-                alarmCode: (toLane === 'run' || toLane === 'idle') ? null : (currentData.alarmCode || Math.floor(Math.random() * 9000) + 1000),
-                alarmMessage: (toLane === 'run' || toLane === 'idle') ? null : 'AUTO TEST'
+                ...currentData,
+                status: newStatus,
+                occurredAt: new Date().toISOString(),
+                statusStartTime: new Date().toISOString()
             };
+            
+            // 상태별 데이터 처리
+            if (toLane === 'run' || toLane === 'idle') {
+                // RUN/IDLE: 알람 정보 제거
+                newData.alarmCode = null;
+                newData.alarmMessage = null;
+                newData.alarmRepeatCount = 0;
+            } else if (toLane === 'stop') {
+                // STOP: 유지보수 알람
+                newData.alarmCode = 3000 + Math.floor(Math.random() * 100);
+                newData.alarmMessage = 'SCHEDULED MAINTENANCE';
+                newData.alarmRepeatCount = 0;
+            } else if (toLane === 'sudden-stop') {
+                // SUDDENSTOP: 긴급 알람
+                const alarmMessages = ['SENSOR ERROR', 'MOTOR OVERHEAT', 'PRESSURE LOW', 'CONVEYOR JAM', 'EMERGENCY STOP'];
+                newData.alarmCode = currentData.alarmCode || (1000 + Math.floor(Math.random() * 9000));
+                newData.alarmMessage = currentData.alarmMessage || alarmMessages[Math.floor(Math.random() * alarmMessages.length)];
+                newData.alarmRepeatCount = (currentData.alarmRepeatCount || 0) + 1;
+            }
+            
+            // 상태 히스토리 업데이트
+            if (!newData.stateHistory) {
+                newData.stateHistory = [];
+            }
+            newData.stateHistory = [
+                ...newData.stateHistory,
+                { status: newStatus, timestamp: new Date().toISOString() }
+            ];
             
             const toLaneComponent = rankingView._lanes.get(toLane);
             const fromLaneComponent = rankingView._lanes.get(fromLane);
@@ -465,8 +561,9 @@
         
         // Start
         document.addEventListener('DOMContentLoaded', () => {
-            log('🏁 테스트 페이지 v3.1 로드', 'info');
+            log('🏁 테스트 페이지 v3.2 로드', 'info');
             log('🔌 기존 모듈 Full Import 모드', 'success');
+            log('📦 완전한 데이터 필드 지원 (v3.2)', 'info');
             init();
             log('💡 D=로드, Space=자동, A=애니ON/OFF', 'success');
         });
