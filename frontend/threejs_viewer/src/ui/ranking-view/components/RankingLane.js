@@ -301,7 +301,8 @@ export class RankingLane {
             // 지속시간 기준 (초 단위로 변환 - LaneHeader가 초 단위를 기대함)
             const durations = cards.map(card => {
                 const data = card.getData();
-                const startTime = data?.occurredAt || data?.statusStartTime;
+                // 🆕 Backend 호환: status_changed_at 필드 추가 지원
+                const startTime = data?.occurredAt || data?.statusStartTime || data?.status_changed_at;
                 if (!startTime) return 0;
                 
                 const ms = Date.now() - new Date(startTime).getTime();
