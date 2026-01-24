@@ -167,7 +167,14 @@ SELECT
     pc.MemoryTotalMb,
     pc.MemoryUsedMb,
     pc.DisksTotalGb,
-    pc.DisksUsedGb
+    pc.DisksUsedGb,
+    -- 🆕 PC 정적 정보 (core.EquipmentPCInfo)
+    cpc.CPUName,
+    cpc.CPULogicalCount,
+    cpc.GPUName,
+    cpc.OS AS OsName,
+    cpc.Architecture AS OsArchitecture,
+    cpc.LastBootTime
 FROM core.Equipment e WITH (NOLOCK)
 -- 최신 상태 (ROW_NUMBER로 각 설비의 최신 1건만)
 LEFT JOIN (
@@ -225,6 +232,9 @@ LEFT JOIN (
         ) AS rn
     FROM log.EquipmentPCInfo WITH (NOLOCK)
 ) pc ON e.EquipmentId = pc.EquipmentId AND pc.rn = 1
+-- 🆕 PC 정적 정보 (core.EquipmentPCInfo)
+LEFT JOIN core.EquipmentPCInfo cpc WITH (NOLOCK)
+    ON e.EquipmentId = cpc.EquipmentId
 WHERE e.EquipmentId IN ({equipment_ids})
 ORDER BY e.EquipmentId
 """

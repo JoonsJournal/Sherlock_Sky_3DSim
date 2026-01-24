@@ -1293,6 +1293,13 @@ class UDSService:
             cpu_usage_percent=row.get('CpuUsagePercent'),
             memory_usage_percent=memory_usage,
             disk_usage_percent=disk_usage,
+            # 🆕 PC 정적 정보 (core.EquipmentPCInfo)
+            cpu_name=row.get('CPUName'),
+            cpu_logical_count=row.get('CPULogicalCount'),
+            gpu_name=row.get('GPUName'),
+            os_name=row.get('OsName'),
+            os_architecture=row.get('OsArchitecture'),
+            last_boot_time=row.get('LastBootTime'),
             grid_row=grid_row,
             grid_col=grid_col,
             state_history=state_history    # 🆕 v2.4.0 추가!

@@ -167,8 +167,8 @@ class EquipmentData(BaseModel):
         description="최근 2개 CycleTime 간격 (초). 마지막 Tact Time"
     )
     
-    # ========================================
-    # 💻 PC 정보 (log.EquipmentPCInfo)
+# ========================================
+    # 💻 PC 정보 - 동적 (log.EquipmentPCInfo)
     # ========================================
     cpu_usage_percent: Optional[float] = Field(
         None, 
@@ -181,6 +181,34 @@ class EquipmentData(BaseModel):
     disk_usage_percent: Optional[float] = Field(
         None, 
         description="Disk 사용율 % (계산: DisksUsedGb / DisksTotalGb * 100, C 드라이브 기준)"
+    )
+    
+    # ========================================
+    # 💻 PC 정보 - 정적 (core.EquipmentPCInfo)
+    # ========================================
+    cpu_name: Optional[str] = Field(
+        None,
+        description="CPU 모델명 (core.EquipmentPCInfo.CPUName)"
+    )
+    cpu_logical_count: Optional[int] = Field(
+        None,
+        description="CPU 논리 코어 수 (core.EquipmentPCInfo.CPULogicalCount)"
+    )
+    gpu_name: Optional[str] = Field(
+        None,
+        description="GPU 모델명 (core.EquipmentPCInfo.GPUName)"
+    )
+    os_name: Optional[str] = Field(
+        None,
+        description="운영체제명 (core.EquipmentPCInfo.OS)"
+    )
+    os_architecture: Optional[str] = Field(
+        None,
+        description="OS 아키텍처 (core.EquipmentPCInfo.Architecture)"
+    )
+    last_boot_time: Optional[datetime] = Field(
+        None,
+        description="마지막 부팅 시간 (core.EquipmentPCInfo.LastBootTime)"
     )
     
     # ========================================
