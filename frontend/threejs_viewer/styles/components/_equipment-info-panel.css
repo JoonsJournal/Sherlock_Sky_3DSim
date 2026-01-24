@@ -39,7 +39,7 @@
     top: 10px;
     right: 10px;
     width: 320px;
-    max-height: 85vh;
+    max-height: 90vh;
     overflow-y: auto;
     background: var(--overlay-bg-primary);
     border: 1px solid var(--overlay-border-light);
@@ -282,8 +282,8 @@
 #equipmentInfo .info-row {
     display: flex;
     align-items: center;
-    margin: 8px 0;
-    padding: 10px 12px;
+    margin: 6px 0;
+    padding: 8px 12px;
     background: var(--overlay-bg-secondary);
     border-radius: var(--radius-sm);
 }
