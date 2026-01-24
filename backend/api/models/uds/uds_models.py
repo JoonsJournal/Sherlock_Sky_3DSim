@@ -134,6 +134,11 @@ class EquipmentData(BaseModel):
         description="현재 활성 알람 메시지 (log.AlarmEvent.AlarmMessage)"
     )
 
+    alarm_repeat_count: int = Field(
+        default=0, 
+        description="현재 Lot 시작 이후 동일 알람 반복 횟수"
+    )
+
     # ========================================
     # 🏭 생산 정보 (log.Lotinfo, log.CycleTime)
     # ========================================

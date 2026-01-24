@@ -122,6 +122,7 @@ from .uds_queries import (
     PRODUCTION_SNAPSHOT_QUERY,  # 🆕 v2.1.0
     BATCH_TACT_TIME_QUERY,
     STATUS_SNAPSHOT_QUERY,
+    ALARM_REPEAT_COUNT_QUERY,    # ✅ 추가!
     calculate_memory_usage_percent,
     calculate_disk_usage_percent,
     parse_frontend_id,  # 🆕 v2.0.0
@@ -685,6 +686,19 @@ class UDSService:
                 tact_map = {row[0]: row[1] for row in tact_rows}
                 
                 logger.info(f"  → Tact Time 쿼리: {len(tact_map)}건 조회")
+
+                # =============================================================
+                # Step 3.5: 알람 반복 횟수 배치 조회 (✅ 추가!)
+                # =============================================================
+                alarm_repeat_query = ALARM_REPEAT_COUNT_QUERY.format(equipment_ids=equipment_ids_str)
+                alarm_repeat_result = session.execute(text(alarm_repeat_query))
+                alarm_repeat_rows = alarm_repeat_result.fetchall()
+                
+                # equipment_id → alarm_repeat_count 맵
+                # Column Index: [0] EquipmentId, [1] AlarmCode, [2] AlarmRepeatCount
+                alarm_repeat_map = {row[0]: row[2] for row in alarm_repeat_rows}
+                
+                logger.info(f"  → 알람 반복 횟수 쿼리: {len(alarm_repeat_map)}건 조회")
                 
                 # =============================================================
                 # Step 4: EquipmentData 변환 + 매핑 병합
@@ -696,7 +710,8 @@ class UDSService:
                     equipment = self._row_to_equipment_data(
                         row_dict, 
                         prod_map, 
-                        tact_map
+                        tact_map,
+                        alarm_repeat_map    # ✅ 추가!
                     )
                     equipments.append(equipment)
                     
@@ -1139,7 +1154,8 @@ class UDSService:
         self,
         row: Dict[str, Any],
         prod_map: Dict[int, int],  # 🔧 v2.0.0: equipment_id 기반
-        tact_map: Dict[int, float]  # 🔧 v2.0.0: equipment_id 기반
+        tact_map: Dict[int, float],  # 🔧 v2.0.0: equipment_id 기반
+        alarm_repeat_map: Dict[int, int] = None    # ✅ 추가!
     ) -> EquipmentData:
         """
         DB Row → EquipmentData 변환
@@ -1219,6 +1235,11 @@ class UDSService:
         # 🔧 v2.0.0: 생산량/Tact Time은 equipment_id로 조회
         production_count = prod_map.get(equipment_id, 0)
         tact_time = tact_map.get(equipment_id)
+
+        # 🆕 v2.3.0: 알람 반복 횟수
+        alarm_repeat_count = 0
+        if alarm_repeat_map:
+            alarm_repeat_count = alarm_repeat_map.get(equipment_id, 0)
         
         return EquipmentData(
             equipment_id=equipment_id,
@@ -1229,6 +1250,7 @@ class UDSService:
             status_changed_at=row.get('StatusChangedAt'),
             alarm_code=row.get('AlarmCode'),
             alarm_message=row.get('AlarmMessage'),
+            alarm_repeat_count=alarm_repeat_count,    # ✅ 추가!
             product_model=row.get('ProductModel'),
             lot_id=row.get('LotId'),
             lot_start_time=row.get('LotStartTime'),

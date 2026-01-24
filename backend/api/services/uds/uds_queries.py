@@ -592,6 +592,58 @@ WHERE e.EquipmentId IN ({equipment_ids})
 GROUP BY e.EquipmentId
 """
 
+# =============================================================================
+# 🔹 ALARM_REPEAT_COUNT_QUERY (v2.3.0 신규)
+# =============================================================================
+# 알람 반복 횟수 조회 (현재 Lot 시작 이후)
+#
+# 용도: EquipmentCard에 알람 반복 횟수 표시
+# 계산: 현재 Lot 시작 이후 동일 AlarmCode가 발생한 횟수
+#
+# 컬럼 인덱스:
+#  0: EquipmentId        (int)
+#  1: AlarmCode          (int) - 현재 활성 알람 코드
+#  2: AlarmRepeatCount   (int) - Lot 시작 이후 반복 횟수
+#
+# 로직:
+#  1. 각 설비의 현재 활성 알람 (IsSet=1) 조회
+#  2. 해당 AlarmCode가 Lot 시작 이후 몇 번 발생했는지 COUNT
+#
+# =============================================================================
+ALARM_REPEAT_COUNT_QUERY = """
+SELECT 
+    active_alarm.EquipmentId,
+    active_alarm.AlarmCode,
+    COUNT(hist.AlarmEventId) AS AlarmRepeatCount
+FROM (
+    -- 현재 활성 알람 (IsSet=1인 것 중 최신)
+    SELECT 
+        EquipmentId,
+        AlarmCode,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.AlarmEvent WITH (NOLOCK)
+    WHERE IsSet = 1
+        AND EquipmentId IN ({equipment_ids})
+) active_alarm
+-- 각 설비의 최신 Lot 시작 시간
+CROSS APPLY (
+    SELECT TOP 1 OccurredAtUtc AS LotStart
+    FROM log.Lotinfo WITH (NOLOCK)
+    WHERE EquipmentId = active_alarm.EquipmentId 
+        AND IsStart = 1
+    ORDER BY OccurredAtUtc DESC
+) lot
+-- Lot 시작 이후 동일 AlarmCode 발생 이력
+LEFT JOIN log.AlarmEvent hist WITH (NOLOCK)
+    ON active_alarm.EquipmentId = hist.EquipmentId
+    AND active_alarm.AlarmCode = hist.AlarmCode
+    AND hist.OccurredAtUtc >= lot.LotStart
+WHERE active_alarm.rn = 1
+GROUP BY active_alarm.EquipmentId, active_alarm.AlarmCode
+"""
 
 # =============================================================================
 # 🔹 EQUIPMENT_MAPPING_QUERY (v2.0.0 제거됨)
