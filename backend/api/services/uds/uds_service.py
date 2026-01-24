@@ -1158,6 +1158,7 @@ class UDSService:
          4: StatusChangedAt  (log.EquipmentState)
          5: ProductModel     (log.Lotinfo)
          6: LotId            (log.Lotinfo)
+         7: TargetCount      (log.Lotinfo.LotQty)   # ✅ 추가!
          7: LotStartTime     (log.Lotinfo)
          8: CpuUsagePercent  (log.EquipmentPCInfo)
          9: MemoryTotalMb    (log.EquipmentPCInfo)
@@ -1229,6 +1230,7 @@ class UDSService:
             product_model=row.get('ProductModel'),
             lot_id=row.get('LotId'),
             lot_start_time=row.get('LotStartTime'),
+            target_count=row.get('TargetCount', 0),   # ✅ 추가!
             production_count=production_count,
             tact_time_seconds=tact_time,
             cpu_usage_percent=row.get('CpuUsagePercent'),
