@@ -1227,6 +1227,8 @@ class UDSService:
             line_name=row.get('LineName', ''),
             status=status,
             status_changed_at=row.get('StatusChangedAt'),
+            alarm_code=row.get('AlarmCode'),
+            alarm_message=row.get('AlarmMessage'),
             product_model=row.get('ProductModel'),
             lot_id=row.get('LotId'),
             lot_start_time=row.get('LotStartTime'),

@@ -123,6 +123,18 @@ class EquipmentData(BaseModel):
     )
     
     # ========================================
+    # ⚠️ 알람 정보 (log.AlarmEvent)
+    # ========================================
+    alarm_code: Optional[int] = Field(
+        None, 
+        description="현재 활성 알람 코드 (log.AlarmEvent.AlarmCode, IsSet=1)"
+    )
+    alarm_message: Optional[str] = Field(
+        None, 
+        description="현재 활성 알람 메시지 (log.AlarmEvent.AlarmMessage)"
+    )
+
+    # ========================================
     # 🏭 생산 정보 (log.Lotinfo, log.CycleTime)
     # ========================================
     product_model: Optional[str] = Field(

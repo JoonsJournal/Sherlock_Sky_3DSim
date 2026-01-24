@@ -132,6 +132,8 @@ UDS SQL 쿼리 모음 (MSSQL WITH NOLOCK 필수 적용)
 #  2: LineName            (str)
 #  3: Status              (str) - RUN/IDLE/STOP/SUDDENSTOP
 #  4: StatusChangedAt     (datetime)
+#  5: AlarmCode           (int or NULL)       ← 🆕 추가!
+#  6: AlarmMessage        (str or NULL)       ← 🆕 추가!
 #  5: ProductModel        (str or NULL)
 #  6: LotId               (str or NULL)
 #  7: TargetCount         (int or NULL)    -- ✅ 새로 추가!
@@ -155,6 +157,8 @@ SELECT
     e.LineName,
     es.Status,
     es.OccurredAtUtc AS StatusChangedAt,
+    alarm.AlarmCode,
+    alarm.AlarmMessage,
     li.ProductModel,
     li.LotId,
     li.LotQty AS TargetCount,                -- ✅ 추가!
@@ -177,6 +181,34 @@ LEFT JOIN (
         ) AS rn
     FROM log.EquipmentState WITH (NOLOCK)
 ) es ON e.EquipmentId = es.EquipmentId AND es.rn = 1
+-- 현재 활성 알람 (IsSet=1인 것 중 최신)
+LEFT JOIN (
+    SELECT 
+        EquipmentId,
+        AlarmCode,
+        AlarmMessage,
+        OccurredAtUtc,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.AlarmEvent WITH (NOLOCK)
+    WHERE IsSet = 1
+) alarm ON e.EquipmentId = alarm.EquipmentId AND alarm.rn = 1
+-- 현재 활성 알람 (IsSet=1인 것 중 최신)
+LEFT JOIN (
+    SELECT 
+        EquipmentId,
+        AlarmCode,
+        AlarmMessage,
+        OccurredAtUtc,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.AlarmEvent WITH (NOLOCK)
+    WHERE IsSet = 1
+) alarm ON e.EquipmentId = alarm.EquipmentId AND alarm.rn = 1
 -- 최신 Lot 정보 (IsStart=1인 것 중 최신)
 LEFT JOIN (
     SELECT 
@@ -235,6 +267,8 @@ SELECT
     e.LineName,
     es.Status,
     es.OccurredAtUtc AS StatusChangedAt,
+    alarm.AlarmCode,
+    alarm.AlarmMessage,
     li.ProductModel,
     li.LotId,
     li.LotQty AS TargetCount, 
