@@ -216,6 +216,10 @@ class UDSService:
         
         # 매핑 로드 시간
         self._mapping_loaded_at: Optional[datetime] = None
+
+        # 🆕 Remote Alarm Codes 캐시
+        self._remote_alarm_codes: set = set()
+        self._remote_alarm_codes_loaded: bool = False
         
         logger.info("🚀 UDSService initialized (v2.1.2 - connection_test.py 통합)")
     
@@ -1309,6 +1313,71 @@ class UDSService:
             production_count=equipment.production_count,          # 🆕 v2.1.0
             tact_time_seconds=equipment.tact_time_seconds         # 🆕 v2.1.0
         )
+
+    # =============================================================================
+    # 🆕 Remote Alarm Codes 로드 (v2.5.0)
+    # =============================================================================
+
+    def load_remote_alarm_codes(self) -> set:
+        """
+        ref.RemoteAlarmList 테이블에서 Remote Alarm Code 목록 로드
+        
+        Returns:
+            set: Remote Alarm Code Set (예: {61, 62, 86, 10047, ...})
+        """
+        if self._remote_alarm_codes_loaded:
+            return self._remote_alarm_codes
+        
+        logger.info("📡 Loading Remote Alarm Codes from DB...")
+        
+        try:
+            from .uds_queries import REMOTE_ALARM_CODES_QUERY
+            
+            conn = self._get_connection()
+            if not conn:
+                logger.error("❌ No database connection")
+                return set()
+            
+            cursor = conn.cursor()
+            cursor.execute(REMOTE_ALARM_CODES_QUERY)
+            rows = cursor.fetchall()
+            
+            self._remote_alarm_codes = {row[0] for row in rows}
+            self._remote_alarm_codes_loaded = True
+            
+            logger.info(f"✅ Loaded {len(self._remote_alarm_codes)} Remote Alarm Codes: {self._remote_alarm_codes}")
+            
+            return self._remote_alarm_codes
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to load Remote Alarm Codes: {e}")
+            # Fallback: 기본값 반환
+            return {61, 62, 86, 10047, 10048, 10051, 10052, 10055, 10056, 10057, 10058, 10077}
+
+    def get_remote_alarm_codes(self) -> list:
+        """
+        Remote Alarm Code 목록 반환 (API용)
+        
+        Returns:
+            list: Remote Alarm Code 목록
+        """
+        codes = self.load_remote_alarm_codes()
+        return sorted(list(codes))
+
+    def is_remote_alarm(self, alarm_code: int) -> bool:
+        """
+        특정 알람 코드가 Remote Alarm인지 확인
+        
+        Args:
+            alarm_code: 알람 코드
+            
+        Returns:
+            bool: Remote Alarm 여부
+        """
+        if not alarm_code:
+            return False
+        codes = self.load_remote_alarm_codes()
+        return alarm_code in codes
 
 
 # =============================================================================

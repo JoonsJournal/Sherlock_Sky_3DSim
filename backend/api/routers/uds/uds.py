@@ -314,6 +314,52 @@ async def get_cache_stats():
         "timestamp": datetime.utcnow().isoformat()
     }
 
+@router.get("/remote-alarm-codes")
+async def get_remote_alarm_codes():
+    """
+    Remote Alarm Code 목록 조회
+    
+    ref.RemoteAlarmList 테이블에서 Remote Alarm Code 목록 반환.
+    Frontend에서 Remote 레인 분류에 사용.
+    
+    Returns:
+        - codes: Remote Alarm Code 배열
+        - count: 총 개수
+        - timestamp: 응답 생성 시간
+        
+    Example Response:
+```json
+    {
+        "codes": [61, 62, 86, 10047, 10048, 10051, 10052, 10055, 10056, 10057, 10058, 10077],
+        "count": 12,
+        "timestamp": "2026-01-24T10:35:00Z"
+    }
+```
+    """
+    logger.info("📡 GET /api/uds/remote-alarm-codes")
+    
+    if not UDS_ENABLED:
+        raise HTTPException(
+            status_code=503,
+            detail="UDS feature is disabled"
+        )
+    
+    try:
+        codes = uds_service.get_remote_alarm_codes()
+        
+        return {
+            "codes": codes,
+            "count": len(codes),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to get Remote Alarm Codes: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}"
+        )
+
 
 @router.post("/refresh")
 async def refresh_cache():

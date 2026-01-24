@@ -78,19 +78,12 @@ export class RankingDataManager {
      * ref.RemoteAlarmList에 정의된 코드들
      * 이 알람 코드가 발생하면 Remote 레인으로 분류
      */
-    static REMOTE_ALARM_CODES = new Set([
-        61,     // Remote Alarm 1
-        62,     // Remote Alarm 2
-        86,     // Remote Alarm 3
-        10047,  // BLADE BROKEN
-        10048,  // Remote Alarm 5
-        10051,  // Remote Alarm 6
-        10052,  // Remote Alarm 7
-        10055,  // Remote Alarm 8
-        10056,  // Remote Alarm 9
-        10057,  // Remote Alarm 10
-        10058,  // Remote Alarm 11
-        10077   // Remote Alarm 12
+    // 🆕 v2.5.0: DB에서 동적 로드 (초기값은 빈 Set)
+    static REMOTE_ALARM_CODES = new Set();
+
+    // Fallback 값 (DB 로드 실패 시 사용)
+    static DEFAULT_REMOTE_ALARM_CODES = new Set([
+        61, 62, 86, 10047, 10048, 10051, 10052, 10055, 10056, 10057, 10058, 10077
     ]);
     
     /**
@@ -276,7 +269,11 @@ export class RankingDataManager {
      * @private
      */
     _init() {
-        console.log('[RankingDataManager] 🚀 Initializing v2.1.0...');
+        console.log('[RankingDataManager] 🚀 Initializing v2.5.0...');
+        console.log(`   └─ UDS Mode: ${this._useUDS ? 'Enabled' : 'Disabled'}`);
+        
+        // 🆕 v2.5.0: Remote Alarm Codes DB에서 로드
+        this._loadRemoteAlarmCodes();
         console.log(`   └─ UDS Mode: ${this._useUDS ? 'Enabled' : 'Disabled'}`);
         
         // 레인 Map 초기화
@@ -2204,6 +2201,38 @@ export class RankingDataManager {
         console.log(`[RankingDataManager] ✅ Removed remote alarm code: ${code}`);
     }
     
+    // =========================================================================
+    // 🆕 v2.5.0: Remote Alarm Codes 동적 로드
+    // =========================================================================
+
+    /**
+     * 🆕 v2.5.0: Backend에서 Remote Alarm Codes 로드
+     * @private
+     */
+    async _loadRemoteAlarmCodes() {
+        console.log('[RankingDataManager] 📡 Loading Remote Alarm Codes from Backend...');
+        
+        try {
+            const response = await fetch('/api/uds/remote-alarm-codes');
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.codes && Array.isArray(data.codes)) {
+                RankingDataManager.REMOTE_ALARM_CODES = new Set(data.codes);
+                console.log(`[RankingDataManager] ✅ Loaded ${data.codes.length} Remote Alarm Codes:`, data.codes);
+            }
+            
+        } catch (error) {
+            console.warn('[RankingDataManager] ⚠️ Failed to load Remote Alarm Codes, using defaults:', error);
+            // Fallback 사용
+            RankingDataManager.REMOTE_ALARM_CODES = new Set(RankingDataManager.DEFAULT_REMOTE_ALARM_CODES);
+        }
+    }
+
     /**
      * 데이터 수동 새로고침
      */

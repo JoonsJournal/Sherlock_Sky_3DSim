@@ -676,6 +676,27 @@ ORDER BY EquipmentId, OccurredAtUtc
 """
 
 # =============================================================================
+# 🔹 REMOTE_ALARM_CODES_QUERY (v2.5.0 신규)
+# =============================================================================
+# Remote Alarm Code 목록 조회
+#
+# 용도: ref.RemoteAlarmList 테이블에서 Remote Alarm Code 목록 로드
+# 호출 시점: Backend 서버 시작 시 1회 (캐싱)
+#
+# 컬럼 인덱스:
+#  0: RemoteAlarmCode    (int) - 알람 코드
+#  1: RemoteAlarmMessage (str) - 알람 메시지
+#
+# =============================================================================
+REMOTE_ALARM_CODES_QUERY = """
+SELECT 
+    RemoteAlarmCode,
+    RemoteAlarmMessage
+FROM ref.RemoteAlarmList WITH (NOLOCK)
+ORDER BY RemoteAlarmCode
+"""
+
+# =============================================================================
 # 🔹 EQUIPMENT_MAPPING_QUERY (v2.0.0 제거됨)
 # =============================================================================
 # ❌ v2.0.0에서 제거됨
