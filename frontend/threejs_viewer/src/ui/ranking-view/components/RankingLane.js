@@ -279,8 +279,10 @@ export class RankingLane {
         if (cards.length === 0) {
             return {
                 count: 0,
-                avg: 0,
-                max: 0
+                avgDuration: 0,
+                maxDuration: 0,
+                avgProduction: 0,
+                maxProduction: 0
             };
         }
         
@@ -292,18 +294,18 @@ export class RankingLane {
             
             return {
                 count: cards.length,
-                avg: Math.round(sum / cards.length),
-                max: max
+                avgProduction: Math.round(sum / cards.length),
+                maxProduction: max
             };
         } else {
-            // 지속시간 기준 (분 단위)
+            // 지속시간 기준 (초 단위로 변환 - LaneHeader가 초 단위를 기대함)
             const durations = cards.map(card => {
                 const data = card.getData();
                 const startTime = data?.occurredAt || data?.statusStartTime;
                 if (!startTime) return 0;
                 
                 const ms = Date.now() - new Date(startTime).getTime();
-                return ms / (1000 * 60); // 분
+                return ms / 1000; // 초 단위로 변환
             });
             
             const sum = durations.reduce((a, b) => a + b, 0);
@@ -311,8 +313,8 @@ export class RankingLane {
             
             return {
                 count: cards.length,
-                avg: Math.round(sum / cards.length),
-                max: Math.round(max)
+                avgDuration: Math.round(sum / cards.length),
+                maxDuration: Math.round(max)
             };
         }
     }
