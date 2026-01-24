@@ -332,8 +332,8 @@ export class EquipmentCard {
         
         // MiniTimeline 컴포넌트 생성
         this._miniTimeline = new MiniTimeline({
-            historyData: this._data.stateHistory,    // ✅ 수정: 'historyData'
-            equipmentId: this._data.frontendId,      // ✅ 추가: 설비 ID
+            historyData: this._data.stateHistory,    // ✅ 'history' → 'historyData'
+            equipmentId: this._data.frontendId,      // ✅ 추가 권장 (디버깅용)
             width: '100%',
             height: 20
         });
