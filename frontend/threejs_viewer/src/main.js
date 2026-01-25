@@ -4,8 +4,12 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 7.1.2
+ * @version 7.2.0
  * @changelog
+ * - v7.2.0: 🔧 Phase 1 - AppConfig 모듈 분리 (2026-01-25)
+ *           - SITE_ID, RECOVERY_STRATEGIES, USE_DEPRECATION_WARNINGS 외부화
+ *           - app/AppConfig.js에서 import
+ *           - ⚠️ 호환성: 기존 모든 참조 100% 유지
  * - v7.1.2: 🔧 StatusBar Stats 형식 수정 (2026-01-22)
  *           - _convertUDSStatsToStatusBar() statusCounts 객체 형식 적용
  *           - StatusBar가 기대하는 소문자 키 사용 (run, idle, stop 등)
@@ -187,6 +191,19 @@ import { RankingView } from './ui/ranking-view/index.js';
 // 🆕 v5.4.0: ConnectionMode import
 import { ConnectionMode, ConnectionEvents } from './services/ConnectionStatusService.js';
 
+// ============================================
+// 🆕 Phase 1: AppConfig import (main.js 리팩토링)
+// ============================================
+import {
+    SITE_ID,
+    RECOVERY_STRATEGIES,
+    USE_DEPRECATION_WARNINGS,
+    RECOVERY_ACTIONS,
+    getRecoveryStrategy,
+    hasRecoveryStrategy
+} from './app/index.js';
+
+
 // 🆕 v7.0.0: NavigationController import
 import { 
     navigationController, 
@@ -231,75 +248,6 @@ const services = {
 
 // 🆕 v5.2.1: services를 window에 노출 (H/G 키 동적 SceneManager 조회 지원)
 window.services = services;
-
-// Site ID (URL 파라미터 또는 기본값)
-const urlParams = new URLSearchParams(window.location.search);
-const SITE_ID = urlParams.get('siteId') || 'default_site';
-
-// ============================================
-// 🆕 v5.4.0: 모드별 복구 전략 설정
-// ============================================
-
-/**
- * 모드별 복구 전략 설정
- * 각 모드에서 재연결 시 어떤 복구 작업을 수행할지 정의
- */
-const RECOVERY_STRATEGIES = {
-    [APP_MODE.MONITORING]: {
-        name: 'Monitoring',
-        connectionMode: ConnectionMode.MONITORING,
-        restartDelay: 500,
-        actions: ['restartMonitoringService', 'resubscribeWebSocket', 'refreshStatus'],
-        showToast: true,
-        toastMessage: '🔄 Monitoring 모드 복구 중...'
-    },
-    [APP_MODE.ANALYSIS]: {
-        name: 'Analysis',
-        connectionMode: ConnectionMode.ANALYSIS,
-        restartDelay: 1000,
-        actions: ['reloadAnalysisData', 'reconnectDatabase'],
-        showToast: true,
-        toastMessage: '🔄 Analysis 데이터 재로드 중...'
-    },
-    [APP_MODE.DASHBOARD]: {
-        name: 'Dashboard',
-        connectionMode: ConnectionMode.DASHBOARD,
-        restartDelay: 500,
-        actions: ['refreshDashboard', 'reconnectCache'],
-        showToast: true,
-        toastMessage: '🔄 Dashboard 새로고침 중...'
-    },
-    [APP_MODE.EQUIPMENT_EDIT]: {
-        name: 'Edit',
-        connectionMode: ConnectionMode.EDIT,
-        restartDelay: 300,
-        actions: ['reconnectMappingApi'],
-        showToast: false,
-        toastMessage: null
-    },
-    [APP_MODE.MAIN_VIEWER]: {
-        name: 'MainViewer',
-        connectionMode: ConnectionMode.DEFAULT,
-        restartDelay: 0,
-        actions: [],
-        showToast: false,
-        toastMessage: null
-    }
-};
-
-/**
- * 🆕 v6.3.0: Phase 4 - Deprecation 경고 활성화
- * 
- * true로 설정하면:
- * - window.sceneManager 접근 시 경고 출력
- * - "APP.services.scene.sceneManager 사용 권장" 안내
- * - 동일 변수당 최대 3회 경고 (setDeprecationConfig로 변경 가능)
- * 
- * 🔧 개발/테스트 중에는 false로 유지 후
- *    충분한 테스트 후 true로 전환 권장
- */
-const USE_DEPRECATION_WARNINGS = true;  // 🆕 Phase 4 활성화!
-
 
 // ============================================
 // 전역 상태 (Sidebar용) - 하위 호환
