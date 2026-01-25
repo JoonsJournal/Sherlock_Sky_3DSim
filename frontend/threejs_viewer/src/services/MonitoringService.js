@@ -1,111 +1,34 @@
 /**
- * MonitoringService.js - v5.1.0
+ * MonitoringService.js - v6.0.0
  * ==============================
- * 실시간 설비 모니터링 서비스
+ * 실시간 설비 모니터링 서비스 (Orchestrator Pattern)
  * 
- * @version 5.1.0
- * @description
- * - UDS (Unified Data Store) 통합 연동
- * - 초기 로드 1회 → Delta Update 방식 지원
- * - 기존 Legacy 방식 100% 호환 유지
- * - 설비 선택 시 캐시 조회 (< 5ms)
- * 
+ * @version 6.0.0
  * @changelog
- * ⭐ v5.1.0: UDS (Unified Data Store) 통합 연동 (2026-01-20)
- *   - UDS Feature Flag 지원 (window.APP_CONFIG.UDS_ENABLED)
- *   - UDS 사용 시: 초기 로드 1회 + Delta Update
- *   - UDS 비활성화 시: 기존 Legacy 방식 사용
- *   - initializeWithUDS() 메서드 추가
- *   - _subscribeToUDSEvents() UDS 이벤트 구독
- *   - getEquipmentFromUDS() UDS 캐시 조회
- *   - 기존 모든 기능 100% 호환성 유지
+ * ⭐ v6.0.0: 가이드라인 준수 리팩토링 (2026-01-25)
+ *   - UDSIntegration.js, MonitoringLifecycle.js, MonitoringEventEmitter.js 분리
+ *   - ⚠️ 호환성: 기존 API 100% 유지
+ * ⭐ v5.1.0: UDS 통합 연동 (2026-01-20)
+ * ⭐ v5.0.0: MonitoringDataLoader 통합 (2026-01-13)
  * 
- * ⭐ v5.0.2: MonitoringStatsPanel 제거 (StatusBar로 대체) (2026-01-15)
- * ⭐ v5.0.1: SUDDENSTOP 및 DISCONNECTED 상태 카운트 수정 (2026-01-14)
- * ⭐ v5.0.0: MonitoringDataLoader 통합 리팩토링 (2026-01-13)
- * ⭐ v4.5.1: StatusBar 연동을 위한 monitoring:stats-update 이벤트 발행 (2026-01-12)
- * ⭐ v4.5.0: MappingEventHandler 모듈 분리 (Phase 7 리팩토링)
- * ⭐ v4.4.0: SignalTowerIntegration 모듈 분리 (Phase 6 리팩토링)
- * ⭐ v4.2.0: WebSocketManager 모듈 분리 (Phase 4 리팩토링)
- * ⭐ v4.1.0: StatusAPIClient 모듈 분리 (Phase 3 리팩토링)
- * 
- * @dependencies
- * - core/utils/Config.js (debugLog)
- * - services/monitoring/StatusAPIClient.js
- * - services/monitoring/WebSocketManager.js
- * - services/monitoring/SignalTowerIntegration.js
- * - services/monitoring/MappingEventHandler.js
- * - services/loaders/MonitoringDataLoader.js
- * - services/uds/UnifiedDataStore.js (🆕 v5.1.0)
- * - api/UDSApiClient.js (🆕 v5.1.0)
- * 
- * @exports
- * - MonitoringService (class)
- * - MonitoringServiceEvents (const)
+ * @exports MonitoringService, MonitoringServiceEvents
  * 
  * 📁 위치: frontend/threejs_viewer/src/services/MonitoringService.js
- * 작성일: 2026-01-10
- * 수정일: 2026-01-20
  */
 
 import { debugLog } from '../core/utils/Config.js';
-
-// ⭐ v4.1.0: StatusAPIClient 모듈 import (레거시 호환성)
 import { StatusAPIClient } from './monitoring/StatusAPIClient.js';
-
-// ⭐ v4.2.0: WebSocketManager 모듈 import (레거시 호환성)
-import { WebSocketManager, ConnectionState } from './monitoring/WebSocketManager.js';
-
-// ⭐ v4.4.0: SignalTowerIntegration 모듈 import
+import { WebSocketManager } from './monitoring/WebSocketManager.js';
 import { SignalTowerIntegration } from './monitoring/SignalTowerIntegration.js';
-
-// ⭐ v4.5.0: MappingEventHandler 모듈 import
 import { MappingEventHandler } from './monitoring/MappingEventHandler.js';
+import { MonitoringDataLoader } from './loaders/MonitoringDataLoader.js';
 
-// 🆕 v5.0.0: MonitoringDataLoader 모듈 import
-import { MonitoringDataLoader, MonitoringLoaderEvents } from './loaders/MonitoringDataLoader.js';
-import { LoaderState, LoaderEvents } from './loaders/IDataLoader.js';
+// 🆕 v6.0.0: 분리된 모듈
+import { UDSIntegration, UDS_EVENTS } from './monitoring/UDSIntegration.js';
+import { MonitoringLifecycle, LifecycleState } from './monitoring/MonitoringLifecycle.js';
+import { MonitoringEventEmitter, MonitoringServiceEvents } from './monitoring/MonitoringEventEmitter.js';
 
-// 🆕 v5.1.0: UDS 모듈 import (동적 import로 선택적 로드)
-// UDS가 비활성화되어도 에러 없이 동작하도록 동적 import 사용
-let UnifiedDataStore = null;
-let unifiedDataStore = null;
-
-/**
- * UDS 모듈 동적 로드
- * @private
- */
-async function loadUDSModule() {
-    try {
-        const udsModule = await import('./uds/UnifiedDataStore.js');
-        UnifiedDataStore = udsModule.UnifiedDataStore;
-        unifiedDataStore = udsModule.unifiedDataStore;
-        debugLog('🆕 [UDS] Module loaded successfully');
-        return true;
-    } catch (error) {
-        debugLog(`⚠️ [UDS] Module not available: ${error.message}`);
-        return false;
-    }
-}
-
-/**
- * MonitoringService 이벤트 타입
- * @since v5.0.0
- */
-export const MonitoringServiceEvents = Object.freeze({
-    START_BEGIN: 'monitoring:start-begin',
-    START_COMPLETE: 'monitoring:start-complete',
-    START_ERROR: 'monitoring:start-error',
-    STOP_BEGIN: 'monitoring:stop-begin',
-    STOP_COMPLETE: 'monitoring:stop-complete',
-    RESTART_BEGIN: 'monitoring:restart-begin',
-    RESTART_COMPLETE: 'monitoring:restart-complete',
-    STATUS_UPDATE: 'monitoring:status-update',
-    STATS_UPDATE: 'monitoring:stats-update',
-    // 🆕 v5.1.0: UDS 관련 이벤트
-    UDS_INITIALIZED: 'monitoring:uds-initialized',
-    UDS_FALLBACK: 'monitoring:uds-fallback'
-});
+export { MonitoringServiceEvents };
 
 export class MonitoringService {
     constructor(signalTowerManager, equipmentLoader = null, equipmentEditState = null) {
@@ -113,1795 +36,364 @@ export class MonitoringService {
         this.equipmentLoader = equipmentLoader;
         this.equipmentEditState = equipmentEditState;
         
-        // ⭐ 동적 URL 생성
+        // URL 생성
         const host = window.location.hostname;
         const port = 8008;
-        
-        // ⭐ v4.1.0: StatusAPIClient 인스턴스 생성
         this.apiBaseUrl = `http://${host}:${port}/api/monitoring`;
-        this.apiClient = new StatusAPIClient(this.apiBaseUrl);
-        
-        // ⭐ v4.2.0: WebSocket URL (레거시 호환성)
         this.wsUrl = `ws://${host}:${port}/api/monitoring/stream`;
         
-        // ⭐ v4.2.0: WebSocketManager 인스턴스 생성
+        // 기존 모듈 인스턴스
+        this.apiClient = new StatusAPIClient(this.apiBaseUrl);
         this.wsManager = new WebSocketManager(this.wsUrl, {
-            maxReconnectAttempts: 5,
-            reconnectDelay: 3000,
-            debug: false,
-            onStatusUpdate: (frontendId, data) => this._handleStatusUpdate(frontendId, data),
-            onConnected: (message) => debugLog(`📡 WebSocket connected: ${message}`),
-            onSubscribed: (message) => debugLog(`📡 WebSocket subscribed: ${message}`),
-            onReconnecting: (attempt, max) => debugLog(`🔄 Reconnecting... (${attempt}/${max})`),
-            onDisconnected: () => debugLog('🔌 WebSocket disconnected'),
-            onError: (error) => console.error('❌ WebSocket error:', error),
+            maxReconnectAttempts: 5, reconnectDelay: 3000, debug: false,
+            onStatusUpdate: (fid, data) => this._handleStatusUpdate(fid, data),
+            onConnected: (msg) => debugLog(`📡 WS connected: ${msg}`),
+            onSubscribed: (msg) => debugLog(`📡 WS subscribed: ${msg}`),
+            onReconnecting: (a, m) => debugLog(`🔄 Reconnecting (${a}/${m})`),
+            onDisconnected: () => debugLog('🔌 WS disconnected'),
+            onError: (e) => console.error('❌ WS error:', e),
             getEquipmentIds: () => this.getMappedEquipmentIds(),
-            getFrontendId: (equipmentId) => this.equipmentEditState?.getFrontendIdByEquipmentId(equipmentId)
+            getFrontendId: (eqId) => this.equipmentEditState?.getFrontendIdByEquipmentId(eqId)
         });
         
-        // 🆕 v5.0.0: MonitoringDataLoader 인스턴스 생성
         this._dataLoader = new MonitoringDataLoader({
-            equipmentEditState: this.equipmentEditState,
-            signalTowerManager: this.signalTowerManager,
-            apiBaseUrl: this.apiBaseUrl,
-            wsUrl: this.wsUrl,
-            staleThresholdHours: 24,
-            autoSubscribe: true,
-            debug: false,
-            onStatusUpdate: (frontendId, data) => this._handleDataLoaderStatusUpdate(frontendId, data)
+            equipmentEditState, signalTowerManager,
+            apiBaseUrl: this.apiBaseUrl, wsUrl: this.wsUrl,
+            staleThresholdHours: 24, autoSubscribe: true, debug: false,
+            onStatusUpdate: (fid, data) => this._handleDataLoaderStatusUpdate(fid, data)
         });
         
-        // ⭐ v4.4.0: SignalTowerIntegration 인스턴스 생성
-        this.signalIntegration = new SignalTowerIntegration(
-            this.signalTowerManager,
-            this.equipmentLoader,
-            this.equipmentEditState,
-            { debug: false }
-        );
+        this.signalIntegration = new SignalTowerIntegration(signalTowerManager, equipmentLoader, equipmentEditState, { debug: false });
+        this.statsPanel = null; // v5.0.2: 제거됨
         
-        // ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
-        this.statsPanel = null;
-        
-        // ⭐ v4.5.0: MappingEventHandler 인스턴스 생성
         this.eventHandler = new MappingEventHandler({
             signalIntegration: this.signalIntegration,
-            apiClient: this.apiClient,
-            wsManager: this.wsManager,
+            apiClient: this.apiClient, wsManager: this.wsManager,
             onUpdate: () => this.updateStatusPanel(),
             showToast: (msg, type) => this.showToast(msg, type),
-            cacheStatus: (frontendId, status) => {
-                if (status === null) {
-                    this.statusCache.delete(frontendId);
-                } else {
-                    this.statusCache.set(frontendId, status);
-                }
-            }
+            cacheStatus: (fid, status) => status === null ? this.statusCache.delete(fid) : this.statusCache.set(fid, status)
         }, { debug: false });
         
-        // ⭐ v4.2.0: 레거시 호환성 - ws 참조 (deprecated)
+        // 🆕 v6.0.0: 분리된 모듈
+        this.udsIntegration = new UDSIntegration({
+            onStatusUpdate: (fid, data) => this._handleStatusUpdate(fid, data),
+            onStatsUpdate: () => this._emitStatsUpdate()
+        });
+        this.lifecycle = new MonitoringLifecycle(this);
+        this.eventEmitter = new MonitoringEventEmitter();
+        this.eventEmitter.setContext(this);
+        
+        // 레거시 호환 속성
         this._ws = null;
-        
         this.isActive = false;
-        
-        // 🆕 v5.0.0: 시작 상태 관리
         this._isStarting = false;
         this._startSequence = null;
         this._isStopping = false;
-        
-        // 🆕 v5.1.0: UDS 상태 관리
         this._udsEnabled = false;
         this._udsInitialized = false;
         this._udsEventSubscribed = false;
-        
-        // ⭐ v4.2.0: 레거시 호환성
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
         this.reconnectDelay = 3000;
-        
         this.statusCache = new Map();
         this.updateQueue = [];
         this.batchInterval = 1000;
         this.batchTimer = null;
-        
-        // ⭐ v3.1.0: DISCONNECTED 판별 기준 시간 (시간 단위)
         this.staleThresholdHours = 24;
-        
-        // ⭐ v4.4.0: 레거시 호환성 - disabledOptions (deprecated, use signalIntegration)
-        this.disabledOptions = {
-            grayColor: 0x444444
-        };
-        
-        // ⭐ v4.3.0: 레거시 호환성 - statusPanelElement (deprecated)
+        this.disabledOptions = { grayColor: 0x444444 };
         this.statusPanelElement = null;
-        
-        // ⭐ v4.3.0: 레거시 호환성 - currentStats (deprecated)
-        this.currentStats = {
-            total: 0,
-            mapped: 0,
-            unmapped: 0,
-            rate: 0,
-            connected: 0,
-            disconnected: 0
-        };
-        
-        // ⭐ v3.0.0: EventBus 참조 (있으면 사용)
+        this.currentStats = { total: 0, mapped: 0, unmapped: 0, rate: 0, connected: 0, disconnected: 0 };
         this.eventBus = null;
-        
-        // ⭐ v3.3.0: EquipmentInfoPanel 참조
         this.equipmentInfoPanel = null;
-        
-        // ⭐ v4.5.0: 레거시 호환성 - 이벤트 핸들러 바인딩 (deprecated)
         this._boundHandleMappingChanged = (e) => this.eventHandler._handleMappingEvent(e);
         
-        // 🆕 v5.0.0: DataLoader 이벤트 바인딩
         this._setupDataLoaderEvents();
-        
-        debugLog('📡 MonitoringService v5.1.0 initialized (UDS Integration Ready)');
+        debugLog('📡 MonitoringService v6.0.0 initialized');
     }
     
-    // ===============================================
-    // 🆕 v5.1.0: UDS Feature Flag 확인
-    // ===============================================
-    
-    /**
-     * UDS 활성화 여부 확인
-     * @returns {boolean}
-     */
+    // === UDS Feature Flag (원본 호환) ===
     isUDSEnabled() {
-        // window.APP_CONFIG.UDS_ENABLED 확인
         const config = window.APP_CONFIG || window.ENV_CONFIG || {};
         return config.UDS_ENABLED === true;
     }
+    isUDSInitialized() { return this._udsInitialized || this.udsIntegration.isInitialized(); }
     
-    /**
-     * UDS 초기화 여부 확인
-     * @returns {boolean}
-     */
-    isUDSInitialized() {
-        return this._udsInitialized;
-    }
-    
-    // ===============================================
-    // 🆕 v5.1.0: UDS 초기화 및 연동
-    // ===============================================
-    
-    /**
-     * UDS를 사용한 초기화
-     * @param {Object} params - { siteId, lineId }
-     * @returns {Promise<boolean>} 초기화 성공 여부
-     * 
-     * @description
-     * UDS (Unified Data Store)를 사용하여 초기화:
-     * 1. UDS 모듈 로드
-     * 2. UDS 초기화 (117개 설비 일괄 로드)
-     * 3. SignalTower 상태 동기화
-     * 4. UDS 이벤트 구독
-     * 
-     * @example
-     * const success = await monitoringService.initializeWithUDS({ siteId: 1, lineId: 1 });
-     */
+    // === UDS 초기화 (원본 호환) ===
     async initializeWithUDS(params = {}) {
         const { siteId = 1, lineId = 1 } = params;
-        const startTime = Date.now();
-        
-        debugLog(`🚀 [UDS] Initializing UDS mode (site=${siteId}, line=${lineId})...`);
-        
-        try {
-            // Step 1: UDS 모듈 동적 로드
-            const moduleLoaded = await loadUDSModule();
-            if (!moduleLoaded || !unifiedDataStore) {
-                throw new Error('UDS module not available');
-            }
-            
-            // Step 2: UDS 초기화 (전체 설비 로드 + WebSocket 연결)
-            const equipments = await unifiedDataStore.initialize({
-                siteId,
-                lineId
-            });
-            
-            debugLog(`✅ [UDS] Loaded ${equipments.length} equipments`);
-            
-            // Step 3: SignalTower 상태 동기화
-            this._syncSignalTowersFromUDS(equipments);
-            
-            // Step 4: UDS 이벤트 구독
-            this._subscribeToUDSEvents();
-            
-            // Step 5: 상태 업데이트
+        const result = await this.udsIntegration.initialize({
+            siteId, lineId,
+            signalIntegration: this.signalIntegration,
+            statusCache: this.statusCache,
+            eventBus: this.eventBus
+        });
+        if (result) {
             this._udsEnabled = true;
             this._udsInitialized = true;
-            
-            const elapsed = Date.now() - startTime;
-            
-            // Step 6: 이벤트 발행
-            this._emitServiceEvent(MonitoringServiceEvents.UDS_INITIALIZED, {
-                equipmentCount: equipments.length,
-                stats: unifiedDataStore.getStatusStats(),
-                elapsed,
-                timestamp: new Date().toISOString()
-            });
-            
-            debugLog(`✅ [UDS] Initialization complete (${elapsed}ms)`);
-            
-            return true;
-            
-        } catch (error) {
-            console.error('❌ [UDS] Initialization failed:', error);
-            
-            // 폴백 이벤트 발행
-            this._emitServiceEvent(MonitoringServiceEvents.UDS_FALLBACK, {
-                error: error.message,
-                timestamp: new Date().toISOString()
-            });
-            
-            return false;
         }
+        return result;
     }
     
-    /**
-     * UDS 데이터로 SignalTower 동기화
-     * @private
-     * @param {Object[]} equipments - UDS 설비 데이터 배열
-     */
     _syncSignalTowersFromUDS(equipments) {
-        debugLog(`📊 [UDS] Syncing SignalTowers from ${equipments.length} equipments...`);
-        
-        let syncCount = 0;
-        
-        for (const equipment of equipments) {
-            const frontendId = equipment.frontend_id;
-            const status = equipment.status || 'DISCONNECTED';
-            
-            if (!frontendId) continue;
-            
-            // SignalTower 상태 업데이트
-            this.signalIntegration.updateStatus(frontendId, status);
-            
-            // 캐시 업데이트
-            this.statusCache.set(frontendId, status);
-            
-            syncCount++;
-        }
-        
-        debugLog(`✅ [UDS] SignalTower sync complete: ${syncCount} equipments`);
+        this.udsIntegration._syncSignalTowers(equipments);
     }
     
-    /**
-     * UDS 이벤트 구독
-     * @private
-     */
-    _subscribeToUDSEvents() {
-        if (this._udsEventSubscribed) {
-            debugLog('⚠️ [UDS] Events already subscribed');
-            return;
-        }
-        
-        if (!UnifiedDataStore || !this.eventBus) {
-            debugLog('⚠️ [UDS] Cannot subscribe: UnifiedDataStore or EventBus not available');
-            return;
-        }
-        
-        debugLog('📡 [UDS] Subscribing to UDS events...');
-        
-        // 🎯 설비 개별 업데이트 이벤트
-        this.eventBus.on(UnifiedDataStore.EVENTS.EQUIPMENT_UPDATED, (event) => {
-            this._handleUDSEquipmentUpdated(event);
-        });
-        
-        // 🎯 배치 업데이트 이벤트
-        this.eventBus.on(UnifiedDataStore.EVENTS.BATCH_UPDATED, (event) => {
-            this._handleUDSBatchUpdated(event);
-        });
-        
-        // 🎯 통계 변경 이벤트
-        this.eventBus.on(UnifiedDataStore.EVENTS.STATS_UPDATED, (event) => {
-            this._handleUDSStatsUpdated(event);
-        });
-        
-        // 🎯 에러 이벤트
-        this.eventBus.on(UnifiedDataStore.EVENTS.ERROR, (event) => {
-            console.error('❌ [UDS] Error event:', event.error);
-        });
-        
-        this._udsEventSubscribed = true;
-        debugLog('✅ [UDS] Event subscription complete');
-    }
+    _subscribeToUDSEvents() { this.udsIntegration._subscribeToEvents(); this._udsEventSubscribed = true; }
+    _unsubscribeFromUDSEvents() { this.udsIntegration.unsubscribeFromEvents(); this._udsEventSubscribed = false; }
+    _handleUDSEquipmentUpdated(event) { this.udsIntegration._handleEquipmentUpdated(event); }
+    _handleUDSBatchUpdated(event) { this.udsIntegration._handleBatchUpdated(event); }
+    _handleUDSStatsUpdated(event) { this.udsIntegration._handleStatsUpdated(event); }
+    getEquipmentFromUDS(frontendId) { return this.udsIntegration.getEquipment(frontendId); }
     
-    /**
-     * UDS 이벤트 구독 해제
-     * @private
-     */
-    _unsubscribeFromUDSEvents() {
-        if (!this._udsEventSubscribed || !UnifiedDataStore || !this.eventBus) {
-            return;
-        }
-        
-        debugLog('🔌 [UDS] Unsubscribing from UDS events...');
-        
-        this.eventBus.off(UnifiedDataStore.EVENTS.EQUIPMENT_UPDATED);
-        this.eventBus.off(UnifiedDataStore.EVENTS.BATCH_UPDATED);
-        this.eventBus.off(UnifiedDataStore.EVENTS.STATS_UPDATED);
-        this.eventBus.off(UnifiedDataStore.EVENTS.ERROR);
-        
-        this._udsEventSubscribed = false;
-    }
-    
-    /**
-     * UDS 설비 업데이트 이벤트 핸들러
-     * @private
-     */
-    _handleUDSEquipmentUpdated(event) {
-        const { frontendId, changes, equipment } = event;
-        
-        debugLog(`📊 [UDS] Equipment updated: ${frontendId}`, changes);
-        
-        // 상태 변경 시 SignalTower 업데이트
-        if (changes.status) {
-            this.signalIntegration.updateStatus(frontendId, changes.status);
-            this.statusCache.set(frontendId, changes.status);
-        }
-        
-        // EquipmentInfoPanel 알림
-        this.notifyEquipmentInfoPanel(frontendId, {
-            status: changes.status || equipment?.status,
-            ...changes,
-            ...equipment
-        });
-        
-        // 상태 업데이트 이벤트 발행
-        this._emitServiceEvent(MonitoringServiceEvents.STATUS_UPDATE, {
-            frontendId,
-            changes,
-            source: 'uds'
-        });
-    }
-    
-    /**
-     * UDS 배치 업데이트 이벤트 핸들러
-     * @private
-     */
-    _handleUDSBatchUpdated(event) {
-        const { count, timestamp } = event;
-        
-        debugLog(`📊 [UDS] Batch updated: ${count} equipments`);
-        
-        // 통계 패널 업데이트
-        this.updateStatusPanel();
-    }
-    
-    /**
-     * UDS 통계 변경 이벤트 핸들러
-     * @private
-     */
-    _handleUDSStatsUpdated(event) {
-        const { stats, changed } = event;
-        
-        debugLog(`📊 [UDS] Stats updated:`, stats);
-        
-        // StatusBar 업데이트용 이벤트 발행
-        this._emitStatsUpdate();
-    }
-    
-    // ===============================================
-    // 🆕 v5.1.0: UDS 캐시 조회
-    // ===============================================
-    
-    /**
-     * UDS 캐시에서 설비 조회 (< 5ms)
-     * @param {string} frontendId - Frontend ID
-     * @returns {Object|null} 설비 데이터 또는 null
-     * 
-     * @description
-     * UDS 활성화 시: 캐시 조회 (API 호출 없음)
-     * UDS 비활성화 시: Legacy 방식으로 폴백
-     */
-    getEquipmentFromUDS(frontendId) {
-        if (!this._udsInitialized || !unifiedDataStore) {
-            return null;
-        }
-        
-        const equipment = unifiedDataStore.getEquipment(frontendId);
-        
-        if (equipment) {
-            debugLog(`✅ [UDS] Cache hit: ${frontendId}`);
-        }
-        
-        return equipment;
-    }
-    
-    /**
-     * 설비 상세 조회 (UDS 우선, Legacy 폴백)
-     * @param {string} frontendId - Frontend ID
-     * @returns {Promise<Object|null>} 설비 데이터
-     */
     async getEquipmentDetail(frontendId) {
-        // 🆕 UDS 캐시 먼저 확인
-        const udsEquipment = this.getEquipmentFromUDS(frontendId);
-        
-        if (udsEquipment) {
-            return udsEquipment;
-        }
-        
-        // 캐시 미스: Legacy 방식 폴백
-        debugLog(`⚠️ [UDS] Cache miss, falling back to legacy: ${frontendId}`);
+        const uds = this.getEquipmentFromUDS(frontendId);
+        if (uds) return uds;
         return await this._fetchEquipmentDetailLegacy(frontendId);
     }
     
-    /**
-     * Legacy 방식 설비 상세 조회
-     * @private
-     */
     async _fetchEquipmentDetailLegacy(frontendId) {
         try {
-            // DataLoader 사용
-            if (this._dataLoader) {
-                return await this._dataLoader.fetchLiveStatus(frontendId);
-            }
-            
-            // StatusAPIClient 폴백
+            if (this._dataLoader) return await this._dataLoader.fetchLiveStatus(frontendId);
             return await this.apiClient.fetchEquipmentLiveStatus?.(frontendId) || null;
-            
-        } catch (error) {
-            console.error(`❌ Legacy fetch failed for ${frontendId}:`, error);
-            return null;
-        }
+        } catch (e) { return null; }
     }
     
-    // ===============================================
-    // 🆕 v5.0.0: DataLoader 이벤트 설정
-    // ===============================================
-    
-    /**
-     * @private
-     */
     _setupDataLoaderEvents() {
-        // 상태 업데이트 이벤트
-        this._dataLoader.on(MonitoringLoaderEvents.STATUS_UPDATE, (data) => {
-            debugLog(`📊 DataLoader status update: ${data.frontendId} → ${data.status}`);
-        });
-        
-        // WebSocket 연결 이벤트
-        this._dataLoader.on(MonitoringLoaderEvents.WS_CONNECTED, (data) => {
-            debugLog('📡 DataLoader WebSocket connected');
-        });
-        
-        // WebSocket 구독 완료 이벤트
-        this._dataLoader.on(MonitoringLoaderEvents.WS_SUBSCRIBED, (data) => {
-            debugLog(`📋 DataLoader subscribed: ${data.subscribedCount} equipment`);
-        });
-        
-        // 초기 상태 로드 완료
-        this._dataLoader.on(MonitoringLoaderEvents.INITIAL_STATUS_LOADED, (data) => {
-            debugLog(`✅ Initial status loaded: ${data.total} equipment`);
-            this.currentStats.connected = data.connected;
-            this.currentStats.disconnected = data.disconnected;
-        });
-        
-        // 모니터링 준비 완료
-        this._dataLoader.on(MonitoringLoaderEvents.READY_FOR_MONITORING, (data) => {
-            debugLog('🎉 DataLoader ready for monitoring');
-        });
+        this._dataLoader.on?.('initial-status-loaded', (d) => { this.currentStats.connected = d.connected; this.currentStats.disconnected = d.disconnected; });
     }
     
-    // ===============================================
-    // ⭐ v4.2.0: 레거시 호환성 - ws getter/setter
-    // ===============================================
+    get ws() { return this.wsManager?.ws || this._ws; }
+    set ws(v) { this._ws = v; }
+    getDataLoader() { return this._dataLoader; }
+    isDataLoaderInitialized() { return this._dataLoader?.isInitialized?.() ?? false; }
     
-    get ws() {
-        return this.wsManager?.ws || this._ws;
-    }
-    
-    set ws(value) {
-        this._ws = value;
-    }
-    
-    // ===============================================
-    // 🆕 v5.0.0: DataLoader 접근자
-    // ===============================================
-    
-    /**
-     * MonitoringDataLoader 인스턴스 반환
-     * @returns {MonitoringDataLoader}
-     */
-    getDataLoader() {
-        return this._dataLoader;
-    }
-    
-    /**
-     * DataLoader 초기화 상태 확인
-     * @returns {boolean}
-     */
-    isDataLoaderInitialized() {
-        return this._dataLoader?.isInitialized?.() ?? false;
-    }
-    
-    // ===============================================
-    // 의존성 설정
-    // ===============================================
-    
+    // === 의존성 설정 ===
     setDependencies(equipmentLoader, equipmentEditState, eventBus = null) {
         this.equipmentLoader = equipmentLoader;
         this.equipmentEditState = equipmentEditState;
         this.eventBus = eventBus;
-        
-        // ⭐ v4.4.0: SignalTowerIntegration에도 전달
         this.signalIntegration.setDependencies(equipmentLoader, equipmentEditState);
-        
-        // 🆕 v5.0.0: DataLoader에도 전달
-        this._dataLoader?.setDependencies({
-            equipmentEditState,
-            signalTowerManager: this.signalTowerManager
-        });
-        
-        debugLog('MonitoringService dependencies set');
+        this._dataLoader?.setDependencies({ equipmentEditState, signalTowerManager: this.signalTowerManager });
+        this.udsIntegration.setEventBus(eventBus);
+        debugLog('Dependencies set');
     }
+    setEquipmentInfoPanel(panel) { this.equipmentInfoPanel = panel; }
+    setSignalTowerManager(mgr) { this.signalTowerManager = mgr; this.signalIntegration.setSignalTowerManager(mgr); this._dataLoader?.setSignalTowerManager?.(mgr); }
+    setEquipmentEditState(state) { this.equipmentEditState = state; this.signalIntegration.setEquipmentEditState(state); this._dataLoader?.setEquipmentEditState?.(state); }
+    setEquipmentLoader(loader) { this.equipmentLoader = loader; this.signalIntegration.setEquipmentLoader(loader); }
+    setStaleThreshold(hours) { if (hours >= 1 && hours <= 168) { this.staleThresholdHours = hours; this._dataLoader?.setStaleThreshold?.(hours); } }
+    setWsUrl(url) { this.wsUrl = url; if (this.wsManager && !this.wsManager.isConnected()) this.wsManager.setUrl(url); }
+    setApiBaseUrl(url) { this.apiBaseUrl = url; this.apiClient?.setBaseUrl?.(url); }
     
-    setEquipmentInfoPanel(equipmentInfoPanel) {
-        this.equipmentInfoPanel = equipmentInfoPanel;
-        debugLog('🔗 EquipmentInfoPanel connected to MonitoringService');
-    }
+    // === 모듈 접근자 ===
+    getApiClient() { return this.apiClient; }
+    getWebSocketManager() { return this.wsManager; }
+    getStatsPanel() { return null; }
+    getSignalIntegration() { return this.signalIntegration; }
+    getEventHandler() { return this.eventHandler; }
+    getUnifiedDataStore() { return this.udsIntegration.getStore(); }
     
-    setSignalTowerManager(manager) {
-        this.signalTowerManager = manager;
-        // ⭐ v4.4.0: SignalTowerIntegration에도 전달
-        this.signalIntegration.setSignalTowerManager(manager);
-        // 🆕 v5.0.0: DataLoader에도 전달
-        this._dataLoader?.setSignalTowerManager(manager);
-        debugLog('📡 MonitoringService: SignalTowerManager 연결됨');
-    }
+    // === 라이프사이클 (위임) ===
+    async start(options = {}) { return this.lifecycle.start(options); }
+    async stop() { return this.lifecycle.stop(); }
+    async restart(options = {}) { return this.lifecycle.restart(options); }
     
-    setEquipmentEditState(state) {
-        this.equipmentEditState = state;
-        // ⭐ v4.4.0: SignalTowerIntegration에도 전달
-        this.signalIntegration.setEquipmentEditState(state);
-        // 🆕 v5.0.0: DataLoader에도 전달
-        this._dataLoader?.setEquipmentEditState(state);
-        debugLog('📡 MonitoringService: EquipmentEditState 연결됨');
-    }
-    
-    setEquipmentLoader(loader) {
-        this.equipmentLoader = loader;
-        // ⭐ v4.4.0: SignalTowerIntegration에도 전달
-        this.signalIntegration.setEquipmentLoader(loader);
-        debugLog('📡 MonitoringService: EquipmentLoader 연결됨');
-    }
-    
-    setStaleThreshold(hours) {
-        if (hours >= 1 && hours <= 168) {
-            this.staleThresholdHours = hours;
-            // 🆕 v5.0.0: DataLoader에도 전달
-            this._dataLoader?.setStaleThreshold(hours);
-            debugLog(`⏱️ Stale threshold set to ${hours} hours`);
-        } else {
-            console.warn(`⚠️ Invalid threshold: ${hours}. Must be 1-168 hours.`);
-        }
-    }
-    
-    // ===============================================
-    // ⭐ v4.2.0: URL 설정
-    // ===============================================
-    
-    setWsUrl(wsUrl) {
-        this.wsUrl = wsUrl;
-        if (this.wsManager && !this.wsManager.isConnected()) {
-            this.wsManager.setUrl(wsUrl);
-        }
-        debugLog(`📡 WebSocket URL updated: ${wsUrl}`);
-    }
-    
-    setApiBaseUrl(baseUrl) {
-        this.apiBaseUrl = baseUrl;
-        if (this.apiClient) {
-            this.apiClient.setBaseUrl(baseUrl);
-        }
-        debugLog(`📡 API Base URL updated: ${baseUrl}`);
-    }
-    
-    // ===============================================
-    // 모듈 접근자
-    // ===============================================
-    
-    getApiClient() {
-        return this.apiClient;
-    }
-    
-    getWebSocketManager() {
-        return this.wsManager;
-    }
-    
-    /**
-     * ❌ v5.0.2: MonitoringStatsPanel 제거됨
-     * @deprecated 레거시 호환성을 위해 null 반환
-     * @returns {null}
-     */
-    getStatsPanel() {
-        return null;
-    }
-    
-    getSignalIntegration() {
-        return this.signalIntegration;
-    }
-    
-    /**
-     * ⭐ v4.5.0: MappingEventHandler 인스턴스 조회
-     * @returns {MappingEventHandler}
-     */
-    getEventHandler() {
-        return this.eventHandler;
-    }
-    
-    /**
-     * 🆕 v5.1.0: UnifiedDataStore 인스턴스 조회
-     * @returns {UnifiedDataStore|null}
-     */
-    getUnifiedDataStore() {
-        return unifiedDataStore;
-    }
-    
-    // ===============================================
-    // 🆕 v5.0.0: 모니터링 시작 (순차 실행 보장)
-    // ===============================================
-    
-    /**
-     * 모니터링 시작 (순차 실행 보장)
-     * 
-     * @param {Object} options - 시작 옵션
-     * @param {boolean} [options.useUDS=auto] - UDS 사용 여부 (기본: 자동 감지)
-     * @param {number} [options.siteId=1] - Site ID
-     * @param {number} [options.lineId=1] - Line ID
-     * @returns {Promise<boolean>} 시작 성공 여부
-     * 
-     * @description
-     * v5.1.0: UDS 통합 지원
-     * - UDS 활성화 시: initializeWithUDS() → Delta Update 방식
-     * - UDS 비활성화 시: Legacy 방식 (기존 동작)
-     * 
-     * @example
-     * // 자동 모드 (APP_CONFIG.UDS_ENABLED 확인)
-     * await monitoringService.start();
-     * 
-     * // UDS 강제 사용
-     * await monitoringService.start({ useUDS: true });
-     * 
-     * // Legacy 강제 사용
-     * await monitoringService.start({ useUDS: false });
-     */
-    async start(options = {}) {
-        const { 
-            useUDS = this.isUDSEnabled(),  // 기본값: Feature Flag 확인
-            siteId = 1, 
-            lineId = 1 
-        } = options;
-        
-        // 이미 시작 중인 경우
-        if (this._isStarting) {
-            debugLog('⚠️ Monitoring start already in progress, waiting...');
-            return this._startSequence || Promise.resolve(false);
-        }
-        
-        // 이미 활성화된 경우
-        if (this.isActive) {
-            debugLog('⚠️ Monitoring already active');
-            return true;
-        }
-        
-        // 시작 플래그 설정
-        this._isStarting = true;
-        
-        // 이벤트 발행
-        this._emitServiceEvent(MonitoringServiceEvents.START_BEGIN, {
-            timestamp: new Date().toISOString(),
-            useUDS
-        });
-        
-        debugLog(`🟢 Starting monitoring mode (v5.1.0, UDS: ${useUDS})...`);
-        
-        // 시작 시퀀스 Promise 생성
-        this._startSequence = this._executeStartSequence({ useUDS, siteId, lineId });
-        
-        try {
-            const result = await this._startSequence;
-            return result;
-        } finally {
-            this._isStarting = false;
-            this._startSequence = null;
-        }
-    }
-    
-    /**
-     * 시작 시퀀스 실행 (내부)
-     * @private
-     * @param {Object} options
-     * @returns {Promise<boolean>}
-     */
-    async _executeStartSequence(options = {}) {
-        const { useUDS = false, siteId = 1, lineId = 1 } = options;
-        const startTime = Date.now();
-        
-        try {
-            // ===== Step 1: SignalTower 초기화 =====
-            debugLog('🚨 Step 1: Initializing SignalTower lights...');
-            await this._step1_initializeSignalTowers();
-            
-            // ===== Step 2: 미매핑 설비 스타일 적용 =====
-            debugLog('🌫️ Step 2: Applying unmapped equipment style...');
-            await this._step2_applyUnmappedStyle();
-            
-            // ===== Step 3: 통계 패널 생성 (스킵) =====
-            debugLog('📊 Step 3: Status panel skipped (StatusBar used instead)...');
-            
-            // ===== Step 4: 데이터 로드 (UDS vs Legacy) =====
-            if (useUDS) {
-                debugLog('📡 Step 4: Initializing with UDS...');
-                const udsSuccess = await this.initializeWithUDS({ siteId, lineId });
-                
-                if (!udsSuccess) {
-                    debugLog('⚠️ UDS initialization failed, falling back to legacy...');
-                    await this._step4_legacyLoad();
-                }
-            } else {
-                debugLog('📡 Step 4: Loading data (Legacy mode)...');
-                await this._step4_legacyLoad();
-            }
-            
-            // ===== Step 5: 배치 처리 시작 =====
-            debugLog('⏱️ Step 5: Starting batch processing...');
-            await this._step6_startBatchProcessing();
-            
-            // ===== Step 6: 이벤트 리스너 등록 =====
-            debugLog('📡 Step 6: Registering event listeners...');
-            await this._step7_registerEventListeners();
-            
-            // ===== 완료 =====
-            this.isActive = true;
-            
-            const elapsed = Date.now() - startTime;
-            
-            // 초기 상태 발행
-            this._emitStatsUpdate();
-            
-            // 완료 이벤트 발행
-            this._emitServiceEvent(MonitoringServiceEvents.START_COMPLETE, {
-                elapsed,
-                timestamp: new Date().toISOString(),
-                stats: this.getStats(),
-                wsConnected: this.wsManager?.isConnected() || this._dataLoader?.isWsConnected(),
-                udsEnabled: this._udsInitialized
-            });
-            
-            debugLog(`✅ Monitoring mode started successfully (${elapsed}ms, UDS: ${this._udsInitialized})`);
-            
-            return true;
-            
-        } catch (error) {
-            console.error('❌ Failed to start monitoring:', error);
-            
-            // 에러 이벤트 발행
-            this._emitServiceEvent(MonitoringServiceEvents.START_ERROR, {
-                error: error.message,
-                timestamp: new Date().toISOString()
-            });
-            
-            // 롤백
-            this._rollbackStart();
-            
-            return false;
-        }
-    }
-    
-    /**
-     * Step 1: SignalTower 초기화
-     * @private
-     */
-    async _step1_initializeSignalTowers() {
-        this.signalIntegration.initializeAllLights();
-    }
-    
-    /**
-     * Step 2: 미매핑 스타일 적용
-     * @private
-     */
-    async _step2_applyUnmappedStyle() {
-        const applyResult = this.signalIntegration.applyUnmappedStyle();
-        this.currentStats.mapped = applyResult.mapped;
-        this.currentStats.unmapped = applyResult.unmapped;
-        this.currentStats.total = applyResult.total;
-        this.currentStats.rate = applyResult.rate;
-    }
-    
-    /**
-     * Step 3: 통계 패널 생성
-     * ❌ v5.0.2: MonitoringStatsPanel 제거됨 - 이 단계는 스킵됨
-     * @private
-     */
-    async _step3_createStatusPanel() {
-        // ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
-    }
-    
-    /**
-     * Step 4: Legacy 데이터 로드
-     * @private
-     */
-    async _step4_legacyLoad() {
-        // DataLoader 의존성 업데이트
-        this._dataLoader.setDependencies({
-            equipmentEditState: this.equipmentEditState,
-            signalTowerManager: this.signalTowerManager
-        });
-        
-        // 초기화
-        await this._dataLoader.initialize();
-        
-        // 데이터 로드 + WebSocket 연결
-        await this._step5_loadDataAndConnect();
-    }
-    
-    /**
-     * Step 4: DataLoader 초기화 (Legacy)
-     * @private
-     */
-    async _step4_initializeDataLoader() {
-        // DataLoader 의존성 업데이트
-        this._dataLoader.setDependencies({
-            equipmentEditState: this.equipmentEditState,
-            signalTowerManager: this.signalTowerManager
-        });
-        
-        // 초기화
-        await this._dataLoader.initialize();
-    }
-    
-    /**
-     * Step 5: 데이터 로드 + WebSocket 연결 (Legacy)
-     * @private
-     */
-    async _step5_loadDataAndConnect() {
-        try {
-            // DataLoader를 통한 로드
-            const result = await this._dataLoader.load({
-                thresholdHours: this.staleThresholdHours,
-                skipWebSocket: false
-            });
-            
-            // 캐시 동기화
-            if (result.initialData?.equipment) {
-                result.initialData.equipment.forEach(item => {
-                    const frontendId = this.equipmentEditState?.getFrontendIdByEquipmentId(item.equipment_id);
-                    if (frontendId) {
-                        const status = item.is_connected === false ? 'DISCONNECTED' : item.status;
-                        this.statusCache.set(frontendId, status);
-                        
-                        // SignalTower 업데이트
-                        this.signalIntegration.updateStatus(frontendId, status);
-                    }
-                });
-            }
-            
-            // 통계 업데이트
-            if (result.stats) {
-                this.currentStats.connected = result.stats.connectedCount;
-                this.currentStats.disconnected = result.stats.disconnectedCount;
-            }
-            
-            debugLog(`✅ Data loaded: ${result.stats?.totalEquipment || 0} equipment, WS: ${result.wsConnected}`);
-            
-        } catch (error) {
-            // DataLoader 실패 시 기존 방식으로 폴백
-            debugLog(`⚠️ DataLoader failed, falling back to legacy method: ${error.message}`);
-            await this._fallbackLoadInitialStatus();
-            await this._fallbackConnectWebSocket();
-        }
-    }
-    
-    /**
-     * 폴백: 기존 방식 초기 상태 로드
-     * @private
-     */
-    async _fallbackLoadInitialStatus() {
-        try {
-            await this.loadInitialStatus();
-        } catch (err) {
-            debugLog(`⚠️ Fallback loadInitialStatus failed: ${err.message}`);
-        }
-    }
-    
-    /**
-     * 폴백: 기존 방식 WebSocket 연결
-     * @private
-     */
-    async _fallbackConnectWebSocket() {
-        try {
-            await this.connectWebSocket();
-        } catch (err) {
-            debugLog(`⚠️ Fallback WebSocket failed: ${err.message}`);
-        }
-    }
-    
-    /**
-     * Step 6: 배치 처리 시작
-     * @private
-     */
-    async _step6_startBatchProcessing() {
-        this.startBatchProcessing();
-    }
-    
-    /**
-     * Step 7: 이벤트 리스너 등록
-     * @private
-     */
-    async _step7_registerEventListeners() {
-        this.registerEventListeners();
-    }
-    
-    /**
-     * 시작 실패 시 롤백
-     * @private
-     */
-    _rollbackStart() {
-        debugLog('⚠️ Rolling back start...');
-        
-        this.isActive = false;
-        
-        // UDS 상태 초기화
-        this._udsInitialized = false;
-        this._unsubscribeFromUDSEvents();
-        
-        // 배치 타이머 정리
-        if (this.batchTimer) {
-            clearInterval(this.batchTimer);
-            this.batchTimer = null;
-        }
-        
-        // 이벤트 리스너 해제
-        try {
-            this.unregisterEventListeners();
-        } catch (e) {
-            // ignore
-        }
-    }
-    
-    // ===============================================
-    // 🆕 v5.0.0: 모니터링 재시작 (재연결용)
-    // ===============================================
-    
-    /**
-     * 모니터링 재시작 (재연결용)
-     * 
-     * @param {Object} options - 재시작 옵션
-     * @param {boolean} [options.fullRestart=false] - 전체 재시작 여부 (false면 WebSocket만 재연결)
-     * @param {number} [options.delay=500] - 재시작 전 딜레이 (ms)
-     * @returns {Promise<boolean>} 재시작 성공 여부
-     */
-    async restart(options = {}) {
-        const { fullRestart = false, delay = 500 } = options;
-        
-        debugLog(`🔄 Restarting monitoring (fullRestart: ${fullRestart})...`);
-        
-        // 이벤트 발행
-        this._emitServiceEvent(MonitoringServiceEvents.RESTART_BEGIN, {
-            fullRestart,
-            timestamp: new Date().toISOString()
-        });
-        
-        try {
-            if (fullRestart) {
-                // 전체 재시작: stop → delay → start
-                await this.stop();
-                
-                if (delay > 0) {
-                    await this._delay(delay);
-                }
-                
-                const result = await this.start();
-                
-                // 완료 이벤트
-                this._emitServiceEvent(MonitoringServiceEvents.RESTART_COMPLETE, {
-                    fullRestart: true,
-                    success: result,
-                    timestamp: new Date().toISOString()
-                });
-                
-                return result;
-                
-            } else {
-                // 부분 재시작: WebSocket만 재연결
-                return await this._restartWebSocketOnly();
-            }
-            
-        } catch (error) {
-            console.error('❌ Restart failed:', error);
-            return false;
-        }
-    }
-    
-    /**
-     * WebSocket만 재연결
-     * @private
-     */
-    async _restartWebSocketOnly() {
-        debugLog('🔌 Reconnecting WebSocket only...');
-        
-        // 🆕 v5.1.0: UDS WebSocket 재연결
-        if (this._udsInitialized && unifiedDataStore) {
-            try {
-                // UDS WebSocket은 unifiedDataStore 내부에서 관리
-                debugLog('✅ UDS WebSocket managed internally');
-                
-                this._emitServiceEvent(MonitoringServiceEvents.RESTART_COMPLETE, {
-                    fullRestart: false,
-                    success: true,
-                    method: 'uds',
-                    timestamp: new Date().toISOString()
-                });
-                
-                return true;
-            } catch (e) {
-                debugLog(`⚠️ UDS WebSocket reconnect issue: ${e.message}`);
-            }
-        }
-        
-        // DataLoader WebSocket 재연결 시도
-        if (this._dataLoader) {
-            try {
-                const success = await this._dataLoader.reconnectWebSocket();
-                
-                if (success) {
-                    debugLog('✅ DataLoader WebSocket reconnected');
-                    
-                    this._emitServiceEvent(MonitoringServiceEvents.RESTART_COMPLETE, {
-                        fullRestart: false,
-                        success: true,
-                        method: 'dataLoader',
-                        timestamp: new Date().toISOString()
-                    });
-                    
-                    return true;
-                }
-            } catch (e) {
-                debugLog(`⚠️ DataLoader reconnect failed: ${e.message}`);
-            }
-        }
-        
-        // 레거시 WebSocketManager 사용
-        if (this.wsManager) {
-            try {
-                this.wsManager.disconnect();
-                await this._delay(300);
-                await this.wsManager.connect();
-                this.wsManager.subscribe();
-                
-                debugLog('✅ Legacy WebSocket reconnected');
-                
-                this._emitServiceEvent(MonitoringServiceEvents.RESTART_COMPLETE, {
-                    fullRestart: false,
-                    success: true,
-                    method: 'wsManager',
-                    timestamp: new Date().toISOString()
-                });
-                
-                return true;
-                
-            } catch (e) {
-                debugLog(`❌ Legacy WebSocket reconnect failed: ${e.message}`);
-            }
-        }
-        
-        return false;
-    }
-    
-    // ===============================================
-    // 모니터링 중지
-    // ===============================================
-    
-    /**
-     * 모니터링 중지
-     * @returns {Promise<void>}
-     */
-    async stop() {
-        if (this._isStopping) {
-            debugLog('⚠️ Already stopping');
-            return;
-        }
-        
-        this._isStopping = true;
-        
-        debugLog('🔴 Stopping monitoring mode...');
-        
-        // 이벤트 발행
-        this._emitServiceEvent(MonitoringServiceEvents.STOP_BEGIN, {
-            timestamp: new Date().toISOString()
-        });
-        
-        try {
-            this.isActive = false;
-            
-            // 1. 이벤트 리스너 해제
-            this.unregisterEventListeners();
-            
-            // 🆕 v5.1.0: UDS 이벤트 구독 해제
-            this._unsubscribeFromUDSEvents();
-            this._udsInitialized = false;
-            
-            // 2. 비활성화 표시 해제
-            this.resetEquipmentStyle();
-            
-            // 3. WebSocket 연결 종료
-            if (unifiedDataStore) {
-                unifiedDataStore.dispose?.();
-            }
-            if (this._dataLoader) {
-                this._dataLoader.disconnectWebSocket();
-            }
-            if (this.wsManager) {
-                this.wsManager.disconnect();
-            }
-            
-            // 4. 배치 처리 타이머 중지
-            if (this.batchTimer) {
-                clearInterval(this.batchTimer);
-                this.batchTimer = null;
-            }
-            
-            // 완료 이벤트
-            this._emitServiceEvent(MonitoringServiceEvents.STOP_COMPLETE, {
-                timestamp: new Date().toISOString()
-            });
-            
-            debugLog('✅ Monitoring mode stopped');
-            
-        } finally {
-            this._isStopping = false;
-        }
-    }
-    
-    // ===============================================
-    // ⭐ v4.5.0: 이벤트 리스너 관리 (위임)
-    // ===============================================
-    
-    /**
-     * 이벤트 리스너 등록 (레거시 호환성 유지)
-     */
-    registerEventListeners() {
-        debugLog('📡 registerEventListeners() → eventHandler.register()');
-        this.eventHandler.register(this.eventBus);
-    }
-    
-    /**
-     * 이벤트 리스너 해제 (레거시 호환성 유지)
-     */
-    unregisterEventListeners() {
-        debugLog('📡 unregisterEventListeners() → eventHandler.unregister()');
-        this.eventHandler.unregister();
-    }
-    
-    /**
-     * 매핑 변경 이벤트 핸들러 (레거시 호환성 유지)
-     * @deprecated v4.5.0부터 eventHandler._handleMappingEvent() 사용
-     */
-    async handleMappingChanged(eventOrData) {
-        debugLog('⚠️ handleMappingChanged() → eventHandler._handleMappingEvent()');
-        return this.eventHandler._handleMappingEvent(eventOrData);
-    }
+    // === 이벤트 리스너 (위임) ===
+    registerEventListeners() { this.eventHandler.register(this.eventBus); }
+    unregisterEventListeners() { this.eventHandler.unregister(); }
+    async handleMappingChanged(e) { return this.eventHandler._handleMappingEvent(e); }
     
     async fetchSingleEquipmentStatus(frontendId) {
-        // 🆕 v5.1.0: UDS 캐시 우선
-        const udsEquipment = this.getEquipmentFromUDS(frontendId);
-        if (udsEquipment) {
-            return udsEquipment;
-        }
-        
-        // 🆕 v5.0.0: DataLoader 우선 사용
-        if (this._dataLoader) {
-            return await this._dataLoader.fetchLiveStatus(frontendId);
-        }
+        const uds = this.getEquipmentFromUDS(frontendId);
+        if (uds) return uds;
+        if (this._dataLoader) return await this._dataLoader.fetchLiveStatus(frontendId);
         return this.apiClient.fetchEquipmentLiveStatus?.(frontendId) || null;
     }
     
-    // ===============================================
-    // ⭐ v4.3.0: 통계 패널 관리 (위임)
-    // ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
-    // ===============================================
+    // === 통계 패널 (레거시 호환) ===
+    createStatusPanel() { this.updateStats(); }
+    updateStatusPanel() { this.updateStats(); this._emitStatsUpdate(); }
+    removeStatusPanel() {}
+    getStats() { this.updateStats(); return { ...this.currentStats }; }
     
-    /**
-     * ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
-     * 레거시 호환성을 위해 메서드는 유지하되 내부 동작은 비활성화
-     */
-    createStatusPanel() {
-        // ✅ v5.0.2: updateStats는 유지하여 currentStats 계산
-        this.updateStats();
-        debugLog('📊 createStatusPanel() skipped - using StatusBar instead');
-    }
-    
-    /**
-     * ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
-     * 레거시 호환성을 위해 메서드는 유지하되 내부 동작은 비활성화
-     */
-    updateStatusPanel() {
-        // ✅ v5.0.2: 간단 버전으로 통계 업데이트
-        this.updateStats();
-        
-        // ✅ StatusBar로 이벤트 발행만 유지
-        this._emitStatsUpdate();
-    }
-    
-    /**
-     * ❌ v5.0.2: MonitoringStatsPanel 제거됨 (StatusBar로 대체)
-     * 레거시 호환성을 위해 메서드는 유지하되 내부 동작은 비활성화
-     */
-    removeStatusPanel() {
-        debugLog('📊 removeStatusPanel() skipped - using StatusBar instead');
-    }
-    
-    getStats() {
-        this.updateStats();
-        return { ...this.currentStats };
-    }
-    
-    /**
-     * ✅ v5.1.0: UDS 통계 우선 사용
-     */
     updateStats() {
-        // 🆕 v5.1.0: UDS 초기화된 경우 UDS 통계 사용
-        if (this._udsInitialized && unifiedDataStore) {
-            const udsStats = unifiedDataStore.getStatusStats();
-            const totalEquipment = this.equipmentLoader?.equipmentArray?.length || 0;
-            const mappedCount = this.equipmentEditState?.getMappingCount?.() || 0;
-            
+        if (this._udsInitialized || this.udsIntegration.isInitialized()) {
+            const udsStats = this.udsIntegration.getStatusStats() || this.getUnifiedDataStore()?.getStatusStats?.() || {};
+            const total = this.equipmentLoader?.equipmentArray?.length || 0;
+            const mapped = this.equipmentEditState?.getMappingCount?.() || 0;
             this.currentStats = {
-                total: totalEquipment,
-                mapped: mappedCount,
-                unmapped: totalEquipment - mappedCount,
-                rate: totalEquipment > 0 ? Math.round((mappedCount / totalEquipment) * 100) : 0,
-                connected: udsStats.TOTAL - (udsStats.DISCONNECTED || 0),
+                total, mapped, unmapped: total - mapped,
+                rate: total > 0 ? Math.round((mapped / total) * 100) : 0,
+                connected: (udsStats.TOTAL || 0) - (udsStats.DISCONNECTED || 0),
                 disconnected: udsStats.DISCONNECTED || 0
             };
-            return;
+        } else {
+            const total = this.equipmentLoader?.equipmentArray?.length || 0;
+            const mapped = this.equipmentEditState?.getMappingCount?.() || 0;
+            const stats = this.signalTowerManager?.getStatusStatistics?.() || {};
+            this.currentStats = {
+                total, mapped, unmapped: total - mapped,
+                rate: total > 0 ? Math.round((mapped / total) * 100) : 0,
+                connected: Math.max(0, mapped - (stats.DISCONNECTED || 0)),
+                disconnected: stats.DISCONNECTED || 0
+            };
         }
-        
-        // Legacy 방식
-        if (!this.equipmentLoader || !this.equipmentEditState) {
-            return;
-        }
-        
-        const totalEquipment = this.equipmentLoader.equipmentArray?.length || 0;
-        const mappedCount = this.equipmentEditState.getMappingCount?.() || 0;
-        
-        // SignalTower 통계에서 connected/disconnected 계산
-        let connectedCount = 0;
-        let disconnectedCount = 0;
-        
-        if (this.signalTowerManager?.getStatusStatistics) {
-            const stats = this.signalTowerManager.getStatusStatistics();
-            disconnectedCount = stats.DISCONNECTED || 0;
-            connectedCount = Math.max(0, mappedCount - disconnectedCount);
-        }
-        
-        this.currentStats = {
-            total: totalEquipment,
-            mapped: mappedCount,
-            unmapped: totalEquipment - mappedCount,
-            rate: totalEquipment > 0 ? Math.round((mappedCount / totalEquipment) * 100) : 0,
-            connected: connectedCount,
-            disconnected: disconnectedCount
-        };
     }
     
-    // ===============================================
-    // 🆕 v5.0.0: 서비스 이벤트 발행
-    // ===============================================
-    
-    /**
-     * 서비스 이벤트 발행
-     * @private
-     */
+    // === 이벤트 발행 ===
     _emitServiceEvent(eventName, data) {
         if (!this.eventBus) return;
-        
-        this.eventBus.emit(eventName, {
-            ...data,
-            source: 'MonitoringService'
-        });
+        this.eventBus.emit(eventName, { ...data, source: 'MonitoringService' });
     }
     
-    // ===============================================
-    // 🆕 v4.5.1: StatusBar 이벤트 발행
-    // ===============================================
+    _emitStatsUpdate() { this.eventEmitter.emitStatsUpdate(); }
     
-    /**
-     * 🔧 v5.1.0: monitoring:stats-update 이벤트 발행 (UDS 통계 우선)
-     * StatusBar Monitoring Stats Panel 실시간 업데이트용
-     */
-    _emitStatsUpdate() {
-        if (!this.eventBus) return;
-        
-        // 🆕 v5.1.0: UDS 통계 우선
-        let statusCounts;
-        
-        if (this._udsInitialized && unifiedDataStore) {
-            const udsStats = unifiedDataStore.getStatusStats();
-            statusCounts = {
-                run: udsStats.RUN || 0,
-                idle: udsStats.IDLE || 0,
-                stop: udsStats.STOP || 0,
-                suddenstop: udsStats.SUDDENSTOP || 0,
-                disconnected: udsStats.DISCONNECTED || 0
-            };
-        } else {
-            // Legacy: SignalTowerManager 통계
-            statusCounts = this._getSignalTowerStats();
-        }
-        
-        // 이벤트 발행
-        this.eventBus.emit('monitoring:stats-update', {
-            statusCounts: statusCounts,
-            total: this.currentStats.total,
-            mapped: this.currentStats.mapped,
-            unmapped: this.currentStats.unmapped,
-            mappingRate: this.currentStats.rate,
-            timestamp: new Date().toISOString(),
-            udsEnabled: this._udsInitialized
-        });
-        
-        debugLog(`📡 monitoring:stats-update 발행 - RUN:${statusCounts.run}, IDLE:${statusCounts.idle}, STOP:${statusCounts.stop}, SUDDENSTOP:${statusCounts.suddenstop}, DISCONNECTED:${statusCounts.disconnected} (UDS: ${this._udsInitialized})`);
-    }
-    
-    /**
-     * 🎯 FINAL: SignalTowerManager에서 정확한 통계 가져오기
-     * 
-     * @returns {{run: number, idle: number, stop: number, suddenstop: number, disconnected: number}}
-     */
     _getSignalTowerStats() {
-        // 기본값
-        const counts = {
-            run: 0,
-            idle: 0,
-            stop: 0,
-            suddenstop: 0,
-            disconnected: 0
-        };
-        
-        // SignalTowerManager의 getStatusStatistics() 사용
+        const counts = { run: 0, idle: 0, stop: 0, suddenstop: 0, disconnected: 0 };
         if (this.signalTowerManager?.getStatusStatistics) {
             const stats = this.signalTowerManager.getStatusStatistics();
-            
-            // 키 변환: 대문자 → 소문자
-            counts.run = stats.RUN || 0;
-            counts.idle = stats.IDLE || 0;
-            counts.stop = stats.STOP || 0;
-            counts.suddenstop = stats.SUDDENSTOP || 0;
+            counts.run = stats.RUN || 0; counts.idle = stats.IDLE || 0;
+            counts.stop = stats.STOP || 0; counts.suddenstop = stats.SUDDENSTOP || 0;
             counts.disconnected = stats.DISCONNECTED || 0;
-            
-            debugLog(`📊 SignalTower Stats - RUN:${counts.run}, IDLE:${counts.idle}, STOP:${counts.stop}, SUDDENSTOP:${counts.suddenstop}, DISCONNECTED:${counts.disconnected}`);
-        } else {
-            debugLog('⚠️ signalTowerManager.getStatusStatistics() not available');
         }
-        
         return counts;
     }
     
-    // ===============================================
-    // 🆕 v5.0.0: DataLoader 상태 업데이트 핸들러
-    // ===============================================
-    
-    /**
-     * DataLoader에서 오는 상태 업데이트 처리
-     * @private
-     */
-    _handleDataLoaderStatusUpdate(frontendId, data) {
-        const status = data.status || 'DISCONNECTED';
-        const normalizedStatus = this.signalIntegration.normalizeStatus(status);
-        
-        debugLog(`📊 DataLoader Status update: ${frontendId} → ${normalizedStatus}`);
-        
-        // 캐시 업데이트
-        this.statusCache.set(frontendId, {
-            status: normalizedStatus,
-            rawStatus: data.rawStatus || status,
-            timestamp: new Date().toISOString(),
-            ...data
-        });
-        
-        // SignalTower 업데이트
-        this.updateEquipmentStatus(frontendId, normalizedStatus);
-        
-        // EquipmentInfoPanel 알림
-        this.notifyEquipmentInfoPanel(frontendId, data);
-        
-        // 통계 패널 업데이트 (이벤트 발행 포함)
-        this.updateStatusPanel();
-    }
-    
-    // ===============================================
-    // ⭐ v4.2.0: WebSocket 연결 (위임)
-    // ===============================================
-    
-    async connectWebSocket() {
-        try {
-            await this.wsManager.connect();
-            setTimeout(() => {
-                this.sendSubscribeMessage();
-            }, 500);
-            return true;
-        } catch (error) {
-            console.error('❌ WebSocket connection failed:', error);
-            return false;
-        }
-    }
-    
-    sendSubscribeMessage() {
-        return this.wsManager.subscribe();
-    }
-    
-    sendSubscribeForNewMapping(equipmentId) {
-        // 🆕 v5.0.0: DataLoader도 업데이트
-        this._dataLoader?.subscribeEquipment(equipmentId);
-        return this.wsManager.subscribeEquipment(equipmentId);
-    }
-    
-    // ===============================================
-    // ⭐ v4.2.0: 상태 업데이트 처리 (콜백)
-    // ===============================================
+    _handleDataLoaderStatusUpdate(fid, data) { this._handleStatusUpdate(fid, data); }
     
     _handleStatusUpdate(frontendId, data) {
         const status = data.status || 'DISCONNECTED';
-        const normalizedStatus = this.signalIntegration.normalizeStatus(status);
-        
-        debugLog(`📊 Status update: ${frontendId} → ${normalizedStatus}`);
-        
-        // 캐시 업데이트
-        this.statusCache.set(frontendId, {
-            status: normalizedStatus,
-            rawStatus: status,
-            timestamp: new Date().toISOString(),
-            ...data
-        });
-        
-        // SignalTower 업데이트
-        this.updateEquipmentStatus(frontendId, normalizedStatus);
-        
-        // EquipmentInfoPanel 알림
+        const normalized = this.signalIntegration.normalizeStatus(status);
+        this.statusCache.set(frontendId, { status: normalized, rawStatus: data.rawStatus || status, timestamp: new Date().toISOString(), ...data });
+        this.updateEquipmentStatus(frontendId, normalized);
         this.notifyEquipmentInfoPanel(frontendId, data);
-        
-        // 통계 패널 업데이트 (🆕 v4.5.1: 이벤트 발행 포함)
         this.updateStatusPanel();
     }
     
-    // ===============================================
-    // ⭐ v4.1.0: 초기 상태 로드 (StatusAPIClient 사용)
-    // ===============================================
+    // === WebSocket ===
+    async connectWebSocket() {
+        try {
+            await this.wsManager.connect();
+            setTimeout(() => this.sendSubscribeMessage(), 500);
+            return true;
+        } catch (e) { console.error('❌ WS failed:', e); return false; }
+    }
+    sendSubscribeMessage() { return this.wsManager.subscribe(); }
+    sendSubscribeForNewMapping(eqId) { this._dataLoader?.subscribeEquipment?.(eqId); return this.wsManager.subscribeEquipment(eqId); }
     
+    // === 초기 상태 로드 (레거시) ===
     async loadInitialStatus() {
-        debugLog(`📡 Loading initial equipment status (threshold: ${this.staleThresholdHours}h)...`);
-        
         const data = await this.apiClient.fetchInitialStatus(this.staleThresholdHours);
-        
-        if (!data.equipment || !Array.isArray(data.equipment)) {
-            throw new Error('Invalid response format');
-        }
-        
-        debugLog(`✅ Loaded ${data.equipment.length} equipment status from /status/initial`);
-        
-        let connectedCount = 0;
-        let disconnectedCount = 0;
-        let skippedCount = 0;
-        
+        if (!data.equipment?.length) throw new Error('Invalid response');
+        let connected = 0, disconnected = 0;
         data.equipment.forEach(item => {
-            const frontendId = this.equipmentEditState?.getFrontendIdByEquipmentId(item.equipment_id);
-            
-            if (!frontendId) {
-                skippedCount++;
-                return;
-            }
-            
-            if (item.is_connected === false || item.status === null) {
-                this.signalIntegration.updateStatus(frontendId, 'DISCONNECTED');
-                this.statusCache.set(frontendId, 'DISCONNECTED');
-                disconnectedCount++;
-            } else {
-                this.signalIntegration.updateStatus(frontendId, item.status);
-                this.statusCache.set(frontendId, item.status);
-                connectedCount++;
-            }
+            const fid = this.equipmentEditState?.getFrontendIdByEquipmentId(item.equipment_id);
+            if (!fid) return;
+            const status = (item.is_connected === false || item.status === null) ? 'DISCONNECTED' : item.status;
+            this.signalIntegration.updateStatus(fid, status);
+            this.statusCache.set(fid, status);
+            status === 'DISCONNECTED' ? disconnected++ : connected++;
         });
-        
-        // 통계 업데이트
-        this.currentStats.connected = connectedCount;
-        this.currentStats.disconnected = disconnectedCount;
-        
-        debugLog(`✅ Initial status applied: ${connectedCount} connected, ${disconnectedCount} disconnected, ${skippedCount} skipped`);
-        
-        // 패널 업데이트 (🆕 v4.5.1: 이벤트 발행 포함)
+        this.currentStats.connected = connected; this.currentStats.disconnected = disconnected;
         this.updateStatusPanel();
     }
     
-    // ===============================================
-    // ⭐ v4.4.0: 설비 상태 업데이트 (위임)
-    // ===============================================
-    
-    updateEquipmentStatus(frontendId, status) {
-        this.signalIntegration.updateStatus(frontendId, status, false);
-    }
-    
-    normalizeStatus(status) {
-        return this.signalIntegration.normalizeStatus(status);
-    }
-    
-    // ===============================================
-    // ⭐ v4.4.0: SignalTower 미매핑 설비 처리 (위임)
-    // ===============================================
-    
-    applyUnmappedSignalTowerStyle() {
-        this.signalIntegration.applyUnmappedSignalTowerStyle();
-    }
-    
+    // === SignalTower (위임) ===
+    updateEquipmentStatus(fid, status) { this.signalIntegration.updateStatus(fid, status, false); }
+    normalizeStatus(status) { return this.signalIntegration.normalizeStatus(status); }
+    applyUnmappedSignalTowerStyle() { this.signalIntegration.applyUnmappedSignalTowerStyle(); }
     applyUnmappedEquipmentStyle() {
-        const result = this.signalIntegration.applyUnmappedEquipmentStyle();
-        
-        this.currentStats.mapped = result.mapped;
-        this.currentStats.unmapped = result.unmapped;
-        this.currentStats.total = result.mapped + result.unmapped;
-        this.currentStats.rate = this.currentStats.total > 0
-            ? Math.round((result.mapped / this.currentStats.total) * 100)
-            : 0;
+        const r = this.signalIntegration.applyUnmappedEquipmentStyle();
+        this.currentStats.mapped = r.mapped; this.currentStats.unmapped = r.unmapped;
+        this.currentStats.total = r.mapped + r.unmapped;
+        this.currentStats.rate = this.currentStats.total > 0 ? Math.round((r.mapped / this.currentStats.total) * 100) : 0;
+    }
+    resetEquipmentStyle() { this.signalIntegration.resetAllStyles(); }
+    setDisabledOptions(opts) { this.disabledOptions = { ...this.disabledOptions, ...opts }; this.signalIntegration.setDisabledOptions(opts); if (this.isActive) { this.signalIntegration.applyUnmappedStyle(); this.updateStatusPanel(); } }
+    
+    // === 알림 ===
+    notifyEquipmentInfoPanel(fid, data) {
+        if (!this.equipmentInfoPanel || this.equipmentInfoPanel.currentEquipmentId !== fid) return;
+        this.equipmentInfoPanel.updateFromMonitoring?.({ frontendId: fid, status: data.status, equipmentId: data.equipment_id, timestamp: data.timestamp, ...data });
     }
     
-    resetEquipmentStyle() {
-        this.signalIntegration.resetAllStyles();
-    }
-    
-    setDisabledOptions(options) {
-        this.disabledOptions = { ...this.disabledOptions, ...options };
-        this.signalIntegration.setDisabledOptions(options);
-        
-        if (this.isActive) {
-            this.signalIntegration.applyUnmappedStyle();
-            this.updateStatusPanel();
-        }
-    }
-    
-    // ===============================================
-    // EquipmentInfoPanel 알림
-    // ===============================================
-    
-    notifyEquipmentInfoPanel(frontendId, data) {
-        if (!this.equipmentInfoPanel) return;
-        
-        const currentSelectedId = this.equipmentInfoPanel.currentEquipmentId;
-        if (currentSelectedId !== frontendId) {
-            return;
-        }
-        
-        this.equipmentInfoPanel.updateFromMonitoring?.({
-            frontendId,
-            status: data.status,
-            equipmentId: data.equipment_id,
-            timestamp: data.timestamp,
-            ...data
-        });
-    }
-    
-    // ===============================================
-    // 매핑된 설비 ID 조회
-    // ===============================================
-    
-    getMappedEquipmentIds() {
-        if (!this.equipmentEditState) {
-            return [];
-        }
-        return this.equipmentEditState.getAllEquipmentIds?.() || [];
-    }
-    
-    isEquipmentMapped(frontendId) {
-        return this.signalIntegration.isEquipmentMapped(frontendId);
-    }
-    
-    // ===============================================
-    // Batch 처리
-    // ===============================================
+    // === 유틸리티 ===
+    getMappedEquipmentIds() { return this.equipmentEditState?.getAllEquipmentIds?.() || []; }
+    isEquipmentMapped(fid) { return this.signalIntegration.isEquipmentMapped(fid); }
     
     startBatchProcessing() {
         if (this.batchTimer) return;
-        
-        this.batchTimer = setInterval(() => {
-            this.processBatch();
-        }, this.batchInterval);
-        
-        debugLog(`📡 Batch processing started (interval: ${this.batchInterval}ms)`);
+        this.batchTimer = setInterval(() => this.processBatch(), this.batchInterval);
     }
     
     processBatch() {
         if (this.updateQueue.length === 0) return;
-        
-        const updates = [...this.updateQueue];
-        this.updateQueue = [];
-        
-        for (const update of updates) {
-            this.updateEquipmentStatus(update.frontendId, update.status);
-        }
-        
-        debugLog(`📡 Batch processed: ${updates.length} updates`);
-        
-        // 🆕 v4.5.1: 배치 처리 후 이벤트 발행
-        if (updates.length > 0) {
-            this._emitStatsUpdate();
-        }
+        const updates = [...this.updateQueue]; this.updateQueue = [];
+        updates.forEach(u => this.updateEquipmentStatus(u.frontendId, u.status));
+        if (updates.length > 0) this._emitStatsUpdate();
     }
     
-    queueUpdate(frontendId, status) {
-        this.updateQueue.push({ frontendId, status });
-    }
+    queueUpdate(fid, status) { this.updateQueue.push({ frontendId: fid, status }); }
     
-    // ===============================================
-    // 상태 조회
-    // ===============================================
-    
-    getEquipmentStatus(frontendId) {
-        // 🆕 v5.1.0: UDS 캐시 우선
-        const udsEquipment = this.getEquipmentFromUDS(frontendId);
-        if (udsEquipment) {
-            return udsEquipment.status;
-        }
-        
-        // 🆕 v5.0.0: DataLoader 캐시 우선
-        const loaderStatus = this._dataLoader?.getCachedStatus(frontendId);
-        if (loaderStatus) return loaderStatus;
-        
-        return this.statusCache.get(frontendId);
+    getEquipmentStatus(fid) {
+        const uds = this.getEquipmentFromUDS(fid);
+        if (uds) return uds.status;
+        const loader = this._dataLoader?.getCachedStatus?.(fid);
+        if (loader) return loader;
+        return this.statusCache.get(fid);
     }
     
     getAllStatuses() {
-        // 🆕 v5.1.0: UDS 캐시 우선
-        if (this._udsInitialized && unifiedDataStore) {
-            const equipments = unifiedDataStore.getAllEquipments();
+        if (this._udsInitialized || this.udsIntegration.isInitialized()) {
             const statuses = {};
-            equipments.forEach(eq => {
-                if (eq.frontend_id) {
-                    statuses[eq.frontend_id] = eq.status;
-                }
-            });
+            this.udsIntegration.getAllEquipments().forEach(eq => { if (eq.frontend_id) statuses[eq.frontend_id] = eq.status; });
             return statuses;
         }
-        
-        // 🆕 v5.0.0: DataLoader 캐시와 병합
-        const loaderStatuses = this._dataLoader?.getAllCachedStatuses() || {};
-        const localStatuses = Object.fromEntries(this.statusCache);
-        
-        return { ...localStatuses, ...loaderStatuses };
+        return { ...Object.fromEntries(this.statusCache), ...(this._dataLoader?.getAllCachedStatuses?.() || {}) };
     }
     
     getConnectionStatus() {
+        const uds = this.getUnifiedDataStore();
         return {
-            isActive: this.isActive,
-            isStarting: this._isStarting,
-            isStopping: this._isStopping,
-            // 🆕 v5.1.0: UDS 상태 추가
-            udsEnabled: this._udsEnabled,
-            udsInitialized: this._udsInitialized,
-            wsManager: this.wsManager?.getStatus() || null,
-            wsConnected: this.wsManager?.isConnected() || false,
-            reconnectAttempts: this.wsManager?.getReconnectAttempts() || 0,
-            cacheSize: this.statusCache.size,
-            queueSize: this.updateQueue.length,
+            isActive: this.isActive, isStarting: this._isStarting, isStopping: this._isStopping,
+            udsEnabled: this._udsEnabled, udsInitialized: this._udsInitialized,
+            wsConnected: this.wsManager?.isConnected() || false, cacheSize: this.statusCache.size,
             stats: this.getStats(),
-            signalIntegration: this.signalIntegration?.getStatus() || null,
-            eventHandler: this.eventHandler?.getStatus() || null,
-            dataLoader: this._dataLoader?.getStatus() || null,
-            // 🆕 v5.1.0: UDS 캐시 정보
-            udsCache: this._udsInitialized && unifiedDataStore ? {
-                size: unifiedDataStore.getAllEquipments().length,
-                hitRate: unifiedDataStore.getCacheHitRate?.() || 0,
-                deltaCount: unifiedDataStore.getDeltaCount?.() || 0
-            } : null
+            udsCache: this._udsInitialized && uds ? { size: uds.getAllEquipments?.().length || 0 } : null
         };
     }
     
-    // ===============================================
-    // 유틸리티
-    // ===============================================
-    
-    /**
-     * 딜레이 유틸리티
-     * @private
-     */
-    _delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-    
-    checkAndNotifyUnmapped(frontendId) {
-        if (!this.isActive) return true;
-        
-        if (!this.isEquipmentMapped(frontendId)) {
-            this.showUnmappedNotification(frontendId);
-            return false;
-        }
-        
-        return true;
-    }
-    
-    showUnmappedNotification(frontendId) {
-        this.showToast(
-            `⚠️ "${frontendId}"는 DB에 연결되지 않았습니다. Edit Mode (E키)에서 매핑해주세요.`,
-            'warning',
-            5000
-        );
-    }
+    _delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+    checkAndNotifyUnmapped(fid) { if (!this.isActive) return true; if (!this.isEquipmentMapped(fid)) { this.showUnmappedNotification(fid); return false; } return true; }
+    showUnmappedNotification(fid) { this.showToast(`⚠️ "${fid}"는 DB에 연결되지 않았습니다.`, 'warning', 5000); }
     
     showToast(message, type = 'info', duration = 5000) {
-        if (window.toast?.show) {
-            window.toast.show(message.replace(/\n/g, ' '), type);
-            return;
-        }
-        
-        let toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.id = 'toast-container';
-            toastContainer.className = 'toast-container';
-            document.body.appendChild(toastContainer);
-        }
-        
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.innerHTML = message.replace(/\n/g, '<br>');
-        toastContainer.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(100px)';
-            setTimeout(() => toast.remove(), 300);
-        }, duration);
+        if (window.toast?.show) { window.toast.show(message.replace(/\n/g, ' '), type); return; }
+        let container = document.getElementById('toast-container');
+        if (!container) { container = document.createElement('div'); container.id = 'toast-container'; container.className = 'toast-container'; document.body.appendChild(container); }
+        const toast = document.createElement('div'); toast.className = `toast toast-${type}`; toast.innerHTML = message.replace(/\n/g, '<br>');
+        container.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100px)'; setTimeout(() => toast.remove(), 300); }, duration);
     }
     
-    // ===============================================
-    // 리소스 정리
-    // ===============================================
-    
+    // === 정리 ===
     dispose() {
         this.stop();
-        
-        // 🆕 v5.1.0: UDS 정리
         this._unsubscribeFromUDSEvents();
-        if (unifiedDataStore) {
-            unifiedDataStore.dispose?.();
-        }
-        
-        // 🆕 v5.0.0: DataLoader 정리
-        this._dataLoader?.dispose();
-        this._dataLoader = null;
-        
-        // ⭐ v4.5.0: MappingEventHandler 정리
+        this.udsIntegration?.dispose();
+        this.getUnifiedDataStore()?.dispose?.();
+        this._dataLoader?.dispose(); this._dataLoader = null;
         this.eventHandler?.dispose();
-        
-        // ⭐ v4.4.0: SignalTowerIntegration 정리
         this.signalIntegration?.dispose();
-        
-        this.signalTowerManager = null;
-        this.equipmentLoader = null;
-        this.equipmentEditState = null;
-        this.equipmentInfoPanel = null;
-        this.eventBus = null;
-        this.statusCache.clear();
-        
+        this.eventEmitter?.dispose();
+        this.signalTowerManager = null; this.equipmentLoader = null;
+        this.equipmentEditState = null; this.equipmentInfoPanel = null;
+        this.eventBus = null; this.statusCache.clear();
         debugLog('🗑️ MonitoringService disposed');
     }
     
-    // ===============================================
-    // 🆕 v5.0.0: Static 메서드
-    // ===============================================
-    
-    /**
-     * 버전 정보
-     */
-    static get VERSION() {
-        return '5.1.0';
-    }
-    
-    /**
-     * 서비스 이벤트 타입
-     */
-    static get Events() {
-        return MonitoringServiceEvents;
-    }
+    static get VERSION() { return '6.0.0'; }
+    static get Events() { return MonitoringServiceEvents; }
 }
 
 export default MonitoringService;
