@@ -1719,6 +1719,37 @@ function init() {
         // 🆕 Phase 5: 토글 함수 전역 노출
         exposeTogglersToWindow();
 
+        // ═══════════════════════════════════════════════════════════════════
+        // 🆕 v8.0.1: SceneController Bootstrap 사전 설정
+        // ⚠️ setupScreenManagerEvents() 전에 반드시 설정해야 함!
+        // 이유: NavigationController가 'threejs:init-requested' 이벤트 발행 시
+        //       SceneController가 Bootstrap 의존성 없으면 초기화 실패
+        // ═══════════════════════════════════════════════════════════════════
+        sceneController.setBootstrap({
+            initScene,
+            initMonitoringServices,
+            hideLoadingStatus,
+            connectServicesToModeHandlers,
+            setupEditModeEventListeners,
+            setupLayoutEventListeners,
+            setupLayoutEditorMainConnection,
+            initPreviewGenerator,
+            setupGlobalDebugFunctions: (opts) => setupGlobalDebugFunctions({
+                ...opts,
+                toggleEditMode,
+                toggleMonitoringMode
+            }),
+            bootstrapViewManager
+        });
+        
+        sceneController.setEventBus(eventBus);
+        sceneController.setAppModeManager(appModeManager);
+        sceneController.setAppMode(APP_MODE);
+        sceneController.setSidebarUI(sidebarUI);
+        sceneController.setExposeGlobalObjects(_exposeGlobalObjectsAfterSceneInit);
+        
+        console.log('[main.js] ✅ SceneController Bootstrap 사전 설정 완료');
+
         // 🆕 v6.1.0: 추가 UI 함수 등록 (Sidebar 초기화 후)
         registerFn('ui', 'toggleConnectionModal', toggleConnectionModal, 'toggleConnectionModal');
         registerFn('ui', 'toggleDebugPanel', toggleDebugPanel, 'toggleDebugPanel');

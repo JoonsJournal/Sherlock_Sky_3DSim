@@ -867,6 +867,15 @@ export class StatusBar {
         
         console.log('[StatusBar] 정리 완료');
     }
+    /**
+     * PerformanceMonitor 연결
+     * @param {PerformanceMonitor} monitor 
+     */
+    setPerformanceMonitor(monitor) {
+        this._performanceMonitor = monitor;
+        console.log('[StatusBar] ✅ PerformanceMonitor 연결 완료');
+    }
+
 }
 
 // ============================================
@@ -888,6 +897,7 @@ export class StatusBar {
  */
 export function createStatusBar(options = {}) {
     return new StatusBar(options);
+    
 }
 
 // ============================================
