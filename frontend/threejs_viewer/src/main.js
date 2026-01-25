@@ -4,8 +4,15 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 7.3.0
+ * @version 7.4.0
  * @changelog
+ * - v7.4.0: 🔧 Phase 3 - 유틸리티 함수 분리 (2026-01-25)
+ *           - _showToast, _toggleTheme → AppUtils.js
+ *           - _closeConnectionModal, _canAccessFeatures → AppUtils.js
+ *           - _createPlaceholder, _createDebugPlaceholder → AppUtils.js
+ *           - registerUtilsToNamespace(), registerPlaceholdersToNamespace() 사용
+ *           - 약 150줄 코드 감소
+ *           - ⚠️ 호환성: window.* 함수 100% 유지
  * - v7.3.0: 🔧 Phase 2 - 전역 상태 관리 분리 (2026-01-25)
  *           - services 객체 → AppState.js에서 import
  *           - sidebarState 초기화 → initSidebarState() 사용
@@ -209,7 +216,7 @@ import {
     getRecoveryStrategy,
     hasRecoveryStrategy,
     
-    // 🆕 Phase 2: AppState
+    // Phase 2: AppState
     services,
     sidebarState,
     initSidebarState,
@@ -221,7 +228,18 @@ import {
     setService,
     hasService,
     clearService,
-    debugAppState
+    debugAppState,
+    
+    // 🆕 Phase 3: AppUtils
+    showToast,
+    toggleTheme,
+    closeConnectionModal,
+    canAccessFeatures,
+    createPlaceholder,
+    createDebugPlaceholder,
+    exposeUtilsToWindow,
+    registerUtilsToNamespace,
+    registerPlaceholdersToNamespace
 } from './app/index.js';
 
 
@@ -271,183 +289,10 @@ let reconnectionCleanup = null;
 // Phase 2: APP.fn으로 등록 후 window 별칭 제공
 // ============================================
 
-/**
- * Toast 알림 표시 (내부 함수)
- * @private
- */
-const _showToast = function(message, type = 'info') {
-    // toast 모듈 사용 가능하면 위임
-    if (toast?.show) {
-        toast.show(message, type);
-        return;
-    }
-    
-    // 폴백: 직접 DOM 생성
-    const container = document.getElementById('toast-container');
-    if (!container) return;
-    
-    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-    const toastEl = document.createElement('div');
-    toastEl.className = `toast toast-${type}`;
-    toastEl.innerHTML = `
-        <span class="toast-icon">${icons[type]}</span>
-        <div class="toast-content"><div class="toast-message">${message}</div></div>
-        <button class="toast-close" onclick="this.parentElement.classList.add('toast-hide'); setTimeout(() => this.parentElement.remove(), 300);">×</button>
-    `;
-    container.appendChild(toastEl);
-    
-    requestAnimationFrame(() => toastEl.classList.add('toast-show'));
-    setTimeout(() => { 
-        toastEl.classList.remove('toast-show');
-        toastEl.classList.add('toast-hide');
-        setTimeout(() => toastEl.remove(), 300); 
-    }, 3000);
-};
-
-/**
- * 테마 토글 (내부 함수)
- * @private
- */
-const _toggleTheme = function() {
-    const html = document.documentElement;
-    const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    
-    const themeSwitch = document.getElementById('theme-switch');
-    if (themeSwitch) themeSwitch.classList.toggle('active', newTheme === 'light');
-    
-    if (sidebarUI?.sidebar?.setTheme) {
-        sidebarUI.sidebar.setTheme(newTheme);
-    }
-    
-    console.log(`🎨 Theme: ${newTheme}`);
-};
-
-/**
- * Connection Modal 닫기 (내부 함수)
- * @private
- */
-const _closeConnectionModal = function() {
-    if (services.ui?.connectionModal?.close) {
-        services.ui.connectionModal.close();
-    }
-    const modal = document.getElementById('connection-modal');
-    if (modal) modal.classList.remove('active');
-};
-
-/**
- * 접근 권한 체크 (내부 함수)
- * @private
- */
-const _canAccessFeatures = function() {
-    if (sidebarUI?.sidebar) {
-        return sidebarUI.sidebar.getIsConnected() || sidebarUI.sidebar.getDevModeEnabled();
-    }
-    return window.sidebarState?.isConnected || window.sidebarState?.devModeEnabled;
-};
-
 // ═══════════════════════════════════════════════════════════════════════════
 // 🆕 v6.1.1: Placeholder 함수 생성 헬퍼
 // Three.js 초기화 전에 호출되면 경고 메시지 표시
-// ═══════════════════════════════════════════════════════════════════════════
-
-/**
- * Placeholder 함수 생성
- * Three.js 의존 함수가 초기화 전에 호출되면 경고 표시
- * 
- * @param {string} funcName - 함수 경로 (예: 'fn.camera.moveTo')
- * @returns {Function} placeholder 함수
- */
-function _createPlaceholder(funcName) {
-    return function(...args) {
-        const message = `⚠️ APP.${funcName}(): 3D View를 먼저 활성화하세요 (Monitoring → 3D View)`;
-        console.warn(message);
-        console.warn(`   호출 인자:`, args);
-        window.showToast?.('3D View를 먼저 활성화하세요', 'warning');
-        return null;
-    };
-}
-
-/**
- * Debug용 Placeholder (더 상세한 정보 제공)
- * @param {string} funcName - 함수 이름
- * @returns {Function} placeholder 함수
- */
-function _createDebugPlaceholder(funcName) {
-    return function(...args) {
-        console.group(`⚠️ ${funcName}() - 아직 사용할 수 없음`);
-        console.warn('Three.js가 초기화되지 않았습니다.');
-        console.warn('해결 방법:');
-        console.warn('  1. Dev Mode 활성화 또는 DB 연결');
-        console.warn('  2. Monitoring → 3D View 진입');
-        console.warn('  3. 다시 이 함수 호출');
-        if (args.length > 0) {
-            console.warn('전달된 인자:', args);
-        }
-        console.groupEnd();
-        window.showToast?.('3D View를 먼저 활성화하세요', 'warning');
-        return null;
-    };
-}
-
-// 하위 호환용 window 노출 (init() 전에 기본 기능 보장)
-window.showToast = _showToast;
-window.toggleTheme = _toggleTheme;
-window.closeConnectionModal = _closeConnectionModal;
-window.canAccessFeatures = _canAccessFeatures;
-
-/**
- * 테마 토글 (전역)
- * HTML onclick에서 사용 가능: onclick="window.toggleTheme()"
- */
-window.toggleTheme = function() {
-    const html = document.documentElement;
-    const newTheme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    
-    // Theme Switch 버튼 상태 업데이트
-    const themeSwitch = document.getElementById('theme-switch');
-    if (themeSwitch) themeSwitch.classList.toggle('active', newTheme === 'light');
-    
-    // Sidebar.js 동기화
-    if (sidebarUI?.sidebar?.setTheme) {
-        sidebarUI.sidebar.setTheme(newTheme);
-    }
-    
-    console.log(`🎨 Theme: ${newTheme}`);
-};
-
-/**
- * Connection Modal 닫기 (전역)
- * HTML onclick에서 사용 가능: onclick="window.closeConnectionModal()"
- */
-window.closeConnectionModal = function() {
-    // services.ui 사용 가능하면 위임
-    if (services.ui?.connectionModal?.close) {
-        services.ui.connectionModal.close();
-    }
-    
-    // DOM 직접 조작
-    const modal = document.getElementById('connection-modal');
-    if (modal) modal.classList.remove('active');
-};
-
-/**
- * 접근 권한 체크 (전역)
- * HTML onclick에서 사용 가능: if (window.canAccessFeatures()) { ... }
- * 
- * @returns {boolean} 연결됨 또는 Dev Mode 활성화 여부
- */
-window.canAccessFeatures = function() {
-    // Sidebar.js 인스턴스 있으면 위임
-    if (sidebarUI?.sidebar) {
-        return sidebarUI.sidebar.getIsConnected() || sidebarUI.sidebar.getDevModeEnabled();
-    }
-    // 폴백: 전역 상태 사용
-    return window.sidebarState?.isConnected || window.sidebarState?.devModeEnabled;
-};
+// ══════════════════════════════════════════════════════════════════════════
     
 // ============================================
 // 🆕 v7.3.0: screenManager는 AppState.js에서 import
@@ -2285,13 +2130,9 @@ function init() {
         // 🆕 v6.1.0: 전역 함수 APP.fn에 등록 (Phase 2)
         // ═══════════════════════════════════════════════════════════════════
         
-        // UI 함수
-        registerFn('ui', 'showToast', _showToast, 'showToast');
-        registerFn('ui', 'toggleTheme', _toggleTheme, 'toggleTheme');
-        registerFn('ui', 'closeConnectionModal', _closeConnectionModal, 'closeConnectionModal');
-        registerFn('ui', 'canAccessFeatures', _canAccessFeatures, 'canAccessFeatures');
-        
-        console.log('  ✅ 전역 함수 APP.fn.ui 등록 완료');
+        // 🆕 Phase 3: UI 유틸리티 함수 등록 (AppUtils.js에서 import)
+        registerUtilsToNamespace(registerFn);
+        console.log('  ✅ 전역 함수 APP.fn.ui 등록 완료 (Phase 3: AppUtils)');
         
         // 1. Core 매니저 초기화
         initCoreManagers({ registerHandlers: true });
@@ -2338,28 +2179,8 @@ function init() {
         // setupGlobalDebugFunctions()에서 실제 함수로 교체됨
         // ═══════════════════════════════════════════════════════════════════
         
-        // Camera 함수 (placeholder)
-        registerFn('camera', 'moveTo', _createPlaceholder('fn.camera.moveTo'), 'moveCameraTo');
-        registerFn('camera', 'focusEquipment', _createPlaceholder('fn.camera.focusEquipment'), 'focusEquipment');
-        registerFn('camera', 'reset', _createPlaceholder('fn.camera.reset'), 'resetCamera');
-        
-        // Mapping 함수 (placeholder)
-        registerFn('mapping', 'getStatus', _createPlaceholder('fn.mapping.getStatus'), 'getMappingStatus');
-        registerFn('mapping', 'clearAll', _createPlaceholder('fn.mapping.clearAll'), 'clearAllMappings');
-        registerFn('mapping', 'export', _createPlaceholder('fn.mapping.export'), 'exportMappings');
-        
-        // Layout 함수 (placeholder)
-        registerFn('layout', 'applyTest', _createPlaceholder('fn.layout.applyTest'), 'applyTestLayout');
-        registerFn('layout', 'testRoomResize', _createPlaceholder('fn.layout.testRoomResize'), 'testRoomResize');
-        
-        // Debug 함수 (placeholder)
-        registerDebugFn('help', _createDebugPlaceholder('debugHelp'), 'debugHelp');
-        registerDebugFn('scene', _createDebugPlaceholder('debugScene'), 'debugScene');
-        registerDebugFn('listEquipments', _createDebugPlaceholder('listEquipments'), 'listEquipments');
-        registerDebugFn('status', _createDebugPlaceholder('debugStatus'), 'debugStatus');
-        
-        console.log('  ✅ Placeholder 함수 등록 완료 (fn.camera, fn.mapping, fn.layout, debugFn)');
-        console.log('     → 3D View 초기화 후 실제 함수로 교체됩니다');
+        // 🆕 Phase 3: Placeholder 함수 등록 (AppUtils.js에서 import)
+        registerPlaceholdersToNamespace(registerFn, registerDebugFn);
         
         // 4. 🆕 v5.7.0: ViewManager 초기화
         setService('views.viewManager', initViewManager({
