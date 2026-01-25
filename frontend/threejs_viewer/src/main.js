@@ -513,18 +513,6 @@ function updateModeIndicator(mode, submode) {
 }
 
 // ============================================
-// 접근 권한 체크 헬퍼 (내부용)
-// ============================================
-
-function canAccessFeatures() {
-    // 🆕 v5.1.0: Sidebar 인스턴스에서 상태 가져오기
-    if (sidebarUI?.sidebar) {
-        return sidebarUI.sidebar.getIsConnected() || sidebarUI.sidebar.getDevModeEnabled();
-    }
-    return window.sidebarState.isConnected || window.sidebarState.devModeEnabled;
-}
-
-// ============================================
 // 모드 토글 함수
 // ============================================
 

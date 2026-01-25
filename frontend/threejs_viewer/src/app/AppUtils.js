@@ -89,10 +89,10 @@ function _getSidebarUI() {
  * showToast('연결 실패', 'error');
  */
 export function showToast(message, type = 'info') {
-    // toast 모듈 사용 가능하면 위임
-    const toast = _getToastModule();
-    if (toast?.show) {
-        toast.show(message, type);
+    // toast 모듈 사용 가능하면 위임 (APP 네임스페이스 우선)
+    const toastModule = window.APP?.ui?.toast || window.toast;
+    if (toastModule?.show) {
+        toastModule.show(message, type);
         return;
     }
     
@@ -172,10 +172,9 @@ export function toggleTheme() {
         themeSwitch.classList.toggle('active', newTheme === 'light');
     }
     
-    // Sidebar.js 동기화
-    const sidebarUI = _getSidebarUI();
-    if (sidebarUI?.sidebar?.setTheme) {
-        sidebarUI.sidebar.setTheme(newTheme);
+    const sidebar = window.APP?.ui?.sidebar || window.sidebarUI?.sidebar;
+    if (sidebar?.setTheme) {
+        sidebar.setTheme(newTheme);
     }
     
     console.log(`🎨 Theme: ${newTheme}`);
@@ -231,9 +230,9 @@ export function closeConnectionModal() {
  */
 export function canAccessFeatures() {
     // Sidebar.js 인스턴스에서 상태 가져오기 (우선)
-    const sidebarUI = _getSidebarUI();
-    if (sidebarUI?.sidebar) {
-        return sidebarUI.sidebar.getIsConnected() || sidebarUI.sidebar.getDevModeEnabled();
+    const sidebar = window.APP?.ui?.sidebar || window.sidebarUI?.sidebar;
+    if (sidebar) {
+        return sidebar.getIsConnected() || sidebar.getDevModeEnabled();
     }
     
     // 폴백: window.sidebarState 또는 import된 sidebarState 사용
