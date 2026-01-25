@@ -211,6 +211,28 @@ import { RankingView } from './ui/ranking-view/index.js';
 import { ConnectionMode, ConnectionEvents } from './services/ConnectionStatusService.js';
 
 // ============================================
+// 🆕 Phase 5: Modes 모듈 import
+// ============================================
+import {
+    // ModeIndicator
+    updateModeIndicator,
+    updateButtonState,
+    
+    // ModeToggler
+    setSidebarUIRef,
+    setScreenManagerRef,
+    toggleEditMode,
+    toggleMonitoringMode,
+    toggleConnectionModal,
+    toggleDebugPanel,
+    openEquipmentEditModal,
+    toggleDevMode,
+    toggleFullscreen,
+    toggleAdaptivePerformance,
+    exposeTogglersToWindow
+} from './modes/index.js';
+
+// ============================================
 // 🆕 Phase 1 & 2: App 모듈 import
 // ============================================
 import {
@@ -333,287 +355,6 @@ function initThreeJSScene() {
 }
 
 // ============================================
-// Mode Indicator 업데이트
-// ============================================
-
-function updateModeIndicator(mode, submode) {
-    const modeValue = document.getElementById('current-mode');
-    const submodeValue = document.getElementById('current-submode');
-    
-    if (modeValue) {
-        modeValue.textContent = mode 
-            ? (mode.charAt(0).toUpperCase() + mode.slice(1)) 
-            : '—';
-    }
-    
-    if (submodeValue) {
-        submodeValue.textContent = submode 
-            ? `→ ${submode === '3d-view' ? '3D View' : submode}` 
-            : '';
-    }
-    
-    window.sidebarState.currentMode = mode;
-    window.sidebarState.currentSubMode = submode;
-}
-
-// ============================================
-// 모드 토글 함수
-// ============================================
-
-/**
- * Equipment Edit 모드 토글
- * 
- * @version 7.0.0
- * @description NavigationController 연동 (Edit 모드는 3D View 위에서 동작)
- */
-function toggleEditMode() {
-    if (!canAccessFeatures()) {
-        window.showToast?.('Connect DB or enable Dev Mode first', 'warning');
-        return;
-    }
-    
-    // AppModeManager 토글 (Edit 모드는 오버레이 성격)
-    appModeManager.toggleMode(APP_MODE.EQUIPMENT_EDIT);
-    
-    const currentMode = appModeManager.getCurrentMode();
-    if (currentMode === APP_MODE.EQUIPMENT_EDIT) {
-        // 3D View가 필요하면 NavigationController로 전환
-        if (!screenManager.threejsInitialized) {
-            console.log('[toggleEditMode] 3D View 필요 → NavigationController.navigate');
-            navigationController.navigate(NAV_MODE.MONITORING, '3d-view');
-        }
-        updateModeIndicator('Edit', 'Equipment');
-    } else {
-        updateModeIndicator(null, null);
-    }
-}
-
-/**
- * Monitoring 모드 토글
- * 
- * @version 7.0.0
- * @description NavigationController 사용으로 단순화
- * 
- * @changelog
- * - v7.0.0: NavigationController.toggle() 사용 (60줄 → 10줄)
- * - v6.4.0: screenManager ↔ ViewManager 조율 로직
- * 
- * @param {string} [submode='3d-view'] - 서브모드 ('3d-view' | 'ranking-view')
- */
-function toggleMonitoringMode(submode = '3d-view') {
-    // 접근 권한 체크
-    if (!canAccessFeatures()) {
-        window.showToast?.('Connect DB or enable Dev Mode first', 'warning');
-        return;
-    }
-    
-    console.log(`[toggleMonitoringMode] 🧭 NavigationController.toggle: monitoring/${submode}`);
-    
-    // ✅ NavigationController가 모든 것을 처리
-    // - 이전 상태 정리 (View 숨김, 애니메이션 중지)
-    // - AppModeManager 상태 동기화
-    // - 레이어 전환 (DOM 표시/숨김)
-    // - ViewManager View 전환
-    // - 서비스 활성화
-    navigationController.toggle(NAV_MODE.MONITORING, submode);
-}
-
-/**
- * Connection Modal 토글
- * 🆕 v5.1.0: Sidebar.js의 콜백으로 전달됨
- */
-function toggleConnectionModal() {
-    // 기존 ConnectionModal 사용 (services.ui)
-    if (services.ui?.connectionModal) {
-        services.ui.connectionModal.toggle();
-    }
-    
-    // 🆕 새 Connection Modal (Sidebar.js가 생성)
-    const modal = document.getElementById('connection-modal');
-    if (modal) {
-        modal.classList.toggle('active');
-    }
-}
-
-// 🆕 v5.2.0: 전역 노출
-window.toggleConnectionModal = toggleConnectionModal;
-
-/**
- * Debug Panel 토글
- */
-function toggleDebugPanel() {
-    if (!canAccessFeatures()) {
-        window.showToast?.('Connect DB or enable Dev Mode first', 'warning');
-        return;
-    }
-    
-    bootstrapToggleDebugPanel();
-    
-    const debugPanel = document.getElementById('debug-panel');
-    if (debugPanel) {
-        debugPanel.classList.toggle('active');
-        window.sidebarState.debugPanelVisible = debugPanel.classList.contains('active');
-    }
-}
-
-// 🆕 v5.2.0: 전역 노출
-window.toggleDebugPanel = toggleDebugPanel;
-
-/**
- * Equipment Edit Modal 열기 (Equipment Mapping 모드 진입)
- * 🆕 v7.1.0: 모드 전환 + PanelManager 동기화 추가
- */
-async function openEquipmentEditModal() {  // 🔧 async 추가!
-    // 접근 권한 체크
-    if (!canAccessFeatures()) {
-        window.showToast?.('Connect DB or enable Dev Mode first', 'warning');
-        return;
-    }
-    
-    console.log('[openEquipmentEditModal] 🛠️ Equipment Mapping 모드 진입');
-    
-    // 1. 3D View가 필요하면 먼저 초기화
-    if (!screenManager.threejsInitialized) {
-        console.log('[openEquipmentEditModal] 3D View 초기화 필요');
-        navigationController.navigate(NAV_MODE.MONITORING, '3d-view');
-    }
-    
-    // 2. 🔧 switchMode() 사용! (async)
-    const currentMode = appModeManager.getCurrentMode();
-    if (currentMode !== APP_MODE.EQUIPMENT_EDIT) {
-        await appModeManager.switchMode(APP_MODE.EQUIPMENT_EDIT);  // ✅ 올바른 메서드!
-        console.log('[openEquipmentEditModal] ✅ APP_MODE → equipment_edit');
-    }
-    
-    // 3. PanelManager 모드 동기화
-    panelManager.setCurrentMode('monitoring', '3d-view');
-    
-    // 4. ModeIndicator 업데이트
-    updateModeIndicator('Edit', 'Equipment Mapping');
-    
-    // 5. Toast 알림
-    window.showToast?.('🛠️ Equipment Mapping Mode - 설비를 클릭하세요', 'info');
-    
-    console.log('[openEquipmentEditModal] ✅ Equipment Mapping 모드 활성화 완료');
-}
-
-/**
- * 🆕 v5.1.0: Dev Mode 토글 (하위 호환용)
- * Sidebar.js가 실제 처리하지만, 기존 코드 호환을 위해 유지
- */
-function toggleDevMode() {
-    // Sidebar.js 인스턴스가 있으면 위임
-    if (sidebarUI?.sidebar) {
-        sidebarUI.sidebar.toggleDevMode();
-        // 전역 상태 동기화
-        window.sidebarState.devModeEnabled = sidebarUI.sidebar.getDevModeEnabled();
-    } else {
-        // 폴백: 직접 처리
-        window.sidebarState.devModeEnabled = !window.sidebarState.devModeEnabled;
-        const devModeEnabled = window.sidebarState.devModeEnabled;
-        
-        const devModeBadge = document.getElementById('dev-mode-badge');
-        if (devModeBadge) {
-            devModeBadge.classList.toggle('active', devModeEnabled);
-        }
-        
-        const devModeLabel = document.getElementById('dev-mode-label') || document.getElementById('dev-mode-toggle');
-        if (devModeLabel) {
-            const labelSpan = devModeLabel.querySelector('span') || devModeLabel;
-            if (labelSpan.tagName === 'SPAN') {
-                labelSpan.textContent = `Dev Mode: ${devModeEnabled ? 'ON' : 'OFF'}`;
-            } else {
-                devModeLabel.textContent = `Dev Mode: ${devModeEnabled ? 'ON' : 'OFF'}`;
-            }
-        }
-        
-        const mockTestSection = document.getElementById('mock-test-section');
-        if (mockTestSection) {
-            mockTestSection.style.display = devModeEnabled ? 'block' : 'none';
-        }
-        
-        const layoutWrapper = document.getElementById('btn-layout-wrapper');
-        if (layoutWrapper) {
-            if (devModeEnabled) {
-                layoutWrapper.classList.remove('hidden');
-                layoutWrapper.classList.remove('disabled');
-            } else {
-                layoutWrapper.classList.add('hidden');
-            }
-        }
-        
-        if (devModeEnabled) {
-            _enableSidebarIcons();
-            window.showToast?.('⚡ Dev Mode ON', 'warning');
-        } else {
-            if (!window.sidebarState.isConnected) {
-                _disableSidebarIcons();
-            }
-            window.showToast?.('Dev Mode OFF', 'info');
-        }
-    }
-    
-    _updateDebugPanelContent();
-    console.log(`⚡ Dev Mode: ${window.sidebarState.devModeEnabled ? 'ON' : 'OFF'}`);
-}
-
-// 전역 노출 (하위 호환)
-window.toggleDevMode = toggleDevMode;
-
-/**
- * 버튼 상태 업데이트 헬퍼
- */
-function updateButtonState(btnId, isActive) {
-    const btn = document.getElementById(btnId);
-    if (btn) {
-        btn.classList.toggle('active', isActive);
-    }
-}
-
-/**
- * 전체화면 토글
- */
-function toggleFullscreen() {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen();
-    } else {
-        document.exitFullscreen();
-    }
-}
-
-// ============================================
-// AdaptivePerformance ON/OFF 토글
-// ============================================
-function toggleAdaptivePerformance() {
-    const adaptivePerformance = services.scene?.adaptivePerformance;
-    
-    if (!adaptivePerformance) {
-        console.warn('⚠️ AdaptivePerformance가 초기화되지 않았습니다');
-        window.showToast?.('AdaptivePerformance 미초기화', 'warning');
-        return false;
-    }
-    
-    if (!adaptivePerformance.enabled) {
-        console.warn('⚠️ AdaptivePerformance가 Feature Flag로 비활성화되어 있습니다');
-        window.showToast?.('AdaptivePerformance Feature Flag 비활성화', 'warning');
-        return false;
-    }
-    
-    const newState = !adaptivePerformance.adjustmentEnabled;
-    adaptivePerformance.setEnabled(newState);
-    
-    updateButtonState('adaptiveBtn', newState);
-    
-    if (newState) {
-        window.showToast?.('✅ AdaptivePerformance ON', 'success');
-    } else {
-        window.showToast?.('🛑 AdaptivePerformance OFF', 'info');
-    }
-    
-    return newState;
-}
-
-// ============================================
 // 🆕 v5.1.0: Sidebar UI 초기화
 // ============================================
 
@@ -649,6 +390,9 @@ function initSidebarUI() {
         createCoverScreen: true
     });
     
+    // 🆕 Phase 5: ModeToggler에 참조 설정
+    setSidebarUIRef(sidebarUI);
+
     // 🆕 Sidebar 이벤트 연결
     if (sidebarUI?.sidebar) {
         // Three.js 표시 요청 이벤트
@@ -1968,6 +1712,12 @@ function init() {
         
         // 3. 🆕 v5.1.0: Sidebar UI 초기화 (동적 렌더링)
         initSidebarUI();
+        
+        // 🆕 Phase 5: screenManager 참조 설정 (Sidebar UI 초기화 후)
+        setScreenManagerRef(sceneController);
+
+        // 🆕 Phase 5: 토글 함수 전역 노출
+        exposeTogglersToWindow();
 
         // 🆕 v6.1.0: 추가 UI 함수 등록 (Sidebar 초기화 후)
         registerFn('ui', 'toggleConnectionModal', toggleConnectionModal, 'toggleConnectionModal');
