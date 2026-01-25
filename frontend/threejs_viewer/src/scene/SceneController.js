@@ -401,10 +401,13 @@ export class SceneController {
             // ─────────────────────────────────────────────────────────────
             // Step 11: StatusBar에 PerformanceMonitor 연결
             // ─────────────────────────────────────────────────────────────
-            if (this._sidebarUI?.statusBar?.setPerformanceMonitor) {
+            const performanceMonitor = getService('scene.performanceMonitor');  // 🆕 추가!
+
+            if (this._sidebarUI?.statusBar?.setPerformanceMonitor && performanceMonitor) {
                 this._sidebarUI.statusBar.setPerformanceMonitor(performanceMonitor);
+                console.log('  ✅ StatusBar PerformanceMonitor 연결 완료');
             } else {
-                console.warn('[SceneController] statusBar.setPerformanceMonitor 메서드 없음 - 스킵');
+                console.warn('[SceneController] statusBar.setPerformanceMonitor 메서드 없음 또는 performanceMonitor 미생성 - 스킵');
             }
             
             // ─────────────────────────────────────────────────────────────
