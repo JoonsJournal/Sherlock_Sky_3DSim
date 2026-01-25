@@ -91,21 +91,15 @@ class StatusWatcher:
     
     def __init__(
         self,
-        poll_interval: Optional[int] = None,
-        site_id: int = 1,
-        line_id: int = 1
+        poll_interval: Optional[int] = None
     ):
         """
         StatusWatcher 초기화
         
         Args:
             poll_interval: 감지 주기 (초), None이면 환경변수 사용
-            site_id: 대상 Site ID (기본값: 1)
-            line_id: 대상 Line ID (기본값: 1)
         """
         self.poll_interval = poll_interval or UDS_POLL_INTERVAL
-        self.site_id = site_id
-        self.line_id = line_id
         
         self._running = False
         self._task: Optional[asyncio.Task] = None
@@ -124,7 +118,7 @@ class StatusWatcher:
         
         logger.info(
             f"🚀 StatusWatcher initialized (v2.0.0) "
-            f"(interval={self.poll_interval}s, site={site_id}, line={line_id})"
+            f"(interval={self.poll_interval}s)"
         )
     
     # =========================================================================
@@ -269,8 +263,6 @@ class StatusWatcher:
             # 🔧 v2.0.0: compute_diff() 내부에서 매핑 처리
             # Diff 계산 (UDSService에서 수행)
             deltas = uds_service.compute_diff(
-                self.site_id, 
-                self.line_id,
                 self._db_site,  # 🆕 v2.0.0
                 self._db_name   # 🆕 v2.0.0
             )
@@ -315,8 +307,6 @@ class StatusWatcher:
         return {
             "running": self._running,
             "poll_interval_seconds": self.poll_interval,
-            "site_id": self.site_id,
-            "line_id": self.line_id,
             "check_count": self._check_count,
             "broadcast_count": self._broadcast_count,
             "error_count": self._error_count,
@@ -345,8 +335,6 @@ class StatusWatcher:
     
     def update_config(
         self, 
-        site_id: Optional[int] = None,
-        line_id: Optional[int] = None,
         poll_interval: Optional[int] = None,
         db_site: Optional[str] = None,  # 🆕 v2.0.0
         db_name: Optional[str] = None   # 🆕 v2.0.0
@@ -357,16 +345,10 @@ class StatusWatcher:
         🆕 v2.0.0: db_site, db_name 파라미터 추가
         
         Args:
-            site_id: 새 Site ID
-            line_id: 새 Line ID
             poll_interval: 새 감시 주기
             db_site: 새 DB Site 키 (v2.0.0)
             db_name: 새 DB 이름 (v2.0.0)
         """
-        if site_id is not None:
-            self.site_id = site_id
-        if line_id is not None:
-            self.line_id = line_id
         if poll_interval is not None:
             self.poll_interval = poll_interval
         
@@ -383,8 +365,8 @@ class StatusWatcher:
             self.refresh_mapping()
         
         logger.info(
-            f"⚙️ Config updated: site={self.site_id}, line={self.line_id}, "
-            f"interval={self.poll_interval}s, db={self._db_site}_{self._db_name}"
+            f"⚙️ Config updated:interval={self.poll_interval}s,"
+            f" db={self._db_site}_{self._db_name}"
         )
 
 

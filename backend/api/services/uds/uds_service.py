@@ -598,8 +598,8 @@ class UDSService:
     
     def fetch_all_equipments(
         self,
-        site_id: int = 1,
-        line_id: int = 1,
+        # site_id: int = 1,
+        # line_id: int = 1,
         db_site: str = None,
         db_name: str = None,
         use_unified_query: bool = True  # 🆕 v3.0.0 Feature Flag
@@ -612,8 +612,6 @@ class UDSService:
         - use_unified_query=False: 기존 5개 쿼리 순차 실행 (하위 호환)
         
         Args:
-            site_id: Factory Site ID
-            line_id: Factory Line ID
             db_site: DB Site 키
             db_name: DB 이름
             use_unified_query: 통합 쿼리 사용 여부 (기본값: True)
@@ -892,8 +890,6 @@ class UDSService:
     
     def compute_diff(
         self,
-        site_id: int = 1,
-        line_id: int = 1,
         db_site: str = None,
         db_name: str = None,
         use_unified_query: bool = True  # 🆕 v3.0.0 Feature Flag
@@ -906,8 +902,7 @@ class UDSService:
         - use_unified_query=False: 기존 3개 쿼리 (하위 호환)
         
         Args:
-            site_id: Factory Site ID
-            line_id: Factory Line ID
+
             db_site: DB Site 키
             db_name: DB 이름
             use_unified_query: 통합 쿼리 사용 여부 (기본값: True)
@@ -926,7 +921,7 @@ class UDSService:
         if not self._previous_state:
             logger.info(f"🔄 Auto-initializing previous state for {mapping_site_id}...")
             try:
-                self.fetch_all_equipments(site_id, line_id, db_site, db_name, use_unified_query)
+                self.fetch_all_equipments(db_site, db_name, use_unified_query)
                 logger.info("✅ Previous state initialized, will compute diff on next cycle")
             except Exception as e:
                 logger.error(f"❌ Failed to auto-initialize previous state: {e}")

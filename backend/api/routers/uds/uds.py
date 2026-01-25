@@ -206,8 +206,8 @@ async def get_initial_data():
     }
     ```
     """
-    site_id = 1
-    line_id = 1
+    # site_id = 1
+    # line_id = 1
     
     logger.info(f"📡 GET /api/uds/initial")
     
@@ -219,7 +219,7 @@ async def get_initial_data():
     
     try:
         # 배치 쿼리 실행 (sync 방식)
-        equipments = uds_service.fetch_all_equipments(site_id, line_id)
+        equipments = uds_service.fetch_all_equipments()
         
         # 통계 계산
         stats = uds_service.calculate_stats(equipments)
@@ -374,8 +374,8 @@ async def refresh_cache():
     Returns:
         갱신 결과
     """
-    site_id = 1
-    line_id = 1
+    # site_id = 1
+    # line_id = 1
     
     logger.info(f"🔄 POST /api/uds/refresh")
     
@@ -390,7 +390,7 @@ async def refresh_cache():
         uds_service.clear_cache()
         
         # 새로 로드
-        equipments = uds_service.fetch_all_equipments(site_id, line_id)
+        equipments = uds_service.fetch_all_equipments()
         
         return {
             "status": "ok",
