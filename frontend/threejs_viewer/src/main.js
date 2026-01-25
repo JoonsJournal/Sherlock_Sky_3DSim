@@ -1910,10 +1910,6 @@ function _exposeGlobalObjectsAfterSceneInit() {
         
         // Storage
         storageService,
-        
-        // View Manager
-        viewManager,
-        
         // Sidebar UI
         sidebarUI,     
         
@@ -1933,6 +1929,9 @@ function _exposeGlobalObjectsAfterSceneInit() {
         silent: false  // 로그 출력
     });
     
+    // 🔧 Phase 4: viewManager는 sceneController 직접 참조 (Proxy 우회)
+    window.viewManager = sceneController;
+
     console.log(`[main.js] Phase 4 Migration: deprecated=${migrationResult.deprecated}, exposed=${migrationResult.exposed}`);
 }
 
@@ -2099,7 +2098,6 @@ function init() {
             equipmentMappingService: services.mapping?.equipmentMappingService,
             connectionStatusService: services.ui?.connectionStatusService,
             storageService,
-            viewManager,
             sidebarUI,
             bootstrapViewManager,
             VIEW_REGISTRY,
@@ -2123,6 +2121,9 @@ function init() {
             useDeprecation: USE_DEPRECATION_WARNINGS,
             pathMapping: LEGACY_MIGRATION_MAP
         });
+
+        // 🔧 Phase 4: viewManager는 sceneController 직접 참조 (Proxy 우회)
+        window.viewManager = sceneController;
         // 10. 초기화 완료 이벤트
         eventBus.emit(EVENT_NAME.APP_INITIALIZED, {
             timestamp: Date.now(),
