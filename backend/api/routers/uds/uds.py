@@ -206,8 +206,6 @@ async def get_initial_data():
     }
     ```
     """
-    # site_id = 1
-    # line_id = 1
     
     logger.info(f"📡 GET /api/uds/initial")
     
@@ -374,8 +372,6 @@ async def refresh_cache():
     Returns:
         갱신 결과
     """
-    # site_id = 1
-    # line_id = 1
     
     logger.info(f"🔄 POST /api/uds/refresh")
     
@@ -439,8 +435,6 @@ async def websocket_stream(websocket: WebSocket):
       - {"type": "current_state", "count": N} : 수동 갱신 응답
       - {"type": "error", "message": "..."} : 에러 메시지
     """
-    site_id = 1
-    line_id = 1
     
     if not UDS_ENABLED:
         await websocket.close(code=1008, reason="UDS feature is disabled")
