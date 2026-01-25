@@ -429,6 +429,8 @@ if (typeof window !== 'undefined') {
     window.APP.state = window.APP.state || sidebarState;
     window.APP.services = services;
     window.APP.screenManager = sceneController;
+        // 디버그 함수 전역 노출
+    window.debugAppState = debugAppState;
 }
 
 // ============================================
