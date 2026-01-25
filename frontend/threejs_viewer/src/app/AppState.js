@@ -3,7 +3,7 @@
  * ===========
  * 애플리케이션 전역 상태 관리 모듈
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - main.js에서 분리된 전역 상태 관리 모듈
  * - services 객체: 모든 서비스 인스턴스 중앙 저장소
@@ -12,6 +12,10 @@
  * - window.services 전역 노출
  * 
  * @changelog
+ * - v1.1.0: Phase 4 - screenManager → SceneController 이관 (2026-01-25)
+ *           - screenManager 객체 제거 (~130줄)
+ *           - sceneController re-export (하위 호환)
+ *           - window.screenManager = sceneController
  * - v1.0.0: main.js 리팩토링 Phase 2 - 전역 상태 분리 (2026-01-25)
  *           - services 객체 이동 (scene, ui, monitoring, mapping, views)
  *           - sidebarState 초기화 함수 이동
@@ -43,7 +47,9 @@
 // 의존성 Import
 // ============================================
 // 🔧 Note: 순환 참조 방지를 위해 동적 import 사용 가능
-// 아래 import는 Phase 3 이후 점진적 적용
+
+// Phase 4: SceneController import (screenManager 대체)
+import { sceneController } from '../scene/index.js';
 
 // ============================================
 // 서비스 객체 저장소
@@ -379,191 +385,25 @@ export function clearService(path) {
 }
 
 // ============================================
-// Screen Manager (3D View 전환)
+// Screen Manager (SceneController로 대체)
 // ============================================
 
 /**
- * Screen Manager 상태
- * @type {Object}
- * @private
- */
-const screenManagerState = {
-    threejsInitialized: false,
-    animationRunning: false
-};
-
-/**
- * Screen Manager - 3D View / Cover Screen 전환 관리
+ * screenManager 별칭 (하위 호환)
  * 
- * @constant {Object}
+ * @deprecated SceneController 사용 권장
  * @description
- * - Cover Screen 표시/숨김
- * - 3D View 초기화 및 표시
- * - Three.js 애니메이션 제어
- * 
- * @property {boolean} threejsInitialized - Three.js 초기화 여부
- * @property {boolean} animationRunning - 애니메이션 실행 여부
+ * Phase 4에서 scene/SceneController.js로 이관됨
+ * 기존 코드 호환을 위해 sceneController를 re-export
  * 
  * @example
- * import { screenManager } from './app/AppState.js';
+ * // 권장 방식
+ * import { sceneController } from '../scene/index.js';
  * 
- * // Cover Screen 표시
- * screenManager.showCoverScreen();
- * 
- * // 3D View 표시
- * screenManager.show3DView();
- * 
- * // 애니메이션 제어
- * screenManager.startAnimation();
- * screenManager.stopAnimation();
+ * // 하위 호환 (deprecated)
+ * import { screenManager } from './AppState.js';
  */
-export const screenManager = {
-    /**
-     * Three.js 초기화 여부
-     * @type {boolean}
-     */
-    get threejsInitialized() {
-        return screenManagerState.threejsInitialized;
-    },
-    set threejsInitialized(value) {
-        screenManagerState.threejsInitialized = value;
-    },
-    
-    /**
-     * 애니메이션 실행 여부
-     * @type {boolean}
-     */
-    get animationRunning() {
-        return screenManagerState.animationRunning;
-    },
-    set animationRunning(value) {
-        screenManagerState.animationRunning = value;
-    },
-    
-    /**
-     * Cover Screen 표시 (기본 상태)
-     * 
-     * @version 7.0.0
-     * @deprecated navigationController.goHome() 사용 권장
-     * 하위 호환을 위해 유지되며, 내부적으로 NavigationController 호출
-     * 
-     * @description
-     * EventBus를 통해 NavigationController에 요청을 전달
-     * main.js에서 이벤트 핸들러 설정 필요
-     */
-    showCoverScreen() {
-        console.log('[screenManager] 📺 showCoverScreen()');
-        console.warn('[screenManager] ⚠️ deprecated → navigationController.goHome() 사용 권장');
-        
-        // EventBus를 통해 NavigationController에 요청
-        // 실제 처리는 main.js의 setupScreenManagerEvents()에서 수행
-        if (typeof window !== 'undefined' && window.APP?.utils?.eventBus) {
-            window.APP.utils.eventBus.emit('navigation:go-home');
-        }
-    },
-    
-    /**
-     * 3D View 표시 + Three.js 초기화
-     * 
-     * @version 7.0.0
-     * @deprecated navigationController.navigate(NAV_MODE.MONITORING, '3d-view') 사용 권장
-     * 하위 호환을 위해 유지되며, 내부적으로 NavigationController 호출
-     */
-    show3DView() {
-        console.log('[screenManager] 🎮 show3DView()');
-        console.warn('[screenManager] ⚠️ deprecated → navigationController.navigate() 사용 권장');
-        
-        // EventBus를 통해 NavigationController에 요청
-        if (typeof window !== 'undefined' && window.APP?.utils?.eventBus) {
-            window.APP.utils.eventBus.emit('navigation:goto-3d-view');
-        }
-    },
-    
-    /**
-     * Three.js 씬 초기화 (내부 함수)
-     * 
-     * @description
-     * 실제 초기화 로직은 main.js에서 수행
-     * 이 메서드는 이벤트 발행만 담당
-     * 
-     * @fires threejs:init-requested
-     */
-    _initThreeJS() {
-        console.log('[screenManager] ⚙️ _initThreeJS() 요청');
-        
-        if (typeof window !== 'undefined' && window.APP?.utils?.eventBus) {
-            window.APP.utils.eventBus.emit('threejs:init-requested');
-        }
-    },
-    
-    /**
-     * 애니메이션 시작
-     * 
-     * @description
-     * Three.js 렌더 루프 시작
-     * services.scene이 초기화된 후에만 동작
-     * 
-     * @fires threejs:show-requested
-     */
-    startAnimation() {
-        if (!screenManagerState.animationRunning && hasService('scene')) {
-            screenManagerState.animationRunning = true;
-            console.log('[screenManager] ▶️ 애니메이션 시작');
-            
-            // EventBus로 애니메이션 시작 요청
-            if (typeof window !== 'undefined' && window.APP?.utils?.eventBus) {
-                window.APP.utils.eventBus.emit('threejs:animation-start');
-            }
-        }
-    },
-    
-    /**
-     * 애니메이션 중지
-     * 
-     * @description
-     * Three.js 렌더 루프 중지
-     * 
-     * @fires threejs:stop-requested
-     */
-    stopAnimation() {
-        if (screenManagerState.animationRunning) {
-            screenManagerState.animationRunning = false;
-            console.log('[screenManager] ⏹️ 애니메이션 중지');
-            
-            // EventBus로 애니메이션 중지 요청
-            if (typeof window !== 'undefined' && window.APP?.utils?.eventBus) {
-                window.APP.utils.eventBus.emit('threejs:stop-requested');
-            }
-        }
-    },
-    
-    /**
-     * Monitoring 모드 서비스 시작 보정
-     * 
-     * @description
-     * Three.js 초기화 후 호출하여 타이밍 문제 해결
-     * MonitoringService가 이미 활성화되어야 할 경우 수동 시작
-     */
-    _ensureMonitoringServiceStarted() {
-        const monitoringService = getService('monitoring.monitoringService');
-        
-        if (monitoringService && !monitoringService.isActive) {
-            console.log('[screenManager] 🔧 MonitoringService 수동 시작');
-            monitoringService.start();
-        }
-    },
-    
-    /**
-     * 디버그 정보 출력
-     */
-    debug() {
-        console.group('🖥️ screenManager Debug');
-        console.log('threejsInitialized:', screenManagerState.threejsInitialized);
-        console.log('animationRunning:', screenManagerState.animationRunning);
-        console.log('services.scene:', hasService('scene') ? '✅' : '❌');
-        console.groupEnd();
-    }
-};
+export { sceneController as screenManager };
 
 // ============================================
 // 전역 노출 (하위 호환)
@@ -580,14 +420,15 @@ if (typeof window !== 'undefined') {
     exposeServicesToWindow();
     
     // viewManager, screenManager 전역 노출 (하위 호환)
-    window.viewManager = screenManager;   // 하위 호환
-    window.screenManager = screenManager; // 새 이름
+    // ⚠️ Phase 4: sceneController 사용 (scene/index.js에서 import)
+    window.viewManager = sceneController;   // 하위 호환
+    window.screenManager = sceneController; // 새 이름
     
     // APP 네임스페이스에 등록
     window.APP = window.APP || {};
     window.APP.state = window.APP.state || sidebarState;
     window.APP.services = services;
-    window.APP.screenManager = screenManager;
+    window.APP.screenManager = sceneController;
 }
 
 // ============================================
@@ -602,7 +443,7 @@ if (typeof window !== 'undefined') {
  * debugAppState();
  */
 export function debugAppState() {
-    console.group('🔧 AppState Debug (v1.0.0)');
+    console.group('🔧 AppState Debug (v1.1.0)');  // 버전 업데이트
     
     console.log('📦 services:');
     console.log('  scene:', hasService('scene') ? '✅ initialized' : '❌ null');
@@ -618,14 +459,15 @@ export function debugAppState() {
     console.log('  devModeEnabled:', sidebarState?.devModeEnabled);
     console.log('  debugPanelVisible:', sidebarState?.debugPanelVisible);
     
-    console.log('\n🖥️ screenManager:');
-    console.log('  threejsInitialized:', screenManager.threejsInitialized);
-    console.log('  animationRunning:', screenManager.animationRunning);
+    console.log('\n🖥️ sceneController (screenManager 대체):');
+    console.log('  threejsInitialized:', sceneController.threejsInitialized);
+    console.log('  animationRunning:', sceneController.animationRunning);
     
     console.log('\n🌐 window 노출:');
     console.log('  window.services:', typeof window !== 'undefined' && window.services === services);
     console.log('  window.sidebarState:', typeof window !== 'undefined' && window.sidebarState === sidebarState);
-    console.log('  window.screenManager:', typeof window !== 'undefined' && window.screenManager === screenManager);
+    console.log('  window.screenManager:', typeof window !== 'undefined' && window.screenManager === sceneController);
+    console.log('  window.viewManager:', typeof window !== 'undefined' && window.viewManager === sceneController);
     
     console.groupEnd();
 }
