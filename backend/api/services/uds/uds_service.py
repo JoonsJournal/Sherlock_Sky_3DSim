@@ -114,20 +114,22 @@ from ...models.uds.uds_models import (
 )
 
 # UDS 쿼리 Import
-# 🆕 v2.1.0: PRODUCTION_SNAPSHOT_QUERY 추가
+# 🆕 v3.0.0: 통합 쿼리 추가
 from .uds_queries import (
     BATCH_EQUIPMENT_QUERY,
     SINGLE_EQUIPMENT_QUERY,
     PRODUCTION_COUNT_QUERY,
-    PRODUCTION_SNAPSHOT_QUERY,  # 🆕 v2.1.0
+    PRODUCTION_SNAPSHOT_QUERY,
     BATCH_TACT_TIME_QUERY,
     STATUS_SNAPSHOT_QUERY,
-    ALARM_REPEAT_COUNT_QUERY,    # ✅ 추가!
-    STATE_HISTORY_QUERY,         # 🆕 v2.4.0 추가!
+    ALARM_REPEAT_COUNT_QUERY,
+    STATE_HISTORY_QUERY,
+    UNIFIED_INITIAL_QUERY,    # 🆕 v3.0.0 Phase 3
+    UNIFIED_DIFF_QUERY,       # 🆕 v3.0.0 Phase 3
     calculate_memory_usage_percent,
     calculate_disk_usage_percent,
-    parse_frontend_id,  # 🆕 v2.0.0
-    generate_frontend_id  # 🆕 v2.0.0
+    parse_frontend_id,
+    generate_frontend_id
 )
 
 # 🔧 v2.1.2: 기존 connection_test.py 사용 (multi_connection_manager 제거)
@@ -599,36 +601,31 @@ class UDSService:
         site_id: int = 1,
         line_id: int = 1,
         db_site: str = None,
-        db_name: str = None
+        db_name: str = None,
+        use_unified_query: bool = True  # 🆕 v3.0.0 Feature Flag
     ) -> List[EquipmentData]:
         """
         전체 설비 배치 조회 (초기 로드)
         
-        GET /api/uds/initial 엔드포인트에서 호출.
-        117개 설비 데이터를 한 번의 배치 쿼리로 조회.
-        
-        🔧 v2.0.0 변경사항:
-          - SQL 쿼리에서 core.EquipmentMapping JOIN 제거
-          - JSON 매핑 파일 로드 후 SQL 결과와 병합
-          - ⚠️ API 응답 형식 100% 유지 (하위 호환)
+        🆕 v3.0.0: 통합 쿼리 옵션 추가
+        - use_unified_query=True: 2개 쿼리 실행 (통합 + 히스토리) - 권장
+        - use_unified_query=False: 기존 5개 쿼리 순차 실행 (하위 호환)
         
         Args:
-            site_id: Factory Site ID (WHERE 조건)
-            line_id: Factory Line ID (WHERE 조건)
-            db_site: MultiConnectionManager Site 키 (기본값 사용)
-            db_name: DB 이름 (기본값 사용)
+            site_id: Factory Site ID
+            line_id: Factory Line ID
+            db_site: DB Site 키
+            db_name: DB 이름
+            use_unified_query: 통합 쿼리 사용 여부 (기본값: True)
             
         Returns:
             List[EquipmentData]: 전체 설비 데이터 목록
-            
-        Raises:
-            Exception: DB 연결 또는 쿼리 실패 시
         """
-        logger.info(f"📡 Fetching all equipments (site_id={site_id}, line_id={line_id})")
+        logger.info(f"📡 Fetching all equipments (unified={use_unified_query})")
         start_time = datetime.utcnow()
         
         # ===================================================================
-        # 🔧 v2.1.1: 연결된 사이트 확인 (사이트 연결 전이면 에러)
+        # 연결된 사이트 확인
         # ===================================================================
         mapping_site_id = self._derive_site_id_from_connection(db_site, db_name)
         
@@ -636,14 +633,10 @@ class UDSService:
             logger.warning("⚠️ No site connected yet, cannot fetch equipments")
             raise ConnectionError("No site connected. Please connect to a site first via /api/connections/connect")
         
-        # ===================================================================
-        # 🆕 v2.0.0: 매핑 파일 로드 (Site 변경 시 자동 갱신)
-        # ===================================================================
+        # 매핑 파일 로드
         self._load_mapping_config(mapping_site_id)
         
-        # ===================================================================
-        # 🆕 v2.2.0: 매핑에서 equipment_id 목록 추출
-        # ===================================================================
+        # equipment_id 목록 추출
         try:
             equipment_ids_str = self._get_equipment_ids_str()
             logger.info(f"  → 매핑 기준 equipment_ids: {len(self._mapping_cache)}개")
@@ -653,97 +646,99 @@ class UDSService:
         
         with self._get_session(db_site, db_name) as session:
             try:
-                # =============================================================
-                # Step 1: 기본 설비 정보 배치 조회
-                # 🔧 v2.2.0: IN 절로 매핑된 설비만 조회
-                # =============================================================
-                query = BATCH_EQUIPMENT_QUERY.format(equipment_ids=equipment_ids_str)
-                result = session.execute(text(query))
-                rows = result.fetchall()
-                columns = result.keys()
-                
-                logger.info(f"  → 기본 쿼리: {len(rows)}건 조회")
-                
-                # =============================================================
-                # Step 2: 생산량 배치 조회
-                # 🔧 v2.2.0: IN 절로 매핑된 설비만 조회
-                # =============================================================
-                prod_query = PRODUCTION_COUNT_QUERY.format(equipment_ids=equipment_ids_str)
-                prod_result = session.execute(text(prod_query))
-                prod_rows = prod_result.fetchall()
-                
-                # 🔧 v2.0.0: equipment_id 기반 맵 (기존: frontend_id)
-                # Column Index: [0] EquipmentId, [1] ProductionCount
-                prod_map = {row[0]: row[1] for row in prod_rows}
-                
-                logger.info(f"  → 생산량 쿼리: {len(prod_map)}건 조회")
-                
-                # =============================================================
-                # Step 3: Tact Time 배치 조회
-                # 🔧 v2.2.0: IN 절로 매핑된 설비만 조회
-                # =============================================================
-                tact_query = BATCH_TACT_TIME_QUERY.format(equipment_ids=equipment_ids_str)
-                tact_result = session.execute(text(tact_query))
-                tact_rows = tact_result.fetchall()
-                
-                # 🔧 v2.0.0: equipment_id 기반 맵 (기존: frontend_id)
-                # Column Index: [0] EquipmentId, [1] TactTimeSeconds
-                tact_map = {row[0]: row[1] for row in tact_rows}
-                
-                logger.info(f"  → Tact Time 쿼리: {len(tact_map)}건 조회")
-
-                # =============================================================
-                # Step 3.5: 알람 반복 횟수 배치 조회 (✅ 추가!)
-                # =============================================================
-                alarm_repeat_query = ALARM_REPEAT_COUNT_QUERY.format(equipment_ids=equipment_ids_str)
-                alarm_repeat_result = session.execute(text(alarm_repeat_query))
-                alarm_repeat_rows = alarm_repeat_result.fetchall()
-                
-                # equipment_id → alarm_repeat_count 맵
-                # Column Index: [0] EquipmentId, [1] AlarmCode, [2] AlarmRepeatCount
-                alarm_repeat_map = {row[0]: row[2] for row in alarm_repeat_rows}
-                
-                logger.info(f"  → 알람 반복 횟수 쿼리: {len(alarm_repeat_map)}건 조회")
-
-                # =============================================================
-                # Step 3.6: 상태 히스토리 배치 조회 (🆕 v2.4.0)
-                # =============================================================
-                history_query = STATE_HISTORY_QUERY.format(equipment_ids=equipment_ids_str)
-                history_result = session.execute(text(history_query))
-                history_rows = history_result.fetchall()
-                
-                # equipment_id → [상태 히스토리 리스트] 맵
-                # Column Index: [0] EquipmentId, [1] Status, [2] OccurredAtUtc
-                state_history_map = {}
-                for row in history_rows:
-                    eq_id = row[0]
-                    if eq_id not in state_history_map:
-                        state_history_map[eq_id] = []
-                    state_history_map[eq_id].append({
-                        'status': row[1],
-                        'timestamp': row[2].isoformat() if row[2] else None
-                    })
-                
-                logger.info(f"  → 상태 히스토리 쿼리: {len(state_history_map)}건 조회")
-                
-                # =============================================================
-                # Step 4: EquipmentData 변환 + 매핑 병합
-                # 🆕 v2.0.0: SQL 결과 + JSON 매핑 병합
-                # =============================================================
-                equipments = []
-                for row in rows:
-                    row_dict = dict(zip(columns, row))
-                    equipment = self._row_to_equipment_data(
-                        row_dict, 
-                        prod_map, 
-                        tact_map,
-                        alarm_repeat_map,    # ✅ 추가!
-                        state_history_map    # 🆕 v2.4.0 추가!
-                    )
-                    equipments.append(equipment)
+                if use_unified_query:
+                    # =============================================================
+                    # 🆕 v3.0.0: 통합 쿼리 사용 (2회 실행)
+                    # =============================================================
                     
-                    # In-Memory 캐시 업데이트 (Diff용)
-                    self._update_previous_state(equipment)
+                    # Step 1: 통합 쿼리 실행 (모든 정보를 한 번에)
+                    query = UNIFIED_INITIAL_QUERY.format(equipment_ids=equipment_ids_str)
+                    result = session.execute(text(query))
+                    rows = result.fetchall()
+                    columns = result.keys()
+                    
+                    logger.info(f"  → 통합 쿼리: {len(rows)}건 조회")
+                    
+                    # 통합 쿼리 결과 → EquipmentData 변환
+                    equipments = []
+                    for row in rows:
+                        row_dict = dict(zip(columns, row))
+                        equipment = self._row_to_equipment_data_unified(row_dict)
+                        equipments.append(equipment)
+                        self._update_previous_state(equipment)
+                    
+                    # Step 2: 상태 히스토리 (별도 쿼리 - JSON 배열 복잡)
+                    history_query = STATE_HISTORY_QUERY.format(equipment_ids=equipment_ids_str)
+                    history_result = session.execute(text(history_query))
+                    history_rows = history_result.fetchall()
+                    
+                    state_history_map = self._build_state_history_map(history_rows)
+                    
+                    logger.info(f"  → 히스토리 쿼리: {len(state_history_map)}건 조회")
+                    
+                    # 히스토리 병합
+                    for equipment in equipments:
+                        eq_id = equipment.equipment_id
+                        equipment.state_history = state_history_map.get(eq_id, [])
+                    
+                else:
+                    # =============================================================
+                    # 기존 방식: 5개 쿼리 순차 실행 (하위 호환)
+                    # =============================================================
+                    
+                    # Step 1: 기본 설비 정보
+                    query = BATCH_EQUIPMENT_QUERY.format(equipment_ids=equipment_ids_str)
+                    result = session.execute(text(query))
+                    rows = result.fetchall()
+                    columns = result.keys()
+                    
+                    logger.info(f"  → 기본 쿼리: {len(rows)}건 조회")
+                    
+                    # Step 2: 생산량
+                    prod_query = PRODUCTION_COUNT_QUERY.format(equipment_ids=equipment_ids_str)
+                    prod_result = session.execute(text(prod_query))
+                    prod_rows = prod_result.fetchall()
+                    prod_map = {row[0]: row[1] for row in prod_rows}
+                    
+                    logger.info(f"  → 생산량 쿼리: {len(prod_map)}건 조회")
+                    
+                    # Step 3: Tact Time
+                    tact_query = BATCH_TACT_TIME_QUERY.format(equipment_ids=equipment_ids_str)
+                    tact_result = session.execute(text(tact_query))
+                    tact_rows = tact_result.fetchall()
+                    tact_map = {row[0]: row[1] for row in tact_rows}
+                    
+                    logger.info(f"  → Tact Time 쿼리: {len(tact_map)}건 조회")
+                    
+                    # Step 4: 알람 반복 횟수
+                    alarm_repeat_query = ALARM_REPEAT_COUNT_QUERY.format(equipment_ids=equipment_ids_str)
+                    alarm_repeat_result = session.execute(text(alarm_repeat_query))
+                    alarm_repeat_rows = alarm_repeat_result.fetchall()
+                    alarm_repeat_map = {row[0]: row[2] for row in alarm_repeat_rows}
+                    
+                    logger.info(f"  → 알람 반복 횟수 쿼리: {len(alarm_repeat_map)}건 조회")
+                    
+                    # Step 5: 상태 히스토리
+                    history_query = STATE_HISTORY_QUERY.format(equipment_ids=equipment_ids_str)
+                    history_result = session.execute(text(history_query))
+                    history_rows = history_result.fetchall()
+                    state_history_map = self._build_state_history_map(history_rows)
+                    
+                    logger.info(f"  → 상태 히스토리 쿼리: {len(state_history_map)}건 조회")
+                    
+                    # EquipmentData 변환
+                    equipments = []
+                    for row in rows:
+                        row_dict = dict(zip(columns, row))
+                        equipment = self._row_to_equipment_data(
+                            row_dict, 
+                            prod_map, 
+                            tact_map,
+                            alarm_repeat_map,
+                            state_history_map
+                        )
+                        equipments.append(equipment)
+                        self._update_previous_state(equipment)
                 
                 # 조회 시간 기록
                 self._last_fetch_time = datetime.utcnow()
@@ -900,78 +895,47 @@ class UDSService:
         site_id: int = 1,
         line_id: int = 1,
         db_site: str = None,
-        db_name: str = None
+        db_name: str = None,
+        use_unified_query: bool = True  # 🆕 v3.0.0 Feature Flag
     ) -> List[DeltaUpdate]:
         """
         이전 상태와 현재 상태 비교하여 Delta 생성
         
-        Status Watcher가 10초마다 호출.
-        변경된 설비만 Delta로 추출하여 WebSocket 전송.
-        
-        🆕 v2.1.0 변경사항:
-          - PRODUCTION_SNAPSHOT_QUERY 실행하여 생산량 조회
-          - BATCH_TACT_TIME_QUERY 실행하여 Tact Time 조회
-          - EquipmentSnapshot에 production_count, tact_time_seconds 포함
-          - Delta에 생산량/Tact Time 변경사항 포함
-        
-        🔧 v2.0.0 변경사항:
-          - STATUS_SNAPSHOT_QUERY가 EquipmentId 반환
-          - equipment_id → frontend_id 변환 (JSON 매핑)
-          - Delta에 frontend_id 포함
-        
-        [v2.1.0 쿼리 실행 순서]
-        ┌──────────────────────────────────────────────────────────────┐
-        │ 1. STATUS_SNAPSHOT_QUERY                                     │
-        │    → EquipmentId, Status, StatusChangedAt,                   │
-        │      CpuUsagePercent, MemoryUsedMb, MemoryTotalMb            │
-        │                                                              │
-        │ 2. PRODUCTION_SNAPSHOT_QUERY (🆕 v2.1.0)                     │
-        │    → EquipmentId, ProductionCount (오늘 00:00 이후)          │
-        │                                                              │
-        │ 3. BATCH_TACT_TIME_QUERY (🆕 v2.1.0)                         │
-        │    → EquipmentId, TactTimeSeconds (최근 사이클)              │
-        └──────────────────────────────────────────────────────────────┘
+        🆕 v3.0.0: 통합 쿼리로 3개 쿼리 → 1개로 병합
+        - use_unified_query=True: UNIFIED_DIFF_QUERY 사용 (1회 실행)
+        - use_unified_query=False: 기존 3개 쿼리 (하위 호환)
         
         Args:
             site_id: Factory Site ID
             line_id: Factory Line ID
             db_site: DB Site 키
             db_name: DB 이름
+            use_unified_query: 통합 쿼리 사용 여부 (기본값: True)
             
         Returns:
-            List[DeltaUpdate]: 변경된 설비 Delta 목록 (변경 없으면 빈 리스트)
+            List[DeltaUpdate]: 변경된 설비 Delta 목록
         """
-        # ===================================================================
-        # 🔧 v2.1.1: 연결된 사이트 확인 (사이트 연결 전이면 스킵)
-        # ===================================================================
+        # 연결된 사이트 확인
         mapping_site_id = self._derive_site_id_from_connection(db_site, db_name)
         
         if mapping_site_id is None:
-            # 아직 사이트가 연결되지 않음 - 조용히 스킵
             logger.debug("⏳ No site connected yet, skipping diff...")
             return []
         
-        # ===================================================================
-        # 🔧 v2.1.1: 자동 초기화 - _previous_state가 비어있으면 자동 로드
-        # ===================================================================
+        # 자동 초기화
         if not self._previous_state:
             logger.info(f"🔄 Auto-initializing previous state for {mapping_site_id}...")
             try:
-                self.fetch_all_equipments(site_id, line_id, db_site, db_name)
+                self.fetch_all_equipments(site_id, line_id, db_site, db_name, use_unified_query)
                 logger.info("✅ Previous state initialized, will compute diff on next cycle")
             except Exception as e:
                 logger.error(f"❌ Failed to auto-initialize previous state: {e}")
-            # 첫 번째 호출은 초기화만 수행, 다음 호출부터 실제 diff 계산
             return []
         
-        # ===================================================================
-        # 🆕 v2.0.0: 매핑 로드 확인
-        # ===================================================================
+        # 매핑 로드
         self._load_mapping_config(mapping_site_id)
         
-        # ===================================================================
-        # 🆕 v2.2.0: 매핑에서 equipment_id 목록 추출
-        # ===================================================================
+        # equipment_id 목록
         try:
             equipment_ids_str = self._get_equipment_ids_str()
         except ValueError as e:
@@ -980,100 +944,105 @@ class UDSService:
         
         with self._get_session(db_site, db_name) as session:
             try:
-                # =============================================================
-                # Step 1: 상태 스냅샷 조회 (경량 쿼리)
-                # 🔧 v2.2.0: IN 절로 매핑된 설비만 조회
-                # =============================================================
-                status_query = STATUS_SNAPSHOT_QUERY.format(equipment_ids=equipment_ids_str)
-                status_result = session.execute(text(status_query))
-                status_rows = status_result.fetchall()
-                
-                # equipment_id → status 정보 맵
-                # Column Index: [0] EquipmentId, [1] Status, [2] StatusChangedAt,
-                #               [3] CpuUsagePercent, [4] MemoryUsedMb, [5] MemoryTotalMb
-                status_map = {}
-                for row in status_rows:
-                    equipment_id = row[0]
-                    if equipment_id:
-                        status_map[equipment_id] = {
-                            'status': row[1],
-                            'status_changed_at': row[2],
-                            'cpu_usage_percent': row[3],
-                            'memory_used_mb': row[4],
-                            'memory_total_mb': row[5]
+                if use_unified_query:
+                    # =============================================================
+                    # 🆕 v3.0.0: 통합 쿼리 사용 (1회 실행)
+                    # =============================================================
+                    query = UNIFIED_DIFF_QUERY.format(equipment_ids=equipment_ids_str)
+                    result = session.execute(text(query))
+                    rows = result.fetchall()
+                    columns = result.keys()
+                    
+                    # 결과 → Dict 변환
+                    current_data = {}
+                    for row in rows:
+                        row_dict = dict(zip(columns, row))
+                        eq_id = row_dict['EquipmentId']
+                        current_data[eq_id] = row_dict
+                    
+                else:
+                    # =============================================================
+                    # 기존 방식: 3개 쿼리 순차 실행 (하위 호환)
+                    # =============================================================
+                    
+                    # Step 1: 상태 스냅샷
+                    status_query = STATUS_SNAPSHOT_QUERY.format(equipment_ids=equipment_ids_str)
+                    status_result = session.execute(text(status_query))
+                    status_rows = status_result.fetchall()
+                    
+                    status_map = {}
+                    for row in status_rows:
+                        equipment_id = row[0]
+                        if equipment_id:
+                            status_map[equipment_id] = {
+                                'Status': row[1],
+                                'StatusChangedAt': row[2],
+                                'CpuUsagePercent': row[3],
+                                'MemoryUsedMb': row[4],
+                                'MemoryTotalMb': row[5]
+                            }
+                    
+                    # Step 2: 생산량 스냅샷
+                    prod_query = PRODUCTION_SNAPSHOT_QUERY.format(equipment_ids=equipment_ids_str)
+                    prod_result = session.execute(text(prod_query))
+                    prod_rows = prod_result.fetchall()
+                    prod_map = {row[0]: row[1] for row in prod_rows}
+                    
+                    # Step 3: Tact Time
+                    tact_query = BATCH_TACT_TIME_QUERY.format(equipment_ids=equipment_ids_str)
+                    tact_result = session.execute(text(tact_query))
+                    tact_rows = tact_result.fetchall()
+                    tact_map = {row[0]: row[1] for row in tact_rows}
+                    
+                    # 통합 데이터 구조로 변환
+                    current_data = {}
+                    for eq_id, status_info in status_map.items():
+                        current_data[eq_id] = {
+                            'EquipmentId': eq_id,
+                            'Status': status_info['Status'],
+                            'StatusChangedAt': status_info['StatusChangedAt'],
+                            'CpuUsagePercent': status_info['CpuUsagePercent'],
+                            'MemoryUsedMb': status_info['MemoryUsedMb'],
+                            'MemoryTotalMb': status_info['MemoryTotalMb'],
+                            'ProductionCount': prod_map.get(eq_id, 0),
+                            'TactTimeSeconds': tact_map.get(eq_id)
                         }
                 
                 # =============================================================
-                # 🆕 v2.1.0 Step 2: 생산량 스냅샷 조회
-                # 🔧 v2.2.0: IN 절로 매핑된 설비만 조회
-                # =============================================================
-                prod_query = PRODUCTION_SNAPSHOT_QUERY.format(equipment_ids=equipment_ids_str)
-                prod_result = session.execute(text(prod_query))
-                prod_rows = prod_result.fetchall()
-                
-                # equipment_id → production_count 맵
-                # Column Index: [0] EquipmentId, [1] ProductionCount
-                prod_map = {row[0]: row[1] for row in prod_rows}
-                
-                logger.debug(f"  → 생산량 Snapshot: {len(prod_map)}건 조회")
-                
-                # =============================================================
-                # 🆕 v2.1.0 Step 3: Tact Time 조회
-                # 🔧 v2.2.0: IN 절로 매핑된 설비만 조회
-                # =============================================================
-                tact_query = BATCH_TACT_TIME_QUERY.format(equipment_ids=equipment_ids_str)
-                tact_result = session.execute(text(tact_query))
-                tact_rows = tact_result.fetchall()
-                
-                # equipment_id → tact_time_seconds 맵
-                # Column Index: [0] EquipmentId, [1] TactTimeSeconds
-                tact_map = {row[0]: row[1] for row in tact_rows}
-                
-                logger.debug(f"  → Tact Time Snapshot: {len(tact_map)}건 조회")
-                
-                # =============================================================
-                # Step 4: Diff 계산
+                # Diff 계산 (통합/기존 모두 동일)
                 # =============================================================
                 deltas = []
                 timestamp = datetime.utcnow()
                 
-                for equipment_id, status_info in status_map.items():
-                    # 🆕 v2.0.0: equipment_id → frontend_id 변환
+                for equipment_id, data in current_data.items():
                     frontend_id = self._get_frontend_id(equipment_id)
                     if not frontend_id:
-                        # 매핑 없으면 스킵
                         continue
-                    
-                    # 🆕 v2.1.0: 생산량, Tact Time 조회
-                    production_count = prod_map.get(equipment_id, 0)
-                    tact_time_seconds = tact_map.get(equipment_id)
                     
                     # Memory 사용율 계산
                     memory_usage_percent = None
-                    if status_info['memory_used_mb'] and status_info['memory_total_mb']:
+                    if data.get('MemoryUsedMb') and data.get('MemoryTotalMb'):
                         memory_usage_percent = calculate_memory_usage_percent(
-                            status_info['memory_used_mb'],
-                            status_info['memory_total_mb']
+                            data['MemoryUsedMb'],
+                            data['MemoryTotalMb']
                         )
                     
-                    # 🆕 v2.1.0: 현재 스냅샷 생성 (생산량, Tact Time 포함)
+                    # 현재 스냅샷 생성
                     current = EquipmentSnapshot(
                         frontend_id=frontend_id,
-                        status=status_info['status'],
-                        status_changed_at=status_info['status_changed_at'],
-                        cpu_usage_percent=status_info['cpu_usage_percent'],
+                        status=data.get('Status'),
+                        status_changed_at=data.get('StatusChangedAt'),
+                        cpu_usage_percent=data.get('CpuUsagePercent'),
                         memory_usage_percent=memory_usage_percent,
-                        production_count=production_count,           # 🆕 v2.1.0
-                        tact_time_seconds=tact_time_seconds          # 🆕 v2.1.0
+                        production_count=data.get('ProductionCount', 0),
+                        tact_time_seconds=data.get('TactTimeSeconds')
                     )
                     
-                    # 이전 스냅샷 조회
+                    # 이전 스냅샷과 비교
                     previous = self._previous_state.get(frontend_id)
                     
                     if previous:
-                        # Diff 계산 (production_count, tact_time_seconds 포함됨)
                         changes = compute_delta(previous, current)
-                        
                         if changes:
                             deltas.append(DeltaUpdate(
                                 frontend_id=frontend_id,
@@ -1085,7 +1054,7 @@ class UDSService:
                     self._previous_state[frontend_id] = current
                 
                 if deltas:
-                    logger.info(f"🔄 Detected {len(deltas)} changes (including production/tact_time)")
+                    logger.info(f"🔄 Detected {len(deltas)} changes")
                 
                 return deltas
                 
@@ -1304,6 +1273,111 @@ class UDSService:
             grid_col=grid_col,
             state_history=state_history    # 🆕 v2.4.0 추가!
         )
+    
+    def _row_to_equipment_data_unified(
+        self,
+        row: Dict[str, Any]
+    ) -> EquipmentData:
+        """
+        🆕 v3.0.0: 통합 쿼리 결과 → EquipmentData 변환
+        
+        통합 쿼리는 이미 모든 정보를 포함하므로 별도 맵 병합 불필요
+        
+        Args:
+            row: 통합 쿼리 결과 Row (Dict 형태)
+            
+        Returns:
+            EquipmentData: 변환된 설비 데이터
+        """
+        equipment_id = row['EquipmentId']
+        
+        # 매핑 정보 가져오기
+        mapping_info = self._get_mapping_info(equipment_id)
+        if mapping_info:
+            frontend_id = mapping_info.get('frontend_id')
+            grid_row = mapping_info.get('grid_row', 0)
+            grid_col = mapping_info.get('grid_col', 0)
+        else:
+            frontend_id = f"EQ-00-{equipment_id:02d}"
+            grid_row, grid_col = 0, 0
+        
+        # Status Enum 변환
+        status_str = row.get('Status') or 'DISCONNECTED'
+        try:
+            status = EquipmentStatus(status_str)
+        except ValueError:
+            status = EquipmentStatus.DISCONNECTED
+        
+        # Memory/Disk 사용율 계산
+        memory_usage = None
+        if row.get('MemoryTotalMb') and row.get('MemoryUsedMb'):
+            memory_usage = calculate_memory_usage_percent(
+                row['MemoryUsedMb'],
+                row['MemoryTotalMb']
+            )
+        
+        disk_usage = None
+        if row.get('DisksTotalGb') and row.get('DisksUsedGb'):
+            disk_usage = calculate_disk_usage_percent(
+                row['DisksUsedGb'],
+                row['DisksTotalGb']
+            )
+        
+        return EquipmentData(
+            equipment_id=equipment_id,
+            frontend_id=frontend_id,
+            equipment_name=row.get('EquipmentName', ''),
+            line_name=row.get('LineName', ''),
+            status=status,
+            status_changed_at=row.get('StatusChangedAt'),
+            alarm_code=row.get('AlarmCode'),
+            alarm_message=row.get('AlarmMessage'),
+            alarm_repeat_count=row.get('AlarmRepeatCount', 0),  # 🆕 통합 쿼리에서 직접 제공
+            product_model=row.get('ProductModel'),
+            lot_id=row.get('LotId'),
+            lot_start_time=row.get('LotStartTime'),
+            target_count=row.get('TargetCount', 0),
+            production_count=row.get('ProductionCount', 0),     # 🆕 통합 쿼리에서 직접 제공
+            tact_time_seconds=row.get('TactTimeSeconds'),       # 🆕 통합 쿼리에서 직접 제공
+            cpu_usage_percent=row.get('CpuUsagePercent'),
+            memory_usage_percent=memory_usage,
+            disk_usage_percent=disk_usage,
+            cpu_name=row.get('CPUName'),
+            cpu_logical_count=row.get('CPULogicalCount'),
+            gpu_name=row.get('GPUName'),
+            os_name=row.get('OsName'),
+            os_architecture=row.get('OsArchitecture'),
+            last_boot_time=row.get('LastBootTime'),
+            grid_row=grid_row,
+            grid_col=grid_col,
+            state_history=[]  # 별도 쿼리에서 병합
+        )
+
+
+    def _build_state_history_map(
+        self, 
+        history_rows: list
+    ) -> Dict[int, List[Dict[str, Any]]]:
+        """
+        🆕 v3.0.0: 상태 히스토리 Row → Dict Map 변환
+        
+        Args:
+            history_rows: STATE_HISTORY_QUERY 결과
+            
+        Returns:
+            Dict[equipment_id, List[{status, timestamp}]]
+        """
+        state_history_map = {}
+        for row in history_rows:
+            eq_id = row[0]
+            if eq_id not in state_history_map:
+                state_history_map[eq_id] = []
+            state_history_map[eq_id].append({
+                'status': row[1],
+                'timestamp': row[2].isoformat() if row[2] else None
+            })
+        return state_history_map
+
     
     def _update_previous_state(self, equipment: EquipmentData):
         """

@@ -764,6 +764,321 @@ FROM ref.RemoteAlarmList WITH (NOLOCK)
 ORDER BY RemoteAlarmCode
 """
 
+# =============================================================================
+# 🔹 UNIFIED_INITIAL_QUERY (v3.0.0 신규)
+# =============================================================================
+# 🆕 v3.0.0: 5개 쿼리를 1개로 통합
+#
+# 통합 대상:
+#   1. BATCH_EQUIPMENT_QUERY (기본 정보 + 상태 + Lot + PC Info)
+#   2. PRODUCTION_COUNT_QUERY (생산량)
+#   3. BATCH_TACT_TIME_QUERY (Tact Time)
+#   4. ALARM_REPEAT_COUNT_QUERY (알람 반복 횟수)
+#   5. STATE_HISTORY_QUERY는 별도 유지 (JSON 배열 반환 복잡)
+#
+# 장점:
+#   - 네트워크 왕복 5회 → 2회 (통합쿼리 + 히스토리쿼리)
+#   - CTE 공유로 중복 계산 제거
+#   - 예상 효과: 전체 Latency 30~40% 추가 감소
+#
+# =============================================================================
+UNIFIED_INITIAL_QUERY = """
+WITH 
+-- ========================================
+-- CTE 1: 각 설비의 최신 Lot 시작 시간
+-- ========================================
+LatestLotStart AS (
+    SELECT 
+        EquipmentId,
+        ProductModel,
+        LotId,
+        LotQty,
+        OccurredAtUtc AS LotStartTime,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.Lotinfo WITH (NOLOCK)
+    WHERE IsStart = 1
+        AND EquipmentId IN ({equipment_ids})
+),
+
+-- ========================================
+-- CTE 2: 최신 설비 상태
+-- ========================================
+LatestStatus AS (
+    SELECT 
+        EquipmentId, 
+        Status, 
+        OccurredAtUtc AS StatusChangedAt,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentState WITH (NOLOCK)
+    WHERE EquipmentId IN ({equipment_ids})
+),
+
+-- ========================================
+-- CTE 3: 현재 활성 알람
+-- ========================================
+ActiveAlarm AS (
+    SELECT 
+        EquipmentId,
+        AlarmCode,
+        AlarmMessage,
+        OccurredAtUtc,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.AlarmEvent WITH (NOLOCK)
+    WHERE IsSet = 1
+        AND EquipmentId IN ({equipment_ids})
+),
+
+-- ========================================
+-- CTE 4: 최신 PC 정보 (동적)
+-- ========================================
+LatestPCInfo AS (
+    SELECT
+        EquipmentId,
+        CPUUsagePercent,
+        MemoryTotalMb,
+        MemoryUsedMb,
+        DisksTotalGb,
+        DisksUsedGb,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentPCInfo WITH (NOLOCK)
+    WHERE EquipmentId IN ({equipment_ids})
+),
+
+-- ========================================
+-- CTE 5: 생산량 (Lot 시작 이후 CycleTime COUNT)
+-- ========================================
+ProductionCount AS (
+    SELECT 
+        lls.EquipmentId,
+        COUNT(ct.Time) AS ProductionCount
+    FROM LatestLotStart lls
+    LEFT JOIN log.CycleTime ct WITH (NOLOCK)
+        ON lls.EquipmentId = ct.EquipmentId
+        AND ct.Time >= lls.LotStartTime
+    WHERE lls.rn = 1
+    GROUP BY lls.EquipmentId
+),
+
+-- ========================================
+-- CTE 6: Tact Time (최근 2개 CycleTime 간격)
+-- ========================================
+RecentCycles AS (
+    SELECT 
+        EquipmentId,
+        Time,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY Time DESC
+        ) AS rn
+    FROM log.CycleTime WITH (NOLOCK)
+    WHERE EquipmentId IN ({equipment_ids})
+),
+TactTime AS (
+    SELECT 
+        rc1.EquipmentId,
+        DATEDIFF(SECOND, rc2.Time, rc1.Time) AS TactTimeSeconds
+    FROM RecentCycles rc1
+    JOIN RecentCycles rc2 
+        ON rc1.EquipmentId = rc2.EquipmentId 
+        AND rc1.rn = 1 
+        AND rc2.rn = 2
+),
+
+-- ========================================
+-- CTE 7: 알람 반복 횟수
+-- ========================================
+AlarmRepeatCount AS (
+    SELECT 
+        aa.EquipmentId,
+        COUNT(hist.AlarmEventId) AS AlarmRepeatCount
+    FROM ActiveAlarm aa
+    LEFT JOIN LatestLotStart lls 
+        ON aa.EquipmentId = lls.EquipmentId 
+        AND lls.rn = 1
+    LEFT JOIN log.AlarmEvent hist WITH (NOLOCK)
+        ON aa.EquipmentId = hist.EquipmentId
+        AND aa.AlarmCode = hist.AlarmCode
+        AND hist.OccurredAtUtc >= lls.LotStartTime
+    WHERE aa.rn = 1
+    GROUP BY aa.EquipmentId
+)
+
+-- ========================================
+-- 메인 쿼리: 모든 CTE 결합
+-- ========================================
+SELECT 
+    -- 기본 정보
+    e.EquipmentId,
+    e.EquipmentName,
+    e.LineName,
+    
+    -- 상태 정보
+    ls.Status,
+    ls.StatusChangedAt,
+    
+    -- 알람 정보
+    aa.AlarmCode,
+    aa.AlarmMessage,
+    ISNULL(arc.AlarmRepeatCount, 0) AS AlarmRepeatCount,
+    
+    -- Lot 정보
+    lls.ProductModel,
+    lls.LotId,
+    lls.LotQty AS TargetCount,
+    lls.LotStartTime,
+    
+    -- 생산 정보
+    ISNULL(pc.ProductionCount, 0) AS ProductionCount,
+    tt.TactTimeSeconds,
+    
+    -- PC 동적 정보
+    pci.CPUUsagePercent AS CpuUsagePercent,
+    pci.MemoryTotalMb,
+    pci.MemoryUsedMb,
+    pci.DisksTotalGb,
+    pci.DisksUsedGb,
+    
+    -- PC 정적 정보 (core.EquipmentPCInfo)
+    cpc.CPUName,
+    cpc.CPULogicalCount,
+    cpc.GPUName,
+    cpc.OS AS OsName,
+    cpc.Architecture AS OsArchitecture,
+    cpc.LastBootTime
+
+FROM core.Equipment e WITH (NOLOCK)
+LEFT JOIN LatestStatus ls 
+    ON e.EquipmentId = ls.EquipmentId AND ls.rn = 1
+LEFT JOIN ActiveAlarm aa 
+    ON e.EquipmentId = aa.EquipmentId AND aa.rn = 1
+LEFT JOIN LatestLotStart lls 
+    ON e.EquipmentId = lls.EquipmentId AND lls.rn = 1
+LEFT JOIN LatestPCInfo pci 
+    ON e.EquipmentId = pci.EquipmentId AND pci.rn = 1
+LEFT JOIN core.EquipmentPCInfo cpc WITH (NOLOCK)
+    ON e.EquipmentId = cpc.EquipmentId
+LEFT JOIN ProductionCount pc 
+    ON e.EquipmentId = pc.EquipmentId
+LEFT JOIN TactTime tt 
+    ON e.EquipmentId = tt.EquipmentId
+LEFT JOIN AlarmRepeatCount arc 
+    ON e.EquipmentId = arc.EquipmentId
+WHERE e.EquipmentId IN ({equipment_ids})
+ORDER BY e.EquipmentId
+"""
+
+
+# =============================================================================
+# 🔹 UNIFIED_DIFF_QUERY (v3.0.0 신규)
+# =============================================================================
+# 3개 쿼리 → 1개로 통합 (compute_diff용)
+#
+# 통합 대상:
+#   1. STATUS_SNAPSHOT_QUERY
+#   2. PRODUCTION_SNAPSHOT_QUERY
+#   3. BATCH_TACT_TIME_QUERY
+#
+# =============================================================================
+UNIFIED_DIFF_QUERY = """
+WITH 
+LatestLotStart AS (
+    SELECT 
+        EquipmentId,
+        OccurredAtUtc AS LotStartTime,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.Lotinfo WITH (NOLOCK)
+    WHERE IsStart = 1
+        AND EquipmentId IN ({equipment_ids})
+),
+LatestStatus AS (
+    SELECT 
+        EquipmentId, 
+        Status, 
+        OccurredAtUtc AS StatusChangedAt,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentState WITH (NOLOCK)
+    WHERE EquipmentId IN ({equipment_ids})
+),
+LatestPCInfo AS (
+    SELECT
+        EquipmentId,
+        CPUUsagePercent,
+        MemoryTotalMb,
+        MemoryUsedMb,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentPCInfo WITH (NOLOCK)
+    WHERE EquipmentId IN ({equipment_ids})
+),
+ProductionCount AS (
+    SELECT 
+        lls.EquipmentId,
+        COUNT(ct.Time) AS ProductionCount
+    FROM LatestLotStart lls
+    LEFT JOIN log.CycleTime ct WITH (NOLOCK)
+        ON lls.EquipmentId = ct.EquipmentId
+        AND ct.Time >= lls.LotStartTime
+    WHERE lls.rn = 1
+    GROUP BY lls.EquipmentId
+),
+RecentCycles AS (
+    SELECT 
+        EquipmentId,
+        Time,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY Time DESC
+        ) AS rn
+    FROM log.CycleTime WITH (NOLOCK)
+    WHERE EquipmentId IN ({equipment_ids})
+),
+TactTime AS (
+    SELECT 
+        rc1.EquipmentId,
+        DATEDIFF(SECOND, rc2.Time, rc1.Time) AS TactTimeSeconds
+    FROM RecentCycles rc1
+    JOIN RecentCycles rc2 
+        ON rc1.EquipmentId = rc2.EquipmentId 
+        AND rc1.rn = 1 
+        AND rc2.rn = 2
+)
+SELECT 
+    e.EquipmentId,
+    ls.Status,
+    ls.StatusChangedAt,
+    pci.CPUUsagePercent AS CpuUsagePercent,
+    pci.MemoryUsedMb,
+    pci.MemoryTotalMb,
+    ISNULL(pc.ProductionCount, 0) AS ProductionCount,
+    tt.TactTimeSeconds
+FROM core.Equipment e WITH (NOLOCK)
+LEFT JOIN LatestStatus ls ON e.EquipmentId = ls.EquipmentId AND ls.rn = 1
+LEFT JOIN LatestPCInfo pci ON e.EquipmentId = pci.EquipmentId AND pci.rn = 1
+LEFT JOIN ProductionCount pc ON e.EquipmentId = pc.EquipmentId
+LEFT JOIN TactTime tt ON e.EquipmentId = tt.EquipmentId
+WHERE e.EquipmentId IN ({equipment_ids})
+"""
+
 
 # =============================================================================
 # 🔹 EQUIPMENT_MAPPING_QUERY (v2.0.0 제거됨)
