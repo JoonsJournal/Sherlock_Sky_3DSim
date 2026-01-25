@@ -3,7 +3,7 @@
  * ===========
  * 애플리케이션 전역 유틸리티 함수 모듈
  * 
- * @version 1.0.0
+ * @version 1.0.1
  * @description
  * - main.js에서 분리된 전역 유틸리티 함수 모듈
  * - HTML onclick 호환 함수들 중앙 관리
@@ -11,6 +11,10 @@
  * - window.* 노출 자동화
  * 
  * @changelog
+ * - v1.0.1: 🔧 Deprecation 경고 제거 (2026-01-25)
+ *           - window.toast → APP.ui.toast만 사용
+ *           - window.sidebarUI → APP.ui.sidebar만 사용
+ *           - 기능 동작 100% 유지 (DOM 폴백 존재)
  * - v1.0.0: main.js 리팩토링 Phase 3 - 유틸리티 함수 분리 (2026-01-25)
  *           - _showToast → showToast export
  *           - _toggleTheme → toggleTheme export
@@ -89,8 +93,8 @@ function _getSidebarUI() {
  * showToast('연결 실패', 'error');
  */
 export function showToast(message, type = 'info') {
-    // toast 모듈 사용 가능하면 위임 (APP 네임스페이스 우선)
-    const toastModule = window.APP?.ui?.toast || window.toast;
+    // toast 모듈 사용 가능하면 위임 (APP 네임스페이스만 사용 - deprecation 방지)
+    const toastModule = window.APP?.ui?.toast;
     if (toastModule?.show) {
         toastModule.show(message, type);
         return;
@@ -171,8 +175,8 @@ export function toggleTheme() {
     if (themeSwitch) {
         themeSwitch.classList.toggle('active', newTheme === 'light');
     }
-    
-    const sidebar = window.APP?.ui?.sidebar || window.sidebarUI?.sidebar;
+    // APP 네임스페이스만 사용 (deprecation 방지)
+    const sidebar = window.APP?.ui?.sidebar;
     if (sidebar?.setTheme) {
         sidebar.setTheme(newTheme);
     }
@@ -229,8 +233,8 @@ export function closeConnectionModal() {
  * }
  */
 export function canAccessFeatures() {
-    // Sidebar.js 인스턴스에서 상태 가져오기 (우선)
-    const sidebar = window.APP?.ui?.sidebar || window.sidebarUI?.sidebar;
+    // APP 네임스페이스만 사용 (deprecation 방지)
+    const sidebar = window.APP?.ui?.sidebar;
     if (sidebar) {
         return sidebar.getIsConnected() || sidebar.getDevModeEnabled();
     }
