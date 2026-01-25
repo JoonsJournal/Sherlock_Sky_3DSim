@@ -4,8 +4,14 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 7.2.0
+ * @version 7.3.0
  * @changelog
+ * - v7.3.0: 🔧 Phase 2 - 전역 상태 관리 분리 (2026-01-25)
+ *           - services 객체 → AppState.js에서 import
+ *           - sidebarState 초기화 → initSidebarState() 사용
+ *           - screenManager → AppState.js에서 import
+ *           - window.services 노출 → exposeServicesToWindow() 사용
+ *           - ⚠️ 호환성: 기존 모든 참조 100% 유지
  * - v7.2.0: 🔧 Phase 1 - AppConfig 모듈 분리 (2026-01-25)
  *           - SITE_ID, RECOVERY_STRATEGIES, USE_DEPRECATION_WARNINGS 외부화
  *           - app/AppConfig.js에서 import
@@ -192,15 +198,30 @@ import { RankingView } from './ui/ranking-view/index.js';
 import { ConnectionMode, ConnectionEvents } from './services/ConnectionStatusService.js';
 
 // ============================================
-// 🆕 Phase 1: AppConfig import (main.js 리팩토링)
+// 🆕 Phase 1 & 2: App 모듈 import
 // ============================================
 import {
+    // Phase 1: AppConfig
     SITE_ID,
     RECOVERY_STRATEGIES,
     USE_DEPRECATION_WARNINGS,
     RECOVERY_ACTIONS,
     getRecoveryStrategy,
-    hasRecoveryStrategy
+    hasRecoveryStrategy,
+    
+    // 🆕 Phase 2: AppState
+    services,
+    sidebarState,
+    initSidebarState,
+    updateSidebarState,
+    getSidebarState,
+    screenManager,
+    exposeServicesToWindow,
+    getService,
+    setService,
+    hasService,
+    clearService,
+    debugAppState
 } from './app/index.js';
 
 
@@ -230,35 +251,14 @@ let sidebarUI = null;
 // 🆕 v5.4.0: 재연결 핸들러 정리 함수
 let reconnectionCleanup = null;
 
-// 서비스 객체 저장소
-// 서비스 객체 저장소
-const services = {
-    scene: null,
-    ui: null,
-    monitoring: null,
-    // 🆕 v5.5.0: Mapping 서비스 추가
-    mapping: {
-        equipmentMappingService: null
-    },
-    // 🆕 v5.7.0: Views 관리 (ViewManager 참조)
-    views: {
-        viewManager: null  // initViewManager() 호출 후 할당
-    }
-};
-
-// 🆕 v5.2.1: services를 window에 노출 (H/G 키 동적 SceneManager 조회 지원)
-window.services = services;
-
 // ============================================
-// 전역 상태 (Sidebar용) - 하위 호환
+// 🆕 v7.3.0: AppState에서 관리되는 전역 상태
+// - services: ./app/AppState.js에서 import
+// - sidebarState: initSidebarState()로 초기화
+// - screenManager: ./app/AppState.js에서 import
+// - window.services: exposeServicesToWindow()로 노출
 // ============================================
-window.sidebarState = window.sidebarState || {
-    currentMode: null,
-    currentSubMode: null,
-    isConnected: false,
-    devModeEnabled: false,
-    debugPanelVisible: false
-};
+// (추가 코드 불필요 - import에서 처리됨)
 
 // ============================================
 // 🆕 v5.2.0: 전역 유틸리티 함수 (HTML onclick 호환)
@@ -449,214 +449,199 @@ window.canAccessFeatures = function() {
     return window.sidebarState?.isConnected || window.sidebarState?.devModeEnabled;
 };
     
-    /**
-     * Cover Screen 표시 (기본 상태)
-     * 
-     * 🆕 v6.4.0: ViewManager 관리 View들 자동 숨김 추가
-     */
-const screenManager = {
-    threejsInitialized: false,
-    animationRunning: false,
-    
-    /**
-     * Cover Screen 표시 (기본 상태)
-     * 
-     * @version 7.0.0
-     * @deprecated navigationController.goHome() 사용 권장
-     * 하위 호환을 위해 유지되며, 내부적으로 NavigationController 호출
-     */
-    showCoverScreen() {
-        console.log('[screenManager] 📺 showCoverScreen()');
-        console.warn('[screenManager] ⚠️ deprecated → navigationController.goHome() 사용 권장');
+// ============================================
+// 🆕 v7.3.0: screenManager는 AppState.js에서 import
+// ============================================
+// (screenManager는 app/index.js에서 import됨)
+// (window.screenManager, window.viewManager는 AppState.js에서 자동 노출됨)
+
+// ============================================
+// 🆕 v7.3.0: Three.js 초기화 함수 (screenManager._initThreeJS 이벤트 핸들러)
+// ============================================
+
+/**
+ * Three.js 실제 초기화
+ * screenManager._initThreeJS()는 이벤트만 발행하고,
+ * 이 함수가 실제 초기화를 수행합니다.
+ */
+function initThreeJSScene() {
+    try {
+        // 1. 3D 씬 초기화
+        setService('scene', initScene());
+        console.log('  ✅ 3D Scene 초기화 완료');
         
-        // NavigationController가 모든 것을 처리
-        navigationController.goHome();
-    },
-    
-    /**
-     * 3D View 표시 + Three.js 초기화
-     * 
-     * @version 7.0.0
-     * @deprecated navigationController.navigate(NAV_MODE.MONITORING, '3d-view') 사용 권장
-     * 하위 호환을 위해 유지되며, 내부적으로 NavigationController 호출
-     */
-    show3DView() {
-        console.log('[screenManager] 🎮 show3DView()');
-        console.warn('[screenManager] ⚠️ deprecated → navigationController.navigate() 사용 권장');
+        // 2. Monitoring 서비스 초기화
+        const sceneData = getService('scene');
+        setService('monitoring', initMonitoringServices(
+            sceneData.sceneManager.scene,
+            sceneData.equipmentLoader,
+            getService('ui.equipmentEditState'),
+            getService('ui.connectionStatusService'),
+            {
+                connectionStartTiming: 'after-monitoring',
+                connectionDelayMs: 500
+            }
+        ));
+        console.log('  ✅ Monitoring Services 초기화 완료');
         
-        // NavigationController가 모든 것을 처리
-        navigationController.navigate(NAV_MODE.MONITORING, '3d-view');
-    },
-    
-    /**
-     * Three.js 씬 초기화 (내부 함수)
-     */
-    _initThreeJS() {
-        try {
-            // 1. 3D 씬 초기화
-            services.scene = initScene();
-            console.log('  ✅ 3D Scene 초기화 완료');
-            
-            // 2. Monitoring 서비스 초기화
-            // 🆕 v5.4.0: connectionStartTiming 옵션 추가
-            services.monitoring = initMonitoringServices(
-                services.scene.sceneManager.scene,
-                services.scene.equipmentLoader,
-                services.ui?.equipmentEditState,
-                services.ui?.connectionStatusService,
-                {
-                    connectionStartTiming: 'after-monitoring',
-                    connectionDelayMs: 500
-                }
-            );
-            console.log('  ✅ Monitoring Services 초기화 완료');
-            
-            // 3. DataOverlay ↔ EquipmentInfoPanel 연결
-            if (services.scene?.dataOverlay && services.ui?.equipmentInfoPanel) {
-                services.scene.dataOverlay.setEquipmentInfoPanel(services.ui.equipmentInfoPanel);
-                console.log('  ✅ DataOverlay ↔ EquipmentInfoPanel 연결 완료');
-            }
-            
-            // 4. MonitoringService ↔ EquipmentInfoPanel 연결
-            if (services.monitoring?.monitoringService && services.ui?.equipmentInfoPanel) {
-                services.monitoring.monitoringService.setEquipmentInfoPanel(services.ui.equipmentInfoPanel);
-                console.log('  ✅ MonitoringService ↔ EquipmentInfoPanel 연결 완료');
-            }
-            
-            // 🆕 v5.4.0: MonitoringService에 EventBus 설정 (재연결 이벤트용)
-            if (services.monitoring?.monitoringService) {
-                services.monitoring.monitoringService.eventBus = eventBus;
-            }
-            
-            // 5. 모드 핸들러에 서비스 연결
-            connectServicesToModeHandlers({
-                equipmentEditState: services.ui?.equipmentEditState,
-                equipmentEditButton: services.ui?.equipmentEditButton,
-                monitoringService: services.monitoring?.monitoringService,
-                signalTowerManager: services.monitoring?.signalTowerManager
-            });
-            console.log('  ✅ Mode Handlers 서비스 연결 완료');
-            
-            // 6. InteractionHandler 연결
-            const { interactionHandler, sceneManager, equipmentLoader } = services.scene;
-            const { equipmentEditState, equipmentEditModal } = services.ui || {};
-            
+        // 3. DataOverlay ↔ EquipmentInfoPanel 연결
+        const dataOverlay = getService('scene.dataOverlay');
+        const equipmentInfoPanel = getService('ui.equipmentInfoPanel');
+        if (dataOverlay && equipmentInfoPanel) {
+            dataOverlay.setEquipmentInfoPanel(equipmentInfoPanel);
+            console.log('  ✅ DataOverlay ↔ EquipmentInfoPanel 연결 완료');
+        }
+        
+        // 4. MonitoringService ↔ EquipmentInfoPanel 연결
+        const monitoringService = getService('monitoring.monitoringService');
+        if (monitoringService && equipmentInfoPanel) {
+            monitoringService.setEquipmentInfoPanel(equipmentInfoPanel);
+            console.log('  ✅ MonitoringService ↔ EquipmentInfoPanel 연결 완료');
+        }
+        
+        // 5. MonitoringService에 EventBus 설정
+        if (monitoringService) {
+            monitoringService.eventBus = eventBus;
+        }
+        
+        // 6. 모드 핸들러에 서비스 연결
+        connectServicesToModeHandlers({
+            equipmentEditState: getService('ui.equipmentEditState'),
+            equipmentEditButton: getService('ui.equipmentEditButton'),
+            monitoringService: getService('monitoring.monitoringService'),
+            signalTowerManager: getService('monitoring.signalTowerManager')
+        });
+        console.log('  ✅ Mode Handlers 서비스 연결 완료');
+        
+        // 7. InteractionHandler 연결
+        const interactionHandler = getService('scene.interactionHandler');
+        const equipmentEditState = getService('ui.equipmentEditState');
+        const equipmentEditModal = getService('ui.equipmentEditModal');
+        const equipmentLoader = getService('scene.equipmentLoader');
+        
+        if (interactionHandler) {
             interactionHandler.setAppModeManager(appModeManager);
             interactionHandler.setEditMode(equipmentEditState);
             interactionHandler.setEditModal(equipmentEditModal);
-            interactionHandler.setMonitoringService(services.monitoring?.monitoringService);
-            
-            // 7. Edit Mode 이벤트 설정
-            setupEditModeEventListeners({
-                interactionHandler,
-                equipmentLoader,
-                equipmentEditState
-            });
-            
-            // 8. Layout 이벤트 설정
-            setupLayoutEventListeners({
-                sceneManager,
-                equipmentLoader,
-                interactionHandler,
-                statusVisualizer: services.scene.statusVisualizer,
-                signalTowerManager: services.monitoring?.signalTowerManager
-            });
-            
-            // 9. LayoutEditorMain 연결
-            setupLayoutEditorMainConnection(sceneManager);
-            
-            // 10. PreviewGenerator 초기화
-            previewGenerator = initPreviewGenerator();
-            
-            // 11. 전역 디버그 함수 설정
-            setupGlobalDebugFunctions({
-                sceneManager,
-                equipmentLoader,
-                cameraNavigator: services.scene.cameraNavigator,
-                equipmentEditState,
-                toggleEditMode,
-                toggleMonitoringMode
-            });
-            
-            if (services.scene.adaptivePerformance) {
-                services.scene.adaptivePerformance.setupGlobalCommands();
-            }
-            
-            // 12. 전역 객체 노출 (Scene 초기화 후)
-            _exposeGlobalObjectsAfterSceneInit();
-            
-            // 🆕 v5.1.0: StatusBar에 PerformanceMonitor 연결
-            if (sidebarUI?.statusBar && services.scene?.performanceMonitor) {
-                sidebarUI.statusBar.setPerformanceMonitor(services.scene.performanceMonitor);
-            }
-            
-            // 🆕 v5.7.0: ViewManager에 추가 서비스 주입 (Scene 초기화 후)
-            if (bootstrapViewManager) {
-                bootstrapViewManager.addService('webSocketClient', services.monitoring?.monitoringService?.getDataLoader?.()?.wsManager);
-                bootstrapViewManager.addService('monitoringService', services.monitoring?.monitoringService);
-                bootstrapViewManager.addService('signalTowerManager', services.monitoring?.signalTowerManager);
-                bootstrapViewManager.addService('sceneManager', services.scene?.sceneManager);
-                bootstrapViewManager.initEagerViews();  // Eager View 초기화
-                console.log('  ✅ ViewManager 서비스 업데이트 완료');
-            }
-            
-            // 13. 로딩 상태 숨김
-            hideLoadingStatus(1000);
-
-            // 🆕 v5.3.1: 타이밍 보정 - Monitoring 모드면 서비스 수동 시작
-            this._ensureMonitoringServiceStarted();
-            
-            console.log('✅ Three.js 지연 초기화 완료');
-            
-        } catch (error) {
-            console.error('❌ Three.js 초기화 실패:', error);
-            window.showToast?.('3D View 초기화 실패', 'error');
-        }
-    },
-    
-    /**
-     * 🆕 v5.3.1: Monitoring 모드 서비스 시작 보정
-     * Three.js 초기화 후 호출하여 타이밍 문제 해결
-     */
-    _ensureMonitoringServiceStarted() {
-        const currentMode = appModeManager.getCurrentMode();
-        
-        if (currentMode !== APP_MODE.MONITORING) {
-            return;
+            interactionHandler.setMonitoringService(getService('monitoring.monitoringService'));
         }
         
-        const monitoringService = services.monitoring?.monitoringService;
+        // 8. Edit Mode 이벤트 설정
+        setupEditModeEventListeners({
+            interactionHandler,
+            equipmentLoader,
+            equipmentEditState
+        });
         
-        if (monitoringService && !monitoringService.isActive) {
-            console.log('  🔧 [타이밍 보정] MonitoringService 수동 시작');
-            monitoringService.start();
+        // 9. Layout 이벤트 설정
+        const sceneManager = getService('scene.sceneManager');
+        setupLayoutEventListeners({
+            sceneManager,
+            equipmentLoader,
+            interactionHandler,
+            statusVisualizer: getService('scene.statusVisualizer'),
+            signalTowerManager: getService('monitoring.signalTowerManager')
+        });
+        
+        // 10. LayoutEditorMain 연결
+        setupLayoutEditorMainConnection(sceneManager);
+        
+        // 11. PreviewGenerator 초기화
+        previewGenerator = initPreviewGenerator();
+        
+        // 12. 전역 디버그 함수 설정
+        setupGlobalDebugFunctions({
+            sceneManager,
+            equipmentLoader,
+            cameraNavigator: getService('scene.cameraNavigator'),
+            equipmentEditState,
+            toggleEditMode,
+            toggleMonitoringMode
+        });
+        
+        const adaptivePerformance = getService('scene.adaptivePerformance');
+        if (adaptivePerformance) {
+            adaptivePerformance.setupGlobalCommands();
         }
         
-        console.log('  ✅ Monitoring 모드 서비스 타이밍 보정 완료');
-    },
-    
-    startAnimation() {
-        if (!this.animationRunning && services.scene) {
-            this.animationRunning = true;
-            animate();
-            console.log('[screenManager] ▶️ 애니메이션 시작');
+        // 13. 전역 객체 노출 (Scene 초기화 후)
+        _exposeGlobalObjectsAfterSceneInit();
+        
+        // 14. StatusBar에 PerformanceMonitor 연결
+        const performanceMonitor = getService('scene.performanceMonitor');
+        if (sidebarUI?.statusBar && performanceMonitor) {
+            sidebarUI.statusBar.setPerformanceMonitor(performanceMonitor);
         }
-    },
-    
-    stopAnimation() {
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
+        
+        // 15. ViewManager에 추가 서비스 주입
+        if (bootstrapViewManager) {
+            bootstrapViewManager.addService('webSocketClient', getService('monitoring.monitoringService')?.getDataLoader?.()?.wsManager);
+            bootstrapViewManager.addService('monitoringService', getService('monitoring.monitoringService'));
+            bootstrapViewManager.addService('signalTowerManager', getService('monitoring.signalTowerManager'));
+            bootstrapViewManager.addService('sceneManager', sceneManager);
+            bootstrapViewManager.initEagerViews();
+            console.log('  ✅ ViewManager 서비스 업데이트 완료');
         }
-        this.animationRunning = false;
-        console.log('[screenManager] ⏹️ 애니메이션 중지');
+        
+        // 16. 로딩 상태 숨김
+        hideLoadingStatus(1000);
+        
+        // 17. 타이밍 보정 - Monitoring 모드면 서비스 수동 시작
+        _ensureMonitoringServiceStarted();
+        
+        // 18. 초기화 완료 표시
+        screenManager.threejsInitialized = true;
+        
+        console.log('✅ Three.js 지연 초기화 완료');
+        
+    } catch (error) {
+        console.error('❌ Three.js 초기화 실패:', error);
+        window.showToast?.('3D View 초기화 실패', 'error');
     }
-};
+}
 
+/**
+ * Monitoring 모드 서비스 시작 보정
+ */
+function _ensureMonitoringServiceStarted() {
+    const currentMode = appModeManager.getCurrentMode();
+    
+    if (currentMode !== APP_MODE.MONITORING) {
+        return;
+    }
+    
+    const monitoringService = getService('monitoring.monitoringService');
+    
+    if (monitoringService && !monitoringService.isActive) {
+        console.log('  🔧 [타이밍 보정] MonitoringService 수동 시작');
+        monitoringService.start();
+    }
+    
+    console.log('  ✅ Monitoring 모드 서비스 타이밍 보정 완료');
+}
 
-// viewManager 전역 노출
-window.viewManager = screenManager;   // 하위 호환
-window.screenManager = screenManager; // 새 이름
+/**
+ * 애니메이션 시작
+ */
+function startAnimationLoop() {
+    if (!screenManager.animationRunning && getService('scene')) {
+        screenManager.animationRunning = true;
+        animate();
+        console.log('[screenManager] ▶️ 애니메이션 시작');
+    }
+}
+
+/**
+ * 애니메이션 중지
+ */
+function stopAnimationLoop() {
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+    screenManager.animationRunning = false;
+    console.log('[screenManager] ⏹️ 애니메이션 중지');
+}
 
 // ============================================
 // Mode Indicator 업데이트
@@ -1580,12 +1565,6 @@ function setupNavigationControllerEvents() {
     console.log('  ✅ NavigationController 이벤트 설정 완료');
 }
 
-/**
- * 🆕 v7.0.0: screenManager 이벤트 연결
- * 
- * NavigationController가 발행하는 threejs:* 이벤트를 받아
- * screenManager의 Three.js 초기화/애니메이션 제어
- */
 function setupScreenManagerEvents() {
     console.log('🖥️ screenManager 이벤트 연결 시작...');
     
@@ -1593,8 +1572,7 @@ function setupScreenManagerEvents() {
     eventBus.on('threejs:init-requested', () => {
         console.log('[Event] threejs:init-requested');
         if (!screenManager.threejsInitialized) {
-            screenManager._initThreeJS();
-            screenManager.threejsInitialized = true;
+            initThreeJSScene();  // 🆕 새 함수 호출
         }
     });
     
@@ -1602,22 +1580,21 @@ function setupScreenManagerEvents() {
     eventBus.on('threejs:show-requested', () => {
         console.log('[Event] threejs:show-requested');
         if (!screenManager.threejsInitialized) {
-            screenManager._initThreeJS();
-            screenManager.threejsInitialized = true;
+            initThreeJSScene();  // 🆕 새 함수 호출
         }
-        screenManager.startAnimation();
+        startAnimationLoop();  // 🆕 새 함수 호출
     });
     
     // Three.js 중지 요청
     eventBus.on('threejs:stop-requested', () => {
         console.log('[Event] threejs:stop-requested');
-        screenManager.stopAnimation();
+        stopAnimationLoop();  // 🆕 새 함수 호출
     });
     
     // 애니메이션만 중지 (Three.js 유지)
     eventBus.on('threejs:stop-animation-requested', () => {
         console.log('[Event] threejs:stop-animation-requested');
-        screenManager.stopAnimation();
+        stopAnimationLoop();  // 🆕 새 함수 호출
     });
     
     console.log('  ✅ screenManager 이벤트 연결 완료');
@@ -2275,7 +2252,7 @@ function _exposeGlobalObjectsAfterSceneInit() {
 // ============================================
 
 function init() {
-    console.log('🚀 Sherlock Sky 3DSim 초기화 (v6.1.0 - Phase 2 전역 함수 마이그레이션)...');
+    console.log('🚀 Sherlock Sky 3DSim 초기화 (v7.3.0 - Phase 2 전역 상태 분리)...');
     console.log(`📍 Site ID: ${SITE_ID}`);
     
     try {
@@ -2285,12 +2262,22 @@ function init() {
         initNamespace()
         console.log('  ✅ AppNamespace 초기화 완료');
 
-        // 🆕 v6.1.0: APP.state와 sidebarState 양방향 동기화
-        if (window.APP && window.sidebarState) {
-            // sidebarState의 기존 값을 APP.state로 복사
-            Object.assign(window.APP.state, window.sidebarState);
-            // sidebarState가 APP.state를 참조하도록 설정 (양방향 동기화)
-            window.sidebarState = window.APP.state;
+        // 🆕 v7.2.1: APP.config 등록 (initNamespace 후에 추가)
+        // AppConfig.js에서 import한 값들을 APP.config에 등록
+        window.APP.config = {
+            SITE_ID,
+            USE_DEPRECATION_WARNINGS,
+            RECOVERY_STRATEGIES,
+            RECOVERY_ACTIONS,
+            getRecoveryStrategy,
+            hasRecoveryStrategy
+        };
+        console.log('  ✅ APP.config 등록 완료');
+
+        // 🆕 v7.3.0: sidebarState는 AppState.js에서 import됨
+        // initSidebarState()는 import 시점에 자동 호출됨
+        if (window.APP && sidebarState) {
+            Object.assign(window.APP.state, sidebarState);
             console.log('  ✅ APP.state ↔ sidebarState 동기화 완료');
         }
 
@@ -2321,12 +2308,12 @@ function init() {
         console.log('  ✅ Core Managers 초기화 완료');
         
         // 2. UI 컴포넌트 초기화 (기존)
-        services.ui = initUIComponents({
+        setService('ui', initUIComponents({
             connectionOptions: {
                 autoStart: false,
                 debug: false
             }
-        });
+        }));
         console.log('  ✅ UI Components 초기화 완료');
         
         // 3. 🆕 v5.1.0: Sidebar UI 초기화 (동적 렌더링)
@@ -2375,13 +2362,13 @@ function init() {
         console.log('     → 3D View 초기화 후 실제 함수로 교체됩니다');
         
         // 4. 🆕 v5.7.0: ViewManager 초기화
-        services.views.viewManager = initViewManager({
+        setService('views.viewManager', initViewManager({
             webSocketClient: null,
             apiClient: services.ui?.apiClient
         }, {
             initEager: false,
             registerToNamespace: false  // main.js에서 직접 등록
-        });
+        }));
         console.log('  ✅ ViewManager 초기화 완료');
         
         // 🆕 v6.0.0: ViewManager 네임스페이스에 등록
@@ -2612,18 +2599,16 @@ function _updateDebugPanelContent() {
 // ============================================
 // 애니메이션 루프
 // ============================================
-
 function animate() {
     animationFrameId = requestAnimationFrame(animate);
     
-    const { 
-        cameraControls, 
-        statusVisualizer, 
-        sceneManager, 
-        performanceMonitor,
-        adaptivePerformance
-    } = services.scene || {};
-    const { signalTowerManager } = services.monitoring || {};
+    // 🆕 v7.3.0: getService() 사용
+    const cameraControls = getService('scene.cameraControls');
+    const statusVisualizer = getService('scene.statusVisualizer');
+    const sceneManager = getService('scene.sceneManager');
+    const performanceMonitor = getService('scene.performanceMonitor');
+    const adaptivePerformance = getService('scene.adaptivePerformance');
+    const signalTowerManager = getService('monitoring.signalTowerManager');
     
     if (cameraControls) {
         cameraControls.update();
