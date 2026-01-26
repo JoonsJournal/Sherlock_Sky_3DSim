@@ -4,8 +4,19 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 8.3.0                      // ← 버전 업데이트!
+ * @version 8.4.0                      // ← 버전 업데이트!
  * @changelog
+ * - v8.4.0: 🔧 Phase 9 - 하위 호환 및 전역 노출 분리 (2026-01-26)
+ *           - _updateSidebarButtonState() → compat/LegacyHelpers.js
+ *           - _updateSubmenuActiveState() → compat/LegacyHelpers.js
+ *           - _enableSidebarIcons() → compat/LegacyHelpers.js
+ *           - _disableSidebarIcons() → compat/LegacyHelpers.js
+ *           - _updateCoverStatus() → compat/LegacyHelpers.js
+ *           - _updateStatusBarConnection() → compat/LegacyHelpers.js
+ *           - 7개 액션 헬퍼 함수 → compat/LegacyHelpers.js
+ *           - _exposeGlobalObjectsAfterSceneInit() → compat/LegacyGlobals.js
+ *           - 약 220줄 코드 감소
+ *           - ⚠️ 호환성: 기존 동작 100% 유지
  * - v8.3.0: 🔧 Phase 8 - Mapping 및 AutoSave 분리 (2026-01-26)
  *           - initMappingServices() → mapping/MappingInitializer.js
  *           - _loadEquipmentMappingsAfterConnection() → mapping/MappingLoader.js
@@ -368,6 +379,36 @@ import {
 } from './autosave/index.js';
 
 // ============================================
+// 🆕 Phase 9: Compat 모듈 import
+// ============================================
+import {
+    // 참조 설정
+    setSidebarUIRef as setCompatSidebarUIRef,
+    
+    // 하위 호환 헬퍼 함수들
+    _updateSidebarButtonState,
+    _updateSubmenuActiveState,
+    _enableSidebarIcons,
+    _disableSidebarIcons,
+    _updateCoverStatus,
+    _updateStatusBarConnection,
+    _delay,
+    
+    // 액션 헬퍼 함수들
+    _actionResubscribeWebSocket,
+    _actionRefreshStatus,
+    _actionReloadAnalysisData,
+    _actionReconnectDatabase,
+    _actionRefreshDashboard,
+    _actionReconnectCache,
+    _actionReconnectMappingApi,
+    
+    // 전역 노출
+    setGlobalsContext,
+    exposeGlobalObjectsAfterSceneInit
+} from './compat/index.js';
+
+// ============================================
 // 전역 상태
 // ============================================
 let animationFrameId;
@@ -465,6 +506,9 @@ function initSidebarUI() {
     // 🆕 Phase 5: ModeToggler에 참조 설정
     setSidebarUIRef(sidebarUI);
 
+    // 🆕 Phase 9: LegacyHelpers에 참조 설정
+    setCompatSidebarUIRef(sidebarUI);
+
     // 🆕 Sidebar 이벤트 연결
     if (sidebarUI?.sidebar) {
         // Three.js 표시 요청 이벤트
@@ -488,469 +532,6 @@ function initSidebarUI() {
     
     return sidebarUI;
 }
-
-/**
- * WebSocket 재구독
- * @private
- */
-async function _actionResubscribeWebSocket() {
-    const monitoringService = services.monitoring?.monitoringService;
-    
-    // DataLoader 사용 시
-    const dataLoader = monitoringService?.getDataLoader?.();
-    if (dataLoader) {
-        try {
-            await dataLoader.reconnectWebSocket();
-            console.log('      ✅ DataLoader WebSocket 재연결 완료');
-            return;
-        } catch (e) {
-            console.warn('      ⚠️ DataLoader WebSocket 재연결 실패:', e.message);
-        }
-    }
-    
-    // 레거시 방식
-    const wsManager = monitoringService?.wsManager;
-    if (wsManager) {
-        if (!wsManager.isConnected()) {
-            await wsManager.connect();
-        }
-        wsManager.subscribe();
-        console.log('      ✅ WebSocket 재구독 완료');
-    }
-}
-
-/**
- * 상태 새로고침
- * @private
- */
-async function _actionRefreshStatus() {
-    const monitoringService = services.monitoring?.monitoringService;
-    
-    if (monitoringService) {
-        await monitoringService.loadInitialStatus?.();
-        monitoringService.updateStatusPanel?.();
-        console.log('      ✅ 상태 새로고침 완료');
-    }
-}
-
-/**
- * Analysis 데이터 재로드
- * @private
- */
-async function _actionReloadAnalysisData() {
-    // TODO: AnalysisDataLoader 구현 후 연동
-    console.log('      ℹ️ Analysis 데이터 재로드 (미구현)');
-    
-    // eventBus를 통해 Analysis 모듈에 알림
-    eventBus.emit('analysis:reload-requested', {
-        timestamp: new Date().toISOString()
-    });
-}
-
-/**
- * Database 재연결
- * @private
- */
-async function _actionReconnectDatabase() {
-    // Database 연결 확인은 ConnectionStatusService가 처리
-    console.log('      ℹ️ Database 재연결 요청');
-    
-    eventBus.emit('database:reconnect-requested', {
-        timestamp: new Date().toISOString()
-    });
-}
-
-/**
- * Dashboard 새로고침
- * @private
- */
-async function _actionRefreshDashboard() {
-    // TODO: DashboardDataLoader 구현 후 연동
-    console.log('      ℹ️ Dashboard 새로고침 (미구현)');
-    
-    eventBus.emit('dashboard:refresh-requested', {
-        timestamp: new Date().toISOString()
-    });
-}
-
-/**
- * Cache 재연결
- * @private
- */
-async function _actionReconnectCache() {
-    // Redis 캐시 재연결은 Backend가 처리
-    console.log('      ℹ️ Cache 재연결 요청');
-    
-    eventBus.emit('cache:reconnect-requested', {
-        timestamp: new Date().toISOString()
-    });
-}
-
-/**
- * Mapping API 재연결
- * 🆕 v5.5.0: EquipmentMappingService 사용
- * @private
- */
-async function _actionReconnectMappingApi() {
-    // 🆕 v5.5.0: EquipmentMappingService 우선 사용
-    const mappingService = services.mapping?.equipmentMappingService;
-    
-    if (mappingService) {
-        try {
-            // 캐시 정리 후 재로드
-            mappingService.clearMappingCache();
-            
-            const result = await mappingService.loadCurrentMappings({
-                forceRefresh: true,
-                applyToEditState: true
-            });
-            
-            console.log(`      ✅ Mapping API 재연결 완료: ${result.count}개 매핑`);
-            return;
-        } catch (e) {
-            console.warn('      ⚠️ Mapping API 재연결 실패:', e.message);
-        }
-    }
-    
-    // 폴백: 기존 방식
-    const apiClient = services.ui?.apiClient;
-    
-    if (apiClient) {
-        try {
-            const isHealthy = await apiClient.healthCheck?.();
-            console.log(`      ℹ️ Mapping API 상태: ${isHealthy ? 'OK' : 'Failed'}`);
-        } catch (e) {
-            console.warn('      ⚠️ Mapping API 헬스체크 실패:', e.message);
-        }
-    }
-}
-
-// ============================================
-// 🆕 v5.1.0: 하위 호환 함수들 (Sidebar.js 위임)
-// ============================================
-
-/**
- * Sidebar 버튼 선택 상태 업데이트 (하위 호환)
- */
-function _updateSidebarButtonState(mode) {
-    // Sidebar.js가 자동 처리하지만, 직접 호출 시 DOM 조작
-    document.querySelectorAll('#sidebar .icon-btn').forEach(btn => {
-        btn.classList.remove('selected');
-    });
-    
-    if (mode) {
-        const btn = document.getElementById(`btn-${mode}`);
-        if (btn) btn.classList.add('selected');
-    }
-}
-
-/**
- * Submenu 활성 상태 업데이트 (하위 호환)
- */
-function _updateSubmenuActiveState(mode, submode) {
-    const submenu = document.getElementById(`${mode}-submenu`);
-    if (!submenu) return;
-    
-    submenu.querySelectorAll('.submenu-item').forEach(item => {
-        item.classList.toggle('active', item.dataset.submode === submode);
-    });
-}
-
-/**
- * Sidebar 아이콘 활성화 (하위 호환)
- */
-function _enableSidebarIcons() {
-    // Sidebar.js가 있으면 위임
-    if (sidebarUI?.sidebar) {
-        sidebarUI.sidebar._updateButtonStates?.();
-        return;
-    }
-    
-    // 폴백
-    const icons = ['btn-monitoring', 'btn-analysis', 'btn-simulation'];
-    const wrappers = ['btn-monitoring-wrapper', 'btn-debug-wrapper'];
-    
-    icons.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.remove('disabled');
-    });
-    
-    wrappers.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.remove('disabled');
-    });
-    
-    const debugBtn = document.getElementById('btn-debug');
-    if (debugBtn) debugBtn.classList.remove('disabled');
-    
-    if (window.sidebarState?.devModeEnabled) {
-        const layoutWrapper = document.getElementById('btn-layout-wrapper');
-        const layoutBtn = document.getElementById('btn-layout');
-        if (layoutWrapper) {
-            layoutWrapper.classList.remove('hidden');
-            layoutWrapper.classList.remove('disabled');
-        }
-        if (layoutBtn) layoutBtn.classList.remove('disabled');
-    }
-}
-
-/**
- * Sidebar 아이콘 비활성화 (하위 호환)
- */
-function _disableSidebarIcons() {
-    // Sidebar.js가 있으면 위임
-    if (sidebarUI?.sidebar) {
-        sidebarUI.sidebar._updateButtonStates?.();
-        return;
-    }
-    
-    // 폴백
-    const icons = ['btn-monitoring', 'btn-analysis', 'btn-simulation', 'btn-layout'];
-    const wrappers = ['btn-monitoring-wrapper', 'btn-layout-wrapper'];
-    
-    icons.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('disabled');
-    });
-    
-    wrappers.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('disabled');
-    });
-    
-    if (!window.sidebarState?.devModeEnabled) {
-        const debugWrapper = document.getElementById('btn-debug-wrapper');
-        const debugBtn = document.getElementById('btn-debug');
-        if (debugWrapper) debugWrapper.classList.add('disabled');
-        if (debugBtn) debugBtn.classList.add('disabled');
-    }
-    
-    document.querySelectorAll('#sidebar .icon-btn').forEach(btn => {
-        btn.classList.remove('selected');
-    });
-}
-
-/**
- * Cover Screen 상태 업데이트 (하위 호환)
- */
-function _updateCoverStatus(apiConnected, dbConnected, dbName) {
-    // CoverScreen.js가 있으면 위임
-    if (sidebarUI?.coverScreen) {
-        sidebarUI.coverScreen.setApiConnected(apiConnected);
-        sidebarUI.coverScreen.setDbConnected(dbConnected, dbName);
-        return;
-    }
-    
-    // 폴백
-    const apiDot = document.getElementById('cover-api-dot');
-    const apiStatus = document.getElementById('cover-api-status');
-    const dbDot = document.getElementById('cover-db-dot');
-    const dbStatus = document.getElementById('cover-db-status');
-    
-    if (apiDot) {
-        apiDot.classList.toggle('connected', apiConnected);
-        apiDot.classList.toggle('disconnected', !apiConnected);
-    }
-    if (apiStatus) {
-        apiStatus.textContent = apiConnected ? 'Connected' : 'Disconnected';
-    }
-    
-    if (dbDot) {
-        dbDot.classList.toggle('connected', dbConnected);
-        dbDot.classList.toggle('disconnected', !dbConnected);
-    }
-    if (dbStatus) {
-        dbStatus.textContent = dbConnected ? (dbName || 'Connected') : 'Not Connected';
-    }
-}
-
-/**
- * Status Bar 연결 상태 업데이트 (하위 호환)
- */
-function _updateStatusBarConnection(apiConnected, dbConnected, siteId) {
-    // StatusBar.js가 있으면 위임
-    if (sidebarUI?.statusBar) {
-        sidebarUI.statusBar.setApiConnected(apiConnected);
-        sidebarUI.statusBar.setDbConnected(dbConnected, siteId);
-        return;
-    }
-    
-    // 폴백
-    const apiDot = document.getElementById('api-dot') || document.getElementById('backend-dot');
-    const apiValue = document.getElementById('api-value') || document.getElementById('backend-value');
-    const dbDot = document.getElementById('db-dot');
-    const dbValue = document.getElementById('db-value');
-    
-    if (apiDot) {
-        apiDot.classList.toggle('connected', apiConnected);
-        apiDot.classList.toggle('disconnected', !apiConnected);
-    }
-    if (apiValue) {
-        apiValue.textContent = apiConnected ? 'Connected' : 'Disconnected';
-    }
-    
-    if (dbDot) {
-        dbDot.classList.toggle('connected', dbConnected);
-        dbDot.classList.toggle('disconnected', !dbConnected);
-    }
-    if (dbValue) {
-        dbValue.textContent = siteId 
-            ? siteId.replace(/_/g, '-').toUpperCase() 
-            : 'None';
-    }
-}
-
-// ============================================
-// 유틸리티
-// ============================================
-
-/**
- * 딜레이 유틸리티
- * @private
- */
-function _delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * 🆕 v6.3.0: Phase 4 - 전역 객체 노출 (Scene 초기화 후)
- * 
- * migrateGlobalToNamespace() 사용으로 변경
- * USE_DEPRECATION_WARNINGS가 true면 Deprecation 래퍼 적용
- */
-function _exposeGlobalObjectsAfterSceneInit() {
-    const { 
-        sceneManager, equipmentLoader, cameraControls, cameraNavigator, 
-        interactionHandler, dataOverlay, statusVisualizer, 
-        performanceMonitor, adaptivePerformance 
-    } = services.scene || {};
-    
-    const { 
-        connectionModal, equipmentEditState, equipmentEditModal, 
-        equipmentEditButton, apiClient, equipmentInfoPanel, 
-        connectionStatusService, connectionIndicator 
-    } = services.ui || {};
-    
-    const { monitoringService, signalTowerManager } = services.monitoring || {};
-    const { equipmentMappingService } = services.mapping || {};
-    const { viewManager: servicesViewManager } = services.views || {};
-    
-    // ═══════════════════════════════════════════════════════════════════
-    // 1. APP 네임스페이스에 등록 (항상 수행)
-    // ═══════════════════════════════════════════════════════════════════
-    register('services.scene.sceneManager', sceneManager);
-    register('services.scene.equipmentLoader', equipmentLoader);
-    register('services.scene.cameraControls', cameraControls);
-    register('services.scene.cameraNavigator', cameraNavigator);
-    register('services.scene.interactionHandler', interactionHandler);
-    register('services.scene.dataOverlay', dataOverlay);
-    register('services.scene.statusVisualizer', statusVisualizer);
-    register('services.scene.performanceMonitor', performanceMonitor);
-    register('services.scene.adaptivePerformance', adaptivePerformance);
-    
-    register('services.monitoring.monitoringService', monitoringService);
-    register('services.monitoring.signalTowerManager', signalTowerManager);
-    
-    register('services.mapping.equipmentMappingService', equipmentMappingService);
-    
-    register('services.connection.connectionStatusService', connectionStatusService);
-    register('services.connection.apiClient', apiClient);
-    
-    register('ui.connectionModal', connectionModal);
-    register('ui.equipmentEditState', equipmentEditState);
-    register('ui.equipmentEditModal', equipmentEditModal);
-    register('ui.equipmentEditButton', equipmentEditButton);
-    register('ui.equipmentInfoPanel', equipmentInfoPanel);
-    register('ui.toast', toast);
-    register('ui.sidebar', sidebarUI?.sidebar);
-    register('ui.statusBar', sidebarUI?.statusBar);
-    register('ui.coverScreen', sidebarUI?.coverScreen);
-    
-    register('utils.storageService', storageService);
-
-    // ═══════════════════════════════════════════════════════════════════
-    // 2. 🆕 Phase 4: window.* 전역 노출 (Deprecation 래퍼 적용)
-    // ═══════════════════════════════════════════════════════════════════
-    const globalObjects = {
-        // Scene
-        sceneManager,
-        equipmentLoader,
-        cameraControls,
-        cameraNavigator,
-        interactionHandler,
-        dataOverlay,
-        statusVisualizer,
-        performanceMonitor,
-        adaptivePerformance,
-        
-        // UI
-        connectionModal,
-        equipmentEditState,
-        equipmentEditModal,
-        equipmentEditButton,
-        apiClient,
-        toast,
-        equipmentInfoPanel,
-        
-        // Connection
-        connectionStatusService,
-        connectionIndicator,
-        
-        // Monitoring
-        monitoringService,
-        signalTowerManager,
-        
-        // Mapping
-        equipmentMappingService,
-
-        // ViewManager
-        bootstrapViewManager,
-        VIEW_REGISTRY,
-        getView,
-        showView,
-        hideView,
-        toggleView,
-        destroyView,
-
-        // Core
-        appModeManager,
-        keyboardManager,
-        debugManager,
-        eventBus,
-        logger,
-        
-        // Layout
-        layout2DTo3DConverter,
-        roomParamsAdapter,
-        previewGenerator,
-        
-        // Storage
-        storageService,
-        // Sidebar UI
-        sidebarUI,     
-        
-        // 함수 노출
-        toggleAdaptivePerformance,
-        toggleEditMode,
-        toggleMonitoringMode,
-        toggleConnectionModal,
-        toggleDebugPanel,
-        toggleDevMode
-    };
-    
-    // 🆕 Phase 4: migrateGlobalToNamespace() 사용
-    const migrationResult = migrateGlobalToNamespace(globalObjects, {
-        useDeprecation: USE_DEPRECATION_WARNINGS,
-        pathMapping: LEGACY_MIGRATION_MAP,
-        silent: false  // 로그 출력
-    });
-    
-    // 🔧 Phase 4: viewManager는 sceneController 직접 참조 (Proxy 우회)
-    window.viewManager = sceneController;
-
-    console.log(`[main.js] Phase 4 Migration: deprecated=${migrationResult.deprecated}, exposed=${migrationResult.exposed}`);
-}
-
 
 // ============================================
 // 메인 초기화
@@ -1019,6 +600,34 @@ function init() {
         
         // 3. 🆕 v5.1.0: Sidebar UI 초기화 (동적 렌더링)
         initSidebarUI();
+
+        // 🆕 Phase 9: LegacyGlobals 컨텍스트 설정
+        setGlobalsContext({
+            toast,
+            appModeManager,
+            keyboardManager,
+            debugManager,
+            eventBus,
+            logger,
+            bootstrapViewManager,
+            VIEW_REGISTRY,
+            getView,
+            showView,
+            hideView,
+            toggleView,
+            destroyView,
+            layout2DTo3DConverter,
+            roomParamsAdapter,
+            previewGenerator: null,  // 나중에 설정됨
+            toggleAdaptivePerformance,
+            toggleEditMode,
+            toggleMonitoringMode,
+            toggleConnectionModal,
+            toggleDebugPanel,
+            toggleDevMode,
+            sidebarUI,
+            sceneController
+        });
         
         // 🆕 Phase 5: screenManager 참조 설정 (Sidebar UI 초기화 후)
         setScreenManagerRef(sceneController);
@@ -1053,7 +662,7 @@ function init() {
         sceneController.setAppModeManager(appModeManager);
         sceneController.setAppMode(APP_MODE);
         sceneController.setSidebarUI(sidebarUI);
-        sceneController.setExposeGlobalObjects(_exposeGlobalObjectsAfterSceneInit);
+        sceneController.setExposeGlobalObjects(exposeGlobalObjectsAfterSceneInit);
         
         console.log('[main.js] ✅ SceneController Bootstrap 사전 설정 완료');
 

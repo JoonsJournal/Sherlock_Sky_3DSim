@@ -3,12 +3,18 @@
  * =============
  * App 모듈 Barrel Export
  * 
- * @version 3.0.0
+ * @version 4.0.0
  * @description
  * - app/ 디렉토리의 모든 모듈을 단일 진입점에서 export
- * - main.js 리팩토링 Phase 1~11까지 점진적 확장 예정
+ * - main.js 리팩토링 Phase 1~11까지 점진적 확장
  * 
  * @changelog
+ * - v4.0.0: Phase 10 - AppInitializer 모듈 추가 (2026-01-26)
+ *           - AppInitializer 클래스 export
+ *           - appInitializer 싱글톤 export
+ *           - initApp 편의 함수 export
+ *           - debugAppInitializer 디버그 함수 export
+ *           - ⚠️ 호환성: main.js init() 100% 대체
  * - v3.0.0: Phase 3 - AppUtils 모듈 추가 (2026-01-25)
  *           - showToast, toggleTheme, closeConnectionModal export
  *           - canAccessFeatures export
@@ -31,10 +37,11 @@
  * - AppConfig.js: 전역 설정 및 상수
  * - AppState.js: 전역 상태 관리
  * - AppUtils.js: 전역 유틸리티 함수
+ * - AppInitializer.js: 초기화 오케스트레이터
  * 
  * 📁 위치: frontend/threejs_viewer/src/app/index.js
  * 작성일: 2026-01-25
- * 수정일: 2026-01-25
+ * 수정일: 2026-01-26
  */
 
 // ============================================
@@ -115,20 +122,21 @@ export {
 } from './AppUtils.js';
 
 // ============================================
-// 🔮 향후 추가 예정 (Phase 4~11)
+// 🆕 AppInitializer - 초기화 오케스트레이터 (Phase 10)
 // ============================================
-
-// Phase 4: AppEventBus - 이벤트 버스 통합
-// export { ... } from './AppEventBus.js';
-
-// Phase 5: AppFunctions - 전역 함수 관리 (Mode Toggle 등)
-// export { ... } from './AppFunctions.js';
-
-// Phase 6: AppModeManager - 모드 관리
-// export { ... } from './AppModeManager.js';
-
-// Phase 10: AppInitializer - 초기화 오케스트레이터
-// export { ... } from './AppInitializer.js';
+export {
+    // 클래스
+    AppInitializer,
+    
+    // 싱글톤 인스턴스
+    appInitializer,
+    
+    // 편의 함수
+    initApp,
+    
+    // 디버그
+    debugAppInitializer
+} from './AppInitializer.js';
 
 // ============================================
 // 통합 디버그 함수
@@ -138,6 +146,7 @@ export {
 import { debugAppConfig } from './AppConfig.js';
 import { debugAppState } from './AppState.js';
 import { debugAppUtils } from './AppUtils.js';
+import { debugAppInitializer } from './AppInitializer.js';
 
 /**
  * 모든 App 모듈 디버그 정보 출력 (동기 버전)
@@ -147,7 +156,7 @@ import { debugAppUtils } from './AppUtils.js';
  * debugApp();
  */
 export function debugApp() {
-    console.group('🚀 App Module Debug (v3.0.0)');
+    console.group('🚀 App Module Debug (v4.0.0)');
     
     // Phase 1: AppConfig
     debugAppConfig();
@@ -157,6 +166,9 @@ export function debugApp() {
     
     // Phase 3: AppUtils
     debugAppUtils();
+    
+    // Phase 10: AppInitializer
+    debugAppInitializer();
     
     console.groupEnd();
 }
@@ -169,7 +181,7 @@ export function debugApp() {
  * debugAppSync();
  */
 export function debugAppSync() {
-    console.group('🚀 App Module Debug (v3.0.0)');
+    console.group('🚀 App Module Debug (v4.0.0)');
     console.log('Phase 1: AppConfig');
     console.log('  - SITE_ID, RECOVERY_STRATEGIES, USE_DEPRECATION_WARNINGS');
     console.log('Phase 2: AppState');
@@ -177,6 +189,9 @@ export function debugAppSync() {
     console.log('Phase 3: AppUtils');
     console.log('  - showToast, toggleTheme, closeConnectionModal, canAccessFeatures');
     console.log('  - createPlaceholder, createDebugPlaceholder');
-    console.log('\n💡 상세 정보: debugAppConfig(), debugAppState(), debugAppUtils()');
+    console.log('Phase 10: AppInitializer');
+    console.log('  - appInitializer.init(), appInitializer.cleanup()');
+    console.log('  - 7단계 초기화 프로세스');
+    console.log('\n💡 상세 정보: debugAppConfig(), debugAppState(), debugAppUtils(), debugAppInitializer()');
     console.groupEnd();
 }

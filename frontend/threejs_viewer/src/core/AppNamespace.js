@@ -666,13 +666,55 @@ function getMigrationStatus() {
 
 /**
  * 등록된 항목 수 카운트 헬퍼
+ * 
+ * @version 1.3.1 - 순환 참조 감지 추가
  * @private
+ * @param {Object} obj - 카운트할 객체
+ * @param {number} count - 현재 카운트
+ * @param {WeakSet} [visited] - 방문한 객체 추적 (순환 참조 방지)
+ * @returns {number} 등록된 항목 수
  */
-function _countRegistered(obj, count = 0) {
+function _countRegistered(obj, count = 0, visited = new WeakSet()) {
+    // 순환 참조 체크
+    if (visited.has(obj)) {
+        return count;
+    }
+    
+    // 현재 객체를 방문 목록에 추가
+    if (typeof obj === 'object' && obj !== null) {
+        visited.add(obj);
+    }
+    
     for (const value of Object.values(obj)) {
         if (value !== null && value !== undefined) {
-            if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Map) && !(value instanceof Set)) {
-                count += _countRegistered(value, 0);
+            // 순환 참조 체크
+            if (typeof value === 'object' && visited.has(value)) {
+                continue;
+            }
+            
+            // 일반 객체만 재귀 (Array, Map, Set, DOM, Three.js 객체 제외)
+            if (
+                typeof value === 'object' && 
+                !Array.isArray(value) && 
+                !(value instanceof Map) && 
+                !(value instanceof Set) &&
+                !(value instanceof Element) &&           // DOM 요소 제외
+                !(value instanceof HTMLElement) &&       // HTML 요소 제외
+                !(value.isObject3D === true) &&          // Three.js Object3D 제외
+                !(value.isScene === true) &&             // Three.js Scene 제외
+                !(value.isCamera === true) &&            // Three.js Camera 제외
+                !(value.isRenderer === true) &&          // Three.js Renderer 제외
+                !(value.isMesh === true) &&              // Three.js Mesh 제외
+                !(value.isGroup === true) &&             // Three.js Group 제외
+                !(value.isMaterial === true) &&          // Three.js Material 제외
+                !(value.isGeometry === true) &&          // Three.js Geometry 제외
+                !(value.isBufferGeometry === true) &&    // Three.js BufferGeometry 제외
+                !(value.isTexture === true) &&           // Three.js Texture 제외
+                !value.constructor?.name?.includes('THREE') && // Three.js 관련 객체 제외
+                value.constructor?.name !== 'WebGLRenderer' && // WebGLRenderer 제외
+                Object.getPrototypeOf(value) === Object.prototype // 순수 Object만
+            ) {
+                count += _countRegistered(value, 0, visited);
             } else {
                 count++;
             }
