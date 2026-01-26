@@ -3,7 +3,7 @@
  * ==============
  * 개별 레인 컨테이너 컴포넌트
  * 
- * @version 1.1.1                             // ← 변경
+ * @version 1.1.2                         // ← 변경
  * @description
  * - 레인 DOM 생성 (헤더 + 스크롤 영역)
  * - EquipmentCard 인스턴스 관리
@@ -12,7 +12,12 @@
  * - Custom 레인 지원 (Phase 6)
  * 
  * @changelog
- * - v1.1.1: 🐛 BugFix - _findInsertIndex() DOM 순서 기반 정렬  // ← 추가
+ * - v1.1.2 (2026-01-26): 🐛 BugFix - clearCards() Ghost DOM 완전 정리
+ *   - _cards Map + _cardsContainer DOM 이중 정리
+ *   - AnimationManager가 직접 삽입한 DOM도 제거
+ *   - Ghost 누적 문제 해결
+ *   - ⚠️ 호환성: 기존 모든 기능 100% 유지
+ * - v1.1.1: 🐛 BugFix - _findInsertIndex() DOM 순서 기반 정렬
  *   - Map 순서가 아닌 DOM children 순서로 정렬 위치 계산
  *   - _getCardsInDOMOrder() 헬퍼 메서드 추가
  *   - 카드 이동 후 정렬 불일치 문제 해결
@@ -448,10 +453,19 @@ export class RankingLane {
     
     /**
      * 모든 카드 제거
+     * 🐛 v1.1.2 Fix: DOM 완전 정리 추가 (Ghost 방지)
      */
     clearCards() {
+        // 1. Map에 등록된 카드들 정리 (dispose 호출)
         this._cards.forEach(card => card.dispose());
         this._cards.clear();
+        
+        // 2. ✅ v1.1.2: DOM 완전 정리 (Map에 없는 Ghost 요소도 모두 제거)
+        if (this._cardsContainer) {
+            while (this._cardsContainer.firstChild) {
+                this._cardsContainer.removeChild(this._cardsContainer.firstChild);
+            }
+        }
         
         this._updateEmptyState();
         this._updateStats();

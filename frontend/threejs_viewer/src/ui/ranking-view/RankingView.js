@@ -3,7 +3,7 @@
  * ==============
  * Ranking View 메인 컨트롤러 (Orchestrator)
  * 
- * @version 1.7.0
+ * @version 1.7.1
  * @description
  * - 6개 레인 레이아웃 관리 (Remote, Sudden Stop, Stop, Run, Idle, Wait)
  * - 레인 컴포넌트 생성 및 조율
@@ -18,6 +18,11 @@
  * - 🆕 3D View 선택 동기화 강화
  * 
  * @changelog
+ * - v1.7.1 (2026-01-26): 🐛 BugFix - Ghost DOM 버그 수정
+ *   - _handleEquipmentMoved()에서 _cards Map 동기화 추가
+ *   - ranking-view-test.html과 동일한 로직 적용
+ *   - 애니메이션 완료 후 fromLane._cards.delete() + toLane._cards.set()
+ *   - ⚠️ 호환성: v1.7.0의 모든 기능 100% 유지
  * - v1.7.0: 🆕 레인 이동 개선 (Phase 4)
  *   - _handleEquipmentMoved() 로직 개선
  *   - 정렬 기준 기반 삽입 위치 계산 (calculateBatchInsertIndices 사용)
@@ -623,7 +628,12 @@ export class RankingView {
     }
     
     /**
-     * 🆕 v1.7.0: 설비 레인 이동 처리 (개선)
+     * 🆕 v1.7.1: 설비 레인 이동 처리 (Ghost 버그 수정)
+     * 
+     * 🐛 BugFix: 레인 이동 시 _cards Map 동기화 추가
+     *   - ranking-view-test.html과 동일한 로직 적용
+     *   - 애니메이션 완료 후 fromLane._cards.delete() + toLane._cards.set()
+     * 
      * @private
      * @param {Object} event
      */
@@ -666,6 +676,13 @@ export class RankingView {
                 // 애니메이션 + UI 업데이트
                 if (this._animationManager && fromLane && fromLane !== toLaneId) {
                     try {
+                        // ═══════════════════════════════════════════════════════
+                        // 🐛 v1.7.1 Fix: _cards Map 동기화 (테스트 코드와 동일)
+                        // ═══════════════════════════════════════════════════════
+                        const fromLaneComponent = this._lanes.get(fromLane);
+                        const toLaneComponent = this._lanes.get(toLaneId);
+                        const card = this._cardsMap.get(frontendId);
+                        
                         await this._animationManager.animateLaneChange(
                             frontendId,
                             fromLane,
@@ -678,6 +695,17 @@ export class RankingView {
                                 }
                             }
                         );
+                        
+                        // ✅ 핵심 수정: 애니메이션 완료 후 _cards Map 동기화
+                        if (fromLaneComponent && toLaneComponent && card) {
+                            fromLaneComponent._cards.delete(frontendId);
+                            toLaneComponent._cards.set(frontendId, card);
+                            fromLaneComponent._updateEmptyState();
+                            fromLaneComponent._updateStats();
+                            toLaneComponent._updateEmptyState();
+                            toLaneComponent._updateStats();
+                        }
+                        
                     } catch (error) {
                         console.warn(`[RankingView] ⚠️ 애니메이션 실패, fallback 처리:`, error);
                         this._moveCardWithoutAnimation(fromLane, toLaneId, equipmentId, equipment);
