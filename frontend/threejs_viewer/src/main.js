@@ -4,8 +4,17 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 8.1.0
+ * @version 8.2.0
  * @changelog
+ * - v8.2.0: 🔧 Phase 7 - UDS 및 Connection 이벤트 분리 (2026-01-26)
+ *           - setupConnectionEvents() → connection/ConnectionEventHandler.js
+ *           - setupNavigationControllerEvents() → connection/ConnectionEventHandler.js
+ *           - setupScreenManagerEvents() → connection/ConnectionEventHandler.js
+ *           - _initializeUDSAfterConnection() → uds/UDSInitializer.js
+ *           - _setupUDSEventListeners() → uds/UDSEventHandlers.js
+ *           - _convertUDSStatsToStatusBar() → uds/UDSEventHandlers.js
+ *           - 약 200줄 코드 감소
+ *           - ⚠️ 호환성: 기존 Connection/UDS 동작 100% 유지
  * - v8.1.0: 🔧 Phase 6 - 재연결 복구 분리 (2026-01-26)
  *           - setupReconnectionHandler() → connection/ReconnectionHandler.js
  *           - _executeRecoveryStrategy() → connection/ReconnectionHandler.js
@@ -302,12 +311,27 @@ import {
 import { unifiedDataStore, UnifiedDataStore } from './services/uds/index.js';
 
 // ============================================
-// 🆕 Phase 6: Connection 모듈 import
+// 🆕 Phase 6 & 7: Connection 모듈 import
 // ============================================
 import {
+    // Phase 6: 재연결 핸들러
     setupReconnectionHandler,
-    executeRecoveryStrategy
+    executeRecoveryStrategy,
+    
+    // 🆕 Phase 7: Connection 이벤트 핸들러
+    setupConnectionEvents,
+    setupNavigationControllerEvents,
+    setupScreenManagerEvents
 } from './connection/index.js';
+
+// ============================================
+// 🆕 Phase 7: UDS 모듈 import
+// ============================================
+import {
+    initializeUDSAfterConnection,
+    setupUDSEventListeners,
+    convertUDSStatsToStatusBar
+} from './uds/index.js';
 
 // ============================================
 // 전역 상태
@@ -565,247 +589,6 @@ async function _actionReconnectMappingApi() {
             console.warn('      ⚠️ Mapping API 헬스체크 실패:', e.message);
         }
     }
-}
-
-// ============================================
-// 🔌 Connection 이벤트 설정
-// ============================================
-
-function setupConnectionEvents() {
-    console.log('🔌 Connection 이벤트 설정 시작...');
-    
-    const connectionStatusService = services.ui?.connectionStatusService;
-    
-    if (connectionStatusService) {
-        connectionStatusService.onOnline((data) => {
-            console.log('[Connection] API Online:', data);
-            
-            // 🆕 v5.1.0: Sidebar.js가 자동으로 처리
-            // sidebarUI?.sidebar?.enableAfterConnection() 호출 불필요
-            
-            if (data.recoveredAfter > 0) {
-                window.showToast?.('Backend 연결 복구', 'success');
-            }
-        });
-        
-        connectionStatusService.onOffline(() => {
-            console.log('[Connection] API Offline');
-            
-            // 🆕 v5.1.0: Sidebar.js가 자동으로 처리
-            
-            window.sidebarState.isConnected = false;
-            window.showToast?.('Backend 연결 끊김', 'warning');
-        });
-    }
-    
-    // Site 연결 이벤트
-    eventBus.on('site:connected', async ({ siteId, siteName }) => {
-        console.log(`[Connection] Site Connected: ${siteId}`);
-        window.sidebarState.isConnected = true;
-        
-        // 🆕 v5.3.0: Site 연결 후 매핑 데이터 자동 로드
-        await _loadEquipmentMappingsAfterConnection(siteId);
-        
-        // 🆕 v7.1.0: UDS 초기화 (매핑 로드 후 실행)
-        await _initializeUDSAfterConnection(siteId);
-    });
-    
-    eventBus.on('site:disconnected', () => {
-        console.log('[Connection] Site Disconnected');
-        window.sidebarState.isConnected = false;
-    });
-    
-	// 🆕 v5.4.0: 재연결 복구 핸들러 설정
-    reconnectionCleanup = setupReconnectionHandler({ appModeManager });
-    
-    // 🆕 v7.1.0: UDS 이벤트 리스너 설정
-    _setupUDSEventListeners();
-    
-    console.log('✅ Connection 이벤트 설정 완료');
-}
-
-/**
- * 🆕 v7.1.1: UDS Stats → StatusBar 형식 변환
- * 
- * @param {Object} udsStats - UDS 통계 { RUN, IDLE, STOP, SUDDENSTOP, DISCONNECTED, TOTAL }
- * @param {number} [totalCount] - 전체 설비 수 (없으면 udsStats.TOTAL 사용)
- * @returns {Object} StatusBar 형식 통계
- */
-function _convertUDSStatsToStatusBar(udsStats, totalCount = null) {
-    const total = totalCount || udsStats.TOTAL || 0;
-    const disconnected = udsStats.DISCONNECTED || 0;
-    const connected = total - disconnected;
-    
-    return {
-        // StatusBar 기본 필드
-        total: total,
-        mapped: total,           // UDS에서 로드된 설비는 모두 매핑됨
-        unmapped: 0,             // 미매핑 없음
-        rate: total > 0 ? 100 : 0,  // 매핑 완료율 100%
-        connected: connected,
-        disconnected: disconnected,
-        
-        // 🔧 v7.1.2: StatusBar가 기대하는 형식 (소문자 + statusCounts 객체)
-        statusCounts: {
-            run: udsStats.RUN || 0,
-            idle: udsStats.IDLE || 0,
-            stop: udsStats.STOP || 0,
-            suddenstop: udsStats.SUDDENSTOP || 0,
-            disconnected: disconnected
-        }
-    };
-}
-
-/**
- * 🆕 v7.1.0: Site 연결 후 UDS 초기화
- * 
- * 1. UDS 초기 데이터 로드 (117개 설비)
- * 2. WebSocket Delta 연결
- * 3. SignalTower 초기화
- * 4. StatusBar Stats 연동
- * 
- * @private
- * @param {string} siteId - 연결된 Site ID
- */
-async function _initializeUDSAfterConnection(siteId) {
-    console.log('🚀 [UDS] Site 연결 후 UDS 초기화 시작...');
-    
-    try {
-        // ─────────────────────────────────────────────────────────────────────────
-        // Step 1: UDS 초기화 (초기 데이터 로드 + WebSocket 연결)
-        // ─────────────────────────────────────────────────────────────────────────
-        const equipments = await unifiedDataStore.initialize({
-            siteId: 1,
-            lineId: 1
-        });
-        
-        console.log(`✅ [UDS] 초기 데이터 로드 완료: ${equipments.length}개 설비`);
-        
-        // ─────────────────────────────────────────────────────────────────────────
-        // Step 2: SignalTower 초기화 (UDS 데이터로)
-        // ─────────────────────────────────────────────────────────────────────────
-        const signalTowerManager = services.monitoring?.signalTowerManager;
-        
-        if (signalTowerManager) {
-            const result = signalTowerManager.initializeFromUDS(equipments);
-            console.log(`✅ [UDS] SignalTower 초기화: ${result.updated}개 업데이트`);
-        }
-        
-		// Step 3: StatusBar Stats 초기 업데이트
-        // 🔧 v7.1.1: UDS 형식 → StatusBar 형식 변환
-        const udsStats = unifiedDataStore.getStatusStats();
-        const statusBarStats = _convertUDSStatsToStatusBar(udsStats, equipments.length);
-        eventBus.emit('monitoring:stats-update', statusBarStats);
-        
-        console.log(`✅ [UDS] StatusBar Stats 업데이트:`, statusBarStats);
-        
-        // Toast 알림
-        window.showToast?.(`UDS 연동 완료 (${equipments.length}개 설비)`, 'success');
-        
-    } catch (error) {
-        console.error('❌ [UDS] 초기화 실패:', error);
-        window.showToast?.('UDS 초기화 실패 - Legacy 모드 사용', 'warning');
-        
-        // 실패해도 기존 Legacy 방식으로 동작 가능
-    }
-}
-
-/**
- * 🆕 v7.1.0: UDS Delta Update → SignalTower 연동
- * 
- * setupConnectionEvents()에서 호출됨
- */
-function _setupUDSEventListeners() {
-    // ─────────────────────────────────────────────────────────────────────────
-    // UDS Delta 수신 시 SignalTower 업데이트
-    // ─────────────────────────────────────────────────────────────────────────
-    eventBus.on(UnifiedDataStore.EVENTS.EQUIPMENT_UPDATED, (event) => {
-        const { frontendId, changes } = event;
-        
-        const signalTowerManager = services.monitoring?.signalTowerManager;
-        if (signalTowerManager && changes.status) {
-            signalTowerManager.updateFromUDSDelta(frontendId, changes);
-        }
-    });
-    
-    // ─────────────────────────────────────────────────────────────────────────
-    // UDS 통계 변경 시 StatusBar 업데이트
-    // ─────────────────────────────────────────────────────────────────────────
-	eventBus.on(UnifiedDataStore.EVENTS.STATS_UPDATED, (event) => {
-        // 🔧 v7.1.1: UDS 형식 → StatusBar 형식 변환
-        const statusBarStats = _convertUDSStatsToStatusBar(event.stats);
-        eventBus.emit('monitoring:stats-update', statusBarStats);
-    });
-    
-    // ─────────────────────────────────────────────────────────────────────────
-    // UDS 배치 업데이트 완료 시 로그
-    // ─────────────────────────────────────────────────────────────────────────
-    eventBus.on(UnifiedDataStore.EVENTS.BATCH_UPDATED, (event) => {
-        console.log(`📦 [UDS] 배치 업데이트 완료: ${event.count}개`);
-    });
-    
-    console.log('✅ [UDS] 이벤트 리스너 설정 완료');
-}
-
-/**
- * 🆕 v7.0.0: NavigationController 이벤트 설정
- * 
- * NavigationController의 이벤트를 받아 UI 업데이트 수행
- */
-function setupNavigationControllerEvents() {
-    console.log('🧭 NavigationController 이벤트 설정 시작...');
-    
-    // ─────────────────────────────────────────────────────────────────────────
-    // navigation:complete → UI 업데이트
-    // ─────────────────────────────────────────────────────────────────────────
-    eventBus.on('navigation:complete', ({ state, previousState }) => {
-        console.log(`[Navigation] ✅ 완료: ${state.mode}/${state.submode || 'none'}`);
-        
-        // ModeIndicator 업데이트
-        const modeLabel = state.mode === NAV_MODE.MAIN_VIEWER ? null : state.mode;
-        updateModeIndicator(modeLabel, state.submode);
-        
-        // Toast 알림 (홈으로 돌아가는 경우 제외)
-        if (state.mode !== NAV_MODE.MAIN_VIEWER) {
-            const submodeLabel = state.submode || 'default';
-            window.showToast?.(`${state.mode}: ${submodeLabel}`, 'info');
-        }
-    });
-    
-    // ─────────────────────────────────────────────────────────────────────────
-    // navigation:blocked → 경고 메시지
-    // ─────────────────────────────────────────────────────────────────────────
-    eventBus.on('navigation:blocked', ({ mode, reason }) => {
-        console.warn(`[Navigation] ⚠️ 차단: ${mode} - ${reason}`);
-        
-        if (reason === 'connection_required') {
-            window.showToast?.('Connect DB or enable Dev Mode first', 'warning');
-        }
-    });
-    
-    // ─────────────────────────────────────────────────────────────────────────
-    // navigation:error → 에러 메시지
-    // ─────────────────────────────────────────────────────────────────────────
-    eventBus.on('navigation:error', ({ error }) => {
-        console.error('[Navigation] ❌ 에러:', error);
-        window.showToast?.('Navigation failed', 'error');
-    });
-    
-    console.log('  ✅ NavigationController 이벤트 설정 완료');
-}
-/**
- * SceneController 이벤트 연결
- * 
- * @version 8.0.0 (Phase 4)
- * @description SceneController.setupEventHandlers()로 위임
- */
-function setupScreenManagerEvents() {
-    console.log('🖥️ SceneController 이벤트 연결 시작...');
-    
-    // SceneController가 자체적으로 이벤트 핸들링
-    sceneController.setupEventHandlers();
-    
-    console.log('  ✅ SceneController 이벤트 연결 완료');
 }
 
 /*
@@ -1606,8 +1389,11 @@ function init() {
         // 5. Equipment AutoSave 초기화
         initEquipmentAutoSave(services.ui?.equipmentEditState);
         
-        // 6. Connection 이벤트 설정
-        setupConnectionEvents();
+        // 6. Connection 이벤트 설정 (🆕 Phase 7: 모듈화)
+        reconnectionCleanup = setupConnectionEvents({
+            appModeManager,
+            loadEquipmentMappings: _loadEquipmentMappingsAfterConnection
+        });
 
         // 🆕 v7.0.0: NavigationController 이벤트 설정
         setupNavigationControllerEvents();
@@ -1856,9 +1642,16 @@ function showInitError(error) {
 // ============================================
 
 function handleCleanup() {
-    // 🆕 v5.4.0: 재연결 핸들러 정리
+    // 🆕 Phase 7: Connection 모듈 정리
     if (reconnectionCleanup) {
-        reconnectionCleanup();
+        // reconnection 정리
+        if (typeof reconnectionCleanup.reconnection === 'function') {
+            reconnectionCleanup.reconnection();
+        }
+        // UDS 정리
+        if (typeof reconnectionCleanup.uds === 'function') {
+            reconnectionCleanup.uds();
+        }
         reconnectionCleanup = null;
     }
     
