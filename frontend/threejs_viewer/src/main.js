@@ -4,8 +4,16 @@
  * 
  * 메인 애플리케이션 진입점 (Cleanroom Sidebar Theme 통합)
  * 
- * @version 8.2.0
+ * @version 8.3.0                      // ← 버전 업데이트!
  * @changelog
+ * - v8.3.0: 🔧 Phase 8 - Mapping 및 AutoSave 분리 (2026-01-26)
+ *           - initMappingServices() → mapping/MappingInitializer.js
+ *           - _loadEquipmentMappingsAfterConnection() → mapping/MappingLoader.js
+ *           - _fallbackToLocalMappings() → mapping/MappingLoader.js
+ *           - initEquipmentAutoSave() → autosave/EquipmentAutoSave.js
+ *           - showEquipmentRecoveryDialog() → autosave/RecoveryDialog.js
+ *           - 약 280줄 코드 감소
+ *           - ⚠️ 호환성: 기존 Mapping/AutoSave 동작 100% 유지
  * - v8.2.0: 🔧 Phase 7 - UDS 및 Connection 이벤트 분리 (2026-01-26)
  *           - setupConnectionEvents() → connection/ConnectionEventHandler.js
  *           - setupNavigationControllerEvents() → connection/ConnectionEventHandler.js
@@ -334,6 +342,32 @@ import {
 } from './uds/index.js';
 
 // ============================================
+// 🆕 Phase 8: Mapping 및 AutoSave 모듈 import
+// ============================================
+import {
+    // Mapping 초기화
+    initMappingServices,
+    getMappingServiceStatus,
+    cleanupMappingServices,
+    
+    // Mapping 로드
+    loadEquipmentMappingsAfterConnection,
+    fallbackToLocalMappings,
+    forceRefreshMappings
+} from './mapping/index.js';
+
+import {
+    // AutoSave 관리
+    initEquipmentAutoSave,
+    stopEquipmentAutoSave,
+    getAutoSaveStatus,
+    
+    // 복구 다이얼로그
+    showEquipmentRecoveryDialog,
+    closeEquipmentRecoveryDialog
+} from './autosave/index.js';
+
+// ============================================
 // 전역 상태
 // ============================================
 let animationFrameId;
@@ -589,324 +623,6 @@ async function _actionReconnectMappingApi() {
             console.warn('      ⚠️ Mapping API 헬스체크 실패:', e.message);
         }
     }
-}
-
-/*
-// ============================================
-// 🆕 v5.5.0: Mapping 서비스 초기화
-// ============================================
-
-/**
- * 🆕 v5.5.0: Mapping 서비스 초기화
- * Site 연결 후 또는 Three.js 초기화 시 호출
- * 
- * @param {Object} options - 초기화 옵션
- * @param {Object} options.apiClient - ApiClient 인스턴스
- * @param {Object} options.equipmentEditState - EquipmentEditState 인스턴스
- * @param {Object} options.eventBus - EventBus 인스턴스
- * @param {string} [options.siteId] - 현재 사이트 ID
- * @returns {Promise<EquipmentMappingService>}
- */
-async function initMappingServices(options = {}) {
-    const { apiClient, equipmentEditState, eventBus: eb, siteId } = options;
-    
-    console.log('🔧 Mapping 서비스 초기화 시작...');
-    
-    // 동적 import
-    const { EquipmentMappingService } = await import('./services/mapping/EquipmentMappingService.js');
-    
-    // EquipmentMappingService 인스턴스 생성
-    services.mapping.equipmentMappingService = new EquipmentMappingService({
-        apiClient: apiClient || services.ui?.apiClient,
-        editState: equipmentEditState || services.ui?.equipmentEditState,
-        eventBus: eb || eventBus,
-        siteId: siteId || null,
-        apiBaseUrl: null  // 자동 감지
-    });
-    
-    console.log('  ✅ EquipmentMappingService 생성 완료');
-    
-    // 전역 노출
-    window.equipmentMappingService = services.mapping.equipmentMappingService;
-    
-    return services.mapping.equipmentMappingService;
-}
-
-/*
-/**
- * 🆕 v5.6.0: Site 연결 후 매핑 데이터 로드 (API 우선 방식)
- * 
- * ⭐ v5.6.0 변경: "항상 API 우선" 전략 적용
- * - 기존: 로컬 데이터 있으면 스킵 → Origin 격리 문제 발생
- * - 변경: 항상 API에서 로드 시도, 실패 시 로컬 폴백
- * 
- * @private
- * @param {string} siteId - 연결된 Site ID
- */
-async function _loadEquipmentMappingsAfterConnection(siteId) {
-    const equipmentEditState = services.ui?.equipmentEditState;
-    const apiClient = services.ui?.apiClient;
-    
-    // 의존성 확인
-    if (!equipmentEditState) {
-        console.warn('[Connection] EquipmentEditState not available - skipping mapping load');
-        return;
-    }
-    
-    if (!apiClient) {
-        console.warn('[Connection] ApiClient not available - skipping mapping load');
-        return;
-    }
-    
-    // 🆕 v5.6.0: 로컬 상태 백업 (폴백용)
-    const localStatus = equipmentEditState.getMappingsStatus?.() || { isEmpty: true, count: 0 };
-    console.log(`[Connection] Local mappings: ${localStatus.count}개 (폴백용 백업)`);
-    
-    try {
-        console.log(`📡 Loading equipment mappings for site: ${siteId} (API 우선)`);
-        
-        // EquipmentMappingService 초기화 (없으면)
-        if (!services.mapping.equipmentMappingService) {
-            await initMappingServices({
-                apiClient,
-                equipmentEditState,
-                eventBus,
-                siteId
-            });
-        }
-        
-        const mappingService = services.mapping.equipmentMappingService;
-        
-        // 🆕 v5.6.0: 항상 API에서 로드 시도 (forceRefresh: true)
-        const result = await mappingService.loadMappingsForSite(siteId, {
-            forceRefresh: true,       // 🔧 항상 서버에서 최신 데이터 로드
-            applyToEditState: true    // 자동으로 EditState에 적용
-        });
-        
-        if (result.connected && result.count > 0) {
-            console.log(`✅ Equipment mappings loaded from API: ${result.count}개`);
-            window.showToast?.(`${result.count}개 설비 매핑 로드됨 (서버)`, 'success');
-            
-            // MonitoringService에 매핑 갱신 알림 (활성 상태인 경우)
-            if (services.monitoring?.monitoringService?.isActive) {
-                console.log('[Connection] Notifying MonitoringService of mapping update');
-                services.monitoring.monitoringService.refreshMappingState?.();
-            }
-            
-            // 이벤트 발행
-            eventBus.emit('mapping:loaded', {
-                siteId,
-                count: result.count,
-                source: 'api',
-                timestamp: new Date().toISOString()
-            });
-            
-        } else if (result.connected && result.count === 0) {
-            console.log('ℹ️ No equipment mappings on server');
-            
-            // 🆕 v5.6.0: 서버에 데이터 없으면 로컬 데이터 유지
-            if (!localStatus.isEmpty) {
-                console.log(`[Connection] 서버에 매핑 없음 - 로컬 데이터 유지 (${localStatus.count}개)`);
-                window.showToast?.(`로컬 매핑 데이터 사용 (${localStatus.count}개)`, 'info');
-            }
-            
-        } else {
-            // 🆕 v5.6.0: API 연결 실패 시 로컬 폴백
-            console.warn(`⚠️ API load failed: ${result.message || 'Unknown error'}`);
-            _fallbackToLocalMappings(localStatus, siteId);
-        }
-        
-    } catch (error) {
-        console.error('❌ Error loading equipment mappings:', error);
-        
-        // 🆕 v5.6.0: 예외 발생 시 로컬 폴백
-        _fallbackToLocalMappings(localStatus, siteId);
-        
-        // 이벤트 발행
-        eventBus.emit('mapping:load-error', {
-            siteId,
-            error: error.message,
-            fallbackUsed: !localStatus.isEmpty,
-            timestamp: new Date().toISOString()
-        });
-    }
-}
-
-/**
- * 🆕 v5.6.0: 로컬 매핑 데이터로 폴백
- * @private
- * @param {Object} localStatus - 로컬 매핑 상태
- * @param {string} siteId - Site ID
- */
-function _fallbackToLocalMappings(localStatus, siteId) {
-    if (!localStatus.isEmpty && localStatus.count > 0) {
-        console.log(`[Connection] 📂 로컬 폴백 사용: ${localStatus.count}개 매핑`);
-        window.showToast?.(`로컬 매핑 데이터 사용 (${localStatus.count}개)`, 'warning');
-        
-        // 이벤트 발행
-        eventBus.emit('mapping:loaded', {
-            siteId,
-            count: localStatus.count,
-            source: 'local-fallback',
-            timestamp: new Date().toISOString()
-        });
-    } else {
-        console.warn('[Connection] ⚠️ 로컬 매핑 데이터도 없음 - 매핑 없이 진행');
-        window.showToast?.('매핑 데이터를 찾을 수 없습니다', 'error');
-        
-        // 이벤트 발행
-        eventBus.emit('mapping:not-found', {
-            siteId,
-            timestamp: new Date().toISOString()
-        });
-    }
-}
-
-// ============================================
-// Equipment AutoSave 관련 (기존 유지)
-// ============================================
-
-function showEquipmentRecoveryDialog(recoveryData) {
-    const autoSaveMeta = recoveryData._autoSave;
-    const savedAt = autoSaveMeta?.savedAt ? new Date(autoSaveMeta.savedAt) : new Date();
-    const mappingCount = recoveryData.mappingCount || Object.keys(recoveryData.mappings || {}).length;
-    
-    const diffMs = Date.now() - savedAt.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    let timeAgo = '방금 전';
-    if (diffMins >= 60) {
-        timeAgo = `${diffHours}시간 전`;
-    } else if (diffMins >= 1) {
-        timeAgo = `${diffMins}분 전`;
-    }
-    
-    const dialog = document.createElement('div');
-    dialog.id = 'equipment-recovery-dialog';
-    dialog.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-        animation: fadeIn 0.3s ease;
-    `;
-    
-    dialog.innerHTML = `
-        <div style="
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            max-width: 420px;
-            width: 90%;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-        ">
-            <h3 style="margin: 0 0 16px 0; color: #2c3e50; font-size: 18px;">
-                🔄 저장되지 않은 Equipment 매핑 발견
-            </h3>
-            
-            <div style="
-                background: #f8f9fa;
-                border-radius: 8px;
-                padding: 16px;
-                margin-bottom: 20px;
-            ">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: #6c757d;">저장 시간:</span>
-                    <span style="color: #2c3e50; font-weight: 500;">${savedAt.toLocaleString()}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span style="color: #6c757d;">경과 시간:</span>
-                    <span style="color: #e67e22; font-weight: 500;">${timeAgo}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span style="color: #6c757d;">매핑 수:</span>
-                    <span style="color: #27ae60; font-weight: 500;">${mappingCount}개</span>
-                </div>
-            </div>
-            
-            <p style="color: #6c757d; font-size: 14px; margin-bottom: 20px;">
-                이전 세션에서 자동 저장된 Equipment 매핑 데이터가 있습니다.
-                복구하시겠습니까?
-            </p>
-            
-            <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                <button id="recovery-discard-btn" style="
-                    padding: 10px 20px;
-                    border: 1px solid #dee2e6;
-                    background: white;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    color: #6c757d;
-                ">삭제</button>
-                <button id="recovery-apply-btn" style="
-                    padding: 10px 20px;
-                    border: none;
-                    background: #3498db;
-                    color: white;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    font-weight: 500;
-                ">복구</button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(dialog);
-    
-    document.getElementById('recovery-apply-btn').onclick = () => {
-        if (services.ui?.equipmentEditState) {
-            services.ui.equipmentEditState.applyAutoSaveRecovery(recoveryData);
-            services.ui.equipmentEditState.clearAutoSaveRecovery(storageService);
-            window.showToast?.('✅ Equipment 매핑 복구 완료!', 'success');
-        }
-        dialog.remove();
-    };
-    
-    document.getElementById('recovery-discard-btn').onclick = () => {
-        if (services.ui?.equipmentEditState) {
-            services.ui.equipmentEditState.clearAutoSaveRecovery(storageService);
-            window.showToast?.('AutoSave 데이터 삭제됨', 'info');
-        }
-        dialog.remove();
-    };
-}
-
-function initEquipmentAutoSave(equipmentEditState) {
-    if (!equipmentEditState) {
-        console.warn('[main.js] EquipmentEditState가 없습니다. AutoSave 건너뜀.');
-        return;
-    }
-    
-    const recoveryData = equipmentEditState.checkAutoSaveRecovery(storageService);
-    
-    if (recoveryData) {
-        showEquipmentRecoveryDialog(recoveryData);
-    }
-    
-    equipmentEditState.initAutoSave(storageService, SITE_ID);
-    
-    eventBus.on('autosave:complete', (data) => {
-        if (data.namespace === 'equipment') {
-            console.log('[Equipment AutoSave] 저장 완료:', data.timestamp);
-        }
-    });
-    
-    eventBus.on('autosave:error', (data) => {
-        if (data.namespace === 'equipment') {
-            console.error('[Equipment AutoSave] 저장 실패:', data.error);
-            window.showToast?.('⚠️ Equipment AutoSave 실패', 'warning');
-        }
-    });
-    
-    console.log(`✅ Equipment AutoSave 초기화 완료 - siteId: ${SITE_ID}`);
 }
 
 // ============================================
@@ -1392,7 +1108,7 @@ function init() {
         // 6. Connection 이벤트 설정 (🆕 Phase 7: 모듈화)
         reconnectionCleanup = setupConnectionEvents({
             appModeManager,
-            loadEquipmentMappings: _loadEquipmentMappingsAfterConnection
+            loadEquipmentMappings: loadEquipmentMappingsAfterConnection  // ← 언더스코어 제거!
         });
 
         // 🆕 v7.0.0: NavigationController 이벤트 설정
@@ -1655,11 +1371,8 @@ function handleCleanup() {
         reconnectionCleanup = null;
     }
     
-    // 🆕 v5.5.0: Mapping 서비스 정리
-    if (services.mapping?.equipmentMappingService) {
-        services.mapping.equipmentMappingService.clearCache();
-        services.mapping.equipmentMappingService = null;
-    }
+    // 🆕 Phase 8: Mapping 서비스 정리 (모듈화)
+    cleanupMappingServices();
 
         // 🆕 v5.7.0: ViewManager 정리
     if (bootstrapViewManager) {
@@ -1667,10 +1380,8 @@ function handleCleanup() {
         console.log('  🗑️ ViewManager 정리 완료');
     }
 
-    // Equipment AutoSave 중지
-    if (services.ui?.equipmentEditState) {
-        services.ui.equipmentEditState.stopAutoSave();
-    }
+    // 🆕 Phase 8: Equipment AutoSave 중지 (모듈화)
+    stopEquipmentAutoSave(services.ui?.equipmentEditState);
     
     // EquipmentInfoPanel 정리
     if (services.ui?.equipmentInfoPanel) {
