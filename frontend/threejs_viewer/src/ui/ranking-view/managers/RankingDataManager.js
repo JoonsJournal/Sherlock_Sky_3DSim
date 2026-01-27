@@ -3,7 +3,7 @@
  * =====================
  * Ranking View 데이터 가공 및 레인 할당 매니저
  * 
- * @version 2.2.0
+ * @version 2.3.0
  * @description
  * - 🆕 UDS (Unified Data Store) 연동 지원
  * - WebSocket 데이터 수신 및 가공
@@ -18,6 +18,10 @@
  * - 🆕 v2.1.0: 3D View 동기화 강화
  * 
  * @changelog
+ * - v2.3.0 (2026-01-27): 🔄 Lot 없는 설비도 Status 기반 레인 배치
+ *   - determineLane()에서 isProducing 우선 조건 제거
+ *   - Status가 있으면 해당 레인으로 배치 (생산량 0)
+ *   - WAIT 레인은 Status가 없거나 UNKNOWN인 경우만
  * - v2.2.0 (2026-01-23): Phase 1 - 레인 이동 개선 (삽입 위치 계산)
  *   - 🆕 LANE_CONFIG 상수 추가 (sortBy, sortOrder 포함)
  *   - 🆕 calculateInsertIndex(): 단일 설비 삽입 위치 계산
@@ -1272,24 +1276,25 @@ export class RankingDataManager {
      * 설비의 레인 결정
      * 설비 상태와 알람 코드에 따라 적절한 레인 할당
      * 
+     * 🔄 v2.3.0 변경: Lot 없어도 Status 기반으로 레인 결정
+     * 
      * 우선순위:
-     * 1. 비생산 상태 → WAIT
-     * 2. SUDDENSTOP + Remote Alarm → REMOTE
-     * 3. SUDDENSTOP + 일반 Alarm → SUDDEN_STOP
-     * 4. 기타 상태 → 해당 상태 레인
+     * 1. SUDDENSTOP + Remote Alarm → REMOTE
+     * 2. SUDDENSTOP + 일반 Alarm → SUDDEN_STOP
+     * 3. 상태별 레인 (RUN/STOP/IDLE)
+     * 4. 상태 없음 or UNKNOWN → WAIT
+     * 
+     * ⚠️ Lot이 없어도 Status가 있으면 해당 레인으로 배치 (생산량 0으로 표시)
      * 
      * @param {Object} equipment - 가공된 설비 데이터
      * @returns {string} 레인 ID
      */
     determineLane(equipment) {
-        const { status, alarmCode, isProducing } = equipment;
+        const { status, alarmCode } = equipment;
         
-        // 1. 비생산 상태 → WAIT 레인
-        if (!isProducing) {
-            return RankingDataManager.LANE_IDS.WAIT;
-        }
+        // 🔄 v2.3.0: isProducing 체크 제거 - Status 기반으로만 판단
         
-        // 2. SUDDENSTOP 상태 처리
+        // 1. SUDDENSTOP 상태 처리
         if (status === RankingDataManager.STATUS.SUDDENSTOP) {
             // Remote Alarm Code 체크
             if (alarmCode && RankingDataManager.REMOTE_ALARM_CODES.has(alarmCode)) {
@@ -1299,7 +1304,7 @@ export class RankingDataManager {
             return RankingDataManager.LANE_IDS.SUDDEN_STOP;
         }
         
-        // 3. 기타 상태별 레인 결정
+        // 2. 상태별 레인 결정 (Lot 유무와 무관!)
         switch (status) {
             case RankingDataManager.STATUS.RUN:
                 return RankingDataManager.LANE_IDS.RUN;
@@ -1314,7 +1319,12 @@ export class RankingDataManager {
                 // ERROR는 SUDDEN_STOP으로 처리
                 return RankingDataManager.LANE_IDS.SUDDEN_STOP;
                 
+            // 3. 상태 없음, UNKNOWN, 명시적 WAIT → WAIT 레인
             default:
+                // Status가 없거나 UNKNOWN인 경우만 WAIT
+                if (!status || status === 'UNKNOWN' || status === 'WAIT') {
+                    return RankingDataManager.LANE_IDS.WAIT;
+                }
                 console.warn(`[RankingDataManager] ⚠️ Unknown status: ${status}`);
                 return RankingDataManager.LANE_IDS.WAIT;
         }
