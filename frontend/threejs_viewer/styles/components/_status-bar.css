@@ -705,3 +705,20 @@
         display: none;
     }
 }
+
+/* =============================================
+   🆕 v2.6.0: Status Icon 깜빡임 애니메이션
+   SuddenStop 이모지(🛑)에 적용하여 Stop과 구분
+   ============================================= */
+.status-icon-blink {
+    animation: icon-blink 0.5s infinite;
+}
+
+@keyframes icon-blink {
+    0%, 49% {
+        opacity: 1;
+    }
+    50%, 100% {
+        opacity: 0.3;
+    }
+}

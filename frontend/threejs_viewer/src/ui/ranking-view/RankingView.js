@@ -108,7 +108,7 @@ const LANE_CONFIG = [
     {
         id: 'sudden-stop',
         name: 'Sudden Stop',
-        icon: '⚠️',
+        icon: '🛑',  // ✅ 변경: Stop과 동일 (CSS 깜빡임으로 구분)
         description: '급정지 상태 설비',
         sortKey: 'duration',
         sortOrder: 'desc'

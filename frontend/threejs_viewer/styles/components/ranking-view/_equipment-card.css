@@ -604,3 +604,19 @@
 .equipment-card.active {
     border-color: var(--interactive-primary-normal);
 }
+
+/* =============================================
+   🆕 v2.6.0: Sudden Stop Card 이모지 깜빡임
+   ============================================= */
+.equipment-card--sudden-stop .equipment-card__status-indicator {
+    animation: card-icon-blink 0.5s infinite;
+}
+
+@keyframes card-icon-blink {
+    0%, 49% {
+        opacity: 1;
+    }
+    50%, 100% {
+        opacity: 0.3;
+    }
+}

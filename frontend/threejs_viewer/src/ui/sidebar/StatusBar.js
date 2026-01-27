@@ -5,11 +5,16 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 2.5.0
+ * @version 2.6.0
  * @created 2026-01-11
  * @updated 2026-01-21
  * 
  * @changelog
+ *  * - v2.6.0: 🆕 이모지 아이콘 추가, RankingView와 통일 (2026-01-27)
+ *           - STATUS_ICONS 상수 추가
+ *           - 각 상태 dot 옆에 이모지 표시
+ *           - 7개 상태: Remote(🔴), SuddenStop(🛑깜빡임), Stop(🛑), Idle(🟡), Run(🟢), Wait(⏸️), Disconnected(⚪)
+ *           - SuddenStop은 🛑 이모지 + 깜빡임 애니메이션으로 Stop과 구분
  * - v2.5.0: 🆕 상태 7개로 확장, RankingView Lane 순서 동기화 (2026-01-27)
  *           - Remote, Wait 상태 추가
  *           - 순서: Remote → SuddenStop → Stop → Idle → RUN → Wait → Disconnect
@@ -68,6 +73,21 @@ import { StatusBarPerformanceCompact } from '../statusbar/StatusBarPerformanceCo
 // ============================================
 
 const STATUS_UPDATE_INTERVAL = 2000; // 2초마다 업데이트
+
+/**
+ * 🆕 v2.6.0: 상태별 이모지 아이콘 (RankingView와 통일)
+ * SuddenStop과 Stop은 동일한 🛑 이모지 사용 (CSS 애니메이션으로 구분)
+ */
+const STATUS_ICONS = {
+    REMOTE: '🔴',
+    SUDDENSTOP: '🛑',    // Stop과 동일, CSS 깜빡임으로 구분
+    STOP: '🛑',
+    IDLE: '🟡',
+    RUN: '🟢',
+    WAIT: '⏸️',
+    DISCONNECTED: '⚪',
+    DEFAULT: '⚪'
+};
 
 /** 🆕 v2.2.0: Monitoring Stats 표시 조건 */
 const MONITORING_STATS_VISIBLE_SUBMODES = ['3d-view', 'ranking-view'];
@@ -253,44 +273,51 @@ export class StatusBar {
                 <!-- 구분선 -->
                 <div class="monitoring-stats-divider"></div>
 
-                <!-- 🆕 v2.5.0: REMOTE 상태 (보라색) -->
+                <!-- 🔧 v2.6.0: REMOTE 상태 (보라색) + 이모지 -->
                 <div class="status-item monitoring-stat-item status-remote">
+                    <span class="monitoring-stat-icon">${STATUS_ICONS.REMOTE}</span>
                     <span class="status-indicator-dot remote"></span>
                     <span class="monitoring-stat-value" id="stats-remote">${this.monitoringStats.statusCounts.remote}</span>
                 </div>
 
-                <!-- SUDDENSTOP 상태 (빨간색 깜빡임) -->
+                <!-- 🔧 v2.6.0: SUDDENSTOP 상태 (빨간색 깜빡임) + 이모지 (🛑 깜빡임) -->
                 <div class="status-item monitoring-stat-item status-suddenstop">
+                    <span class="monitoring-stat-icon status-icon-blink">${STATUS_ICONS.SUDDENSTOP}</span>
                     <span class="status-indicator-dot suddenstop"></span>
                     <span class="monitoring-stat-value" id="stats-suddenstop">${this.monitoringStats.statusCounts.suddenstop}</span>
                 </div>
 
-                <!-- STOP 상태 (빨간색) -->
+                <!-- 🔧 v2.6.0: STOP 상태 (빨간색) + 이모지 -->
                 <div class="status-item monitoring-stat-item status-stop">
+                    <span class="monitoring-stat-icon">${STATUS_ICONS.STOP}</span>
                     <span class="status-indicator-dot stop"></span>
                     <span class="monitoring-stat-value" id="stats-stop">${this.monitoringStats.statusCounts.stop}</span>
                 </div>
 
-                <!-- IDLE 상태 (노란색) -->
+                <!-- 🔧 v2.6.0: IDLE 상태 (노란색) + 이모지 -->
                 <div class="status-item monitoring-stat-item status-idle">
+                    <span class="monitoring-stat-icon">${STATUS_ICONS.IDLE}</span>
                     <span class="status-indicator-dot idle"></span>
                     <span class="monitoring-stat-value" id="stats-idle">${this.monitoringStats.statusCounts.idle}</span>
                 </div>
 
-                <!-- RUN 상태 (녹색) -->
+                <!-- 🔧 v2.6.0: RUN 상태 (녹색) + 이모지 -->
                 <div class="status-item monitoring-stat-item status-run">
+                    <span class="monitoring-stat-icon">${STATUS_ICONS.RUN}</span>
                     <span class="status-indicator-dot run"></span>
                     <span class="monitoring-stat-value" id="stats-run">${this.monitoringStats.statusCounts.run}</span>
                 </div>
 
-                <!-- 🆕 v2.5.0: WAIT 상태 (진한 회색) -->
+                <!-- 🔧 v2.6.0: WAIT 상태 (진한 회색) + 이모지 -->
                 <div class="status-item monitoring-stat-item status-wait">
+                    <span class="monitoring-stat-icon">${STATUS_ICONS.WAIT}</span>
                     <span class="status-indicator-dot wait"></span>
                     <span class="monitoring-stat-value" id="stats-wait">${this.monitoringStats.statusCounts.wait}</span>
                 </div>
 
-                <!-- DISCONNECTED 상태 (연한 회색) -->
+                <!-- 🔧 v2.6.0: DISCONNECTED 상태 (연한 회색) + 이모지 -->
                 <div class="status-item monitoring-stat-item status-disconnected">
+                    <span class="monitoring-stat-icon">${STATUS_ICONS.DISCONNECTED}</span>
                     <span class="status-indicator-dot disconnected"></span>
                     <span class="monitoring-stat-value" id="stats-disconnected">${this.monitoringStats.statusCounts.disconnected}</span>
                 </div>

@@ -438,3 +438,19 @@
     border-color: var(--interactive-primary-normal);
     box-shadow: 0 0 0 3px var(--border-focus);
 }
+
+/* =============================================
+   🆕 v2.6.0: Sudden Stop Lane 이모지 깜빡임
+   ============================================= */
+.ranking-lane--sudden-stop .ranking-lane__icon {
+    animation: lane-icon-blink 0.5s infinite;
+}
+
+@keyframes lane-icon-blink {
+    0%, 49% {
+        opacity: 1;
+    }
+    50%, 100% {
+        opacity: 0.3;
+    }
+}

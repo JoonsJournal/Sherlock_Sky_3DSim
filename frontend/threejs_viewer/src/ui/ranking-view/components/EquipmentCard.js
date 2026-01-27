@@ -114,16 +114,14 @@ export class EquipmentCard {
         LEGACY_ACTIVE: 'active'
     };
     
-    /**
-     * Status Icon 매핑
-     */
     static STATUS_ICONS = {
         RUN: '🟢',
         STOP: '🛑',
         IDLE: '🟡',
-        SUDDENSTOP: '⚠️',
+        SUDDENSTOP: '🛑',      // ✅ 변경: Stop과 동일 (CSS 깜빡임으로 구분)
         REMOTE: '🔴',
         WAIT: '⏸️',
+        DISCONNECTED: '⚪',    // 🆕 추가
         DEFAULT: '⚪'
     };
     
