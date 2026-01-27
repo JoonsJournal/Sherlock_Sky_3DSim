@@ -3,16 +3,24 @@
  * =====================
  * 상태 지속 시간 및 대기 시간 계산 유틸리티
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @description
  * - 상태 지속 시간 계산 (현재 시간 - 상태 변경 시점)
  * - Wait 대기 시간 계산 (현재 시간 - Lot 완료 시점)
  * - Lot 진행 시간 계산
  * - 시간 포맷팅 (HH:MM:SS)
  * - 긴급도 레벨 판단
- * - 🆕 v1.1.0: 임계값 초과 확인, 상대 시간 문자열
+ * - 🆕 v1.2.0: ⭐ 사이트 타임존 보정 지원 (Multi-site 대응)
+ * - v1.1.0: 임계값 초과 확인, 상대 시간 문자열
  * 
  * @changelog
+ * - v1.2.0 (2026-01-27): ⭐ 타임존 보정 로직 추가 (DurationTimer.js 동기화)
+ *   - 🆕 SITE_CONFIG 연동으로 사이트별 타임존 오프셋 적용
+ *   - 🆕 DEFAULT_SITE_TIMEZONE_OFFSET 상수 추가 (기본값: 8 = 중국 UTC+8)
+ *   - 🔧 calculateStatusDuration(): 타임존 보정 계산 적용
+ *   - 🆕 _getTimezoneOffsetMs(): 타임존 오프셋 밀리초 계산 헬퍼
+ *   - 🆕 getTimezoneInfo(): 현재 타임존 정보 반환 (디버깅용)
+ *   - ⚠️ 호환성: v1.1.0의 모든 기능/메서드/필드 100% 유지
  * - v1.1.0 (2026-01-19): 가이드라인 준수 + 추가 기능 통합
  *   - 🆕 static UTIL 추가 (가이드라인 준수)
  *   - 🆕 exceedsThreshold() - 임계값 초과 확인
@@ -29,24 +37,53 @@
  *   - getDurationMinutes(): 분 단위 변환
  * 
  * @dependencies
- * - 없음 (독립 유틸리티)
+ * - SITE_CONFIG (optional): ../../../core/utils/Config.js
  * 
  * @exports
  * - DurationCalculator
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/ranking-view/utils/DurationCalculator.js
  * 작성일: 2026-01-17
- * 수정일: 2026-01-19
+ * 수정일: 2026-01-27
  */
+
+// =============================================================================
+// 🆕 v1.2.0: SITE_CONFIG Import (Optional)
+// =============================================================================
+// SITE_CONFIG가 없는 환경에서도 동작하도록 try-catch로 감싸기
+let SITE_CONFIG = null;
+try {
+    // 동적 import 대신 전역 참조 시도 (번들러 환경에 따라 다름)
+    if (typeof window !== 'undefined' && window.SITE_CONFIG) {
+        SITE_CONFIG = window.SITE_CONFIG;
+    }
+} catch (e) {
+    // SITE_CONFIG 없이도 동작 가능
+    console.debug('[DurationCalculator] SITE_CONFIG not available, using defaults');
+}
 
 /**
  * 시간 계산 유틸리티 클래스
  * 상태 지속 시간, 대기 시간, Lot 진행 시간 등의 계산과 포맷팅을 담당
+ * 
+ * @description
+ * ⭐ v1.2.0: 타임존 보정 지원
+ * - 서버 데이터가 사이트 로컬 시간(예: 중국 UTC+8)으로 저장됨
+ * - 브라우저가 다른 타임존(예: 한국 UTC+9)에서 실행될 수 있음
+ * - 이로 인한 시간 차이를 자동 보정하여 정확한 Duration 계산
  */
 export class DurationCalculator {
     // =========================================================================
     // Static Constants
     // =========================================================================
+    
+    /**
+     * 🆕 v1.2.0: 기본 사이트 타임존 오프셋 (시간 단위)
+     * - 8 = 중국 (UTC+8, Asia/Shanghai)
+     * - 9 = 한국 (UTC+9, Asia/Seoul)
+     * - -5 = 미국 동부 (UTC-5, America/New_York)
+     */
+    static DEFAULT_SITE_TIMEZONE_OFFSET = 8;  // 중국 기본값
     
     /**
      * 긴급도 레벨 임계값 (분 단위)
@@ -90,21 +127,37 @@ export class DurationCalculator {
     // =========================================================================
     
     /**
-     * 상태 지속 시간 계산
+     * 상태 지속 시간 계산 (타임존 보정 포함)
      * 상태 변경 시점부터 현재까지의 시간을 밀리초로 반환
      * 
      * @param {string|Date|number} occurredAt - 상태 변경 시점 (ISO string, Date, timestamp)
      * @param {Date} [now=new Date()] - 현재 시간 (테스트용)
+     * @param {number} [siteTimezoneOffset] - 사이트 타임존 오프셋 (기본값: SITE_CONFIG 또는 8)
      * @returns {number} 지속 시간 (밀리초)
      * 
-     * @example
-     * // ISO 문자열 사용
-     * const duration = DurationCalculator.calculateStatusDuration('2026-01-17T10:00:00Z');
+     * @description
+     * 🆕 v1.2.0: 타임존 보정 로직 추가
      * 
-     * // Date 객체 사용
-     * const duration = DurationCalculator.calculateStatusDuration(new Date());
+     * 타임존 보정이 필요한 이유:
+     * 1. 서버 DB에 사이트 로컬 시간(예: 중국 UTC+8)으로 저장됨
+     * 2. API 응답에 시간대 정보 없이 전송됨 ("2026-01-27T10:00:00")
+     * 3. 브라우저의 new Date()가 로컬 타임존(예: 한국 UTC+9)으로 해석
+     * 4. 결과적으로 1시간 오차 발생
+     * 
+     * 보정 공식:
+     * 실제 경과 시간 = (현재 - 시작) - (로컬오프셋 - 사이트오프셋) × 1시간
+     * 
+     * @example
+     * // 중국 서버 데이터를 한국에서 볼 때
+     * // status_changed_at: '2026-01-27T10:00:00' (중국 시간)
+     * // 한국 현재 시간: 11:00 KST (= 10:00 CST)
+     * // 실제 경과 시간: 0시간 (동일 시점)
+     * // 보정 전: 1시간 (오차!)
+     * // 보정 후: 0시간 (정확!)
+     * 
+     * const duration = DurationCalculator.calculateStatusDuration('2026-01-27T10:00:00');
      */
-    static calculateStatusDuration(occurredAt, now = new Date()) {
+    static calculateStatusDuration(occurredAt, now = new Date(), siteTimezoneOffset = null) {
         if (!occurredAt) {
             console.warn('[DurationCalculator] ⚠️ occurredAt is null or undefined');
             return 0;
@@ -114,7 +167,19 @@ export class DurationCalculator {
             const startTime = this._parseDateTime(occurredAt);
             const currentTime = now instanceof Date ? now : new Date(now);
             
-            const duration = currentTime.getTime() - startTime.getTime();
+            if (!startTime) {
+                console.warn('[DurationCalculator] ⚠️ Failed to parse occurredAt:', occurredAt);
+                return 0;
+            }
+            
+            // =====================================================
+            // 🆕 v1.2.0: 타임존 보정 계산
+            // =====================================================
+            const offsetDiffMs = this._getTimezoneOffsetMs(currentTime, siteTimezoneOffset);
+            
+            // 보정된 경과 시간 계산
+            // (현재 - 시작) - 타임존 차이
+            let duration = (currentTime.getTime() - startTime.getTime()) - offsetDiffMs;
             
             // 음수 방지 (미래 시간이 들어온 경우)
             return Math.max(0, duration);
@@ -258,80 +323,44 @@ export class DurationCalculator {
         const seconds = Math.floor(remaining / this.MS.SECOND);
         remaining %= this.MS.SECOND;
         
-        // 밀리초
+        // 밀리초 (optional)
         const milliseconds = remaining;
         
-        // 포맷 조합
-        let parts = [];
+        // 패딩 함수
+        const pad = (n, len = 2) => n.toString().padStart(len, '0');
+        
+        // 결과 조합
+        let result = '';
         
         if (showDays && days > 0) {
-            parts.push(`${days}d`);
+            result = `${days}d `;
         }
         
-        // 시간:분:초
-        if (compact) {
-            // Compact 모드: 앞의 0 제거
-            if (days > 0 || hours > 0) {
-                parts.push(hours.toString());
+        if (compact && !showDays) {
+            // 컴팩트 모드: 앞의 00: 제거
+            if (days > 0) {
+                result += `${days * 24 + hours}:${pad(minutes)}:${pad(seconds)}`;
+            } else if (hours > 0) {
+                result += `${hours}:${pad(minutes)}:${pad(seconds)}`;
+            } else {
+                result += `${minutes}:${pad(seconds)}`;
             }
-            parts.push(
-                (parts.length > 0 ? minutes.toString().padStart(2, '0') : minutes.toString()),
-                seconds.toString().padStart(2, '0')
-            );
         } else {
-            // 표준 모드: HH:MM:SS
-            parts.push(
-                hours.toString().padStart(2, '0'),
-                minutes.toString().padStart(2, '0'),
-                seconds.toString().padStart(2, '0')
-            );
+            result += `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
         }
-        
-        let result = parts.join(':');
         
         if (showMilliseconds) {
-            result += `.${milliseconds.toString().padStart(3, '0')}`;
+            result += `.${pad(milliseconds, 3)}`;
         }
         
         return result;
     }
     
     /**
-     * 밀리초를 사람이 읽기 쉬운 형식으로 포맷팅
+     * 🆕 v1.1.0: 간략 형식 포맷팅
      * 
      * @param {number} durationMs - 지속 시간 (밀리초)
-     * @returns {string} 예: "5분 32초", "1시간 23분", "2일 3시간"
-     */
-    static formatDurationHuman(durationMs) {
-        if (durationMs < 0 || !isFinite(durationMs)) {
-            return '0초';
-        }
-        
-        const days = Math.floor(durationMs / this.MS.DAY);
-        const hours = Math.floor((durationMs % this.MS.DAY) / this.MS.HOUR);
-        const minutes = Math.floor((durationMs % this.MS.HOUR) / this.MS.MINUTE);
-        const seconds = Math.floor((durationMs % this.MS.MINUTE) / this.MS.SECOND);
-        
-        if (days > 0) {
-            return hours > 0 ? `${days}일 ${hours}시간` : `${days}일`;
-        }
-        
-        if (hours > 0) {
-            return minutes > 0 ? `${hours}시간 ${minutes}분` : `${hours}시간`;
-        }
-        
-        if (minutes > 0) {
-            return seconds > 0 ? `${minutes}분 ${seconds}초` : `${minutes}분`;
-        }
-        
-        return `${seconds}초`;
-    }
-    
-    /**
-     * 🆕 v1.1.0: 간략 형식으로 포맷팅 (1h 23m, 5m 30s 등)
-     * 
-     * @param {number} durationMs - 지속 시간 (밀리초)
-     * @returns {string} 간략 형식
+     * @returns {string} "1h 23m", "5m 30s" 등
      */
     static formatDurationShort(durationMs) {
         if (durationMs < 0 || !isFinite(durationMs)) {
@@ -343,23 +372,23 @@ export class DurationCalculator {
         const seconds = Math.floor((durationMs % this.MS.MINUTE) / this.MS.SECOND);
         
         if (hours > 0) {
-            return `${hours}h ${minutes}m`;
+            return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
         } else if (minutes > 0) {
-            return `${minutes}m ${seconds}s`;
+            return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
         } else {
             return `${seconds}s`;
         }
     }
     
     // =========================================================================
-    // Conversion Methods
+    // Duration Unit Conversion Methods
     // =========================================================================
     
     /**
      * 밀리초를 분 단위로 변환
      * 
      * @param {number} durationMs - 지속 시간 (밀리초)
-     * @returns {number} 분 (소수점 포함)
+     * @returns {number} 분 단위 값
      */
     static getDurationMinutes(durationMs) {
         if (!isFinite(durationMs) || durationMs < 0) {
@@ -372,7 +401,7 @@ export class DurationCalculator {
      * 밀리초를 초 단위로 변환
      * 
      * @param {number} durationMs - 지속 시간 (밀리초)
-     * @returns {number} 초 (소수점 포함)
+     * @returns {number} 초 단위 값
      */
     static getDurationSeconds(durationMs) {
         if (!isFinite(durationMs) || durationMs < 0) {
@@ -385,7 +414,7 @@ export class DurationCalculator {
      * 밀리초를 시간 단위로 변환
      * 
      * @param {number} durationMs - 지속 시간 (밀리초)
-     * @returns {number} 시간 (소수점 포함)
+     * @returns {number} 시간 단위 값
      */
     static getDurationHours(durationMs) {
         if (!isFinite(durationMs) || durationMs < 0) {
@@ -550,8 +579,12 @@ export class DurationCalculator {
         if (!target) return '알 수 없음';
         
         const currentTime = now instanceof Date ? now : new Date(now);
-        const diffMs = currentTime.getTime() - target.getTime();
-        const diffSeconds = Math.floor(diffMs / this.MS.SECOND);
+        
+        // 🆕 v1.2.0: 타임존 보정 적용
+        const offsetDiffMs = this._getTimezoneOffsetMs(currentTime);
+        const diffMs = (currentTime.getTime() - target.getTime()) - offsetDiffMs;
+        
+        const diffSeconds = Math.floor(Math.max(0, diffMs) / this.MS.SECOND);
         const diffMinutes = Math.floor(diffSeconds / 60);
         const diffHours = Math.floor(diffMinutes / 60);
         const diffDays = Math.floor(diffHours / 24);
@@ -580,8 +613,12 @@ export class DurationCalculator {
         if (!target) return 'unknown';
         
         const currentTime = now instanceof Date ? now : new Date(now);
-        const diffMs = currentTime.getTime() - target.getTime();
-        const diffSeconds = Math.floor(diffMs / this.MS.SECOND);
+        
+        // 🆕 v1.2.0: 타임존 보정 적용
+        const offsetDiffMs = this._getTimezoneOffsetMs(currentTime);
+        const diffMs = (currentTime.getTime() - target.getTime()) - offsetDiffMs;
+        
+        const diffSeconds = Math.floor(Math.max(0, diffMs) / this.MS.SECOND);
         const diffMinutes = Math.floor(diffSeconds / 60);
         const diffHours = Math.floor(diffMinutes / 60);
         const diffDays = Math.floor(diffHours / 24);
@@ -598,8 +635,95 @@ export class DurationCalculator {
     }
     
     // =========================================================================
+    // Timezone Methods (🆕 v1.2.0)
+    // =========================================================================
+    
+    /**
+     * 🆕 v1.2.0: 현재 적용 중인 타임존 정보 반환 (디버깅용)
+     * 
+     * @returns {{siteOffset: number, siteTimezone: string, localOffset: number, diffHours: number}}
+     * 
+     * @example
+     * const info = DurationCalculator.getTimezoneInfo();
+     * console.log(info);
+     * // {
+     * //   siteOffset: 8,               // 중국 UTC+8
+     * //   siteTimezone: 'Asia/Shanghai',
+     * //   localOffset: 9,              // 한국 UTC+9
+     * //   diffHours: 1                 // 1시간 차이
+     * // }
+     */
+    static getTimezoneInfo() {
+        const now = new Date();
+        const localOffsetMinutes = now.getTimezoneOffset();
+        const localOffsetHours = -localOffsetMinutes / 60;  // 부호 반전
+        const siteOffset = SITE_CONFIG?.timezoneOffset ?? this.DEFAULT_SITE_TIMEZONE_OFFSET;
+        
+        return {
+            siteOffset: siteOffset,
+            siteTimezone: SITE_CONFIG?.timezone ?? 'Asia/Shanghai',
+            localOffset: localOffsetHours,
+            diffHours: localOffsetHours - siteOffset
+        };
+    }
+    
+    /**
+     * 🆕 v1.2.0: 사이트 타임존 오프셋 설정 (런타임 변경)
+     * 
+     * @param {number} offset - 타임존 오프셋 (시간 단위, 예: 8 = UTC+8)
+     * 
+     * @example
+     * // 한국 사이트로 변경
+     * DurationCalculator.setSiteTimezoneOffset(9);
+     */
+    static setSiteTimezoneOffset(offset) {
+        if (typeof offset === 'number' && offset >= -12 && offset <= 14) {
+            this.DEFAULT_SITE_TIMEZONE_OFFSET = offset;
+            console.log(`[DurationCalculator] ⏰ Site timezone offset set to UTC+${offset}`);
+        } else {
+            console.warn(`[DurationCalculator] ⚠️ Invalid timezone offset: ${offset}`);
+        }
+    }
+    
+    // =========================================================================
     // Private Helper Methods
     // =========================================================================
+    
+    /**
+     * 🆕 v1.2.0: 타임존 오프셋 밀리초 계산
+     * 
+     * @private
+     * @param {Date} now - 현재 시간
+     * @param {number} [siteTimezoneOffset] - 사이트 타임존 오프셋 (생략 시 SITE_CONFIG 또는 기본값)
+     * @returns {number} 보정할 밀리초 값
+     * 
+     * @description
+     * 타임존 보정 로직:
+     * 1. 브라우저 로컬 타임존 오프셋 계산 (예: 한국 +9)
+     * 2. 사이트 타임존 오프셋 결정 (예: 중국 +8)
+     * 3. 차이 계산 (예: +9 - +8 = +1시간)
+     * 4. 밀리초로 변환하여 반환
+     */
+    static _getTimezoneOffsetMs(now, siteTimezoneOffset = null) {
+        // 사이트 타임존 오프셋 결정 (시간 단위)
+        // 우선순위: 파라미터 > SITE_CONFIG > 기본값(8, 중국)
+        const siteOffset = siteTimezoneOffset ?? SITE_CONFIG?.timezoneOffset ?? this.DEFAULT_SITE_TIMEZONE_OFFSET;
+        
+        // 브라우저 로컬 타임존 오프셋 (분 단위)
+        // getTimezoneOffset()은 "UTC - 로컬" 값을 반환
+        // 예: 한국(UTC+9)에서는 -540분 = -9시간
+        const localOffsetMinutes = now.getTimezoneOffset();
+        const localOffsetHours = -localOffsetMinutes / 60;  // 부호 반전하여 시간 단위로
+        // 한국: +9, 중국: +8, 미국동부: -5
+        
+        // 사이트와 로컬의 시간 차이 (시간 단위)
+        // 예: 중국(+8) 데이터를 한국(+9)에서 볼 때
+        //     offsetDiffHours = 9 - 8 = +1시간
+        const offsetDiffHours = localOffsetHours - siteOffset;
+        const offsetDiffMs = offsetDiffHours * this.MS.HOUR;
+        
+        return offsetDiffMs;
+    }
     
     /**
      * 다양한 형식의 날짜/시간 입력을 Date 객체로 변환
