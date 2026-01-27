@@ -772,9 +772,10 @@ export class RankingDataManager {
                 // 상태 정보
                 status,
                 previousStatus: null,
-                alarmCode: null,
-                alarmMessage: '',
-                alarmRepeatCount: 0,
+				// 수정된 코드
+				alarmCode: udsEquipment.alarm_code || null,
+				alarmMessage: udsEquipment.alarm_message || '',
+				alarmRepeatCount: udsEquipment.alarm_repeat_count || 0,
                 
                 // 시간 정보
                 occurredAt: udsEquipment.status_changed_at,
@@ -788,7 +789,7 @@ export class RankingDataManager {
                 // 🆕 생산 정보 (UDS 직접 매핑)
                 productionCount: udsEquipment.production_count || 0,
                 tactTime: udsEquipment.tact_time_seconds || 0,
-                targetCount: 0,
+                targetCount: udsEquipment.target_count || 0,
                 lotProgress: 0,
                 
                 // PC 정보 (UDS 제공)
@@ -799,6 +800,9 @@ export class RankingDataManager {
                 // Grid 정보
                 gridRow: udsEquipment.grid_row,
                 gridCol: udsEquipment.grid_col,
+				
+				// 🆕 MiniTimeline용 상태 히스토리
+                stateHistory: udsEquipment.state_history || [],
                 
                 // 레인 정보 (나중에 할당)
                 laneId: null,

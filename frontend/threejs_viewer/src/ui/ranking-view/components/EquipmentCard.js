@@ -192,8 +192,9 @@ export class EquipmentCard {
             status: data.status || 'UNKNOWN',
             
             // 시간 정보 (호환성: occurredAt / statusStartTime)
-            occurredAt: data.occurredAt || data.statusStartTime || data.occurred_at || new Date().toISOString(),
-            statusStartTime: data.statusStartTime || data.occurredAt || data.status_start_time,
+            // 시간 정보 (🔧 v1.1.0: status_changed_at 추가 - UDS Backend 호환)
+            occurredAt: data.status_changed_at || data.statusChangedAt || data.occurredAt || data.statusStartTime || data.occurred_at || new Date().toISOString(),
+            statusStartTime: data.status_changed_at || data.statusChangedAt || data.statusStartTime || data.occurredAt || data.status_start_time,
             
             // 알람 정보 (호환성: alarmMessage / alarmName)
             alarmCode: data.alarmCode || data.alarm_code,
@@ -844,19 +845,25 @@ export class EquipmentCard {
         this._updatePercentageText();
         
         // 6. MiniTimeline 업데이트 (히스토리 추가)
-        if (this._miniTimeline && newStatus !== oldStatus) {
-            const historyEntry = {
-                status: newStatus,
-                timestamp: new Date().toISOString()
-            };
-            
-            if (!this._data.stateHistory) {
-                this._data.stateHistory = [];
-            }
-            this._data.stateHistory.push(historyEntry);
-            
-            this._miniTimeline.update(this._data.stateHistory);
-        }
+		if (this._miniTimeline && newStatus !== oldStatus) {
+		    // ✅ Backend에서 이미 추가된 경우 중복 방지
+		    const lastEntry = this._data.stateHistory?.[this._data.stateHistory.length - 1];
+		    const alreadyAdded = lastEntry?.status === newStatus && 
+		        (Date.now() - new Date(lastEntry.timestamp).getTime()) < 5000;  // 5초 이내
+		    
+		    if (!alreadyAdded) {
+		        const historyEntry = {
+		            status: newStatus,
+		            timestamp: new Date().toISOString()
+		        };
+		        if (!this._data.stateHistory) {
+		            this._data.stateHistory = [];
+		        }
+		        this._data.stateHistory.push(historyEntry);
+		    }
+		    
+		    this._miniTimeline.update(this._data.stateHistory);
+		}
     }
     
     /**

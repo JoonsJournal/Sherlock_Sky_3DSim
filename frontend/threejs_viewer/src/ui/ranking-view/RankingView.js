@@ -3,7 +3,7 @@
  * ==============
  * Ranking View 메인 컨트롤러 (Orchestrator)
  * 
- * @version 1.7.1
+ * @version 1.7.2
  * @description
  * - 6개 레인 레이아웃 관리 (Remote, Sudden Stop, Stop, Run, Idle, Wait)
  * - 레인 컴포넌트 생성 및 조율
@@ -18,6 +18,12 @@
  * - 🆕 3D View 선택 동기화 강화
  * 
  * @changelog
+ * - v1.7.2 (2026-01-27): 🐛 BugFix - Ghost DOM 원천 차단
+ *   - _handleUDSBatchUpdate()에서 _renderLaneData() 호출 제거
+ *   - 개별 설비 이동은 EQUIPMENT_MOVED 이벤트에서 처리
+ *   - BATCH_UPDATED에서는 통계만 업데이트
+ *   - 2개 경로 → 1개 경로로 통일하여 Ghost 발생 원천 차단
+ *   - ⚠️ 호환성: v1.7.1의 모든 기능 100% 유지
  * - v1.7.1 (2026-01-26): 🐛 BugFix - Ghost DOM 버그 수정
  *   - _handleEquipmentMoved()에서 _cards Map 동기화 추가
  *   - ranking-view-test.html과 동일한 로직 적용
@@ -448,7 +454,6 @@ export class RankingView {
         
         // 전체 레인 데이터 다시 렌더링
         if (this._isVisible) {
-            this._renderLaneData();
             this._updateStats();
         }
     }
@@ -473,6 +478,7 @@ export class RankingView {
         
         console.log('[RankingView] 🔄 _renderLaneData()');
         
+		this._cardsMap.clear();
         // 기존 레인 클리어
         this._lanes.forEach(lane => {
             lane.clearCards();
@@ -623,7 +629,7 @@ export class RankingView {
         console.log(`[RankingView] 🔄 데이터 새로고침: ${event.totalCount}개 설비`);
         
         if (this._isVisible) {
-            this._renderLaneData();
+        	this._updateStats();  
         }
     }
     
@@ -760,7 +766,7 @@ export class RankingView {
         return {
             ...equipment,
             status: newStatus,
-            occurredAt: new Date().toISOString(),  // Duration 리셋
+            occurredAt: equipment.occurredAt || new Date().toISOString(),  // Duration 리셋
             // alarmCode는 레인에 따라 처리
             alarmCode: (toLaneId === 'run' || toLaneId === 'idle' || toLaneId === 'wait') 
                 ? null 
@@ -782,7 +788,7 @@ export class RankingView {
         
         const card = this._cardsMap.get(frontendId);
         if (card && card.updateStatus) {
-            card.updateStatus(newData, { resetDuration: true });
+            card.updateStatus(newData, { resetDuration: false });
             console.log(`[RankingView] 🔄 카드 UI 업데이트 완료: ${frontendId}`);
         }
     }
@@ -816,21 +822,13 @@ export class RankingView {
      * @private
      * @param {Object} event - { rankings, timestamp }
      */
-    _handleRankingsUpdate(event) {
-        // 순위가 변경되면 Run 레인 다시 렌더링
-        if (!this._isVisible) return;
-        
-        const runLane = this._lanes.get('run');
-        if (runLane) {
-            // Run 레인만 재정렬
-            const runEquipments = this._rankingDataManager?.getLaneEquipments('run') || [];
-            
-            runLane.clearCards();
-            for (const equipment of runEquipments) {
-                this._addCardToLane(runLane, equipment);
-            }
-        }
-    }
+	_handleRankingsUpdate(event) {
+	    // 🐛 v1.7.2: Ghost 방지 - 전체 재렌더링 대신 통계만 업데이트
+	    // 개별 카드 이동은 EQUIPMENT_MOVED 이벤트에서 처리됨
+	    if (this._isVisible) {
+	        this._updateStats();
+	    }
+	}
     
     /**
      * 🆕 v1.5.0: 통계 이벤트로 업데이트
