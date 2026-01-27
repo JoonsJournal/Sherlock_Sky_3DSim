@@ -3,7 +3,7 @@
  * ==============
  * Ranking View 메인 컨트롤러 (Orchestrator)
  * 
- * @version 1.7.2
+ * @version 1.8.0
  * @description
  * - 6개 레인 레이아웃 관리 (Remote, Sudden Stop, Stop, Run, Idle, Wait)
  * - 레인 컴포넌트 생성 및 조율
@@ -18,6 +18,9 @@
  * - 🆕 3D View 선택 동기화 강화
  * 
  * @changelog
+ * - v1.8.0: 🆕 StatusBar 레인 통계 동기화 이벤트 추가 (2026-01-27)
+ *           - _updateStats()에서 ranking:lane-stats-updated 이벤트 발행
+ *           - _getDisconnectedCount() 메서드 추가
  * - v1.7.2 (2026-01-27): 🐛 BugFix - Ghost DOM 원천 차단
  *   - _handleUDSBatchUpdate()에서 _renderLaneData() 호출 제거
  *   - 개별 설비 이동은 EQUIPMENT_MOVED 이벤트에서 처리
@@ -1263,12 +1266,8 @@ export class RankingView {
         return true; // 기본값
     }
     
-    // =========================================
-    // 🆕 v1.4.0: 통계 업데이트
-    // =========================================
-    
     /**
-     * 통계 바 업데이트
+     * 🔧 v1.8.0: 통계 바 업데이트 + StatusBar 동기화 이벤트 발행
      * @private
      */
     _updateStats() {
@@ -1278,10 +1277,16 @@ export class RankingView {
         let urgent = 0;  // Critical + Danger (Remote, SuddenStop)
         let warning = 0; // Stop, Idle
         
+        // 🆕 v1.8.0: 레인별 개수 객체 (StatusBar 동기화용)
+        const laneStats = {};
+        
         // 모든 레인의 카드를 순회하며 긴급도 집계
         this._lanes.forEach((lane, laneId) => {
             const count = lane.count;
             total += count;
+            
+            // 🆕 레인별 개수 저장
+            laneStats[laneId] = count;
             
             // 레인 타입에 따른 긴급도 분류
             if (laneId === 'remote' || laneId === 'sudden-stop') {
@@ -1307,6 +1312,9 @@ export class RankingView {
             }
         });
         
+        // 🆕 v1.8.0: Disconnected 개수 계산 (매핑 안 된 설비)
+        laneStats.disconnected = this._getDisconnectedCount(total);
+        
         // DOM 업데이트
         const totalEl = this._statsBar.querySelector('[data-stat="total"]');
         const urgentEl = this._statsBar.querySelector('[data-stat="urgent"]');
@@ -1315,6 +1323,28 @@ export class RankingView {
         if (totalEl) totalEl.textContent = total;
         if (urgentEl) urgentEl.textContent = urgent;
         if (warningEl) warningEl.textContent = warning;
+        
+        // 🆕 v1.8.0: StatusBar에 레인 통계 이벤트 발행
+        eventBus.emit('ranking:lane-stats-updated', laneStats);
+    }
+
+    /**
+     * 🆕 v1.8.0: Disconnected 개수 계산
+     * @private
+     * @param {number} inLaneCount - 레인에 있는 설비 수
+     * @returns {number}
+     */
+    _getDisconnectedCount(inLaneCount) {
+        // 전체 설비 수 가져오기 (UDS 또는 기본값)
+        let totalEquipment = 117; // 기본값
+        
+        if (this._rankingDataManager) {
+            totalEquipment = this._rankingDataManager.getTotalCount() || totalEquipment;
+        } else if (unifiedDataStore?.isInitialized()) {
+            totalEquipment = unifiedDataStore.getStats()?.totalMapped || totalEquipment;
+        }
+        
+        return Math.max(0, totalEquipment - inLaneCount);
     }
     
     /**

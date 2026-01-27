@@ -5,11 +5,15 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 2.4.0
+ * @version 2.5.0
  * @created 2026-01-11
  * @updated 2026-01-21
  * 
  * @changelog
+ * - v2.5.0: 🆕 상태 7개로 확장, RankingView Lane 순서 동기화 (2026-01-27)
+ *           - Remote, Wait 상태 추가
+ *           - 순서: Remote → SuddenStop → Stop → Idle → RUN → Wait → Disconnect
+ *           - ranking:lane-stats-updated 이벤트로 RankingView와 동기화
  * - v2.4.0: 🆕 StatusBarPerformanceCompact 통합 (2026-01-21)
  *           - 기존 FPS/MEM 표시 제거
  *           - StatusBarPerformanceCompact 컴포넌트로 대체
@@ -101,18 +105,20 @@ export class StatusBar {
             isDbConnected: false
         };
         
-        // 🔧 v2.3.1: Monitoring Stats 상태 (5개 상태)
+        // 🔧 v2.5.0: Monitoring Stats 상태 (7개 상태, RankingView Lane 순서)
         this.monitoringStats = {
             totalEquipment: options.totalEquipment || 117,
             mapped: 0,
             unmapped: options.totalEquipment || 117,
             mappingRate: 0,
             statusCounts: {
-                run: 0,           // 녹색 (RUN)
-                idle: 0,          // 노란색 (IDLE)
+                remote: 0,        // 🆕 보라색 (REMOTE)
+                suddenstop: 0,    // 빨간색 깜빡임 (SUDDENSTOP)
                 stop: 0,          // 빨간색 (STOP)
-                suddenstop: 0,    // 🆕 빨간색 깜빡임 (SUDDENSTOP)
-                disconnected: 0   // 🔧 회색 (DISCONNECTED, 이전 unknown)
+                idle: 0,          // 노란색 (IDLE)
+                run: 0,           // 녹색 (RUN)
+                wait: 0,          // 🆕 진한 회색 (WAIT)
+                disconnected: 0   // 연한 회색 (DISCONNECTED)
             }
         };
         
@@ -246,32 +252,44 @@ export class StatusBar {
                 
                 <!-- 구분선 -->
                 <div class="monitoring-stats-divider"></div>
-                
-                <!-- RUN 상태 (녹색) -->
-                <div class="status-item monitoring-stat-item status-run">
-                    <span class="status-indicator-dot run"></span>
-                    <span class="monitoring-stat-value" id="stats-run">${this.monitoringStats.statusCounts.run}</span>
+
+                <!-- 🆕 v2.5.0: REMOTE 상태 (보라색) -->
+                <div class="status-item monitoring-stat-item status-remote">
+                    <span class="status-indicator-dot remote"></span>
+                    <span class="monitoring-stat-value" id="stats-remote">${this.monitoringStats.statusCounts.remote}</span>
                 </div>
-                
-                <!-- IDLE 상태 (노란색) -->
-                <div class="status-item monitoring-stat-item status-idle">
-                    <span class="status-indicator-dot idle"></span>
-                    <span class="monitoring-stat-value" id="stats-idle">${this.monitoringStats.statusCounts.idle}</span>
+
+                <!-- SUDDENSTOP 상태 (빨간색 깜빡임) -->
+                <div class="status-item monitoring-stat-item status-suddenstop">
+                    <span class="status-indicator-dot suddenstop"></span>
+                    <span class="monitoring-stat-value" id="stats-suddenstop">${this.monitoringStats.statusCounts.suddenstop}</span>
                 </div>
-                
+
                 <!-- STOP 상태 (빨간색) -->
                 <div class="status-item monitoring-stat-item status-stop">
                     <span class="status-indicator-dot stop"></span>
                     <span class="monitoring-stat-value" id="stats-stop">${this.monitoringStats.statusCounts.stop}</span>
                 </div>
-                
-                <!-- 🆕 v2.3.1: SUDDENSTOP 상태 (빨간색 깜빡임) -->
-                <div class="status-item monitoring-stat-item status-suddenstop">
-                    <span class="status-indicator-dot suddenstop"></span>
-                    <span class="monitoring-stat-value" id="stats-suddenstop">${this.monitoringStats.statusCounts.suddenstop}</span>
+
+                <!-- IDLE 상태 (노란색) -->
+                <div class="status-item monitoring-stat-item status-idle">
+                    <span class="status-indicator-dot idle"></span>
+                    <span class="monitoring-stat-value" id="stats-idle">${this.monitoringStats.statusCounts.idle}</span>
                 </div>
-                
-                <!-- 🔧 v2.3.1: DISCONNECTED 상태 (회색, 이전 unknown) -->
+
+                <!-- RUN 상태 (녹색) -->
+                <div class="status-item monitoring-stat-item status-run">
+                    <span class="status-indicator-dot run"></span>
+                    <span class="monitoring-stat-value" id="stats-run">${this.monitoringStats.statusCounts.run}</span>
+                </div>
+
+                <!-- 🆕 v2.5.0: WAIT 상태 (진한 회색) -->
+                <div class="status-item monitoring-stat-item status-wait">
+                    <span class="status-indicator-dot wait"></span>
+                    <span class="monitoring-stat-value" id="stats-wait">${this.monitoringStats.statusCounts.wait}</span>
+                </div>
+
+                <!-- DISCONNECTED 상태 (연한 회색) -->
                 <div class="status-item monitoring-stat-item status-disconnected">
                     <span class="status-indicator-dot disconnected"></span>
                     <span class="monitoring-stat-value" id="stats-disconnected">${this.monitoringStats.statusCounts.disconnected}</span>
@@ -311,11 +329,14 @@ export class StatusBar {
             statsMapped: document.getElementById('stats-mapped'),
             statsUnmapped: document.getElementById('stats-unmapped'),
             statsRate: document.getElementById('stats-rate'),
-            statsRun: document.getElementById('stats-run'),
-            statsIdle: document.getElementById('stats-idle'),
+            // 🔧 v2.5.0: RankingView Lane 순서 (7개 상태)
+            statsRemote: document.getElementById('stats-remote'),           // 🆕 v2.5.0
+            statsSuddenstop: document.getElementById('stats-suddenstop'),
             statsStop: document.getElementById('stats-stop'),
-            statsSuddenstop: document.getElementById('stats-suddenstop'),        // 🆕 v2.3.1
-            statsDisconnected: document.getElementById('stats-disconnected')    // 🔧 v2.3.1
+            statsIdle: document.getElementById('stats-idle'),
+            statsRun: document.getElementById('stats-run'),
+            statsWait: document.getElementById('stats-wait'),               // 🆕 v2.5.0
+            statsDisconnected: document.getElementById('stats-disconnected')
         };
     }
     
@@ -410,6 +431,12 @@ export class StatusBar {
                 this.updateMonitoringStats(data);
             });
             if (unsubStatsUpdate) this._eventUnsubscribers.push(unsubStatsUpdate);
+
+                        // 🆕 v2.5.0: RankingView 레인 통계 동기화
+            const unsubLaneStats = this.eventBus.on('ranking:lane-stats-updated', (data) => {
+                this._handleRankingLaneStats(data);
+            });
+            if (unsubLaneStats) this._eventUnsubscribers.push(unsubLaneStats);
             
             // 🆕 v2.2.0: Equipment 매핑 상태 변경
             const unsubMappingUpdate = this.eventBus.on('equipment:mapping-changed', (data) => {
@@ -562,7 +589,7 @@ export class StatusBar {
     }
     
     /**
-     * 🔧 v2.3.1: Monitoring Stats DOM 업데이트 (SUDDENSTOP, DISCONNECTED 추가)
+     * 🔧 v2.5.0: Monitoring Stats DOM 업데이트 (7개 상태, RankingView Lane 순서)
      * @private
      */
     _updateMonitoringStatsDisplay() {
@@ -571,11 +598,14 @@ export class StatusBar {
             statsMapped,
             statsUnmapped,
             statsRate,
-            statsRun,
-            statsIdle,
+            // 🔧 v2.5.0: 7개 상태
+            statsRemote,
+            statsSuddenstop,
             statsStop,
-            statsSuddenstop,        // 🆕 v2.3.1
-            statsDisconnected       // 🔧 v2.3.1
+            statsIdle,
+            statsRun,
+            statsWait,
+            statsDisconnected
         } = this.elements;
         
         const stats = this.monitoringStats;
@@ -584,11 +614,15 @@ export class StatusBar {
         if (statsMapped) statsMapped.textContent = stats.mapped;
         if (statsUnmapped) statsUnmapped.textContent = stats.unmapped;
         if (statsRate) statsRate.textContent = `${stats.mappingRate}%`;
-        if (statsRun) statsRun.textContent = stats.statusCounts.run;
-        if (statsIdle) statsIdle.textContent = stats.statusCounts.idle;
+        
+        // 🔧 v2.5.0: 7개 상태 업데이트 (RankingView Lane 순서)
+        if (statsRemote) statsRemote.textContent = stats.statusCounts.remote;
+        if (statsSuddenstop) statsSuddenstop.textContent = stats.statusCounts.suddenstop;
         if (statsStop) statsStop.textContent = stats.statusCounts.stop;
-        if (statsSuddenstop) statsSuddenstop.textContent = stats.statusCounts.suddenstop;           // 🆕 v2.3.1
-        if (statsDisconnected) statsDisconnected.textContent = stats.statusCounts.disconnected;     // 🔧 v2.3.1
+        if (statsIdle) statsIdle.textContent = stats.statusCounts.idle;
+        if (statsRun) statsRun.textContent = stats.statusCounts.run;
+        if (statsWait) statsWait.textContent = stats.statusCounts.wait;
+        if (statsDisconnected) statsDisconnected.textContent = stats.statusCounts.disconnected;
     }
     
     // ========================================
@@ -717,14 +751,49 @@ export class StatusBar {
     }
     
     /**
-     * 🔧 v2.3.1: 상태별 카운트 업데이트 (SUDDENSTOP, DISCONNECTED 포함)
-     * @param {Object} counts - {run, idle, stop, suddenstop, disconnected}
+     * 🔧 v2.5.0: 상태별 카운트 업데이트 (7개 상태)
+     * @param {Object} counts - {remote, suddenstop, stop, idle, run, wait, disconnected}
      */
     updateStatusCounts(counts) {
+        // Lane ID 매핑 처리 (sudden-stop → suddenstop)
+        if (counts['sudden-stop'] !== undefined) {
+            counts.suddenstop = counts['sudden-stop'];
+            delete counts['sudden-stop'];
+        }
+        
         Object.assign(this.monitoringStats.statusCounts, counts);
         this._updateMonitoringStatsDisplay();
     }
     
+    /**
+     * 🆕 v2.5.0: RankingView 레인 통계로 StatusCounts 업데이트
+     * Lane ID 매핑: sudden-stop → suddenstop
+     * @private
+     * @param {Object} data - { remote, 'sudden-stop', stop, idle, run, wait, disconnected }
+     */
+    _handleRankingLaneStats(data) {
+        if (!data) return;
+        
+        // Lane ID → StatusBar Key 매핑
+        const mappedCounts = {
+            remote: data.remote || 0,
+            suddenstop: data['sudden-stop'] || 0,  // ⚠️ Lane ID는 'sudden-stop'
+            stop: data.stop || 0,
+            idle: data.idle || 0,
+            run: data.run || 0,
+            wait: data.wait || 0,
+            disconnected: data.disconnected || 0
+        };
+        
+        // 상태 업데이트
+        Object.assign(this.monitoringStats.statusCounts, mappedCounts);
+        
+        // DOM 업데이트
+        this._updateMonitoringStatsDisplay();
+        
+        console.log('[StatusBar] 🔄 RankingView 레인 통계 동기화:', mappedCounts);
+    }
+
     /**
      * 🆕 v2.2.0: Monitoring Stats 강제 표시
      */

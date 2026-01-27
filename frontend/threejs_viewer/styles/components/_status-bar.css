@@ -5,11 +5,16 @@
  * 
  * Source: test_sidebar_standalone.html v2.10
  * 
- * @version 2.0.4
+ * @version 2.1.0
  * @created 2026-01-11
  * @updated 2026-01-16
  * 
  * @changelog
+ * - v2.1.0: 🆕 Remote, Wait 상태 추가, 색상 토큰 정리 (2026-01-27)
+ *           - Remote: 보라색 (#a855f7 / #9333ea)
+ *           - Wait: 진한 회색 (#6b7280 / #9ca3af)
+ *           - Disconnected: 연한 회색 (#9ca3af / #d1d5db)
+ *           - Dark/Light 테마 색상 변수 추가
  * - v2.0.4: 🔧 UI 개선 (2026-01-16)
  *           - z-index: 토큰 var(--z-status-bar) 사용으로 변경
  *           - 높이: 토큰 참조로 통일 (fallback 제거)
@@ -271,6 +276,18 @@
     flex-shrink: 0;
 }
 
+/* =============================================
+   🆕 v2.1.0: REMOTE - 보라색
+   ============================================= */
+.status-indicator-dot.remote {
+    background-color: var(--status-remote, #a855f7);
+    box-shadow: 0 0 6px var(--status-remote, #a855f7);
+}
+
+.monitoring-stat-item.status-remote .monitoring-stat-value {
+    color: var(--status-remote, #a855f7);
+}
+
 .status-indicator-dot.run {
     background-color: var(--text-success);
     box-shadow: 0 0 6px var(--text-success);
@@ -293,10 +310,26 @@
     animation: suddenstop-blink 0.5s infinite;
 }
 
-/* 🔧 v2.0.1: DISCONNECTED - 회색 (이전 unknown) */
+/* =============================================
+   🆕 v2.1.0: WAIT - 진한 회색 (Lot 없음)
+   ============================================= */
+.status-indicator-dot.wait {
+    background-color: var(--status-wait, #6b7280);
+    box-shadow: 0 0 4px var(--status-wait, #6b7280);
+}
+
+.monitoring-stat-item.status-wait .monitoring-stat-value {
+    color: var(--status-wait, #6b7280);
+}
+
+/* 🔧 v2.1.0: DISCONNECTED - 연한 회색 (Wait와 구분) */
 .status-indicator-dot.disconnected {
-    background-color: var(--text-muted);
-    box-shadow: 0 0 4px var(--text-muted);
+    background-color: var(--status-disconnected, #9ca3af);
+    box-shadow: 0 0 4px var(--status-disconnected, #9ca3af);
+}
+
+.monitoring-stat-item.status-disconnected .monitoring-stat-value {
+    color: var(--status-disconnected, #9ca3af);
 }
 
 /* 상태별 카운트 색상 */
@@ -547,6 +580,21 @@
 
 [data-theme="light"] .status-indicator-dot.suddenstop {
     box-shadow: 0 0 10px var(--text-alarm);
+}
+
+/* 🆕 v2.1.0: Remote */
+[data-theme="light"] .status-indicator-dot.remote {
+    box-shadow: 0 0 8px var(--status-remote);
+}
+
+/* 🆕 v2.1.0: Wait */
+[data-theme="light"] .status-indicator-dot.wait {
+    box-shadow: 0 0 6px var(--status-wait);
+}
+
+/* 🔧 v2.1.0: Disconnected (Wait와 구분) */
+[data-theme="light"] .status-indicator-dot.disconnected {
+    box-shadow: 0 0 4px var(--status-disconnected);
 }
 
 /* =============================================
