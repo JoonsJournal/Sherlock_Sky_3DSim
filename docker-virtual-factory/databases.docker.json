@@ -1,0 +1,32 @@
+{
+    "CN_AAAA_Cutting_Sherlock": {
+        "host": "localhost",
+        "port": 1433,
+        "type": "mssql",
+        "user": "sa",
+        "password": "DockerTest123!",
+        "databases": {
+            "SherlockSky": "SherlockSky"
+        }
+    },
+    "KR_BBBB_Cutting_Sherlock": {
+        "host": "localhost",
+        "port": 1435,
+        "type": "mssql",
+        "user": "sa",
+        "password": "DockerTest123!",
+        "databases": {
+            "SherlockSky": "SherlockSky"
+        }
+    },
+    "VN_CCCC_Stacking_Sherlock": {
+        "host": "localhost",
+        "port": 1434,
+        "type": "mssql",
+        "user": "sa",
+        "password": "DockerTest123!",
+        "databases": {
+            "SherlockSky": "SherlockSky"
+        }
+    }
+}

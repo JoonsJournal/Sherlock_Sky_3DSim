@@ -1,0 +1,137 @@
+# =============================================================================
+# SHERLOCK_SKY_3DSIM - 가상 공장 시뮬레이션 환경
+# =============================================================================
+# 3개 공장 (중국, 베트남, 한국)의 MSSQL 데이터베이스를 Docker로 구현
+# 
+# 사용법:
+#   시작: docker compose up -d
+#   중지: docker compose down
+#   로그: docker compose logs -f
+#   상태: docker compose ps
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # 🇨🇳 중국 공장 데이터베이스 (118대 설비)
+  # ===========================================================================
+  china-db:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    container_name: factory-china-db
+    hostname: china-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${SA_PASSWORD:-DockerTest123!}
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - china-db-data:/var/opt/mssql
+      - ./database/init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - factory-network
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "${SA_PASSWORD:-DockerTest123!}" -Q "SELECT 1" || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================================================
+  # 🇻🇳 베트남 공장 데이터베이스 (100대 설비)
+  # ===========================================================================
+  vietnam-db:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    container_name: factory-vietnam-db
+    hostname: vietnam-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${SA_PASSWORD:-DockerTest123!}
+      - MSSQL_PID=Developer
+    ports:
+      - "1434:1433"
+    volumes:
+      - vietnam-db-data:/var/opt/mssql
+      - ./database/init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - factory-network
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "${SA_PASSWORD:-DockerTest123!}" -Q "SELECT 1" || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================================================
+  # 🇰🇷 한국 공장 데이터베이스 (150대 설비)
+  # ===========================================================================
+  korea-db:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    container_name: factory-korea-db
+    hostname: korea-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${SA_PASSWORD:-DockerTest123!}
+      - MSSQL_PID=Developer
+    ports:
+      - "1435:1433"
+    volumes:
+      - korea-db-data:/var/opt/mssql
+      - ./database/init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - factory-network
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "${SA_PASSWORD:-DockerTest123!}" -Q "SELECT 1" || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================================================
+  # 🤖 설비 시뮬레이터 (옵션 - 나중에 활성화)
+  # ===========================================================================
+  # simulator:
+  #   build:
+  #     context: ./simulator
+  #     dockerfile: Dockerfile
+  #   container_name: equipment-simulator
+  #   environment:
+  #     - CHINA_DB_HOST=china-db
+  #     - VIETNAM_DB_HOST=vietnam-db
+  #     - KOREA_DB_HOST=korea-db
+  #     - DB_PORT=1433
+  #     - DB_USER=sa
+  #     - DB_PASSWORD=${SA_PASSWORD:-DockerTest123!}
+  #     - DB_NAME=SherlockSky
+  #     - SIMULATION_INTERVAL=5
+  #   depends_on:
+  #     china-db:
+  #       condition: service_healthy
+  #     vietnam-db:
+  #       condition: service_healthy
+  #     korea-db:
+  #       condition: service_healthy
+  #   networks:
+  #     - factory-network
+  #   restart: unless-stopped
+
+# =============================================================================
+# 네트워크 설정
+# =============================================================================
+networks:
+  factory-network:
+    driver: bridge
+    name: sherlock-factory-network
+
+# =============================================================================
+# 볼륨 설정 (데이터 영속성)
+# =============================================================================
+volumes:
+  china-db-data:
+    name: sherlock-china-db-data
+  vietnam-db-data:
+    name: sherlock-vietnam-db-data
+  korea-db-data:
+    name: sherlock-korea-db-data
