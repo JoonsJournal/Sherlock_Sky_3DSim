@@ -1,26 +1,22 @@
     {
 	    "active_profile": "production_all",
 		    "enabled_connections": {
-			    "korea_site1": {
+			    "CN_AAAA_Cutting_Sherlock": {
 			        "enabled": true,
 			        "databases": {
-			        "line1": true,
-			        "line2": true,
-			        "quality": true
+				        "SherlockSky": true
 			        }
 			    },
-			    "vietnam_site": {
+			    "KR_BBBB_Cutting_Sherlock": {
 			        "enabled": true,
 			        "databases": {
-			        "production": true,
-			        "maintenance": false
+				        "SherlockSky": true
 			        }
 			    },
-			    "usa_site": {
+			    "VN_CCCC_Stacking_Sherlock": {
 			        "enabled": false,
 			        "databases": {
-			        "plant": false,
-			        "analytics": false
+				        "SherlockSky": true
 			        }
 			    }
 		    },
