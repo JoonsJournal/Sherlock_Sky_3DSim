@@ -3,7 +3,7 @@
  * =========================
  * Sidebar에서 분리된 Connection Modal 관리 클래스
  * 
- * @version 2.2.0
+ * @version 2.2.1
  * @created 2026-01-11
  * @updated 2026-01-29
  * @source Sidebar.js v1.3.0 (Connection Modal 섹션)
@@ -18,6 +18,9 @@
  * - 🆕 Mapping Status 표시 및 이벤트 발생
  * 
  * @changelog
+ * - v2.2.1: 🐛 Database Table 렌더링 버그 수정 (2026-01-29)
+ *           - _renderDatabaseInfo()에서 테이블 객체 처리 추가
+ *           - {schema, name} 객체와 문자열 모두 지원 (하위 호환)
  * - v2.2.0: 🆕 Mapping Status 기능 추가 (2026-01-29)
  *           - currentMappingStatus 상태 추가
  *           - _renderMappingBadge() 메서드 추가
@@ -1395,7 +1398,11 @@ export class ConnectionModalManager {
                         <details>
                             <summary>View Tables (${dbInfo.tables.length})</summary>
                             <ul class="table-list" style="max-height:150px;overflow-y:auto;padding-left:20px;margin:8px 0;">
-                                ${dbInfo.tables.slice(0, 15).map(t => `<li style="font-size:12px;color:var(--text-secondary);">${t}</li>`).join('')}
+                                ${dbInfo.tables.slice(0, 15).map(t => {
+                                    // 🔧 v2.2.1: 객체인 경우 schema.name 형식으로 표시, 문자열이면 그대로 사용 (하위 호환)
+                                    const tableName = typeof t === 'object' ? `${t.schema}.${t.name}` : t;
+                                    return `<li style="font-size:12px;color:var(--text-secondary);">${tableName}</li>`;
+                                }).join('')}
                                 ${dbInfo.tables.length > 15 ? `<li style="font-size:12px;color:var(--text-muted);">... and ${dbInfo.tables.length - 15} more</li>` : ''}
                             </ul>
                         </details>
