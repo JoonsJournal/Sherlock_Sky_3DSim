@@ -3,11 +3,18 @@
  * ==========
  * Cleanroom Sidebar UI 컴포넌트 (조율자)
  * 
- * @version 2.0.0
+ * @version 2.1.0
  * @created 2026-01-11
- * @updated 2026-01-25
+ * @updated 2026-01-29
  * 
  * @changelog
+ * - v2.1.0: 🆕 Mapping Status 통합 (2026-01-29)
+ *           - isMappingReady, connectedSiteId 상태 추가
+ *           - _initializeManagers()에 stateManager 전달 추가
+ *           - _onStateChange()에 mappingChanged, mappingSet 처리 추가
+ *           - _updateButtonStates()에 isMappingReady 포함
+ *           - getMappingReady(), getMappingInfo(), getConnectedSiteId() 공개 메서드 추가
+ *           - ⚠️ 호환성: 기존 모든 Public/Private API 100% 유지
  * - v2.0.0: 🔄 대규모 리팩토링 (2026-01-25)
  *           - 42KB (1,100줄) → 15KB (~400줄) 슬림화
  *           - SidebarViewManager 분리 (View 관련 로직)
@@ -115,6 +122,10 @@ export class Sidebar {
         this.currentSubMode = null;
         this.currentTheme = 'dark';
         
+        // 🆕 v2.1.0: Mapping 관련 상태 추가
+        this.isMappingReady = false;
+        this.connectedSiteId = null;
+        
         // DOM References
         this.element = null;
         this.buttons = new Map();
@@ -148,7 +159,7 @@ export class Sidebar {
         this._setupEventListeners();
         this._updateButtonStates();
         
-        console.log('[Sidebar] 초기화 완료 v2.0.0 (Refactored)');
+        console.log('[Sidebar] 초기화 완료 v2.1.0 (Mapping Status 통합)');
     }
     
     _loadTheme() {
@@ -158,6 +169,7 @@ export class Sidebar {
     
     /**
      * 🆕 v2.0.0: 분리된 매니저/핸들러 초기화
+     * 🔧 v2.1.0: ClickHandlers에 stateManager 전달 추가
      */
     _initializeManagers() {
         // ViewManager 초기화
@@ -186,6 +198,7 @@ export class Sidebar {
         });
         
         // ClickHandlers 초기화
+        // 🔧 v2.1.0: stateManager 전달 추가
         this._clickHandlers = new SidebarClickHandlers({
             sidebar: this,
             navigationController,
@@ -194,7 +207,9 @@ export class Sidebar {
             toast: this.toast,
             buttonsConfig: SIDEBAR_BUTTONS,
             selectButton: (key) => this._selectButton(key),
-            toggleConnectionModal: () => this.toggleConnectionModal()
+            toggleConnectionModal: () => this.toggleConnectionModal(),
+            // 🆕 v2.1.0: StateManager 전달 (매핑 체크용)
+            stateManager: this._stateManager
         });
         
         // EventHandlers 초기화 및 이벤트 구독
@@ -214,14 +229,35 @@ export class Sidebar {
     /**
      * @private
      * StateManager에서 상태 변경 시 호출
+     * 🔧 v2.1.0: mappingChanged, mappingSet 타입 처리 추가
      */
     _onStateChange(state) {
         // State 동기화
         if (state.type === 'connection' || state.type === 'siteConnected' || state.type === 'siteDisconnected') {
             this.isConnected = state.isConnected;
+            
+            // 🆕 v2.1.0: 연결 상태 변경 시 매핑 상태도 동기화
+            if (state.isMappingReady !== undefined) {
+                this.isMappingReady = state.isMappingReady;
+            }
+            if (state.type === 'siteConnected') {
+                this.connectedSiteId = state.siteId || null;
+            }
+            if (state.type === 'siteDisconnected') {
+                this.connectedSiteId = null;
+                this.isMappingReady = false;
+            }
         }
         if (state.type === 'devMode') {
             this.devModeEnabled = state.devModeEnabled;
+        }
+        
+        // 🆕 v2.1.0: 매핑 상태 변경 처리
+        if (state.type === 'mappingChanged' || state.type === 'mappingSet') {
+            this.isMappingReady = state.isMappingReady || false;
+            this.connectedSiteId = state.connectedSiteId || this.connectedSiteId;
+            
+            console.log(`[Sidebar] 📊 Mapping 상태 변경: Ready=${this.isMappingReady}, SiteId=${this.connectedSiteId}`);
         }
         
         // 버튼 상태 업데이트
@@ -483,8 +519,10 @@ export class Sidebar {
     // ========================================
     
     _onSiteConnected(siteId, siteName) {
+        // 🔧 v2.1.0: StateManager에 위임 (mappingInfo는 StateManager가 ConnectionModalManager에서 가져옴)
         this._stateManager?.onSiteConnected(siteId, siteName);
         this.isConnected = true;
+        this.connectedSiteId = siteId;  // 🆕 v2.1.0
         this._updateButtonStates();
         this._updateCoverStatus(true, siteId);
     }
@@ -492,6 +530,8 @@ export class Sidebar {
     _onSiteDisconnected(siteId) {
         this._stateManager?.onSiteDisconnected(siteId, () => navigationController.goHome());
         this.isConnected = false;
+        this.connectedSiteId = null;  // 🆕 v2.1.0
+        this.isMappingReady = false;  // 🆕 v2.1.0
         this.currentMode = null;
         this.currentSubMode = null;
         this._updateButtonStates();
@@ -508,6 +548,8 @@ export class Sidebar {
     disableBeforeConnection() {
         this._stateManager?.disableBeforeConnection(() => this.showCoverScreen());
         this.isConnected = false;
+        this.isMappingReady = false;  // 🆕 v2.1.0
+        this.connectedSiteId = null;  // 🆕 v2.1.0
         this.currentMode = null;
         this.currentSubMode = null;
         this._updateButtonStates();
@@ -574,10 +616,16 @@ export class Sidebar {
         });
     }
     
+    /**
+     * 버튼 상태 업데이트
+     * 🔧 v2.1.0: isMappingReady 상태 포함
+     */
     _updateButtonStates() {
         const state = {
             isConnected: this.isConnected,
-            devModeEnabled: this.devModeEnabled
+            devModeEnabled: this.devModeEnabled,
+            // 🆕 v2.1.0: 매핑 상태 추가
+            isMappingReady: this.isMappingReady
         };
         
         Object.entries(SIDEBAR_BUTTONS).forEach(([key, config]) => {
@@ -639,6 +687,30 @@ export class Sidebar {
         return this.modeIndicatorPanel;
     }
     
+    /**
+     * 🆕 v2.1.0: 매핑 준비 상태 반환
+     * @returns {boolean}
+     */
+    getMappingReady() {
+        return this.isMappingReady;
+    }
+    
+    /**
+     * 🆕 v2.1.0: 현재 매핑 정보 반환
+     * @returns {Object|null}
+     */
+    getMappingInfo() {
+        return this._stateManager?.getMappingInfo() || null;
+    }
+    
+    /**
+     * 🆕 v2.1.0: 연결된 사이트 ID 반환
+     * @returns {string|null}
+     */
+    getConnectedSiteId() {
+        return this.connectedSiteId;
+    }
+    
     setButtonEnabled(key, enabled) {
         const btn = this.buttons.get(key);
         const wrapper = document.getElementById(`${SIDEBAR_BUTTONS[key]?.id}-wrapper`);
@@ -686,6 +758,10 @@ export class Sidebar {
         // Map 정리
         this.buttons.clear();
         this.submenus.clear();
+        
+        // 🆕 v2.1.0: 매핑 상태 초기화
+        this.isMappingReady = false;
+        this.connectedSiteId = null;
         
         console.log('[Sidebar] 정리 완료');
     }
