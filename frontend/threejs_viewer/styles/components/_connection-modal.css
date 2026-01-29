@@ -3,26 +3,37 @@
  * =====================
  * ConnectionModalManager.js 전용 스타일
  * 
- * @version 1.1.0
+ * @version 1.2.0
  * @created 2026-01-11
- * @updated 2026-01-11
- * @source ConnectionModalManager.js v1.0.0
+ * @updated 2026-01-29
+ * @source ConnectionModalManager.js v2.2.1
  * 
  * @description
  * Sidebar.js 리팩토링 Phase 3에서 분리된 ConnectionModalManager.js의
  * 전용 CSS 스타일. Light/Dark 모드 모두 지원.
  * 
  * @changelog
+ * - v1.2.0: 🆕 Mapping Badge/Notice 스타일 추가 (2026-01-29)
+ *           - .mapping-badge (--ready, --missing, --invalid) 사이트별 매핑 상태
+ *           - .mapping-status-badge (--ready, --missing) Database Panel용
+ *           - .mapping-notice (--warning, --info, --error) 알림 메시지
+ *           - .mapping-notice-overlay 전체 화면 오버레이 알림
+ *           - @keyframes badge-appear, overlay-appear 애니메이션
+ *           - ⚠️ 호환성: 기존 모든 스타일 100% 유지
  * - v1.1.0: 🐛 panel-footer 표시 안 되는 버그 수정 (2026-01-11)
  *           - .connection-panel: overflow: hidden → visible, flex 레이아웃 추가
  *           - .site-list: flex: 1, min-height: 0 추가
  *           - .panel-footer: flex-shrink: 0 추가
  * - v1.0.0: Light 모드에서 Modal이 안 열리는 버그 수정
  * 
+ * @dependencies
+ * - base/_variables.css (Design Tokens)
+ * - ConnectionModalManager.js v2.2.1 (MAPPING_CSS 상수)
+ * 
  * @usage
  * @import './components/_connection-modal.css';
  * 
- * 위치: frontend/threejs_viewer/styles/components/_connection-modal.css
+ * 📁 위치: frontend/threejs_viewer/styles/components/_connection-modal.css
  */
 
 /* =============================================
@@ -689,6 +700,290 @@
     #connection-modal .status-dot.connected,
     #connection-modal .status-dot--connected,
     #connection-modal .status-dot--checking {
+        animation: none;
+    }
+}
+
+/* =============================================================================
+   🆕 v1.2.0: Mapping Badge/Notice 스타일 추가 (2026-01-29)
+   =============================================================================
+   JS 참조: ConnectionModalManager.js MAPPING_CSS 상수
+   ============================================================================= */
+
+/* =============================================
+   Mapping Badge (Site Item 내 매핑 상태 표시)
+   =============================================
+   BEM: .mapping-badge, .mapping-badge--ready, .mapping-badge--missing, .mapping-badge--invalid
+   ============================================= */
+
+.mapping-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    transition: all var(--transition-fast, 150ms) ease;
+    animation: badge-appear 0.2s ease-out;
+}
+
+/* Ready State - 초록색 (매핑 완료) */
+.mapping-badge--ready {
+    background: rgba(6, 95, 70, 0.8);
+    color: #A7F3D0;
+    border: 1px solid rgba(167, 243, 208, 0.3);
+}
+
+/* Missing State - 주황색 (매핑 필요) */
+.mapping-badge--missing {
+    background: rgba(146, 64, 14, 0.8);
+    color: #FDE68A;
+    border: 1px solid rgba(253, 230, 138, 0.3);
+}
+
+/* Invalid State - 빨간색 (매핑 오류) */
+.mapping-badge--invalid {
+    background: rgba(153, 27, 27, 0.8);
+    color: #FECACA;
+    border: 1px solid rgba(254, 202, 202, 0.3);
+}
+
+/* Hover Effect */
+.mapping-badge:hover {
+    filter: brightness(1.1);
+}
+
+/* Badge Appear Animation */
+@keyframes badge-appear {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* =============================================
+   Mapping Status Badge (Database Panel Header)
+   =============================================
+   BEM: .mapping-status-badge, .mapping-status-badge--ready, .mapping-status-badge--missing
+   JS 참조: SidebarStateManager.js MAPPING_STATE_CSS
+   ============================================= */
+
+.mapping-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.mapping-status-badge--ready {
+    background: rgba(6, 95, 70, 0.9);
+    color: #A7F3D0;
+}
+
+.mapping-status-badge--missing {
+    background: rgba(146, 64, 14, 0.9);
+    color: #FDE68A;
+}
+
+/* =============================================
+   Mapping Notice (인라인 알림 메시지)
+   =============================================
+   BEM: .mapping-notice, .mapping-notice--warning, .mapping-notice--info, .mapping-notice--error
+   ============================================= */
+
+.mapping-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-top: 12px;
+    line-height: 1.5;
+}
+
+.mapping-notice__icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.mapping-notice__content {
+    flex: 1;
+}
+
+.mapping-notice__title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.mapping-notice__message {
+    color: inherit;
+    opacity: 0.9;
+}
+
+/* Warning Notice - 주황/노란색 */
+.mapping-notice--warning {
+    background: rgba(146, 64, 14, 0.2);
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    color: #FDE68A;
+}
+
+/* Info Notice - 파란색 */
+.mapping-notice--info {
+    background: rgba(30, 64, 175, 0.2);
+    border: 1px solid rgba(96, 165, 250, 0.4);
+    color: #BFDBFE;
+}
+
+/* Error Notice - 빨간색 */
+.mapping-notice--error {
+    background: rgba(153, 27, 27, 0.2);
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    color: #FECACA;
+}
+
+/* =============================================
+   Mapping Notice Overlay (전체 화면 오버레이 알림)
+   =============================================
+   BEM: .mapping-notice-overlay, .mapping-notice-overlay--active
+   사용: 매핑 필요 시 3D 모니터링 버튼 클릭 시 표시
+   ============================================= */
+
+.mapping-notice-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-modal, 500);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.mapping-notice-overlay--active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.mapping-notice-overlay__content {
+    background: var(--bg-panel, #1F2937);
+    border: 1px solid var(--border-color, #374151);
+    border-radius: 12px;
+    padding: 24px 32px;
+    max-width: 480px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    animation: overlay-appear 0.3s ease-out;
+}
+
+.mapping-notice-overlay__icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.mapping-notice-overlay__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary, #F9FAFB);
+    margin-bottom: 8px;
+}
+
+.mapping-notice-overlay__message {
+    font-size: 14px;
+    color: var(--text-secondary, #9CA3AF);
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.mapping-notice-overlay__actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.mapping-notice-overlay__btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.mapping-notice-overlay__btn--primary {
+    background: var(--icon-selected, #60A5FA);
+    color: white;
+}
+
+.mapping-notice-overlay__btn--primary:hover {
+    background: var(--icon-hover, #93C5FD);
+    transform: translateY(-1px);
+}
+
+.mapping-notice-overlay__btn--secondary {
+    background: var(--bg-input, #374151);
+    color: var(--text-secondary, #9CA3AF);
+    border: 1px solid var(--border-color, #4B5563);
+}
+
+.mapping-notice-overlay__btn--secondary:hover {
+    background: var(--bg-hover, #4B5563);
+    color: var(--text-primary, #F9FAFB);
+}
+
+/* Overlay Appear Animation */
+@keyframes overlay-appear {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* =============================================
+   🆕 v1.2.0: Responsive (Mapping 스타일)
+   ============================================= */
+
+@media (max-width: 768px) {
+    .mapping-notice-overlay__content {
+        margin: 20px;
+        padding: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .mapping-notice-overlay__actions {
+        flex-direction: column;
+    }
+}
+
+/* =============================================
+   🆕 v1.2.0: Animation Reduce (Mapping 스타일)
+   ============================================= */
+
+@media (prefers-reduced-motion: reduce) {
+    .mapping-badge {
+        animation: none;
+    }
+    
+    .mapping-notice-overlay__content {
         animation: none;
     }
 }

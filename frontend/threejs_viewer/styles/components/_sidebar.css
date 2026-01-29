@@ -1,39 +1,53 @@
 /**
  * _sidebar.css
  * ============
- * Cleanroom Sidebar Theme - 사이드바 및 서브메뉴 스타일
+ * Cleanroom Sidebar - BEM 리팩토링 버전
  * 
- * Source: test_sidebar_standalone.html v2.10 + index.html v5.3.0
+ * Block: .sidebar
  * 
- * @version 1.1.0
- * @created 2026-01-11
- * @updated 2026-01-11
+ * @version 4.1.0
+ * @created 2026-01-15
+ * @updated 2026-01-29
+ * 
+ * @description
+ * - Sidebar 컴포넌트의 BEM 리팩토링 버전
+ * - Legacy alias 유지로 기존 코드 호환성 보장
+ * 
+ * [BEM 구조]
+ * .sidebar                    → Block
+ * .sidebar__brand             → Element
+ * .sidebar__nav               → Element
+ * .sidebar__divider           → Element
+ * .sidebar__spacer            → Element
+ * .sidebar--collapsed         → Modifier
+ * .sidebar--mobile-open       → Modifier
+ * 
+ * [하위 호환성]
+ * - 기존 .sidebar 선택자 유지
+ * - .icon-btn, .submenu 등 기존 클래스 alias
  * 
  * @changelog
- * - v1.1.0: 🔧 리팩토링 (2026-01-11)
- *           - index.html 스타일 완전 통합
- *           - dev-mode-badge 패딩 6px 14px로 통일
- *           - Light 테마 dev-mode-badge 추가
- *           - has-submenu 브릿지 영역 개선
- *           - tooltip 스타일 보강
- * - v1.0.0: 초기 버전
+ * - v4.1.0: 🆕 Mapping 상태 버튼 스타일 추가 (2026-01-29)
+ *           - .sidebar-btn--disabled (비활성화 상태)
+ *           - .sidebar-btn--mapping-required (매핑 필요 경고)
+ *           - .sidebar-btn--highlight (하이라이트 강조)
+ *           - .sidebar-btn--pulse (펄스 애니메이션)
+ *           - .sidebar-mapping-indicator (상태 인디케이터)
+ *           - @keyframes pulse-warning, pulse-border, pulse-button, pulse-icon
+ *           - ⚠️ 호환성: 기존 모든 스타일 100% 유지
+ * - v4.0.0: BEM Refactoring (2026-01-15)
+ *           - BEM 네이밍 규칙 전면 적용
+ *           - Legacy alias 유지로 기존 코드 호환
  * 
- * 구조:
- * - Sidebar (80px 너비)
- * - Icon Buttons (선택/비활성/호버 상태)
- * - Submenu System (드롭다운)
- * - Theme Toggle
- * - Dev Mode Badge
- * - Debug Panel
+ * @dependencies
+ * - base/_variables.css (Design Tokens)
+ * - SidebarStateManager.js (MAPPING_STATE_CSS 상수)
  * 
- * 의존성:
- * - _variables.css (CSS 변수)
- * 
- * 위치: frontend/threejs_viewer/styles/components/_sidebar.css
+ * 📁 위치: frontend/threejs_viewer/styles/components/sidebar/_sidebar.css
  */
 
 /* =============================================
-   Sidebar Container
+   Sidebar - Block
    ============================================= */
 .sidebar {
     width: 80px;
@@ -43,16 +57,52 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 24px;
-    z-index: 10;
+    padding-top: var(--spacing-6);
+    z-index: var(--z-sidebar);
     box-shadow: 4px 0 15px var(--shadow-color);
     position: relative;
     flex-shrink: 0;
 }
 
 /* =============================================
-   Sidebar Divider & Spacer
+   Sidebar Brand - Element
    ============================================= */
+.sidebar__brand {
+    width: 54px;
+    height: 54px;
+    margin-bottom: var(--spacing-4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar__brand-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* =============================================
+   Sidebar Nav - Element
+   ============================================= */
+.sidebar__nav {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+/* =============================================
+   Sidebar Divider - Element
+   ============================================= */
+.sidebar__divider {
+    width: 40px;
+    height: 1px;
+    background: var(--border-color);
+    margin: var(--spacing-2) 0;
+}
+
+/* Legacy Alias */
 .sidebar-divider {
     width: 40px;
     height: 1px;
@@ -60,12 +110,146 @@
     margin: 8px 0;
 }
 
+/* =============================================
+   Sidebar Spacer - Element
+   ============================================= */
+.sidebar__spacer {
+    flex-grow: 1;
+}
+
+/* Legacy Alias */
 .sidebar-spacer {
     flex-grow: 1;
 }
 
 /* =============================================
-   Icon Button Base
+   Sidebar - Modifiers
+   ============================================= */
+
+/* Collapsed State */
+.sidebar--collapsed {
+    width: 60px;
+    min-width: 60px;
+}
+
+/* Mobile Open State */
+.sidebar--mobile-open {
+    left: 0;
+}
+
+/* =============================================
+   Icon Button - Block
+   사이드바 내 아이콘 버튼
+   ============================================= */
+.sidebar__icon-btn {
+    width: 54px;
+    height: 54px;
+    margin-bottom: var(--spacing-3);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    transition: transform var(--transition-normal) cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-radius: var(--radius-md);
+}
+
+/* Icon SVG */
+.sidebar__icon-btn svg {
+    width: var(--icon-size, 36px);
+    height: var(--icon-size, 36px);
+    fill: none;
+    stroke: var(--icon-normal);
+    stroke-width: 1px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: all var(--transition-normal);
+}
+
+/* Hover State */
+.sidebar__icon-btn:not(.sidebar__icon-btn--selected):not(.sidebar__icon-btn--disabled):hover {
+    transform: scale(1.1) translateY(-3px);
+}
+
+.sidebar__icon-btn:not(.sidebar__icon-btn--selected):not(.sidebar__icon-btn--disabled):hover svg {
+    stroke: var(--icon-hover);
+    filter: drop-shadow(0 0 3px var(--glow-color));
+}
+
+/* Selected State */
+.sidebar__icon-btn--selected {
+    transform: scale(1.08) translateY(-2px);
+}
+
+.sidebar__icon-btn--selected svg {
+    stroke: var(--icon-selected);
+    filter: drop-shadow(0 0 6px var(--icon-selected));
+}
+
+/* Selected Indicator Bar */
+.sidebar__icon-btn--selected::after {
+    content: '';
+    position: absolute;
+    left: -13px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 28px;
+    background-color: var(--icon-selected);
+    border-radius: 0 3px 3px 0;
+    box-shadow: 0 0 6px var(--icon-selected);
+}
+
+/* Disabled State */
+.sidebar__icon-btn--disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.sidebar__icon-btn--disabled svg {
+    stroke: var(--icon-disabled);
+}
+
+/* Hidden State */
+.sidebar__icon-btn--hidden {
+    display: none !important;
+}
+
+/* =============================================
+   Icon Button Tooltip
+   ============================================= */
+.sidebar__icon-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 70px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: var(--spacing-2) var(--spacing-3);
+    background: var(--bg-panel);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.sidebar__icon-btn[data-tooltip]:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* =============================================
+   Legacy Alias - Icon Button
    ============================================= */
 .icon-btn {
     width: 54px;
@@ -82,7 +266,6 @@
     border-radius: var(--radius-md, 8px);
 }
 
-/* Icon Button - SVG Icons */
 .icon-btn svg {
     width: var(--icon-size, 36px);
     height: var(--icon-size, 36px);
@@ -94,11 +277,52 @@
     transition: all var(--transition-speed, 0.25s);
 }
 
-/* =============================================
-   Icon Button - Tooltip (data-tooltip 속성)
-   ============================================= */
-.icon-btn[data-tooltip]::after,
-.has-submenu[data-tooltip]::after {
+.icon-btn:not(.selected):not(.disabled):hover {
+    transform: scale(1.1) translateY(-3px);
+}
+
+.icon-btn:not(.selected):not(.disabled):hover svg {
+    stroke: var(--icon-hover);
+    filter: drop-shadow(0 0 3px var(--glow-color));
+}
+
+.icon-btn.selected {
+    transform: scale(1.08) translateY(-2px);
+}
+
+.icon-btn.selected svg {
+    stroke: var(--icon-selected);
+    filter: drop-shadow(0 0 6px var(--icon-selected));
+}
+
+.icon-btn.selected::after {
+    content: '';
+    position: absolute;
+    left: -13px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 28px;
+    background-color: var(--icon-selected);
+    border-radius: 0 3px 3px 0;
+    box-shadow: 0 0 6px var(--icon-selected);
+}
+
+.icon-btn.disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.icon-btn.disabled svg {
+    stroke: var(--icon-disabled);
+}
+
+.icon-btn.hidden {
+    display: none !important;
+}
+
+.icon-btn[data-tooltip]::after {
     content: attr(data-tooltip);
     position: absolute;
     left: 70px;
@@ -120,231 +344,136 @@
     pointer-events: none;
 }
 
-.icon-btn[data-tooltip]:hover::after,
-.has-submenu[data-tooltip]:hover::after {
+.icon-btn[data-tooltip]:hover::after {
     opacity: 1;
     visibility: visible;
 }
 
-/* Submenu가 있는 버튼은 hover 시 tooltip 숨김 (submenu 표시) */
-.has-submenu:not(.disabled)[data-tooltip]:hover::after {
-    opacity: 0;
-    visibility: hidden;
-}
-
 /* =============================================
-   Icon Button - Hover State
+   Dev Mode Badge
    ============================================= */
-.icon-btn:not(.selected):not(.disabled):hover {
-    transform: scale(1.1) translateY(-3px);
+.dev-mode-badge {
+    position: fixed;
+    top: 10px;
+    left: 90px;
+    padding: var(--spacing-1-5) var(--spacing-3-5);
+    background: rgba(251, 191, 36, 0.2);
+    border: 1px solid var(--text-warning);
+    border-radius: var(--radius-xl);
+    font-size: var(--font-size-sm);
+    color: var(--text-warning);
+    font-weight: var(--font-weight-semibold);
+    z-index: var(--z-modal);
+    display: none;
+    white-space: nowrap;
+    font-family: var(--font-family-base);
+    transition: all var(--transition-fast);
 }
 
-.icon-btn:not(.selected):not(.disabled):hover svg {
-    stroke: var(--icon-hover);
-    filter: drop-shadow(0 0 3px var(--glow-color));
-}
-
-/* =============================================
-   Icon Button - Selected State
-   ============================================= */
-.icon-btn.selected {
-    transform: scale(1.08) translateY(-2px);
-}
-
-.icon-btn.selected svg {
-    stroke: var(--icon-selected);
-    filter: drop-shadow(0 0 6px var(--icon-selected));
-}
-
-/* Selected Indicator Bar (left side) */
-.icon-btn.selected::after {
-    content: '';
-    position: absolute;
-    left: -13px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 28px;
-    background-color: var(--icon-selected);
-    border-radius: 0 3px 3px 0;
-    box-shadow: 0 0 6px var(--icon-selected);
-}
-
-/* =============================================
-   Icon Button - Disabled State
-   ============================================= */
-.icon-btn.disabled {
-    cursor: not-allowed;
-    opacity: 0.4;
-    pointer-events: none;
-}
-
-.icon-btn.disabled svg {
-    stroke: var(--icon-disabled);
-}
-
-/* =============================================
-   Icon Button - Hidden State
-   ============================================= */
-.icon-btn.hidden {
-    display: none !important;
-}
-
-/* =============================================
-   Submenu System
-   ============================================= */
-.has-submenu {
-    position: relative;
-}
-
-/* Submenu 브릿지 영역 (마우스 이탈 방지) */
-.has-submenu::before {
-    content: '';
-    position: absolute;
-    right: -16px;
-    top: 0;
-    width: 20px;
-    height: 100%;
-    background: transparent;
-    z-index: 99;
-}
-
-/* Submenu Arrow Indicator */
-.has-submenu > .icon-btn::after {
-    content: '';
-    position: absolute;
-    right: 2px;
-    top: 50%;
-    transform: translateY(-50%);
-    border: 4px solid transparent;
-    border-left-color: var(--icon-normal);
-    opacity: 0.5;
-}
-
-.has-submenu:not(.disabled):hover > .icon-btn::after {
-    border-left-color: var(--icon-selected);
-    opacity: 1;
-}
-
-/* Submenu Container */
-.submenu {
-    position: absolute;
-    left: 64px;
-    top: 0;
-    background: var(--bg-sidebar);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 8px 0;
-    min-width: 200px;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateX(-10px);
-    transition: all 0.2s ease;
-    box-shadow: 4px 4px 20px var(--shadow-color);
-    z-index: 100;
-}
-
-/* Submenu 브릿지 영역 (좌측) */
-.submenu::before {
-    content: '';
-    position: absolute;
-    left: -16px;
-    top: 0;
-    width: 20px;
-    height: 100%;
-    background: transparent;
-}
-
-/* Submenu - Bottom positioned (Settings, Debug) */
-#btn-settings-wrapper .submenu,
-#btn-debug-wrapper .submenu {
-    top: auto;
-    bottom: 0;
-}
-
-/* Submenu - Show on Hover */
-.has-submenu:not(.disabled):hover .submenu {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(0);
-}
-
-/* Submenu - Disabled State */
-.has-submenu.disabled .submenu {
-    opacity: 0 !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-}
-
-/* Submenu - Disabled Wrapper */
-.has-submenu.disabled {
-    cursor: not-allowed;
-    opacity: 0.4;
-}
-
-/* Hidden wrapper state */
-.has-submenu.hidden {
-    display: none !important;
-}
-
-/* =============================================
-   Submenu Items
-   ============================================= */
-.submenu-item {
-    display: flex;
+.dev-mode-badge.active {
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
-    color: var(--text-secondary);
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.15s;
-    border: none;
-    background: none;
-    width: 100%;
-    text-align: left;
-    font-family: inherit;
 }
 
-.submenu-item:hover {
-    background: var(--bg-hover);
+.dev-mode-badge:hover {
+    background: rgba(251, 191, 36, 0.3);
+}
+
+/* Light Theme - Dev Mode Badge */
+[data-theme="light"] .dev-mode-badge {
+    background: rgba(217, 119, 6, 0.15);
+    border-color: #D97706;
+    color: #D97706;
+}
+
+[data-theme="light"] .dev-mode-badge:hover {
+    background: rgba(217, 119, 6, 0.25);
+}
+
+/* =============================================
+   Debug Panel
+   ============================================= */
+#debug-panel {
+    position: fixed;
+    bottom: 50px;
+    right: 20px;
+    width: 400px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 10px 40px var(--shadow-color);
+    z-index: var(--z-dropdown);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    font-family: var(--font-family-base);
+}
+
+#debug-panel.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.debug-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-3) var(--spacing-4);
+    background: var(--bg-panel-header);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.debug-panel-title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
     color: var(--text-primary);
 }
 
-.submenu-item.active {
-    background: var(--bg-selected);
-    color: var(--icon-selected);
+.debug-panel-content {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-sm);
+    color: var(--debug-text, #0f0);
+    background: var(--debug-bg, #1a1a1a);
+    padding: var(--spacing-3);
+    max-height: 300px;
+    overflow-y: auto;
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
 }
 
-.submenu-item.disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    pointer-events: none;
+.debug-section {
+    margin-bottom: var(--spacing-3);
 }
 
-.submenu-item svg {
-    width: 18px;
-    height: 18px;
-    stroke: currentColor;
-    stroke-width: 1.5px;
-    fill: none;
-}
-
-/* =============================================
-   Submenu Divider & Header
-   ============================================= */
-.submenu-divider {
-    height: 1px;
-    background: var(--border-color);
-    margin: 6px 12px;
-}
-
-.submenu-header {
-    padding: 6px 16px;
-    font-size: 10px;
-    color: var(--text-muted);
+.debug-section-title {
+    color: var(--debug-section-title, #0ff);
+    margin-bottom: var(--spacing-2);
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+}
+
+.debug-state-item {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-1) 0;
+}
+
+.debug-state-label {
+    color: var(--debug-label, #888);
+}
+
+.debug-state-value {
+    color: var(--debug-value, #ff0);
+}
+
+.debug-state-value.on {
+    color: var(--debug-on, #0f0);
+}
+
+.debug-state-value.off {
+    color: var(--debug-off, #f00);
 }
 
 /* =============================================
@@ -384,231 +513,7 @@
 }
 
 /* =============================================
-   Theme Toggle
-   ============================================= */
-.theme-toggle-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    color: var(--text-secondary);
-    font-size: 13px;
-}
-
-.theme-toggle-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.theme-toggle-label svg {
-    width: 18px;
-    height: 18px;
-    stroke: currentColor;
-    stroke-width: 1.5px;
-    fill: none;
-}
-
-.theme-switch {
-    position: relative;
-    width: 44px;
-    height: 24px;
-    background: var(--bg-input);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.theme-switch::before {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 18px;
-    height: 18px;
-    background: var(--icon-normal);
-    border-radius: 50%;
-    transition: all 0.3s ease;
-}
-
-.theme-switch.active {
-    background: var(--icon-selected);
-    border-color: var(--icon-selected);
-}
-
-.theme-switch.active::before {
-    left: 22px;
-    background: white;
-}
-
-/* =============================================
-   Mock Test List (Dev Mode)
-   ============================================= */
-.mock-test-list {
-    padding: 8px 16px;
-}
-
-.mock-test-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    margin-bottom: 4px;
-    background: var(--bg-input);
-    border-radius: 6px;
-    font-size: 12px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.15s;
-}
-
-.mock-test-item:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-}
-
-/* =============================================
-   Dev Mode Badge (Standalone - body 직접 배치)
-   ============================================= */
-.dev-mode-badge {
-    position: fixed;
-    top: 10px;
-    left: 90px;
-    padding: 6px 14px;
-    background: rgba(251, 191, 36, 0.2);
-    border: 1px solid var(--text-warning);
-    border-radius: 20px;
-    font-size: 12px;
-    color: var(--text-warning);
-    font-weight: 600;
-    z-index: 1000;
-    display: none;
-    white-space: nowrap;
-    font-family: var(--font-family, 'Segoe UI', sans-serif);
-    transition: all var(--transition-fast, 150ms);
-}
-
-.dev-mode-badge.active {
-    display: inline-flex;
-    align-items: center;
-}
-
-.dev-mode-badge:hover {
-    background: rgba(251, 191, 36, 0.3);
-}
-
-/* Light Theme - Dev Mode Badge */
-[data-theme="light"] .dev-mode-badge {
-    background: rgba(217, 119, 6, 0.15);
-    border-color: #D97706;
-    color: #D97706;
-}
-
-[data-theme="light"] .dev-mode-badge:hover {
-    background: rgba(217, 119, 6, 0.25);
-}
-
-/* =============================================
-   Debug Panel
-   ============================================= */
-#debug-panel {
-    position: fixed;
-    bottom: 50px;
-    right: 20px;
-    width: 400px;
-    background: var(--bg-panel);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    box-shadow: 0 10px 40px var(--shadow-color);
-    z-index: 100;
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px);
-    transition: all 0.3s ease;
-    font-family: var(--font-family, 'Segoe UI', sans-serif);
-}
-
-#debug-panel.active {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-.debug-panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    background: var(--bg-panel-header);
-    border-radius: 12px 12px 0 0;
-    border-bottom: 1px solid var(--border-subtle);
-}
-
-.debug-panel-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.debug-panel-content {
-    font-family: var(--font-mono, 'Consolas', monospace);
-    font-size: 12px;
-    color: var(--debug-text, #0f0);
-    background: var(--debug-bg, #1a1a1a);
-    padding: 12px;
-    max-height: 300px;
-    overflow-y: auto;
-    border-radius: 0 0 12px 12px;
-}
-
-.debug-section {
-    margin-bottom: 12px;
-}
-
-.debug-section-title {
-    color: var(--debug-section-title, #0ff);
-    margin-bottom: 8px;
-    font-size: 11px;
-    text-transform: uppercase;
-}
-
-.debug-state-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 4px 0;
-}
-
-.debug-state-label {
-    color: var(--debug-label, #888);
-}
-
-.debug-state-value {
-    color: var(--debug-value, #ff0);
-}
-
-.debug-state-value.on {
-    color: var(--debug-on, #0f0);
-}
-
-.debug-state-value.off {
-    color: var(--debug-off, #f00);
-}
-
-/* =============================================
-   Animation Keyframes
-   ============================================= */
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-
-/* =============================================
-   Responsive - 태블릿
+   Responsive - Tablet
    ============================================= */
 @media (max-width: 1024px) {
     .sidebar {
@@ -617,19 +522,17 @@
         padding-top: 16px;
     }
     
-    .icon-btn {
+    .icon-btn,
+    .sidebar__icon-btn {
         width: 44px;
         height: 44px;
         margin-bottom: 8px;
     }
     
-    .icon-btn svg {
+    .icon-btn svg,
+    .sidebar__icon-btn svg {
         width: 28px;
         height: 28px;
-    }
-    
-    .submenu {
-        left: 55px;
     }
     
     .dev-mode-badge {
@@ -637,13 +540,13 @@
     }
     
     .icon-btn[data-tooltip]::after,
-    .has-submenu[data-tooltip]::after {
+    .sidebar__icon-btn[data-tooltip]::after {
         left: 55px;
     }
 }
 
 /* =============================================
-   Responsive - 모바일 (사이드바 숨김)
+   Responsive - Mobile
    ============================================= */
 @media (max-width: 768px) {
     .sidebar {
@@ -652,7 +555,8 @@
         transition: left 0.3s ease;
     }
     
-    .sidebar.mobile-open {
+    .sidebar.mobile-open,
+    .sidebar--mobile-open {
         left: 0;
     }
     
@@ -670,14 +574,221 @@
 }
 
 /* =============================================
-   애니메이션 감소 선호 시
+   Reduced Motion
    ============================================= */
 @media (prefers-reduced-motion: reduce) {
     .icon-btn,
-    .submenu,
-    .theme-switch,
+    .sidebar__icon-btn,
     .dev-mode-badge,
     #debug-panel {
         transition: none !important;
+    }
+}
+
+/* =============================================================================
+   🆕 v4.1.0: Mapping 상태 버튼 스타일 추가 (2026-01-29)
+   =============================================================================
+   JS 참조: SidebarStateManager.js MAPPING_STATE_CSS 상수
+   ============================================= */
+
+/* =============================================
+   Sidebar Button - Disabled State
+   =============================================
+   BEM: .sidebar-btn--disabled
+   사용: 매핑 미완료 시 3D 모니터링 버튼 비활성화
+   ============================================= */
+
+.sidebar-btn--disabled {
+    pointer-events: none;
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.sidebar-btn--disabled svg {
+    stroke: var(--icon-disabled, #6B7280) !important;
+    filter: none !important;
+}
+
+/* Legacy alias for backward compatibility */
+.icon-btn.disabled,
+.sidebar__icon-btn.disabled {
+    pointer-events: none;
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* =============================================
+   Sidebar Button - Mapping Required Warning
+   =============================================
+   BEM: .sidebar-btn--mapping-required
+   사용: 매핑이 필요할 때 Connection 버튼에 경고 표시
+   ============================================= */
+
+.sidebar-btn--mapping-required {
+    position: relative;
+}
+
+.sidebar-btn--mapping-required::after {
+    content: '!';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 16px;
+    height: 16px;
+    background: var(--text-warning, #FBBF24);
+    color: #1F2937;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulse-warning 2s ease-in-out infinite;
+    box-shadow: 0 0 8px var(--text-warning, #FBBF24);
+}
+
+.sidebar-btn--mapping-required svg {
+    stroke: var(--text-warning, #FBBF24) !important;
+}
+
+.sidebar-btn--mapping-required:hover svg {
+    filter: drop-shadow(0 0 6px var(--text-warning, #FBBF24)) !important;
+}
+
+/* =============================================
+   Sidebar Button - Highlight State
+   =============================================
+   BEM: .sidebar-btn--highlight
+   사용: 특정 버튼 강조 (예: 연결 성공 후 3D 버튼 하이라이트)
+   ============================================= */
+
+.sidebar-btn--highlight {
+    animation: pulse-border 2s ease-in-out infinite;
+}
+
+.sidebar-btn--highlight::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border: 2px solid var(--icon-selected, #60A5FA);
+    border-radius: var(--radius-md, 8px);
+    animation: pulse-border 2s ease-in-out infinite;
+}
+
+.sidebar-btn--highlight svg {
+    stroke: var(--icon-selected, #60A5FA) !important;
+    filter: drop-shadow(0 0 6px var(--icon-selected, #60A5FA)) !important;
+}
+
+/* =============================================
+   Sidebar Button - Pulse Animation State
+   =============================================
+   BEM: .sidebar-btn--pulse
+   사용: 주의가 필요한 버튼에 펄스 애니메이션
+   ============================================= */
+
+.sidebar-btn--pulse {
+    animation: pulse-button 2s ease-in-out infinite;
+}
+
+.sidebar-btn--pulse svg {
+    animation: pulse-icon 2s ease-in-out infinite;
+}
+
+/* =============================================
+   Sidebar Mapping Indicator
+   =============================================
+   BEM: .sidebar-mapping-indicator, --ready, --warning, --error
+   사용: 버튼 옆 작은 상태 점 표시
+   ============================================= */
+
+.sidebar-mapping-indicator {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1px solid var(--bg-sidebar, #1F2937);
+}
+
+.sidebar-mapping-indicator--ready {
+    background: var(--text-success, #10B981);
+    box-shadow: 0 0 6px var(--text-success, #10B981);
+}
+
+.sidebar-mapping-indicator--warning {
+    background: var(--text-warning, #FBBF24);
+    box-shadow: 0 0 6px var(--text-warning, #FBBF24);
+    animation: pulse-warning 2s ease-in-out infinite;
+}
+
+.sidebar-mapping-indicator--error {
+    background: var(--text-alarm, #EF4444);
+    box-shadow: 0 0 6px var(--text-alarm, #EF4444);
+}
+
+/* =============================================
+   🆕 v4.1.0: Keyframe Animations
+   ============================================= */
+
+/* Warning Pulse - 경고 배지용 */
+@keyframes pulse-warning {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.1);
+    }
+}
+
+/* Border Pulse - 하이라이트 테두리용 */
+@keyframes pulse-border {
+    0%, 100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.4);
+    }
+    50% {
+        opacity: 0.8;
+        box-shadow: 0 0 0 4px rgba(96, 165, 250, 0);
+    }
+}
+
+/* Button Pulse - 버튼 전체용 */
+@keyframes pulse-button {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* Icon Pulse - 아이콘용 */
+@keyframes pulse-icon {
+    0%, 100% {
+        opacity: 1;
+        filter: drop-shadow(0 0 2px currentColor);
+    }
+    50% {
+        opacity: 0.8;
+        filter: drop-shadow(0 0 8px currentColor);
+    }
+}
+
+/* =============================================
+   🆕 v4.1.0: Reduced Motion (Mapping 애니메이션)
+   ============================================= */
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-btn--mapping-required::after,
+    .sidebar-btn--highlight,
+    .sidebar-btn--highlight::before,
+    .sidebar-btn--pulse,
+    .sidebar-btn--pulse svg,
+    .sidebar-mapping-indicator--warning {
+        animation: none !important;
     }
 }
