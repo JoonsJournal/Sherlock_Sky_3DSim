@@ -3,9 +3,9 @@
  * =======================
  * Sidebar 버튼/서브메뉴 클릭 핸들러 모듈
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @created 2026-01-25
- * @modified 2026-01-25
+ * @modified 2026-01-29
  * 
  * @description
  * Sidebar.js에서 분리된 Click Handler 전용 클래스
@@ -13,8 +13,14 @@
  * - 서브메뉴 클릭 처리 (_handleSubmenuClick)
  * - NavigationController 통합
  * - 모드 매핑 유틸리티
+ * - 🆕 Monitoring 모드 진입 시 매핑 체크
  * 
  * @changelog
+ * - v1.1.0: 🆕 Mapping Check 로직 추가 (2026-01-29)
+ *           - _checkMappingBeforeModeSwitch() 메서드 추가
+ *           - _handleModeClick()에 매핑 체크 로직 적용
+ *           - 매핑 미완료 시 경고 Toast 표시
+ *           - ⚠️ 호환성: 기존 모든 API/메서드 100% 유지
  * - v1.0.0: 초기 버전 (Sidebar.js v1.13.0에서 분리)
  *           - _handleButtonClick 이동
  *           - _handleSubmenuClick 이동
@@ -83,6 +89,12 @@ export const NAV_TO_SIDEBAR_MODE = {
     'settings': 'settings'
 };
 
+/**
+ * 🆕 v1.1.0: 매핑 필수 모드 목록
+ * @constant
+ */
+export const MAPPING_REQUIRED_MODES = ['monitoring'];
+
 // ============================================
 // Static Mapping Functions
 // ============================================
@@ -144,7 +156,8 @@ export function navModeToSidebarMode(navMode) {
  *     navigationController: navigationController,
  *     NAV_MODE: NAV_MODE,
  *     callbacks: this.callbacks,
- *     toast: this.toast
+ *     toast: this.toast,
+ *     stateManager: this.stateManager  // 🆕 v1.1.0
  * });
  * 
  * handlers.handleButtonClick('monitoring', event);
@@ -158,6 +171,7 @@ export class SidebarClickHandlers {
      * @param {Object} options.callbacks - 콜백 함수 객체
      * @param {Object} options.toast - Toast 알림 인스턴스
      * @param {Object} options.buttonsConfig - SIDEBAR_BUTTONS 설정
+     * @param {Object} options.stateManager - SidebarStateManager 인스턴스 (🆕 v1.1.0)
      */
     constructor(options = {}) {
         this.sidebar = options.sidebar || null;
@@ -167,11 +181,14 @@ export class SidebarClickHandlers {
         this.toast = options.toast || null;
         this.buttonsConfig = options.buttonsConfig || {};
         
+        // 🆕 v1.1.0: SidebarStateManager 참조
+        this.stateManager = options.stateManager || null;
+        
         // Sidebar 메서드 참조 (위임 패턴)
         this._selectButton = options.selectButton || (() => {});
         this._toggleConnectionModal = options.toggleConnectionModal || (() => {});
         
-        console.log('[SidebarClickHandlers] 초기화 완료 v1.0.0');
+        console.log('[SidebarClickHandlers] 초기화 완료 v1.1.0 (Mapping Check 지원)');
     }
     
     // ========================================
@@ -244,18 +261,70 @@ export class SidebarClickHandlers {
     /**
      * @private
      * 모드 버튼 클릭 처리 (NavigationController 통합)
+     * 🔧 v1.1.0: 매핑 체크 로직 추가
      * 
      * @param {string} key - 버튼 키
      * @param {string} navMode - NAV_MODE 값
      */
     _handleModeClick(key, navMode) {
+        // 🆕 v1.1.0: 매핑 체크 (Monitoring 모드인 경우)
+        const mappingCheckResult = this._checkMappingBeforeModeSwitch(key);
+        
+        // 매핑 미완료 경고 (진입은 허용하되 경고 표시)
+        if (mappingCheckResult.showWarning && this.toast) {
+            this.toast.warning(
+                'Mapping Not Complete',
+                'Equipment mapping is not configured. Some features may be limited.'
+            );
+        }
+        
         this._selectButton(key);
         
-        console.log(`[SidebarClickHandlers] 🧭 NavigationController.toggle: ${key}`);
+        console.log(`[SidebarClickHandlers] 🧭 NavigationController.toggle: ${key}${mappingCheckResult.showWarning ? ' (⚠️ Mapping Warning)' : ''}`);
         
         if (this.navigationController) {
             this.navigationController.toggle(navMode);
         }
+    }
+    
+    /**
+     * 🆕 v1.1.0: 모드 전환 전 매핑 체크
+     * @private
+     * 
+     * @param {string} key - 버튼 키
+     * @returns {Object} { canProceed: boolean, showWarning: boolean }
+     */
+    _checkMappingBeforeModeSwitch(key) {
+        // 매핑 필수 모드가 아니면 통과
+        if (!MAPPING_REQUIRED_MODES.includes(key)) {
+            return { canProceed: true, showWarning: false };
+        }
+        
+        // StateManager가 없으면 통과 (하위 호환)
+        if (!this.stateManager) {
+            return { canProceed: true, showWarning: false };
+        }
+        
+        // Dev Mode이면 통과 (Mock 모드에서는 매핑 체크 안 함)
+        if (this.stateManager.isDevModeEnabled()) {
+            return { canProceed: true, showWarning: false };
+        }
+        
+        // 연결 안 됨 → 진행 (연결 모달에서 처리)
+        if (!this.stateManager.getIsConnected()) {
+            return { canProceed: true, showWarning: false };
+        }
+        
+        // 매핑 준비 완료 → 통과
+        if (this.stateManager.getMappingReady()) {
+            return { canProceed: true, showWarning: false };
+        }
+        
+        // 매핑 미완료 → 경고와 함께 진행 허용
+        // (차단하지 않고 경고만 표시 - UX 개선)
+        console.log(`[SidebarClickHandlers] ⚠️ 매핑 미완료 상태에서 ${key} 모드 진입 시도`);
+        
+        return { canProceed: true, showWarning: true };
     }
     
     /**
@@ -344,12 +413,25 @@ export class SidebarClickHandlers {
     /**
      * @private
      * Submode 네비게이션 처리
+     * 🔧 v1.1.0: 매핑 체크 로직 추가
      * 
      * @param {string} submode - 서브모드 ID
      */
     _handleSubmodeNavigation(submode) {
         const parentMode = getParentModeForSubmode(submode);
         const navMode = mapToNavMode(parentMode);
+        
+        // 🆕 v1.1.0: 매핑 체크 (부모 모드 기준)
+        if (parentMode) {
+            const mappingCheckResult = this._checkMappingBeforeModeSwitch(parentMode);
+            
+            if (mappingCheckResult.showWarning && this.toast) {
+                this.toast.warning(
+                    'Mapping Not Complete',
+                    'Equipment mapping is not configured. Some features may be limited.'
+                );
+            }
+        }
         
         console.log(`[SidebarClickHandlers] 🧭 NavigationController.navigate: ${navMode}/${submode}`);
         
@@ -362,6 +444,27 @@ export class SidebarClickHandlers {
         if (parentMode) {
             this._selectButton(parentMode);
         }
+    }
+    
+    // ========================================
+    // 🆕 v1.1.0: Mapping Status Helpers
+    // ========================================
+    
+    /**
+     * 🆕 v1.1.0: 매핑 상태 확인 (외부 호출용)
+     * @returns {boolean}
+     */
+    isMappingRequired(mode) {
+        return MAPPING_REQUIRED_MODES.includes(mode);
+    }
+    
+    /**
+     * 🆕 v1.1.0: StateManager 설정 (지연 초기화 지원)
+     * @param {Object} stateManager - SidebarStateManager 인스턴스
+     */
+    setStateManager(stateManager) {
+        this.stateManager = stateManager;
+        console.log('[SidebarClickHandlers] 📊 StateManager 연결됨');
     }
     
     // ========================================
@@ -409,6 +512,7 @@ export class SidebarClickHandlers {
         this.callbacks = null;
         this.toast = null;
         this.buttonsConfig = null;
+        this.stateManager = null;  // 🆕 v1.1.0
         this._selectButton = null;
         this._toggleConnectionModal = null;
         

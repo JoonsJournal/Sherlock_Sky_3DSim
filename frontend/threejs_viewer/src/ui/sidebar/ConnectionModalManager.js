@@ -3,9 +3,9 @@
  * =========================
  * Sidebar에서 분리된 Connection Modal 관리 클래스
  * 
- * @version 2.1.0
+ * @version 2.2.0
  * @created 2026-01-11
- * @updated 2026-01-11
+ * @updated 2026-01-29
  * @source Sidebar.js v1.3.0 (Connection Modal 섹션)
  * 
  * @description
@@ -15,8 +15,16 @@
  * - Internet/API 상태 체크 (실제 API 호출)
  * - Database 정보 표시 (실제 API 호출)
  * - 🆕 Mock 모드 지원 (Dev Mode에서 Backend 없이 테스트)
+ * - 🆕 Mapping Status 표시 및 이벤트 발생
  * 
  * @changelog
+ * - v2.2.0: 🆕 Mapping Status 기능 추가 (2026-01-29)
+ *           - currentMappingStatus 상태 추가
+ *           - _renderMappingBadge() 메서드 추가
+ *           - _showMappingNotice() 메서드 추가
+ *           - connectToSelectedSite()에 매핑 상태 조회 및 이벤트 추가
+ *           - Site Item에 매핑 상태 배지 표시
+ *           - ⚠️ 호환성: 기존 모든 API/메서드 100% 유지
  * - v2.1.0: 🆕 Mock 모드 지원 추가 (2026-01-11)
  *           - enableMockMode() / disableMockMode() API 추가
  *           - Dev Mode에서 Backend 없이 모든 기능 테스트 가능
@@ -49,6 +57,27 @@
 import { SITE_LIST, getSiteById } from './SidebarConfig.js';
 // 🆕 v2.0.0: ConnectionService import (실제 API 호출용)
 import { ConnectionService } from '../../services/ConnectionService.js';
+
+// ============================================
+// 🆕 v2.2.0: CSS 클래스 상수 (BEM 패턴)
+// ============================================
+
+/**
+ * Mapping Badge CSS 클래스 상수
+ * @constant
+ */
+export const MAPPING_CSS = {
+    // Badge
+    BADGE: 'mapping-badge',
+    BADGE_READY: 'mapping-badge--ready',
+    BADGE_MISSING: 'mapping-badge--missing',
+    BADGE_INVALID: 'mapping-badge--invalid',
+    
+    // Notice
+    NOTICE: 'mapping-notice',
+    NOTICE_WARNING: 'mapping-notice--warning',
+    NOTICE_INFO: 'mapping-notice--info'
+};
 
 // ============================================
 // 🆕 v2.1.0: Mock 데이터 상수
@@ -117,6 +146,24 @@ const MOCK_DB_INFO = {
     }
 };
 
+/**
+ * 🆕 v2.2.0: Mock Mapping Status
+ */
+const MOCK_MAPPING_STATUS = {
+    korea_site1_line1: {
+        status: 'ready',
+        equipment_count: 117,
+        file_name: 'equipment_mapping_korea_site1_line1.json',
+        last_updated: '2026-01-29T10:30:00Z'
+    },
+    korea_site1_line2: {
+        status: 'missing',
+        equipment_count: 0,
+        file_name: 'equipment_mapping_korea_site1_line2.json',
+        last_updated: null
+    }
+};
+
 // ============================================
 // ConnectionModalManager Class
 // ============================================
@@ -161,6 +208,12 @@ export class ConnectionModalManager {
         this.siteStatus = {};
         this.isLoading = false;
         
+        // ============================================
+        // 🆕 v2.2.0: Mapping Status 상태
+        // ============================================
+        // { [siteId]: { status: 'ready'|'missing'|'invalid', equipment_count, file_name, ... } }
+        this.currentMappingStatus = {};
+        
         // 사이트 상태 초기화
         this.siteList.forEach(site => {
             this.siteStatus[site.id] = { status: 'disconnected' };
@@ -190,6 +243,9 @@ export class ConnectionModalManager {
             
             // Mock DB 정보
             dbInfo: MOCK_DB_INFO,
+            
+            // 🆕 v2.2.0: Mock Mapping Status
+            mappingStatus: MOCK_MAPPING_STATUS,
             
             // Mock 실패 시뮬레이션 (테스트용)
             simulateFailure: false,
@@ -239,6 +295,37 @@ export class ConnectionModalManager {
         return Object.values(this.siteStatus).some(s => s.status === 'connected');
     }
     
+    /**
+     * 🆕 v2.2.0: 특정 사이트의 매핑 상태 반환
+     * @param {string} siteId - 사이트 ID
+     * @returns {Object|null} 매핑 상태 또는 null
+     */
+    getMappingStatus(siteId) {
+        return this.currentMappingStatus[siteId] || null;
+    }
+    
+    /**
+     * 🆕 v2.2.0: 현재 연결된 사이트의 매핑이 준비되었는지 확인
+     * @returns {boolean}
+     */
+    isMappingReady() {
+        const connectedSiteId = this._getConnectedSiteId();
+        if (!connectedSiteId) return false;
+        
+        const mapping = this.currentMappingStatus[connectedSiteId];
+        return mapping?.status === 'ready';
+    }
+    
+    /**
+     * @private
+     * 현재 연결된 사이트 ID 반환
+     */
+    _getConnectedSiteId() {
+        const connected = Object.entries(this.siteStatus)
+            .find(([_, status]) => status.status === 'connected');
+        return connected ? connected[0] : null;
+    }
+    
     // ========================================
     // 🆕 v2.1.0: Mock Mode Control (Public API)
     // ========================================
@@ -280,6 +367,9 @@ export class ConnectionModalManager {
         
         this._mockConfig.enabled = false;
         this._mockConfig.connectedSiteId = null;
+        
+        // 🆕 v2.2.0: 매핑 상태 초기화
+        this.currentMappingStatus = {};
         
         console.log('[ConnectionModalManager] 🔌 Mock 모드 비활성화 - 실제 API 모드로 전환');
         
@@ -418,7 +508,7 @@ export class ConnectionModalManager {
         // 이벤트 설정
         this._setupEvents();
         
-        console.log('[ConnectionModalManager] 생성 완료 (v2.1.0 - Mock 모드 지원)');
+        console.log('[ConnectionModalManager] 생성 완료 (v2.2.0 - Mapping Status 지원)');
     }
     
     // ========================================
@@ -550,11 +640,13 @@ export class ConnectionModalManager {
     
     /**
      * 🆕 v2.1.0: 현재 연결 상태 로드 (Mock/Real 분기)
+     * 🔧 v2.2.0: 매핑 상태도 함께 로드
      */
     async _loadConnectionStatus() {
         // ========== Mock 모드 ==========
         if (this._mockConfig.enabled) {
-            // Mock 상태는 이미 siteStatus에 반영됨
+            // Mock 매핑 상태 로드
+            this.currentMappingStatus = { ...this._mockConfig.mappingStatus };
             return;
         }
         
@@ -577,8 +669,44 @@ export class ConnectionModalManager {
                     }
                 });
             }
+            
+            // 🆕 v2.2.0: GET /sites에서 매핑 상태 로드
+            await this._loadMappingStatusFromSites();
+            
         } catch (error) {
             console.error('[ConnectionModalManager] 연결 상태 로드 실패:', error);
+        }
+    }
+    
+    /**
+     * 🆕 v2.2.0: GET /sites API에서 매핑 상태 로드
+     * @private
+     */
+    async _loadMappingStatusFromSites() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/connections/sites`);
+            if (!response.ok) throw new Error('Failed to fetch sites');
+            
+            const data = await response.json();
+            
+            // sites 배열에서 mapping 정보 추출
+            if (data.sites && Array.isArray(data.sites)) {
+                data.sites.forEach(site => {
+                    const siteName = site.name;
+                    const mappings = site.mapping || {};
+                    
+                    // 각 database의 매핑 상태 저장
+                    Object.entries(mappings).forEach(([dbName, mappingInfo]) => {
+                        const siteId = `${siteName}_${dbName}`;
+                        this.currentMappingStatus[siteId] = mappingInfo;
+                    });
+                });
+                
+                console.log('[ConnectionModalManager] 📊 매핑 상태 로드 완료:', 
+                    Object.keys(this.currentMappingStatus).length, '개 사이트');
+            }
+        } catch (error) {
+            console.warn('[ConnectionModalManager] ⚠️ 매핑 상태 로드 실패:', error);
         }
     }
     
@@ -588,16 +716,17 @@ export class ConnectionModalManager {
     _getCountryFlag(siteId) {
         if (!siteId) return '🏭';
         const id = siteId.toLowerCase();
-        if (id.startsWith('kr')) return '🇰🇷';
-        if (id.startsWith('vn')) return '🇻🇳';
-        if (id.startsWith('us')) return '🇺🇸';
-        if (id.startsWith('cn')) return '🇨🇳';
-        if (id.startsWith('jp')) return '🇯🇵';
+        if (id.startsWith('kr') || id.startsWith('korea')) return '🇰🇷';
+        if (id.startsWith('vn') || id.startsWith('vietnam')) return '🇻🇳';
+        if (id.startsWith('us') || id.startsWith('usa')) return '🇺🇸';
+        if (id.startsWith('cn') || id.startsWith('china')) return '🇨🇳';
+        if (id.startsWith('jp') || id.startsWith('japan')) return '🇯🇵';
         return '🏭';
     }
     
     /**
      * Site List 렌더링
+     * 🔧 v2.2.0: 매핑 상태 배지 추가
      */
     _renderSiteList() {
         const siteList = this.element?.querySelector('#site-list');
@@ -618,6 +747,9 @@ export class ConnectionModalManager {
             const status = this.siteStatus[site.id] || {};
             const isConnectedSite = status.status === 'connected';
             
+            // 🆕 v2.2.0: 매핑 상태 배지 HTML
+            const mappingBadgeHtml = this._renderMappingBadge(site.id);
+            
             return `
                 <div class="site-item ${isSelected ? 'site-item--selected' : ''} ${isConnectedSite ? 'site-item--connected' : ''}" 
                      data-site-id="${site.id}">
@@ -629,6 +761,7 @@ export class ConnectionModalManager {
                             <span style="font-size: 20px; margin-right: 8px;">${site.flag}</span>
                             <span class="site-name">${site.name}</span>
                             <span class="site-region">${site.region}</span>
+                            ${mappingBadgeHtml}
                         </div>
                         <div class="site-meta">
                             <span>Priority: ${site.priority}</span>
@@ -673,6 +806,81 @@ export class ConnectionModalManager {
         });
         
         this._updateSelectionUI();
+    }
+    
+    /**
+     * 🆕 v2.2.0: 매핑 상태 배지 렌더링
+     * @param {string} siteId - 사이트 ID
+     * @returns {string} HTML 문자열
+     */
+    _renderMappingBadge(siteId) {
+        const mappingInfo = this.currentMappingStatus[siteId];
+        
+        if (!mappingInfo) {
+            return ''; // 매핑 정보 없으면 배지 표시 안 함
+        }
+        
+        const { status, equipment_count } = mappingInfo;
+        
+        let badgeClass = MAPPING_CSS.BADGE;
+        let badgeIcon = '';
+        let badgeText = '';
+        let badgeStyle = '';
+        
+        switch (status) {
+            case 'ready':
+                badgeClass += ` ${MAPPING_CSS.BADGE_READY}`;
+                badgeIcon = '✅';
+                badgeText = `${equipment_count || 0}`;
+                badgeStyle = 'background:#065F46;color:#A7F3D0;';
+                break;
+            case 'missing':
+                badgeClass += ` ${MAPPING_CSS.BADGE_MISSING}`;
+                badgeIcon = '⚠️';
+                badgeText = 'No Mapping';
+                badgeStyle = 'background:#92400E;color:#FDE68A;';
+                break;
+            case 'invalid':
+                badgeClass += ` ${MAPPING_CSS.BADGE_INVALID}`;
+                badgeIcon = '❌';
+                badgeText = 'Invalid';
+                badgeStyle = 'background:#991B1B;color:#FECACA;';
+                break;
+            default:
+                return '';
+        }
+        
+        return `<span class="${badgeClass}" style="margin-left:8px;padding:2px 6px;border-radius:4px;font-size:11px;${badgeStyle}">${badgeIcon} ${badgeText}</span>`;
+    }
+    
+    /**
+     * 🆕 v2.2.0: 매핑 미완료 알림 표시
+     * @param {string} siteId - 사이트 ID
+     * @param {Object} mappingInfo - 매핑 정보
+     */
+    _showMappingNotice(siteId, mappingInfo) {
+        if (!mappingInfo || mappingInfo.status === 'ready') {
+            return; // 매핑 준비되었으면 알림 불필요
+        }
+        
+        const site = getSiteById(siteId) || this.siteList.find(s => s.id === siteId);
+        const siteName = site?.name || siteId;
+        
+        if (mappingInfo.status === 'missing') {
+            if (this.toast) {
+                this.toast.warning(
+                    'Mapping Required',
+                    `Equipment mapping is not configured for ${siteName}. Monitoring features may be limited.`
+                );
+            }
+        } else if (mappingInfo.status === 'invalid') {
+            if (this.toast) {
+                this.toast.error(
+                    'Invalid Mapping',
+                    `Equipment mapping file for ${siteName} is corrupted. Please reconfigure.`
+                );
+            }
+        }
     }
     
     /**
@@ -868,6 +1076,7 @@ export class ConnectionModalManager {
     
     /**
      * 🆕 v2.1.0: 선택된 사이트에 연결 (Mock/Real 분기)
+     * 🔧 v2.2.0: 매핑 상태 조회 및 이벤트 포함
      */
     async connectToSelectedSite() {
         if (!this.selectedSite) return;
@@ -912,11 +1121,15 @@ export class ConnectionModalManager {
                 connectBtn.textContent = '🔌 Connect';
             }
             
+            // 🆕 v2.2.0: 매핑 상태 확인 및 알림
+            const mappingInfo = this.currentMappingStatus[this.selectedSite];
+            this._showMappingNotice(this.selectedSite, mappingInfo);
+            
             if (this.toast) {
                 this.toast.success('Connected (Mock)', `Successfully connected to ${site?.name || this.selectedSite}`);
             }
             
-            this._emitConnectionEvents(this.selectedSite, site?.name);
+            this._emitConnectionEvents(this.selectedSite, site?.name, mappingInfo);
             this.onConnect(this.selectedSite, site?.name || this.selectedSite);
             return;
         }
@@ -935,15 +1148,22 @@ export class ConnectionModalManager {
             this._renderSiteList();
             await this._updateDatabaseList(this.selectedSite);
             
+            // 🆕 v2.2.0: 연결 후 매핑 상태 다시 로드
+            await this._loadMappingStatusFromSites();
+            
             if (connectBtn) {
                 connectBtn.textContent = '🔌 Connect';
             }
+            
+            // 🆕 v2.2.0: 매핑 상태 확인 및 알림
+            const mappingInfo = this.currentMappingStatus[this.selectedSite];
+            this._showMappingNotice(this.selectedSite, mappingInfo);
             
             if (this.toast) {
                 this.toast.success('Connected', `Successfully connected to ${site?.name || this.selectedSite}`);
             }
             
-            this._emitConnectionEvents(this.selectedSite, site?.name);
+            this._emitConnectionEvents(this.selectedSite, site?.name, mappingInfo);
             this.onConnect(this.selectedSite, site?.name || this.selectedSite);
             
         } catch (error) {
@@ -953,15 +1173,29 @@ export class ConnectionModalManager {
     
     /**
      * 연결 이벤트 발생
+     * 🔧 v2.2.0: mappingInfo 파라미터 추가
+     * @param {string} siteId
+     * @param {string} siteName
+     * @param {Object} mappingInfo - 매핑 상태 정보
      */
-    _emitConnectionEvents(siteId, siteName) {
+    _emitConnectionEvents(siteId, siteName, mappingInfo = null) {
         if (this.eventBus) {
+            // 🆕 v2.2.0: mapping 정보 포함
             this.eventBus.emit('site:connected', { 
                 siteId, 
                 siteName: siteName || siteId,
-                isMock: this._mockConfig.enabled
+                isMock: this._mockConfig.enabled,
+                // 🆕 v2.2.0: 매핑 상태 정보 추가
+                mapping: mappingInfo || this.currentMappingStatus[siteId] || null,
+                isMappingReady: mappingInfo?.status === 'ready' || false
             });
             this.eventBus.emit('api:connected');
+            
+            // 🆕 v2.2.0: 매핑 상태 변경 이벤트 별도 발생
+            this.eventBus.emit('mapping:statusChanged', {
+                siteId,
+                mappingInfo: mappingInfo || this.currentMappingStatus[siteId] || null
+            });
         }
     }
     
@@ -1049,6 +1283,12 @@ export class ConnectionModalManager {
                 isMock: this._mockConfig.enabled
             });
             this.eventBus.emit('api:disconnected');
+            
+            // 🆕 v2.2.0: 매핑 상태 변경 이벤트
+            this.eventBus.emit('mapping:statusChanged', {
+                siteId,
+                mappingInfo: null
+            });
         }
     }
     
@@ -1114,10 +1354,20 @@ export class ConnectionModalManager {
     
     /**
      * Database 정보 렌더링
+     * 🔧 v2.2.0: 매핑 상태 정보 추가
      */
     _renderDatabaseInfo(container, siteId, dbInfo, isMock) {
         const site = getSiteById(siteId) || 
                      this.siteList.find(s => s.id === siteId);
+        
+        // 🆕 v2.2.0: 매핑 상태 배지
+        const mappingInfo = this.currentMappingStatus[siteId];
+        const mappingStatusHtml = mappingInfo ? `
+            <div class="stat-item">
+                <span class="stat-label">Mapping:</span>
+                <span class="stat-value">${this._getMappingStatusText(mappingInfo)}</span>
+            </div>
+        ` : '';
         
         container.innerHTML = `
             <div class="database-item">
@@ -1138,6 +1388,7 @@ export class ConnectionModalManager {
                         <span class="stat-label">Tables:</span>
                         <span class="stat-value">${dbInfo.total_tables || dbInfo.tables?.length || 0}</span>
                     </div>
+                    ${mappingStatusHtml}
                 </div>
                 ${dbInfo.tables && dbInfo.tables.length > 0 ? `
                     <div class="database-tables">
@@ -1152,6 +1403,25 @@ export class ConnectionModalManager {
                 ` : ''}
             </div>
         `;
+    }
+    
+    /**
+     * 🆕 v2.2.0: 매핑 상태 텍스트 반환
+     * @private
+     */
+    _getMappingStatusText(mappingInfo) {
+        if (!mappingInfo) return 'Unknown';
+        
+        switch (mappingInfo.status) {
+            case 'ready':
+                return `✅ Ready (${mappingInfo.equipment_count || 0} items)`;
+            case 'missing':
+                return '⚠️ Not Configured';
+            case 'invalid':
+                return '❌ Invalid';
+            default:
+                return 'Unknown';
+        }
     }
     
     /**
@@ -1178,6 +1448,10 @@ export class ConnectionModalManager {
         
         if (connectedSite) {
             await this._updateDatabaseList(connectedSite[0]);
+            
+            // 🆕 v2.2.0: 매핑 상태도 새로고침
+            await this._loadMappingStatusFromSites();
+            this._renderSiteList();
             
             if (this.toast) {
                 this.toast.success('Refreshed', 'Database information updated');
@@ -1271,6 +1545,21 @@ export class ConnectionModalManager {
         this._renderSiteList();
     }
     
+    /**
+     * 🆕 v2.2.0: 외부에서 매핑 상태 업데이트
+     * @param {string} siteId - 사이트 ID
+     * @param {Object} mappingInfo - 매핑 상태 정보
+     */
+    setMappingStatus(siteId, mappingInfo) {
+        this.currentMappingStatus[siteId] = mappingInfo;
+        this._renderSiteList();
+        
+        // 이벤트 발생
+        if (this.eventBus) {
+            this.eventBus.emit('mapping:statusChanged', { siteId, mappingInfo });
+        }
+    }
+    
     // ========================================
     // Cleanup
     // ========================================
@@ -1292,6 +1581,7 @@ export class ConnectionModalManager {
         
         this.selectedSite = null;
         this.siteStatus = {};
+        this.currentMappingStatus = {};
         this._mockConfig.enabled = false;
         this._mockConfig.connectedSiteId = null;
         

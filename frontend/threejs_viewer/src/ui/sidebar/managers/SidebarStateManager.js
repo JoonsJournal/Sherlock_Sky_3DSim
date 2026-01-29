@@ -1,11 +1,11 @@
 /**
  * SidebarStateManager.js
  * ======================
- * Sidebar 상태 관리 모듈 (Connection, Theme, DevMode)
+ * Sidebar 상태 관리 모듈 (Connection, Theme, DevMode, Mapping)
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @created 2026-01-25
- * @modified 2026-01-25
+ * @modified 2026-01-29
  * 
  * @description
  * Sidebar.js에서 분리된 State 관리 전용 클래스
@@ -13,8 +13,17 @@
  * - Theme 관리 (Dark/Light 토글)
  * - DevMode 관리 (Mock 모드 활성화)
  * - Cover Screen 상태 업데이트
+ * - 🆕 Mapping 상태 관리 (매핑 준비 여부)
  * 
  * @changelog
+ * - v1.1.0: 🆕 Mapping Status 기능 추가 (2026-01-29)
+ *           - isMappingReady, connectedSiteId 상태 추가
+ *           - _setupMappingListeners() 메서드 추가
+ *           - _updateModeButtons() 메서드 추가
+ *           - getMappingReady(), getConnectedSiteId() 공개 메서드 추가
+ *           - setMappingStatus() 메서드 추가
+ *           - onSiteConnected()에 mapping 정보 처리 추가
+ *           - ⚠️ 호환성: 기존 모든 API/메서드 100% 유지
  * - v1.0.0: 초기 버전 (Sidebar.js v1.13.0에서 분리)
  *           - enableAfterConnection, disableBeforeConnection 이동
  *           - _onSiteConnected, _onSiteDisconnected 이동
@@ -30,6 +39,8 @@
  * 
  * @exports
  * - SidebarStateManager
+ * - COVER_CSS
+ * - MAPPING_STATE_CSS (🆕 v1.1.0)
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/sidebar/managers/SidebarStateManager.js
  */
@@ -48,6 +59,24 @@ export const COVER_CSS = {
     DISCONNECTED: 'disconnected'
 };
 
+/**
+ * 🆕 v1.1.0: Mapping State 관련 CSS 클래스 상수
+ * @constant
+ */
+export const MAPPING_STATE_CSS = {
+    // 버튼 상태
+    BTN_DISABLED: 'sidebar-btn--disabled',
+    BTN_MAPPING_REQUIRED: 'sidebar-btn--mapping-required',
+    
+    // 배지
+    MAPPING_BADGE: 'mapping-status-badge',
+    BADGE_READY: 'mapping-status-badge--ready',
+    BADGE_MISSING: 'mapping-status-badge--missing',
+    
+    // Legacy (하위 호환)
+    LEGACY_DISABLED: 'disabled'
+};
+
 // ============================================
 // SidebarStateManager Class
 // ============================================
@@ -56,7 +85,7 @@ export const COVER_CSS = {
  * Sidebar State Manager 클래스
  * 
  * @class SidebarStateManager
- * @description Connection, Theme, DevMode 상태 관리
+ * @description Connection, Theme, DevMode, Mapping 상태 관리
  * 
  * @example
  * const stateManager = new SidebarStateManager({
@@ -105,10 +134,135 @@ export class SidebarStateManager {
         this.devModeEnabled = false;
         this.currentTheme = 'dark';
         
+        // ════════════════════════════════════════════════════════════════
+        // 🆕 v1.1.0: Mapping State
+        // ════════════════════════════════════════════════════════════════
+        this.isMappingReady = false;
+        this.connectedSiteId = null;
+        this.currentMappingInfo = null;  // { status, equipment_count, file_name, ... }
+        
         // 테마 초기 로드
         this._loadTheme();
         
-        console.log('[SidebarStateManager] 초기화 완료 v1.0.0');
+        // 🆕 v1.1.0: 매핑 이벤트 리스너 설정
+        this._setupMappingListeners();
+        
+        console.log('[SidebarStateManager] 초기화 완료 v1.1.0 (Mapping Status 지원)');
+    }
+    
+    // ========================================
+    // 🆕 v1.1.0: Mapping State Management
+    // ========================================
+    
+    /**
+     * 🆕 v1.1.0: 매핑 이벤트 리스너 설정
+     * @private
+     */
+    _setupMappingListeners() {
+        if (!this.eventBus) return;
+        
+        // mapping:statusChanged 이벤트 수신
+        this.eventBus.on('mapping:statusChanged', (data) => {
+            const { siteId, mappingInfo } = data;
+            
+            console.log('[SidebarStateManager] 📊 매핑 상태 변경 이벤트 수신:', siteId, mappingInfo);
+            
+            if (mappingInfo) {
+                this.isMappingReady = mappingInfo.status === 'ready';
+                this.currentMappingInfo = mappingInfo;
+            } else {
+                this.isMappingReady = false;
+                this.currentMappingInfo = null;
+            }
+            
+            // 모드 버튼 상태 업데이트
+            this._updateModeButtons();
+            
+            // 상태 변경 콜백
+            this._onStateChange({
+                type: 'mappingChanged',
+                isConnected: this.isConnected,
+                devModeEnabled: this.devModeEnabled,
+                isMappingReady: this.isMappingReady,
+                connectedSiteId: this.connectedSiteId,
+                mappingInfo: this.currentMappingInfo
+            });
+        });
+        
+        console.log('[SidebarStateManager] 📡 매핑 이벤트 리스너 설정 완료');
+    }
+    
+    /**
+     * 🆕 v1.1.0: 모드 버튼 활성화/비활성화 업데이트
+     * @private
+     */
+    _updateModeButtons() {
+        // Monitoring 버튼 상태 업데이트
+        const monitoringBtn = document.querySelector('[data-sidebar-btn="monitoring"]');
+        
+        if (monitoringBtn) {
+            if (this.isConnected && !this.isMappingReady && !this.devModeEnabled) {
+                // 연결됨 + 매핑 미완료 + Dev Mode 아님 → 경고 표시
+                monitoringBtn.classList.add(MAPPING_STATE_CSS.BTN_MAPPING_REQUIRED);
+                monitoringBtn.title = 'Equipment mapping required for full functionality';
+            } else {
+                monitoringBtn.classList.remove(MAPPING_STATE_CSS.BTN_MAPPING_REQUIRED);
+                monitoringBtn.title = '';
+            }
+        }
+        
+        console.log(`[SidebarStateManager] 🔄 모드 버튼 상태 업데이트 - Mapping Ready: ${this.isMappingReady}`);
+    }
+    
+    /**
+     * 🆕 v1.1.0: 매핑 준비 상태 반환
+     * @returns {boolean}
+     */
+    getMappingReady() {
+        return this.isMappingReady;
+    }
+    
+    /**
+     * 🆕 v1.1.0: 연결된 사이트 ID 반환
+     * @returns {string|null}
+     */
+    getConnectedSiteId() {
+        return this.connectedSiteId;
+    }
+    
+    /**
+     * 🆕 v1.1.0: 현재 매핑 정보 반환
+     * @returns {Object|null}
+     */
+    getMappingInfo() {
+        return this.currentMappingInfo;
+    }
+    
+    /**
+     * 🆕 v1.1.0: 매핑 상태 설정 (외부에서 호출 가능)
+     * @param {string} siteId - 사이트 ID
+     * @param {boolean} isMappingReady - 매핑 준비 여부
+     * @param {Object} mappingInfo - 상세 매핑 정보 (선택)
+     */
+    setMappingStatus(siteId, isMappingReady, mappingInfo = null) {
+        this.connectedSiteId = siteId;
+        this.isMappingReady = isMappingReady;
+        this.currentMappingInfo = mappingInfo;
+        
+        // 모드 버튼 상태 업데이트
+        this._updateModeButtons();
+        
+        // 상태 변경 콜백
+        this._onStateChange({
+            type: 'mappingSet',
+            isConnected: this.isConnected,
+            devModeEnabled: this.devModeEnabled,
+            isMappingReady: this.isMappingReady,
+            connectedSiteId: this.connectedSiteId,
+            mappingInfo: this.currentMappingInfo
+        });
+        
+        console.log(`[SidebarStateManager] 📊 매핑 상태 설정: ${siteId}, Ready: ${isMappingReady}`);
     }
     
     // ========================================
@@ -199,11 +353,15 @@ export class SidebarStateManager {
             }
         }
         
+        // 🆕 v1.1.0: Dev Mode 시 모드 버튼 상태 업데이트
+        this._updateModeButtons();
+        
         // 상태 변경 콜백 (버튼 상태 업데이트)
         this._onStateChange({
             type: 'devMode',
             isConnected: this.isConnected,
-            devModeEnabled: this.devModeEnabled
+            devModeEnabled: this.devModeEnabled,
+            isMappingReady: this.isMappingReady  // 🆕 v1.1.0
         });
         
         // Global state 업데이트 (하위 호환)
@@ -278,7 +436,8 @@ export class SidebarStateManager {
         this._onStateChange({
             type: 'connection',
             isConnected: this.isConnected,
-            devModeEnabled: this.devModeEnabled
+            devModeEnabled: this.devModeEnabled,
+            isMappingReady: this.isMappingReady  // 🆕 v1.1.0
         });
         
         // Global state 업데이트
@@ -297,10 +456,16 @@ export class SidebarStateManager {
     disableBeforeConnection(showCoverScreen) {
         this.isConnected = false;
         
+        // 🆕 v1.1.0: 매핑 상태 초기화
+        this.isMappingReady = false;
+        this.connectedSiteId = null;
+        this.currentMappingInfo = null;
+        
         this._onStateChange({
             type: 'connection',
             isConnected: this.isConnected,
-            devModeEnabled: this.devModeEnabled
+            devModeEnabled: this.devModeEnabled,
+            isMappingReady: this.isMappingReady  // 🆕 v1.1.0
         });
         
         // Global state 업데이트
@@ -312,6 +477,9 @@ export class SidebarStateManager {
         if (!this.devModeEnabled && showCoverScreen) {
             showCoverScreen();
         }
+        
+        // 🆕 v1.1.0: 모드 버튼 상태 업데이트
+        this._updateModeButtons();
         
         console.log('[SidebarStateManager] ⛔ Backend 연결 해제 - UI 비활성화');
     }
@@ -326,28 +494,51 @@ export class SidebarStateManager {
     
     /**
      * 사이트 연결 완료 핸들러
+     * 🔧 v1.1.0: mapping 정보 처리 추가
      * 
      * @param {string} siteId - 사이트 ID
      * @param {string} siteName - 사이트 이름
+     * @param {Object} mappingInfo - 매핑 정보 (🆕 v1.1.0)
      */
-    onSiteConnected(siteId, siteName) {
+    onSiteConnected(siteId, siteName, mappingInfo = null) {
         this.isConnected = true;
+        
+        // 🆕 v1.1.0: 매핑 상태 설정
+        this.connectedSiteId = siteId;
+        if (mappingInfo) {
+            this.isMappingReady = mappingInfo.status === 'ready';
+            this.currentMappingInfo = mappingInfo;
+        } else {
+            // mappingInfo가 없으면 ConnectionModalManager에서 가져오기 시도
+            if (this.connectionModalManager) {
+                const fetchedMapping = this.connectionModalManager.getMappingStatus(siteId);
+                if (fetchedMapping) {
+                    this.isMappingReady = fetchedMapping.status === 'ready';
+                    this.currentMappingInfo = fetchedMapping;
+                }
+            }
+        }
         
         this._onStateChange({
             type: 'siteConnected',
             isConnected: true,
             devModeEnabled: this.devModeEnabled,
+            isMappingReady: this.isMappingReady,  // 🆕 v1.1.0
             siteId,
-            siteName
+            siteName,
+            mappingInfo: this.currentMappingInfo  // 🆕 v1.1.0
         });
         
         this.updateCoverStatus(true, siteId);
+        
+        // 🆕 v1.1.0: 모드 버튼 상태 업데이트
+        this._updateModeButtons();
         
         if (window.sidebarState) {
             window.sidebarState.isConnected = true;
         }
         
-        console.log(`[SidebarStateManager] 🔗 Site connected: ${siteName} (${siteId})`);
+        console.log(`[SidebarStateManager] 🔗 Site connected: ${siteName} (${siteId}), Mapping Ready: ${this.isMappingReady}`);
     }
     
     /**
@@ -359,10 +550,16 @@ export class SidebarStateManager {
     onSiteDisconnected(siteId, goHome) {
         this.isConnected = false;
         
+        // 🆕 v1.1.0: 매핑 상태 초기화
+        this.isMappingReady = false;
+        this.connectedSiteId = null;
+        this.currentMappingInfo = null;
+        
         this._onStateChange({
             type: 'siteDisconnected',
             isConnected: false,
             devModeEnabled: this.devModeEnabled,
+            isMappingReady: false,  // 🆕 v1.1.0
             siteId
         });
         
@@ -372,6 +569,9 @@ export class SidebarStateManager {
         if (goHome) {
             goHome();
         }
+        
+        // 🆕 v1.1.0: 모드 버튼 상태 업데이트
+        this._updateModeButtons();
         
         if (window.sidebarState) {
             window.sidebarState.isConnected = false;
@@ -425,6 +625,7 @@ export class SidebarStateManager {
     
     /**
      * 현재 상태 객체 반환
+     * 🔧 v1.1.0: isMappingReady, connectedSiteId 추가
      * 
      * @returns {Object} 상태 객체
      */
@@ -432,7 +633,11 @@ export class SidebarStateManager {
         return {
             isConnected: this.isConnected,
             devModeEnabled: this.devModeEnabled,
-            currentTheme: this.currentTheme
+            currentTheme: this.currentTheme,
+            // 🆕 v1.1.0: Mapping 상태 추가
+            isMappingReady: this.isMappingReady,
+            connectedSiteId: this.connectedSiteId,
+            mappingInfo: this.currentMappingInfo
         };
     }
     
@@ -451,6 +656,11 @@ export class SidebarStateManager {
         this.getSiteById = null;
         this.submenuFns = {};
         this._onStateChange = null;
+        
+        // 🆕 v1.1.0: 매핑 상태 초기화
+        this.isMappingReady = false;
+        this.connectedSiteId = null;
+        this.currentMappingInfo = null;
         
         console.log('[SidebarStateManager] 🗑️ 정리 완료');
     }
