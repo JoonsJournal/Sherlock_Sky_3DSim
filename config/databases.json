@@ -1,32 +1,44 @@
 {
-	"CN_AAAA_Cutting_Sherlock":{
-		"host": "108.115.116.201",
+	"CN_AAAA_Cutting_Sherlock": {
+		"host": "localhost",
 		"port": 1433,
-		"type":"mysql",
-		"user":"aaa",
-		"password": "1234",
+		"type": "mssql",
+		"user": "sa",
+		"password": "DockerTest123!",
 		"databases": {
 			"SherlockSky": "SherlockSky"
+		},
+		"options": {
+			"TrustServerCertificate": "yes",
+			"Encrypt": "yes"
 		}
 	},
-	"KR_BBBB_Cutting_Sherlock":{
-		"host": "15.3.177.264",
-		"port": 1433,
-		"type":"mysql",
-		"user":"aaa",
-		"password": "1234",
+	"KR_BBBB_Cutting_Sherlock": {
+		"host": "localhost",
+		"port": 1435,
+		"type": "mssql",
+		"user": "sa",
+		"password": "DockerTest123!",
 		"databases": {
 			"SherlockSky": "SherlockSky"
+		},
+		"options": {
+			"TrustServerCertificate": "yes",
+			"Encrypt": "yes"
 		}
 	},
-	"VN_CCCC_Stacking_Sherlock":{
-		"host": "154.34.178.342",
-		"port": 1433,
-		"type":"mysql",
-		"user":"aaa",
-		"password": "1234",
+	"VN_CCCC_Stacking_Sherlock": {
+		"host": "localhost",
+		"port": 1434,
+		"type": "mssql",
+		"user": "sa",
+		"password": "DockerTest123!",
 		"databases": {
 			"SherlockSky": "SherlockSky"
+		},
+		"options": {
+			"TrustServerCertificate": "yes",
+			"Encrypt": "yes"
 		}
 	}
 }

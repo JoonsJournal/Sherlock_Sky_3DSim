@@ -1,48 +1,49 @@
-    {
+{
     "profiles": {
-    "all": {
-        "name": "모든 사이트 전체 연결",
-        "description": "모든 사이트의 모든 데이터베이스에 연결",
-        "connections": {
-	        "CN_AAAA_Cutting_Sherlock": ["SherlockSky"],
-	        "KR_BBBB_Cutting_Sherlock": ["SherlockSky"],
-	        "VN_CCCC_Stacking_Sherlock": ["SherlockSky"]
-        }
-    },
-    "korea_only": {
-        "name": "한국 사이트만",
-        "description": "한국 공장만 연결",
-        "connections": {
-	        "KR_BBBB_Cutting_Sherlock": ["SherlockSky"]
-        }
-    },
-	"china_only": {
-        "name": "중국 사이트만",
-        "description": "중국 공장만 연결",
-        "connections": {
-	        "CN_AAAA_Cutting_Sherlock": ["SherlockSky"]
-        }
-    },
-	"vietnam_only": {
-        "name": "베트남 사이트만",
-        "description": "베트남 공장만 연결",
-        "connections": {
-	        "VN_CCCC_Stacking_Sherlock": ["SherlockSky"]
-        }
-    },
-    "Cutting": {
-        "name": "Cutting DB만",
-        "description": "Cutting 관련 DB만",
-        "connections": {
-	        "CN_AAAA_Cutting_Sherlock": ["SherlockSky"],
-	        "KR_BBBB_Cutting_Sherlock": ["SherlockSky"]
-        }
-    },
-    "Stacking": {
-        "name": "Stacking DB만",
-        "description": "Stacking 관련 DB만",
-        "connections": {
-			"VN_CCCC_Stacking_Sherlock": ["SherlockSky"]
+        "all": {
+            "name": "모든 사이트 전체 연결",
+            "description": "모든 사이트의 모든 데이터베이스에 연결",
+            "connections": {
+                "CN_AAAA_Cutting_Sherlock": ["SherlockSky"],
+                "KR_BBBB_Cutting_Sherlock": ["SherlockSky"],
+                "VN_CCCC_Stacking_Sherlock": ["SherlockSky"]
+            }
+        },
+        "korea_only": {
+            "name": "한국 사이트만",
+            "description": "한국 공장만 연결",
+            "connections": {
+                "KR_BBBB_Cutting_Sherlock": ["SherlockSky"]
+            }
+        },
+        "china_only": {
+            "name": "중국 사이트만",
+            "description": "중국 공장만 연결",
+            "connections": {
+                "CN_AAAA_Cutting_Sherlock": ["SherlockSky"]
+            }
+        },
+        "vietnam_only": {
+            "name": "베트남 사이트만",
+            "description": "베트남 공장만 연결",
+            "connections": {
+                "VN_CCCC_Stacking_Sherlock": ["SherlockSky"]
+            }
+        },
+        "Cutting": {
+            "name": "Cutting DB만",
+            "description": "Cutting 관련 DB만",
+            "connections": {
+                "CN_AAAA_Cutting_Sherlock": ["SherlockSky"],
+                "KR_BBBB_Cutting_Sherlock": ["SherlockSky"]
+            }
+        },
+        "Stacking": {
+            "name": "Stacking DB만",
+            "description": "Stacking 관련 DB만",
+            "connections": {
+                "VN_CCCC_Stacking_Sherlock": ["SherlockSky"]
+            }
         }
     },
     "default_profile": "korea_only"

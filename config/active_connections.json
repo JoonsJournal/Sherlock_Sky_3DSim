@@ -1,25 +1,8 @@
-    {
-	    "active_profile": "production_all",
-		    "enabled_connections": {
-			    "CN_AAAA_Cutting_Sherlock": {
-			        "enabled": true,
-			        "databases": {
-				        "SherlockSky": true
-			        }
-			    },
-			    "KR_BBBB_Cutting_Sherlock": {
-			        "enabled": true,
-			        "databases": {
-				        "SherlockSky": true
-			        }
-			    },
-			    "VN_CCCC_Stacking_Sherlock": {
-			        "enabled": false,
-			        "databases": {
-				        "SherlockSky": true
-			        }
-			    }
-		    },
-	    "last_updated": "2024-01-15T10:30:00Z",
-	    "updated_by": "admin"
-    }
+{
+  "active_sites": [
+    "CN_AAAA_Cutting_Sherlock",
+    "KR_BBBB_Cutting_Sherlock",
+    "VN_CCCC_Stacking_Sherlock"
+  ],
+  "last_updated": "2026-01-28T23:35:09.862960"
+}
