@@ -3,44 +3,19 @@ uds_service.py
 UDS 비즈니스 로직 서비스
 MSSQL 직접 연결 + JSON 매핑 로드 + In-Memory 상태 캐시 (Diff용)
 
-@version 2.2.0
+@version 2.3.0
 @description
 - fetch_all_equipments: 배치 쿼리로 전체 설비 조회 (117개)
 - fetch_equipment_by_frontend_id: 단일 설비 조회
 - compute_diff: 이전 상태와 현재 상태 비교하여 Delta 생성
 - calculate_stats: 상태별 통계 계산
-
-🔧 v2.2.0: core.Equipment 스키마 호환 수정
-- ❌ SiteId, LineId, IsActive 컬럼은 DB에 존재하지 않음!
-- ✅ JSON 매핑 파일의 equipment_id 목록으로 IN 절 필터링
-- _get_equipment_ids_str(): 매핑에서 equipment_id 목록 추출
-- 모든 쿼리: WHERE e.EquipmentId IN ({equipment_ids})
-- ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
-
-🔧 v2.1.2: connection_test.py 통합 (기존 시스템 사용)
-- multi_connection_manager.py 제거 → connection_test.py 사용
-- connection_test.py 연결 정보로 SQLAlchemy engine 직접 생성
-- 기존 쿼리 파일 (uds_queries.py) 100% 호환 유지
-- ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
-
-🔧 v2.1.1: compute_diff 자동 초기화
-- _previous_state가 비어있으면 자동으로 fetch_all_equipments() 호출
-- Status Watcher 시작 시 Frontend 연결 없이도 정상 동작
-- ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
-
-🆕 v2.1.0: 실시간 생산량/Tact Time Delta 업데이트
-- compute_diff(): PRODUCTION_SNAPSHOT_QUERY, BATCH_TACT_TIME_QUERY 추가
-- EquipmentSnapshot에 production_count, tact_time_seconds 포함
-- Delta에 생산량/Tact Time 변경사항 실시간 반영
-- ⚠️ 하위 호환: 기존 API 응답 형식 100% 유지
-
-🆕 v2.0.0: JSON 매핑 통합
-- _load_mapping_config(): Site별 JSON 매핑 파일 로드
-- _merge_with_mapping(): SQL 결과 + JSON 매핑 병합
-- _parse_frontend_id(): FrontendId → (GridRow, GridCol) 파싱
-- equipment_id ↔ frontend_id 역매핑 테이블 관리
-
-@changelog
+# @changelog
+# - v2.3.0: 🆕 Mapping Status Graceful Degradation (2026-01-29)
+#           - _get_equipment_ids_str() 반환 타입: str → Optional[str]
+#           - ValueError 대신 None 반환 + 경고 로그
+#           - fetch_all_equipments(): None 체크 추가 (빈 리스트 반환)
+#           - compute_diff(): None 체크 추가 (빈 리스트 반환)
+#           - ⚠️ 호환성: 기존 모든 API 응답 형식 100% 유지
 - v2.2.0: 🔧 core.Equipment 스키마 호환 수정 (2026-01-21)
           - ❌ SiteId, LineId, IsActive 컬럼은 DB에 존재하지 않음!
           - ✅ JSON 매핑의 equipment_id 목록으로 IN 절 필터링
@@ -87,7 +62,7 @@ MSSQL 직접 연결 + JSON 매핑 로드 + In-Memory 상태 캐시 (Diff용)
 
 📁 위치: backend/api/services/uds/uds_service.py
 작성일: 2026-01-20
-수정일: 2026-01-21
+수정일: 2026-01-29
 """
 
 from typing import List, Optional, Dict, Any, Tuple
@@ -521,24 +496,31 @@ class UDSService:
         """
         return self._mapping_cache.get(equipment_id)
     
-    def _get_equipment_ids_str(self) -> str:
+    def _get_equipment_ids_str(self) -> Optional[str]:
         """
         🆕 v2.2.0: 매핑 캐시에서 equipment_id 목록 추출
+        🔧 v2.3.0: Graceful Degradation - ValueError 대신 None 반환
         
         IN 절에 사용할 문자열 형태로 반환
         
         Returns:
             "1, 2, 3, ..., 117" 형식의 문자열
+            또는 None (매핑이 비어있는 경우)
             
-        Raises:
-            ValueError: 매핑이 비어있는 경우
+        Note:
+            🔧 v2.3.0: 매핑 없어도 서버 크래시 방지
+            - 이전: raise ValueError("Mapping cache is empty...")
+            - 이후: return None + 경고 로그
             
         Example:
             >>> ids_str = self._get_equipment_ids_str()
+            >>> if ids_str is None:
+            ...     return []  # 빈 결과 반환
             >>> query = BATCH_EQUIPMENT_QUERY.format(equipment_ids=ids_str)
         """
         if not self._mapping_cache:
-            raise ValueError("Mapping cache is empty. Load mapping first.")
+            logger.warning("⚠️ Mapping cache is empty. Cannot generate equipment IDs.")
+            return None  # 🔧 v2.3.0: None 반환 (기존: raise ValueError)
         
         equipment_ids = sorted(self._mapping_cache.keys())
         return ", ".join(str(eq_id) for eq_id in equipment_ids)
@@ -635,12 +617,14 @@ class UDSService:
         self._load_mapping_config(mapping_site_id)
         
         # equipment_id 목록 추출
-        try:
-            equipment_ids_str = self._get_equipment_ids_str()
-            logger.info(f"  → 매핑 기준 equipment_ids: {len(self._mapping_cache)}개")
-        except ValueError as e:
-            logger.error(f"❌ Failed to get equipment IDs: {e}")
-            raise
+        # 🔧 v2.3.0: Graceful Degradation
+        equipment_ids_str = self._get_equipment_ids_str()
+
+        if equipment_ids_str is None:
+            logger.warning("⚠️ No mapping available. Returning empty equipment list.")
+            return []  # 🔧 v2.3.0: 빈 리스트 반환 (기존: raise)
+
+        logger.info(f"  → 매핑 기준 equipment_ids: {len(self._mapping_cache)}개")
         
         with self._get_session(db_site, db_name) as session:
             try:
@@ -931,11 +915,12 @@ class UDSService:
         self._load_mapping_config(mapping_site_id)
         
         # equipment_id 목록
-        try:
-            equipment_ids_str = self._get_equipment_ids_str()
-        except ValueError as e:
-            logger.warning(f"⚠️ No equipment IDs available: {e}")
-            return []
+        # 🔧 v2.3.0: Graceful Degradation (try-except 불필요)
+        equipment_ids_str = self._get_equipment_ids_str()
+
+        if equipment_ids_str is None:
+            logger.debug("⏳ No mapping available, skipping diff computation.")
+            return []  # 🔧 v2.3.0: 빈 리스트 반환
         
         with self._get_session(db_site, db_name) as session:
             try:

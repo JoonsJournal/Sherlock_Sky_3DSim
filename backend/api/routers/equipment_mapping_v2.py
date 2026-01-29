@@ -8,6 +8,18 @@ Connection Manager와 통합된 Multi-Site 매핑 관리
 - Site ID 형식: {site_name}_{db_name} (예: korea_site1_line1)
 """
 
+# @version 1.1.0
+# @changelog
+# - v1.1.0: 🆕 Mapping Status 신규 API 추가 (2026-01-29)
+#           - GET /db-equipments/{site_id}/{db_name} - DB 설비 목록 조회
+#           - POST /save-mapping/{site_id}/{db_name} - 매핑 저장 (간소화)
+#           - mappingSaved 이벤트용 응답 형식 추가
+#           - ⚠️ 호환성: 기존 모든 API 100% 유지
+# - v1.0.0: 초기 버전 (Multi-Site 매핑 관리)
+#
+# 📁 위치: backend/api/routers/equipment_mapping_v2.py
+# 수정일: 2026-01-29
+
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Dict, Optional, Any
 from pydantic import BaseModel, Field
@@ -83,6 +95,44 @@ class ValidationResult(BaseModel):
     warnings: List[str] = []
     duplicates: Dict[int, List[str]] = {}
     missing: List[str] = []
+
+class DBEquipmentItem(BaseModel):
+    """DB에서 조회한 설비 항목"""
+    equipment_id: int
+    equipment_name: str
+    line_name: Optional[str] = None
+    equipment_code: Optional[str] = None
+
+
+class DBEquipmentsResponse(BaseModel):
+    """DB 설비 목록 응답"""
+    success: bool
+    site_id: str
+    site_name: str
+    db_name: str
+    total_count: int
+    equipments: List[DBEquipmentItem]
+    message: Optional[str] = None
+
+
+class SimpleMappingRequest(BaseModel):
+    """간단한 매핑 저장 요청 (Frontend용)"""
+    mappings: Dict[str, Dict[str, Any]]  # { "EQ-01-01": { "equipment_id": 1, ... }, ... }
+    created_by: Optional[str] = "admin"
+    description: Optional[str] = None
+
+
+class MappingSavedResponse(BaseModel):
+    """매핑 저장 응답 (Frontend mappingSaved 이벤트용)"""
+    success: bool
+    message: str
+    site_id: str
+    site_name: str
+    db_name: str
+    total_mappings: int
+    updated_at: str
+    # Frontend에서 mappingSaved 이벤트에 필요한 필드
+    mapping_status: str = "ready"  # ready|missing|invalid
 
 
 # ============================================
@@ -499,3 +549,263 @@ async def on_site_connected(site_id: str):
         "mapping_count": len(config.mappings) if config else 0,
         "last_updated": config.updated_at if config else None
     }
+
+@router.get(
+    "/db-equipments/{site_id}/{db_name}",
+    response_model=DBEquipmentsResponse,
+    summary="DB 설비 목록 조회",
+    description="특정 Site/DB의 설비 목록을 DB에서 직접 조회합니다. Mapping Editor에서 사용."
+)
+async def get_db_equipments(site_id: str, db_name: str):
+    """
+    🆕 v1.1.0: DB 설비 목록 조회 (Mapping Editor용)
+    
+    core.Equipment 테이블에서 설비 목록을 직접 조회합니다.
+    이 목록을 기반으로 Frontend ID와 매핑할 수 있습니다.
+    
+    Path Parameters:
+        - site_id: 사이트 ID (예: korea_site1)
+        - db_name: DB 이름 (예: line1)
+        
+    Returns:
+        {
+            "success": true,
+            "site_id": "korea_site1",
+            "site_name": "korea_site1",
+            "db_name": "line1",
+            "total_count": 117,
+            "equipments": [
+                {
+                    "equipment_id": 1,
+                    "equipment_name": "CVDF-001",
+                    "line_name": "LINE1",
+                    "equipment_code": "EQ001"
+                },
+                ...
+            ],
+            "message": null
+        }
+    """
+    logger.info(f"📡 GET /mapping/db-equipments/{site_id}/{db_name}")
+    
+    try:
+        # connection_manager에서 연결 정보 가져오기
+        from ..database.connection_test import get_connection_manager
+        
+        manager = get_connection_manager()
+        
+        # Site가 존재하는지 확인
+        if site_id not in manager.databases_config:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Site not found: {site_id}"
+            )
+        
+        site_config = manager.databases_config[site_id]
+        databases = site_config.get('databases', {})
+        
+        if db_name not in databases:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Database not found: {site_id}/{db_name}"
+            )
+        
+        # DB 연결 및 쿼리 실행
+        conn = manager.get_connection(site_id, db_name)
+        if not conn:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to connect to {site_id}/{db_name}"
+            )
+        
+        try:
+            cursor = conn.cursor()
+            
+            # core.Equipment 테이블에서 설비 목록 조회
+            query = """
+                SELECT 
+                    e.EquipmentId,
+                    e.EquipmentName,
+                    e.LineName,
+                    e.EquipmentCode
+                FROM core.Equipment e WITH (NOLOCK)
+                ORDER BY e.EquipmentId
+            """
+            
+            cursor.execute(query)
+            rows = cursor.fetchall()
+            
+            equipments = []
+            for row in rows:
+                item = DBEquipmentItem(
+                    equipment_id=row[0],
+                    equipment_name=row[1] or '',
+                    line_name=row[2],
+                    equipment_code=row[3]
+                )
+                equipments.append(item)
+            
+            cursor.close()
+            
+            logger.info(f"✅ DB equipments loaded: {len(equipments)}개")
+            
+            return DBEquipmentsResponse(
+                success=True,
+                site_id=site_id,
+                site_name=site_id,
+                db_name=db_name,
+                total_count=len(equipments),
+                equipments=equipments,
+                message=None
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Query failed: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Query failed: {str(e)}"
+            )
+        finally:
+            try:
+                conn.close()
+            except:
+                pass
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to get DB equipments: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post(
+    "/save-mapping/{site_id}/{db_name}",
+    response_model=MappingSavedResponse,
+    summary="매핑 저장 (간소화)",
+    description="Frontend에서 사용하기 편한 형태의 매핑 저장 API. mappingSaved 이벤트 발생용."
+)
+async def save_mapping_simple(
+    site_id: str, 
+    db_name: str, 
+    request: SimpleMappingRequest
+):
+    """
+    🆕 v1.1.0: 매핑 저장 (Frontend용 간소화 버전)
+    
+    기존 POST /config/{site_id}와 동일하지만:
+    - site_id와 db_name을 path parameter로 분리
+    - 응답에 mapping_status 필드 포함 (Frontend mappingSaved 이벤트용)
+    
+    Path Parameters:
+        - site_id: 사이트 ID (예: korea_site1)
+        - db_name: DB 이름 (예: line1)
+        
+    Body:
+        {
+            "mappings": {
+                "EQ-01-01": {
+                    "equipment_id": 1,
+                    "equipment_name": "CVDF-001",
+                    "line_name": "LINE1"
+                },
+                ...
+            },
+            "created_by": "admin",
+            "description": "Initial mapping"
+        }
+        
+    Returns:
+        {
+            "success": true,
+            "message": "117개 매핑 저장 완료",
+            "site_id": "korea_site1_line1",
+            "site_name": "korea_site1",
+            "db_name": "line1",
+            "total_mappings": 117,
+            "updated_at": "2026-01-29T...",
+            "mapping_status": "ready"
+        }
+    """
+    logger.info(f"💾 POST /mapping/save-mapping/{site_id}/{db_name} - {len(request.mappings)}개")
+    
+    # combined site_id 생성
+    combined_site_id = f"{site_id}_{db_name}"
+    
+    try:
+        # 중복 검사
+        equipment_id_map = {}
+        duplicates = {}
+        
+        for frontend_id, item in request.mappings.items():
+            eq_id = item.get('equipment_id')
+            if eq_id is None:
+                continue
+            
+            if eq_id in equipment_id_map:
+                if eq_id not in duplicates:
+                    duplicates[eq_id] = [equipment_id_map[eq_id]]
+                duplicates[eq_id].append(frontend_id)
+            else:
+                equipment_id_map[eq_id] = frontend_id
+        
+        if duplicates:
+            error_msg = "중복된 Equipment ID:\n"
+            for eq_id, frontend_ids in duplicates.items():
+                error_msg += f"  - ID {eq_id}: {', '.join(frontend_ids)}\n"
+            raise HTTPException(status_code=400, detail=error_msg)
+        
+        # MappingItem 변환
+        mappings_dict = {}
+        for frontend_id, item in request.mappings.items():
+            mappings_dict[frontend_id] = MappingItem(
+                frontend_id=frontend_id,
+                equipment_id=item.get('equipment_id'),
+                equipment_name=item.get('equipment_name', ''),
+                equipment_code=item.get('equipment_code'),
+                line_name=item.get('line_name')
+            )
+        
+        # 기존 설정 로드 또는 새로 생성
+        existing_config = load_site_mapping(combined_site_id)
+        now = datetime.now().isoformat()
+        
+        if existing_config:
+            existing_config.mappings = mappings_dict
+            existing_config.created_by = request.created_by or "admin"
+            existing_config.description = request.description or existing_config.description
+            config = existing_config
+        else:
+            config = SiteMappingConfig(
+                site_id=combined_site_id,
+                site_name=site_id,
+                db_name=db_name,
+                display_name=get_display_name(site_id, db_name),
+                created_at=now,
+                updated_at=now,
+                created_by=request.created_by or "admin",
+                description=request.description,
+                total_equipments=len(mappings_dict),
+                mappings=mappings_dict
+            )
+        
+        # 저장
+        if not save_site_mapping(combined_site_id, config):
+            raise HTTPException(status_code=500, detail="Failed to save mapping")
+        
+        logger.info(f"✅ Mapping saved: {combined_site_id} - {len(mappings_dict)}개")
+        
+        return MappingSavedResponse(
+            success=True,
+            message=f"{len(mappings_dict)}개 매핑 저장 완료",
+            site_id=combined_site_id,
+            site_name=site_id,
+            db_name=db_name,
+            total_mappings=len(mappings_dict),
+            updated_at=config.updated_at,
+            mapping_status="ready"  # 저장 성공 = ready
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Failed to save mapping: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,20 +1,48 @@
 """
-연결 관리 API Router
-- databases.json 기반 연결 테스트
-- connection_profiles.json 기반 프로필 관리
+connection_manager.py
+연결 관리 API Router - databases.json 기반 연결 테스트 및 프로필 관리
+
+@version 1.1.0
+@changelog
+- v1.1.0: 🆕 Mapping Status 기능 추가 (2026-01-29)
+          - get_mapping_status() 함수 추가
+          - GET /sites 응답에 mapping 필드 추가
+          - 각 site/database별 매핑 상태 (ready/missing/invalid) 반환
+          - ⚠️ 호환성: 기존 모든 API 100% 유지
+- v1.0.0: 초기 버전
+          - databases.json 기반 연결 테스트
+          - connection_profiles.json 기반 프로필 관리
+          - Frontend UI용 신규 엔드포인트 추가
+
+@dependencies
+- fastapi
+- pydantic
+- database/connection_test.py
+
+📁 위치: backend/api/routers/connection_manager.py
+작성일: 2026-01-20
+수정일: 2026-01-29
 """
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field  # ✅ Field 추가
-from typing import List, Dict, Any, Optional  # ✅ Dict, Any, Optional 추가
+from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional
 import logging
-from datetime import datetime, timezone  # ✅ 추가
-import time  # ✅ 추가 (response time 측정용)
+from datetime import datetime, timezone
+import time
+import os    # 🆕 v1.1.0: Mapping Status용
+import json  # 🆕 v1.1.0: Mapping Status용
 
 from ..database.connection_test import get_connection_manager
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+# ============================================
+# 🆕 v1.1.0: Mapping 관련 상수
+# ============================================
+MAPPING_CONFIG_DIR = "config/site_mappings"
 
 
 class TestConnectionRequest(BaseModel):
@@ -44,7 +72,7 @@ class HealthCheckResponse(BaseModel):
     api_url: str
     response_time_ms: int
     last_check: str
-    version: str = "1.0.0"
+    version: str = "1.1.0"  # 🔧 v1.1.0: 버전 업데이트
 
 
 class SiteProfile(BaseModel):
@@ -106,11 +134,107 @@ class DatabaseInfo(BaseModel):
     db_type: str
 
 
+# ============================================
+# 🆕 v1.1.0: Mapping Status 모델
+# ============================================
+
+class MappingStatus(BaseModel):
+    """매핑 상태 정보"""
+    status: str = Field(..., description="ready|missing|invalid")
+    equipment_count: int = 0
+    file_name: Optional[str] = None
+    last_updated: Optional[str] = None
+    error: Optional[str] = None
+
+
 # ========================================
 # 전역 상태 (연결된 사이트 추적)
 # ========================================
 _connected_sites: Dict[str, Dict[str, Any]] = {}
 
+
+# ============================================
+# 🆕 v1.1.0: Mapping Status 헬퍼 함수
+# ============================================
+
+def get_mapping_status(site_name: str, db_name: str) -> Dict[str, Any]:
+    """
+    🆕 v1.1.0: 특정 Site/DB의 매핑 상태 조회
+    
+    Args:
+        site_name: 사이트 이름 (예: korea_site1)
+        db_name: DB 이름 (예: line1)
+        
+    Returns:
+        {
+            "status": "ready|missing|invalid",
+            "equipment_count": 117,
+            "file_name": "equipment_mapping_korea_site1_line1.json",
+            "last_updated": "2026-01-29T...",
+            "error": null
+        }
+        
+    Note:
+        - ready: 매핑 파일 존재 + 유효
+        - missing: 매핑 파일 없음
+        - invalid: 매핑 파일 존재하나 파싱 실패
+    """
+    # Site ID 생성 (equipment_mapping_v2.py와 동일한 형식)
+    site_id = f"{site_name}_{db_name}"
+    mapping_file = f"equipment_mapping_{site_id}.json"
+    file_path = os.path.join(MAPPING_CONFIG_DIR, mapping_file)
+    
+    # 파일 존재 여부 확인
+    if not os.path.exists(file_path):
+        logger.debug(f"⚠️ Mapping file not found: {file_path}")
+        return {
+            "status": "missing",
+            "equipment_count": 0,
+            "file_name": mapping_file,
+            "last_updated": None,
+            "error": None
+        }
+    
+    # 파일 파싱 시도
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        mappings = data.get("mappings", {})
+        equipment_count = len(mappings)
+        
+        # 파일 수정 시간
+        mtime = os.path.getmtime(file_path)
+        last_updated = datetime.fromtimestamp(mtime, tz=timezone.utc).isoformat()
+        
+        logger.debug(f"✅ Mapping ready: {site_id} ({equipment_count} items)")
+        
+        return {
+            "status": "ready",
+            "equipment_count": equipment_count,
+            "file_name": mapping_file,
+            "last_updated": last_updated,
+            "error": None
+        }
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"❌ Invalid JSON in mapping file: {file_path} - {e}")
+        return {
+            "status": "invalid",
+            "equipment_count": 0,
+            "file_name": mapping_file,
+            "last_updated": None,
+            "error": f"JSON parse error: {str(e)}"
+        }
+    except Exception as e:
+        logger.error(f"❌ Failed to read mapping file: {file_path} - {e}")
+        return {
+            "status": "invalid",
+            "equipment_count": 0,
+            "file_name": mapping_file,
+            "last_updated": None,
+            "error": str(e)
+        }
 
 
 @router.post("/get-tables")
@@ -151,15 +275,21 @@ async def get_table_list(request: GetTablesRequest):
         )
         return result
     except Exception as e:
-        logger.error(f"테이블 조회 실패: {e}")
+        logger.error(f"❌ 테이블 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     
-    
 
-@router.get("/sites")
+
+@router.get(
+    "/sites",
+    summary="모든 사이트 조회",
+    description="databases.json 기반 사이트 목록 + 매핑 상태 반환"
+)
 async def get_all_sites():
     """
     모든 사이트 조회
+    
+    🆕 v1.1.0: 각 site/database별 mapping 상태 추가
     
     Returns:
         {
@@ -167,16 +297,46 @@ async def get_all_sites():
                 {
                     "name": "korea_site1",
                     "host": "192.168.1.100",
-                    "databases": ["line1", "line2", "quality"]
+                    "databases": ["line1", "line2", "quality"],
+                    "mapping": {
+                        "line1": {
+                            "status": "ready",
+                            "equipment_count": 117,
+                            "file_name": "equipment_mapping_korea_site1_line1.json",
+                            "last_updated": "2026-01-29T...",
+                            "error": null
+                        },
+                        "line2": {
+                            "status": "missing",
+                            "equipment_count": 0,
+                            ...
+                        }
+                    }
                 }
             ]
         }
     """
     try:
         manager = get_connection_manager()
-        return manager.get_all_sites()
+        sites_data = manager.get_all_sites()
+        
+        # ===================================================================
+        # 🆕 v1.1.0: 각 site의 각 database에 대해 mapping 상태 추가
+        # ===================================================================
+        for site in sites_data.get('sites', []):
+            site_name = site.get('name', '')
+            mapping_status = {}
+            
+            for db_name in site.get('databases', []):
+                mapping_status[db_name] = get_mapping_status(site_name, db_name)
+            
+            # mapping 필드 추가
+            site['mapping'] = mapping_status
+        
+        return sites_data
+        
     except Exception as e:
-        logger.error(f"사이트 조회 실패: {e}")
+        logger.error(f"❌ 사이트 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -195,7 +355,7 @@ async def get_all_profiles():
         manager = get_connection_manager()
         return manager.get_all_profiles()
     except Exception as e:
-        logger.error(f"프로필 조회 실패: {e}")
+        logger.error(f"❌ 프로필 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -218,7 +378,7 @@ async def test_connection(request: TestConnectionRequest):
         )
         return result
     except Exception as e:
-        logger.error(f"연결 테스트 실패: {e}")
+        logger.error(f"❌ 연결 테스트 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -237,7 +397,7 @@ async def test_profile(request: TestProfileRequest):
         result = manager.test_profile(request.profile_name)
         return result
     except Exception as e:
-        logger.error(f"프로필 테스트 실패: {e}")
+        logger.error(f"❌ 프로필 테스트 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -251,7 +411,7 @@ async def test_all_connections():
         result = manager.test_all_sites()
         return result
     except Exception as e:
-        logger.error(f"전체 테스트 실패: {e}")
+        logger.error(f"❌ 전체 테스트 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -270,7 +430,7 @@ async def get_status():
             'status': 'ready'
         }
     except Exception as e:
-        logger.error(f"상태 조회 실패: {e}")
+        logger.error(f"❌ 상태 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
         
 # ========================================
@@ -290,7 +450,7 @@ async def health_check():
         sites = manager.get_all_sites()
         status = "healthy" if sites else "unhealthy"
     except Exception as e:
-        logger.error(f"Health check failed: {e}")
+        logger.error(f"❌ Health check failed: {e}")
         status = "unhealthy"
     
     end_time = time.time()
@@ -301,7 +461,7 @@ async def health_check():
         api_url="http://localhost:8008",
         response_time_ms=response_time,
         last_check=datetime.now(timezone.utc).isoformat(),
-        version="1.0.0"
+        version="1.1.0"  # 🔧 v1.1.0: 버전 업데이트
     )
 
 
@@ -354,7 +514,7 @@ async def get_site_profiles():
         return profiles
     
     except Exception as e:
-        logger.error(f"사이트 프로필 조회 실패: {e}")
+        logger.error(f"❌ 사이트 프로필 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -413,7 +573,7 @@ async def get_connection_status():
         return status_list
     
     except Exception as e:
-        logger.error(f"연결 상태 조회 실패: {e}")
+        logger.error(f"❌ 연결 상태 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -457,7 +617,7 @@ async def connect_to_site(request: SingleConnectionRequest):
         # 나머지가 site_name
         site_name = '_'.join(parts[:-1])
         
-        logger.info(f"연결 시도: site={site_name}, db={db_name}")
+        logger.info(f"📡 연결 시도: site={site_name}, db={db_name}")
         
         # ConnectionManager를 통해 연결 테스트
         manager = get_connection_manager()
@@ -515,7 +675,7 @@ async def connect_to_site(request: SingleConnectionRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"연결 실패: {e}")
+        logger.error(f"❌ 연결 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -554,7 +714,7 @@ async def disconnect_from_site(site_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"연결 해제 실패: {e}")
+        logger.error(f"❌ 연결 해제 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -631,6 +791,5 @@ async def get_database_info(site_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"데이터베이스 정보 조회 실패: {e}")
+        logger.error(f"❌ 데이터베이스 정보 조회 실패: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-        
