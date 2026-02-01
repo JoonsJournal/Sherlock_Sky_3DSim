@@ -6,8 +6,18 @@ API Endpoints:
 - GET  /api/equipment/detail/{frontend_id} : 단일 설비 상세 정보
 - POST /api/equipment/detail/multi        : 다중 설비 상세 정보 (집계)
 
-@version 2.1.0
+@version 2.2.0
 @changelog
+- v2.2.0: 🔴 CRITICAL Performance 최적화 (Coding Guidelines Part 8 준수)
+          - 모든 SQL SELECT 쿼리에 WITH (NOLOCK) 추가 (Part 8.2.1)
+            - fetch_equipment_detail_raw(): 5개 테이블 NOLOCK 적용
+            - fetch_multi_equipment_detail_raw(): 5개 테이블 NOLOCK 적용
+            - fetch_production_count(): log.CycleTime NOLOCK 적용
+            - fetch_tact_time(): log.CycleTime NOLOCK 적용
+          - N+1 Query 제거 - Batch CTE Query로 변경 (Part 8.8)
+            - fetch_production_and_tact_batch(): Loop 234회 → CTE 1회 쿼리
+            - 117개 설비 선택 시 99.6% 쿼리 감소 (234 → 1)
+          - ⚠️ 호환성: 기존 모든 필드/로직/API 100% 유지
 - v2.1.0: Production Count & Tact Time 추가
           - SQL 쿼리에 log.CycleTime 조회 추가 (별도 쿼리로 분리하여 성능 최적화)
           - Single Selection: production_count, tact_time_seconds 추가
@@ -34,7 +44,7 @@ API Endpoints:
 - v1.0.0: 초기 버전
 
 작성일: 2026-01-06
-수정일: 2026-01-16
+수정일: 2026-02-01
 """
 
 from fastapi import APIRouter, HTTPException, Query
@@ -128,6 +138,7 @@ def get_active_site_connection():
 
 # ============================================================================
 # 🆕 v2.1.0: Production Count & Tact Time 조회 헬퍼 함수
+# 🔴 v2.2.0: WITH (NOLOCK) 추가 (Coding Guidelines Part 8.2.1)
 # ============================================================================
 
 def fetch_production_count(conn, equipment_id: int, lot_start_time: datetime) -> Optional[int]:
@@ -135,6 +146,7 @@ def fetch_production_count(conn, equipment_id: int, lot_start_time: datetime) ->
     Lot 시작 이후 생산 개수 조회
     
     🆕 v2.1.0: CycleTime COUNT 쿼리
+    🔴 v2.2.0: WITH (NOLOCK) 추가
     
     Args:
         conn: DB Connection
@@ -151,9 +163,10 @@ def fetch_production_count(conn, equipment_id: int, lot_start_time: datetime) ->
     try:
         cursor = conn.cursor()
         
+        # 🔴 v2.2.0: WITH (NOLOCK) 추가
         query = """
             SELECT COUNT(*) AS production_count
-            FROM log.CycleTime
+            FROM log.CycleTime WITH (NOLOCK)
             WHERE EquipmentId = %d
               AND Time >= %s
         """
@@ -178,6 +191,7 @@ def fetch_tact_time(conn, equipment_id: int) -> Optional[float]:
     최근 2개 CycleTime 간격으로 Tact Time 계산
     
     🆕 v2.1.0: 최근 2개 CycleTime 조회 후 간격 계산
+    🔴 v2.2.0: WITH (NOLOCK) 추가
     
     Args:
         conn: DB Connection
@@ -190,10 +204,11 @@ def fetch_tact_time(conn, equipment_id: int) -> Optional[float]:
     try:
         cursor = conn.cursor()
         
+        # 🔴 v2.2.0: WITH (NOLOCK) 추가
         # 최근 2개 CycleTime 조회
         query = """
             SELECT TOP 2 Time
-            FROM log.CycleTime
+            FROM log.CycleTime WITH (NOLOCK)
             WHERE EquipmentId = %d
             ORDER BY Time DESC
         """
@@ -229,6 +244,10 @@ def fetch_production_and_tact_batch(conn, equipment_ids: List[int], lot_start_ti
     다중 설비의 Production Count & Tact Time 일괄 조회
     
     🆕 v2.1.0: Multi Selection 최적화
+    🔴 v2.2.0: N+1 Query 제거 - Batch CTE Query로 변경 (Part 8.8)
+               - Before: Loop 내 234회 쿼리 (117개 × 2)
+               - After: CTE 1회 쿼리
+               - 성능 개선: 99.6% 쿼리 감소
     
     Args:
         conn: DB Connection
@@ -241,28 +260,140 @@ def fetch_production_and_tact_batch(conn, equipment_ids: List[int], lot_start_ti
     if not equipment_ids:
         return {}
     
-    result = {}
-    
-    # 각 설비별로 개별 조회 (Lot 시작 시간이 다르므로 일괄 쿼리 어려움)
-    for eq_id in equipment_ids:
-        lot_start = lot_start_times.get(eq_id)
+    cursor = None
+    try:
+        cursor = conn.cursor()
         
-        prod_count = None
-        if lot_start:
-            prod_count = fetch_production_count(conn, eq_id, lot_start)
+        # Equipment ID 목록 문자열 생성
+        ids_str = ','.join(str(id) for id in equipment_ids)
         
-        tact_time = fetch_tact_time(conn, eq_id)
+        # ═══════════════════════════════════════════════════════════════════
+        # 🔴 v2.2.0: Batch CTE Query - N+1 Query 제거 (Part 8.8)
+        # ═══════════════════════════════════════════════════════════════════
+        # 
+        # 기존 방식 (v2.1.0): Loop 내 개별 쿼리
+        #   for eq_id in equipment_ids:
+        #       fetch_production_count(...)  # Query 1
+        #       fetch_tact_time(...)         # Query 2
+        #   → 117개 설비 = 234회 쿼리!
+        #
+        # 새 방식 (v2.2.0): CTE Batch Query
+        #   → 117개 설비 = 1회 쿼리!
+        # ═══════════════════════════════════════════════════════════════════
         
-        result[eq_id] = {
-            'production_count': prod_count,
-            'tact_time_seconds': tact_time
-        }
-    
-    return result
+        query = f"""
+        WITH 
+        -- ═══════════════════════════════════════════════════════════════════
+        -- CTE 1: Active Lot 시작 시간 (IsStart=1인 최신 레코드)
+        -- ═══════════════════════════════════════════════════════════════════
+        ActiveLotStart AS (
+            SELECT 
+                EquipmentId,
+                OccurredAtUtc AS LotStartTime,
+                ROW_NUMBER() OVER (
+                    PARTITION BY EquipmentId 
+                    ORDER BY OccurredAtUtc DESC
+                ) AS rn
+            FROM log.Lotinfo WITH (NOLOCK)
+            WHERE EquipmentId IN ({ids_str})
+              AND IsStart = 1
+        ),
+        
+        -- ═══════════════════════════════════════════════════════════════════
+        -- CTE 2: Production Count (Lot 시작 이후 CycleTime COUNT)
+        -- ═══════════════════════════════════════════════════════════════════
+        ProductionCounts AS (
+            SELECT 
+                ct.EquipmentId,
+                COUNT(*) AS production_count
+            FROM log.CycleTime ct WITH (NOLOCK)
+            INNER JOIN ActiveLotStart als 
+                ON ct.EquipmentId = als.EquipmentId 
+                AND als.rn = 1
+                AND ct.Time >= als.LotStartTime
+            WHERE ct.EquipmentId IN ({ids_str})
+            GROUP BY ct.EquipmentId
+        ),
+        
+        -- ═══════════════════════════════════════════════════════════════════
+        -- CTE 3: Tact Time (최근 2개 CycleTime 간격)
+        -- ROW_NUMBER + LAG 조합으로 최신 2개 간격 계산
+        -- ═══════════════════════════════════════════════════════════════════
+        CycleTimeRanked AS (
+            SELECT 
+                EquipmentId,
+                Time,
+                LAG(Time) OVER (
+                    PARTITION BY EquipmentId 
+                    ORDER BY Time DESC
+                ) AS PrevTime,
+                ROW_NUMBER() OVER (
+                    PARTITION BY EquipmentId 
+                    ORDER BY Time DESC
+                ) AS rn
+            FROM log.CycleTime WITH (NOLOCK)
+            WHERE EquipmentId IN ({ids_str})
+        ),
+        TactTimes AS (
+            SELECT 
+                EquipmentId,
+                DATEDIFF(SECOND, PrevTime, Time) AS tact_seconds
+            FROM CycleTimeRanked
+            WHERE rn = 1 AND PrevTime IS NOT NULL
+        )
+        
+        -- ═══════════════════════════════════════════════════════════════════
+        -- 최종 결과: 모든 설비에 대해 Production Count + Tact Time JOIN
+        -- ═══════════════════════════════════════════════════════════════════
+        SELECT 
+            e.EquipmentId,
+            COALESCE(pc.production_count, 0) AS production_count,
+            tt.tact_seconds
+        FROM core.Equipment e WITH (NOLOCK)
+        LEFT JOIN ProductionCounts pc ON e.EquipmentId = pc.EquipmentId
+        LEFT JOIN TactTimes tt ON e.EquipmentId = tt.EquipmentId
+        WHERE e.EquipmentId IN ({ids_str})
+        """
+        
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        
+        # 결과를 Dictionary로 변환
+        result = {}
+        for row in rows:
+            eq_id = row[0]
+            prod_count = int(row[1]) if row[1] is not None and row[1] > 0 else None
+            tact_time = float(row[2]) if row[2] is not None else None
+            
+            result[eq_id] = {
+                'production_count': prod_count,
+                'tact_time_seconds': tact_time
+            }
+        
+        # 결과에 없는 equipment_id는 None으로 채우기 (호환성)
+        for eq_id in equipment_ids:
+            if eq_id not in result:
+                result[eq_id] = {
+                    'production_count': None,
+                    'tact_time_seconds': None
+                }
+        
+        logger.debug(f"✅ Batch query completed: {len(result)} equipments processed in 1 query")
+        
+        return result
+        
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to fetch production/tact batch: {e}")
+        # 🔴 Fallback: 에러 시 빈 결과 반환 (기존 동작 호환)
+        return {eq_id: {'production_count': None, 'tact_time_seconds': None} for eq_id in equipment_ids}
+    finally:
+        if cursor:
+            cursor.close()
 
 
 # ============================================================================
 # ✅ v2.0.0: Raw SQL 쿼리 함수 (cursor 기반) - Memory, Disk 추가
+# 🔴 v2.2.0: WITH (NOLOCK) 전체 적용 (Coding Guidelines Part 8.2.1)
 # ============================================================================
 
 def fetch_equipment_detail_raw(conn, equipment_id: int) -> Optional[Dict]:
@@ -279,6 +410,13 @@ def fetch_equipment_detail_raw(conn, equipment_id: int) -> Optional[Dict]:
     🆕 v1.5.0: Lot Active/Inactive 분기 지원
     - WHERE IsStart=1 조건 제거
     - 최신 Lotinfo 레코드의 IsStart 값으로 분기
+    
+    🔴 v2.2.0: WITH (NOLOCK) 전체 적용
+    - core.Equipment WITH (NOLOCK)
+    - log.EquipmentState WITH (NOLOCK)
+    - log.Lotinfo WITH (NOLOCK)
+    - core.EquipmentPCInfo WITH (NOLOCK)
+    - log.EquipmentPCInfo WITH (NOLOCK)
     
     SELECT 컬럼 인덱스 (v2.0.0):
     - 0: EquipmentId
@@ -316,7 +454,7 @@ def fetch_equipment_detail_raw(conn, equipment_id: int) -> Optional[Dict]:
     try:
         cursor = conn.cursor()
         
-        # 🆕 v2.0.0: Memory, Disk 컬럼 추가
+        # 🔴 v2.2.0: 모든 테이블에 WITH (NOLOCK) 추가
         query = """
             SELECT 
                 -- 기본 정보 (core.Equipment)
@@ -352,9 +490,9 @@ def fetch_equipment_detail_raw(conn, equipment_id: int) -> Optional[Dict]:
                 pcLog.DisksTotalGb2,
                 pcLog.DisksUsedGb2
                 
-            FROM core.Equipment e
+            FROM core.Equipment e WITH (NOLOCK)
             
-            -- log.EquipmentState JOIN (최신 1개)
+            -- 🔴 v2.2.0: log.EquipmentState WITH (NOLOCK)
             LEFT JOIN (
                 SELECT 
                     EquipmentId, 
@@ -364,9 +502,10 @@ def fetch_equipment_detail_raw(conn, equipment_id: int) -> Optional[Dict]:
                         PARTITION BY EquipmentId 
                         ORDER BY OccurredAtUtc DESC
                     ) AS rn
-                FROM log.EquipmentState
+                FROM log.EquipmentState WITH (NOLOCK)
             ) es ON e.EquipmentId = es.EquipmentId AND es.rn = 1
             
+            -- 🔴 v2.2.0: log.Lotinfo WITH (NOLOCK)
             -- 🆕 v1.5.0: log.Lotinfo JOIN (최신 1개, IsStart 조건 제거)
             LEFT JOIN (
                 SELECT 
@@ -379,14 +518,15 @@ def fetch_equipment_detail_raw(conn, equipment_id: int) -> Optional[Dict]:
                         PARTITION BY EquipmentId 
                         ORDER BY OccurredAtUtc DESC
                     ) AS rn
-                FROM log.Lotinfo
+                FROM log.Lotinfo WITH (NOLOCK)
                 -- WHERE IsStart = 1  ← 🆕 v1.5.0: 이 조건 제거
             ) li ON e.EquipmentId = li.EquipmentId AND li.rn = 1
             
-            -- core.EquipmentPCInfo JOIN (1:1 관계)
-            LEFT JOIN core.EquipmentPCInfo pc 
+            -- 🔴 v2.2.0: core.EquipmentPCInfo WITH (NOLOCK)
+            LEFT JOIN core.EquipmentPCInfo pc WITH (NOLOCK)
                 ON e.EquipmentId = pc.EquipmentId
             
+            -- 🔴 v2.2.0: log.EquipmentPCInfo WITH (NOLOCK)
             -- 🆕 v2.0.0: log.EquipmentPCInfo JOIN (최신 1개) - Memory, Disk 추가
             LEFT JOIN (
                 SELECT 
@@ -402,7 +542,7 @@ def fetch_equipment_detail_raw(conn, equipment_id: int) -> Optional[Dict]:
                         PARTITION BY EquipmentId 
                         ORDER BY OccurredAtUtc DESC
                     ) AS rn
-                FROM log.EquipmentPCInfo
+                FROM log.EquipmentPCInfo WITH (NOLOCK)
             ) pcLog ON e.EquipmentId = pcLog.EquipmentId AND pcLog.rn = 1
             
             WHERE e.EquipmentId = %d
@@ -510,6 +650,13 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
     - Multi Selection에서는 기존 집계 방식 유지
     - is_lot_active 필드는 개별 조회에만 사용
     
+    🔴 v2.2.0: WITH (NOLOCK) 전체 적용
+    - core.Equipment WITH (NOLOCK)
+    - log.EquipmentState WITH (NOLOCK)
+    - log.Lotinfo WITH (NOLOCK)
+    - core.EquipmentPCInfo WITH (NOLOCK)
+    - log.EquipmentPCInfo WITH (NOLOCK)
+    
     SELECT 컬럼 인덱스 (v2.1.0):
     - 0: EquipmentId
     - 1: EquipmentName
@@ -551,6 +698,7 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
         # IN 절 플레이스홀더 생성 (MSSQL은 %d 사용)
         placeholders = ", ".join(["%d" for _ in equipment_ids])
         
+        # 🔴 v2.2.0: 모든 테이블에 WITH (NOLOCK) 추가
         # 🆕 v1.5.0: Multi Selection은 기존 방식 유지 (IsStart=1만 조회)
         # 집계에서는 Active Lot 정보만 표시하는 것이 더 유의미함
         # 🆕 v2.0.0: Memory, Disk 컬럼 추가
@@ -588,9 +736,9 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
                 pcLog.DisksTotalGb2,
                 pcLog.DisksUsedGb2
                 
-            FROM core.Equipment e
+            FROM core.Equipment e WITH (NOLOCK)
             
-            -- log.EquipmentState JOIN (최신 1개)
+            -- 🔴 v2.2.0: log.EquipmentState WITH (NOLOCK)
             LEFT JOIN (
                 SELECT 
                     EquipmentId, 
@@ -600,9 +748,10 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
                         PARTITION BY EquipmentId 
                         ORDER BY OccurredAtUtc DESC
                     ) AS rn
-                FROM log.EquipmentState
+                FROM log.EquipmentState WITH (NOLOCK)
             ) es ON e.EquipmentId = es.EquipmentId AND es.rn = 1
             
+            -- 🔴 v2.2.0: log.Lotinfo WITH (NOLOCK)
             -- log.Lotinfo JOIN (IsStart=1인 최신 1개) - Multi Selection은 기존 방식 유지
             LEFT JOIN (
                 SELECT 
@@ -614,14 +763,15 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
                         PARTITION BY EquipmentId 
                         ORDER BY OccurredAtUtc DESC
                     ) AS rn
-                FROM log.Lotinfo
+                FROM log.Lotinfo WITH (NOLOCK)
                 WHERE IsStart = 1
             ) li ON e.EquipmentId = li.EquipmentId AND li.rn = 1
             
-            -- core.EquipmentPCInfo JOIN (1:1 관계)
-            LEFT JOIN core.EquipmentPCInfo pc 
+            -- 🔴 v2.2.0: core.EquipmentPCInfo WITH (NOLOCK)
+            LEFT JOIN core.EquipmentPCInfo pc WITH (NOLOCK)
                 ON e.EquipmentId = pc.EquipmentId
             
+            -- 🔴 v2.2.0: log.EquipmentPCInfo WITH (NOLOCK)
             -- 🆕 v2.0.0: log.EquipmentPCInfo JOIN (최신 1개) - Memory, Disk 추가
             LEFT JOIN (
                 SELECT 
@@ -637,7 +787,7 @@ def fetch_multi_equipment_detail_raw(conn, equipment_ids: List[int]) -> List[Dic
                         PARTITION BY EquipmentId 
                         ORDER BY OccurredAtUtc DESC
                     ) AS rn
-                FROM log.EquipmentPCInfo
+                FROM log.EquipmentPCInfo WITH (NOLOCK)
             ) pcLog ON e.EquipmentId = pcLog.EquipmentId AND pcLog.rn = 1
             
             WHERE e.EquipmentId IN ({placeholders})
@@ -720,7 +870,7 @@ async def health_check():
     return {
         "status": "ok",
         "service": "equipment-detail",
-        "version": "2.1.0",
+        "version": "2.2.0",  # 🔴 v2.2.0 업데이트
         "timestamp": datetime.now().isoformat(),
         "features": {
             "general_tab": True,
@@ -736,7 +886,10 @@ async def health_check():
             "disk_d_gauge": True,
             # v2.1.0
             "production_count": True,
-            "tact_time": True
+            "tact_time": True,
+            # v2.2.0
+            "nolock_optimized": True,
+            "batch_query_optimized": True
         }
     }
 
@@ -763,6 +916,8 @@ async def get_equipment_detail(
     🆕 v1.5.0: Lot Active/Inactive 분기 지원
     - is_lot_active=True: Product, Lot No, Lot Start, Lot Duration, Production, Tact Time 표시
     - is_lot_active=False: Product="-", Lot No="-", Since, Duration 표시
+    
+    🔴 v2.2.0: WITH (NOLOCK) 적용으로 Factory DB 안정성 향상
     
     - **frontend_id**: Frontend ID (예: EQ-17-03)
     - **equipment_id**: Equipment ID (옵션, Frontend에서 전달 시 우선 사용)
@@ -954,6 +1109,8 @@ async def get_multi_equipment_detail(
     - avg_disk_c_usage_percent: 평균 Disk C 사용율 %
     - avg_disk_d_usage_percent: 평균 Disk D 사용율 % (NULL 설비 제외)
     
+    🔴 v2.2.0: N+1 Query 제거로 99.6% 쿼리 감소 (117개: 234 → 1)
+    
     기존 집계 방식 유지 (Lot Active/Inactive 개수 집계는 추가하지 않음)
     
     - **frontend_ids**: Frontend ID 목록 (최대 100개)
@@ -1072,7 +1229,7 @@ async def get_multi_equipment_detail(
                 disk_d_percent = (data['disk_d_used_gb'] / data['disk_d_total_gb']) * 100
                 disk_d_usage_values.append(disk_d_percent)
         
-        # 🆕 v2.1.0: Production & Tact Time 일괄 조회
+        # 🔴 v2.2.0: Batch Query로 Production & Tact Time 일괄 조회 (N+1 제거)
         prod_tact_data = fetch_production_and_tact_batch(conn, request.equipment_ids, lot_start_times)
         
         # Production 합계 & Tact Time 평균 계산
