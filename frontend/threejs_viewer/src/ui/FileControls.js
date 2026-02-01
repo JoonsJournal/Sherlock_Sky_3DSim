@@ -7,9 +7,17 @@
  * - 드래그앤드롭 영역
  * - 최근 파일 목록
  * 
- * @version 2.0.0
+ * @version 2.1.0
  * @location frontend/threejs_viewer/src/ui/FileControls.js
- * @modified 2026-01-06 (Phase 7 - _injectStyles() 제거, CSS 파일 분리)
+ * @changelog
+ *   - v2.1.0: 🔴 CRITICAL - EventBus 구독 해제 추가 (메모리 누수 방지)
+ *             - _eventUnsubscribers 배열 추가
+ *             - _bindEvents()에서 핸들러 참조 저장
+ *             - destroy()에서 eventBus.off() 호출
+ *             - ⚠️ 호환성: 기존 모든 기능/로직 100% 유지
+ *   - v2.0.0: _injectStyles() 제거, CSS 파일 분리 (_file-controls.css)
+ *   - v1.0.0: 초기 버전
+ * @modified 2026-02-01 (Phase 0 - dispose() 패턴 검증 수정)
  */
 
 import { eventBus } from '../core/managers/EventBus.js';
@@ -62,11 +70,16 @@ class FileControls {
         // 임시 저장 (Import 미리보기용)
         this._pendingImportData = null;
 
+        // ════════════════════════════════════════════════════════════════════
+        // 🆕 v2.1.0: EventBus 구독 해제 함수 저장용 배열
+        // ════════════════════════════════════════════════════════════════════
+        this._eventUnsubscribers = [];
+
         // 초기화
         this._createElement();
         this._bindEvents();
 
-        console.log('✅ FileControls initialized');
+        console.log('✅ FileControls v2.1.0 initialized');
     }
 
     // =========================================================================
@@ -224,9 +237,23 @@ class FileControls {
             this._fileInput.value = '';
         });
 
-        // EventBus 이벤트 구독
-        eventBus.on('mapping:file-exported', () => this._renderRecentFiles());
-        eventBus.on('mapping:file-imported', () => this._renderRecentFiles());
+        // ════════════════════════════════════════════════════════════════════
+        // 🆕 v2.1.0: EventBus 이벤트 구독 (해제 가능하도록 변경)
+        // ════════════════════════════════════════════════════════════════════
+        
+        // 핸들러 함수를 변수에 저장 (나중에 해제하기 위해)
+        const onFileExported = () => this._renderRecentFiles();
+        const onFileImported = () => this._renderRecentFiles();
+        
+        // 이벤트 등록
+        eventBus.on('mapping:file-exported', onFileExported);
+        eventBus.on('mapping:file-imported', onFileImported);
+        
+        // 해제 함수를 배열에 저장
+        this._eventUnsubscribers.push(
+            () => eventBus.off('mapping:file-exported', onFileExported),
+            () => eventBus.off('mapping:file-imported', onFileImported)
+        );
     }
 
     // =========================================================================
@@ -575,11 +602,24 @@ class FileControls {
 
     /**
      * 리소스 정리
+     * 
+     * 🆕 v2.1.0: EventBus 구독 해제 추가
      */
     destroy() {
+        // ════════════════════════════════════════════════════════════════════
+        // 🆕 v2.1.0: EventBus 구독 해제
+        // ════════════════════════════════════════════════════════════════════
+        this._eventUnsubscribers.forEach(unsub => {
+            if (typeof unsub === 'function') {
+                unsub();
+            }
+        });
+        this._eventUnsubscribers = [];
+
         // 드롭존 핸들러 해제
         if (this._dropZoneHandler) {
             this._dropZoneHandler.destroy();
+            this._dropZoneHandler = null;
         }
 
         // DOM 제거
@@ -593,7 +633,7 @@ class FileControls {
         this._fileInput = null;
         this._pendingImportData = null;
 
-        console.log('[FileControls] destroyed');
+        console.log('[FileControls] destroyed (v2.1.0 - EventBus unsubscribed)');
     }
 }
 
@@ -608,4 +648,4 @@ if (typeof window !== 'undefined') {
     window.FileControls = FileControls;
 }
 
-console.log('✅ FileControls.js v2.0.0 로드 완료');
+console.log('✅ FileControls.js v2.1.0 로드 완료 (EventBus 구독 해제 추가)');

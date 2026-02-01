@@ -7,12 +7,17 @@
  * - 데이터 미리보기
  * - 다중 namespace 복구 지원
  * 
- * @version 2.0.0
+ * @version 2.1.0
  * @description 
  *   - v1.0.0: 초기 버전
  *   - v2.0.0: _injectStyles() 제거, CSS 파일 분리 (_recovery-dialog.css)
+ *   - v2.1.0: 🟡 MINOR - DOMContentLoaded 핸들러 해제 추가 (코드 일관성)
+ *             - _domContentLoadedHandler 참조 저장
+ *             - destroy()에서 removeEventListener 호출
+ *             - ⚠️ 호환성: 기존 모든 기능/로직 100% 유지
  * 
  * @location frontend/threejs_viewer/src/ui/RecoveryDialog.js
+ * @modified 2026-02-01 (Phase 0 - dispose() 패턴 검증 수정)
  */
 
 import { storageService } from '../core/storage/index.js';
@@ -85,10 +90,20 @@ class RecoveryDialog {
         this._recoveryItems = [];
         this._selectedItems = new Set();
 
+        // 이벤트 핸들러 참조
+        this._keyHandler = null;
+        
+        // ════════════════════════════════════════════════════════════════════
+        // 🆕 v2.1.0: DOMContentLoaded 핸들러 참조 저장
+        // ════════════════════════════════════════════════════════════════════
+        this._domContentLoadedHandler = null;
+
         // 자동 확인
         if (this._options.autoCheck) {
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', () => this.checkAndShow());
+                // 🆕 v2.1.0: 핸들러를 변수에 저장 (나중에 해제하기 위해)
+                this._domContentLoadedHandler = () => this.checkAndShow();
+                document.addEventListener('DOMContentLoaded', this._domContentLoadedHandler);
             } else {
                 setTimeout(() => this.checkAndShow(), 500);
             }
@@ -685,10 +700,24 @@ class RecoveryDialog {
         this._recoveryItems = items;
     }
 
+    /**
+     * 리소스 정리
+     * 
+     * 🆕 v2.1.0: DOMContentLoaded 핸들러 해제 추가
+     */
     destroy() {
+        // keydown 핸들러 해제
         if (this._keyHandler) {
             document.removeEventListener('keydown', this._keyHandler);
             this._keyHandler = null;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // 🆕 v2.1.0: DOMContentLoaded 핸들러 해제
+        // ════════════════════════════════════════════════════════════════════
+        if (this._domContentLoadedHandler) {
+            document.removeEventListener('DOMContentLoaded', this._domContentLoadedHandler);
+            this._domContentLoadedHandler = null;
         }
 
         this._removeElement();
@@ -696,6 +725,8 @@ class RecoveryDialog {
         this._recoveryItems = [];
         this._selectedItems.clear();
         this._isOpen = false;
+
+        console.log('[RecoveryDialog] destroyed (v2.1.0 - DOMContentLoaded handler removed)');
     }
 }
 
@@ -710,4 +741,4 @@ if (typeof window !== 'undefined') {
     window.RecoveryDialog = RecoveryDialog;
 }
 
-console.log('✅ RecoveryDialog.js v2.0.0 로드 완료');
+console.log('✅ RecoveryDialog.js v2.1.0 로드 완료 (DOMContentLoaded 핸들러 해제 추가)');
