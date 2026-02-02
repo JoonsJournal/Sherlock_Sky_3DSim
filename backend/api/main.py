@@ -4,6 +4,10 @@ Multi-Site Equipment Mapping V2 API + UDS 통합
 
 @version 1.3.1
 @changelog
+- analytics 라우터 import 경로 변경
+  - 기존: from .routers.analytics import router as analytics_router
+  - 변경: from .routers.analytics import router as analytics_router
+  - ⚠️ 실제로는 동일! analytics/__init__.py에서 router를 export하므로
 - v1.3.1: UDS Status Watcher DB 연결 정보 자동 설정 (Phase 1 긴급 수정)
           - DatabaseConnectionManager에서 활성 연결 자동 감지
           - set_connection() 자동 호출로 WebSocket Delta 브로드캐스트 복구
