@@ -2,8 +2,12 @@
 FastAPI 메인 애플리케이션
 Multi-Site Equipment Mapping V2 API + UDS 통합
 
-@version 1.3.1
+@version 1.4.0
 @changelog
+- v1.4.0: Phase 1 Multi-Site Monitoring 통합 (2026-02-02)
+          - Sites Router 등록 (/api/sites/*)
+          - Health WebSocket 등록 (/ws/sites/health)
+          - ⚠️ 호환성: 기존 모든 API 100% 유지
 - analytics 라우터 import 경로 변경
   - 기존: from .routers.analytics import router as analytics_router
   - 변경: from .routers.analytics import router as analytics_router
@@ -76,6 +80,26 @@ try:
 except ImportError as e:
     EQUIPMENT_DETAIL_ENABLED = False
     logger.warning(f"⚠️ Equipment Detail 모듈 로드 실패: {e}")
+
+# ============================================
+# 🆕 Phase 1: Sites Router & Health WebSocket
+# ============================================
+SITES_ENABLED = True
+HEALTH_WS_ENABLED = True
+
+try:
+    from .routers import sites as sites_router
+    logger.info("✅ Sites Router 로드 성공")
+except ImportError as e:
+    SITES_ENABLED = False
+    logger.warning(f"⚠️ Sites Router 로드 실패: {e}")
+
+try:
+    from .websocket.health_stream import register_health_websocket
+    logger.info("✅ Health WebSocket 로드 성공")
+except ImportError as e:
+    HEALTH_WS_ENABLED = False
+    logger.warning(f"⚠️ Health WebSocket 로드 실패: {e}")
 
 # ============================================
 # 🆕 UDS (Unified Data Store) Import
@@ -216,6 +240,21 @@ if EQUIPMENT_DETAIL_ENABLED:
     logger.info("✅ Equipment Detail Router 등록")
 
 # ============================================
+# 🆕 Phase 1: Sites Router 등록
+# ============================================
+if SITES_ENABLED:
+    app.include_router(
+        sites_router.router,
+        tags=["Sites - Multi-Site Management"]
+    )
+    logger.info("✅ Sites Router 등록")
+
+# 🆕 Phase 1: Health WebSocket 등록
+if HEALTH_WS_ENABLED:
+    register_health_websocket(app)
+    logger.info("✅ Health WebSocket 등록: /ws/sites/health")
+
+# ============================================
 # 🆕 UDS Router 등록 (추가)
 # ============================================
 if UDS_ENABLED and UDS_LOADED:
@@ -242,6 +281,21 @@ async def root():
         "equipment_names": "/api/equipment/names",
         "equipment_mapping": "/api/equipment/mapping",
     }
+    if SITES_ENABLED:
+        endpoints.update({
+            "sites_list": "/api/sites",
+            "sites_health": "/api/sites/health",
+            "sites_summary": "/api/sites/summary",
+            "site_detail": "/api/sites/{site_id}",
+            "site_health": "/api/sites/{site_id}/health",
+            "site_reconnect": "/api/sites/{site_id}/reconnect (POST)"
+        })
+    
+    if HEALTH_WS_ENABLED:
+        endpoints.update({
+            "health_stream": "/ws/sites/health (WebSocket)"
+        })
+
     
     # ⭐ Mapping V2 endpoints
     if MAPPING_V2_ENABLED:
@@ -291,6 +345,8 @@ async def root():
     # 🆕 UDS 정보 추가 (기존 구조 유지하면서 확장)
     if UDS_ENABLED:
         response["features"]["uds"] = UDS_LOADED
+        response["features"]["sites"] = SITES_ENABLED
+        response["features"]["health_websocket"] = HEALTH_WS_ENABLED
     
     return response
 
@@ -314,6 +370,8 @@ async def health():
     if UDS_ENABLED:
         response["uds_enabled"] = UDS_ENABLED
         response["uds_loaded"] = UDS_LOADED
+        response["sites_enabled"] = SITES_ENABLED
+        response["health_websocket_enabled"] = HEALTH_WS_ENABLED
         
         if UDS_LOADED and status_watcher:
             response["uds_watcher_running"] = status_watcher.is_running
