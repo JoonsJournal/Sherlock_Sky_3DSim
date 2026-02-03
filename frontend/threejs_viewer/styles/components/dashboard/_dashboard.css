@@ -1,0 +1,1108 @@
+/**
+ * _dashboard.css - Dashboard 전용 스타일
+ * 
+ * @version 1.0.2
+ * @created 2026-02-03
+ * @modified 2026-02-03
+ * @phase Phase 2: Site Dashboard 구현
+ * 
+ * @description
+ * Multi-Site Dashboard의 모든 컴포넌트 스타일
+ * - Dashboard Layout 스타일
+ * - Site Card 스타일
+ * - Critical Equipment 하이라이트 스타일 (v1.0.2)
+ * - Toast 알림 스타일
+ * - 에러 상태 스타일
+ * - Summary Footer 스타일
+ * - Global Alert Banner 스타일
+ * 
+ * BEM 명명 규칙 적용
+ * Design Token 사용
+ * 
+ * @changelog
+ * - v1.0.0 (2026-02-03): 최초 구현
+ * - v1.0.1 (2026-02-03): Dashboard Layout, Toast, Error 스타일 추가
+ * - v1.0.2 (2026-02-03): Critical Equipment 하이라이트 스타일 추가 (FR-DASH-002)
+ * 
+ * 위치: frontend/threejs_viewer/src/styles/components/dashboard/_dashboard.css
+ */
+
+/* ============================================
+   CSS Custom Properties (Design Tokens)
+   ============================================ */
+:root {
+    /* Site Card */
+    --card-border-radius: 12px;
+    --card-padding: 16px;
+    --card-gap: 12px;
+    
+    /* Status Colors */
+    --status-run: var(--color-success, #3fb950);
+    --status-idle: var(--color-warning, #d29922);
+    --status-stop: var(--color-error, #f85149);
+    --status-disc: var(--color-muted, #6e7681);
+    
+    /* Badge Colors */
+    --badge-success-bg: rgba(63, 185, 80, 0.15);
+    --badge-success-text: var(--color-success, #3fb950);
+    --badge-warning-bg: rgba(210, 153, 34, 0.15);
+    --badge-warning-text: var(--color-warning, #d29922);
+    --badge-error-bg: rgba(248, 81, 73, 0.15);
+    --badge-error-text: var(--color-error, #f85149);
+    --badge-partial-bg: rgba(88, 166, 255, 0.15);
+    --badge-partial-text: var(--color-accent, #58a6ff);
+    
+    /* Critical Colors (v1.0.2 추가) */
+    --badge-critical-bg: rgba(248, 81, 73, 0.25);
+    --badge-critical-text: #ff6b6b;
+    --critical-border: var(--color-error, #f85149);
+    --critical-bg: rgba(248, 81, 73, 0.08);
+    --critical-highlight: rgba(248, 81, 73, 0.15);
+    
+    /* Toast Colors (Design Token) */
+    --toast-success-bg: rgba(63, 185, 80, 0.15);
+    --toast-success-border: var(--color-success, #3fb950);
+    --toast-error-bg: rgba(248, 81, 73, 0.15);
+    --toast-error-border: var(--color-error, #f85149);
+    --toast-info-bg: rgba(88, 166, 255, 0.15);
+    --toast-info-border: var(--color-accent, #58a6ff);
+}
+
+/* ============================================
+   Dashboard Layout
+   ============================================ */
+.dashboard-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: var(--bg-secondary, #151b23);
+    border-bottom: 1px solid var(--color-border, #2a3441);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.dashboard-header__logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dashboard-header__title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--color-text-primary, #e6edf3);
+}
+
+.dashboard-header__subtitle {
+    font-size: 12px;
+    color: var(--color-text-secondary, #8b949e);
+    margin-left: 4px;
+}
+
+.dashboard-header__status {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.dashboard-main {
+    flex: 1;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+.dashboard-footer {
+    padding: 12px 24px;
+    background: var(--bg-secondary, #151b23);
+    border-top: 1px solid var(--color-border, #2a3441);
+}
+
+/* ============================================
+   Connection Indicator
+   ============================================ */
+.connection-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: var(--bg-tertiary, #1c2128);
+    font-size: 12px;
+}
+
+.connection-indicator__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-success, #3fb950);
+    animation: pulse 2s infinite;
+}
+
+.connection-indicator__dot.disconnected {
+    background: var(--color-error, #f85149);
+    animation: none;
+}
+
+.connection-indicator__text {
+    color: var(--color-text-secondary, #8b949e);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ============================================
+   Loading State
+   ============================================ */
+.dashboard-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 400px;
+    color: var(--color-text-secondary, #8b949e);
+}
+
+.dashboard-loading__spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid var(--color-border, #2a3441);
+    border-top-color: var(--color-accent, #58a6ff);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.dashboard-loading__text {
+    margin-top: 16px;
+    font-size: 14px;
+}
+
+/* ============================================
+   Error State (가이드라인 준수)
+   ============================================ */
+.dashboard-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 400px;
+    text-align: center;
+    color: var(--color-text-secondary, #8b949e);
+}
+
+.dashboard-error__icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.dashboard-error__title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--color-error, #f85149);
+    margin-bottom: 8px;
+}
+
+.dashboard-error__message {
+    font-size: 14px;
+    color: var(--color-text-secondary, #8b949e);
+    max-width: 400px;
+    margin-bottom: 16px;
+}
+
+.dashboard-error__button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: var(--color-accent, #58a6ff);
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.dashboard-error__button:hover {
+    background: #79b8ff;
+}
+
+/* ============================================
+   Empty State
+   ============================================ */
+.dashboard-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 400px;
+    color: var(--color-text-secondary, #8b949e);
+    text-align: center;
+}
+
+.dashboard-empty__icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.dashboard-empty__title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--color-text-primary, #e6edf3);
+    margin-bottom: 8px;
+}
+
+.dashboard-empty__description {
+    font-size: 14px;
+    max-width: 400px;
+}
+
+/* ============================================
+   Site Cards Container
+   ============================================ */
+#site-cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+/* ============================================
+   Site Card
+   ============================================ */
+.site-card {
+    background: var(--bg-secondary, #151b23);
+    border: 2px solid var(--color-border, #2a3441);
+    border-radius: var(--card-border-radius);
+    padding: var(--card-padding);
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: var(--card-gap);
+}
+
+.site-card:hover {
+    border-color: var(--color-accent, #58a6ff);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Card Modifiers (시나리오별) */
+.site-card--s0 {
+    border-color: var(--badge-warning-text);
+    background: linear-gradient(135deg, rgba(210, 153, 34, 0.08) 0%, var(--bg-secondary) 100%);
+}
+
+.site-card--s1 {
+    border-color: var(--badge-warning-text);
+}
+
+.site-card--s2 {
+    border-color: var(--badge-success-text);
+}
+
+.site-card--s2:hover {
+    border-color: var(--badge-success-text);
+    box-shadow: 0 8px 24px rgba(63, 185, 80, 0.2);
+}
+
+.site-card--s3 {
+    border-color: var(--badge-partial-text);
+}
+
+.site-card--error {
+    border-color: var(--badge-error-text);
+    opacity: 0.9;
+}
+
+/* Critical Equipment 보유 Site Card (v1.0.2) */
+.site-card--has-critical {
+    border-color: var(--critical-border);
+    background: linear-gradient(135deg, var(--critical-bg) 0%, var(--bg-secondary) 100%);
+    animation: criticalGlow 2s ease-in-out infinite;
+}
+
+.site-card--has-critical:hover {
+    border-color: var(--critical-border);
+    box-shadow: 0 8px 24px rgba(248, 81, 73, 0.3);
+}
+
+@keyframes criticalGlow {
+    0%, 100% { 
+        box-shadow: 0 0 0 0 rgba(248, 81, 73, 0);
+    }
+    50% { 
+        box-shadow: 0 0 12px 2px rgba(248, 81, 73, 0.3);
+    }
+}
+
+/* Card Header */
+.site-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.site-card__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.site-card__flag {
+    font-size: 20px;
+}
+
+.site-card__name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text-primary, #e6edf3);
+}
+
+.site-card__process {
+    font-size: 12px;
+    color: var(--color-text-secondary, #8b949e);
+    background: var(--bg-tertiary, #1c2128);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Card Status */
+.site-card__status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-border, #2a3441);
+}
+
+.site-card__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.badge--success {
+    background: var(--badge-success-bg);
+    color: var(--badge-success-text);
+}
+
+.badge--warning {
+    background: var(--badge-warning-bg);
+    color: var(--badge-warning-text);
+}
+
+.badge--error {
+    background: var(--badge-error-bg);
+    color: var(--badge-error-text);
+}
+
+.badge--partial {
+    background: var(--badge-partial-bg);
+    color: var(--badge-partial-text);
+}
+
+.badge--info {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--color-accent, #58a6ff);
+}
+
+/* Critical Badge (v1.0.2) */
+.badge--critical {
+    background: var(--badge-critical-bg);
+    color: var(--badge-critical-text);
+    animation: criticalPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes criticalPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Card Body */
+.site-card__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Setup Status */
+.site-card__setup-status {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.setup-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.setup-item--ok {
+    color: var(--badge-success-text);
+}
+
+.setup-item--missing {
+    color: var(--color-text-secondary, #8b949e);
+}
+
+.setup-icon {
+    width: 20px;
+    text-align: center;
+}
+
+/* Setup Guide */
+.site-card__guide {
+    background: var(--bg-tertiary, #1c2128);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.guide-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-secondary, #8b949e);
+    margin-bottom: 8px;
+}
+
+.guide-steps {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 12px;
+    color: var(--color-text-secondary, #8b949e);
+}
+
+.guide-steps li {
+    margin-bottom: 4px;
+}
+
+/* DB Info */
+.site-card__db-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--color-text-secondary, #8b949e);
+}
+
+/* Notice */
+.site-card__notice {
+    font-size: 12px;
+    color: var(--color-text-secondary, #8b949e);
+    padding: 8px;
+    background: var(--bg-tertiary, #1c2128);
+    border-radius: 6px;
+}
+
+.site-card__notice p {
+    margin: 0;
+}
+
+/* Stats Grid (S2) */
+.site-card__stats {
+    padding: 12px 0;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    background: var(--bg-tertiary, #1c2128);
+    border-radius: 8px;
+}
+
+.stat-icon {
+    font-size: 14px;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--color-text-primary, #e6edf3);
+}
+
+.stat-label {
+    font-size: 10px;
+    color: var(--color-text-secondary, #8b949e);
+    text-transform: uppercase;
+}
+
+.stat-item--run .stat-value { color: var(--status-run); }
+.stat-item--idle .stat-value { color: var(--status-idle); }
+.stat-item--stop .stat-value { color: var(--status-stop); }
+.stat-item--disc .stat-value { color: var(--status-disc); }
+
+/* Compact Stats (S3) */
+.site-card__stats--compact {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+}
+
+.stat-compact {
+    font-size: 14px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Production */
+.site-card__production {
+    display: flex;
+    gap: 16px;
+    padding: 8px 0;
+    border-top: 1px solid var(--color-border, #2a3441);
+}
+
+.production-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.production-icon {
+    font-size: 14px;
+}
+
+.production-value {
+    font-size: 16px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--color-text-primary, #e6edf3);
+}
+
+.production-label {
+    font-size: 12px;
+    color: var(--color-text-secondary, #8b949e);
+}
+
+.production-item--alert .production-value {
+    color: var(--badge-warning-text);
+}
+
+/* ============================================
+   Critical Equipment Section (v1.0.2 추가)
+   FR-DASH-002 요구사항
+   ============================================ */
+.site-card__critical {
+    background: var(--critical-highlight);
+    border: 1px solid var(--critical-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 4px;
+}
+
+.site-card__critical-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(248, 81, 73, 0.3);
+}
+
+.site-card__critical-icon {
+    font-size: 16px;
+    animation: criticalIconPulse 1s ease-in-out infinite;
+}
+
+@keyframes criticalIconPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.site-card__critical-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--badge-critical-text);
+}
+
+.site-card__critical-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.site-card__critical-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.site-card__critical-eq-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    color: var(--color-text-primary, #e6edf3);
+}
+
+.site-card__critical-eq-status {
+    font-size: 11px;
+    color: var(--badge-error-text);
+}
+
+.site-card__critical-eq-duration {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--color-text-secondary, #8b949e);
+}
+
+/* Error State */
+.site-card__error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+}
+
+.site-card__error .error-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    opacity: 0.7;
+}
+
+.site-card__error .error-message {
+    font-size: 14px;
+    color: var(--badge-error-text);
+    margin-bottom: 8px;
+}
+
+.site-card__error .error-hint {
+    font-size: 12px;
+    color: var(--color-text-secondary, #8b949e);
+}
+
+/* Card Actions */
+.site-card__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border, #2a3441);
+}
+
+.action-row {
+    display: flex;
+    gap: 8px;
+}
+
+.action-row--primary .btn {
+    flex: 1;
+}
+
+.action-row--secondary {
+    justify-content: center;
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn--primary {
+    background: var(--color-accent, #58a6ff);
+    color: white;
+}
+
+.btn--primary:hover {
+    background: #79b8ff;
+}
+
+.btn--secondary {
+    background: var(--bg-tertiary, #1c2128);
+    color: var(--color-text-primary, #e6edf3);
+    border: 1px solid var(--color-border, #2a3441);
+}
+
+.btn--secondary:hover {
+    background: var(--color-border, #2a3441);
+}
+
+.btn--accent {
+    background: linear-gradient(135deg, var(--color-accent, #58a6ff), #a371f7);
+    color: white;
+}
+
+.btn--accent:hover {
+    background: linear-gradient(135deg, #79b8ff, #b591f9);
+}
+
+.btn--text {
+    background: transparent;
+    color: var(--color-text-secondary, #8b949e);
+    padding: 6px 12px;
+}
+
+.btn--text:hover {
+    color: var(--color-text-primary, #e6edf3);
+    background: var(--bg-tertiary, #1c2128);
+}
+
+.btn--full {
+    width: 100%;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ============================================
+   Toast Styles (Design Token 사용)
+   ============================================ */
+.toast-container {
+    position: fixed;
+    top: 80px;
+    right: 24px;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    border-left: 4px solid;
+    color: var(--color-text-primary, #e6edf3);
+    animation: slideIn 0.3s ease;
+}
+
+.toast--success {
+    background: var(--toast-success-bg);
+    border-color: var(--toast-success-border);
+}
+
+.toast--error {
+    background: var(--toast-error-bg);
+    border-color: var(--toast-error-border);
+}
+
+.toast--info {
+    background: var(--toast-info-bg);
+    border-color: var(--toast-info-border);
+}
+
+.toast__icon {
+    font-size: 16px;
+}
+
+.toast__message {
+    font-size: 14px;
+}
+
+.toast--fade-out {
+    animation: slideOut 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+/* ============================================
+   Summary Footer
+   ============================================ */
+.summary-footer__content {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 8px 0;
+}
+
+.summary-footer__item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.summary-footer__icon {
+    font-size: 16px;
+}
+
+.summary-footer__label {
+    font-size: 12px;
+    color: var(--color-text-secondary, #8b949e);
+}
+
+.summary-footer__value {
+    font-size: 16px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--color-text-primary, #e6edf3);
+}
+
+.summary-footer__value.highlight {
+    color: var(--badge-warning-text);
+    animation: pulse 1s ease-in-out;
+}
+
+.summary-footer__unit {
+    font-size: 12px;
+    color: var(--color-text-secondary, #8b949e);
+}
+
+.summary-footer__divider {
+    width: 1px;
+    height: 24px;
+    background: var(--color-border, #2a3441);
+}
+
+.summary-footer__spacer {
+    flex: 1;
+}
+
+.summary-footer__status-group {
+    display: flex;
+    gap: 16px;
+}
+
+.summary-footer__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.summary-footer__dot.run { background: var(--status-run); }
+.summary-footer__dot.idle { background: var(--status-idle); }
+.summary-footer__dot.stop { background: var(--status-stop); }
+
+/* ============================================
+   Global Alert Banner
+   ============================================ */
+.global-alert-banner {
+    --alert-bg: rgba(88, 166, 255, 0.1);
+    --alert-border: var(--color-accent, #58a6ff);
+    --alert-text: #79c0ff;
+    
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: var(--alert-bg);
+    border-bottom: 2px solid var(--alert-border);
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+}
+
+.global-alert-banner.visible {
+    transform: translateY(0);
+}
+
+.global-alert-banner.hidden {
+    transform: translateY(-100%);
+}
+
+.global-alert-banner--warning {
+    --alert-bg: rgba(210, 153, 34, 0.1);
+    --alert-border: var(--color-warning, #d29922);
+    --alert-text: #e3b341;
+}
+
+.global-alert-banner--error {
+    --alert-bg: rgba(248, 81, 73, 0.1);
+    --alert-border: var(--color-error, #f85149);
+    --alert-text: #ff8882;
+}
+
+.alert-banner__content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.alert-banner__icon {
+    font-size: 20px;
+}
+
+.alert-banner__message {
+    flex: 1;
+    font-size: 14px;
+    color: var(--alert-text);
+}
+
+.alert-banner__site {
+    font-size: 12px;
+    color: var(--color-text-secondary, #8b949e);
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.alert-banner__close {
+    background: transparent;
+    border: none;
+    color: var(--alert-text);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.alert-banner__close:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Critical Animation */
+.global-alert-banner--critical {
+    animation: criticalBannerPulse 1s infinite;
+}
+
+@keyframes criticalBannerPulse {
+    0%, 100% { background: var(--alert-bg); }
+    50% { background: rgba(248, 81, 73, 0.3); }
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+.hidden {
+    display: none !important;
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 768px) {
+    .dashboard-header {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .dashboard-main {
+        padding: 16px;
+    }
+    
+    .site-card {
+        padding: 12px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    /* Critical Equipment Responsive */
+    .site-card__critical-item {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    
+    .site-card__critical-eq-duration {
+        width: 100%;
+        text-align: right;
+    }
+    
+    .summary-footer__content {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .summary-footer__spacer {
+        display: none;
+    }
+    
+    .toast-container {
+        top: auto;
+        bottom: 80px;
+        left: 16px;
+        right: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .site-card__header {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .site-card__status {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .action-row {
+        flex-direction: column;
+    }
+    
+    .action-row .btn {
+        width: 100%;
+    }
+    
+    .dashboard-header__title {
+        font-size: 16px;
+    }
+    
+    .dashboard-header__subtitle {
+        display: none;
+    }
+}

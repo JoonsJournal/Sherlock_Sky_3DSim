@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<!--
+ * dashboard.html - Multi-Site Dashboard Entry Point
+ * 
+ * @version 1.0.1
+ * @created 2026-02-03
+ * @modified 2026-02-03
+ * @phase Phase 2: Site Dashboard 구현
+ * 
+ * @description
+ * Multi-Site Monitoring System의 Entry Point
+ * - 모든 연결된 Site를 카드 형태로 표시
+ * - Site별 실시간 Summary 업데이트 (30초 간격)
+ * - Monitoring/Analysis/Setup Mode 진입 지점
+ * 
+ * @dependencies
+ * - styles/main.css: 전역 스타일
+ * - src/styles/components/dashboard/_dashboard.css: Dashboard 전용 스타일
+ * - src/dashboard/index.js: Dashboard 모듈
+ * - public/env-config.js: 환경 설정
+ * 
+ * @changelog
+ * - v1.0.0 (2026-02-03): 최초 구현
+ * - v1.0.1 (2026-02-03): 인라인 스타일 제거, CSS 파일로 분리
+ * 
+ * 위치: frontend/threejs_viewer/dashboard.html
+-->
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏭 SHERLOCK SKY - Multi-Site Dashboard</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="styles/main.css">
+    
+    <!-- Dashboard CSS (가이드라인 준수 - Design Token 사용) -->
+    <link rel="stylesheet" href="src/styles/components/dashboard/_dashboard.css">
+    
+    <!-- 최소한의 기본 스타일만 인라인 유지 -->
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            display: flex; 
+            flex-direction: column;
+            min-height: 100vh; 
+            overflow-x: hidden; 
+            font-family: 'Inter', 'Segoe UI', sans-serif; 
+            background: var(--bg-main); 
+            color: var(--color-text-primary);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+    
+    <!-- Global Alert Banner (위험 알림용) -->
+    <div id="global-alert-banner" class="global-alert-banner hidden"></div>
+    
+    <!-- Dashboard Layout -->
+    <div class="dashboard-layout">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="dashboard-header__logo">
+                <span class="dashboard-header__icon">🏭</span>
+                <h1 class="dashboard-header__title">
+                    SHERLOCK SKY
+                    <span class="dashboard-header__subtitle">Multi-Site Dashboard</span>
+                </h1>
+            </div>
+            <div class="dashboard-header__status">
+                <div class="connection-indicator" id="connection-indicator">
+                    <span class="connection-indicator__dot"></span>
+                    <span class="connection-indicator__text">연결 중...</span>
+                </div>
+                <div class="header-time" id="header-time"></div>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <main class="dashboard-main" id="dashboard-main">
+            <!-- Loading State (초기) -->
+            <div class="dashboard-loading" id="dashboard-loading">
+                <div class="dashboard-loading__spinner"></div>
+                <div class="dashboard-loading__text">Site 정보를 불러오는 중...</div>
+            </div>
+            
+            <!-- Site Cards Container -->
+            <div id="site-cards-container" class="hidden"></div>
+            
+            <!-- Empty State -->
+            <div id="dashboard-empty" class="dashboard-empty hidden">
+                <div class="dashboard-empty__icon">🔌</div>
+                <h2 class="dashboard-empty__title">연결된 Site가 없습니다</h2>
+                <p class="dashboard-empty__description">
+                    databases.json 설정을 확인하거나 Backend 서버 연결 상태를 점검해주세요.
+                </p>
+            </div>
+        </main>
+        
+        <!-- Footer (Summary) -->
+        <footer class="dashboard-footer">
+            <div id="summary-footer"></div>
+        </footer>
+    </div>
+    
+    <!-- Environment Config -->
+    <script src="public/env-config.js"></script>
+    
+    <script>
+        // 전역 상태 초기화
+        window.dashboardState = window.dashboardState || {
+            sites: new Map(),
+            selectedSiteId: null,
+            wsConnected: false,
+            lastUpdated: null
+        };
+        
+        // FOUC 방지: 저장된 테마 즉시 적용
+        (function loadTheme() {
+            const saved = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+        
+        // 현재 시간 표시
+        function updateHeaderTime() {
+            const el = document.getElementById('header-time');
+            if (el) {
+                const now = new Date();
+                el.textContent = now.toLocaleTimeString('ko-KR', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit' 
+                });
+            }
+        }
+        setInterval(updateHeaderTime, 1000);
+        updateHeaderTime();
+        
+        console.log('🏭 SHERLOCK SKY - Multi-Site Dashboard v1.0.1');
+    </script>
+    
+    <!-- Main Dashboard Module (ES Module) -->
+    <script type="module" src="./src/dashboard/index.js"></script>
+</body>
+</html>
