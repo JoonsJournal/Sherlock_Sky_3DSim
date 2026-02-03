@@ -34,20 +34,20 @@
  * - v1.0.0 (2026-02-03): 최초 구현
  * - v1.0.1 (2026-02-03): 가이드라인 준수, 에러 표시 CSS 클래스 사용
  * 
- * 위치: frontend/threejs_viewer/src/dashboard/index.js
+ * 위치: frontend/threejs_viewer/src/dashboard/components/index.js
  */
 
 // Components
-export { SiteCard } from './components/SiteCard.js';
-export { SummaryFooter } from './components/SummaryFooter.js';
-export { GlobalAlertBanner } from './components/GlobalAlertBanner.js';
+export { SiteCard } from './SiteCard.js';
+export { SummaryFooter } from './SummaryFooter.js';
+export { GlobalAlertBanner } from './GlobalAlertBanner.js';
 
 // Services
-export { SiteSummaryService } from './services/SiteSummaryService.js';
-export { ModeTransition } from './services/ModeTransition.js';
+export { SiteSummaryService } from '../services/SiteSummaryService.js';
+export { ModeTransition } from '../services/ModeTransition.js';
 
 // State
-export { DashboardState } from './DashboardState.js';
+export { DashboardState } from '../DashboardState.js';
 
 // Manager
 export { DashboardManager } from './DashboardManager.js';

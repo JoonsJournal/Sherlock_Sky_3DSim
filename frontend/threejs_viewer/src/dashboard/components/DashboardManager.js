@@ -29,15 +29,15 @@
  * - v1.0.0 (2026-02-03): 최초 구현
  * - v1.0.1 (2026-02-03): CSS 클래스 상수화, Design Token 적용, 가이드라인 준수
  * 
- * 위치: frontend/threejs_viewer/src/dashboard/DashboardManager.js
+ * 위치: frontend/threejs_viewer/src/dashboard/components/DashboardManager.js
  */
 
-import { SiteCard } from './components/SiteCard.js';
-import { SummaryFooter } from './components/SummaryFooter.js';
-import { GlobalAlertBanner } from './components/GlobalAlertBanner.js';
-import { SiteSummaryService } from './services/SiteSummaryService.js';
-import { ModeTransition } from './services/ModeTransition.js';
-import { getDashboardState, StateEvents, SiteReadiness } from './DashboardState.js';
+import { SiteCard } from './SiteCard.js';
+import { SummaryFooter } from './SummaryFooter.js';
+import { GlobalAlertBanner } from './GlobalAlertBanner.js';
+import { SiteSummaryService } from '../services/SiteSummaryService.js';
+import { ModeTransition } from '../services/ModeTransition.js';
+import { getDashboardState, StateEvents, SiteReadiness } from '../DashboardState.js';
 
 /**
  * DashboardManager 클래스
