@@ -147,11 +147,16 @@
 @import './components/_misc.css';
 @import './components/_overlay-ui.css';
 
+/* Layer 4: Components - Dashboard */
+@import './components/dashboard/_dashboard_additional.css';
+
 /* =============================================
    Layer 5: Page Styles
    ============================================= */
 @import './pages/_viewer-3d.css';
 @import './pages/_layout-editor.css';
+
+
 
 /* ============================================
    Monitoring Mode Status Panel
