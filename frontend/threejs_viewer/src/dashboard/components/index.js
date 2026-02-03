@@ -1,15 +1,21 @@
 /**
- * index.js - Dashboard Module Entry Point
+ * index.js
+ * ===========
+ * Dashboard Module Entry Point
  * 
- * @version 1.0.1
- * @created 2026-02-03
- * @modified 2026-02-03
- * @phase Phase 2: Site Dashboard 구현
- * 
+ * @version 1.1.0
  * @description
  * Dashboard 모듈의 진입점
  * - 모든 컴포넌트를 초기화하고 export
  * - DOM Ready 시 자동 초기화
+ * 
+ * @changelog
+ * - v1.0.0 (2026-02-03): 최초 구현
+ * - v1.0.1 (2026-02-03): 가이드라인 준수, 에러 표시 CSS 클래스 사용
+ * - v1.1.0 (2026-02-03): 누락된 컴포넌트 및 서비스 추가
+ *   - SummaryFooter, GlobalAlertBanner 추가
+ *   - SiteSummaryService, ModeTransition 추가
+ *   - ⚠️ 호환성: 기존 export 100% 유지
  * 
  * @dependencies
  * - DashboardManager.js: Dashboard 관리자
@@ -30,39 +36,86 @@
  * - DashboardManager: Dashboard 관리자
  * - dashboardInstance: 싱글톤 인스턴스
  * 
- * @changelog
- * - v1.0.0 (2026-02-03): 최초 구현
- * - v1.0.1 (2026-02-03): 가이드라인 준수, 에러 표시 CSS 클래스 사용
- * 
- * 위치: frontend/threejs_viewer/src/dashboard/components/index.js
+ * 📁 위치: frontend/threejs_viewer/src/dashboard/components/index.js
+ * 작성일: 2026-02-03
+ * 수정일: 2026-02-03
  */
 
+// =========================================================
 // Components
+// =========================================================
+
 export { SiteCard } from './SiteCard.js';
 export { SummaryFooter } from './SummaryFooter.js';
-export { GlobalAlertBanner } from './GlobalAlertBanner.js';
+export { GlobalAlertBanner, AlertLevel } from './GlobalAlertBanner.js';
 
+// =========================================================
 // Services
-export { SiteSummaryService } from '../services/SiteSummaryService.js';
-export { ModeTransition } from '../services/ModeTransition.js';
+// =========================================================
 
+export { 
+    SiteSummaryService, 
+    getSiteSummaryService 
+} from '../services/SiteSummaryService.js';
+
+export { 
+    ModeTransition, 
+    getModeTransition,
+    ModeType,
+    ActionType 
+} from '../services/ModeTransition.js';
+
+// =========================================================
 // State
-export { DashboardState } from '../DashboardState.js';
+// =========================================================
 
+export { 
+    DashboardState, 
+    getDashboardState,
+    StateEvents,
+    SiteReadiness,
+    SiteStatus
+} from '../DashboardState.js';
+
+// =========================================================
 // Manager
+// =========================================================
+
 export { DashboardManager } from './DashboardManager.js';
 
 // =========================================================
 // CSS Class Constants (가이드라인 준수)
 // =========================================================
 
+/** @type {Object} 공통 CSS 클래스 상수 - BEM 규칙 적용 */
 const CSS = {
+    // Error State
     ERROR_CONTAINER: 'dashboard-error',
     ERROR_ICON: 'dashboard-error__icon',
     ERROR_TITLE: 'dashboard-error__title',
     ERROR_MESSAGE: 'dashboard-error__message',
-    ERROR_BUTTON: 'dashboard-error__button'
+    ERROR_BUTTON: 'dashboard-error__button',
+    
+    // Loading State
+    LOADING: 'dashboard-loading',
+    LOADING_SPINNER: 'dashboard-loading__spinner',
+    LOADING_TEXT: 'dashboard-loading__text',
+    
+    // Layout
+    LAYOUT: 'dashboard-layout',
+    HEADER: 'dashboard-header',
+    MAIN: 'dashboard-main',
+    FOOTER: 'dashboard-footer',
+    
+    // Toast Container
+    TOAST_CONTAINER: 'toast-container',
+    
+    // Hidden
+    HIDDEN: 'hidden'
 };
+
+// Export CSS constants
+export { CSS as DashboardCSS };
 
 // =========================================================
 // Auto Initialization
@@ -129,3 +182,26 @@ if (document.readyState === 'loading') {
 }
 
 export { dashboardInstance };
+
+// =========================================================
+// Default Export
+// =========================================================
+
+export default {
+    // Components
+    SiteCard: () => import('./SiteCard.js').then(m => m.SiteCard),
+    SummaryFooter: () => import('./SummaryFooter.js').then(m => m.SummaryFooter),
+    GlobalAlertBanner: () => import('./GlobalAlertBanner.js').then(m => m.GlobalAlertBanner),
+    DashboardManager: () => import('./DashboardManager.js').then(m => m.DashboardManager),
+    
+    // Services
+    SiteSummaryService: () => import('../services/SiteSummaryService.js').then(m => m.SiteSummaryService),
+    ModeTransition: () => import('../services/ModeTransition.js').then(m => m.ModeTransition),
+    
+    // State
+    DashboardState: () => import('../DashboardState.js').then(m => m.DashboardState),
+    
+    // Utilities
+    CSS,
+    dashboardInstance
+};

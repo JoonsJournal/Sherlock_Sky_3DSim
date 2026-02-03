@@ -1,0 +1,463 @@
+/**
+ * GlobalAlertBanner.js
+ * ===========
+ * Dashboard 상단 전역 알림 배너 컴포넌트
+ * 
+ * @version 1.0.0
+ * @description
+ * - Critical 알림 배너 표시
+ * - 다중 Site 알림 큐 관리
+ * - 자동 숨김 및 수동 닫기 지원
+ * - 알림 레벨별 스타일 (info, warning, error, critical)
+ * 
+ * @changelog
+ * - v1.0.0 (2026-02-03): 최초 구현
+ *   - 다중 알림 큐 지원
+ *   - 레벨별 스타일링
+ *   - ⚠️ 호환성: 신규 컴포넌트
+ * 
+ * @dependencies
+ * - DashboardState.js: 상태 관리
+ * - _dashboard.css: 스타일
+ * 
+ * @exports
+ * - GlobalAlertBanner: Alert Banner 컴포넌트 클래스
+ * - AlertLevel: 알림 레벨 상수
+ * 
+ * 📁 위치: frontend/threejs_viewer/src/dashboard/components/GlobalAlertBanner.js
+ * 작성일: 2026-02-03
+ * 수정일: 2026-02-03
+ */
+
+import { getDashboardState, StateEvents, SiteStatus } from '../DashboardState.js';
+
+// =========================================================
+// Constants
+// =========================================================
+
+/**
+ * 알림 레벨
+ * @readonly
+ * @enum {string}
+ */
+export const AlertLevel = {
+    INFO: 'info',
+    WARNING: 'warning',
+    ERROR: 'error',
+    CRITICAL: 'critical'
+};
+
+// =========================================================
+// GlobalAlertBanner Class
+// =========================================================
+
+/**
+ * GlobalAlertBanner 클래스
+ * 전역 알림 배너 관리
+ */
+export class GlobalAlertBanner {
+    // =========================================================
+    // CSS Class Constants (가이드라인 준수)
+    // =========================================================
+    
+    /** @type {Object} CSS 클래스 상수 - BEM 규칙 적용 */
+    static CSS = {
+        // Block
+        BLOCK: 'global-alert-banner',
+        
+        // Elements
+        CONTENT: 'global-alert-banner__content',
+        ICON: 'global-alert-banner__icon',
+        MESSAGE: 'global-alert-banner__message',
+        SITE: 'global-alert-banner__site',
+        CLOSE: 'global-alert-banner__close',
+        
+        // Modifiers (Level)
+        MOD_INFO: 'global-alert-banner--info',
+        MOD_WARNING: 'global-alert-banner--warning',
+        MOD_ERROR: 'global-alert-banner--error',
+        MOD_CRITICAL: 'global-alert-banner--critical',
+        
+        // State Modifiers
+        MOD_VISIBLE: 'global-alert-banner--visible',
+        MOD_HIDDEN: 'global-alert-banner--hidden',
+        
+        // Legacy alias (하위 호환)
+        LEGACY_VISIBLE: 'visible',
+        LEGACY_HIDDEN: 'hidden'
+    };
+    
+    /** @type {Object} 레벨별 아이콘 */
+    static ICONS = {
+        [AlertLevel.INFO]: 'ℹ️',
+        [AlertLevel.WARNING]: '⚠️',
+        [AlertLevel.ERROR]: '❌',
+        [AlertLevel.CRITICAL]: '🚨'
+    };
+    
+    /** @type {Object} 레벨별 CSS Modifier */
+    static LEVEL_CLASSES = {
+        [AlertLevel.INFO]: 'global-alert-banner--info',
+        [AlertLevel.WARNING]: 'global-alert-banner--warning',
+        [AlertLevel.ERROR]: 'global-alert-banner--error',
+        [AlertLevel.CRITICAL]: 'global-alert-banner--critical'
+    };
+
+    // =========================================================
+    // Constructor
+    // =========================================================
+    
+    /**
+     * @param {HTMLElement} container - Banner를 삽입할 컨테이너
+     * @param {Object} options - 옵션
+     * @param {number} options.autoHideDelay - 자동 숨김 딜레이 (ms), 0이면 자동 숨김 안함
+     * @param {number} options.maxAlerts - 최대 알림 큐 크기
+     */
+    constructor(container, options = {}) {
+        this.container = container;
+        this.options = {
+            autoHideDelay: options.autoHideDelay ?? 10000,
+            maxAlerts: options.maxAlerts ?? 10
+        };
+        
+        this.element = null;
+        this.state = getDashboardState();
+        
+        this._alertQueue = [];
+        this._currentAlert = null;
+        this._autoHideTimer = null;
+        this._unsubscribers = [];
+        
+        this._init();
+    }
+    
+    // =========================================================
+    // Initialization
+    // =========================================================
+    
+    /**
+     * 초기화
+     * @private
+     */
+    _init() {
+        this._render();
+        this._subscribeToState();
+        this._bindEvents();
+        
+        console.log('🚨 [GlobalAlertBanner] Initialized');
+    }
+    
+    // =========================================================
+    // Rendering
+    // =========================================================
+    
+    /**
+     * Banner 렌더링
+     * @private
+     */
+    _render() {
+        const CSS = GlobalAlertBanner.CSS;
+        
+        this.element = document.createElement('div');
+        this.element.className = CSS.BLOCK;
+        this.element.innerHTML = `
+            <div class="${CSS.CONTENT}">
+                <span class="${CSS.ICON}"></span>
+                <span class="${CSS.MESSAGE}"></span>
+                <span class="${CSS.SITE}"></span>
+                <button class="${CSS.CLOSE}" aria-label="닫기">×</button>
+            </div>
+        `;
+        
+        if (this.container) {
+            this.container.insertBefore(this.element, this.container.firstChild);
+        }
+    }
+    
+    // =========================================================
+    // Event Binding
+    // =========================================================
+    
+    /**
+     * 이벤트 바인딩
+     * @private
+     */
+    _bindEvents() {
+        if (!this.element) return;
+        
+        const CSS = GlobalAlertBanner.CSS;
+        const closeBtn = this.element.querySelector(`.${CSS.CLOSE}`);
+        
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.dismiss());
+        }
+        
+        // Banner 클릭 시 Site로 이동 (옵션)
+        this.element.addEventListener('click', (e) => {
+            if (!e.target.closest(`.${CSS.CLOSE}`)) {
+                this._handleBannerClick();
+            }
+        });
+    }
+    
+    /**
+     * Banner 클릭 핸들러
+     * @private
+     */
+    _handleBannerClick() {
+        if (this._currentAlert?.siteId) {
+            this.state.selectSite(this._currentAlert.siteId);
+            console.log(`📌 [GlobalAlertBanner] Selected site: ${this._currentAlert.siteId}`);
+        }
+    }
+    
+    // =========================================================
+    // State Subscription
+    // =========================================================
+    
+    /**
+     * 상태 구독
+     * @private
+     */
+    _subscribeToState() {
+        // Site 상태 변경 감지 - 에러 발생 시 Alert 표시
+        const unsubStatus = this.state.on(StateEvents.SITE_STATUS_CHANGED, ({ siteId, site }) => {
+            this._checkSiteForAlert(siteId, site);
+        });
+        this._unsubscribers.push(unsubStatus);
+        
+        // 에러 이벤트 감지
+        const unsubError = this.state.on(StateEvents.ERROR, ({ message, siteId }) => {
+            this.showAlert({
+                level: AlertLevel.ERROR,
+                message,
+                siteId
+            });
+        });
+        this._unsubscribers.push(unsubError);
+    }
+    
+    /**
+     * Site 알림 체크
+     * @param {string} siteId
+     * @param {Object} site
+     * @private
+     */
+    _checkSiteForAlert(siteId, site) {
+        // 연결 실패 알림
+        if (site.status === SiteStatus.UNHEALTHY || site.status === SiteStatus.DISCONNECTED) {
+            this.showAlert({
+                level: AlertLevel.ERROR,
+                message: `${site.display_name || siteId} 서버 연결 실패`,
+                siteId
+            });
+        }
+        
+        // Critical Equipment 알림
+        if (site.critical_equipments && site.critical_equipments.length > 0) {
+            const count = site.critical_equipments.length;
+            this.showAlert({
+                level: AlertLevel.CRITICAL,
+                message: `${site.display_name || siteId}: Critical Equipment ${count}대 감지`,
+                siteId
+            });
+        }
+    }
+    
+    // =========================================================
+    // Public Methods
+    // =========================================================
+    
+    /**
+     * 알림 표시
+     * @param {Object} alert - 알림 데이터
+     * @param {AlertLevel} alert.level - 알림 레벨
+     * @param {string} alert.message - 메시지
+     * @param {string} alert.siteId - Site ID (옵션)
+     */
+    showAlert(alert) {
+        // 중복 알림 방지
+        const isDuplicate = this._alertQueue.some(a => 
+            a.message === alert.message && a.siteId === alert.siteId
+        );
+        
+        if (isDuplicate) return;
+        
+        // 큐에 추가
+        this._alertQueue.push({
+            ...alert,
+            id: Date.now(),
+            timestamp: new Date()
+        });
+        
+        // 큐 크기 제한
+        while (this._alertQueue.length > this.options.maxAlerts) {
+            this._alertQueue.shift();
+        }
+        
+        // 현재 표시 중인 알림이 없으면 표시
+        if (!this._currentAlert) {
+            this._showNextAlert();
+        }
+        
+        console.log(`🚨 [GlobalAlertBanner] Alert queued: ${alert.message}`);
+    }
+    
+    /**
+     * 현재 알림 닫기
+     */
+    dismiss() {
+        this._clearAutoHideTimer();
+        this._hide();
+        
+        // 다음 알림 표시
+        if (this._alertQueue.length > 0) {
+            setTimeout(() => this._showNextAlert(), 300);
+        }
+    }
+    
+    /**
+     * 모든 알림 제거
+     */
+    clearAll() {
+        this._alertQueue = [];
+        this._clearAutoHideTimer();
+        this._hide();
+        
+        console.log('🗑️ [GlobalAlertBanner] All alerts cleared');
+    }
+    
+    // =========================================================
+    // Private Methods
+    // =========================================================
+    
+    /**
+     * 다음 알림 표시
+     * @private
+     */
+    _showNextAlert() {
+        if (this._alertQueue.length === 0) {
+            this._currentAlert = null;
+            return;
+        }
+        
+        this._currentAlert = this._alertQueue.shift();
+        this._updateBanner(this._currentAlert);
+        this._show();
+        
+        // 자동 숨김 타이머 설정
+        if (this.options.autoHideDelay > 0) {
+            this._autoHideTimer = setTimeout(() => {
+                this.dismiss();
+            }, this.options.autoHideDelay);
+        }
+    }
+    
+    /**
+     * Banner UI 업데이트
+     * @param {Object} alert
+     * @private
+     */
+    _updateBanner(alert) {
+        if (!this.element) return;
+        
+        const CSS = GlobalAlertBanner.CSS;
+        
+        // 레벨 클래스 제거 후 추가
+        Object.values(GlobalAlertBanner.LEVEL_CLASSES).forEach(cls => {
+            this.element.classList.remove(cls);
+        });
+        this.element.classList.add(GlobalAlertBanner.LEVEL_CLASSES[alert.level] || '');
+        
+        // 아이콘
+        const iconEl = this.element.querySelector(`.${CSS.ICON}`);
+        if (iconEl) {
+            iconEl.textContent = GlobalAlertBanner.ICONS[alert.level] || 'ℹ️';
+        }
+        
+        // 메시지
+        const messageEl = this.element.querySelector(`.${CSS.MESSAGE}`);
+        if (messageEl) {
+            messageEl.textContent = alert.message;
+        }
+        
+        // Site 표시
+        const siteEl = this.element.querySelector(`.${CSS.SITE}`);
+        if (siteEl) {
+            if (alert.siteId) {
+                const site = this.state.sitesMap.get(alert.siteId);
+                siteEl.textContent = site?.display_name || alert.siteId;
+                siteEl.style.display = '';
+            } else {
+                siteEl.style.display = 'none';
+            }
+        }
+    }
+    
+    /**
+     * Banner 표시
+     * @private
+     */
+    _show() {
+        if (!this.element) return;
+        
+        const CSS = GlobalAlertBanner.CSS;
+        this.element.classList.remove(CSS.MOD_HIDDEN);
+        this.element.classList.remove(CSS.LEGACY_HIDDEN);
+        this.element.classList.add(CSS.MOD_VISIBLE);
+        this.element.classList.add(CSS.LEGACY_VISIBLE);
+    }
+    
+    /**
+     * Banner 숨김
+     * @private
+     */
+    _hide() {
+        if (!this.element) return;
+        
+        const CSS = GlobalAlertBanner.CSS;
+        this.element.classList.remove(CSS.MOD_VISIBLE);
+        this.element.classList.remove(CSS.LEGACY_VISIBLE);
+        this.element.classList.add(CSS.MOD_HIDDEN);
+        this.element.classList.add(CSS.LEGACY_HIDDEN);
+        this._currentAlert = null;
+    }
+    
+    /**
+     * 자동 숨김 타이머 제거
+     * @private
+     */
+    _clearAutoHideTimer() {
+        if (this._autoHideTimer) {
+            clearTimeout(this._autoHideTimer);
+            this._autoHideTimer = null;
+        }
+    }
+    
+    // =========================================================
+    // Cleanup
+    // =========================================================
+    
+    /**
+     * 리소스 정리
+     */
+    destroy() {
+        this._clearAutoHideTimer();
+        
+        // 구독 해제
+        this._unsubscribers.forEach(unsub => unsub());
+        this._unsubscribers = [];
+        
+        // DOM 제거
+        if (this.element && this.element.parentNode) {
+            this.element.parentNode.removeChild(this.element);
+        }
+        this.element = null;
+        this._alertQueue = [];
+        this._currentAlert = null;
+        
+        console.log('🗑️ [GlobalAlertBanner] Destroyed');
+    }
+}
+
+export default GlobalAlertBanner;
