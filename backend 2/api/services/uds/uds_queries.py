@@ -1,0 +1,1229 @@
+"""
+uds_queries.py
+UDS SQL 쿼리 모음 (MSSQL WITH NOLOCK 필수 적용)
+
+@version 2.3.0
+@description
+- 배치 쿼리: 전체 설비 초기 로드 (117개)
+- 단일 쿼리: 개별 설비 조회
+- 생산량 쿼리: CycleTime 기반 생산 카운트
+- Tact Time 쿼리: 최근 2개 CycleTime 간격 계산
+- Diff 감지용 스냅샷 쿼리
+
+⚠️ CRITICAL: 모든 SELECT 쿼리에 WITH (NOLOCK) 필수 적용!
+   - Factory DB (MSSQL) 트랜잭션 차단 방지
+   - 실시간 모니터링 성능 보장
+   - Dirty Read 허용 (모니터링 용도 적합)
+
+@changelog
+- v2.3.0: 🚀 Phase 2 쿼리 최적화 (2026-01-25)
+          - ✅ PRODUCTION_COUNT_QUERY: Correlated Subquery → CTE 변환
+          - ✅ PRODUCTION_SNAPSHOT_QUERY: Correlated Subquery → CTE 변환
+          - ✅ ALARM_REPEAT_COUNT_QUERY: CROSS APPLY → CTE 변환 (동작 호환 유지!)
+          - ⚠️ STATE_HISTORY_QUERY: 범위 유지 (1시간) - Frontend 호환성 위해
+          - 예상 효과: 추가 20~30% Latency 감소
+- v2.2.0: 🔧 core.Equipment 스키마 호환 수정 (2026-01-21)
+          - ❌ SiteId, LineId, IsActive 컬럼은 DB에 존재하지 않음!
+          - ✅ JSON 매핑 파일의 equipment_id 목록으로 IN 절 필터링
+          - 모든 배치 쿼리: WHERE e.EquipmentId IN ({equipment_ids})
+          - ⚠️ WITH (NOLOCK) 100% 유지
+- v2.1.0: 🐛 log.CycleTime 스키마 버그 수정 (2026-01-21)
+          - ⚠️ CycleTimeId, StartTime 컬럼은 존재하지 않음!
+          - 실제 스키마: EquipmentId (PK, FK), Time (PK, datetime2(3))
+          - PRODUCTION_COUNT_QUERY: CycleTimeId → Time, StartTime → Time
+          - TACT_TIME_QUERY: StartTime → Time
+          - BATCH_TACT_TIME_QUERY: StartTime → Time
+          - PRODUCTION_SNAPSHOT_QUERY: CycleTimeId → Time, StartTime → Time
+- v2.0.0: 🔧 core.EquipmentMapping 테이블 제거 (2026-01-21)
+          - ⚠️ 해당 테이블은 DB에 존재하지 않음!
+          - 매핑 정보는 JSON 파일에서 관리
+          - 모든 쿼리에서 em.FrontendId, em.GridRow, em.GridCol 제거
+          - EquipmentId 기반 조회 후 UDSService에서 매핑 병합
+          - ORDER BY e.EquipmentId로 변경 (GridRow/GridCol 없음)
+- v1.0.0: 초기 버전
+          - BATCH_EQUIPMENT_QUERY: 전체 설비 + 상태 + Lot + PC Info JOIN
+          - SINGLE_EQUIPMENT_QUERY: frontend_id 기반 단일 조회
+          - PRODUCTION_COUNT_QUERY: Lot 시작 이후 CycleTime COUNT
+          - TACT_TIME_QUERY: 최근 2개 CycleTime 시간 간격
+          - STATUS_SNAPSHOT_QUERY: Diff 감지용 경량 스냅샷
+          - ⚠️ 모든 쿼리 WITH (NOLOCK) 적용 완료
+
+@dependencies
+- sqlalchemy.text (파라미터 바인딩)
+
+@db_schema log.CycleTime (실제 스키마)
+┌─────────────────────────────────────────────────────────────────┐
+│ log.CycleTime                                                   │
+├─────────────────────────────────────────────────────────────────┤
+│ - EquipmentId (PK, FK, int, NOT NULL)                           │
+│ - Time (PK, datetime2(3), NOT NULL) ← Cycle 완료 시점 = 생산 1개│
+│ - PickUp (decimal(9,3), NULL)                                   │
+│ - ThicknessMeasure (decimal(9,3), NULL)                         │
+│ - PreAlign (decimal(9,3), NULL)                                 │
+│ - Loading (decimal(9,3), NULL)                                  │
+│ - Align_Pos_Move (decimal(9,3), NULL)                           │
+│ - Align_XCh (decimal(9,3), NULL)                                │
+│ - Cutting_XCh (decimal(9,3), NULL)                              │
+│ - Cut_CT_XCh (decimal(9,3), NULL)                               │
+│ - Align_Ych (decimal(9,3), NULL)                                │
+│ - Cutting_Ych (decimal(9,3), NULL)                              │
+│ - Cut_CT_Uch (decimal(9,3), NULL)                               │
+│ - Unloading_Pick (decimal(9,3), NULL)                           │
+│ - Unloading_Place (decimal(9,3), NULL)                          │
+└─────────────────────────────────────────────────────────────────┘
+
+📁 위치: backend/api/services/uds/uds_queries.py
+작성일: 2026-01-20
+수정일: 2026-01-25
+"""
+
+# =============================================================================
+# 📌 쿼리 사용 가이드
+# =============================================================================
+#
+# 1. SQLAlchemy text() 사용:
+#    from sqlalchemy import text
+#    result = session.execute(text(BATCH_EQUIPMENT_QUERY), {"site_id": 1, "line_id": 1})
+#
+# 2. 파라미터 바인딩:
+#    :site_id, :line_id → 딕셔너리로 전달
+#    IN 절은 별도 동적 생성 필요 (SQLAlchemy 제약)
+#
+# 3. 결과 컬럼 인덱스:
+#    각 쿼리 주석에 row[N] 인덱스 문서화됨
+#
+# 4. 🔧 v2.0.0 중요 변경:
+#    - FrontendId, GridRow, GridCol은 SQL에서 조회하지 않음
+#    - UDSService에서 JSON 매핑 파일 로드 후 병합
+#    - 매핑 파일: config/site_mappings/equipment_mapping_{site_id}.json
+#
+# 5. 🐛 v2.1.0 버그 수정:
+#    - log.CycleTime 테이블에는 CycleTimeId, StartTime 컬럼이 없음!
+#    - 실제 PK: (EquipmentId, Time)
+#    - Time 컬럼 = Cycle 완료 시점 (생산 1개 완료)
+#    - 생산량 = Lot 시작 이후 Time 레코드 COUNT
+#    - Tact Time = 최근 두 Time 간의 시간 간격 (초)
+#
+# 6. 🚀 v2.3.0 쿼리 최적화:
+#    - Correlated Subquery → CTE 변환 (117회 → 1회)
+#    - CROSS APPLY → CTE 변환 (117회 → 1회, 동작 호환 유지)
+#    - 예상 효과: 추가 20~30% Latency 감소
+#
+# =============================================================================
+
+
+# =============================================================================
+# 🔹 BATCH_EQUIPMENT_QUERY (v2.0.0 수정)
+# =============================================================================
+# 전체 설비 초기 로드 배치 쿼리
+# 
+# 용도: GET /api/uds/initial
+# 호출 시점: Frontend 앱 시작 시 1회
+# 예상 결과: 117개 설비 전체 데이터
+#
+# 🔧 v2.0.0 변경사항:
+#   - core.EquipmentMapping JOIN 제거 (테이블 없음)
+#   - GridRow, GridCol, FrontendId 컬럼 제거
+#   - ORDER BY e.EquipmentId로 변경
+#   - UDSService에서 JSON 매핑과 병합
+#
+# JOIN 구조 (v2.0.0):
+# ┌──────────────────────┐
+# │ core.Equipment (e)   │ ← 메인 테이블
+# ├──────────────────────┤
+# │ log.EquipmentState   │ ← 최신 상태 (ROW_NUMBER)
+# │ log.Lotinfo          │ ← 최신 Lot (IsStart=1)
+# │ log.EquipmentPCInfo  │ ← 최신 PC Info (ROW_NUMBER)
+# └──────────────────────┘
+#   ❌ core.EquipmentMapping 제거됨!
+#
+# 컬럼 인덱스 (row[N]) - v2.0.0:
+#  0: EquipmentId         (int)
+#  1: EquipmentName       (str)
+#  2: LineName            (str)
+#  3: Status              (str) - RUN/IDLE/STOP/SUDDENSTOP
+#  4: StatusChangedAt     (datetime)
+#  5: AlarmCode           (int or NULL)       ← 🆕 추가!
+#  6: AlarmMessage        (str or NULL)       ← 🆕 추가!
+#  5: ProductModel        (str or NULL)
+#  6: LotId               (str or NULL)
+#  7: TargetCount         (int or NULL)    -- ✅ 새로 추가!
+#  8: LotStartTime        (datetime or NULL)
+#  9: CpuUsagePercent     (float or NULL)
+# 10: MemoryTotalMb       (float or NULL)
+# 11: MemoryUsedMb        (float or NULL)
+# 12: DisksTotalGb        (float or NULL)
+# 13: DisksUsedGb         (float or NULL)
+#
+# ❌ 제거됨 (v2.0.0):
+# 13: GridRow             → JSON 매핑에서 가져옴
+# 14: GridCol             → JSON 매핑에서 가져옴
+# 15: FrontendId          → JSON 매핑에서 가져옴
+#
+# =============================================================================
+BATCH_EQUIPMENT_QUERY = """
+SELECT 
+    e.EquipmentId,
+    e.EquipmentName,
+    e.LineName,
+    es.Status,
+    es.OccurredAtUtc AS StatusChangedAt,
+    alarm.AlarmCode,
+    alarm.AlarmMessage,
+    li.ProductModel,
+    li.LotId,
+    li.LotQty AS TargetCount,                -- ✅ 추가!
+    li.OccurredAtUtc AS LotStartTime,
+    pc.CPUUsagePercent AS CpuUsagePercent,
+    pc.MemoryTotalMb,
+    pc.MemoryUsedMb,
+    pc.DisksTotalGb,
+    pc.DisksUsedGb,
+    -- 🆕 PC 정적 정보 (core.EquipmentPCInfo)
+    cpc.CPUName,
+    cpc.CPULogicalCount,
+    cpc.GPUName,
+    cpc.OS AS OsName,
+    cpc.Architecture AS OsArchitecture,
+    cpc.LastBootTime
+FROM core.Equipment e WITH (NOLOCK)
+-- 최신 상태 (ROW_NUMBER로 각 설비의 최신 1건만)
+LEFT JOIN (
+    SELECT 
+        EquipmentId, 
+        Status, 
+        OccurredAtUtc,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentState WITH (NOLOCK)
+) es ON e.EquipmentId = es.EquipmentId AND es.rn = 1
+-- 현재 활성 알람 (IsSet=1인 것 중 최신)
+LEFT JOIN (
+    SELECT 
+        EquipmentId,
+        AlarmCode,
+        AlarmMessage,
+        OccurredAtUtc,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.AlarmEvent WITH (NOLOCK)
+    WHERE IsSet = 1
+) alarm ON e.EquipmentId = alarm.EquipmentId AND alarm.rn = 1
+-- 최신 Lot 정보 (IsStart=1인 것 중 최신)
+LEFT JOIN (
+    SELECT 
+        EquipmentId, 
+        ProductModel, 
+        LotId,
+        LotQty,   
+        OccurredAtUtc,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.Lotinfo WITH (NOLOCK)
+    WHERE IsStart = 1
+) li ON e.EquipmentId = li.EquipmentId AND li.rn = 1
+-- 최신 PC 정보
+LEFT JOIN (
+    SELECT
+        EquipmentId,
+        CPUUsagePercent,
+        MemoryTotalMb,
+        MemoryUsedMb,
+        DisksTotalGb,
+        DisksUsedGb,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentPCInfo WITH (NOLOCK)
+) pc ON e.EquipmentId = pc.EquipmentId AND pc.rn = 1
+-- 🆕 PC 정적 정보 (core.EquipmentPCInfo)
+LEFT JOIN core.EquipmentPCInfo cpc WITH (NOLOCK)
+    ON e.EquipmentId = cpc.EquipmentId
+WHERE e.EquipmentId IN ({equipment_ids})
+ORDER BY e.EquipmentId
+"""
+
+
+# =============================================================================
+# 🔹 SINGLE_EQUIPMENT_QUERY (v2.0.0 수정)
+# =============================================================================
+# 단일 설비 조회 쿼리
+#
+# 🔧 v2.0.0 변경사항:
+#   - equipment_id 기반 조회로 변경 (기존: frontend_id)
+#   - core.EquipmentMapping JOIN 제거
+#   - UDSService에서 JSON 매핑과 병합
+#
+# 용도: GET /api/uds/equipment/{equipment_id}
+# 호출 시점: 캐시 미스 시 (거의 사용 안 됨)
+#
+# 컬럼 인덱스: BATCH_EQUIPMENT_QUERY와 동일 (v2.0.0)
+#
+# =============================================================================
+SINGLE_EQUIPMENT_QUERY = """
+SELECT 
+    e.EquipmentId,
+    e.EquipmentName,
+    e.LineName,
+    es.Status,
+    es.OccurredAtUtc AS StatusChangedAt,
+    alarm.AlarmCode,
+    alarm.AlarmMessage,
+    li.ProductModel,
+    li.LotId,
+    li.LotQty AS TargetCount, 
+    li.OccurredAtUtc AS LotStartTime,
+    pc.CPUUsagePercent AS CpuUsagePercent,
+    pc.MemoryTotalMb,
+    pc.MemoryUsedMb,
+    pc.DisksTotalGb,
+    pc.DisksUsedGb
+FROM core.Equipment e WITH (NOLOCK)
+LEFT JOIN (
+    SELECT 
+        EquipmentId, 
+        Status, 
+        OccurredAtUtc,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentState WITH (NOLOCK)
+) es ON e.EquipmentId = es.EquipmentId AND es.rn = 1
+-- 현재 활성 알람 (IsSet=1인 것 중 최신)
+LEFT JOIN (
+    SELECT 
+        EquipmentId,
+        AlarmCode,
+        AlarmMessage,
+        OccurredAtUtc,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.AlarmEvent WITH (NOLOCK)
+    WHERE IsSet = 1
+) alarm ON e.EquipmentId = alarm.EquipmentId AND alarm.rn = 1
+-- 최신 Lot 정보 (IsStart=1인 것 중 최신)
+LEFT JOIN (
+    SELECT 
+        EquipmentId, 
+        ProductModel,
+        LotId,
+        LotQty,   
+        OccurredAtUtc,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.Lotinfo WITH (NOLOCK)
+    WHERE IsStart = 1
+) li ON e.EquipmentId = li.EquipmentId AND li.rn = 1
+LEFT JOIN (
+    SELECT
+        EquipmentId,
+        CPUUsagePercent,
+        MemoryTotalMb,
+        MemoryUsedMb,
+        DisksTotalGb,
+        DisksUsedGb,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentPCInfo WITH (NOLOCK)
+) pc ON e.EquipmentId = pc.EquipmentId AND pc.rn = 1
+WHERE e.EquipmentId = :equipment_id
+"""
+
+
+# =============================================================================
+# 🔹 SINGLE_EQUIPMENT_QUERY_BY_FRONTEND_ID (v2.0.0 신규)
+# =============================================================================
+# Frontend ID로 단일 설비 조회 (레거시 호환용)
+#
+# 🆕 v2.0.0 신규: 기존 frontend_id 기반 API 호환을 위해 추가
+#
+# 사용법:
+#   1. UDSService에서 frontend_id → equipment_id 변환 (JSON 매핑 사용)
+#   2. SINGLE_EQUIPMENT_QUERY 실행
+#   3. 결과에 매핑 정보 병합
+#
+# 이 쿼리는 직접 사용하지 않음 - 레거시 호환 문서화 용도
+# =============================================================================
+# ⚠️ 이 쿼리는 제거됨 - UDSService에서 JSON 매핑으로 equipment_id 조회 후
+#    SINGLE_EQUIPMENT_QUERY 사용
+
+
+# =============================================================================
+# 🔹 PRODUCTION_COUNT_QUERY_V2 (v2.3.0 최적화)
+# =============================================================================
+# 🚀 Phase 2 최적화: Correlated Subquery → CTE 변환
+#
+# 🔧 v2.3.0 최적화:
+#   - ❌ 기존: 117개 설비마다 서브쿼리 개별 실행 (117회!)
+#   - ✅ 변경: CTE로 모든 설비의 LotStartTime 한 번에 계산 (1회)
+#   - 예상 효과: 300~800ms → 50~150ms (80% 감소)
+#
+# 변환 전략:
+#   1. LatestLotStart CTE: 각 설비의 최신 IsStart=1 Lot 시간 (ROW_NUMBER)
+#   2. 메인 쿼리: CTE와 JOIN으로 CycleTime COUNT
+#
+# 컬럼 인덱스 (v2.0.0):
+#  0: EquipmentId     (int)
+#  1: ProductionCount (int)
+#
+# ⚠️ 동작 호환성:
+#   - 기존과 동일한 결과 반환
+#   - Lot이 없는 설비: ProductionCount = 0 (기존과 동일)
+#
+# =============================================================================
+PRODUCTION_COUNT_QUERY_V2 = """
+WITH LatestLotStart AS (
+    -- Step 1: 각 설비의 최신 Lot 시작 시간 (한 번에 계산)
+    SELECT 
+        EquipmentId,
+        OccurredAtUtc AS LotStartTime,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.Lotinfo WITH (NOLOCK)
+    WHERE IsStart = 1
+        AND EquipmentId IN ({equipment_ids})
+)
+SELECT 
+    e.EquipmentId,
+    COUNT(ct.Time) AS ProductionCount
+FROM core.Equipment e WITH (NOLOCK)
+LEFT JOIN LatestLotStart lls 
+    ON e.EquipmentId = lls.EquipmentId 
+    AND lls.rn = 1
+LEFT JOIN log.CycleTime ct WITH (NOLOCK)
+    ON e.EquipmentId = ct.EquipmentId
+    AND ct.Time >= lls.LotStartTime
+WHERE e.EquipmentId IN ({equipment_ids})
+GROUP BY e.EquipmentId
+"""
+
+# 기존 변수명 유지 (하위 호환)
+PRODUCTION_COUNT_QUERY = PRODUCTION_COUNT_QUERY_V2
+
+
+# =============================================================================
+# 🔹 TACT_TIME_QUERY (v2.1.0 버그 수정)
+# =============================================================================
+# Tact Time 조회 (최근 2개 CycleTime 간격)
+#
+# 🐛 v2.1.0 버그 수정:
+#   - ❌ StartTime → ✅ Time (StartTime 컬럼 없음)
+#   - log.CycleTime.Time = Cycle 완료 시점
+#
+# 용도: 단일 설비 Tact Time 계산
+# 계산: 최근 1번째 CycleTime.Time과 2번째 CycleTime.Time의 차이 (초)
+#
+# 컬럼 인덱스:
+#  0: TactTimeSeconds (int) - DATEDIFF 결과 (초)
+#
+# 로직:
+#  1. CTE로 최근 2개 CycleTime 추출 (ROW_NUMBER)
+#  2. rn=1 (최신)과 rn=2 (이전) 조인
+#  3. DATEDIFF(SECOND, ...) 계산
+#
+# ⚠️ 결과 없음: CycleTime 레코드가 2개 미만인 경우
+#
+# =============================================================================
+TACT_TIME_QUERY = """
+WITH RecentCycles AS (
+    SELECT 
+        ct.EquipmentId,
+        ct.Time,
+        ROW_NUMBER() OVER (
+            PARTITION BY ct.EquipmentId 
+            ORDER BY ct.Time DESC
+        ) AS rn
+    FROM log.CycleTime ct WITH (NOLOCK)
+    WHERE ct.EquipmentId = :equipment_id
+)
+SELECT 
+    DATEDIFF(SECOND, rc2.Time, rc1.Time) AS TactTimeSeconds
+FROM RecentCycles rc1
+JOIN RecentCycles rc2 ON rc1.EquipmentId = rc2.EquipmentId
+WHERE rc1.rn = 1 AND rc2.rn = 2
+"""
+
+
+# =============================================================================
+# 🔹 BATCH_TACT_TIME_QUERY (v2.1.0 버그 수정)
+# =============================================================================
+# 배치 Tact Time 조회 (모든 설비)
+#
+# 🐛 v2.1.0 버그 수정:
+#   - ❌ StartTime → ✅ Time (StartTime 컬럼 없음)
+#   - log.CycleTime.Time = Cycle 완료 시점
+#
+# 🔧 v2.0.0 변경사항:
+#   - core.EquipmentMapping JOIN 제거
+#   - EquipmentId만 반환 (FrontendId 제거)
+#   - UDSService에서 JSON 매핑과 병합
+#
+# 용도: 초기 로드 시 전체 설비 Tact Time 일괄 계산
+# PRODUCTION_COUNT_QUERY와 함께 사용
+#
+# 컬럼 인덱스 (v2.0.0):
+#  0: EquipmentId     (int)
+#  1: TactTimeSeconds (int or NULL)
+#
+# ❌ 제거됨 (v2.0.0):
+#  1: FrontendId      → EquipmentId로 대체
+#
+# =============================================================================
+BATCH_TACT_TIME_QUERY = """
+WITH RecentCycles AS (
+    SELECT 
+        ct.EquipmentId,
+        ct.Time,
+        ROW_NUMBER() OVER (
+            PARTITION BY ct.EquipmentId 
+            ORDER BY ct.Time DESC
+        ) AS rn
+    FROM log.CycleTime ct WITH (NOLOCK)
+    WHERE ct.EquipmentId IN ({equipment_ids})
+)
+SELECT 
+    rc1.EquipmentId,
+    DATEDIFF(SECOND, rc2.Time, rc1.Time) AS TactTimeSeconds
+FROM RecentCycles rc1
+JOIN RecentCycles rc2 
+    ON rc1.EquipmentId = rc2.EquipmentId 
+    AND rc1.rn = 1 
+    AND rc2.rn = 2
+"""
+
+
+# =============================================================================
+# 🔹 STATUS_SNAPSHOT_QUERY (v2.0.0 수정)
+# =============================================================================
+# Diff 감지용 상태 스냅샷
+#
+# 🔧 v2.0.0 변경사항:
+#   - core.EquipmentMapping JOIN 제거
+#   - EquipmentId 기반 조회로 변경 (FrontendId 제거)
+#   - UDSService에서 JSON 매핑과 병합
+#
+# 용도: Status Watcher 10초 주기 Diff 비교
+# 특징: 경량 쿼리 (변경 가능성 높은 필드만)
+#
+# 컬럼 인덱스 (v2.0.0):
+#  0: EquipmentId        (int)
+#  1: Status             (str)
+#  2: StatusChangedAt    (datetime)
+#  3: CpuUsagePercent    (float or NULL)
+#  4: MemoryUsedMb       (float or NULL)
+#  5: MemoryTotalMb      (float or NULL)
+#
+# ❌ 제거됨 (v2.0.0):
+#  0: FrontendId         → EquipmentId로 대체
+#
+# 비교 대상 필드:
+#  - status: 상태 변경
+#  - status_changed_at: 상태 변경 시간
+#  - cpu_usage_percent: CPU 사용율 변화
+#  - memory_usage_percent: 메모리 사용율 변화 (UsedMb / TotalMb * 100 계산)
+#
+# =============================================================================
+STATUS_SNAPSHOT_QUERY = """
+SELECT 
+    e.EquipmentId,
+    es.Status,
+    es.OccurredAtUtc AS StatusChangedAt,
+    pc.CPUUsagePercent AS CpuUsagePercent,
+    pc.MemoryUsedMb,
+    pc.MemoryTotalMb
+FROM core.Equipment e WITH (NOLOCK)
+LEFT JOIN (
+    SELECT 
+        EquipmentId, 
+        Status, 
+        OccurredAtUtc,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentState WITH (NOLOCK)
+) es ON e.EquipmentId = es.EquipmentId AND es.rn = 1
+LEFT JOIN (
+    SELECT
+        EquipmentId,
+        CPUUsagePercent,
+        MemoryUsedMb,
+        MemoryTotalMb,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentPCInfo WITH (NOLOCK)
+) pc ON e.EquipmentId = pc.EquipmentId AND pc.rn = 1
+WHERE e.EquipmentId IN ({equipment_ids})
+"""
+
+
+# =============================================================================
+# 🔹 PRODUCTION_SNAPSHOT_QUERY_V2 (v2.3.0 최적화)
+# =============================================================================
+# 🚀 Phase 2 최적화: Correlated Subquery → CTE 변환
+#
+# 🔧 v2.3.0 최적화:
+#   - ❌ 기존: 117개 설비마다 서브쿼리 개별 실행 (117회!)
+#   - ✅ 변경: CTE로 변환 (PRODUCTION_COUNT_QUERY_V2와 동일 패턴)
+#   - 예상 효과: 300~800ms → 50~150ms (80% 감소)
+#
+# 용도: Status Watcher 생산량 Diff 비교 (선택적 사용)
+# 특징: CycleTime 기반 카운트
+#
+# 컬럼 인덱스 (v2.0.0):
+#  0: EquipmentId     (int)
+#  1: ProductionCount (int)
+#
+# =============================================================================
+PRODUCTION_SNAPSHOT_QUERY_V2 = """
+WITH LatestLotStart AS (
+    SELECT 
+        EquipmentId,
+        OccurredAtUtc AS LotStartTime,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.Lotinfo WITH (NOLOCK)
+    WHERE IsStart = 1
+        AND EquipmentId IN ({equipment_ids})
+)
+SELECT 
+    e.EquipmentId,
+    COUNT(ct.Time) AS ProductionCount
+FROM core.Equipment e WITH (NOLOCK)
+LEFT JOIN LatestLotStart lls 
+    ON e.EquipmentId = lls.EquipmentId 
+    AND lls.rn = 1
+LEFT JOIN log.CycleTime ct WITH (NOLOCK)
+    ON e.EquipmentId = ct.EquipmentId
+    AND ct.Time >= lls.LotStartTime
+WHERE e.EquipmentId IN ({equipment_ids})
+GROUP BY e.EquipmentId
+"""
+
+# 기존 변수명 유지 (하위 호환)
+PRODUCTION_SNAPSHOT_QUERY = PRODUCTION_SNAPSHOT_QUERY_V2
+
+
+# =============================================================================
+# 🔹 ALARM_REPEAT_COUNT_QUERY_V2 (v2.3.0 최적화)
+# =============================================================================
+# 🚀 Phase 2 최적화: CROSS APPLY → CTE 변환
+#
+# 🔧 v2.3.0 최적화:
+#   - ❌ 기존: CROSS APPLY가 117번 실행됨!
+#   - ✅ 변경: CTE로 Lot 시작 시간 미리 계산 후 JOIN
+#   - 예상 효과: 200~500ms → 30~80ms (80% 감소)
+#
+# ⚠️ 중요: 기존 CROSS APPLY와 동일한 동작 유지!
+#   - CROSS APPLY는 Lot이 없는 설비를 결과에서 제외함
+#   - 이 동작을 유지하기 위해 INNER JOIN 사용
+#   - Lot이 없는 설비는 AlarmRepeatCount가 반환되지 않음 (기존과 동일)
+#
+# 컬럼 인덱스:
+#  0: EquipmentId        (int)
+#  1: AlarmCode          (int) - 현재 활성 알람 코드
+#  2: AlarmRepeatCount   (int) - Lot 시작 이후 반복 횟수
+#
+# =============================================================================
+ALARM_REPEAT_COUNT_QUERY_V2 = """
+WITH 
+-- Step 1: 각 설비의 최신 Lot 시작 시간 (CTE로 한 번에 계산)
+LatestLotStart AS (
+    SELECT 
+        EquipmentId,
+        OccurredAtUtc AS LotStartTime,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.Lotinfo WITH (NOLOCK)
+    WHERE IsStart = 1
+        AND EquipmentId IN ({equipment_ids})
+),
+-- Step 2: 현재 활성 알람 (IsSet=1)
+ActiveAlarms AS (
+    SELECT 
+        EquipmentId,
+        AlarmCode,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.AlarmEvent WITH (NOLOCK)
+    WHERE IsSet = 1
+        AND EquipmentId IN ({equipment_ids})
+)
+-- Step 3: 메인 쿼리 - CTE 결과들을 JOIN
+-- ⚠️ INNER JOIN 사용: CROSS APPLY와 동일하게 Lot이 없으면 결과 제외
+SELECT 
+    aa.EquipmentId,
+    aa.AlarmCode,
+    COUNT(hist.AlarmEventId) AS AlarmRepeatCount
+FROM ActiveAlarms aa
+INNER JOIN LatestLotStart lls 
+    ON aa.EquipmentId = lls.EquipmentId 
+    AND lls.rn = 1
+LEFT JOIN log.AlarmEvent hist WITH (NOLOCK)
+    ON aa.EquipmentId = hist.EquipmentId
+    AND aa.AlarmCode = hist.AlarmCode
+    AND hist.OccurredAtUtc >= lls.LotStartTime
+WHERE aa.rn = 1
+GROUP BY aa.EquipmentId, aa.AlarmCode
+"""
+
+# 기존 변수명 유지 (하위 호환)
+ALARM_REPEAT_COUNT_QUERY = ALARM_REPEAT_COUNT_QUERY_V2
+
+
+# =============================================================================
+# 🔹 STATE_HISTORY_QUERY (v2.4.0 신규)
+# =============================================================================
+# 상태 변경 히스토리 조회 (MiniTimeline용)
+#
+# ⚠️ v2.3.0 주의: 범위 변경하지 않음! (Frontend 호환성)
+#   - 기존 1시간 범위 유지
+#   - MiniTimeline이 1시간 데이터를 기대할 수 있음
+#   - 성능 최적화는 인덱스로 해결 (Phase 1)
+#
+# 용도: EquipmentCard의 MiniTimeline에 최근 상태 변경 이력 표시
+# 조회 범위: 최근 1시간 (유지!)
+#
+# 컬럼 인덱스:
+#  0: EquipmentId    (int)
+#  1: Status         (str) - RUN/IDLE/STOP/SUDDENSTOP
+#  2: OccurredAtUtc  (datetime) - 상태 변경 시간
+#
+# 로직:
+#  1. 최근 1시간 내 상태 변경 레코드 조회
+#  2. EquipmentId, OccurredAtUtc 순으로 정렬
+#  3. UDSService에서 equipment_id별로 그룹화
+#
+# =============================================================================
+STATE_HISTORY_QUERY = """
+SELECT 
+    EquipmentId,
+    Status,
+    OccurredAtUtc
+FROM log.EquipmentState WITH (NOLOCK)
+WHERE EquipmentId IN ({equipment_ids})
+    AND OccurredAtUtc >= DATEADD(HOUR, -1, GETUTCDATE())
+ORDER BY EquipmentId, OccurredAtUtc
+"""
+
+# 15분 히스토리가 필요한 경우를 위한 별도 쿼리 (선택적 - 향후 사용)
+STATE_HISTORY_QUERY_15MIN = """
+SELECT 
+    EquipmentId,
+    Status,
+    OccurredAtUtc
+FROM log.EquipmentState WITH (NOLOCK)
+WHERE EquipmentId IN ({equipment_ids})
+    AND OccurredAtUtc >= DATEADD(MINUTE, -15, GETUTCDATE())
+ORDER BY EquipmentId, OccurredAtUtc
+"""
+
+
+# =============================================================================
+# 🔹 REMOTE_ALARM_CODES_QUERY (v2.5.0 신규)
+# =============================================================================
+# Remote Alarm Code 목록 조회
+#
+# 용도: ref.RemoteAlarmList 테이블에서 Remote Alarm Code 목록 로드
+# 호출 시점: Backend 서버 시작 시 1회 (캐싱)
+#
+# 컬럼 인덱스:
+#  0: RemoteAlarmCode    (int) - 알람 코드
+#  1: RemoteAlarmMessage (str) - 알람 메시지
+#
+# =============================================================================
+REMOTE_ALARM_CODES_QUERY = """
+SELECT 
+    RemoteAlarmCode,
+    RemoteAlarmMessage
+FROM ref.RemoteAlarmList WITH (NOLOCK)
+ORDER BY RemoteAlarmCode
+"""
+
+# =============================================================================
+# 🔹 UNIFIED_INITIAL_QUERY (v3.0.0 신규)
+# =============================================================================
+# 🆕 v3.0.0: 5개 쿼리를 1개로 통합
+#
+# 통합 대상:
+#   1. BATCH_EQUIPMENT_QUERY (기본 정보 + 상태 + Lot + PC Info)
+#   2. PRODUCTION_COUNT_QUERY (생산량)
+#   3. BATCH_TACT_TIME_QUERY (Tact Time)
+#   4. ALARM_REPEAT_COUNT_QUERY (알람 반복 횟수)
+#   5. STATE_HISTORY_QUERY는 별도 유지 (JSON 배열 반환 복잡)
+#
+# 장점:
+#   - 네트워크 왕복 5회 → 2회 (통합쿼리 + 히스토리쿼리)
+#   - CTE 공유로 중복 계산 제거
+#   - 예상 효과: 전체 Latency 30~40% 추가 감소
+#
+# =============================================================================
+UNIFIED_INITIAL_QUERY = """
+WITH 
+-- ========================================
+-- CTE 1: 각 설비의 최신 Lot 시작 시간
+-- ========================================
+LatestLotStart AS (
+    SELECT 
+        EquipmentId,
+        ProductModel,
+        LotId,
+        LotQty,
+        OccurredAtUtc AS LotStartTime,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.Lotinfo WITH (NOLOCK)
+    WHERE IsStart = 1
+        AND EquipmentId IN ({equipment_ids})
+),
+
+-- ========================================
+-- CTE 2: 최신 설비 상태
+-- ========================================
+LatestStatus AS (
+    SELECT 
+        EquipmentId, 
+        Status, 
+        OccurredAtUtc AS StatusChangedAt,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentState WITH (NOLOCK)
+    WHERE EquipmentId IN ({equipment_ids})
+),
+
+-- ========================================
+-- CTE 3: 현재 활성 알람
+-- ========================================
+ActiveAlarm AS (
+    SELECT 
+        EquipmentId,
+        AlarmCode,
+        AlarmMessage,
+        OccurredAtUtc,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.AlarmEvent WITH (NOLOCK)
+    WHERE IsSet = 1
+        AND EquipmentId IN ({equipment_ids})
+),
+
+-- ========================================
+-- CTE 4: 최신 PC 정보 (동적)
+-- ========================================
+LatestPCInfo AS (
+    SELECT
+        EquipmentId,
+        CPUUsagePercent,
+        MemoryTotalMb,
+        MemoryUsedMb,
+        DisksTotalGb,
+        DisksUsedGb,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentPCInfo WITH (NOLOCK)
+    WHERE EquipmentId IN ({equipment_ids})
+),
+
+-- ========================================
+-- CTE 5: 생산량 (Lot 시작 이후 CycleTime COUNT)
+-- ========================================
+ProductionCount AS (
+    SELECT 
+        lls.EquipmentId,
+        COUNT(ct.Time) AS ProductionCount
+    FROM LatestLotStart lls
+    LEFT JOIN log.CycleTime ct WITH (NOLOCK)
+        ON lls.EquipmentId = ct.EquipmentId
+        AND ct.Time >= lls.LotStartTime
+    WHERE lls.rn = 1
+    GROUP BY lls.EquipmentId
+),
+
+-- ========================================
+-- CTE 6: Tact Time (최근 2개 CycleTime 간격)
+-- ========================================
+RecentCycles AS (
+    SELECT 
+        EquipmentId,
+        Time,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY Time DESC
+        ) AS rn
+    FROM log.CycleTime WITH (NOLOCK)
+    WHERE EquipmentId IN ({equipment_ids})
+),
+TactTime AS (
+    SELECT 
+        rc1.EquipmentId,
+        DATEDIFF(SECOND, rc2.Time, rc1.Time) AS TactTimeSeconds
+    FROM RecentCycles rc1
+    JOIN RecentCycles rc2 
+        ON rc1.EquipmentId = rc2.EquipmentId 
+        AND rc1.rn = 1 
+        AND rc2.rn = 2
+),
+
+-- ========================================
+-- CTE 7: 알람 반복 횟수
+-- ========================================
+AlarmRepeatCount AS (
+    SELECT 
+        aa.EquipmentId,
+        COUNT(hist.AlarmEventId) AS AlarmRepeatCount
+    FROM ActiveAlarm aa
+    LEFT JOIN LatestLotStart lls 
+        ON aa.EquipmentId = lls.EquipmentId 
+        AND lls.rn = 1
+    LEFT JOIN log.AlarmEvent hist WITH (NOLOCK)
+        ON aa.EquipmentId = hist.EquipmentId
+        AND aa.AlarmCode = hist.AlarmCode
+        AND hist.OccurredAtUtc >= lls.LotStartTime
+    WHERE aa.rn = 1
+    GROUP BY aa.EquipmentId
+)
+
+-- ========================================
+-- 메인 쿼리: 모든 CTE 결합
+-- ========================================
+SELECT 
+    -- 기본 정보
+    e.EquipmentId,
+    e.EquipmentName,
+    e.LineName,
+    
+    -- 상태 정보
+    ls.Status,
+    ls.StatusChangedAt,
+    
+    -- 알람 정보
+    aa.AlarmCode,
+    aa.AlarmMessage,
+    ISNULL(arc.AlarmRepeatCount, 0) AS AlarmRepeatCount,
+    
+    -- Lot 정보
+    lls.ProductModel,
+    lls.LotId,
+    lls.LotQty AS TargetCount,
+    lls.LotStartTime,
+    
+    -- 생산 정보
+    ISNULL(pc.ProductionCount, 0) AS ProductionCount,
+    tt.TactTimeSeconds,
+    
+    -- PC 동적 정보
+    pci.CPUUsagePercent AS CpuUsagePercent,
+    pci.MemoryTotalMb,
+    pci.MemoryUsedMb,
+    pci.DisksTotalGb,
+    pci.DisksUsedGb,
+    
+    -- PC 정적 정보 (core.EquipmentPCInfo)
+    cpc.CPUName,
+    cpc.CPULogicalCount,
+    cpc.GPUName,
+    cpc.OS AS OsName,
+    cpc.Architecture AS OsArchitecture,
+    cpc.LastBootTime
+
+FROM core.Equipment e WITH (NOLOCK)
+LEFT JOIN LatestStatus ls 
+    ON e.EquipmentId = ls.EquipmentId AND ls.rn = 1
+LEFT JOIN ActiveAlarm aa 
+    ON e.EquipmentId = aa.EquipmentId AND aa.rn = 1
+LEFT JOIN LatestLotStart lls 
+    ON e.EquipmentId = lls.EquipmentId AND lls.rn = 1
+LEFT JOIN LatestPCInfo pci 
+    ON e.EquipmentId = pci.EquipmentId AND pci.rn = 1
+LEFT JOIN core.EquipmentPCInfo cpc WITH (NOLOCK)
+    ON e.EquipmentId = cpc.EquipmentId
+LEFT JOIN ProductionCount pc 
+    ON e.EquipmentId = pc.EquipmentId
+LEFT JOIN TactTime tt 
+    ON e.EquipmentId = tt.EquipmentId
+LEFT JOIN AlarmRepeatCount arc 
+    ON e.EquipmentId = arc.EquipmentId
+WHERE e.EquipmentId IN ({equipment_ids})
+ORDER BY e.EquipmentId
+"""
+
+
+# =============================================================================
+# 🔹 UNIFIED_DIFF_QUERY (v3.0.0 신규)
+# =============================================================================
+# 3개 쿼리 → 1개로 통합 (compute_diff용)
+#
+# 통합 대상:
+#   1. STATUS_SNAPSHOT_QUERY
+#   2. PRODUCTION_SNAPSHOT_QUERY
+#   3. BATCH_TACT_TIME_QUERY
+#
+# =============================================================================
+UNIFIED_DIFF_QUERY = """
+WITH 
+LatestLotStart AS (
+    SELECT 
+        EquipmentId,
+        OccurredAtUtc AS LotStartTime,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.Lotinfo WITH (NOLOCK)
+    WHERE IsStart = 1
+        AND EquipmentId IN ({equipment_ids})
+),
+LatestStatus AS (
+    SELECT 
+        EquipmentId, 
+        Status, 
+        OccurredAtUtc AS StatusChangedAt,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentState WITH (NOLOCK)
+    WHERE EquipmentId IN ({equipment_ids})
+),
+LatestPCInfo AS (
+    SELECT
+        EquipmentId,
+        CPUUsagePercent,
+        MemoryTotalMb,
+        MemoryUsedMb,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId
+            ORDER BY OccurredAtUtc DESC
+        ) AS rn
+    FROM log.EquipmentPCInfo WITH (NOLOCK)
+    WHERE EquipmentId IN ({equipment_ids})
+),
+ProductionCount AS (
+    SELECT 
+        lls.EquipmentId,
+        COUNT(ct.Time) AS ProductionCount
+    FROM LatestLotStart lls
+    LEFT JOIN log.CycleTime ct WITH (NOLOCK)
+        ON lls.EquipmentId = ct.EquipmentId
+        AND ct.Time >= lls.LotStartTime
+    WHERE lls.rn = 1
+    GROUP BY lls.EquipmentId
+),
+RecentCycles AS (
+    SELECT 
+        EquipmentId,
+        Time,
+        ROW_NUMBER() OVER (
+            PARTITION BY EquipmentId 
+            ORDER BY Time DESC
+        ) AS rn
+    FROM log.CycleTime WITH (NOLOCK)
+    WHERE EquipmentId IN ({equipment_ids})
+),
+TactTime AS (
+    SELECT 
+        rc1.EquipmentId,
+        DATEDIFF(SECOND, rc2.Time, rc1.Time) AS TactTimeSeconds
+    FROM RecentCycles rc1
+    JOIN RecentCycles rc2 
+        ON rc1.EquipmentId = rc2.EquipmentId 
+        AND rc1.rn = 1 
+        AND rc2.rn = 2
+)
+SELECT 
+    e.EquipmentId,
+    ls.Status,
+    ls.StatusChangedAt,
+    pci.CPUUsagePercent AS CpuUsagePercent,
+    pci.MemoryUsedMb,
+    pci.MemoryTotalMb,
+    ISNULL(pc.ProductionCount, 0) AS ProductionCount,
+    tt.TactTimeSeconds
+FROM core.Equipment e WITH (NOLOCK)
+LEFT JOIN LatestStatus ls ON e.EquipmentId = ls.EquipmentId AND ls.rn = 1
+LEFT JOIN LatestPCInfo pci ON e.EquipmentId = pci.EquipmentId AND pci.rn = 1
+LEFT JOIN ProductionCount pc ON e.EquipmentId = pc.EquipmentId
+LEFT JOIN TactTime tt ON e.EquipmentId = tt.EquipmentId
+WHERE e.EquipmentId IN ({equipment_ids})
+"""
+
+
+# =============================================================================
+# 🔹 EQUIPMENT_MAPPING_QUERY (v2.0.0 제거됨)
+# =============================================================================
+# ❌ v2.0.0에서 제거됨
+# 이유: core.EquipmentMapping 테이블이 DB에 존재하지 않음
+# 대안: config/site_mappings/equipment_mapping_{site_id}.json 파일 사용
+#
+# 매핑 조회는 UDSService._load_mapping_config() 사용
+# =============================================================================
+# EQUIPMENT_MAPPING_QUERY = """..."""  # ❌ 제거됨
+
+
+# =============================================================================
+# 🔹 Helper Functions
+# =============================================================================
+
+def build_in_clause_params(ids: list, prefix: str = "id") -> tuple:
+    """
+    IN 절용 파라미터 생성 (SQLAlchemy text() 제약 우회)
+    
+    Args:
+        ids: ID 목록 [1, 2, 3]
+        prefix: 파라미터 이름 접두사
+        
+    Returns:
+        (placeholders, params)
+        - placeholders: ":id_0, :id_1, :id_2"
+        - params: {"id_0": 1, "id_1": 2, "id_2": 3}
+    
+    Example:
+        >>> placeholders, params = build_in_clause_params([1, 2, 3], "eq")
+        >>> query = f"SELECT * FROM Equipment WHERE EquipmentId IN ({placeholders})"
+        >>> session.execute(text(query), params)
+    """
+    if not ids:
+        return "", {}
+    
+    placeholders = ", ".join([f":{prefix}_{i}" for i in range(len(ids))])
+    params = {f"{prefix}_{i}": id_val for i, id_val in enumerate(ids)}
+    
+    return placeholders, params
+
+
+def calculate_memory_usage_percent(used_mb: float, total_mb: float) -> float:
+    """
+    메모리 사용율 계산
+    
+    Args:
+        used_mb: 사용 중인 메모리 (MB)
+        total_mb: 전체 메모리 (MB)
+        
+    Returns:
+        사용율 % (소수점 1자리)
+    
+    Example:
+        >>> calculate_memory_usage_percent(8192, 16384)
+        50.0
+    """
+    if not total_mb or total_mb <= 0:
+        return 0.0
+    return round((used_mb / total_mb) * 100, 1)
+
+
+def calculate_disk_usage_percent(used_gb: float, total_gb: float) -> float:
+    """
+    디스크 사용율 계산
+    
+    Args:
+        used_gb: 사용 중인 용량 (GB)
+        total_gb: 전체 용량 (GB)
+        
+    Returns:
+        사용율 % (소수점 1자리)
+    
+    Example:
+        >>> calculate_disk_usage_percent(120, 500)
+        24.0
+    """
+    if not total_gb or total_gb <= 0:
+        return 0.0
+    return round((used_gb / total_gb) * 100, 1)
+
+
+# =============================================================================
+# 🆕 v2.0.0: FrontendId 파싱 헬퍼
+# =============================================================================
+
+def parse_frontend_id(frontend_id: str) -> tuple:
+    """
+    FrontendId에서 GridRow, GridCol 추출
+    
+    🆕 v2.0.0: JSON 매핑에서 로드한 FrontendId를 파싱하여
+               GridRow, GridCol 계산
+    
+    Args:
+        frontend_id: "EQ-17-03" 형식의 문자열
+        
+    Returns:
+        (grid_row, grid_col): (17, 3)
+        
+    Raises:
+        ValueError: 형식이 잘못된 경우
+        
+    Example:
+        >>> parse_frontend_id("EQ-17-03")
+        (17, 3)
+        >>> parse_frontend_id("EQ-01-01")
+        (1, 1)
+    """
+    if not frontend_id or not isinstance(frontend_id, str):
+        return (0, 0)
+    
+    try:
+        # "EQ-17-03" → ["EQ", "17", "03"]
+        parts = frontend_id.split("-")
+        if len(parts) != 3 or parts[0] != "EQ":
+            return (0, 0)
+        
+        grid_row = int(parts[1])
+        grid_col = int(parts[2])
+        
+        return (grid_row, grid_col)
+        
+    except (ValueError, IndexError):
+        return (0, 0)
+
+
+def generate_frontend_id(grid_row: int, grid_col: int) -> str:
+    """
+    GridRow, GridCol에서 FrontendId 생성
+    
+    🆕 v2.0.0: 매핑이 없는 경우 Grid 위치 기반으로 FrontendId 생성
+    
+    Args:
+        grid_row: Grid 행 번호 (1-26)
+        grid_col: Grid 열 번호 (1-6)
+        
+    Returns:
+        "EQ-{row:02d}-{col:02d}" 형식의 문자열
+        
+    Example:
+        >>> generate_frontend_id(17, 3)
+        "EQ-17-03"
+        >>> generate_frontend_id(1, 1)
+        "EQ-01-01"
+    """
+    return f"EQ-{grid_row:02d}-{grid_col:02d}"

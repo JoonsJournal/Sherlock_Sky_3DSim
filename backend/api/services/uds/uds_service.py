@@ -1312,12 +1312,12 @@ class UDSService:
             status_changed_at=row.get('StatusChangedAt'),
             alarm_code=row.get('AlarmCode'),
             alarm_message=row.get('AlarmMessage'),
-            alarm_repeat_count=row.get('AlarmRepeatCount', 0),  # 🆕 통합 쿼리에서 직접 제공
+            alarm_repeat_count=row.get('AlarmRepeatCount') or 0,  # 🆕 통합 쿼리에서 직접 제공
             product_model=row.get('ProductModel'),
             lot_id=row.get('LotId'),
             lot_start_time=row.get('LotStartTime'),
-            target_count=row.get('TargetCount', 0),
-            production_count=row.get('ProductionCount', 0),     # 🆕 통합 쿼리에서 직접 제공
+            target_count=row.get('TargetCount') or 0,
+            production_count=row.get('ProductionCount') or 0,     # 🆕 통합 쿼리에서 직접 제공
             tact_time_seconds=row.get('TactTimeSeconds'),       # 🆕 통합 쿼리에서 직접 제공
             cpu_usage_percent=row.get('CpuUsagePercent'),
             memory_usage_percent=memory_usage,
