@@ -1,9 +1,9 @@
 /**
  * DashboardManager.js - Dashboard 전역 관리자
  * 
- * @version 1.0.1
+ * @version 1.0.2
  * @created 2026-02-03
- * @modified 2026-02-03
+ * @modified 2026-02-04
  * @phase Phase 2: Site Dashboard 구현
  * 
  * @description
@@ -28,6 +28,9 @@
  * @changelog
  * - v1.0.0 (2026-02-03): 최초 구현
  * - v1.0.1 (2026-02-03): CSS 클래스 상수화, Design Token 적용, 가이드라인 준수
+ * - v1.0.2 (2026-02-04): Mock 모드에서 WebSocket 스킵
+ *   - SiteSummaryService.options.useMock 확인
+ *   - ⚠️ 호환성: 기존 기능 100% 유지
  * 
  * 위치: frontend/threejs_viewer/src/dashboard/components/DashboardManager.js
  */
@@ -136,8 +139,14 @@ export class DashboardManager {
             // 3. 초기 데이터 로드
             await this._loadInitialData();
             
-            // 4. WebSocket 연결 (Summary Mode)
-            await this._connectWebSocket();
+            // 4. WebSocket 연결 (Mock 모드가 아닐 때만)
+            if (!this.summaryService.options.useMock) {
+                await this._connectWebSocket();
+            } else {
+                console.log('🎭 [DashboardManager] Mock mode - skipping WebSocket');
+                this.state.setWsConnected(true); // Mock 연결 상태로 표시
+                this._updateConnectionIndicator(true);
+            }
             
             // 5. 주기적 업데이트 시작
             this._startUpdateInterval();
@@ -311,6 +320,12 @@ export class DashboardManager {
      * WebSocket 연결 (Summary Mode)
      */
     async _connectWebSocket() {
+        // Mock 모드면 스킵
+        if (this.summaryService.options.useMock) {
+            console.log('🎭 [DashboardManager] Mock mode - WebSocket skipped');
+            return;
+        }
+        
         try {
             const wsUrl = this.summaryService.getWebSocketUrl();
             console.log(`🔌 WebSocket 연결 시도: ${wsUrl}`);
@@ -335,8 +350,8 @@ export class DashboardManager {
                 console.log(`🔌 WebSocket 연결 종료 (code: ${event.code})`);
                 this.state.setWsConnected(false);
                 
-                // 자동 재연결 (정상 종료 아닌 경우)
-                if (event.code !== 1000) {
+                // 자동 재연결 (정상 종료 아닌 경우, Mock 모드 아닐 때)
+                if (event.code !== 1000 && !this.summaryService.options.useMock) {
                     this._scheduleReconnect();
                 }
             };
@@ -344,7 +359,11 @@ export class DashboardManager {
         } catch (error) {
             console.error('❌ WebSocket 연결 실패:', error);
             this.state.setWsConnected(false);
-            this._scheduleReconnect();
+            
+            // Mock 모드 아닐 때만 재연결
+            if (!this.summaryService.options.useMock) {
+                this._scheduleReconnect();
+            }
         }
     }
     
@@ -423,6 +442,11 @@ export class DashboardManager {
      * 재연결 스케줄링 (Exponential Backoff)
      */
     _scheduleReconnect() {
+        // Mock 모드면 재연결 안함
+        if (this.summaryService.options.useMock) {
+            return;
+        }
+        
         if (this.wsReconnectAttempts >= this.maxReconnectAttempts) {
             console.error('❌ 최대 재연결 시도 횟수 초과');
             this.alertBanner?.show({
