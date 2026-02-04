@@ -3,7 +3,7 @@
  * ===========
  * Dashboard 상단 전역 알림 배너 컴포넌트
  * 
- * @version 1.0.0
+ * @version 1.0.1
  * @description
  * - Critical 알림 배너 표시
  * - 다중 Site 알림 큐 관리
@@ -12,9 +12,12 @@
  * 
  * @changelog
  * - v1.0.0 (2026-02-03): 최초 구현
- *   - 다중 알림 큐 지원
- *   - 레벨별 스타일링
- *   - ⚠️ 호환성: 신규 컴포넌트
+ * - v1.0.1 (2026-02-04): DashboardManager API 호환성 수정
+ *   - 옵션 객체로 생성자 변경 ({ container })
+ *   - mount() 메서드 추가
+ *   - show() 메서드 추가 (DashboardManager 호출용)
+ *   - 생성자에서 자동 초기화 제거
+ *   - ⚠️ 호환성: DashboardManager 호출 방식에 맞춤
  * 
  * @dependencies
  * - DashboardState.js: 상태 관리
@@ -26,7 +29,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/dashboard/components/GlobalAlertBanner.js
  * 작성일: 2026-02-03
- * 수정일: 2026-02-03
+ * 수정일: 2026-02-04
  */
 
 import { getDashboardState, StateEvents, SiteStatus } from '../DashboardState.js';
@@ -108,17 +111,27 @@ export class GlobalAlertBanner {
     // =========================================================
     
     /**
-     * @param {HTMLElement} container - Banner를 삽입할 컨테이너
-     * @param {Object} options - 옵션
+     * @param {Object|HTMLElement} options - 옵션 객체 또는 컨테이너 요소
+     * @param {HTMLElement} options.container - Banner를 삽입할 컨테이너
      * @param {number} options.autoHideDelay - 자동 숨김 딜레이 (ms), 0이면 자동 숨김 안함
      * @param {number} options.maxAlerts - 최대 알림 큐 크기
      */
-    constructor(container, options = {}) {
-        this.container = container;
-        this.options = {
-            autoHideDelay: options.autoHideDelay ?? 10000,
-            maxAlerts: options.maxAlerts ?? 10
-        };
+    constructor(options = {}) {
+        // 하위 호환: HTMLElement가 직접 전달된 경우
+        if (options instanceof HTMLElement) {
+            this.container = options;
+            this.options = {
+                autoHideDelay: 10000,
+                maxAlerts: 10
+            };
+        } else {
+            // 옵션 객체로 전달된 경우 (DashboardManager 방식)
+            this.container = options?.container || null;
+            this.options = {
+                autoHideDelay: options?.autoHideDelay ?? 10000,
+                maxAlerts: options?.maxAlerts ?? 10
+            };
+        }
         
         this.element = null;
         this.state = getDashboardState();
@@ -127,24 +140,106 @@ export class GlobalAlertBanner {
         this._currentAlert = null;
         this._autoHideTimer = null;
         this._unsubscribers = [];
+        this._mounted = false;
         
-        this._init();
+        // 참고: mount() 호출 전까지 초기화하지 않음 (DashboardManager 호환)
     }
     
     // =========================================================
-    // Initialization
+    // Public Methods
     // =========================================================
     
     /**
-     * 초기화
-     * @private
+     * 컴포넌트 마운트 (DOM에 렌더링)
+     * DashboardManager에서 호출
      */
-    _init() {
+    mount() {
+        if (this._mounted) {
+            console.warn('⚠️ [GlobalAlertBanner] Already mounted');
+            return;
+        }
+        
         this._render();
         this._subscribeToState();
         this._bindEvents();
+        this._mounted = true;
         
-        console.log('🚨 [GlobalAlertBanner] Initialized');
+        console.log('🚨 [GlobalAlertBanner] Mounted');
+    }
+    
+    /**
+     * 알림 표시 (DashboardManager에서 호출)
+     * @param {Object} options - 알림 옵션
+     * @param {string} options.type - 알림 타입 (info, warning, error, critical)
+     * @param {string} options.message - 메시지
+     * @param {string} options.siteId - Site ID (옵션)
+     */
+    show(options) {
+        const level = options.type || AlertLevel.INFO;
+        this.showAlert({
+            level,
+            message: options.message,
+            siteId: options.siteId
+        });
+    }
+    
+    /**
+     * 알림 표시
+     * @param {Object} alert - 알림 데이터
+     * @param {AlertLevel} alert.level - 알림 레벨
+     * @param {string} alert.message - 메시지
+     * @param {string} alert.siteId - Site ID (옵션)
+     */
+    showAlert(alert) {
+        // 중복 알림 방지
+        const isDuplicate = this._alertQueue.some(a => 
+            a.message === alert.message && a.siteId === alert.siteId
+        );
+        
+        if (isDuplicate) return;
+        
+        // 큐에 추가
+        this._alertQueue.push({
+            ...alert,
+            id: Date.now(),
+            timestamp: new Date()
+        });
+        
+        // 큐 크기 제한
+        while (this._alertQueue.length > this.options.maxAlerts) {
+            this._alertQueue.shift();
+        }
+        
+        // 현재 표시 중인 알림이 없으면 표시
+        if (!this._currentAlert) {
+            this._showNextAlert();
+        }
+        
+        console.log(`🚨 [GlobalAlertBanner] Alert queued: ${alert.message}`);
+    }
+    
+    /**
+     * 현재 알림 닫기
+     */
+    dismiss() {
+        this._clearAutoHideTimer();
+        this._hide();
+        
+        // 다음 알림 표시
+        if (this._alertQueue.length > 0) {
+            setTimeout(() => this._showNextAlert(), 300);
+        }
+    }
+    
+    /**
+     * 모든 알림 제거
+     */
+    clearAll() {
+        this._alertQueue = [];
+        this._clearAutoHideTimer();
+        this._hide();
+        
+        console.log('🗑️ [GlobalAlertBanner] All alerts cleared');
     }
     
     // =========================================================
@@ -158,19 +253,34 @@ export class GlobalAlertBanner {
     _render() {
         const CSS = GlobalAlertBanner.CSS;
         
-        this.element = document.createElement('div');
-        this.element.className = CSS.BLOCK;
-        this.element.innerHTML = `
-            <div class="${CSS.CONTENT}">
-                <span class="${CSS.ICON}"></span>
-                <span class="${CSS.MESSAGE}"></span>
-                <span class="${CSS.SITE}"></span>
-                <button class="${CSS.CLOSE}" aria-label="닫기">×</button>
-            </div>
-        `;
-        
-        if (this.container) {
-            this.container.insertBefore(this.element, this.container.firstChild);
+        // 기존 컨테이너를 사용하거나 새로 생성
+        if (this.container && this.container.classList) {
+            // 컨테이너가 이미 banner로 사용되는 경우
+            this.element = this.container;
+            this.element.innerHTML = `
+                <div class="${CSS.CONTENT}">
+                    <span class="${CSS.ICON}"></span>
+                    <span class="${CSS.MESSAGE}"></span>
+                    <span class="${CSS.SITE}"></span>
+                    <button class="${CSS.CLOSE}" aria-label="닫기">×</button>
+                </div>
+            `;
+        } else {
+            // 새 요소 생성
+            this.element = document.createElement('div');
+            this.element.className = CSS.BLOCK;
+            this.element.innerHTML = `
+                <div class="${CSS.CONTENT}">
+                    <span class="${CSS.ICON}"></span>
+                    <span class="${CSS.MESSAGE}"></span>
+                    <span class="${CSS.SITE}"></span>
+                    <button class="${CSS.CLOSE}" aria-label="닫기">×</button>
+                </div>
+            `;
+            
+            if (this.container && typeof this.container.appendChild === 'function') {
+                this.container.appendChild(this.element);
+            }
         }
     }
     
@@ -265,69 +375,6 @@ export class GlobalAlertBanner {
     }
     
     // =========================================================
-    // Public Methods
-    // =========================================================
-    
-    /**
-     * 알림 표시
-     * @param {Object} alert - 알림 데이터
-     * @param {AlertLevel} alert.level - 알림 레벨
-     * @param {string} alert.message - 메시지
-     * @param {string} alert.siteId - Site ID (옵션)
-     */
-    showAlert(alert) {
-        // 중복 알림 방지
-        const isDuplicate = this._alertQueue.some(a => 
-            a.message === alert.message && a.siteId === alert.siteId
-        );
-        
-        if (isDuplicate) return;
-        
-        // 큐에 추가
-        this._alertQueue.push({
-            ...alert,
-            id: Date.now(),
-            timestamp: new Date()
-        });
-        
-        // 큐 크기 제한
-        while (this._alertQueue.length > this.options.maxAlerts) {
-            this._alertQueue.shift();
-        }
-        
-        // 현재 표시 중인 알림이 없으면 표시
-        if (!this._currentAlert) {
-            this._showNextAlert();
-        }
-        
-        console.log(`🚨 [GlobalAlertBanner] Alert queued: ${alert.message}`);
-    }
-    
-    /**
-     * 현재 알림 닫기
-     */
-    dismiss() {
-        this._clearAutoHideTimer();
-        this._hide();
-        
-        // 다음 알림 표시
-        if (this._alertQueue.length > 0) {
-            setTimeout(() => this._showNextAlert(), 300);
-        }
-    }
-    
-    /**
-     * 모든 알림 제거
-     */
-    clearAll() {
-        this._alertQueue = [];
-        this._clearAutoHideTimer();
-        this._hide();
-        
-        console.log('🗑️ [GlobalAlertBanner] All alerts cleared');
-    }
-    
-    // =========================================================
     // Private Methods
     // =========================================================
     
@@ -343,7 +390,7 @@ export class GlobalAlertBanner {
         
         this._currentAlert = this._alertQueue.shift();
         this._updateBanner(this._currentAlert);
-        this._show();
+        this._showBanner();
         
         // 자동 숨김 타이머 설정
         if (this.options.autoHideDelay > 0) {
@@ -398,7 +445,7 @@ export class GlobalAlertBanner {
      * Banner 표시
      * @private
      */
-    _show() {
+    _showBanner() {
         if (!this.element) return;
         
         const CSS = GlobalAlertBanner.CSS;
@@ -448,13 +495,17 @@ export class GlobalAlertBanner {
         this._unsubscribers.forEach(unsub => unsub());
         this._unsubscribers = [];
         
-        // DOM 제거
-        if (this.element && this.element.parentNode) {
+        // DOM 제거 (컨테이너로 사용된 경우는 innerHTML만 정리)
+        if (this.element && this.element !== this.container && this.element.parentNode) {
             this.element.parentNode.removeChild(this.element);
+        } else if (this.element) {
+            this.element.innerHTML = '';
         }
+        
         this.element = null;
         this._alertQueue = [];
         this._currentAlert = null;
+        this._mounted = false;
         
         console.log('🗑️ [GlobalAlertBanner] Destroyed');
     }

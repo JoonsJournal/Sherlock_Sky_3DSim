@@ -3,7 +3,7 @@
  * ===========
  * Dashboard 하단 요약 통계 Footer 컴포넌트
  * 
- * @version 1.0.0
+ * @version 1.0.1
  * @description
  * - 전체 Site 통계 요약 표시 (Total, RUN, IDLE, STOP, DISC)
  * - 전체 생산량 및 알람 카운트 표시
@@ -12,9 +12,11 @@
  * 
  * @changelog
  * - v1.0.0 (2026-02-03): 최초 구현
- *   - 전체 통계 표시
- *   - 실시간 업데이트 지원
- *   - ⚠️ 호환성: 신규 컴포넌트
+ * - v1.0.1 (2026-02-04): DashboardManager API 호환성 수정
+ *   - 옵션 객체로 생성자 변경 ({ container, state })
+ *   - mount() 메서드 추가
+ *   - 생성자에서 자동 초기화 제거
+ *   - ⚠️ 호환성: DashboardManager 호출 방식에 맞춤
  * 
  * @dependencies
  * - DashboardState.js: 상태 관리
@@ -25,7 +27,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/dashboard/components/SummaryFooter.js
  * 작성일: 2026-02-03
- * 수정일: 2026-02-03
+ * 수정일: 2026-02-04
  */
 
 import { getDashboardState, StateEvents } from '../DashboardState.js';
@@ -76,31 +78,64 @@ export class SummaryFooter {
     // =========================================================
     
     /**
-     * @param {HTMLElement} container - Footer를 삽입할 컨테이너
+     * @param {Object|HTMLElement} options - 옵션 객체 또는 컨테이너 요소
+     * @param {HTMLElement} options.container - Footer를 삽입할 컨테이너
+     * @param {Object} options.state - DashboardState 인스턴스 (옵션)
      */
-    constructor(container) {
-        this.container = container;
+    constructor(options) {
+        // 하위 호환: HTMLElement가 직접 전달된 경우
+        if (options instanceof HTMLElement) {
+            this.container = options;
+            this.state = getDashboardState();
+        } else {
+            // 옵션 객체로 전달된 경우 (DashboardManager 방식)
+            this.container = options?.container || null;
+            this.state = options?.state || getDashboardState();
+        }
+        
         this.element = null;
-        this.state = getDashboardState();
-        
         this._unsubscribers = [];
+        this._mounted = false;
         
-        this._init();
+        // 참고: mount() 호출 전까지 초기화하지 않음 (DashboardManager 호환)
     }
     
     // =========================================================
-    // Initialization
+    // Public Methods
     // =========================================================
     
     /**
-     * 초기화
-     * @private
+     * 컴포넌트 마운트 (DOM에 렌더링)
+     * DashboardManager에서 호출
      */
-    _init() {
+    mount() {
+        if (this._mounted) {
+            console.warn('⚠️ [SummaryFooter] Already mounted');
+            return;
+        }
+        
         this._render();
         this._subscribeToState();
+        this._mounted = true;
         
-        console.log('📊 [SummaryFooter] Initialized');
+        console.log('📊 [SummaryFooter] Mounted');
+    }
+    
+    /**
+     * 강제 업데이트
+     */
+    refresh() {
+        this._updateStats();
+    }
+    
+    /**
+     * 표시/숨김
+     * @param {boolean} visible
+     */
+    setVisible(visible) {
+        if (this.element) {
+            this.element.style.display = visible ? '' : 'none';
+        }
     }
     
     // =========================================================
@@ -119,8 +154,11 @@ export class SummaryFooter {
         
         this.element.innerHTML = this._generateHTML();
         
-        if (this.container) {
+        // 컨테이너가 HTMLElement인지 확인
+        if (this.container && typeof this.container.appendChild === 'function') {
             this.container.appendChild(this.element);
+        } else {
+            console.warn('⚠️ [SummaryFooter] Invalid container:', this.container);
         }
     }
     
@@ -131,7 +169,8 @@ export class SummaryFooter {
      */
     _generateHTML() {
         const CSS = SummaryFooter.CSS;
-        const stats = this.state.totalStats;
+        const stats = this.state.totalStats || { total: 0, run: 0, idle: 0, stop: 0, production: 0, alarms: 0 };
+        const sites = this.state.sites || [];
         
         return `
             <div class="${CSS.CONTENT}">
@@ -139,7 +178,7 @@ export class SummaryFooter {
                 <div class="${CSS.ITEM}">
                     <span class="${CSS.ICON}">🏭</span>
                     <span class="${CSS.LABEL}">Sites</span>
-                    <span class="${CSS.VALUE}" data-stat="sites">${this.state.sites.length}</span>
+                    <span class="${CSS.VALUE}" data-stat="sites">${sites.length}</span>
                 </div>
                 
                 <span class="${CSS.DIVIDER}"></span>
@@ -227,11 +266,11 @@ export class SummaryFooter {
     _updateStats() {
         if (!this.element) return;
         
-        const stats = this.state.totalStats;
-        const CSS = SummaryFooter.CSS;
+        const stats = this.state.totalStats || { total: 0, run: 0, idle: 0, stop: 0, production: 0, alarms: 0 };
+        const sites = this.state.sites || [];
         
         // Sites count
-        this._updateValue('sites', this.state.sites.length);
+        this._updateValue('sites', sites.length);
         
         // Equipment stats
         this._updateValue('total', stats.total);
@@ -315,27 +354,6 @@ export class SummaryFooter {
     }
     
     // =========================================================
-    // Public Methods
-    // =========================================================
-    
-    /**
-     * 강제 업데이트
-     */
-    refresh() {
-        this._updateStats();
-    }
-    
-    /**
-     * 표시/숨김
-     * @param {boolean} visible
-     */
-    setVisible(visible) {
-        if (this.element) {
-            this.element.style.display = visible ? '' : 'none';
-        }
-    }
-    
-    // =========================================================
     // Cleanup
     // =========================================================
     
@@ -352,6 +370,7 @@ export class SummaryFooter {
             this.element.parentNode.removeChild(this.element);
         }
         this.element = null;
+        this._mounted = false;
         
         console.log('🗑️ [SummaryFooter] Destroyed');
     }
