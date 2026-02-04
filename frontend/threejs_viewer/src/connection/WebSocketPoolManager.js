@@ -3,19 +3,24 @@
  * =======================
  * Multi-Site WebSocket 연결 풀 관리자
  * 
- * @version 1.0.0
+ * @version 1.1.0
  * @description
  * - Site별 독립적 WebSocket 인스턴스 관리
  * - Mode별 연결 상태 전환 (Dashboard/Monitoring/Analysis)
  * - 자동 재연결 로직 (Exponential Backoff)
  * - 연결 효율 최적화
+ * - 🆕 Analysis Mode WebSocket 완전 중단 (대역폭 100% 절감)
  * 
  * @changelog
- * - v1.0.0: Phase 3 - WebSocket Pool Manager 구현 (2026-02-04)
+ * - v1.1.0 (2026-02-04): Analysis Mode WebSocket PAUSE 완성
+ *           - _pauseConnection(): 실제 WebSocket 연결 종료
+ *           - _handleMessage(): PAUSED 상태 체크 추가
+ *           - _previousModeState: Mode 복귀 시 자동 재연결
+ *           - SubscriptionLevelManager 이벤트 연동
+ * - v1.0.0 (2026-02-04): Phase 3 - WebSocket Pool Manager 구현
  *           - Site별 WebSocket Map 관리
  *           - Mode별 switchMode() 구현
  *           - Exponential Backoff 재연결
- *           - ⚠️ 호환성: 기존 ReconnectionHandler 패턴 유지
  * 
  * @dependencies
  * - ./ConnectionState.js (ConnectionState, ConnectionStateMachine)
@@ -53,7 +58,7 @@ export const AppMode = Object.freeze({
     /** Monitoring - 선택 Site Full, 나머지 Summary */
     MONITORING: 'MONITORING',
     
-    /** Analysis - 모든 Site Paused */
+    /** Analysis - 모든 Site Paused (WebSocket 완전 중단) */
     ANALYSIS: 'ANALYSIS'
 });
 
@@ -176,6 +181,9 @@ class WebSocketConnection {
  * 
  * // Monitoring Mode로 전환
  * await pool.switchMode(AppMode.MONITORING, 'CN_AAAA');
+ * 
+ * // Analysis Mode로 전환 (모든 WebSocket 중단!)
+ * await pool.switchMode(AppMode.ANALYSIS);
  */
 export class WebSocketPoolManager {
     /**
@@ -215,17 +223,32 @@ export class WebSocketPoolManager {
         /** @type {Function[]} 이벤트 리스너 */
         this._listeners = [];
         
+        /**
+         * 🆕 v1.1.0: Analysis Mode 복귀를 위한 이전 Mode 상태 저장
+         * @type {Object|null}
+         */
+        this._previousModeState = null;
+        
+        /**
+         * 🆕 v1.1.0: 메시지 처리 활성화 여부
+         * @type {boolean}
+         */
+        this._messageProcessingEnabled = true;
+        
         // Site 등록
         for (const siteId of sites) {
             this._tracker.register(siteId);
         }
+        
+        // 🆕 v1.1.0: SubscriptionLevelManager 이벤트 구독
+        this._setupSubscriptionEvents();
         
         // 자동 연결
         if (autoConnect && sites.length > 0) {
             this.switchMode(AppMode.DASHBOARD);
         }
         
-        console.log('🔌 WebSocketPoolManager 생성됨', {
+        console.log('🔌 [WebSocketPoolManager] 생성됨 (v1.1.0)', {
             baseUrl: this._baseUrl,
             sites: sites.length
         });
@@ -275,6 +298,22 @@ export class WebSocketPoolManager {
         return this._tracker;
     }
     
+    /**
+     * 🆕 v1.1.0: Analysis Mode 여부
+     * @type {boolean}
+     */
+    get isPaused() {
+        return this._currentMode === AppMode.ANALYSIS;
+    }
+    
+    /**
+     * 🆕 v1.1.0: 메시지 처리 활성화 여부
+     * @type {boolean}
+     */
+    get isMessageProcessingEnabled() {
+        return this._messageProcessingEnabled;
+    }
+    
     // ============================================
     // Site 관리
     // ============================================
@@ -286,10 +325,10 @@ export class WebSocketPoolManager {
     addSite(siteId) {
         if (!this._tracker.has(siteId)) {
             this._tracker.register(siteId);
-            console.log(`➕ Site 추가됨: ${siteId}`);
+            console.log(`➕ [WebSocketPoolManager] Site 추가됨: ${siteId}`);
             
-            // 현재 Mode에 맞게 연결
-            if (this._currentMode) {
+            // 현재 Mode에 맞게 연결 (Analysis Mode면 연결하지 않음)
+            if (this._currentMode && this._currentMode !== AppMode.ANALYSIS) {
                 this._connectSiteForCurrentMode(siteId);
             }
         }
@@ -303,7 +342,7 @@ export class WebSocketPoolManager {
         if (this._tracker.has(siteId)) {
             this._closeConnection(siteId);
             this._tracker.unregister(siteId);
-            console.log(`➖ Site 제거됨: ${siteId}`);
+            console.log(`➖ [WebSocketPoolManager] Site 제거됨: ${siteId}`);
         }
     }
     
@@ -328,11 +367,16 @@ export class WebSocketPoolManager {
     async switchMode(mode, selectedSiteId = null) {
         const previousMode = this._currentMode;
         
-        console.log(`🔄 Mode 전환: ${previousMode || 'NONE'} → ${mode}`);
+        console.log(`🔄 [WebSocketPoolManager] Mode 전환: ${previousMode || 'NONE'} → ${mode}`);
         
         // Monitoring Mode는 selectedSiteId 필수
         if (mode === AppMode.MONITORING && !selectedSiteId) {
             throw new Error('Monitoring mode requires selectedSiteId');
+        }
+        
+        // 🆕 v1.1.0: Analysis Mode 진입 전 현재 상태 저장
+        if (mode === AppMode.ANALYSIS && previousMode !== AppMode.ANALYSIS) {
+            this._savePreviousModeState();
         }
         
         this._currentMode = mode;
@@ -369,7 +413,7 @@ export class WebSocketPoolManager {
             selectedSiteId
         });
         
-        console.log(`✅ Mode 전환 완료: ${mode}`);
+        console.log(`✅ [WebSocketPoolManager] Mode 전환 완료: ${mode}`);
     }
     
     /**
@@ -378,6 +422,9 @@ export class WebSocketPoolManager {
      * @private
      */
     async _applyDashboardMode() {
+        // 🆕 v1.1.0: 메시지 처리 활성화
+        this._messageProcessingEnabled = true;
+        
         const sites = this._tracker.getAllSiteIds();
         
         for (const siteId of sites) {
@@ -393,6 +440,9 @@ export class WebSocketPoolManager {
      * @param {string} selectedSiteId
      */
     async _applyMonitoringMode(selectedSiteId) {
+        // 🆕 v1.1.0: 메시지 처리 활성화
+        this._messageProcessingEnabled = true;
+        
         const sites = this._tracker.getAllSiteIds();
         
         for (const siteId of sites) {
@@ -407,16 +457,33 @@ export class WebSocketPoolManager {
     }
     
     /**
-     * Analysis Mode 적용
-     * - 모든 Site: Paused
+     * 🆕 v1.1.0: Analysis Mode 적용 (WebSocket 완전 중단!)
+     * - 모든 Site: WebSocket 연결 종료
+     * - 대역폭 100% 절감
      * @private
      */
     async _applyAnalysisMode() {
+        console.log('⏸️ [WebSocketPoolManager] Analysis Mode - 모든 WebSocket 연결 종료');
+        
+        // 🔴 CRITICAL: 메시지 처리 비활성화
+        this._messageProcessingEnabled = false;
+        
         const sites = this._tracker.getAllSiteIds();
+        let closedCount = 0;
         
         for (const siteId of sites) {
-            await this._pauseConnection(siteId);
+            const closed = await this._pauseConnection(siteId);
+            if (closed) closedCount++;
         }
+        
+        // 이벤트 발행
+        eventBus.emit('websocket:all-paused', {
+            mode: AppMode.ANALYSIS,
+            closedConnections: closedCount,
+            totalSites: sites.length
+        });
+        
+        console.log(`⏸️ [WebSocketPoolManager] ${closedCount}/${sites.length} 연결 종료 완료`);
     }
     
     /**
@@ -439,9 +506,54 @@ export class WebSocketPoolManager {
                 break;
                 
             case AppMode.ANALYSIS:
+                // Analysis Mode에서는 연결하지 않음
                 await this._pauseConnection(siteId);
                 break;
         }
+    }
+    
+    // ============================================
+    // 🆕 v1.1.0: 이전 Mode 상태 관리
+    // ============================================
+    
+    /**
+     * Analysis Mode 진입 전 현재 상태 저장
+     * @private
+     */
+    _savePreviousModeState() {
+        this._previousModeState = {
+            mode: this._currentMode,
+            selectedSiteId: this._selectedSiteId,
+            savedAt: Date.now()
+        };
+        
+        console.log('💾 [WebSocketPoolManager] 이전 Mode 상태 저장:', this._previousModeState);
+    }
+    
+    /**
+     * Analysis Mode에서 이전 Mode로 복귀
+     * @returns {Promise<boolean>} 복귀 성공 여부
+     */
+    async restoreFromAnalysis() {
+        if (this._currentMode !== AppMode.ANALYSIS) {
+            console.warn('⚠️ [WebSocketPoolManager] Analysis Mode가 아닙니다');
+            return false;
+        }
+        
+        if (!this._previousModeState) {
+            console.warn('⚠️ [WebSocketPoolManager] 이전 Mode 상태가 없습니다. Dashboard로 전환합니다.');
+            await this.switchMode(AppMode.DASHBOARD);
+            return true;
+        }
+        
+        const { mode, selectedSiteId } = this._previousModeState;
+        
+        console.log(`🔄 [WebSocketPoolManager] 이전 Mode로 복귀: ${mode}`);
+        
+        await this.switchMode(mode, selectedSiteId);
+        this._previousModeState = null;
+        
+        return true;
     }
     
     // ============================================
@@ -457,7 +569,7 @@ export class WebSocketPoolManager {
     async _connectSummary(siteId, interval) {
         const info = this._tracker.get(siteId);
         if (!info) {
-            console.warn(`⚠️ Unknown site: ${siteId}`);
+            console.warn(`⚠️ [WebSocketPoolManager] Unknown site: ${siteId}`);
             return;
         }
         
@@ -508,7 +620,7 @@ export class WebSocketPoolManager {
     async _connectFull(siteId, interval) {
         const info = this._tracker.get(siteId);
         if (!info) {
-            console.warn(`⚠️ Unknown site: ${siteId}`);
+            console.warn(`⚠️ [WebSocketPoolManager] Unknown site: ${siteId}`);
             return;
         }
         
@@ -595,30 +707,58 @@ export class WebSocketPoolManager {
     }
     
     /**
-     * 연결 일시 정지 (Analysis Mode)
+     * 🆕 v1.1.0: 연결 일시 정지 (Analysis Mode) - 실제 WebSocket 종료!
      * @private
      * @param {string} siteId
+     * @returns {Promise<boolean>} 연결 종료 여부
      */
     async _pauseConnection(siteId) {
         const info = this._tracker.get(siteId);
-        if (!info) return;
+        if (!info) return false;
         
         const conn = this._connections.get(siteId);
-        if (!conn) {
-            // 연결이 없으면 DISCONNECTED 상태로
-            if (info.currentState !== ConnectionState.DISCONNECTED) {
-                info.transitionTo(ConnectionState.DISCONNECTED);
+        
+        // 🔴 CRITICAL: 재연결 타이머 취소 (Analysis Mode에서 자동 재연결 방지)
+        this._cancelReconnect(siteId);
+        
+        if (!conn || !conn.ws) {
+            // 연결이 없으면 PAUSED 상태로
+            if (info.currentState !== ConnectionState.PAUSED) {
+                info.transitionTo(ConnectionState.PAUSED);
             }
-            return;
+            return false;
         }
         
-        // 연결은 유지하되 상태를 PAUSED로 변경
-        // (실제 구현에서는 서버에 pause 메시지를 보낼 수 있음)
-        if (info.currentState !== ConnectionState.PAUSED) {
-            info.transitionTo(ConnectionState.PAUSED);
+        // 🔴 CRITICAL: WebSocket 연결 실제 종료
+        try {
+            // 서버에 pause 메시지 전송 (선택적)
+            if (conn.ws.readyState === WebSocket.OPEN) {
+                conn.ws.send(JSON.stringify({
+                    type: 'pause',
+                    reason: 'analysis_mode'
+                }));
+            }
+            
+            // WebSocket 종료 (정상 종료 코드 사용)
+            conn.ws.close(1000, 'Analysis mode - pausing');
+            
+        } catch (error) {
+            console.warn(`⚠️ [${siteId}] WebSocket 종료 중 에러:`, error);
         }
         
-        console.log(`⏸️ [${siteId}] 연결 일시 정지`);
+        // 연결 정보 제거
+        this._connections.delete(siteId);
+        
+        // 상태 전환: PAUSED
+        info.transitionTo(ConnectionState.PAUSED);
+        info.setWebSocket(null);
+        
+        console.log(`⏸️ [${siteId}] WebSocket 연결 종료 (Analysis Mode)`);
+        
+        // 이벤트 발행
+        eventBus.emit('websocket:paused', { siteId });
+        
+        return true;
     }
     
     /**
@@ -647,12 +787,25 @@ export class WebSocketPoolManager {
     // ============================================
     
     /**
-     * WebSocket 메시지 처리
+     * 🆕 v1.1.0: WebSocket 메시지 처리 (PAUSED 상태 체크 추가)
      * @private
      * @param {string} siteId
      * @param {MessageEvent} event
      */
     _handleMessage(siteId, event) {
+        // 🔴 CRITICAL: Analysis Mode에서는 메시지 처리하지 않음
+        if (!this._messageProcessingEnabled) {
+            console.debug(`🚫 [${siteId}] 메시지 무시됨 (Analysis Mode)`);
+            return;
+        }
+        
+        // PAUSED 상태 체크
+        const info = this._tracker.get(siteId);
+        if (info?.currentState === ConnectionState.PAUSED) {
+            console.debug(`🚫 [${siteId}] 메시지 무시됨 (PAUSED 상태)`);
+            return;
+        }
+        
         const conn = this._connections.get(siteId);
         if (conn) {
             conn.recordMessage();
@@ -685,6 +838,14 @@ export class WebSocketPoolManager {
      */
     _handleClose(siteId, event) {
         const info = this._tracker.get(siteId);
+        
+        // 🆕 v1.1.0: Analysis Mode에서는 재연결하지 않음
+        if (this._currentMode === AppMode.ANALYSIS) {
+            console.log(`🔌 [${siteId}] WebSocket 종료됨 (Analysis Mode - 재연결 안 함)`);
+            info?.transitionTo(ConnectionState.PAUSED);
+            this._connections.delete(siteId);
+            return;
+        }
         
         if (event.code === 1000) {
             // 정상 종료
@@ -719,6 +880,12 @@ export class WebSocketPoolManager {
      * @param {string} siteId
      */
     _scheduleReconnect(siteId) {
+        // 🆕 v1.1.0: Analysis Mode에서는 재연결하지 않음
+        if (this._currentMode === AppMode.ANALYSIS) {
+            console.log(`🚫 [${siteId}] 재연결 스킵 (Analysis Mode)`);
+            return;
+        }
+        
         // 기존 타이머 취소
         this._cancelReconnect(siteId);
         
@@ -744,6 +911,12 @@ export class WebSocketPoolManager {
         
         const timer = setTimeout(async () => {
             this._reconnectTimers.delete(siteId);
+            
+            // 🆕 v1.1.0: 재연결 전 Analysis Mode 체크
+            if (this._currentMode === AppMode.ANALYSIS) {
+                console.log(`🚫 [${siteId}] 재연결 취소됨 (Analysis Mode로 전환됨)`);
+                return;
+            }
             
             if (conn) {
                 conn.recordReconnectAttempt();
@@ -771,10 +944,28 @@ export class WebSocketPoolManager {
     }
     
     /**
+     * 🆕 v1.1.0: 모든 재연결 타이머 취소
+     * @private
+     */
+    _cancelAllReconnects() {
+        for (const [siteId, timer] of this._reconnectTimers) {
+            clearTimeout(timer);
+        }
+        this._reconnectTimers.clear();
+        console.log('🚫 [WebSocketPoolManager] 모든 재연결 타이머 취소됨');
+    }
+    
+    /**
      * 수동 재연결
      * @param {string} siteId
      */
     async reconnect(siteId) {
+        // 🆕 v1.1.0: Analysis Mode에서는 재연결 불가
+        if (this._currentMode === AppMode.ANALYSIS) {
+            console.warn(`⚠️ [${siteId}] Analysis Mode에서는 재연결할 수 없습니다`);
+            return;
+        }
+        
         console.log(`🔄 [${siteId}] 수동 재연결 시작`);
         
         // 재연결 카운터 초기화
@@ -790,12 +981,43 @@ export class WebSocketPoolManager {
      * 전체 재연결
      */
     async reconnectAll() {
-        console.log('🔄 전체 Site 재연결 시작');
+        // 🆕 v1.1.0: Analysis Mode에서는 재연결 불가
+        if (this._currentMode === AppMode.ANALYSIS) {
+            console.warn('⚠️ [WebSocketPoolManager] Analysis Mode에서는 재연결할 수 없습니다');
+            return;
+        }
+        
+        console.log('🔄 [WebSocketPoolManager] 전체 Site 재연결 시작');
         
         const sites = this._tracker.getAllSiteIds();
         for (const siteId of sites) {
             await this.reconnect(siteId);
         }
+    }
+    
+    // ============================================
+    // 🆕 v1.1.0: SubscriptionLevelManager 이벤트 연동
+    // ============================================
+    
+    /**
+     * SubscriptionLevelManager 이벤트 구독
+     * @private
+     */
+    _setupSubscriptionEvents() {
+        // WebSocket 상태 변경 요청 수신
+        eventBus.on('subscription:websocket-state-request', async (data) => {
+            const { state, context } = data || {};
+            
+            if (state === 'PAUSED' && this._currentMode !== AppMode.ANALYSIS) {
+                console.log('📊 [WebSocketPoolManager] SubscriptionLevelManager 요청: PAUSE');
+                await this.switchMode(AppMode.ANALYSIS);
+            } else if (state === 'ACTIVE' && this._currentMode === AppMode.ANALYSIS) {
+                console.log('📊 [WebSocketPoolManager] SubscriptionLevelManager 요청: RESUME');
+                await this.restoreFromAnalysis();
+            }
+        });
+        
+        console.log('🔗 [WebSocketPoolManager] SubscriptionLevelManager 이벤트 연동 완료');
     }
     
     // ============================================
@@ -850,6 +1072,9 @@ export class WebSocketPoolManager {
         return {
             currentMode: this._currentMode,
             selectedSiteId: this._selectedSiteId,
+            isPaused: this.isPaused,
+            messageProcessingEnabled: this._messageProcessingEnabled,
+            previousModeState: this._previousModeState,
             ...this._tracker.getSummary(),
             connections: this._getConnectionsStatus()
         };
@@ -908,7 +1133,10 @@ export class WebSocketPoolManager {
      * 모든 연결 종료
      */
     closeAll() {
-        console.log('🔌 모든 WebSocket 연결 종료');
+        console.log('🔌 [WebSocketPoolManager] 모든 WebSocket 연결 종료');
+        
+        // 모든 재연결 타이머 취소
+        this._cancelAllReconnects();
         
         for (const siteId of this._connections.keys()) {
             this._closeConnection(siteId);
@@ -916,13 +1144,14 @@ export class WebSocketPoolManager {
         
         this._currentMode = null;
         this._selectedSiteId = null;
+        this._previousModeState = null;
     }
     
     /**
      * 리소스 정리
      */
     dispose() {
-        console.log('🗑️ WebSocketPoolManager 정리');
+        console.log('🗑️ [WebSocketPoolManager] 정리');
         
         this.closeAll();
         this._tracker.reset();
@@ -942,6 +1171,7 @@ export class WebSocketPoolManager {
             baseUrl: this._baseUrl,
             currentMode: this._currentMode,
             selectedSiteId: this._selectedSiteId,
+            isPaused: this.isPaused,
             status: this.getStatus()
         };
     }
