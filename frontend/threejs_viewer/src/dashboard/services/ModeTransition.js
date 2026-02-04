@@ -3,7 +3,7 @@
  * ===========
  * Dashboard Mode 전환 서비스
  * 
- * @version 1.0.0
+ * @version 1.0.1
  * @description
  * - Dashboard에서 다른 Mode로 전환 관리
  * - Mode별 URL 라우팅 처리
@@ -12,9 +12,9 @@
  * 
  * @changelog
  * - v1.0.0 (2026-02-03): 최초 구현
- *   - Mode 전환 로직
- *   - 시나리오별 전환 검증
- *   - ⚠️ 호환성: 신규 서비스
+ * - v1.0.1 (2026-02-04): DashboardManager API 호환성 추가
+ *   - transitionTo(mode, siteId, action) 메서드 추가
+ *   - ⚠️ 호환성: DashboardManager 호출 방식에 맞춤
  * 
  * @dependencies
  * - DashboardState.js: 상태 관리
@@ -27,7 +27,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/dashboard/services/ModeTransition.js
  * 작성일: 2026-02-03
- * 수정일: 2026-02-03
+ * 수정일: 2026-02-04
  */
 
 import { getDashboardState, SiteReadiness, SiteStatus } from '../DashboardState.js';
@@ -139,6 +139,17 @@ export class ModeTransition {
     // =========================================================
     // Public Methods
     // =========================================================
+    
+    /**
+     * Mode 전환 실행 (DashboardManager 호환 API)
+     * @param {string} mode - 대상 Mode (monitoring, ranking, analysis, setup)
+     * @param {string} siteId - Site ID
+     * @param {string} action - 상세 액션 (3d, ranking, analysis, layout-editor, mapping-tool)
+     * @returns {Promise<boolean>} 전환 성공 여부
+     */
+    async transitionTo(mode, siteId, action) {
+        return this.transition({ siteId, mode, action });
+    }
     
     /**
      * Mode 전환 실행
