@@ -3,9 +3,13 @@
  * =====================
  * 설비 상세 정보 패널 (Coordinator)
  * 
- * @version 6.0.0
+ * @version 6.1.0
  * @description
- * - 🆕 v6.0.0: 대규모 리팩토링 (2026-01-25)
+ * - 🆕 v6.1.0: SubscriptionLevelManager 연동 (2026-02-04)
+ *   - Panel 열림/닫힘 시 EventBus 이벤트 발행
+ *   - 'panel:opened', 'panel:closed' 이벤트로 구독 레벨 자동 전환
+ *   - 선택 설비만 DETAILED 레벨로 구독 (대역폭 94% 절감)
+ * - v6.0.0: 대규모 리팩토링 (2026-01-25)
  *   - PanelCSSConstants.js로 CSS 상수 분리
  *   - DrawerAnimationManager.js로 애니메이션 로직 분리
  *   - SelectionHandler.js로 Selection 처리 로직 분리
@@ -34,7 +38,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/ui/EquipmentInfoPanel.js
  * 작성일: 2026-01-06
- * 수정일: 2026-01-25
+ * 수정일: 2026-02-04
  */
 
 import { debugLog } from '../core/utils/Config.js';
@@ -58,6 +62,25 @@ import { panelManager, PANEL_TYPE } from '../core/navigation/index.js';
 // EventBus 구독
 import { eventBus } from '../core/managers/EventBus.js';
 
+// ============================================
+// 🆕 v6.1.0: Panel EventBus 이벤트 상수
+// ============================================
+
+/**
+ * Panel 관련 EventBus 이벤트 상수
+ * @readonly
+ */
+const PANEL_EVENTS = Object.freeze({
+    /** Panel 열림 이벤트 - SubscriptionLevelManager가 수신 */
+    OPENED: 'panel:opened',
+    
+    /** Panel 닫힘 이벤트 - SubscriptionLevelManager가 수신 */
+    CLOSED: 'panel:closed',
+    
+    /** Selection 변경 이벤트 - SubscriptionLevelManager가 수신 */
+    SELECTION_CHANGED: 'equipment:selection-changed'
+});
+
 /**
  * 설비 상세 정보 패널 클래스 (Coordinator)
  */
@@ -74,6 +97,9 @@ export class EquipmentInfoPanel {
     
     /** @deprecated PANEL_ANIMATION 사용 권장 */
     static ANIMATION = PANEL_ANIMATION;
+    
+    /** 🆕 v6.1.0: Panel 이벤트 상수 */
+    static EVENTS = PANEL_EVENTS;
     
     // =========================================================================
     // 생성자
@@ -101,6 +127,12 @@ export class EquipmentInfoPanel {
             currentTab: TAB_NAMES.GENERAL
         };
         
+        /**
+         * 🆕 v6.1.0: 현재 선택된 설비 ID 목록 (SubscriptionLevelManager 연동용)
+         * @type {string[]}
+         */
+        this._selectedFrontendIds = [];
+        
         // 자식 컴포넌트
         this.cache = new DataCache({ expiry: options.cacheExpiry || 30000 });
         this.headerStatus = null;
@@ -118,7 +150,7 @@ export class EquipmentInfoPanel {
         this._eventSubscriptions = [];
         
         this._init();
-        debugLog('📊 EquipmentInfoPanel initialized (v6.0.0 - Refactored)');
+        debugLog('📊 [EquipmentInfoPanel] initialized (v6.1.0 - SubscriptionLevelManager 연동)');
     }
     
     // =========================================================================
@@ -145,6 +177,7 @@ export class EquipmentInfoPanel {
         
         // 분리된 매니저 초기화
         this.animator = new DrawerAnimationManager(this.panelEl, {
+            onShowComplete: () => this._onShowComplete(),  // 🆕 v6.1.0
             onHideComplete: () => this._onHideComplete()
         });
         
@@ -167,7 +200,7 @@ export class EquipmentInfoPanel {
         
         // PanelManager에 인스턴스 등록
         panelManager.registerInstance(PANEL_TYPE.EQUIPMENT_INFO, this);
-        debugLog('📊 EquipmentInfoPanel registered with PanelManager');
+        debugLog('📊 [EquipmentInfoPanel] registered with PanelManager');
     }
     
     _setupEventListeners() {
@@ -181,19 +214,19 @@ export class EquipmentInfoPanel {
     _setupEventBusSubscriptions() {
         // equipment:detail:show 이벤트 구독
         const detailShowUnsub = eventBus.on('equipment:detail:show', (data) => {
-            debugLog('📊 EventBus: equipment:detail:show 수신', data);
+            debugLog('📊 [EquipmentInfoPanel] EventBus: equipment:detail:show 수신', data);
             this._handleDetailShowEvent(data);
         });
         this._eventSubscriptions.push(detailShowUnsub);
         
         // equipment:detail:hide 이벤트 구독
         const detailHideUnsub = eventBus.on('equipment:detail:hide', () => {
-            debugLog('📊 EventBus: equipment:detail:hide 수신');
+            debugLog('📊 [EquipmentInfoPanel] EventBus: equipment:detail:hide 수신');
             this.hide();
         });
         this._eventSubscriptions.push(detailHideUnsub);
         
-        debugLog('📊 EventBus 구독 설정 완료');
+        debugLog('📊 [EquipmentInfoPanel] EventBus 구독 설정 완료');
     }
     
     _handleDetailShowEvent(data) {
@@ -239,7 +272,7 @@ export class EquipmentInfoPanel {
     setEquipmentEditState(equipmentEditState) {
         this.equipmentEditState = equipmentEditState;
         this.selectionHandler?.setEquipmentEditState(equipmentEditState);
-        debugLog('🔗 EquipmentEditState connected');
+        debugLog('🔗 [EquipmentInfoPanel] EquipmentEditState connected');
     }
     
     /**
@@ -249,7 +282,7 @@ export class EquipmentInfoPanel {
     async show(equipmentData) {
         // 애니메이션 중이면 무시
         if (this.animator?.isAnimating()) {
-            debugLog('⚠️ 애니메이션 진행 중 - show() 무시');
+            debugLog('⚠️ [EquipmentInfoPanel] 애니메이션 진행 중 - show() 무시');
             return;
         }
         
@@ -263,9 +296,14 @@ export class EquipmentInfoPanel {
         // PanelManager에 열기 등록
         const allowed = panelManager.registerOpen(PANEL_TYPE.EQUIPMENT_INFO);
         if (!allowed) {
-            debugLog('⚠️ EquipmentInfoPanel은 현재 모드에서 허용되지 않음');
+            debugLog('⚠️ [EquipmentInfoPanel] 현재 모드에서 허용되지 않음');
             return;
         }
+        
+        // 🆕 v6.1.0: 선택된 설비 ID 목록 저장 (SubscriptionLevelManager 연동용)
+        this._selectedFrontendIds = dataArray.map(item => 
+            item.frontendId || item.id || item.equipmentId
+        ).filter(Boolean);
         
         // 콜백 정의
         const callbacks = {
@@ -283,7 +321,7 @@ export class EquipmentInfoPanel {
         // 패널 표시
         this.animator?.show();
         
-        debugLog('📊 EquipmentInfoPanel shown');
+        debugLog(`📊 [EquipmentInfoPanel] shown (${this._selectedFrontendIds.length} 설비 선택)`);
     }
     
     /**
@@ -322,7 +360,15 @@ export class EquipmentInfoPanel {
     clearCache() {
         this.cache.clear();
         this.selectionHandler?.clearState();
-        debugLog('🗑️ Cache cleared');
+        debugLog('🗑️ [EquipmentInfoPanel] Cache cleared');
+    }
+    
+    /**
+     * 🆕 v6.1.0: 현재 선택된 설비 ID 목록 반환
+     * @returns {string[]} 선택된 설비 frontend_id 배열
+     */
+    getSelectedFrontendIds() {
+        return [...this._selectedFrontendIds];
     }
     
     /**
@@ -352,7 +398,67 @@ export class EquipmentInfoPanel {
         // PanelManager에서 인스턴스 해제
         panelManager.unregisterInstance(PANEL_TYPE.EQUIPMENT_INFO);
         
-        debugLog('📊 EquipmentInfoPanel disposed');
+        debugLog('📊 [EquipmentInfoPanel] disposed');
+    }
+    
+    // =========================================================================
+    // 🆕 v6.1.0: SubscriptionLevelManager 연동 메서드
+    // =========================================================================
+    
+    /**
+     * Panel 열림 완료 시 호출 (애니메이션 완료 후)
+     * → SubscriptionLevelManager에 panel:opened 이벤트 발행
+     * → 선택 설비만 DETAILED 레벨로 구독 전환
+     * @private
+     */
+    _onShowComplete() {
+        // 🔴 CRITICAL: panel:opened 이벤트 발행
+        // SubscriptionLevelManager가 이 이벤트를 수신하여 구독 레벨 변경
+        eventBus.emit(PANEL_EVENTS.OPENED, {
+            panelType: PANEL_TYPE.EQUIPMENT_INFO,
+            selectedIds: this._selectedFrontendIds,
+            selectedCount: this._selectedFrontendIds.length,
+            timestamp: Date.now()
+        });
+        
+        console.log(
+            `📊 [EquipmentInfoPanel] panel:opened 발행 → ` +
+            `DETAILED 레벨 구독 요청 [${this._selectedFrontendIds.join(', ')}]`
+        );
+    }
+    
+    /**
+     * Panel 닫힘 완료 시 호출 (애니메이션 완료 후)
+     * → SubscriptionLevelManager에 panel:closed 이벤트 발행
+     * → 전체 설비 MINIMAL 레벨로 복귀
+     * @private
+     */
+    _onHideComplete() {
+        // 이전에 선택된 ID 보존 (이벤트 전송용)
+        const previousSelectedIds = [...this._selectedFrontendIds];
+        
+        // 상태 정리
+        this.selectionHandler?.clearState();
+        this.generalTab?.stopTimer();
+        this._selectedFrontendIds = [];
+        
+        // PanelManager에서 열림 상태 해제
+        panelManager._openPanels.delete(PANEL_TYPE.EQUIPMENT_INFO);
+        
+        // 🔴 CRITICAL: panel:closed 이벤트 발행
+        // SubscriptionLevelManager가 이 이벤트를 수신하여 구독 레벨 복원
+        eventBus.emit(PANEL_EVENTS.CLOSED, {
+            panelType: PANEL_TYPE.EQUIPMENT_INFO,
+            previousSelectedIds: previousSelectedIds,
+            timestamp: Date.now()
+        });
+        
+        console.log(
+            `📊 [EquipmentInfoPanel] panel:closed 발행 → ` +
+            `MINIMAL 레벨로 복귀`
+        );
+        
+        debugLog('📊 [EquipmentInfoPanel] hidden (state cleared)');
     }
     
     // =========================================================================
@@ -371,16 +477,6 @@ export class EquipmentInfoPanel {
         this.animator?.showLoading();
         this.generalTab?.showLoading();
         this.pcInfoTab?.showLoading();
-    }
-    
-    _onHideComplete() {
-        this.selectionHandler?.clearState();
-        this.generalTab?.stopTimer();
-        
-        // PanelManager에서 열림 상태 해제
-        panelManager._openPanels.delete(PANEL_TYPE.EQUIPMENT_INFO);
-        
-        debugLog('📊 EquipmentInfoPanel hidden (state cleared)');
     }
     
     // =========================================================================
