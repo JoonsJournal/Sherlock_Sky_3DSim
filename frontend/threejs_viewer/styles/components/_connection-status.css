@@ -1,0 +1,443 @@
+/**
+ * _connection-status.css
+ * ======================
+ * WebSocket 연결 상태 표시 UI 스타일
+ * 
+ * @version 1.0.0
+ * @description
+ * - Site별 연결 상태 인디케이터
+ * - 연결 품질 배지
+ * - 재연결 상태 애니메이션
+ * 
+ * @changelog
+ * - v1.0.0: Phase 3 - WebSocket Pool Manager UI (2026-02-04)
+ * 
+ * 📁 위치: frontend/threejs_viewer/styles/components/_connection-status.css
+ * 작성일: 2026-02-04
+ * 수정일: 2026-02-04
+ */
+
+/* ============================================
+   CSS Variables (Design Tokens)
+   ============================================ */
+
+:root {
+    /* Connection State Colors */
+    --connection-disconnected: #6c757d;
+    --connection-connecting: #ffc107;
+    --connection-summary: #17a2b8;
+    --connection-full: #28a745;
+    --connection-paused: #6c757d;
+    --connection-reconnecting: #fd7e14;
+    --connection-error: #dc3545;
+    
+    /* Quality Colors */
+    --quality-excellent: #28a745;
+    --quality-good: #17a2b8;
+    --quality-fair: #ffc107;
+    --quality-poor: #dc3545;
+    
+    /* Animation Durations */
+    --connection-transition: 0.3s;
+    --pulse-duration: 1.5s;
+}
+
+/* ============================================
+   Connection Status Indicator
+   ============================================ */
+
+.connection-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all var(--connection-transition) ease;
+}
+
+/* Indicator Dot */
+.connection-status__dot {
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 50%;
+    transition: background-color var(--connection-transition) ease;
+}
+
+/* Label */
+.connection-status__label {
+    color: inherit;
+    white-space: nowrap;
+}
+
+/* ============================================
+   State Modifiers
+   ============================================ */
+
+/* Disconnected */
+.connection-status--disconnected {
+    background-color: rgba(108, 117, 125, 0.15);
+    color: var(--connection-disconnected);
+}
+
+.connection-status--disconnected .connection-status__dot {
+    background-color: var(--connection-disconnected);
+}
+
+/* Connecting */
+.connection-status--connecting {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: var(--connection-connecting);
+}
+
+.connection-status--connecting .connection-status__dot {
+    background-color: var(--connection-connecting);
+    animation: pulse var(--pulse-duration) ease-in-out infinite;
+}
+
+/* Summary Connected */
+.connection-status--summary {
+    background-color: rgba(23, 162, 184, 0.15);
+    color: var(--connection-summary);
+}
+
+.connection-status--summary .connection-status__dot {
+    background-color: var(--connection-summary);
+}
+
+/* Full Connected */
+.connection-status--full {
+    background-color: rgba(40, 167, 69, 0.15);
+    color: var(--connection-full);
+}
+
+.connection-status--full .connection-status__dot {
+    background-color: var(--connection-full);
+    animation: pulse-subtle var(--pulse-duration) ease-in-out infinite;
+}
+
+/* Paused */
+.connection-status--paused {
+    background-color: rgba(108, 117, 125, 0.15);
+    color: var(--connection-paused);
+}
+
+.connection-status--paused .connection-status__dot {
+    background-color: var(--connection-paused);
+    opacity: 0.6;
+}
+
+/* Reconnecting */
+.connection-status--reconnecting {
+    background-color: rgba(253, 126, 20, 0.15);
+    color: var(--connection-reconnecting);
+}
+
+.connection-status--reconnecting .connection-status__dot {
+    background-color: var(--connection-reconnecting);
+    animation: spin 1s linear infinite;
+}
+
+/* Error */
+.connection-status--error {
+    background-color: rgba(220, 53, 69, 0.15);
+    color: var(--connection-error);
+}
+
+.connection-status--error .connection-status__dot {
+    background-color: var(--connection-error);
+    animation: pulse-error 0.8s ease-in-out infinite;
+}
+
+/* ============================================
+   Connection Quality Badge
+   ============================================ */
+
+.connection-quality {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+/* Quality Levels */
+.connection-quality--excellent {
+    background-color: rgba(40, 167, 69, 0.15);
+    color: var(--quality-excellent);
+}
+
+.connection-quality--good {
+    background-color: rgba(23, 162, 184, 0.15);
+    color: var(--quality-good);
+}
+
+.connection-quality--fair {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: var(--quality-fair);
+}
+
+.connection-quality--poor {
+    background-color: rgba(220, 53, 69, 0.15);
+    color: var(--quality-poor);
+}
+
+.connection-quality--disconnected {
+    background-color: rgba(108, 117, 125, 0.15);
+    color: var(--connection-disconnected);
+}
+
+/* ============================================
+   Connection Panel
+   ============================================ */
+
+.connection-panel {
+    background-color: var(--surface-elevated, #1e1e1e);
+    border: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.connection-panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+}
+
+.connection-panel__title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary, #e0e0e0);
+    margin: 0;
+}
+
+.connection-panel__sites {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Site Item */
+.connection-site {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--surface-default, #252525);
+    border-radius: 0.375rem;
+    transition: background-color var(--connection-transition) ease;
+}
+
+.connection-site:hover {
+    background-color: var(--surface-hover, #2a2a2a);
+}
+
+.connection-site__info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.connection-site__flag {
+    font-size: 1rem;
+}
+
+.connection-site__name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary, #e0e0e0);
+}
+
+.connection-site__stats {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.connection-site__latency {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #a0a0a0);
+}
+
+/* ============================================
+   Reconnect Button
+   ============================================ */
+
+.btn-reconnect {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border: none;
+    border-radius: 0.375rem;
+    background-color: var(--connection-reconnecting);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--connection-transition) ease;
+}
+
+.btn-reconnect:hover {
+    background-color: #e06d15;
+    transform: translateY(-1px);
+}
+
+.btn-reconnect:active {
+    transform: translateY(0);
+}
+
+.btn-reconnect:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-reconnect--loading .btn-reconnect__icon {
+    animation: spin 1s linear infinite;
+}
+
+/* ============================================
+   Summary Footer (Connection Status)
+   ============================================ */
+
+.connection-summary {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 0.75rem 1rem;
+    background-color: var(--surface-elevated, #1e1e1e);
+    border-top: 1px solid var(--border-default, rgba(255, 255, 255, 0.1));
+}
+
+.connection-summary__item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.connection-summary__label {
+    color: var(--text-secondary, #a0a0a0);
+}
+
+.connection-summary__value {
+    font-weight: 600;
+    color: var(--text-primary, #e0e0e0);
+}
+
+.connection-summary__value--success {
+    color: var(--connection-full);
+}
+
+.connection-summary__value--warning {
+    color: var(--connection-reconnecting);
+}
+
+.connection-summary__value--error {
+    color: var(--connection-error);
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(1.1);
+    }
+}
+
+@keyframes pulse-subtle {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@keyframes pulse-error {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: scale(0.95);
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+
+@media (max-width: 768px) {
+    .connection-summary {
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    
+    .connection-panel__sites {
+        gap: 0.375rem;
+    }
+    
+    .connection-site {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .connection-site__stats {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* ============================================
+   Dark Theme Overrides
+   ============================================ */
+
+[data-theme="dark"] .connection-status {
+    --connection-disconnected: #9e9e9e;
+}
+
+/* ============================================
+   Accessibility
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    .connection-status__dot,
+    .btn-reconnect__icon {
+        animation: none;
+    }
+    
+    .connection-status,
+    .connection-site,
+    .btn-reconnect {
+        transition: none;
+    }
+}
