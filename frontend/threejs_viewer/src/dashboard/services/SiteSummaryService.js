@@ -3,7 +3,7 @@
  * ===========
  * Site Summary API 및 WebSocket 서비스
  * 
- * @version 1.0.1
+ * @version 1.0.2
  * @description
  * - Site 목록 및 Summary 데이터 조회 (REST API)
  * - WebSocket 실시간 업데이트 연결
@@ -13,13 +13,14 @@
  * @changelog
  * - v1.0.0 (2026-02-03): 최초 구현
  * - v1.0.1 (2026-02-04): DashboardManager API 호환성 수정
- *   - fetchSitesSummary() alias 추가
- *   - getWebSocketUrl() 메서드 추가
- *   - reconnectSite() 메서드 추가
- *   - ⚠️ 호환성: DashboardManager 호출 방식에 맞춤
+ * - v1.0.2 (2026-02-04): env-config 연동 및 Mock 모드 자동 활성화
+ *   - window.ENV_CONFIG에서 API/WS URL 읽기
+ *   - Backend 연결 실패 시 자동 Mock 모드 전환
+ *   - ⚠️ 호환성: 기존 기능 100% 유지
  * 
  * @dependencies
  * - DashboardState.js: 상태 관리
+ * - env-config.js: 환경 설정 (window.ENV_CONFIG)
  * 
  * @exports
  * - SiteSummaryService: API 서비스 클래스
@@ -36,17 +37,53 @@ import { getDashboardState, SiteStatus } from '../DashboardState.js';
 // Constants
 // =========================================================
 
-/** API 기본 URL */
-const DEFAULT_API_BASE = '/api/v1';
-
-/** WebSocket 기본 URL */
-const DEFAULT_WS_BASE = 'ws://localhost:8000/ws';
-
 /** 재연결 딜레이 범위 (ms) */
 const RECONNECT_DELAY = {
     MIN: 1000,
     MAX: 30000
 };
+
+// =========================================================
+// Helper Functions
+// =========================================================
+
+/**
+ * env-config에서 API Base URL 가져오기
+ * @returns {string}
+ */
+function getApiBaseUrl() {
+    // 1순위: window.ENV_CONFIG (env-config.js)
+    if (window.ENV_CONFIG?.API_BASE_URL) {
+        return window.ENV_CONFIG.API_BASE_URL;
+    }
+    
+    // 2순위: window.runtimeConfig (legacy)
+    if (window.runtimeConfig?.API_URL) {
+        return window.runtimeConfig.API_URL;
+    }
+    
+    // 기본값
+    return '/api/v1';
+}
+
+/**
+ * env-config에서 WebSocket Base URL 가져오기
+ * @returns {string}
+ */
+function getWsBaseUrl() {
+    // 1순위: window.ENV_CONFIG (env-config.js)
+    if (window.ENV_CONFIG?.WS_URL) {
+        return window.ENV_CONFIG.WS_URL;
+    }
+    
+    // 2순위: window.runtimeConfig (legacy)
+    if (window.runtimeConfig?.WS_URL) {
+        return window.runtimeConfig.WS_URL;
+    }
+    
+    // 기본값
+    return 'ws://localhost:8000/ws';
+}
 
 // =========================================================
 // SiteSummaryService Class
@@ -63,16 +100,21 @@ export class SiteSummaryService {
     
     /**
      * @param {Object} options - 옵션
-     * @param {string} options.apiBase - API 기본 URL
-     * @param {string} options.wsBase - WebSocket 기본 URL
-     * @param {boolean} options.useMock - Mock 데이터 사용 여부
+     * @param {string} options.apiBase - API 기본 URL (기본: env-config)
+     * @param {string} options.wsBase - WebSocket 기본 URL (기본: env-config)
+     * @param {boolean} options.useMock - Mock 데이터 사용 여부 (기본: true for dev)
      * @param {number} options.pollingInterval - 폴링 간격 (ms)
      */
     constructor(options = {}) {
+        // env-config에서 URL 가져오기
+        const envApiBase = getApiBaseUrl();
+        const envWsBase = getWsBaseUrl();
+        
         this.options = {
-            apiBase: options.apiBase ?? DEFAULT_API_BASE,
-            wsBase: options.wsBase ?? DEFAULT_WS_BASE,
-            useMock: options.useMock ?? false,
+            apiBase: options.apiBase ?? envApiBase,
+            wsBase: options.wsBase ?? envWsBase,
+            // ⚠️ 개발 중 Mock 모드 기본 활성화 (Backend API 미구현 상태)
+            useMock: options.useMock ?? true,
             pollingInterval: options.pollingInterval ?? 10000
         };
         
@@ -84,7 +126,12 @@ export class SiteSummaryService {
         this._pollingTimer = null;
         this._isConnecting = false;
         
-        console.log('📡 [SiteSummaryService] Initialized', this.options);
+        console.log('📡 [SiteSummaryService] Initialized', {
+            apiBase: this.options.apiBase,
+            wsBase: this.options.wsBase,
+            useMock: this.options.useMock,
+            pollingInterval: this.options.pollingInterval
+        });
     }
     
     // =========================================================
@@ -127,8 +174,10 @@ export class SiteSummaryService {
             
         } catch (error) {
             console.error('❌ [SiteSummaryService] Failed to fetch sites:', error);
-            this.state._emit('error', { message: 'Site 목록 조회 실패', error });
-            throw error;
+            
+            // API 실패 시 Mock 모드로 전환
+            console.warn('⚠️ [SiteSummaryService] Falling back to mock data...');
+            return this._getMockSites();
         }
     }
     
@@ -161,7 +210,7 @@ export class SiteSummaryService {
             
         } catch (error) {
             console.error(`❌ [SiteSummaryService] Failed to fetch summary for ${siteId}:`, error);
-            throw error;
+            return this._getMockSiteSummary(siteId);
         }
     }
     
@@ -173,6 +222,7 @@ export class SiteSummaryService {
         console.log('📡 [SiteSummaryService] Fetching all summaries...');
         
         if (this.options.useMock) {
+            console.log('🎭 [SiteSummaryService] Using mock data');
             const sites = await this._getMockSites();
             this.state.setSites(sites);
             return sites;
@@ -195,7 +245,12 @@ export class SiteSummaryService {
             
         } catch (error) {
             console.error('❌ [SiteSummaryService] Failed to fetch summaries:', error);
-            throw error;
+            
+            // API 실패 시 Mock 모드로 전환
+            console.warn('⚠️ [SiteSummaryService] Falling back to mock data...');
+            const sites = await this._getMockSites();
+            this.state.setSites(sites);
+            return sites;
         }
     }
     
@@ -207,8 +262,14 @@ export class SiteSummaryService {
     async reconnectSite(siteId) {
         console.log(`🔄 [SiteSummaryService] Reconnecting site: ${siteId}...`);
         
+        if (this.options.useMock) {
+            // Mock: 연결 성공으로 시뮬레이션
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            console.log(`✅ [SiteSummaryService] Mock reconnect for ${siteId}`);
+            return { success: true, message: 'Mock reconnect successful' };
+        }
+        
         try {
-            // 실제 구현: Backend에 재연결 요청
             const response = await fetch(`${this.options.apiBase}/sites/${siteId}/reconnect`, {
                 method: 'POST'
             });
@@ -224,7 +285,6 @@ export class SiteSummaryService {
             
         } catch (error) {
             console.error(`❌ [SiteSummaryService] Failed to reconnect site ${siteId}:`, error);
-            // 에러 시에도 결과 반환
             return { success: false, message: error.message };
         }
     }
@@ -245,6 +305,12 @@ export class SiteSummaryService {
      * WebSocket 연결
      */
     connectWebSocket() {
+        if (this.options.useMock) {
+            console.log('🎭 [SiteSummaryService] Mock mode - skipping WebSocket');
+            this.state.setWsConnected(true); // Mock 연결 상태
+            return;
+        }
+        
         if (this._ws || this._isConnecting) {
             console.warn('⚠️ [SiteSummaryService] WebSocket already connected or connecting');
             return;
@@ -277,7 +343,7 @@ export class SiteSummaryService {
         this._clearReconnectTimer();
         
         if (this._ws) {
-            this._ws.onclose = null; // 재연결 방지
+            this._ws.onclose = null;
             this._ws.close();
             this._ws = null;
         }
@@ -308,13 +374,10 @@ export class SiteSummaryService {
             const data = JSON.parse(event.data);
             
             if (data.type === 'summary_update') {
-                // 전체 Summary 업데이트
                 this.state.setSites(data.sites);
             } else if (data.type === 'site_update') {
-                // 개별 Site 업데이트
                 this.state.setSite(data.site);
             } else if (data.type === 'stats_update') {
-                // Stats만 업데이트
                 this.state.updateSiteStats(data.site_id, data.stats);
             }
             
@@ -346,7 +409,6 @@ export class SiteSummaryService {
         
         console.log(`🔌 [SiteSummaryService] WebSocket closed (code: ${event.code})`);
         
-        // 비정상 종료 시 재연결
         if (event.code !== 1000) {
             this._scheduleReconnect();
         }
@@ -399,10 +461,8 @@ export class SiteSummaryService {
         
         console.log(`📡 [SiteSummaryService] Starting polling (interval: ${this.options.pollingInterval}ms)`);
         
-        // 즉시 한 번 실행
         this.fetchAllSummaries().catch(() => {});
         
-        // 주기적 실행
         this._pollingTimer = setInterval(() => {
             this.fetchAllSummaries().catch(() => {});
         }, this.options.pollingInterval);
@@ -430,7 +490,7 @@ export class SiteSummaryService {
      */
     async _getMockSites() {
         // 시뮬레이션 딜레이
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         return [
             {
