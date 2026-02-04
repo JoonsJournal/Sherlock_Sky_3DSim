@@ -3,9 +3,9 @@
 <!--
  * dashboard.html - Multi-Site Dashboard Entry Point
  * 
- * @version 1.0.1
+ * @version 1.0.2
  * @created 2026-02-03
- * @modified 2026-02-03
+ * @modified 2026-02-04
  * @phase Phase 2: Site Dashboard 구현
  * 
  * @description
@@ -16,15 +16,19 @@
  * 
  * @dependencies
  * - styles/main.css: 전역 스타일
- * - src/styles/components/dashboard/_dashboard.css: Dashboard 전용 스타일
- * - src/dashboard/index.js: Dashboard 모듈
+ * - styles/components/dashboard/_dashboard.css: Dashboard 전용 스타일
+ * - src/dashboard/components/index.js: Dashboard 모듈
  * - public/env-config.js: 환경 설정
  * 
  * @changelog
  * - v1.0.0 (2026-02-03): 최초 구현
  * - v1.0.1 (2026-02-03): 인라인 스타일 제거, CSS 파일로 분리
+ * - v1.0.2 (2026-02-04): CSS/JS 경로 오류 수정
+ *   - CSS: src/styles/... → styles/...
+ *   - JS: src/dashboard/index.js → src/dashboard/components/index.js
+ *   - ⚠️ 호환성: 기존 기능 100% 유지
  * 
- * 위치: frontend/threejs_viewer/dashboard.html
+ * 📁 위치: frontend/threejs_viewer/dashboard.html
 -->
 
 <head>
@@ -41,7 +45,8 @@
     <link rel="stylesheet" href="styles/main.css">
     
     <!-- Dashboard CSS (가이드라인 준수 - Design Token 사용) -->
-    <link rel="stylesheet" href="src/styles/components/dashboard/_dashboard.css">
+    <!-- ✅ v1.0.2: 경로 수정 (src/styles/... → styles/...) -->
+    <link rel="stylesheet" href="styles/components/dashboard/_dashboard.css">
     
     <!-- 최소한의 기본 스타일만 인라인 유지 -->
     <style>
@@ -146,10 +151,11 @@
         setInterval(updateHeaderTime, 1000);
         updateHeaderTime();
         
-        console.log('🏭 SHERLOCK SKY - Multi-Site Dashboard v1.0.1');
+        console.log('🏭 SHERLOCK SKY - Multi-Site Dashboard v1.0.2');
     </script>
     
     <!-- Main Dashboard Module (ES Module) -->
-    <script type="module" src="./src/dashboard/index.js"></script>
+    <!-- ✅ v1.0.2: 경로 수정 (src/dashboard/index.js → src/dashboard/components/index.js) -->
+    <script type="module" src="./src/dashboard/components/index.js"></script>
 </body>
 </html>
