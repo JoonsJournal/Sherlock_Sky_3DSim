@@ -3,7 +3,7 @@
  * ===========
  * Site Summary API 및 WebSocket 서비스
  * 
- * @version 1.0.0
+ * @version 1.0.1
  * @description
  * - Site 목록 및 Summary 데이터 조회 (REST API)
  * - WebSocket 실시간 업데이트 연결
@@ -12,10 +12,11 @@
  * 
  * @changelog
  * - v1.0.0 (2026-02-03): 최초 구현
- *   - REST API 호출
- *   - WebSocket 연결 관리
- *   - Mock 데이터 지원
- *   - ⚠️ 호환성: 신규 서비스
+ * - v1.0.1 (2026-02-04): DashboardManager API 호환성 수정
+ *   - fetchSitesSummary() alias 추가
+ *   - getWebSocketUrl() 메서드 추가
+ *   - reconnectSite() 메서드 추가
+ *   - ⚠️ 호환성: DashboardManager 호출 방식에 맞춤
  * 
  * @dependencies
  * - DashboardState.js: 상태 관리
@@ -26,7 +27,7 @@
  * 
  * 📁 위치: frontend/threejs_viewer/src/dashboard/services/SiteSummaryService.js
  * 작성일: 2026-02-03
- * 수정일: 2026-02-03
+ * 수정일: 2026-02-04
  */
 
 import { getDashboardState, SiteStatus } from '../DashboardState.js';
@@ -89,6 +90,14 @@ export class SiteSummaryService {
     // =========================================================
     // REST API Methods
     // =========================================================
+    
+    /**
+     * Site Summary 조회 (DashboardManager 호환 alias)
+     * @returns {Promise<Array>}
+     */
+    async fetchSitesSummary() {
+        return this.fetchAllSummaries();
+    }
     
     /**
      * Site 목록 조회
@@ -190,9 +199,47 @@ export class SiteSummaryService {
         }
     }
     
+    /**
+     * Site 재연결 시도 (DashboardManager 호환)
+     * @param {string} siteId - Site ID
+     * @returns {Promise<Object>}
+     */
+    async reconnectSite(siteId) {
+        console.log(`🔄 [SiteSummaryService] Reconnecting site: ${siteId}...`);
+        
+        try {
+            // 실제 구현: Backend에 재연결 요청
+            const response = await fetch(`${this.options.apiBase}/sites/${siteId}/reconnect`, {
+                method: 'POST'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            console.log(`✅ [SiteSummaryService] Site ${siteId} reconnect: ${data.success}`);
+            return data;
+            
+        } catch (error) {
+            console.error(`❌ [SiteSummaryService] Failed to reconnect site ${siteId}:`, error);
+            // 에러 시에도 결과 반환
+            return { success: false, message: error.message };
+        }
+    }
+    
     // =========================================================
     // WebSocket Methods
     // =========================================================
+    
+    /**
+     * WebSocket URL 가져오기 (DashboardManager 호환)
+     * @returns {string}
+     */
+    getWebSocketUrl() {
+        return `${this.options.wsBase}/dashboard/summary`;
+    }
     
     /**
      * WebSocket 연결
@@ -206,7 +253,7 @@ export class SiteSummaryService {
         this._isConnecting = true;
         
         try {
-            const wsUrl = `${this.options.wsBase}/dashboard/summary`;
+            const wsUrl = this.getWebSocketUrl();
             console.log(`📡 [SiteSummaryService] Connecting to WebSocket: ${wsUrl}`);
             
             this._ws = new WebSocket(wsUrl);
