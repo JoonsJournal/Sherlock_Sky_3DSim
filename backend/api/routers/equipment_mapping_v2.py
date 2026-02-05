@@ -8,8 +8,13 @@ Connection Manager와 통합된 Multi-Site 매핑 관리
 - Site ID 형식: {site_name}_{db_name} (예: korea_site1_line1)
 """
 
-# @version 1.1.0
+# @version 1.1.1
 # @changelog
+# - v1.1.1: 🐛 MappingItem line_name field_validator 추가 (2026-02-05)
+#           - line_name: int → str 자동 변환 (Pydantic validation 오류 해결)
+#           - DBEquipmentItem에도 동일 validator 적용
+#           - equipment_code에도 방어적 validator 추가
+#           - ⚠️ 호환성: 기존 모든 API 100% 유지
 # - v1.1.0: 🆕 Mapping Status 신규 API 추가 (2026-01-29)
 #           - GET /db-equipments/{site_id}/{db_name} - DB 설비 목록 조회
 #           - POST /save-mapping/{site_id}/{db_name} - 매핑 저장 (간소화)
@@ -18,11 +23,11 @@ Connection Manager와 통합된 Multi-Site 매핑 관리
 # - v1.0.0: 초기 버전 (Multi-Site 매핑 관리)
 #
 # 📁 위치: backend/api/routers/equipment_mapping_v2.py
-# 수정일: 2026-01-29
+# 수정일: 2026-02-05
 
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Dict, Optional, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 import logging
 import json
 import os
@@ -52,6 +57,22 @@ class MappingItem(BaseModel):
     equipment_name: str    # DB Equipment Name
     equipment_code: Optional[str] = None
     line_name: Optional[str] = None
+
+    @field_validator('line_name', mode='before')
+    @classmethod
+    def coerce_line_name(cls, v):
+        """line_name: int → str 자동 변환 (DB에서 int로 올 수 있음)"""
+        if v is None:
+            return None
+        return str(v)
+
+    @field_validator('equipment_code', mode='before')
+    @classmethod
+    def coerce_equipment_code(cls, v):
+        """equipment_code: int → str 방어적 변환"""
+        if v is None:
+            return None
+        return str(v)
 
 
 class SiteMappingConfig(BaseModel):
@@ -102,6 +123,22 @@ class DBEquipmentItem(BaseModel):
     equipment_name: str
     line_name: Optional[str] = None
     equipment_code: Optional[str] = None
+
+    @field_validator('line_name', mode='before')
+    @classmethod
+    def coerce_line_name(cls, v):
+        """line_name: int → str 자동 변환"""
+        if v is None:
+            return None
+        return str(v)
+
+    @field_validator('equipment_code', mode='before')
+    @classmethod
+    def coerce_equipment_code(cls, v):
+        """equipment_code: int → str 방어적 변환"""
+        if v is None:
+            return None
+        return str(v)
 
 
 class DBEquipmentsResponse(BaseModel):
