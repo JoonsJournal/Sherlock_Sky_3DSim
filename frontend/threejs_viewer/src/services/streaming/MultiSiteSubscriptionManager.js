@@ -26,7 +26,7 @@
  * 작성일: 2026-02-04
  */
 
-import { eventBus } from '../EventBus.js';
+import { eventBus } from '../../core/managers/EventBus.js';
 
 // =============================================================================
 // 상수 정의

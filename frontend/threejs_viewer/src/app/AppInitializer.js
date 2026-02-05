@@ -220,6 +220,16 @@ import {
 } from '../scene/index.js';
 
 // ============================================
+// Streaming Import (Context-Aware Streaming)
+// ============================================
+import {
+    getSubscriptionLevelManager,
+    resetSubscriptionLevelManager,
+    DATA_SUBSCRIPTION_LEVEL,
+    UI_CONTEXT_SUBSCRIPTION_MAP
+} from '../services/streaming/index.js';
+
+// ============================================
 // UDS Import
 // ============================================
 import { unifiedDataStore, UnifiedDataStore } from '../services/uds/index.js';
@@ -589,6 +599,20 @@ export class AppInitializer {
         // screenManager 이벤트 연결
         setupScreenManagerEvents();
         console.log('  ✅ screenManager 이벤트 연결 완료');
+
+        // =====================================================
+        // Context-Aware Streaming: SubscriptionLevelManager 초기화
+        // =====================================================
+        const subscriptionManager = getSubscriptionLevelManager({
+            autoConnect: true  // EventBus 자동 리스너 등록
+        });
+        
+        // APP 네임스페이스 등록
+        register('services.streaming.subscriptionLevelManager', subscriptionManager);
+        register('registry.DATA_SUBSCRIPTION_LEVEL', DATA_SUBSCRIPTION_LEVEL);
+        register('registry.UI_CONTEXT_SUBSCRIPTION_MAP', UI_CONTEXT_SUBSCRIPTION_MAP);
+        
+        console.log('  ✅ SubscriptionLevelManager 초기화 완료 (Context-Aware Streaming)');
         
         // 이벤트 리스너 설정
         const eventHandlers = {
@@ -648,7 +672,8 @@ export class AppInitializer {
             NAV_MODE,
             goTo3DView,
             goToRankingView,
-            goHome
+            goHome,
+            subscriptionLevelManager: getSubscriptionLevelManager()
         }, {
             useDeprecation: USE_DEPRECATION_WARNINGS,
             pathMapping: LEGACY_MIGRATION_MAP
@@ -729,6 +754,9 @@ export class AppInitializer {
         register('ui.coverScreen', this.sidebarUI?.coverScreen);
         
         register('utils.storageService', storageService);
+
+        // Streaming
+        register('services.streaming.subscriptionLevelManager', getSubscriptionLevelManager());
         
         // window.* 전역 노출 (Deprecation 래퍼 적용)
         const globalObjects = {
@@ -775,7 +803,8 @@ export class AppInitializer {
             toggleMonitoringMode,
             toggleConnectionModal,
             toggleDebugPanel,
-            toggleDevMode
+            toggleDevMode,
+            subscriptionLevelManager: getSubscriptionLevelManager()
         };
         
         const migrationResult = migrateGlobalToNamespace(globalObjects, {
@@ -904,6 +933,10 @@ export class AppInitializer {
             this.reconnectionCleanup = null;
         }
         
+        // SubscriptionLevelManager 정리
+        resetSubscriptionLevelManager();
+        console.log('  🗑️ SubscriptionLevelManager 정리 완료');
+
         // Mapping 서비스 정리
         cleanupMappingServices();
         

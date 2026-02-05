@@ -46,6 +46,8 @@ import {
 import { updateModeIndicator } from '../modes/ModeIndicator.js';
 import { sceneController } from '../scene/index.js';
 
+import { getSubscriptionLevelManager } from '../services/streaming/index.js';
+
 // ============================================
 // Connection 이벤트 설정
 // ============================================

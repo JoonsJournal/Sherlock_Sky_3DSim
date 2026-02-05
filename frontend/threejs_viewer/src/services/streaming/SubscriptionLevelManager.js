@@ -691,6 +691,19 @@ export class SubscriptionLevelManager {
         this._unsubscribers.push(unsubModeChange);
         
         // =====================================================
+        // WebSocket 연결 이벤트 구독
+        // WebSocketPoolManager가 연결 성공 시 emit
+        // → WebSocket 인스턴스를 자동으로 수신
+        // =====================================================
+        const unsubWsConnected = eventBus.on('websocket:connected', (data) => {
+            if (data.webSocket) {
+                this.setWebSocketClient(data.webSocket);
+                console.log('📊 [SubscriptionLevelManager] WebSocket 자동 연결됨 (via EventBus)');
+            }
+        });
+        this._unsubscribers.push(unsubWsConnected);
+
+        // =====================================================
         // WebSocket Mode 변경 이벤트 구독 (WebSocketPoolManager와 연동)
         // WebSocketPoolManager의 AppMode가 직접 변경될 때 동기화
         // =====================================================
