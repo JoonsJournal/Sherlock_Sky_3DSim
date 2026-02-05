@@ -9,6 +9,19 @@ Phase 2: Monitoring Mode 초기 상태 API 추가 (2026-01-06)
 - GET /api/monitoring/status/initial - 24시간 기준 초기 상태 조회
 - threshold_hours 파라미터로 설정 가능
 - DISCONNECTED 판별 로직 추가
+
+@version 1.1.0
+@changelog
+- v1.1.0: 🔧 V2 매핑 시스템으로 마이그레이션 (2026-02-05)
+          - load_equipment_mapping() → V2 site_mappings 경로 참조
+          - 활성 사이트 자동 감지 → site_mappings에서 매핑 로드
+          - 레거시 config/equipment_mapping.json fallback 유지
+          - health check에서 V2 매핑 상태 반영
+          - ⚠️ 호환성: 기존 모든 API 100% 유지
+- v1.0.0: 초기 버전
+
+📁 위치: backend/api/monitoring/equipment_status.py
+수정일: 2026-02-05
 """
 
 from fastapi import APIRouter, HTTPException, Query
@@ -24,39 +37,158 @@ router = APIRouter(prefix="/api/monitoring", tags=["Monitoring"])
 
 
 # ============================================
+# Constants
+# ============================================
+
+# V2 매핑 Config 디렉토리
+MAPPING_CONFIG_DIR_V2 = "config/site_mappings"
+
+# 레거시 매핑 파일 (fallback)
+LEGACY_MAPPING_FILE = "config/equipment_mapping.json"
+
+
+# ============================================
 # Helper Functions
 # ============================================
 
-def load_equipment_mapping() -> Dict[int, str]:
+def _get_connected_sites() -> Dict:
     """
-    Equipment Mapping 로드
+    현재 연결된 사이트 목록 가져오기
+    (connection_manager.py의 _connected_sites 참조)
     
     Returns:
-        dict: {equipment_id: frontend_id}
+        dict: {site_id: site_info, ...}
     """
-    mapping_file = 'config/equipment_mapping.json'
+    try:
+        from ..routers.connection_manager import _connected_sites
+        return _connected_sites
+    except ImportError:
+        logger.warning("⚠️ Could not import _connected_sites from connection_manager")
+        return {}
+
+
+def _load_v2_site_mapping(site_id: str) -> Dict[int, str]:
+    """
+    V2 site_mappings에서 매핑 로드
     
-    if not os.path.exists(mapping_file):
-        logger.warning(f"⚠️ Mapping file not found: {mapping_file}")
+    Args:
+        site_id: 예) 'CN_AAAA_Cutting_Sherlock_SherlockSky'
+    
+    Returns:
+        dict: {equipment_id(int): frontend_id(str)}
+    """
+    file_path = os.path.join(MAPPING_CONFIG_DIR_V2, f"equipment_mapping_{site_id}.json")
+    
+    if not os.path.exists(file_path):
+        logger.debug(f"V2 mapping file not found: {file_path}")
         return {}
     
     try:
-        with open(mapping_file, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
-        # frontend_id -> equipment_id 매핑을 equipment_id -> frontend_id로 변환
+        # V2 매핑 구조: { "mappings": { "EQ-01-01": { "equipment_id": 1, ... }, ... } }
+        mappings_data = data.get("mappings", {})
+        
+        # equipment_id → frontend_id 변환
+        mapping = {}
+        for frontend_id, item in mappings_data.items():
+            equipment_id = item.get('equipment_id')
+            if equipment_id is not None:
+                mapping[equipment_id] = frontend_id
+        
+        logger.info(f"✅ V2 mapping loaded for {site_id}: {len(mapping)} items")
+        return mapping
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to load V2 mapping for {site_id}: {e}")
+        return {}
+
+
+def _load_legacy_mapping() -> Dict[int, str]:
+    """
+    레거시 매핑 파일 로드 (fallback)
+    
+    Returns:
+        dict: {equipment_id(int): frontend_id(str)}
+    """
+    if not os.path.exists(LEGACY_MAPPING_FILE):
+        logger.debug(f"Legacy mapping file not found: {LEGACY_MAPPING_FILE}")
+        return {}
+    
+    try:
+        with open(LEGACY_MAPPING_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
         mapping = {}
         for frontend_id, item in data.items():
             equipment_id = item.get('equipment_id')
             if equipment_id:
                 mapping[equipment_id] = frontend_id
         
-        logger.info(f"✓ Equipment mapping loaded: {len(mapping)} items")
+        logger.info(f"✅ Legacy mapping loaded: {len(mapping)} items")
         return mapping
         
     except Exception as e:
-        logger.error(f"❌ Failed to load equipment mapping: {e}")
+        logger.error(f"❌ Failed to load legacy mapping: {e}")
         return {}
+
+
+def load_equipment_mapping() -> Dict[int, str]:
+    """
+    Equipment Mapping 로드 (V2 우선, 레거시 fallback)
+    
+    로드 순서:
+    1. 현재 연결된 사이트의 V2 매핑 (config/site_mappings/)
+    2. config/site_mappings/ 디렉토리의 모든 매핑 파일 중 첫 번째
+    3. 레거시 매핑 (config/equipment_mapping.json) - fallback
+    
+    Returns:
+        dict: {equipment_id(int): frontend_id(str)}
+    """
+    # ============================================
+    # 1️⃣ 연결된 사이트의 V2 매핑 시도
+    # ============================================
+    connected_sites = _get_connected_sites()
+    
+    if connected_sites:
+        for site_id in connected_sites:
+            mapping = _load_v2_site_mapping(site_id)
+            if mapping:
+                logger.info(f"✅ Using V2 mapping for connected site: {site_id}")
+                return mapping
+        
+        logger.debug(f"⚠️ Connected sites found but no V2 mapping: {list(connected_sites.keys())}")
+    
+    # ============================================
+    # 2️⃣ site_mappings 디렉토리에서 탐색
+    # ============================================
+    if os.path.isdir(MAPPING_CONFIG_DIR_V2):
+        try:
+            mapping_files = [
+                f for f in os.listdir(MAPPING_CONFIG_DIR_V2) 
+                if f.startswith("equipment_mapping_") and f.endswith(".json")
+            ]
+            
+            if mapping_files:
+                # 첫 번째 매핑 파일 사용
+                first_file = mapping_files[0]
+                # 파일명에서 site_id 추출: equipment_mapping_{site_id}.json
+                site_id = first_file.replace("equipment_mapping_", "").replace(".json", "")
+                
+                mapping = _load_v2_site_mapping(site_id)
+                if mapping:
+                    logger.info(f"✅ Using V2 mapping from directory scan: {site_id}")
+                    return mapping
+                    
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to scan V2 mapping directory: {e}")
+    
+    # ============================================
+    # 3️⃣ 레거시 fallback
+    # ============================================
+    logger.info("📂 Falling back to legacy mapping file")
+    return _load_legacy_mapping()
 
 
 def get_active_connection():
@@ -182,7 +314,7 @@ async def get_initial_equipment_status(
         # DB 연결 가져오기
         conn, site_id = get_active_connection()
         
-        # Equipment Mapping 로드
+        # Equipment Mapping 로드 (V2 우선)
         equipment_mapping = load_equipment_mapping()
         
         # 현재 시간 (UTC)
@@ -384,7 +516,7 @@ async def get_all_equipment_status():
         # DB 연결 가져오기
         conn, site_id = get_active_connection()
         
-        # Equipment Mapping 로드
+        # Equipment Mapping 로드 (V2 우선)
         equipment_mapping = load_equipment_mapping()
         
         # 커서 생성
@@ -498,7 +630,7 @@ async def get_equipment_status_by_id(
         # DB 연결 가져오기
         conn, site_id = get_active_connection()
         
-        # Equipment Mapping 로드
+        # Equipment Mapping 로드 (V2 우선)
         equipment_mapping = load_equipment_mapping()
         
         # 커서 생성
@@ -587,14 +719,17 @@ async def monitoring_health_check():
     """
     Monitoring API 헬스체크
     
-    Phase 1: 신규 추가 엔드포인트
+    🔧 v1.1.0: V2 매핑 시스템 반영
+    - V2 매핑이 로드되면 mapping_loaded=True
+    - mapping_source 필드 추가 (v2/legacy/none)
     
     Returns:
         dict: {
             "status": "healthy",
             "timestamp": "2025-12-29T12:00:00Z",
             "database_connected": true,
-            "mapping_loaded": true
+            "mapping_loaded": true,
+            "mapping_source": "v2"
         }
     """
     logger.info("💚 GET /api/monitoring/health - 헬스체크 요청")
@@ -608,9 +743,35 @@ async def monitoring_health_check():
         database_connected = False
         site_id = None
     
-    # Mapping 파일 확인
+    # Mapping 확인 (V2 우선)
     mapping = load_equipment_mapping()
     mapping_loaded = len(mapping) > 0
+    
+    # 매핑 소스 판별
+    mapping_source = "none"
+    if mapping_loaded:
+        # V2 매핑이 존재하는지 확인
+        connected_sites = _get_connected_sites()
+        v2_found = False
+        
+        if connected_sites:
+            for sid in connected_sites:
+                v2_path = os.path.join(MAPPING_CONFIG_DIR_V2, f"equipment_mapping_{sid}.json")
+                if os.path.exists(v2_path):
+                    v2_found = True
+                    break
+        
+        if not v2_found and os.path.isdir(MAPPING_CONFIG_DIR_V2):
+            # 디렉토리 스캔으로 V2 파일 확인
+            try:
+                v2_files = [f for f in os.listdir(MAPPING_CONFIG_DIR_V2) 
+                           if f.startswith("equipment_mapping_") and f.endswith(".json")]
+                if v2_files:
+                    v2_found = True
+            except:
+                pass
+        
+        mapping_source = "v2" if v2_found else "legacy"
     
     result = {
         "status": "healthy" if (database_connected and mapping_loaded) else "degraded",
@@ -618,9 +779,10 @@ async def monitoring_health_check():
         "database_connected": database_connected,
         "active_site": site_id,
         "mapping_loaded": mapping_loaded,
+        "mapping_source": mapping_source,
         "mapped_equipment_count": len(mapping)
     }
     
-    logger.info(f"✅ 헬스체크 완료: {result['status']}")
+    logger.info(f"✅ 헬스체크 완료: {result['status']} (mapping_source: {mapping_source})")
     
     return result
