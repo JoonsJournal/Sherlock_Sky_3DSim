@@ -1390,11 +1390,48 @@ export class RankingView {
             this._laneManager.activate();
         }
         
-        // 🆕 v1.5.0: UDS 모드인 경우 데이터 렌더링
-        if (this._useUDS && this._udsInitialized) {
-            this._renderLaneData();
+        // ═══════════════════════════════════════════════════════════════
+        // 🔧 v1.9.0 FIX: UDS Race Condition 해결 (Lazy View 생성 대응)
+        // ═══════════════════════════════════════════════════════════════
+        if (this._useUDS) {
+            // Case 1: 이미 UDS INITIALIZED 이벤트를 정상 수신한 경우
+            if (this._udsInitialized) {
+                console.log('[RankingView] ✅ UDS 이벤트 정상 수신 - 데이터 렌더링');
+                this._renderLaneData();
+                
+            // Case 2: UDS는 초기화됐지만 이벤트를 놓친 경우 (Race Condition)
+            } else if (unifiedDataStore?.isInitialized?.()) {
+                console.log('[RankingView] 🔄 UDS Race Condition 감지 - 능동 복구 시작');
+                
+                // 상태 플래그 업데이트
+                this._udsInitialized = true;
+                
+                // RankingDataManager도 초기화가 안 되어 있으면 수동 초기화
+                if (this._rankingDataManager && !this._rankingDataManager.isUDSInitialized()) {
+                    // UDS에서 전체 설비 데이터 가져오기
+                    const equipments = unifiedDataStore.getAllEquipments();
+                    
+                    if (equipments && equipments.length > 0) {
+                        console.log(`[RankingView]    ↳ ${equipments.length}개 설비 데이터 로드`);
+                        this._rankingDataManager.initializeFromUDS(equipments);
+                    } else {
+                        console.warn('[RankingView] ⚠️ UDS에 설비 데이터 없음');
+                    }
+                }
+                
+                // 데이터 렌더링
+                this._renderLaneData();
+                this.setEmpty(false);
+                this.setLoading(false);
+                console.log('[RankingView] ✅ Race Condition 복구 완료');
+                
+            // Case 3: UDS도 아직 초기화 안 됨 (정상 대기 상태)
+            } else {
+                console.log('[RankingView] ⏳ UDS 초기화 대기 중...');
+                this._checkDataAndLoadTestData();
+            }
         } else {
-            // 🆕 v1.3.1: 데이터 확인 및 Dev Mode 처리
+            // UDS 미사용 모드
             this._checkDataAndLoadTestData();
         }
         
