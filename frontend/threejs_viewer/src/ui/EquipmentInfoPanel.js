@@ -300,7 +300,10 @@ export class EquipmentInfoPanel {
             return;
         }
         
-        // 🆕 v6.1.0: 선택된 설비 ID 목록 저장 (SubscriptionLevelManager 연동용)
+        // 🆕 v6.1.1: 이전 선택 ID 보존 (변경 감지용)
+        const previousSelectedIds = [...this._selectedFrontendIds];
+
+        // 선택된 설비 ID 목록 저장 (SubscriptionLevelManager 연동용)
         this._selectedFrontendIds = dataArray.map(item => 
             item.frontendId || item.id || item.equipmentId
         ).filter(Boolean);
@@ -319,10 +322,47 @@ export class EquipmentInfoPanel {
         }
         
         // 패널 표시
-        this.animator?.show();
+        const animStarted = this.animator?.show();
+        
+        // 🆕 v6.1.1 Fix: Panel이 이미 열려있는 상태에서 선택 설비가 변경된 경우
+        // DrawerAnimationManager.show()가 isVisible=true일 때 onShowComplete를 호출하지 않으므로
+        // 여기서 직접 equipment:selection-changed 이벤트를 발행하여
+        // SubscriptionLevelManager에 구독 레벨 변경을 알림
+        if (!animStarted && this.animator?.isVisible()) {
+            const selectionChanged = !this._arraysEqual(previousSelectedIds, this._selectedFrontendIds);
+            
+            if (selectionChanged) {
+                eventBus.emit(PANEL_EVENTS.SELECTION_CHANGED, {
+                    selectedIds: this._selectedFrontendIds,
+                    previousSelectedIds: previousSelectedIds,
+                    panelType: PANEL_TYPE.EQUIPMENT_INFO,
+                    timestamp: Date.now()
+                });
+                
+                console.log(
+                    `📊 [EquipmentInfoPanel] equipment:selection-changed 발행 → ` +
+                    `[${previousSelectedIds.join(', ')}] → [${this._selectedFrontendIds.join(', ')}]`
+                );
+            }
+        }
         
         debugLog(`📊 [EquipmentInfoPanel] shown (${this._selectedFrontendIds.length} 설비 선택)`);
     }
+    
+    /**
+     * 🆕 v6.1.1: 배열 동일성 비교 (순서 무관)
+     * @private
+     * @param {string[]} arr1
+     * @param {string[]} arr2
+     * @returns {boolean}
+     */
+    _arraysEqual(arr1, arr2) {
+        if (arr1.length !== arr2.length) return false;
+        const sorted1 = [...arr1].sort();
+        const sorted2 = [...arr2].sort();
+        return sorted1.every((val, idx) => val === sorted2[idx]);
+    }
+
     
     /**
      * 패널 숨기기

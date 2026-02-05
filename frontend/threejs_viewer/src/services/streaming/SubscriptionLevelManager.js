@@ -627,7 +627,9 @@ export class SubscriptionLevelManager {
      * @private
      */
     _setupEventListeners() {
+        // =====================================================
         // Panel 이벤트 구독 (PanelManager와 연동)
+        // =====================================================
         const unsubPanelOpen = eventBus.on('panel:opened', (data) => {
             const { selectedIds } = data || {};
             if (selectedIds && selectedIds.length > 0) {
@@ -641,27 +643,60 @@ export class SubscriptionLevelManager {
         });
         this._unsubscribers.push(unsubPanelClose);
         
+        // =====================================================
         // Selection 이벤트 구독
+        // Panel이 이미 열려있는 상태에서 다른 설비 클릭 시 발행됨
+        // (EquipmentInfoPanel v6.1.1에서 emit)
+        // =====================================================
         const unsubSelectionChange = eventBus.on('equipment:selection-changed', (data) => {
             const { selectedIds } = data || {};
             this.onSelectionChange(selectedIds || []);
         });
         this._unsubscribers.push(unsubSelectionChange);
         
-        // Mode 전환 이벤트 구독 (NavigationController 등에서 발행)
-        const unsubModeChange = eventBus.on('app:mode-changed', (data) => {
-            const { mode } = data || {};
-            if (mode) {
-                this.switchMode(mode);
+        // =====================================================
+        // 🔧 Fix: Mode 전환 이벤트 - 이벤트 이름 수정
+        // AppModeManager는 EVENT_NAME.MODE_CHANGE = 'mode:change' 를 emit
+        // (기존: 'app:mode-changed' → 수정: 'mode:change')
+        //
+        // AppModeManager.switchMode() emit 데이터 형식:
+        //   { from: 'main_viewer', to: 'monitoring', options: {} }
+        // =====================================================
+        const unsubModeChange = eventBus.on('mode:change', (data) => {
+            const { to } = data || {};
+            if (to) {
+                // AppModeManager의 APP_MODE 값을 SubscriptionLevelManager의 Mode로 변환
+                const appModeToSubscriptionMode = {
+                    'monitoring': 'MONITORING',
+                    'main_viewer': 'MONITORING',    // 기본 뷰어도 Monitoring 구독
+                    'ranking_view': 'RANKING',
+                    'analytics': 'ANALYSIS',
+                    'playback': 'ANALYSIS',          // Playback도 Analysis와 동일 처리
+                    'layout_edit_2d': 'ANALYSIS',    // 편집 모드에서는 WebSocket 불필요
+                    'layout_edit_3d': 'ANALYSIS',
+                    'equipment_edit': 'ANALYSIS',
+                    'settings': 'ANALYSIS'
+                };
+                
+                const subscriptionMode = appModeToSubscriptionMode[to];
+                if (subscriptionMode) {
+                    this.switchMode(subscriptionMode);
+                    console.log(
+                        `📊 [SubscriptionLevelManager] AppMode → SubscriptionMode: ` +
+                        `${to} → ${subscriptionMode}`
+                    );
+                }
             }
         });
         this._unsubscribers.push(unsubModeChange);
         
+        // =====================================================
         // WebSocket Mode 변경 이벤트 구독 (WebSocketPoolManager와 연동)
+        // WebSocketPoolManager의 AppMode가 직접 변경될 때 동기화
+        // =====================================================
         const unsubWsMode = eventBus.on('websocket:mode-changed', (data) => {
             const { currentMode } = data || {};
             if (currentMode && currentMode !== this._currentMode) {
-                // WebSocketPoolManager의 AppMode와 동기화
                 const modeMap = {
                     'DASHBOARD': 'DASHBOARD',
                     'MONITORING': 'MONITORING',
@@ -676,7 +711,7 @@ export class SubscriptionLevelManager {
         this._unsubscribers.push(unsubWsMode);
         
         this._initialized = true;
-        console.log('🔗 [SubscriptionLevelManager] EventBus 리스너 설정 완료');
+        console.log('🔗 [SubscriptionLevelManager] EventBus 리스너 설정 완료 (v1.0.1 - mode:change 수정)');
     }
     
     // ============================================
