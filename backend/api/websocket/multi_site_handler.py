@@ -29,6 +29,11 @@ from enum import Enum
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+from ..services.uds.subscription_field_filter import (
+    get_client_subscription_manager,
+    ClientSubscriptionManager
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -130,18 +135,19 @@ class MultiSiteWebSocketHandler:
     """
     
     def __init__(self):
-        # Site별 Room
         self._rooms: Dict[str, SiteRoom] = {}
-        
-        # 모든 클라이언트
         self._clients: Dict[str, WebSocketClient] = {}
-        
-        # 브로드캐스트 작업
         self._broadcast_tasks: Dict[str, asyncio.Task] = {}
-        
-        # Lock
         self._lock = asyncio.Lock()
-        
+
+        # 🆕 구독 관리자 연결
+        self._subscription_manager: Optional[ClientSubscriptionManager] = None
+        try:
+            self._subscription_manager = get_client_subscription_manager()
+            logger.info("📊 ClientSubscriptionManager 연결됨")
+        except Exception as e:
+            logger.warning(f"⚠️ ClientSubscriptionManager 연결 실패 (단독 실행 가능): {e}")
+
         logger.info("🔌 MultiSiteWebSocketHandler 초기화됨")
     
     # ============================================
@@ -212,6 +218,14 @@ class MultiSiteWebSocketHandler:
             
             logger.info(f"🔗 클라이언트 연결: {client.client_id} ({site_id}, {subscription_type.value})")
             
+            # 🆕 ClientSubscriptionManager에 클라이언트 등록
+            if self._subscription_manager:
+                try:
+                    self._subscription_manager.register(client.client_id)
+                    logger.info(f"📊 구독 관리자에 클라이언트 등록: {client.client_id}")
+                except Exception as e:
+                    logger.warning(f"⚠️ 구독 관리자 등록 실패: {e}")
+
             return client
     
     async def disconnect(self, client: WebSocketClient):
@@ -235,7 +249,15 @@ class MultiSiteWebSocketHandler:
             
             # 전역 클라이언트 목록에서 제거
             self._clients.pop(client.client_id, None)
-            
+
+            # 🆕 ClientSubscriptionManager에서 클라이언트 해제
+            if self._subscription_manager:
+                try:
+                    self._subscription_manager.unregister(client.client_id)
+                    logger.info(f"📊 구독 관리자에서 클라이언트 해제: {client.client_id}")
+                except Exception as e:
+                    logger.warning(f"⚠️ 구독 관리자 해제 실패: {e}")
+
             logger.info(f"🔌 클라이언트 연결 해제: {client.client_id}")
     
     # ============================================
@@ -350,7 +372,7 @@ class MultiSiteWebSocketHandler:
         try:
             data = json.loads(message)
             msg_type = data.get("type", "unknown")
-            
+
             if msg_type == "ping":
                 await self._handle_ping(client, data)
             elif msg_type == "pause":
@@ -359,9 +381,15 @@ class MultiSiteWebSocketHandler:
                 await self._handle_resume(client, data)
             elif msg_type == "change_interval":
                 await self._handle_change_interval(client, data)
+            # =============================================
+            # 🆕 subscription_change 핸들러 추가
+            # Frontend SubscriptionLevelManager가 보내는 구독 레벨 변경 요청
+            # =============================================
+            elif msg_type == "subscription_change":
+                await self._handle_subscription_change(client, data)
             else:
                 logger.warning(f"⚠️ 알 수 없는 메시지 타입: {msg_type}")
-                
+
         except json.JSONDecodeError:
             logger.error(f"❌ JSON 파싱 실패: {message[:100]}")
         except Exception as e:
@@ -404,6 +432,82 @@ class MultiSiteWebSocketHandler:
                 "timestamp": datetime.now(timezone.utc).isoformat()
             })
     
+    async def _handle_subscription_change(self, client: WebSocketClient, data: Dict):
+        """
+        🆕 구독 레벨 변경 처리
+
+        Frontend SubscriptionLevelManager가 UI Context 변경 시 전송하는 메시지.
+        ClientSubscriptionManager를 통해 해당 클라이언트의 구독 레벨을 업데이트하고,
+        이후 Delta 전송 시 필터링에 반영됨.
+
+        수신 메시지 형식:
+        {
+            "type": "subscription_change",
+            "payload": {
+                "context": "MONITORING_3D_VIEW_WITH_PANEL",
+                "previous_context": "MONITORING_3D_VIEW",
+                "all_level": "MINIMAL",
+                "selected_ids": ["EQ-17-03"],
+                "selected_level": "DETAILED",
+                "websocket_state": "ACTIVE"
+            }
+        }
+
+        Args:
+            client: WebSocket 클라이언트 정보
+            data: 수신 메시지 (type + payload)
+        """
+        payload = data.get("payload", {})
+        context = payload.get("context", "UNKNOWN")
+        all_level = payload.get("all_level")
+        selected_level = payload.get("selected_level")
+        selected_ids = payload.get("selected_ids", [])
+        websocket_state = payload.get("websocket_state", "ACTIVE")
+
+        logger.info(
+            f"📊 구독 변경 요청: {client.client_id} | "
+            f"context={context}, all={all_level}, "
+            f"selected={selected_level} ({len(selected_ids)}개), "
+            f"ws_state={websocket_state}"
+        )
+
+        # ClientSubscriptionManager로 구독 변경 위임
+        if self._subscription_manager:
+            try:
+                success = self._subscription_manager.handle_subscription_change(
+                    client_id=client.client_id,
+                    message={
+                        "context": context,
+                        "all_level": all_level,
+                        "selected_ids": selected_ids,
+                        "selected_level": selected_level
+                    }
+                )
+
+                if success:
+                    logger.info(f"✅ 구독 변경 적용됨: {client.client_id} → {context}")
+                else:
+                    logger.warning(f"⚠️ 구독 변경 실패: {client.client_id}")
+
+            except Exception as e:
+                logger.error(f"❌ 구독 변경 처리 오류: {e}")
+        else:
+            logger.debug(
+                f"📊 구독 변경 수신 (SubscriptionManager 미연결): "
+                f"{client.client_id} → {context}"
+            )
+
+        # ACK 응답 전송
+        await self.send_to_client(client, {
+            "type": "subscription_change_ack",
+            "context": context,
+            "all_level": all_level,
+            "selected_level": selected_level,
+            "selected_count": len(selected_ids),
+            "websocket_state": websocket_state,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+
     # ============================================
     # 상태 조회
     # ============================================
