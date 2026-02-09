@@ -67,6 +67,7 @@ import { LaneSorter } from '../utils/LaneSorter.js';
 import { DurationCalculator } from '../utils/DurationCalculator.js';
 // 🆕 v2.0.0: UDS 연동
 import { unifiedDataStore, UnifiedDataStore } from '../../../services/uds/UnifiedDataStore.js';
+import { buildApiUrl } from '../../../config/environment.js';  // ✅ 추가
 
 /**
  * Ranking View 데이터 매니저 클래스
@@ -2227,7 +2228,7 @@ export class RankingDataManager {
         console.log('[RankingDataManager] 📡 Loading Remote Alarm Codes from Backend...');
         
         try {
-            const response = await fetch('/api/uds/remote-alarm-codes');
+            const response = await fetch(buildApiUrl('uds/remote-alarm-codes'));
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);

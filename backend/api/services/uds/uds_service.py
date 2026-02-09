@@ -1383,6 +1383,8 @@ class UDSService:
         """
         ref.RemoteAlarmList 테이블에서 Remote Alarm Code 목록 로드
         
+        🔧 v2.5.1: _get_session() 사용으로 수정 (기존 _get_connection() 제거)
+        
         Returns:
             set: Remote Alarm Code Set (예: {61, 62, 86, 10047, ...})
         """
@@ -1392,24 +1394,19 @@ class UDSService:
         logger.info("📡 Loading Remote Alarm Codes from DB...")
         
         try:
-            from .uds_queries import REMOTE_ALARM_CODES_QUERY
-            
-            conn = self._get_connection()
-            if not conn:
-                logger.error("❌ No database connection")
-                return set()
-            
-            cursor = conn.cursor()
-            cursor.execute(REMOTE_ALARM_CODES_QUERY)
-            rows = cursor.fetchall()
-            
-            self._remote_alarm_codes = {row[0] for row in rows}
-            self._remote_alarm_codes_loaded = True
-            
-            logger.info(f"✅ Loaded {len(self._remote_alarm_codes)} Remote Alarm Codes: {self._remote_alarm_codes}")
-            
-            return self._remote_alarm_codes
-            
+            with self._get_session() as session:
+                result = session.execute(text(
+                    "SELECT AlarmCode FROM ref.RemoteAlarmList WITH (NOLOCK)"
+                ))
+                rows = result.fetchall()
+                
+                self._remote_alarm_codes = {row[0] for row in rows}
+                self._remote_alarm_codes_loaded = True
+                
+                logger.info(f"✅ Loaded {len(self._remote_alarm_codes)} Remote Alarm Codes: {self._remote_alarm_codes}")
+                
+                return self._remote_alarm_codes
+                
         except Exception as e:
             logger.error(f"❌ Failed to load Remote Alarm Codes: {e}")
             # Fallback: 기본값 반환
