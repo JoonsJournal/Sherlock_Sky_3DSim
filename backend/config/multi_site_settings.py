@@ -147,7 +147,7 @@ class MultiSiteSettings(BaseSettings):
     DB_POOL_SIZE: int = Field(default=5)
     DB_MAX_OVERFLOW: int = Field(default=10)
     DB_POOL_TIMEOUT: int = Field(default=30)
-    DB_POOL_RECYCLE: int = Field(default=3600)
+    DB_POOL_RECYCLE: int = Field(default=1800)
     DB_ECHO: bool = Field(default=False)
     
     # 보안 설정
