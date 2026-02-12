@@ -162,8 +162,8 @@ async def get_equipment_names():
         
         # SQL 쿼리 실행
         query = """
-            SELECT EquipmentID, EquipmentName, EquipmentCode, LineName
-            FROM core.equipment
+            SELECT EquipmentID, EquipmentName, NULL AS EquipmentCode, LineName
+            FROM core.equipment WITH (NOLOCK)
             ORDER BY EquipmentName
         """
         

@@ -664,7 +664,7 @@ async def get_db_equipments(site_id: str, db_name: str):
                     e.EquipmentId,
                     e.EquipmentName,
                     e.LineName,
-                    e.EquipmentCode
+                    NULL AS EquipmentCode
                 FROM core.Equipment e WITH (NOLOCK)
                 ORDER BY e.EquipmentId
             """
